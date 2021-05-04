@@ -42,8 +42,12 @@ The python modules needed are listed in requirements.txt and can be installed wi
 ### Discord Token
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers.
 Create a "New Application", add a Bot, select Bot from the left menu, give it a nice name and icon, press "Copy" below "Click to Reveal Token".
-Now your Token is in your clipboard. Paste it in DCSServerBot.ini in your DCSServerBots ini-directory.
-Enable "Developer Mode" in "Advanced Settings" in Discord.
+Now your Token is in your clipboard. Paste it in dcsserverbot.ini in your config-directory.
+Both "Priviledged Gateway Intents" have to be enabled on that page.
+To add the bot to your Discord guild, go to OAuth2, select "bot" in the OAuth2 URL Generator, select the following permissions:
+_Send Messages, Manage Messages, Embed Links, Attach Files, Read Message History, Add Reactions_
+Press "Copy" on the generated URL, paste it into the browser of your choice, select the guild the bot has to be added to - and you're done!
+For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
 
 ### Bot Configuration
 The bot configuration is held in config/dcsserverbot.ini. The following parameters can be used to configure the bot:
