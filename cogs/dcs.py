@@ -291,24 +291,32 @@ class DCS(commands.Cog):
                 await asyncio.sleep(5)
                 await msg.delete()
 
-    @commands.command(description='Restarts the current active mission', usage='[message]')
+    @commands.command(description='Restarts the current active mission', usage='[delay] [message]')
     @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def restart(self, ctx, *args):
         server = await self.get_server(ctx)
+        delay = 120
         msg = None
         if (self.getCurrentMissionID(server['server_name']) != -1):
+            i = 0
             if (len(args)):
-                message = ' '.join(args)
-            else:
-                message = '!!! Server is going DOWN for REBOOT in 2 mins !!!'
+                # check for delay parameter
+                if (args[0].isnumeric()):
+                    delay = int(args[0])
+                    i += 1
+            message = '!!! Server is RESTARTING in {} seconds.'.format(delay)
+            # have we got a message to present to the users?
+            if (len(args) > i):
+                message += ' Reason: {}'.format(' '.join(args[i:]))
+
             if ((int(server['status_channel']) == ctx.channel.id)):
                 await ctx.message.delete()
-            msg = await ctx.send('Restarting mission in 2 mins (warning users before)...')
+            msg = await ctx.send('Restarting mission in {} seconds (warning users before)...'.format(delay))
             self.sendtoDCS('{"command":"sendChatMessage", "channel":"' + str(ctx.channel.id) +
                            '", "message":"' + message + '", "from": "' +
                            ctx.message.author.display_name + '"}', server['host'], server['port'])
-            await asyncio.sleep(120)
+            await asyncio.sleep(delay)
             await msg.delete()
             self.sendtoDCS('{"command":"restartMission", "channel":"' +
                            str(ctx.channel.id) + '"}', server['host'], server['port'])
@@ -353,7 +361,7 @@ class DCS(commands.Cog):
                        str(ctx.channel.id) + '"}', server['host'], server['port'])
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
-    @commands.has_role('DCS Admin')
+    @commands.has_any_role(['Admin', 'Moderator'])
     @commands.guild_only()
     async def ban(self, ctx, user):
         server = await self.get_server(ctx)
@@ -380,7 +388,7 @@ class DCS(commands.Cog):
             self.bot.log.exception(error)
 
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
-    @commands.has_role('DCS Admin')
+    @commands.has_any_role(['Admin', 'Moderator'])
     @commands.guild_only()
     async def unban(self, ctx, user):
         server = await self.get_server(ctx)
@@ -407,7 +415,7 @@ class DCS(commands.Cog):
             self.bot.log.exception(error)
 
     @commands.command(description='Shows active bans')
-    @commands.has_role('DCS Admin')
+    @commands.has_any_role(['Admin', 'Moderator'])
     @commands.guild_only()
     async def bans(self, ctx):
         try:

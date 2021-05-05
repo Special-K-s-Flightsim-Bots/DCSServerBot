@@ -13,7 +13,7 @@ Command|Parameter|Description
 .briefing/.brief||Shows the description / briefing of the running mission.
 .players||Lists the players currently active on the server.
 .list||Lists all missions with IDs available on this server (same as WebGUI).
-.add|miz-file|Adds a specific mission to the list of missions. Has to be in Saved Games/DCS/Missions
+.add|miz-file|Adds a specific mission to the list of missions. Has to be in DCS_HOME/Missions
 .delete|ID|Deletes the mission with this ID from the list of missions.
 .load|ID|Load a specific mission by ID.
 .restart||Restarts the current mission.
@@ -53,7 +53,7 @@ For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings"
 The bot configuration is held in config/dcsserverbot.ini. The following parameters can be used to configure the bot:
 Parameter|Description
 -----------|--------------
-OWNER|The Discord ID of the Bot's owner (that's you!). If you don't know your Discord ID, goto "My Account" in Discord, press the ... right of your profile picture and "Copy ID"
+OWNER|The Discord ID of the Bot's owner (that's you!). If you don't know your ID, go to your Discord profile, make sure "Developer Mode" is enabled under "Advanced", go to "My Account", press the "..." besides your profile picture and select "Copy ID"
 TOKEN|The token to be used to run the bot. Can be obtained at http://discord.com/developers.
 COMMAND_PREFIX|The prefix to be used. Default is '.'
 HOST|IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.
