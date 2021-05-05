@@ -3,3 +3,5 @@ __pycache__/
 *.db
 *.log*
 *.png
+*.ini
+Scripts/net/DCSServerBot/DCSServerBotConfig.lua
