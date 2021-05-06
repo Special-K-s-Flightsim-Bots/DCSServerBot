@@ -31,7 +31,7 @@ def get_prefix(client, message):
 # Create the Bot
 bot = commands.Bot(command_prefix=get_prefix,
                    description='Interact with DCS World servers',
-                   owner_id=config['BOT']['OWNER'],
+                   owner_id=int(config['BOT']['OWNER']),
                    case_insensitive=True,
                    intents=discord.Intents.all())
 

@@ -113,7 +113,7 @@ class Statistics(commands.Cog):
             'players p WHERE s.player_ucid = p.ucid AND p.discord_id = ?'
         with closing(self.bot.conn.cursor()) as cursor:
             result = cursor.execute(SQL_STATISTICS, (member.id, )).fetchone()
-            retval = False
+            retval = []
             if (result[0] is not None):
                 def func(pct, allvals):
                     absolute = int(round(pct/100.*np.sum(allvals)))
@@ -126,55 +126,104 @@ class Statistics(commands.Cog):
                     if(item[1] is not None and item[1] > 0):
                         labels.append(string.capwords(item[0]))
                         values.append(item[1])
-                        if (item[0] == 'kills'):
-                            retval = True
+                        if (item[0] in ['deaths', 'kills']):
+                            retval.append(item[0])
                             explode.append(0.1)
                         else:
                             explode.append(0.0)
-                angle = -180 * result[0]/np.sum(values)
+                angle1 = -180 * result[0]/np.sum(values)
+                angle2 = 180 - 180*result[1]/np.sum(values)
+                if (angle1 == 0):
+                    angle = angle2
+                elif (angle2 == 180):
+                    angle = angle1
+                else:
+                    angle = angle1 + (angle2 + angle1) / 2
+
                 patches, texts, pcts = axis.pie(values, labels=labels, startangle=angle, explode=explode,
                                                 autopct=lambda pct: func(pct, values),
                                                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
                 plt.setp(pcts, color='black', fontweight='bold')
-                axis.set_title('Killing', color='white', fontsize=25)
+                axis.set_title('Kill/Death-Ratio', color='white', fontsize=25)
                 axis.axis('equal')
             else:
                 axis.set_visible(False)
             return retval
 
     def draw_kill_types(self, member, axis):
-        SQL_STATISTICS = 'SELECT SUM(kills_planes) as kills_planes, SUM(kills_helicopters) kills_helicopters, SUM(kills_ships) as kills_ships, ' \
-            'SUM(kills_sams) as kills_air_defence, SUM(kills_ground) as kills_ground FROM statistics s, ' \
+        SQL_STATISTICS = 'SELECT SUM(kills_planes) as planes, SUM(kills_helicopters) helicopters, SUM(kills_ships) as ships, ' \
+            'SUM(kills_sams) as air_defence, SUM(kills_ground) as ground FROM statistics s, ' \
             'players p WHERE s.player_ucid = p.ucid AND p.discord_id = ?'
         with closing(self.bot.conn.cursor()) as cursor:
             result = cursor.execute(SQL_STATISTICS, (member.id, )).fetchone()
-            if (result[0] is not None):
-                def func(pct, allvals):
-                    absolute = int(round(pct/100.*np.sum(allvals)))
-                    return '{:.1f}%\n({:d})'.format(pct, absolute)
+            # if no data was found, return False as no chart was drawn
+            if (result[0] is None):
+                return False
 
-                labels = []
-                values = []
-                for item in dict(result).items():
-                    if(item[1] is not None and item[1] > 0):
-                        labels.append(string.capwords(item[0][6:], sep='_').replace('_', ' '))
-                        values.append(item[1])
-                xpos = 0
-                bottom = 0
-                width = .2
-                for i in range(len(values)):
-                    height = values[i]/np.sum(values)
-                    axis.bar(xpos, height, width, bottom=bottom)
-                    ypos = bottom + axis.patches[i].get_height() / 2
-                    bottom += height
+            labels = []
+            values = []
+            for item in dict(result).items():
+                labels.append(string.capwords(item[0], sep='_').replace('_', ' '))
+                values.append(item[1])
+            xpos = 0
+            bottom = 0
+            width = 0.2
+            # there is nothing to be drawn
+            if (np.sum(values) == 0):
+                return False
+            for i in range(len(values)):
+                height = values[i]/np.sum(values)
+                axis.bar(xpos, height, width, bottom=bottom)
+                ypos = bottom + axis.patches[i].get_height() / 2
+                bottom += height
+                if (int(values[i]) > 0):
                     axis.text(xpos, ypos, "%d%%" % (axis.patches[i].get_height() * 100), ha='center', color='black')
 
-                axis.set_title('Type of Kills', color='white', fontsize=25)
-                axis.legend(labels)
-                axis.axis('off')
-                axis.set_xlim(- 2.5 * width, 2.5 * width)
-            else:
-                axis.set_visible(False)
+            axis.set_title('Killed by\nPlayer', color='white', fontsize=15)
+            axis.axis('off')
+            axis.set_xlim(- 2.5 * width, 2.5 * width)
+            axis.legend(labels, fontsize=15, loc=3, ncol=5, mode='expand',
+                        bbox_to_anchor=(-1.8, -0.2, 2.2, 0.4), columnspacing=1, frameon=False)
+            # Chart was drawn, return True
+            return True
+
+    def draw_death_types(self, member, axis, legend):
+        SQL_STATISTICS = 'SELECT SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, SUM(deaths_ships) as ships, ' \
+            'SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground FROM statistics s, ' \
+            'players p WHERE s.player_ucid = p.ucid AND p.discord_id = ?'
+        with closing(self.bot.conn.cursor()) as cursor:
+            result = cursor.execute(SQL_STATISTICS, (member.id, )).fetchone()
+            # if no data was found, return False as no chart was drawn
+            if (result[0] is None):
+                return False
+
+            labels = []
+            values = []
+            for item in dict(result).items():
+                labels.append(string.capwords(item[0], sep='_').replace('_', ' '))
+                values.append(item[1])
+            xpos = 0
+            bottom = 0
+            width = 0.2
+            # there is nothing to be drawn
+            if (np.sum(values) == 0):
+                return False
+            for i in range(len(values)):
+                height = values[i]/np.sum(values)
+                axis.bar(xpos, height, width, bottom=bottom)
+                ypos = bottom + axis.patches[i].get_height() / 2
+                bottom += height
+                if (int(values[i]) > 0):
+                    axis.text(xpos, ypos, "%d%%" % (axis.patches[i].get_height() * 100), ha='center', color='black')
+
+            axis.set_title('Player\nkilled by', color='white', fontsize=15)
+            axis.axis('off')
+            axis.set_xlim(- 2.5 * width, 2.5 * width)
+            if (legend is True):
+                axis.legend(labels, fontsize=15, loc=3, ncol=5, mode='expand',
+                            bbox_to_anchor=(0.6, -0.2, 2.2, 0.4), columnspacing=1, frameon=False)
+            # Chart was drawn, return True
+            return True
 
     @commands.command(description='Shows player statistics', usage='[member]', aliases=['stats'])
     @commands.has_role('DCS')
@@ -184,40 +233,73 @@ class Statistics(commands.Cog):
             if (member is None):
                 member = ctx.message.author
             plt.style.use('dark_background')
-            figure = plt.figure(figsize=(15, 20))
-            self.draw_playtime_planes(member, plt.subplot2grid((3, 2), (0, 0), colspan=2, fig=figure))
-            self.draw_server_time(member, plt.subplot2grid((3, 2), (1, 0), colspan=1, fig=figure))
-            self.draw_flight_performance(member, plt.subplot2grid((3, 2), (1, 1), colspan=1, fig=figure))
-            ax1 = plt.subplot2grid((3, 2), (2, 0), colspan=1, fig=figure)
-            if (self.draw_kill_performance(member, ax1) is True):
-                ax2 = plt.subplot2grid((3, 2), (2, 1), colspan=1, fig=figure)
-                self.draw_kill_types(member, ax2)
-
+            figure = plt.figure(figsize=(20, 20))
+            self.draw_playtime_planes(member, plt.subplot2grid((3, 3), (0, 0), colspan=3, fig=figure))
+            self.draw_server_time(member, plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
+            self.draw_flight_performance(member, plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure))
+            ax1 = plt.subplot2grid((3, 3), (2, 0), colspan=1, fig=figure)
+            ax2 = plt.subplot2grid((3, 3), (2, 1), colspan=1, fig=figure)
+            ax3 = plt.subplot2grid((3, 3), (2, 2), colspan=1, fig=figure)
+            retval = self.draw_kill_performance(member, ax2)
+            i = 0
+            if (('kills' in retval) and (self.draw_kill_types(member, ax3) is True)):
                 # use ConnectionPatch to draw lines between the two plots
                 # get the wedge data
-                theta1, theta2 = ax1.patches[0].theta1, ax1.patches[0].theta2
-                center, r = ax1.patches[0].center, ax1.patches[0].r
-                bar_height = sum([item.get_height() for item in ax2.patches])
+                theta1, theta2 = ax2.patches[i].theta1, ax2.patches[i].theta2
+                center, r = ax2.patches[i].center, ax2.patches[i].r
+                bar_height = sum([item.get_height() for item in ax3.patches])
 
                 # draw top connecting line
                 x = r * np.cos(np.pi / 180 * theta2) + center[0]
                 y = r * np.sin(np.pi / 180 * theta2) + center[1]
-                con = ConnectionPatch(xyA=(-0.2 / 2, bar_height), coordsA=ax2.transData,
-                                      xyB=(x, y), coordsB=ax1.transData)
+                con = ConnectionPatch(xyA=(-0.2 / 2, bar_height), coordsA=ax3.transData,
+                                      xyB=(x, y), coordsB=ax2.transData)
                 con.set_color('lightgray')
                 con.set_linewidth(2)
                 con.set_linestyle('dashed')
-                ax2.add_artist(con)
+                ax3.add_artist(con)
 
                 # draw bottom connecting line
                 x = r * np.cos(np.pi / 180 * theta1) + center[0]
                 y = r * np.sin(np.pi / 180 * theta1) + center[1]
-                con = ConnectionPatch(xyA=(-0.2 / 2, 0), coordsA=ax2.transData,
-                                      xyB=(x, y), coordsB=ax1.transData)
+                con = ConnectionPatch(xyA=(-0.2 / 2, 0), coordsA=ax3.transData,
+                                      xyB=(x, y), coordsB=ax2.transData)
                 con.set_color('lightgray')
                 con.set_linewidth(2)
                 con.set_linestyle('dashed')
-                ax2.add_artist(con)
+                ax3.add_artist(con)
+                i += 1
+            else:
+                ax3.set_visible(False)
+            if (('deaths' in retval) and (self.draw_death_types(member, ax1, (i == 0)) is True)):
+
+                # use ConnectionPatch to draw lines between the two plots
+                # get the wedge data
+                theta1, theta2 = ax2.patches[i].theta1, ax2.patches[i].theta2
+                center, r = ax2.patches[i].center, ax2.patches[i].r
+                bar_height = sum([item.get_height() for item in ax1.patches])
+
+                # draw top connecting line
+                x = r * np.cos(np.pi / 180 * theta2) + center[0]
+                y = r * np.sin(np.pi / 180 * theta2) + center[1]
+                con = ConnectionPatch(xyA=(0.2 / 2, 0), coordsA=ax1.transData,
+                                      xyB=(x, y), coordsB=ax2.transData)
+                con.set_color('lightgray')
+                con.set_linewidth(2)
+                con.set_linestyle('dashed')
+                ax1.add_artist(con)
+
+                # draw bottom connecting line
+                x = r * np.cos(np.pi / 180 * theta1) + center[0]
+                y = r * np.sin(np.pi / 180 * theta1) + center[1]
+                con = ConnectionPatch(xyA=(0.2 / 2, bar_height), coordsA=ax1.transData,
+                                      xyB=(x, y), coordsB=ax2.transData)
+                con.set_color('lightgray')
+                con.set_linewidth(2)
+                con.set_linestyle('dashed')
+                ax1.add_artist(con)
+            else:
+                ax1.set_visible(False)
 
             embed = discord.Embed(title='Statistics for {}'.format(member.display_name), color=discord.Color.blue())
             filename = '{}.png'.format(member.id)
