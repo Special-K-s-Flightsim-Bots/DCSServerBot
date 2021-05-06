@@ -28,7 +28,7 @@ class Statistics(commands.Cog):
         self.bot = bot
 
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
-    @commands.has_any_role(['Admin', 'Moderator'])
+    @commands.has_any_role('Admin', 'Moderator')
     @commands.guild_only()
     async def link(self, ctx, member: discord.Member, ucid):
         try:

@@ -361,7 +361,7 @@ class DCS(commands.Cog):
                        str(ctx.channel.id) + '"}', server['host'], server['port'])
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
-    @commands.has_any_role(['Admin', 'Moderator'])
+    @commands.has_any_role('Admin', 'Moderator')
     @commands.guild_only()
     async def ban(self, ctx, user):
         server = await self.get_server(ctx)
@@ -388,7 +388,7 @@ class DCS(commands.Cog):
             self.bot.log.exception(error)
 
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
-    @commands.has_any_role(['Admin', 'Moderator'])
+    @commands.has_any_role('Admin', 'Moderator')
     @commands.guild_only()
     async def unban(self, ctx, user):
         server = await self.get_server(ctx)
@@ -415,7 +415,7 @@ class DCS(commands.Cog):
             self.bot.log.exception(error)
 
     @commands.command(description='Shows active bans')
-    @commands.has_any_role(['Admin', 'Moderator'])
+    @commands.has_any_role('Admin', 'Moderator')
     @commands.guild_only()
     async def bans(self, ctx):
         try:
