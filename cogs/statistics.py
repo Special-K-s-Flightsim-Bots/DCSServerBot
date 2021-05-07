@@ -8,20 +8,19 @@ from contextlib import closing, suppress
 from datetime import timedelta
 from discord.ext import commands
 from matplotlib.patches import ConnectionPatch
-from matplotlib.ticker import FuncFormatter
 from sqlite3 import Error
 
 
 class Statistics(commands.Cog):
 
-    SIDE_SPECTATOR = 0
-    SIDE_RED = 1
-    SIDE_BLUE = 2
-
-    PLAYER_SIDES = {
-        SIDE_SPECTATOR: 'Spectator',
-        SIDE_RED: 'RED',
-        SIDE_BLUE: 'BLUE'
+    WEEKDAYS = {
+        0: 'Sun',
+        1: 'Mon',
+        2: 'Tue',
+        3: 'Wed',
+        4: 'Thu',
+        5: 'Fri',
+        6: 'Sat'
     }
 
     def __init__(self, bot):
@@ -50,9 +49,12 @@ class Statistics(commands.Cog):
                 for row in result:
                     labels.insert(0, row['slot'])
                     values.insert(0, row['playtime'] / 3600.0)
-                axis.bar(labels, values, width=0.5, color='lightskyblue')
-                axis.set_title('Flighttime', color='white', fontsize=25)
-                axis.set_ylabel('hours')
+                axis.bar(labels, values, width=0.5, color='mediumaquamarine')
+                # axis.set_xticklabels(axis.get_xticklabels(), rotation=45, ha='right')
+                for label in axis.get_xticklabels():
+                    label.set_rotation(30)
+                    label.set_ha('right')
+                axis.set_title('Overall Flighttimes per Plane', color='white', fontsize=25)
                 # axis.set_yscale('log')
                 axis.set_yticks([])
                 for i in range(0, len(values)):
@@ -62,7 +64,7 @@ class Statistics(commands.Cog):
                 axis.axis('off')
 
     def draw_server_time(self, member, axis):
-        SQL_STATISTICS = 'SELECT m.server_name, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*86400) AS playtime FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = ? AND m.id = s.mission_id AND s.hop_off IS NOT NULL GROUP BY m.server_name'
+        SQL_STATISTICS = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*86400) AS playtime FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = ? AND m.id = s.mission_id AND s.hop_off IS NOT NULL GROUP BY trim(m.server_name)'
         with closing(self.bot.conn.cursor()) as cursor:
             result = cursor.execute(SQL_STATISTICS, (member.id, )).fetchall()
             if (result is not None):
@@ -82,6 +84,27 @@ class Statistics(commands.Cog):
                 axis.axis('equal')
             else:
                 axis.set_visible(False)
+
+    def draw_recent(self, member, axis):
+        SQL_STATISTICS = 'SELECT strftime(\'%m/%d\', s.hop_on) as day, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*86400) AS playtime ' \
+            'FROM statistics s, players p WHERE s.player_ucid = p.ucid AND p.discord_id = ? AND date(s.hop_on) > date(\'now\', \'-7 days\') GROUP BY day'
+        with closing(self.bot.conn.cursor()) as cursor:
+            result = cursor.execute(SQL_STATISTICS, (member.id, )).fetchall()
+            labels = []
+            values = []
+            for row in result:
+                labels.append(row['day'])
+                values.append(row['playtime'] / 3600.0)
+            axis.bar(labels, values, width=0.5, color='mediumaquamarine')
+            axis.set_title('Recent Activities', color='white', fontsize=25)
+            # axis.set_yscale('log')
+            axis.set_yticks([])
+            for i in range(0, len(values)):
+                axis.annotate('{:.1f} h'.format(values[i]), xy=(
+                    labels[i], values[i]), ha='center', va='bottom', weight='bold')
+            if (len(values) == 0):
+                axis.set_xticks([])
+                axis.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
 
     def draw_flight_performance(self, member, axis):
         SQL_STATISTICS = 'SELECT SUM(ejections) as ejections, SUM(crashes) as crashes, ' \
@@ -141,7 +164,7 @@ class Statistics(commands.Cog):
                     angle = angle1 + (angle2 + angle1) / 2
 
                 patches, texts, pcts = axis.pie(values, labels=labels, startangle=angle, explode=explode,
-                                                autopct=lambda pct: func(pct, values),
+                                                autopct=lambda pct: func(pct, values), colors=['lightgreen', 'darkorange', 'lightblue'],
                                                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
                 plt.setp(pcts, color='black', fontweight='bold')
                 axis.set_title('Kill/Death-Ratio', color='white', fontsize=25)
@@ -234,8 +257,9 @@ class Statistics(commands.Cog):
                 member = ctx.message.author
             plt.style.use('dark_background')
             figure = plt.figure(figsize=(20, 20))
-            self.draw_playtime_planes(member, plt.subplot2grid((3, 3), (0, 0), colspan=3, fig=figure))
+            self.draw_playtime_planes(member, plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure))
             self.draw_server_time(member, plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
+            self.draw_recent(member, plt.subplot2grid((3, 3), (0, 2), colspan=1, fig=figure))
             self.draw_flight_performance(member, plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure))
             ax1 = plt.subplot2grid((3, 3), (2, 0), colspan=1, fig=figure)
             ax2 = plt.subplot2grid((3, 3), (2, 1), colspan=1, fig=figure)
@@ -301,9 +325,11 @@ class Statistics(commands.Cog):
             else:
                 ax1.set_visible(False)
 
+            plt.subplots_adjust(hspace=0.5, wspace=0.5)
             embed = discord.Embed(title='Statistics for {}'.format(member.display_name), color=discord.Color.blue())
             filename = '{}.png'.format(member.id)
-            plt.savefig(filename, bbox_inches='tight', transparent=True)
+            figure.savefig(filename, bbox_inches='tight', transparent=True)
+            plt.close(figure)
             file = discord.File(filename)
             embed.set_image(url='attachment://' + filename)
             embed.set_footer(text='Click on the image to zoom in.')
@@ -313,49 +339,94 @@ class Statistics(commands.Cog):
         except (Exception, Error) as error:
             self.bot.log.exception(error)
 
-    def draw_highscore_playtime(self, ctx, axis):
-        SQL_HIGHSCORE_PLAYTIME = 'SELECT p.discord_id, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*86400) AS playtime FROM statistics s, players p WHERE p.ucid = s.player_ucid AND s.hop_off IS NOT NULL GROUP BY p.discord_id ORDER BY 2 DESC LIMIT 3'
+    def draw_highscore_playtime(self, ctx, axis, period=None):
+        SQL_HIGHSCORE_PLAYTIME = 'SELECT p.discord_id, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*86400) AS playtime FROM statistics s, players p WHERE p.ucid = s.player_ucid AND s.hop_off IS NOT NULL'
+        if (period == 'day'):
+            SQL_HIGHSCORE_PLAYTIME += ' AND date(s.hop_on) > date(\'now\', \'-1 day\')'
+        elif (period == 'week'):
+            SQL_HIGHSCORE_PLAYTIME += ' AND date(s.hop_on) > date(\'now\', \'-7 days\')'
+        elif (period == 'month'):
+            SQL_HIGHSCORE_PLAYTIME += ' AND date(s.hop_on) > date(\'now\', \'-1 month\')'
+        SQL_HIGHSCORE_PLAYTIME += ' GROUP BY p.discord_id ORDER BY 2 DESC LIMIT 3'
         with closing(self.bot.conn.cursor()) as cursor:
             result = cursor.execute(SQL_HIGHSCORE_PLAYTIME).fetchall()
-            if (len(result) > 0):
-                labels = []
-                values = []
-                for row in result:
-                    labels.insert(0, ctx.message.guild.get_member(row[0]).display_name)
-                    values.insert(0, row[1])
-                axis.barh(labels, values, color=['#CD7F32', 'silver', 'gold'])
-                axis.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: str(timedelta(seconds=x))))
-                axis.set_title('Players with longes playtimes', color='white', fontsize=25)
-            else:
-                axis.set_visible(False)
+            labels = []
+            values = []
+            for row in result:
+                member = ctx.message.guild.get_member(row[0])
+                name = member.display_name if (member is not None) else str(row[0])
+                labels.insert(0, name)
+                values.insert(0, row[1] / 3600)
+            axis.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], height=0.75)
+            # axis.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: str(timedelta(seconds=x))))
+            axis.set_xlabel('hours')
+            axis.set_title('Players with longes playtimes', color='white', fontsize=25)
+            if (len(values) == 0):
+                axis.set_xticks([])
+                axis.set_yticks([])
+                axis.text(0, 0, 'No data available.', ha='center', va='center', size=15)
 
-    def draw_highscore_kills(self, ctx, axis):
-        SQL_HIGHSCORE_KILLS = 'SELECT p.discord_id, SUM(s.kills) FROM players p, statistics s WHERE s.player_ucid = p.ucid AND p.discord_id <> -1 GROUP BY p.discord_id ORDER BY 2 DESC LIMIT 3'
+    def draw_highscore_kills(self, ctx, figure, period=None):
+        SQL_PARTS = {
+            'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
+            'Ships': 'SUM(s.kills_ships)',
+            'Air Defence': 'SUM(s.kills_sams)',
+            'Ground Targets': 'SUM(s.kills_ground)'
+        }
+        COLORS = ['#CD7F32', 'silver', 'gold']
+        SQL_HIGHSCORE = {}
+        for key in SQL_PARTS.keys():
+            SQL_HIGHSCORE[key] = 'SELECT p.discord_id, {} FROM players p, statistics s WHERE s.player_ucid = p.ucid AND p.discord_id <> -1'.format(
+                SQL_PARTS[key])
+            if (period == 'day'):
+                SQL_HIGHSCORE[key] += ' AND date(s.hop_on) > date(\'now\', \'-1 day\')'
+            elif (period == 'week'):
+                SQL_HIGHSCORE[key] += ' AND date(s.hop_on) > date(\'now\', \'-7 days\')'
+            elif (period == 'month'):
+                SQL_HIGHSCORE[key] += ' AND date(s.hop_on) > date(\'now\', \'-1 month\')'
+            SQL_HIGHSCORE[key] += ' GROUP BY p.discord_id HAVING {} > 0 ORDER BY 2 DESC LIMIT 3'.format(SQL_PARTS[key])
+
         with closing(self.bot.conn.cursor()) as cursor:
-            result = cursor.execute(SQL_HIGHSCORE_KILLS).fetchall()
-            if (len(result) > 0):
+            keys = list(SQL_PARTS.keys())
+            for j in range(0, len(keys)):
+                type = keys[j]
+                result = cursor.execute(SQL_HIGHSCORE[type]).fetchall()
+                axis = plt.subplot2grid((3, 2), (1+int(j/2), j % 2), colspan=1, fig=figure)
                 labels = []
                 values = []
-                for row in result:
-                    labels.insert(0, ctx.message.guild.get_member(row[0]).display_name)
-                    values.insert(0, row[1])
-                axis.barh(labels, values, color=['#CD7F32', 'silver', 'gold'])
-                axis.set_title('Players with most kills', color='white', fontsize=25)
-            else:
-                axis.set_visible(False)
+                for i in range(0, 3):
+                    if (len(result) > i):
+                        member = ctx.message.guild.get_member(result[i][0])
+                        name = member.display_name if (member is not None) else str(result[i][0])
+                        labels.insert(0, name)
+                        values.insert(0, result[i][1])
+                axis.barh(labels, values, color=COLORS, label=type, height=0.75)
+                axis.set_title(type, color='white', fontsize=25)
+                if (len(values) == 0):
+                    axis.set_xticks([])
+                    axis.set_yticks([])
+                    axis.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
 
-    @commands.command(description='Shows actual highscores', aliases=['hs'])
+    @commands.command(description='Shows actual highscores', usage='[period]', aliases=['hs'])
     @commands.has_role('DCS')
     @commands.guild_only()
-    async def highscore(self, ctx):
+    async def highscore(self, ctx, period=None):
+        if (period and period not in ['day', 'week', 'month']):
+            await ctx.send('Period must be one of day/week/month!')
+            return
         try:
             plt.style.use('dark_background')
-            figure, axis = plt.subplots(2, 1, figsize=(10, 10))
-            self.draw_highscore_playtime(ctx, axis[0])
-            self.draw_highscore_kills(ctx, axis[1])
-            embed = discord.Embed(title='Highscore', color=discord.Color.blue())
+            figure = plt.figure(figsize=(15, 15))
+            self.draw_highscore_playtime(ctx, plt.subplot2grid((3, 2), (0, 0), colspan=2, fig=figure), period)
+            self.draw_highscore_kills(ctx, figure, period)
+            plt.subplots_adjust(hspace=0.5, wspace=0.5)
+            title = 'Highscores'
+            if (period):
+                title += ' of the ' + string.capwords(period)
+            embed = discord.Embed(title=title, color=discord.Color.blue())
             filename = 'highscore.png'
-            plt.savefig(filename, bbox_inches='tight', transparent=True)
+            figure.savefig(filename, bbox_inches='tight', transparent=True)
+            plt.close(figure)
             file = discord.File(filename)
             embed.set_image(url='attachment://' + filename)
             embed.set_footer(text='Click on the image to zoom in.')
