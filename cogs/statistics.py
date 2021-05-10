@@ -86,7 +86,7 @@ class Statistics(commands.Cog):
                 axis.set_visible(False)
 
     def draw_recent(self, member, axis):
-        SQL_STATISTICS = 'SELECT strftime(\'%m/%d\', s.hop_on) as day, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*86400) AS playtime ' \
+        SQL_STATISTICS = 'SELECT strftime(\'%m/%d\', s.hop_on) as day, ROUND(SUM((IFNULL(JULIANDAY(s.hop_off), JULIANDAY(\'now\')) - JULIANDAY(s.hop_on))*86400)) AS playtime ' \
             'FROM statistics s, players p WHERE s.player_ucid = p.ucid AND p.discord_id = ? AND date(s.hop_on) > date(\'now\', \'-7 days\') GROUP BY day'
         with closing(self.bot.conn.cursor()) as cursor:
             result = cursor.execute(SQL_STATISTICS, (member.id, )).fetchall()
@@ -206,7 +206,7 @@ class Statistics(commands.Cog):
             axis.axis('off')
             axis.set_xlim(- 2.5 * width, 2.5 * width)
             axis.legend(labels, fontsize=15, loc=3, ncol=5, mode='expand',
-                        bbox_to_anchor=(-1.8, -0.2, 2.2, 0.4), columnspacing=1, frameon=False)
+                        bbox_to_anchor=(-2.4, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
             # Chart was drawn, return True
             return True
 
@@ -244,7 +244,7 @@ class Statistics(commands.Cog):
             axis.set_xlim(- 2.5 * width, 2.5 * width)
             if (legend is True):
                 axis.legend(labels, fontsize=15, loc=3, ncol=5, mode='expand',
-                            bbox_to_anchor=(0.6, -0.2, 2.2, 0.4), columnspacing=1, frameon=False)
+                            bbox_to_anchor=(0.6, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
             # Chart was drawn, return True
             return True
 
@@ -256,6 +256,7 @@ class Statistics(commands.Cog):
             if (member is None):
                 member = ctx.message.author
             plt.style.use('dark_background')
+            plt.rcParams['axes.facecolor'] = '2C2F33'
             figure = plt.figure(figsize=(20, 20))
             self.draw_playtime_planes(member, plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure))
             self.draw_server_time(member, plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
@@ -328,7 +329,7 @@ class Statistics(commands.Cog):
             plt.subplots_adjust(hspace=0.5, wspace=0.5)
             embed = discord.Embed(title='Statistics for {}'.format(member.display_name), color=discord.Color.blue())
             filename = '{}.png'.format(member.id)
-            figure.savefig(filename, bbox_inches='tight', transparent=True)
+            figure.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
             plt.close(figure)
             file = discord.File(filename)
             embed.set_image(url='attachment://' + filename)
@@ -360,7 +361,7 @@ class Statistics(commands.Cog):
             axis.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], height=0.75)
             # axis.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: str(timedelta(seconds=x))))
             axis.set_xlabel('hours')
-            axis.set_title('Players with longes playtimes', color='white', fontsize=25)
+            axis.set_title('Longes Playtimes', color='white', fontsize=25)
             if (len(values) == 0):
                 axis.set_xticks([])
                 axis.set_yticks([])
@@ -371,7 +372,17 @@ class Statistics(commands.Cog):
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',
             'Air Defence': 'SUM(s.kills_sams)',
-            'Ground Targets': 'SUM(s.kills_ground)'
+            'Ground Targets': 'SUM(s.kills_ground)',
+            'Most Efficient Killer': 'SUM(s.kills) / (SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on)) * 24)',
+            'Most Wasteful Pilot': 'SUM(deaths) / (SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on)) * 24)'
+        }
+        LABELS = {
+            'Air Targets': 'kills',
+            'Ships': 'kills',
+            'Air Defence': 'kills',
+            'Ground Targets': 'kills',
+            'Most Efficient Killers': 'avg. kills / 24 hrs flighttime',
+            'Most Wasteful Pilots': 'avg. airframes wasted / 24 hrs flighttime'
         }
         COLORS = ['#CD7F32', 'silver', 'gold']
         SQL_HIGHSCORE = {}
@@ -391,7 +402,7 @@ class Statistics(commands.Cog):
             for j in range(0, len(keys)):
                 type = keys[j]
                 result = cursor.execute(SQL_HIGHSCORE[type]).fetchall()
-                axis = plt.subplot2grid((3, 2), (1+int(j/2), j % 2), colspan=1, fig=figure)
+                axis = plt.subplot2grid((4, 2), (1+int(j/2), j % 2), colspan=1, fig=figure)
                 labels = []
                 values = []
                 for i in range(0, 3):
@@ -402,6 +413,7 @@ class Statistics(commands.Cog):
                         values.insert(0, result[i][1])
                 axis.barh(labels, values, color=COLORS, label=type, height=0.75)
                 axis.set_title(type, color='white', fontsize=25)
+                axis.set_xlabel(LABELS[type])
                 if (len(values) == 0):
                     axis.set_xticks([])
                     axis.set_yticks([])
@@ -416,8 +428,9 @@ class Statistics(commands.Cog):
             return
         try:
             plt.style.use('dark_background')
-            figure = plt.figure(figsize=(15, 15))
-            self.draw_highscore_playtime(ctx, plt.subplot2grid((3, 2), (0, 0), colspan=2, fig=figure), period)
+            plt.rcParams['axes.facecolor'] = '2C2F33'
+            figure = plt.figure(figsize=(15, 20))
+            self.draw_highscore_playtime(ctx, plt.subplot2grid((4, 2), (0, 0), colspan=2, fig=figure), period)
             self.draw_highscore_kills(ctx, figure, period)
             plt.subplots_adjust(hspace=0.5, wspace=0.5)
             title = 'Highscores'
@@ -425,7 +438,7 @@ class Statistics(commands.Cog):
                 title += ' of the ' + string.capwords(period)
             embed = discord.Embed(title=title, color=discord.Color.blue())
             filename = 'highscore.png'
-            figure.savefig(filename, bbox_inches='tight', transparent=True)
+            figure.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
             plt.close(figure)
             file = discord.File(filename)
             embed.set_image(url='attachment://' + filename)

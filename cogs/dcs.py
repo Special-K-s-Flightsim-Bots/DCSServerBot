@@ -787,7 +787,6 @@ class DCS(commands.Cog):
                             await self.get_channel(data, 'chat_channel').send(self.EVENT_TEXTS[data['eventName']].format(
                                 self.PLAYER_SIDES[player['side']], player['name']))
                         if (data['eventName'] in self.SQL_EVENT_UPDATES.keys()):
-                            player = self.get_player(data['server_name'], data['arg1'])
                             try:
                                 with closing(self.bot.conn.cursor()) as cursor:
                                     cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
