@@ -75,7 +75,7 @@ class Statistics(commands.Cog):
                 labels = []
                 values = []
                 for row in result:
-                    labels.insert(0, row['server_name'][17:])
+                    labels.insert(0, row['server_name'])
                     values.insert(0, row['playtime'])
                 patches, texts, pcts = axis.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
                                                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
