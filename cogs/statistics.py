@@ -373,8 +373,8 @@ class Statistics(commands.Cog):
             'Ships': 'SUM(s.kills_ships)',
             'Air Defence': 'SUM(s.kills_sams)',
             'Ground Targets': 'SUM(s.kills_ground)',
-            'Most Efficient Killer': 'SUM(s.kills) / (SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on)) * 24)',
-            'Most Wasteful Pilot': 'SUM(deaths) / (SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on)) * 24)'
+            'Most Efficient Killers': 'SUM(s.kills) / (SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on)) * 24)',
+            'Most Wasteful Pilots': 'SUM(deaths) / (SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on)) * 24)'
         }
         LABELS = {
             'Air Targets': 'kills',
