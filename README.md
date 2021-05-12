@@ -16,7 +16,7 @@ Command|Parameter|Description
 .add|miz-file|Adds a specific mission to the list of missions. Has to be in DCS_HOME/Missions
 .delete|ID|Deletes the mission with this ID from the list of missions.
 .load|ID|Load a specific mission by ID.
-.restart||Restarts the current mission.
+.restart|[time in secs] [message]|Restarts the current mission after [time] seconds. A message will be sent into the ingame chat of that server.
 .chat|message|Send a message to the DCS ingame-chat.
 .ban|@member or ucid|Bans a specific player either by his Discord ID or his UCID
 .unban|@member or ucid|Unbans a specific player either by his Discord ID or his UCID
@@ -25,18 +25,18 @@ Command|Parameter|Description
 ## User Statistics
 Gather statistics data from users and display them in a user-friendly way in your Discord.
 The following commands are supported:
-|Command|Parameter|Description|
-|-------|-----------|--------------|
-|.link|@member or ucid|Sometimes users can't be linked automatically. That is a manual workaround.|
-|.statistics/.stats|[@member]|Display your own statistics or that of a specific member.|
-|.highscore/.hs||Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)|
+Command|Parameter|Description
+-------|-----------|--------------
+.link|@member or ucid|Sometimes users can't be linked automatically. That is a manual workaround.
+.statistics/.stats|[@member]|Display your own statistics or that of a specific member.
+.highscore/.hs||Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)
 
 ## Installation
 First of all, download the latest release version and extract it somewhere on your server, where it has write access.
 Make sure that this directory can only be seen by yourself and is not exposed to anybody outside via www etc.
 
 ### Prerequisites
-You need to have python 3.8 or higher installed.
+You need to have [python 3.8](https://www.python.org/downloads/) or higher installed.
 The python modules needed are listed in requirements.txt and can be installed with ```pip3 install -r requirements.txt```
 
 ### Discord Token
@@ -80,6 +80,7 @@ Role|Description
 -------|-----------
 DCS|People with this role are allowed to chat, check their statistics and gather information about running missions and players.
 DCS Admin|People with this role are allowed to restart missions and managing the mission list.
+Admin / Moderator|People with that role are allowed to ban/unban people and to link discord-IDs to ucids, when the autodetection didn't work
 
 ### **ATTENTION**
 _One of the main concepts of this bot it to bind people to your discord. Therefor, this solution is not very suitable for public servers._
