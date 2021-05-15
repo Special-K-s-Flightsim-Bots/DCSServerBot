@@ -5,9 +5,10 @@ import numpy as np
 import string
 import os
 from contextlib import closing, suppress
-from datetime import timedelta
+from datetime import timedelta, datetime
 from discord.ext import commands
 from matplotlib.patches import ConnectionPatch
+from matplotlib.ticker import FuncFormatter
 from sqlite3 import Error
 
 
@@ -22,6 +23,22 @@ class Statistics(commands.Cog):
         5: 'Fri',
         6: 'Sat'
     }
+
+    FIXED_WING = [
+        'FA-18C_hornet', 'F-14A-135-GR', 'F-14B', 'F-16C_50', 'J-11A', 'JF-17',
+        'A-10C', 'A-10C_2', 'F-15C', 'A-10A', 'MiG-29S', 'AJS37', 'Su-27',
+        'M-2000C', 'F-86F Sabre', 'Su-25T', 'Su-33', 'F-5E-3', 'AV8BNA',
+        'MiG-15bis', 'MiG-19P', 'MiG-21bis', 'MiG-29A'
+    ]
+
+    ROTARY = [
+        'SA342L', 'SA342M', 'SA342Minigun', 'SA342Mistral', 'Mi-8MT', 'Ka-50',
+        'UH-1H'
+    ]
+
+    WARBIRD = [
+        'SpitfireLFMkIX'
+    ]
 
     def __init__(self, bot):
         self.bot = bot
@@ -259,8 +276,8 @@ class Statistics(commands.Cog):
             plt.rcParams['axes.facecolor'] = '2C2F33'
             figure = plt.figure(figsize=(20, 20))
             self.draw_playtime_planes(member, plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure))
-            self.draw_server_time(member, plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
             self.draw_recent(member, plt.subplot2grid((3, 3), (0, 2), colspan=1, fig=figure))
+            self.draw_server_time(member, plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
             self.draw_flight_performance(member, plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure))
             ax1 = plt.subplot2grid((3, 3), (2, 0), colspan=1, fig=figure)
             ax2 = plt.subplot2grid((3, 3), (2, 1), colspan=1, fig=figure)
@@ -341,7 +358,7 @@ class Statistics(commands.Cog):
             self.bot.log.exception(error)
 
     def draw_highscore_playtime(self, ctx, axis, period=None):
-        SQL_HIGHSCORE_PLAYTIME = 'SELECT p.discord_id, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*86400) AS playtime FROM statistics s, players p WHERE p.ucid = s.player_ucid AND s.hop_off IS NOT NULL'
+        SQL_HIGHSCORE_PLAYTIME = 'SELECT p.discord_id, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*86400) AS playtime FROM statistics s, players p WHERE p.ucid = s.player_ucid AND s.hop_off IS NOT NULL AND p.discord_id <> -1'
         if (period == 'day'):
             SQL_HIGHSCORE_PLAYTIME += ' AND date(s.hop_on) > date(\'now\', \'-1 day\')'
         elif (period == 'week'):
@@ -446,6 +463,98 @@ class Statistics(commands.Cog):
             with suppress(Exception):
                 await ctx.send(file=file, embed=embed)
             os.remove(filename)
+        except (Exception, Error) as error:
+            self.bot.log.exception(error)
+
+    @commands.command(description='Shows servers statistics', usage='[period]')
+    @commands.has_any_role('Admin', 'Moderator')
+    @commands.guild_only()
+    async def serverstats(self, ctx, period=None):
+        SQL_USER_BASE = 'SELECT COUNT(DISTINCT ucid) AS dcs_users, COUNT(DISTINCT discord_id)-1 AS discord_users FROM players'
+        SQL_SERVER_USAGE = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*24) AS playtime, ROUND(AVG(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*1440) AS avg FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND s.hop_off IS NOT NULL GROUP BY trim(m.server_name)'
+        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(IFNULL(JULIANDAY(mission_end), JULIANDAY(\'now\')) - JULIANDAY(mission_start))*24) AS total, ROUND(AVG(IFNULL(JULIANDAY(mission_end), JULIANDAY(\'now\')) - JULIANDAY(mission_start))*24) AS avg FROM missions GROUP BY mission_name ORDER BY 2 DESC LIMIT 3'
+        SQL_TOP5_MISSIONS_USAGE = 'SELECT m.mission_name, COUNT(distinct s.player_ucid) AS players FROM missions m, statistics s WHERE s.mission_id = m.id GROUP BY m.mission_name ORDER BY 2 DESC LIMIT 5'
+        SQL_LAST_14DAYS = 'SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, (WITH RECURSIVE dates(date) AS (VALUES(date(\'now\', \'-14 days\')) UNION ALL SELECT date(date, \'+1 day\') FROM dates WHERE date < date(\'now\')) SELECT date FROM dates) d WHERE d.date BETWEEN date(s.hop_on) AND date(s.hop_off) GROUP BY d.date'
+        SQL_MAIN_TIMES = 'SELECT strftime(\'%w\', s.hop_on) as weekday, strftime(\'%H\', h.hour) AS hour, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, (WITH RECURSIVE hours(hour) AS (VALUES(time(\'00:00\')) UNION ALL SELECT time(hour, \'+1 hour\') FROM hours WHERE hour < time(\'23:00\')) SELECT hour FROM hours) h WHERE h.hour BETWEEN time(s.hop_on) AND time(s.hop_off) GROUP BY 1, 2'
+        try:
+            embed = discord.Embed(color=discord.Color.blue())
+            with closing(self.bot.conn.cursor()) as cursor:
+                row = cursor.execute(SQL_USER_BASE).fetchone()
+                embed.add_field(name='Unique Users on Servers', value=str(row[0]))
+                embed.add_field(name='Including Discord Members', value=str(row[1]))
+                embed.add_field(name='_ _', value='_ _')
+                # Server Usages
+                servers = ''
+                playtimes = ''
+                avgs = ''
+                for row in cursor.execute(SQL_SERVER_USAGE).fetchall():
+                    servers += row['server_name'] + '\n'
+                    playtimes += str(row['playtime']) + '\n'
+                    avgs += str(row['avg']) + '\n'
+                embed.add_field(name='Server', value=servers)
+                embed.add_field(name='Total Playtime (h)', value=playtimes)
+                embed.add_field(name='AVG Playtime (m)', value=avgs)
+                # TOP 3 Missions (uptime / avg runtime)
+                missions = ''
+                totals = ''
+                avgs = ''
+                for row in cursor.execute(SQL_TOP3_MISSION_UPTIMES).fetchall():
+                    missions += row['mission_name'][:20] + '\n'
+                    totals += str(row['total']) + '\n'
+                    avgs += str(row['avg']) + '\n'
+                embed.add_field(name='Mission (Top 3)', value=missions)
+                embed.add_field(name='Total Uptime (h)', value=totals)
+                embed.add_field(name='AVG Uptime (h)', value=avgs)
+                # TOP 5 Missions by Playerbase
+                missions = ''
+                players = ''
+                for row in cursor.execute(SQL_TOP5_MISSIONS_USAGE).fetchall():
+                    missions += row['mission_name'][:20] + '\n'
+                    players += str(row['players']) + '\n'
+                embed.add_field(name='Mission (Top 5)', value=missions)
+                embed.add_field(name='Unique Players', value=players)
+                embed.add_field(name='_ _', value='_ _')
+                # Draw charts
+                plt.style.use('dark_background')
+                plt.rcParams['axes.facecolor'] = '2C2F33'
+                figure = plt.figure(figsize=(15, 10))
+                # Last 7 days
+                axis = plt.subplot2grid((2, 1), (0, 0), colspan=1, fig=figure)
+                labels = []
+                values = []
+                for row in cursor.execute(SQL_LAST_14DAYS).fetchall():
+                    labels.append(datetime.strptime(row['date'], '%Y-%m-%d').strftime('%a %m/%d'))
+                    values.append(row['players'])
+                axis.bar(labels, values, width=0.5, color='dodgerblue')
+                axis.set_title('Unique Players past 14 Days', color='white', fontsize=25)
+                axis.set_yticks([])
+                for label in axis.get_xticklabels():
+                    label.set_rotation(30)
+                    label.set_ha('right')
+                for i in range(0, len(values)):
+                    axis.annotate(values[i], xy=(
+                        labels[i], values[i]), ha='center', va='bottom', weight='bold')
+                if (len(values) == 0):
+                    axis.set_xticks([])
+                    axis.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+                # Times & Days
+                axis = plt.subplot2grid((2, 1), (1, 0), colspan=1, fig=figure)
+                values = np.zeros((24, 7))
+                for row in cursor.execute(SQL_MAIN_TIMES).fetchall():
+                    values[int(row['hour'])][int(row['weekday'])] = row['players']
+                axis.imshow(values, cmap='cividis', aspect='auto')
+                axis.set_title('Users per Day/Time', color='white', fontsize=25)
+                axis.invert_yaxis()
+                axis.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: self.WEEKDAYS[np.clip(x, 0, 6)]))
+                plt.subplots_adjust(hspace=0.5, wspace=0.0)
+                filename = 'serverstats.png'
+                figure.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
+                plt.close(figure)
+                file = discord.File(filename)
+                embed.set_image(url='attachment://' + filename)
+                embed.set_footer(text='Click on the image to zoom in.')
+                await ctx.send(file=file, embed=embed)
+                os.remove(filename)
         except (Exception, Error) as error:
             self.bot.log.exception(error)
 
