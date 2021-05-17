@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import string
 import os
+import re
 from contextlib import closing, suppress
 from datetime import timedelta, datetime
 from discord.ext import commands
@@ -15,13 +16,13 @@ from sqlite3 import Error
 class Statistics(commands.Cog):
 
     WEEKDAYS = {
-        0: 'Sun',
-        1: 'Mon',
-        2: 'Tue',
-        3: 'Wed',
-        4: 'Thu',
-        5: 'Fri',
-        6: 'Sat'
+        0: 'Mon',
+        1: 'Tue',
+        2: 'Wed',
+        3: 'Thu',
+        4: 'Fri',
+        5: 'Sat',
+        6: 'Sun'
     }
 
     FIXED_WING = [
@@ -92,7 +93,7 @@ class Statistics(commands.Cog):
                 labels = []
                 values = []
                 for row in result:
-                    labels.insert(0, row['server_name'])
+                    labels.insert(0, re.sub(self.bot.config['FILTER']['SERVER_FILTER'], '', row['server_name']).strip())
                     values.insert(0, row['playtime'])
                 patches, texts, pcts = axis.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
                                                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
@@ -376,7 +377,6 @@ class Statistics(commands.Cog):
                 labels.insert(0, name)
                 values.insert(0, row[1] / 3600)
             axis.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], height=0.75)
-            # axis.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: str(timedelta(seconds=x))))
             axis.set_xlabel('hours')
             axis.set_title('Longes Playtimes', color='white', fontsize=25)
             if (len(values) == 0):
@@ -471,13 +471,33 @@ class Statistics(commands.Cog):
     @commands.guild_only()
     async def serverstats(self, ctx, period=None):
         SQL_USER_BASE = 'SELECT COUNT(DISTINCT ucid) AS dcs_users, COUNT(DISTINCT discord_id)-1 AS discord_users FROM players'
-        SQL_SERVER_USAGE = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*24) AS playtime, ROUND(AVG(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*1440) AS avg FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND s.hop_off IS NOT NULL GROUP BY trim(m.server_name)'
-        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(IFNULL(JULIANDAY(mission_end), JULIANDAY(\'now\')) - JULIANDAY(mission_start))*24) AS total, ROUND(AVG(IFNULL(JULIANDAY(mission_end), JULIANDAY(\'now\')) - JULIANDAY(mission_start))*24) AS avg FROM missions GROUP BY mission_name ORDER BY 2 DESC LIMIT 3'
-        SQL_TOP5_MISSIONS_USAGE = 'SELECT m.mission_name, COUNT(distinct s.player_ucid) AS players FROM missions m, statistics s WHERE s.mission_id = m.id GROUP BY m.mission_name ORDER BY 2 DESC LIMIT 5'
+        SQL_SERVER_USAGE = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*24) AS playtime, ROUND(AVG(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*1440) AS avg FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND s.hop_off IS NOT NULL'
+        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(IFNULL(JULIANDAY(mission_end), JULIANDAY(\'now\')) - JULIANDAY(mission_start))*24) AS total, ROUND(AVG(IFNULL(JULIANDAY(mission_end), JULIANDAY(\'now\')) - JULIANDAY(mission_start))*24) AS avg FROM missions'
+        SQL_TOP5_MISSIONS_USAGE = 'SELECT m.mission_name, COUNT(distinct s.player_ucid) AS players FROM missions m, statistics s WHERE s.mission_id = m.id'
         SQL_LAST_14DAYS = 'SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, (WITH RECURSIVE dates(date) AS (VALUES(date(\'now\', \'-14 days\')) UNION ALL SELECT date(date, \'+1 day\') FROM dates WHERE date < date(\'now\')) SELECT date FROM dates) d WHERE d.date BETWEEN date(s.hop_on) AND date(s.hop_off) GROUP BY d.date'
-        SQL_MAIN_TIMES = 'SELECT strftime(\'%w\', s.hop_on) as weekday, strftime(\'%H\', h.hour) AS hour, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, (WITH RECURSIVE hours(hour) AS (VALUES(time(\'00:00\')) UNION ALL SELECT time(hour, \'+1 hour\') FROM hours WHERE hour < time(\'23:00\')) SELECT hour FROM hours) h WHERE h.hour BETWEEN time(s.hop_on) AND time(s.hop_off) GROUP BY 1, 2'
+        SQL_MAIN_TIMES = 'SELECT strftime(\'%w\', s.hop_on) as weekday, strftime(\'%H\', h.hour) AS hour, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, (WITH RECURSIVE hours(hour) AS (VALUES(time(\'00:00\')) UNION ALL SELECT time(hour, \'+1 hour\') FROM hours WHERE hour < time(\'23:00\')) SELECT hour FROM hours) h WHERE h.hour BETWEEN time(s.hop_on) AND time(s.hop_off)'
+
+        embed = discord.Embed(color=discord.Color.blue())
+        embed.title = 'Server Statistics'
+        if (period == 'week'):
+            SQL_SERVER_USAGE += ' AND date(s.hop_on) > date(\'now\', \'-7 days\')'
+            SQL_TOP3_MISSION_UPTIMES += ' WHERE date(mission_start) > date(\'now\', \'-7 days\')'
+            SQL_TOP5_MISSIONS_USAGE += ' AND date(s.hop_on) > date(\'now\', \'-7 days\')'
+            SQL_MAIN_TIMES += ' AND date(s.hop_on) > date(\'now\', \'-7 days\')'
+            embed.title = 'Weekly ' + embed.title
+        elif (period == 'month'):
+            SQL_SERVER_USAGE += ' AND date(s.hop_on) > date(\'now\', \'-1 month\')'
+            SQL_TOP3_MISSION_UPTIMES += ' WHERE date(mission_start) > date(\'now\', \'-1 month\')'
+            SQL_TOP5_MISSIONS_USAGE += ' AND date(s.hop_on) > date(\'now\', \'-1 month\')'
+            SQL_MAIN_TIMES += ' AND date(s.hop_on) > date(\'now\', \'-1 month\')'
+            embed.title = 'Monthly ' + embed.title
+        else:
+            embed.title = 'Overall ' + embed.title
+        SQL_SERVER_USAGE += ' GROUP BY trim(m.server_name)'
+        SQL_TOP3_MISSION_UPTIMES += ' GROUP BY mission_name ORDER BY 2 DESC LIMIT 3'
+        SQL_TOP5_MISSIONS_USAGE += ' GROUP BY m.mission_name ORDER BY 2 DESC LIMIT 5'
+        SQL_MAIN_TIMES += ' GROUP BY 1, 2'
         try:
-            embed = discord.Embed(color=discord.Color.blue())
             with closing(self.bot.conn.cursor()) as cursor:
                 row = cursor.execute(SQL_USER_BASE).fetchone()
                 embed.add_field(name='Unique Users on Servers', value=str(row[0]))
@@ -488,32 +508,37 @@ class Statistics(commands.Cog):
                 playtimes = ''
                 avgs = ''
                 for row in cursor.execute(SQL_SERVER_USAGE).fetchall():
-                    servers += row['server_name'] + '\n'
-                    playtimes += str(row['playtime']) + '\n'
-                    avgs += str(row['avg']) + '\n'
-                embed.add_field(name='Server', value=servers)
-                embed.add_field(name='Total Playtime (h)', value=playtimes)
-                embed.add_field(name='AVG Playtime (m)', value=avgs)
+                    servers += re.sub(self.bot.config['FILTER']['SERVER_FILTER'], '', row['server_name']).strip() + '\n'
+                    playtimes += '{:.0f}\n'.format(row['playtime'])
+                    avgs += '{:.0f}\n'.format(row['avg'])
+                if (len(servers) > 0):
+                    embed.add_field(name='Server', value=servers)
+                    embed.add_field(name='Total Playtime (h)', value=playtimes)
+                    embed.add_field(name='AVG Playtime (m)', value=avgs)
                 # TOP 3 Missions (uptime / avg runtime)
                 missions = ''
                 totals = ''
                 avgs = ''
                 for row in cursor.execute(SQL_TOP3_MISSION_UPTIMES).fetchall():
-                    missions += row['mission_name'][:20] + '\n'
-                    totals += str(row['total']) + '\n'
-                    avgs += str(row['avg']) + '\n'
-                embed.add_field(name='Mission (Top 3)', value=missions)
-                embed.add_field(name='Total Uptime (h)', value=totals)
-                embed.add_field(name='AVG Uptime (h)', value=avgs)
+                    missions += re.sub(self.bot.config['FILTER']['MISSION_FILTER'],
+                                       ' ', row['mission_name']).strip()[:20] + '\n'
+                    totals += '{:.0f}\n'.format(row['total'])
+                    avgs += '{:.0f}\n'.format(row['avg'])
+                if (len(missions) > 0):
+                    embed.add_field(name='Mission (Top 3)', value=missions)
+                    embed.add_field(name='Total Uptime (h)', value=totals)
+                    embed.add_field(name='AVG Uptime (h)', value=avgs)
                 # TOP 5 Missions by Playerbase
                 missions = ''
                 players = ''
                 for row in cursor.execute(SQL_TOP5_MISSIONS_USAGE).fetchall():
-                    missions += row['mission_name'][:20] + '\n'
+                    missions += re.sub(self.bot.config['FILTER']['MISSION_FILTER'],
+                                       ' ', row['mission_name']).strip()[:20] + '\n'
                     players += str(row['players']) + '\n'
-                embed.add_field(name='Mission (Top 5)', value=missions)
-                embed.add_field(name='Unique Players', value=players)
-                embed.add_field(name='_ _', value='_ _')
+                if (len(missions) > 0):
+                    embed.add_field(name='Mission (Top 5)', value=missions)
+                    embed.add_field(name='Unique Players', value=players)
+                    embed.add_field(name='_ _', value='_ _')
                 # Draw charts
                 plt.style.use('dark_background')
                 plt.rcParams['axes.facecolor'] = '2C2F33'
@@ -541,10 +566,10 @@ class Statistics(commands.Cog):
                 axis = plt.subplot2grid((2, 1), (1, 0), colspan=1, fig=figure)
                 values = np.zeros((24, 7))
                 for row in cursor.execute(SQL_MAIN_TIMES).fetchall():
-                    values[int(row['hour'])][int(row['weekday'])] = row['players']
+                    values[int(row['hour'])][(int(row['weekday'])+6) % 7] = row['players']
                 axis.imshow(values, cmap='cividis', aspect='auto')
-                axis.set_title('Users per Day/Time', color='white', fontsize=25)
-                axis.invert_yaxis()
+                axis.set_title('Users per Day/Time (UTC)', color='white', fontsize=25)
+                # axis.invert_yaxis()
                 axis.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: self.WEEKDAYS[np.clip(x, 0, 6)]))
                 plt.subplots_adjust(hspace=0.5, wspace=0.0)
                 filename = 'serverstats.png'

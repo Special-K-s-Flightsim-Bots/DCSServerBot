@@ -29,7 +29,8 @@ Command|Parameter|Description
 -------|-----------|--------------
 .link|@member or ucid|Sometimes users can't be linked automatically. That is a manual workaround.
 .statistics/.stats|[@member]|Display your own statistics or that of a specific member.
-.highscore/.hs||Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)
+.highscore/.hs|[day] / [week] / [month]|Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)
+.serverstats|[week] / [month]|Displays server statistics, like usual playtimes, most frequented servers and missions
 
 ## Installation
 First of all, download the latest release version and extract it somewhere on your server, where it has write access.
@@ -58,6 +59,8 @@ TOKEN|The token to be used to run the bot. Can be obtained at http://discord.com
 COMMAND_PREFIX|The prefix to be used. Default is '.'
 HOST|IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.
 PORT|UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose that port to the outside world!__**
+SERVER_FILTER|Filter to shorten server names (if needed)
+MISSION_FILTER|Filter to shorten mission names (if needed)
 DCS_HOME|The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.
 GREETING_MESSAGE_MEMBERS|A greeting message, that people will receive in DCS, if they get recognized by the bot as a member of your discord.
 GREETING_MESSAGE_UNKNOWN|A greeting message, that people will receive in DCS, if they or not recognized as a member of your discord.

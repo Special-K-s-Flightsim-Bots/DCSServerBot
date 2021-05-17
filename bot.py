@@ -89,6 +89,7 @@ async def on_message(message):
 @bot.command(description='Reloads a COG', usage='[cog]')
 @commands.is_owner()
 async def reload(ctx, cog=None):
+    bot.config.read('config/dcsserverbot.ini')
     for c in COGS:
         if ((cog is None) or (c == cog)):
             bot.reload_extension(c)
