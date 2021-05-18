@@ -364,24 +364,22 @@ class DCS(commands.Cog):
     @commands.has_any_role('Admin', 'Moderator')
     @commands.guild_only()
     async def ban(self, ctx, user):
-        server = await self.get_server(ctx)
         try:
-            if (user.startswith('<')):
-                discord_id = user.replace('<@!', '').replace('>', '')
-                with closing(self.bot.conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET ban = 1 WHERE discord_id = ?', (discord_id, ))
-                    rows = cursor.execute('SELECT ucid FROM players WHERE discord_id = ?',
-                                          (discord_id, )).fetchall()
-                    for row in rows:
-                        self.sendtoDCS('{"command":"ban", "ucid":"' + row[0] + '", "channel":"' +
+            with closing(self.bot.conn.cursor()) as cursor:
+                if (user.startswith('<')):
+                    discord_id = user.replace('<@!', '').replace('>', '')
+                    # a player can have multiple ucids
+                    ucids = [row[0] for row in cursor.execute('SELECT ucid FROM players WHERE discord_id = ?',
+                                                              (discord_id, )).fetchall()]
+                else:
+                    # ban a specific ucid only
+                    ucids = [user]
+                for ucid in ucids:
+                    cursor.execute('UPDATE players SET ban = 1 WHERE ucid = ?', (ucid, ))
+                    for server in self.bot.DCSServers:
+                        self.sendtoDCS('{"command":"ban", "ucid":"' + ucid + '", "channel":"' +
                                        str(ctx.channel.id) + '"}', server['host'], server['port'])
-                    self.bot.conn.commit()
-            else:
-                with closing(self.bot.conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET ban = 1 WHERE ucid = ?', (user, ))
-                    self.sendtoDCS('{"command":"ban", "ucid":"' + user + '", "channel":"' +
-                                   str(ctx.channel.id) + '"}', server['host'], server['port'])
-                    self.bot.conn.commit()
+                self.bot.conn.commit()
             await ctx.send('Player {} banned.'.format(user))
         except (Exception, Error) as error:
             self.bot.conn.rollback()
@@ -393,22 +391,21 @@ class DCS(commands.Cog):
     async def unban(self, ctx, user):
         server = await self.get_server(ctx)
         try:
-            if (user.startswith('<')):
-                discord_id = user.replace('<@!', '').replace('>', '')
-                with closing(self.bot.conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET ban = 0 WHERE discord_id = ?', (discord_id, ))
-                    rows = cursor.execute('SELECT ucid FROM players WHERE discord_id = ?',
-                                          (discord_id, )).fetchall()
-                    for row in rows:
-                        self.sendtoDCS('{"command":"unban", "ucid":"' + row[0] + '", "channel":"' +
+            with closing(self.bot.conn.cursor()) as cursor:
+                if (user.startswith('<')):
+                    discord_id = user.replace('<@!', '').replace('>', '')
+                    # a player can have multiple ucids
+                    ucids = [row[0] for row in cursor.execute('SELECT ucid FROM players WHERE discord_id = ?',
+                                                              (discord_id, )).fetchall()]
+                else:
+                    # unban a specific ucid only
+                    ucids = [user]
+                for ucid in ucids:
+                    cursor.execute('UPDATE players SET ban = 0 WHERE ucid = ?', (ucid, ))
+                    for server in self.bot.DCSServers:
+                        self.sendtoDCS('{"command":"unban", "ucid":"' + ucid + '", "channel":"' +
                                        str(ctx.channel.id) + '"}', server['host'], server['port'])
-                    self.bot.conn.commit()
-            else:
-                with closing(self.bot.conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET ban = 0 WHERE ucid = ?', (user, ))
-                    self.sendtoDCS('{"command":"unban", "ucid":"' + user + '", "channel":"' +
-                                   str(ctx.channel.id) + '"}', server['host'], server['port'])
-                    self.bot.conn.commit()
+                self.bot.conn.commit()
             await ctx.send('Player {} unbanned.'.format(user))
         except (Exception, Error) as error:
             self.bot.conn.rollback()
@@ -431,8 +428,8 @@ class DCS(commands.Cog):
                         else:
                             user = None
                         discord_names += (user.name if user else '<unknown>') + '\n'
-                        ucids += ban['ucid']
-                        discord_ids += str(ban['discord_id'])
+                        ucids += ban['ucid'] + '\n'
+                        discord_ids += str(ban['discord_id']) + '\n'
                     embed.add_field(name='Name', value=discord_names)
                     embed.add_field(name='UCID', value=ucids)
                     embed.add_field(name='Discord ID', value=discord_ids)
@@ -445,10 +442,12 @@ class DCS(commands.Cog):
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         self.bot.log.info(
-            'Member {} has left guild {} - ban them on DCS servers.'.format(member.display_name, member.guild.name))
+            'Member {} has left guild {} - ban them on DCS servers and delete their stats.'.format(member.display_name, member.guild.name))
         try:
             with closing(self.bot.conn.cursor()) as cursor:
                 cursor.execute('UPDATE players SET ban = 1 WHERE discord_id = ?', (member.id, ))
+                cursor.execute(
+                    'DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE discord_id = ?)', (member.id, ))
                 self.bot.conn.commit()
         except (Exception, Error) as error:
             self.bot.conn.rollback()
