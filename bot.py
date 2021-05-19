@@ -114,10 +114,16 @@ if (path.exists(TABLES_SQL)):
     except Error as e:
         bot.log.exception(e)
 
-bot.log.info('Installing Hook ...')
+# Installing Hook
 dcs_path = os.path.expandvars(config['DCS']['DCS_HOME'] + '\\Scripts')
 assert path.exists(dcs_path), 'Can\'t find DCS installation directory. Exiting.'
-shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True)
+ignore = None
+if (path.exists(dcs_path + '\\net\\DCSServerBot')):
+    bot.log.info('Updating Hook ...')
+    ignore = shutil.ignore_patterns('DCSServerBotConfig.lua')
+else:
+    bot.log.info('Installing Hook ...')
+shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
 bot.log.info('Hook installed.')
 # TODO change sanitizeModules
 

@@ -1,6 +1,7 @@
 # dcs.py
 import asyncio
 import discord
+import fnmatch
 import json
 import pandas as pd
 import socket
@@ -9,6 +10,8 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
 from datetime import timedelta
 from discord.ext import commands, tasks
+from os import listdir
+from os.path import expandvars, isfile, join
 from sqlite3 import Error
 
 
@@ -83,6 +86,18 @@ class DCS(commands.Cog):
         self.server.shutdown()
         self.task.cancel()
         self.start_listener.cancel()
+
+    async def wait_for_single_reaction(self, ctx, message):
+        def check_press(react, user):
+            return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.message.id == message.id)
+
+        pending_tasks = [self.bot.wait_for('reaction_add', check=check_press, timeout=300.0),
+                         self.bot.wait_for('reaction_remove', check=check_press, timeout=300.0)]
+        done_tasks, pending_tasks = await asyncio.wait(pending_tasks, return_when=asyncio.FIRST_COMPLETED)
+        react, user = done_tasks.pop().result()
+        # kill the remaining task
+        pending_tasks.pop().cancel()
+        return react
 
     async def get_server(self, ctx):
         server = None
@@ -189,7 +204,7 @@ class DCS(commands.Cog):
         if (message is not None):
             try:
                 await message.edit(embed=embed)
-            except Exception:
+            except discord.errors.NotFound:
                 message = None
         if (message is None):
             self.players_embeds[data['server_name']] = await self.get_channel(data).send(embed=embed)
@@ -208,7 +223,7 @@ class DCS(commands.Cog):
         if (message is not None):
             try:
                 await message.edit(embed=embed)
-            except Exception:
+            except discord.errors.NotFound:
                 message = None
         if (message is None):
             self.mission_embeds[data['server_name']] = await self.get_channel(data).send(embed=embed)
@@ -357,7 +372,49 @@ class DCS(commands.Cog):
     @commands.guild_only()
     async def add(self, ctx, *path):
         server = await self.get_server(ctx)
-        self.sendtoDCS('{"command":"addMission", "path":"' + ' '.join(path) + '", "channel":"' +
+        if (len(path) == 0):
+            j = 0
+            message = None
+            dcs_path = expandvars(self.bot.config['DCS']['DCS_HOME'] + '\\Missions')
+            files = fnmatch.filter(listdir(dcs_path), '*.miz')
+            try:
+                while (True):
+                    embed = discord.Embed(title='Available Missions', color=discord.Color.blue())
+                    ids = missions = ''
+                    max_i = (len(files) % 5) if (len(files) - j * 5) < 5 else 5
+                    for i in range(0, max_i):
+                        ids += (chr(0x31 + i) + '\u20E3' + '\n')
+                        missions += files[i+j*5] + '\n'
+                    embed.add_field(name='ID', value=ids)
+                    embed.add_field(name='Mission', value=missions)
+                    embed.add_field(name='_ _', value='_ _')
+                    embed.set_footer(text='Press a number to add the selected mission to the list.')
+                    message = await ctx.send(embed=embed)
+                    if (j > 0):
+                        await message.add_reaction('◀️')
+                    for i in range(1, max_i + 1):
+                        await message.add_reaction(chr(0x30 + i) + '\u20E3')
+                    await message.add_reaction('⏹️')
+                    if (((j + 1) * 5) < len(files)):
+                        await message.add_reaction('▶️')
+                    react = await self.wait_for_single_reaction(ctx, message)
+                    await message.delete()
+                    if (react.emoji == '◀️'):
+                        j -= 1
+                        message = None
+                    elif (react.emoji == '▶️'):
+                        j += 1
+                        message = None
+                    if (react.emoji == '⏹️'):
+                        return
+                    elif ((len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x36)):
+                        file = files[(ord(react.emoji[0]) - 0x31) + j * 5]
+                        break
+            except asyncio.TimeoutError:
+                await message.delete()
+        else:
+            file = ' '.join(path)
+        self.sendtoDCS('{"command":"addMission", "path":"' + file + '", "channel":"' +
                        str(ctx.channel.id) + '"}', server['host'], server['port'])
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
@@ -441,31 +498,33 @@ class DCS(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        self.bot.log.info(
-            'Member {} has left guild {} - ban them on DCS servers and delete their stats.'.format(member.display_name, member.guild.name))
-        try:
-            with closing(self.bot.conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET ban = 1 WHERE discord_id = ?', (member.id, ))
-                cursor.execute(
-                    'DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE discord_id = ?)', (member.id, ))
-                self.bot.conn.commit()
-        except (Exception, Error) as error:
-            self.bot.conn.rollback()
-            self.bot.log.exception(error)
-        self.updateBans()
+        if (self.bot.config.getboolean('BOT', 'AUTOBAN') is True):
+            self.bot.log.info(
+                'Member {} has left guild {} - ban them on DCS servers and delete their stats.'.format(member.display_name, member.guild.name))
+            try:
+                with closing(self.bot.conn.cursor()) as cursor:
+                    cursor.execute('UPDATE players SET ban = 1 WHERE discord_id = ?', (member.id, ))
+                    cursor.execute(
+                        'DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE discord_id = ?)', (member.id, ))
+                    self.bot.conn.commit()
+            except (Exception, Error) as error:
+                self.bot.conn.rollback()
+                self.bot.log.exception(error)
+            self.updateBans()
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        self.bot.log.info(
-            'Member {} has joined guild {} - remove possible bans from DCS servers.'.format(member.display_name, member.guild.name))
-        try:
-            with closing(self.bot.conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET ban = 0 WHERE discord_id = ?', (member.id, ))
-                self.bot.conn.commit()
-        except (Exception, Error) as error:
-            self.bot.conn.rollback()
-            self.bot.log.exception(error)
-        self.updateBans()
+        if (self.bot.config.getboolean('BOT', 'AUTOBAN') is True):
+            self.bot.log.info(
+                'Member {} has joined guild {} - remove possible bans from DCS servers.'.format(member.display_name, member.guild.name))
+            try:
+                with closing(self.bot.conn.cursor()) as cursor:
+                    cursor.execute('UPDATE players SET ban = 0 WHERE discord_id = ?', (member.id, ))
+                    self.bot.conn.commit()
+            except (Exception, Error) as error:
+                self.bot.conn.rollback()
+                self.bot.log.exception(error)
+            self.updateBans()
 
     @tasks.loop(minutes=10.0)
     async def update_status(self):
@@ -483,10 +542,10 @@ class DCS(commands.Cog):
     async def start_listener(self):
         for server in self.bot.DCSServers:
             channel = await self.bot.fetch_channel(server['status_channel'])
-            if (server['mission_embed']):
+            if ('mission_embed' in server and server['mission_embed']):
                 with suppress(Exception):
                     self.mission_embeds[server['server_name']] = await channel.fetch_message(server['mission_embed'])
-            if (server['players_embed']):
+            if ('players_embed' in server and server['players_embed']):
                 with suppress(Exception):
                     self.players_embeds[server['server_name']] = await channel.fetch_message(server['players_embed'])
         self.loop = asyncio.get_event_loop()
@@ -501,23 +560,27 @@ class DCS(commands.Cog):
 
             async def registerDCSServer(data):
                 self.bot.log.info('Registering DCS-Server ' + data['server_name'])
-                index = next((i for i, item in enumerate(self.bot.DCSServers)
-                              if item['server_name'] == data['server_name']), None)
-                if (index is not None):
-                    self.bot.DCSServers[index] = data
+                if (data['status_channel'].isnumeric() is True):
+                    index = next((i for i, item in enumerate(self.bot.DCSServers)
+                                  if item['server_name'] == data['server_name']), None)
+                    if (index is not None):
+                        self.bot.DCSServers[index] = data
+                    else:
+                        self.bot.DCSServers.append(data)
+                    SQL = 'INSERT INTO servers (server_name, host, port, chat_channel, status_channel, admin_channel) VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT (server_name) DO UPDATE SET host=?, port=?, chat_channel=?, status_channel=?, admin_channel=?'
+                    try:
+                        with closing(self.bot.conn.cursor()) as cursor:
+                            cursor.execute(SQL, (data['server_name'], data['host'], data['port'],
+                                                 data['chat_channel'], data['status_channel'], data['admin_channel'],
+                                                 data['host'], data['port'],
+                                                 data['chat_channel'], data['status_channel'], data['admin_channel']))
+                            self.bot.conn.commit()
+                    except (Exception, Error) as error:
+                        self.bot.conn.rollback()
+                        self.bot.log.exception(error)
                 else:
-                    self.bot.DCSServers.append(data)
-                SQL = 'INSERT INTO servers (server_name, host, port, chat_channel, status_channel, admin_channel) VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT (server_name) DO UPDATE SET host=?, port=?, chat_channel=?, status_channel=?, admin_channel=?'
-                try:
-                    with closing(self.bot.conn.cursor()) as cursor:
-                        cursor.execute(SQL, (data['server_name'], data['host'], data['port'],
-                                             data['chat_channel'], data['status_channel'], data['admin_channel'],
-                                             data['host'], data['port'],
-                                             data['chat_channel'], data['status_channel'], data['admin_channel']))
-                        self.bot.conn.commit()
-                except (Exception, Error) as error:
-                    self.bot.conn.rollback()
-                    self.bot.log.exception(error)
+                    self.bot.log.error(
+                        'Configuration mismatch. Please check settings in DCSServerBotConfig.lua!')
 
             async def onMissionLoadBegin(data):
                 embed = discord.Embed(title='Loading ...', color=discord.Color.blue())
