@@ -74,9 +74,9 @@ Parameter|Description
 ..HOST|Must be the same as HOST in the Bot configuration.
 ..SEND_PORT|Must be the same as PORT in the Bot configuration (default 10081).
 ..RECV_PORT|Must be a unique value > 1024 of a port that is not in use on your system. Must be unique for every DCS server instance configured. **__Don't expose that port to the outside world!__**
-..CHAT_CHANNEL|The ID of the Discord chat channel to be used for the server. Must be unique for every DCS server instance configured.
-..STATUS_CHANNEL|The ID of the Discord status channel to be used for the server. Must be unique for every DCS server instance configured.
-..ADMIN_CHANNEL|The ID of the Discord status channel to be used for the server. Must be unique for every DCS server instance configured.
+..CHAT_CHANNEL|The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.
+..STATUS_CHANNEL|The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.
+..ADMIN_CHANNEL|The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.
 
 ### Discord Configuration
 The following roles have to be set up in your Discord guild:
