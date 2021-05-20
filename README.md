@@ -13,7 +13,7 @@ Command|Parameter|Description
 .briefing/.brief||Shows the description / briefing of the running mission.
 .players||Lists the players currently active on the server.
 .list||Lists all missions with IDs available on this server (same as WebGUI).
-.add|miz-file|Adds a specific mission to the list of missions. Has to be in DCS_HOME/Missions
+.add|[miz-file]|Adds a specific mission to the list of missions. Has to be in DCS_HOME/Missions. If no miz file is provided, a list of all files will be provided.
 .delete|ID|Deletes the mission with this ID from the list of missions.
 .load|ID|Load a specific mission by ID.
 .restart|[time in secs] [message]|Restarts the current mission after [time] seconds. A message will be sent into the ingame chat of that server.
@@ -59,6 +59,7 @@ TOKEN|The token to be used to run the bot. Can be obtained at http://discord.com
 COMMAND_PREFIX|The prefix to be used. Default is '.'
 HOST|IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.
 PORT|UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose that port to the outside world!__**
+AUTOBAN|If true, members leaving the discord will be automatically banned.
 SERVER_FILTER|Filter to shorten server names (if needed)
 MISSION_FILTER|Filter to shorten mission names (if needed)
 DCS_HOME|The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.
@@ -89,15 +90,13 @@ Admin / Moderator|People with that role are allowed to ban/unban people and to l
 _One of the main concepts of this bot it to bind people to your discord. Therefor, this solution is not very suitable for public servers._
 
 The bot automatically bans / unbans people from the configured DCS servers, as soon as they leave / join the configured Discord guild.
-If you don't like that feature, remove the methods _on_member_join()_ and _on_member_remove()_ from cogs/dcs.py.
+If you don't like that feature, set AUTOBAN = false in dcsserverbot.ini.
 
 ## TODO
 Things to be added in the future:
 * Database versioning / update handling
-* Improve mission handling (list local missions, etc.)
 * More statistics
 * Ability to combine stats from different bots (if multiple servers are being run in different locations)
-* Make ban/unban on leave/join configurable
 
 ## Credits
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this solution.
