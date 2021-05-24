@@ -107,10 +107,9 @@ class Statistics(commands.Cog):
         SQL_STATISTICS = 'SELECT strftime(\'%m/%d\', s.hop_on) as day, ROUND(SUM((IFNULL(JULIANDAY(s.hop_off), JULIANDAY(\'now\')) - JULIANDAY(s.hop_on))*86400)) AS playtime ' \
             'FROM statistics s, players p WHERE s.player_ucid = p.ucid AND p.discord_id = ? AND date(s.hop_on) > date(\'now\', \'-7 days\') GROUP BY day'
         with closing(self.bot.conn.cursor()) as cursor:
-            result = cursor.execute(SQL_STATISTICS, (member.id, )).fetchall()
             labels = []
             values = []
-            for row in result:
+            for row in cursor.execute(SQL_STATISTICS, (member.id, )).fetchall():
                 labels.append(row['day'])
                 values.append(row['playtime'] / 3600.0)
             axis.bar(labels, values, width=0.5, color='mediumaquamarine')
@@ -368,10 +367,9 @@ class Statistics(commands.Cog):
             SQL_HIGHSCORE_PLAYTIME += ' AND date(s.hop_on) > date(\'now\', \'-1 month\')'
         SQL_HIGHSCORE_PLAYTIME += ' GROUP BY p.discord_id ORDER BY 2 DESC LIMIT 3'
         with closing(self.bot.conn.cursor()) as cursor:
-            result = cursor.execute(SQL_HIGHSCORE_PLAYTIME).fetchall()
             labels = []
             values = []
-            for row in result:
+            for row in cursor.execute(SQL_HIGHSCORE_PLAYTIME).fetchall():
                 member = ctx.message.guild.get_member(row[0])
                 name = member.display_name if (member is not None) else str(row[0])
                 labels.insert(0, name)
@@ -470,7 +468,7 @@ class Statistics(commands.Cog):
     @commands.has_any_role('Admin', 'Moderator')
     @commands.guild_only()
     async def serverstats(self, ctx, period=None):
-        SQL_USER_BASE = 'SELECT COUNT(DISTINCT ucid) AS dcs_users, COUNT(DISTINCT discord_id)-1 AS discord_users FROM players'
+        SQL_USER_BASE = 'SELECT COUNT(DISTINCT ucid) AS dcs_users, COUNT(DISTINCT discord_id)-1 AS discord_users FROM players WHERE ban = 0'
         SQL_SERVER_USAGE = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*24) AS playtime, ROUND(AVG(JULIANDAY(s.hop_off) - JULIANDAY(s.hop_on))*1440) AS avg FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND s.hop_off IS NOT NULL'
         SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(IFNULL(JULIANDAY(mission_end), JULIANDAY(\'now\')) - JULIANDAY(mission_start))*24) AS total, ROUND(AVG(IFNULL(JULIANDAY(mission_end), JULIANDAY(\'now\')) - JULIANDAY(mission_start))*24) AS avg FROM missions'
         SQL_TOP5_MISSIONS_USAGE = 'SELECT m.mission_name, COUNT(distinct s.player_ucid) AS players FROM missions m, statistics s WHERE s.mission_id = m.id'

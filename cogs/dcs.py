@@ -11,7 +11,7 @@ from contextlib import closing, suppress
 from datetime import timedelta
 from discord.ext import commands, tasks
 from os import listdir
-from os.path import expandvars, isfile, join
+from os.path import expandvars
 from sqlite3 import Error
 
 
@@ -71,6 +71,7 @@ class DCS(commands.Cog):
         self.players_embeds = {}
         self.player_data = {}
         self.banList = None
+        self.listeners = {}
         try:
             with closing(self.bot.conn.cursor()) as cursor:
                 self.bot.DCSServers = [dict(row) for row in cursor.execute(
@@ -78,6 +79,7 @@ class DCS(commands.Cog):
             self.bot.log.info('{} server(s) read from database.'.format(len(self.bot.DCSServers)))
         except (Exception, Error) as error:
             self.bot.log.exception(error)
+        self.loop = asyncio.get_event_loop()
         self.start_listener.start()
         self.update_status.start()
 
@@ -98,6 +100,16 @@ class DCS(commands.Cog):
         # kill the remaining task
         pending_tasks.pop().cancel()
         return react
+
+    def wait_for(self, command, token, timeout=5):
+        future = self.loop.create_future()
+        try:
+            listeners = self.listeners[command]
+        except KeyError:
+            listeners = []
+            self.listeners[command] = listeners
+        listeners.append((future, token))
+        return asyncio.wait_for(future, timeout)
 
     async def get_server(self, ctx):
         server = None
@@ -285,7 +297,11 @@ class DCS(commands.Cog):
         server = await self.get_server(ctx)
         if (self.getCurrentMissionID(server['server_name']) != -1):
             self.sendtoDCS('{"command":"getMissionDetails", "channel":"' +
-                           str(ctx.channel.id) + '"}', server['host'], server['port'])
+                           str(ctx.message.id) + '"}', server['host'], server['port'])
+            data = await self.wait_for('getMissionDetails', str(ctx.message.id))
+            embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
+            embed.description = data['mission_description'][:2048]
+            await ctx.send(embed=embed)
         else:
             await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
 
@@ -348,7 +364,19 @@ class DCS(commands.Cog):
     async def list(self, ctx):
         server = await self.get_server(ctx)
         self.sendtoDCS('{"command":"listMissions", "channel":"' +
-                       str(ctx.channel.id) + '"}', server['host'], server['port'])
+                       str(ctx.message.id) + '"}', server['host'], server['port'])
+        data = await self.wait_for('listMissions', str(ctx.message.id))
+        embed = discord.Embed(title='Mission List', color=discord.Color.blue())
+        ids = active = missions = ''
+        for i in range(0, len(data['missionList'])):
+            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+            active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
+            mission = data['missionList'][i]
+            missions += mission[(mission.rfind('\\') + 1):] + '\n'
+        embed.add_field(name='ID', value=ids)
+        embed.add_field(name='Active', value=active)
+        embed.add_field(name='Mission', value=missions)
+        return await ctx.send(embed=embed)
 
     @commands.command(description='Loads a mission by ID', usage='<ID>')
     @commands.has_role('DCS Admin')
@@ -548,7 +576,6 @@ class DCS(commands.Cog):
             if ('players_embed' in server and server['players_embed']):
                 with suppress(Exception):
                     self.players_embeds[server['server_name']] = await channel.fetch_message(server['players_embed'])
-        self.loop = asyncio.get_event_loop()
         self.task = await self.loop.run_in_executor(ThreadPoolExecutor(), self.listener)
 
     def listener(self):
@@ -625,24 +652,6 @@ class DCS(commands.Cog):
                 embed.add_field(name='Red Slots', value=data['num_slots_red'] if ('num_slots_red' in data) else '-')
                 embed.set_footer(text='Updates every 10 minutes')
                 return await self.setMissionEmbed(data, embed)
-
-            async def getMissionDetails(data):
-                embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
-                embed.description = data['mission_description'][:2048]
-                return await self.get_channel(data).send(embed=embed)
-
-            async def listMissions(data):
-                embed = discord.Embed(title='Mission List', color=discord.Color.blue())
-                ids = active = missions = ''
-                for i in range(0, len(data['missionList'])):
-                    ids += (chr(0x31 + i) + '\u20E3' + '\n')
-                    active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
-                    mission = data['missionList'][i]
-                    missions += mission[(mission.rfind('\\') + 1):] + '\n'
-                embed.add_field(name='ID', value=ids)
-                embed.add_field(name='Active', value=active)
-                embed.add_field(name='Mission', value=missions)
-                return await self.get_channel(data).send(embed=embed)
 
             async def getCurrentPlayers(data):
                 self.player_data[data['server_name']] = pd.DataFrame.from_dict(data['players'])
@@ -873,7 +882,26 @@ class DCS(commands.Cog):
                     s.client_address[0], json.dumps(dt))
                 self.bot.log.info(text)
                 try:
-                    future = asyncio.run_coroutine_threadsafe(getattr(UDPListener, dt['command'])(dt), self.loop)
+                    command = dt['command']
+                    if (command.startswith('on') is False):
+                        listeners = self.listeners.get(command)
+                        if (listeners):
+                            removed = []
+                            for i, (future, token) in enumerate(listeners):
+                                if future.cancelled():
+                                    removed.append(i)
+                                    continue
+                                if (token == dt['channel']):
+                                    # set result with call_soon_threadsafe as we are in a different thread
+                                    self.loop.call_soon_threadsafe(future.set_result, dt)
+                                    removed.append(i)
+                            if len(removed) == len(listeners):
+                                self.listeners.pop(command)
+                            else:
+                                for idx in reversed(removed):
+                                    del listeners[idx]
+                            return
+                    future = asyncio.run_coroutine_threadsafe(getattr(UDPListener, command)(dt), self.loop)
                     future.result()
                 except (AttributeError) as error:
                     self.bot.log.exception(error)

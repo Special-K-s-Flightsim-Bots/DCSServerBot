@@ -73,7 +73,7 @@ async def on_command_error(ctx, error):
     elif isinstance(error, commands.errors.CheckFailure):
         await ctx.send('You don\'t have the rights to use that command.')
     elif isinstance(error, asyncio.TimeoutError):
-        await ctx.send('You\'ve waited too long. Aborted.')
+        await ctx.send('A timeout occured. Is the DCS server running?')
     else:
         await ctx.send(str(error))
 
