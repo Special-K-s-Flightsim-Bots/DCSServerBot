@@ -5,11 +5,15 @@ import discord
 import logging
 import os
 import shutil
+import psycopg2
+import psycopg2.extras
 import sqlite3
-from sqlite3 import Error
+from contextlib import closing
 from discord.ext import commands
 from logging.handlers import RotatingFileHandler
 from os import path
+from psycopg2 import pool
+from sqlite3 import Error
 
 config = configparser.ConfigParser()
 config.read('config/dcsserverbot.ini')
@@ -18,7 +22,7 @@ config.read('config/dcsserverbot.ini')
 COGS = ['cogs.dcs', 'cogs.statistics', 'cogs.help']
 
 # Database Configuration
-DATABASE = 'dcsserverbot.db'
+SQLITE_DATABASE = 'dcsserverbot.db'
 TABLES_SQL = 'sql/tables.sql'
 
 
@@ -55,7 +59,7 @@ bot.DCSServers = []
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user.name} - {bot.user.id}')
+    bot.log.error(f'Logged in as {bot.user.name} - {bot.user.id}')
     bot.remove_command('help')
     for cog in COGS:
         bot.load_extension(cog)
@@ -100,19 +104,54 @@ async def reload(ctx, cog=None):
 
 # Initialize the database
 if (path.exists(TABLES_SQL)):
-    bot.log.info('Initializing Database ...')
+    bot.log.error('Initializing Database ...')
+    bot.pool = pool.ThreadedConnectionPool(0, 10, config['BOT']['DATABASE_URL'], sslmode='require')
+    conn = bot.pool.getconn()
     try:
-        bot.conn = sqlite3.connect(DATABASE)
-        bot.conn.row_factory = sqlite3.Row
-        cursor = bot.conn.cursor()
+        cursor = conn.cursor()
         with open(TABLES_SQL) as tables_sql:
             for query in tables_sql.readlines():
                 bot.log.debug(query.rstrip())
                 cursor.execute(query.rstrip())
-        bot.conn.commit()
-        bot.log.info('Database initialized.')
-    except Error as e:
-        bot.log.exception(e)
+        conn.commit()
+        bot.log.error('Database initialized.')
+    except (Exception, psycopg2.DatabaseError) as error:
+        conn.rollback()
+        bot.log.exception(error)
+        exit(-1)
+    bot.pool.putconn(conn)
+
+if (path.exists(SQLITE_DATABASE)):
+    bot.log.error('SQLite Database found. Migrating... (this may take a while)')
+    conn_tgt = bot.pool.getconn()
+    try:
+        with closing(sqlite3.connect(SQLITE_DATABASE)) as conn_src:
+            conn_src.row_factory = sqlite3.Row
+            with closing(conn_src.cursor()) as cursor_src:
+                for table in [row[0] for row in cursor_src.execute('SELECT name FROM sqlite_master WHERE type=\'table\' and name not like \'sqlite_%\'').fetchall()]:
+                    bot.log.info('Migrating table ' + table + ' ...')
+                    for row in [dict(row) for row in cursor_src.execute('SELECT * FROM ' + table).fetchall()]:
+                        if ('ban' in row):
+                            row['ban'] = 'f' if (row['ban'] == 0) else 't'
+                        with closing(conn_tgt.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor_tgt:
+                            keys = row.keys()
+                            columns = ','.join(keys)
+                            values = ','.join(['%({})s'.format(k) for k in keys])
+                            SQL = 'INSERT INTO ' + table + '({0}) VALUES ({1})'.format(columns, values)
+                            cursor_tgt.execute(SQL, row)
+        bot.log.info('Re-initializing sequences...')
+        with closing(conn_tgt.cursor()) as cursor_tgt:
+            cursor_tgt.execute('SELECT setval(\'missions_id_seq\', (select max(id)+1 from missions), false)')
+        conn_tgt.commit()
+    except (Error, Exception, psycopg2.DatabaseError) as error:
+        conn_tgt.rollback()
+        bot.log.exception(error)
+        exit(-1)
+    bot.pool.putconn(conn_tgt)
+    new_filename = SQLITE_DATABASE[0: SQLITE_DATABASE.rfind('.')] + '.bak'
+    bot.log.error('SQLite Database migrated. Renaming to ' + new_filename)
+    os.rename(SQLITE_DATABASE, new_filename)
+
 
 # Installing Hook
 dcs_path = os.path.expandvars(config['DCS']['DCS_HOME'] + '\\Scripts')
