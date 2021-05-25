@@ -25,6 +25,8 @@ COGS = ['cogs.master', 'cogs.statistics', 'cogs.help'] if config.getboolean('BOT
 # Database Configuration
 SQLITE_DATABASE = 'dcsserverbot.db'
 TABLES_SQL = 'sql/tables.sql'
+POOL_MIN = 5 if config.getboolean('BOT', 'MASTER') is True else 2
+POOL_MAX = 10 if config.getboolean('BOT', 'MASTER') is True else 5
 
 
 def get_prefix(client, message):
@@ -107,7 +109,7 @@ if (config.getboolean('BOT', 'MASTER') is True):
     # Initialize the database
     if (path.exists(TABLES_SQL)):
         bot.log.warning('Initializing Database ...')
-        bot.pool = pool.ThreadedConnectionPool(0, 10, config['BOT']['DATABASE_URL'], sslmode='require')
+        bot.pool = pool.ThreadedConnectionPool(POOL_MIN, POOL_MAX, config['BOT']['DATABASE_URL'], sslmode='require')
         conn = bot.pool.getconn()
         try:
             cursor = conn.cursor()
