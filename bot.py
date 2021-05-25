@@ -5,6 +5,7 @@ import discord
 import logging
 import os
 import shutil
+import platform
 import psycopg2
 import psycopg2.extras
 import sqlite3
@@ -19,7 +20,7 @@ config = configparser.ConfigParser()
 config.read('config/dcsserverbot.ini')
 
 # COGs to load
-COGS = ['cogs.dcs', 'cogs.statistics', 'cogs.help']
+COGS = ['cogs.host', 'cogs.statistics', 'cogs.help'] if config['BOT']['MASTER'] is True else ['cogs.agent']
 
 # Database Configuration
 SQLITE_DATABASE = 'dcsserverbot.db'
@@ -49,7 +50,7 @@ fh = RotatingFileHandler('dcsserverbot.log', maxBytes=10*1024*2024, backupCount=
 fh.setLevel(logging.INFO)
 fh.doRollover()
 ch = logging.StreamHandler()
-ch.setLevel(logging.ERROR)
+ch.setLevel(logging.WARN)
 bot.log.addHandler(fh)
 bot.log.addHandler(ch)
 
@@ -59,7 +60,7 @@ bot.DCSServers = []
 
 @bot.event
 async def on_ready():
-    bot.log.error(f'Logged in as {bot.user.name} - {bot.user.id}')
+    bot.log.warning(f'Logged in as {bot.user.name} - {bot.user.id}')
     bot.remove_command('help')
     for cog in COGS:
         bot.load_extension(cog)
@@ -104,7 +105,7 @@ async def reload(ctx, cog=None):
 
 # Initialize the database
 if (path.exists(TABLES_SQL)):
-    bot.log.error('Initializing Database ...')
+    bot.log.warning('Initializing Database ...')
     bot.pool = pool.ThreadedConnectionPool(0, 10, config['BOT']['DATABASE_URL'], sslmode='require')
     conn = bot.pool.getconn()
     try:
@@ -114,7 +115,7 @@ if (path.exists(TABLES_SQL)):
                 bot.log.debug(query.rstrip())
                 cursor.execute(query.rstrip())
         conn.commit()
-        bot.log.error('Database initialized.')
+        bot.log.warning('Database initialized.')
     except (Exception, psycopg2.DatabaseError) as error:
         conn.rollback()
         bot.log.exception(error)
@@ -122,7 +123,7 @@ if (path.exists(TABLES_SQL)):
     bot.pool.putconn(conn)
 
 if (path.exists(SQLITE_DATABASE)):
-    bot.log.error('SQLite Database found. Migrating... (this may take a while)')
+    bot.log.warning('SQLite Database found. Migrating... (this may take a while)')
     conn_tgt = bot.pool.getconn()
     try:
         with closing(sqlite3.connect(SQLITE_DATABASE)) as conn_src:
@@ -133,6 +134,9 @@ if (path.exists(SQLITE_DATABASE)):
                     for row in [dict(row) for row in cursor_src.execute('SELECT * FROM ' + table).fetchall()]:
                         if ('ban' in row):
                             row['ban'] = 'f' if (row['ban'] == 0) else 't'
+                        # add a new column agent_host to support multiple bot hosts
+                        if (table == 'servers'):
+                            row['agent_host'] = platform.node()
                         with closing(conn_tgt.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor_tgt:
                             keys = row.keys()
                             columns = ','.join(keys)
@@ -149,7 +153,7 @@ if (path.exists(SQLITE_DATABASE)):
         exit(-1)
     bot.pool.putconn(conn_tgt)
     new_filename = SQLITE_DATABASE[0: SQLITE_DATABASE.rfind('.')] + '.bak'
-    bot.log.error('SQLite Database migrated. Renaming to ' + new_filename)
+    bot.log.warning('SQLite Database migrated. Renaming to ' + new_filename)
     os.rename(SQLITE_DATABASE, new_filename)
 
 
@@ -166,4 +170,5 @@ shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
 bot.log.info('Hook installed.')
 # TODO change sanitizeModules
 
+bot.log.warning('Starting {} at {}'.format('Master' if config['BOT']['MASTER'] is True else 'Agent', platform.node()))
 bot.run(config['BOT']['TOKEN'], bot=True, reconnect=True)

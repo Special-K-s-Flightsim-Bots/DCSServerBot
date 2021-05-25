@@ -7,6 +7,7 @@ import os
 import psycopg2
 import psycopg2.extras
 import re
+import time
 from contextlib import closing, suppress
 from datetime import timedelta
 from discord.ext import commands
@@ -317,16 +318,24 @@ class Statistics(commands.Cog):
             plt.style.use('dark_background')
             plt.rcParams['axes.facecolor'] = '2C2F33'
             figure = plt.figure(figsize=(20, 20))
+            print('### Start ###')
+            print(time.time())
             self.draw_playtime_planes(member, plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure))
+            print(time.time())
             self.draw_recent(member, plt.subplot2grid((3, 3), (0, 2), colspan=1, fig=figure))
+            print(time.time())
             self.draw_server_time(member, plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
+            print(time.time())
             self.draw_flight_performance(member, plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure))
+            print(time.time())
             ax1 = plt.subplot2grid((3, 3), (2, 0), colspan=1, fig=figure)
             ax2 = plt.subplot2grid((3, 3), (2, 1), colspan=1, fig=figure)
             ax3 = plt.subplot2grid((3, 3), (2, 2), colspan=1, fig=figure)
             retval = self.draw_kill_performance(member, ax2)
+            print(time.time())
             i = 0
             if (('kills' in retval) and (self.draw_kill_types(member, ax3) is True)):
+                print(time.time())
                 # use ConnectionPatch to draw lines between the two plots
                 # get the wedge data
                 theta1, theta2 = ax2.patches[i].theta1, ax2.patches[i].theta2
@@ -356,7 +365,7 @@ class Statistics(commands.Cog):
             else:
                 ax3.set_visible(False)
             if (('deaths' in retval) and (self.draw_death_types(member, ax1, (i == 0)) is True)):
-
+                print(time.time())
                 # use ConnectionPatch to draw lines between the two plots
                 # get the wedge data
                 theta1, theta2 = ax2.patches[i].theta1, ax2.patches[i].theta2
@@ -396,6 +405,8 @@ class Statistics(commands.Cog):
             with suppress(Exception):
                 await ctx.send(file=file, embed=embed)
             os.remove(filename)
+            print(time.time())
+            print('### End ###')
         except (Exception) as error:
             self.bot.log.exception(error)
 

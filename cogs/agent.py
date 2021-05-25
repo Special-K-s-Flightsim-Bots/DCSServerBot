@@ -1,9 +1,10 @@
-# dcs.py
+# agent.py
 import asyncio
 import discord
 import fnmatch
 import json
 import pandas as pd
+import platform
 import psycopg2
 import psycopg2.extras
 import socket
@@ -16,7 +17,7 @@ from os import listdir
 from os.path import expandvars
 
 
-class DCS(commands.Cog):
+class Agent(commands.Cog):
 
     SIDE_UNKNOWN = -1
     SIDE_SPECTATOR = 0
@@ -77,7 +78,7 @@ class DCS(commands.Cog):
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(
-                    'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, mission_embed, players_embed FROM servers')
+                    'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, mission_embed, players_embed FROM servers WHERE agent_host = %s', (platform.node(), ))
                 self.bot.DCSServers = [dict(row) for row in cursor.fetchall()]
             self.bot.log.info('{} server(s) read from database.'.format(len(self.bot.DCSServers)))
         except (Exception, psycopg2.DatabaseError) as error:
@@ -105,7 +106,7 @@ class DCS(commands.Cog):
         pending_tasks.pop().cancel()
         return react
 
-    def wait_for(self, command, token, timeout=10):
+    def wait_for(self, command, token, timeout=5):
         future = self.loop.create_future()
         try:
             listeners = self.listeners[command]
@@ -123,24 +124,6 @@ class DCS(commands.Cog):
                     (int(item['admin_channel']) == ctx.channel.id)):
                 server = item
                 break
-        if (server is None):
-            embed = discord.Embed(color=discord.Color.blue())
-            for server in self.bot.DCSServers:
-                embed.add_field(name='ID', value=self.bot.DCSServers.index(server) + 1)
-                embed.add_field(name='Server', value=server['server_name'])
-                embed.add_field(name='Port', value=server['port'])
-            embed.set_footer(text='Select the server you\'d like to run that command on.')
-            message = await ctx.send(embed=embed)
-            for i in range(0, len(self.bot.DCSServers)):
-                await message.add_reaction(chr(0x31 + i) + '\u20E3')
-
-            def check_press(react, user):
-                return ((react.message == message) & (user != self.bot.user))
-
-            react, user = await self.bot.wait_for('reaction_add', check=check_press, timeout=120.0)
-            await message.delete()
-            message = None
-            server = self.bot.DCSServers[ord(react.emoji[0]) - 0x31]
         return server
 
     def sendtoDCS(self, message, host, port):
@@ -269,197 +252,193 @@ class DCS(commands.Cog):
     @commands.guild_only()
     async def chat(self, ctx, *args):
         server = await self.get_server(ctx)
-        self.sendtoDCS('{"command":"sendChatMessage", "channel":"' + str(ctx.channel.id) +
-                       '", "message": "' + ' '.join(args) + '", "from": "' +
-                       ctx.message.author.display_name + '"}',
-                       server['host'], server['port'])
-
-    @commands.command(description='Lists the configured DCS servers')
-    @commands.has_permissions(administrator=True)
-    @commands.guild_only()
-    async def status(self, ctx):
-        embed = discord.Embed(title='Currently configured DCS servers:', color=discord.Color.blue())
-        ids = servers = conns = ''
-        for server in self.bot.DCSServers:
-            ids += str(self.bot.DCSServers.index(server)) + '\n'
-            servers += server['server_name'] + '\n'
-            conns += '{}:{}'.format(server['host'], server['port']) + '\n'
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Server', value=servers)
-        embed.add_field(name='Connection', value=conns)
-        await ctx.send(embed=embed)
+        if (server is not None):
+            self.sendtoDCS('{"command":"sendChatMessage", "channel":"' + str(ctx.channel.id) +
+                           '", "message": "' + ' '.join(args) + '", "from": "' +
+                           ctx.message.author.display_name + '"}',
+                           server['host'], server['port'])
 
     @commands.command(description='Shows the active DCS mission', hidden=True)
     @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def mission(self, ctx):
         server = await self.get_server(ctx)
-        if (int(server['status_channel']) != ctx.channel.id):
-            await ctx.send('This command can only be used in the status channel.')
-        else:
-            await ctx.message.delete()
-            if (self.getCurrentMissionID(server['server_name']) != -1):
-                self.sendtoDCS('{"command":"getRunningMission", "channel":"' +
-                               str(ctx.channel.id) + '"}', server['host'], server['port'])
+        if (server is not None):
+            if (int(server['status_channel']) != ctx.channel.id):
+                await ctx.send('This command can only be used in the status channel.')
             else:
-                msg = await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
-                await asyncio.sleep(5)
-                await msg.delete()
+                await ctx.message.delete()
+                if (self.getCurrentMissionID(server['server_name']) != -1):
+                    self.sendtoDCS('{"command":"getRunningMission", "channel":"' +
+                                   str(ctx.channel.id) + '"}', server['host'], server['port'])
+                else:
+                    msg = await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
+                    await asyncio.sleep(5)
+                    await msg.delete()
 
     @commands.command(description='Shows briefing of the active DCS mission', aliases=['brief'])
     @commands.has_role('DCS')
     @commands.guild_only()
     async def briefing(self, ctx):
         server = await self.get_server(ctx)
-        if (self.getCurrentMissionID(server['server_name']) != -1):
-            self.sendtoDCS('{"command":"getMissionDetails", "channel":"' +
-                           str(ctx.message.id) + '"}', server['host'], server['port'])
-            data = await self.wait_for('getMissionDetails', str(ctx.message.id))
-            embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
-            embed.description = data['mission_description'][:2048]
-            await ctx.send(embed=embed)
-        else:
-            await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
+        if (server is not None):
+            if (self.getCurrentMissionID(server['server_name']) != -1):
+                self.sendtoDCS('{"command":"getMissionDetails", "channel":"' +
+                               str(ctx.message.id) + '"}', server['host'], server['port'])
+                data = await self.wait_for('getMissionDetails', str(ctx.message.id))
+                embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
+                embed.description = data['mission_description'][:2048]
+                await ctx.send(embed=embed)
+            else:
+                await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
 
     @commands.command(description='List the current players on this server', usage='<server>', hidden=True)
     @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def players(self, ctx):
         server = await self.get_server(ctx)
-        if (int(server['status_channel']) != ctx.channel.id):
-            await ctx.send('This command can only be used in the status channel.')
-        else:
-            await ctx.message.delete()
-            if (self.getCurrentMissionID(server['server_name']) != -1):
-                self.sendtoDCS('{"command":"getCurrentPlayers", "channel":"' +
-                               str(ctx.channel.id) + '"}', server['host'], server['port'])
+        if (server is not None):
+            if (int(server['status_channel']) != ctx.channel.id):
+                await ctx.send('This command can only be used in the status channel.')
             else:
-                msg = await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
-                await asyncio.sleep(5)
-                await msg.delete()
+                await ctx.message.delete()
+                if (self.getCurrentMissionID(server['server_name']) != -1):
+                    self.sendtoDCS('{"command":"getCurrentPlayers", "channel":"' +
+                                   str(ctx.channel.id) + '"}', server['host'], server['port'])
+                else:
+                    msg = await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
+                    await asyncio.sleep(5)
+                    await msg.delete()
 
     @commands.command(description='Restarts the current active mission', usage='[delay] [message]')
     @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def restart(self, ctx, *args):
         server = await self.get_server(ctx)
-        delay = 120
-        msg = None
-        if (self.getCurrentMissionID(server['server_name']) != -1):
-            i = 0
-            if (len(args)):
-                # check for delay parameter
-                if (args[0].isnumeric()):
-                    delay = int(args[0])
-                    i += 1
-            message = '!!! Server is RESTARTING in {} seconds.'.format(delay)
-            # have we got a message to present to the users?
-            if (len(args) > i):
-                message += ' Reason: {}'.format(' '.join(args[i:]))
+        if (server is not None):
+            delay = 120
+            msg = None
+            if (self.getCurrentMissionID(server['server_name']) != -1):
+                i = 0
+                if (len(args)):
+                    # check for delay parameter
+                    if (args[0].isnumeric()):
+                        delay = int(args[0])
+                        i += 1
+                message = '!!! Server is RESTARTING in {} seconds.'.format(delay)
+                # have we got a message to present to the users?
+                if (len(args) > i):
+                    message += ' Reason: {}'.format(' '.join(args[i:]))
 
-            if ((int(server['status_channel']) == ctx.channel.id)):
-                await ctx.message.delete()
-            msg = await ctx.send('Restarting mission in {} seconds (warning users before)...'.format(delay))
-            self.sendtoDCS('{"command":"sendChatMessage", "channel":"' + str(ctx.channel.id) +
-                           '", "message":"' + message + '", "from": "' +
-                           ctx.message.author.display_name + '"}', server['host'], server['port'])
-            await asyncio.sleep(delay)
-            await msg.delete()
-            self.sendtoDCS('{"command":"restartMission", "channel":"' +
-                           str(ctx.channel.id) + '"}', server['host'], server['port'])
-            msg = await ctx.send('Restart command sent. Server will restart now.')
-        else:
-            msg = await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
-        if ((msg is not None) and (int(server['status_channel']) == ctx.channel.id)):
-            await asyncio.sleep(5)
-            await msg.delete()
+                if ((int(server['status_channel']) == ctx.channel.id)):
+                    await ctx.message.delete()
+                msg = await ctx.send('Restarting mission in {} seconds (warning users before)...'.format(delay))
+                self.sendtoDCS('{"command":"sendChatMessage", "channel":"' + str(ctx.channel.id) +
+                               '", "message":"' + message + '", "from": "' +
+                               ctx.message.author.display_name + '"}', server['host'], server['port'])
+                await asyncio.sleep(delay)
+                await msg.delete()
+                self.sendtoDCS('{"command":"restartMission", "channel":"' +
+                               str(ctx.channel.id) + '"}', server['host'], server['port'])
+                msg = await ctx.send('Restart command sent. Server will restart now.')
+            else:
+                msg = await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
+            if ((msg is not None) and (int(server['status_channel']) == ctx.channel.id)):
+                await asyncio.sleep(5)
+                await msg.delete()
 
     @commands.command(description='Lists the current configured missions')
     @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def list(self, ctx):
         server = await self.get_server(ctx)
-        self.sendtoDCS('{"command":"listMissions", "channel":"' +
-                       str(ctx.message.id) + '"}', server['host'], server['port'])
-        data = await self.wait_for('listMissions', str(ctx.message.id))
-        embed = discord.Embed(title='Mission List', color=discord.Color.blue())
-        ids = active = missions = ''
-        for i in range(0, len(data['missionList'])):
-            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
-            mission = data['missionList'][i]
-            missions += mission[(mission.rfind('\\') + 1):] + '\n'
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Active', value=active)
-        embed.add_field(name='Mission', value=missions)
-        return await ctx.send(embed=embed)
+        if (server is not None):
+            with suppress(asyncio.TimeoutError):
+                self.sendtoDCS('{"command":"listMissions", "channel":"' +
+                               str(ctx.message.id) + '"}', server['host'], server['port'])
+                data = await self.wait_for('listMissions', str(ctx.message.id))
+                embed = discord.Embed(title='Mission List', color=discord.Color.blue())
+                ids = active = missions = ''
+                for i in range(0, len(data['missionList'])):
+                    ids += (chr(0x31 + i) + '\u20E3' + '\n')
+                    active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
+                    mission = data['missionList'][i]
+                    missions += mission[(mission.rfind('\\') + 1):] + '\n'
+                embed.add_field(name='ID', value=ids)
+                embed.add_field(name='Active', value=active)
+                embed.add_field(name='Mission', value=missions)
+                return await ctx.send(embed=embed)
+            return await ctx.send('Server ' + server['server_name'] + ' is not running.')
 
     @commands.command(description='Loads a mission by ID', usage='<ID>')
     @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def load(self, ctx, id):
         server = await self.get_server(ctx)
-        self.sendtoDCS('{"command":"loadMission", "id":' + id + ', "channel":"' +
-                       str(ctx.channel.id) + '"}', server['host'], server['port'])
-        await ctx.send('Loading mission ' + id + ' ...')
+        if (server is not None):
+            self.sendtoDCS('{"command":"loadMission", "id":' + id + ', "channel":"' +
+                           str(ctx.channel.id) + '"}', server['host'], server['port'])
+            await ctx.send('Loading mission ' + id + ' ...')
 
     @commands.command(description='Deletes a mission from the list', usage='<ID>')
     @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def delete(self, ctx, id):
         server = await self.get_server(ctx)
-        self.sendtoDCS('{"command":"deleteMission", "id":' + id + ', "channel":"' +
-                       str(ctx.channel.id) + '"}', server['host'], server['port'])
+        if (server is not None):
+            self.sendtoDCS('{"command":"deleteMission", "id":' + id + ', "channel":"' +
+                           str(ctx.channel.id) + '"}', server['host'], server['port'])
 
     @commands.command(description='Adds a mission to the list', usage='<path>')
     @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def add(self, ctx, *path):
         server = await self.get_server(ctx)
-        if (len(path) == 0):
-            j = 0
-            message = None
-            dcs_path = expandvars(self.bot.config['DCS']['DCS_HOME'] + '\\Missions')
-            files = fnmatch.filter(listdir(dcs_path), '*.miz')
-            try:
-                while (True):
-                    embed = discord.Embed(title='Available Missions', color=discord.Color.blue())
-                    ids = missions = ''
-                    max_i = (len(files) % 5) if (len(files) - j * 5) < 5 else 5
-                    for i in range(0, max_i):
-                        ids += (chr(0x31 + i) + '\u20E3' + '\n')
-                        missions += files[i+j*5] + '\n'
-                    embed.add_field(name='ID', value=ids)
-                    embed.add_field(name='Mission', value=missions)
-                    embed.add_field(name='_ _', value='_ _')
-                    embed.set_footer(text='Press a number to add the selected mission to the list.')
-                    message = await ctx.send(embed=embed)
-                    if (j > 0):
-                        await message.add_reaction('◀️')
-                    for i in range(1, max_i + 1):
-                        await message.add_reaction(chr(0x30 + i) + '\u20E3')
-                    await message.add_reaction('⏹️')
-                    if (((j + 1) * 5) < len(files)):
-                        await message.add_reaction('▶️')
-                    react = await self.wait_for_single_reaction(ctx, message)
+        if (server is not None):
+            if (len(path) == 0):
+                j = 0
+                message = None
+                dcs_path = expandvars(self.bot.config['DCS']['DCS_HOME'] + '\\Missions')
+                files = fnmatch.filter(listdir(dcs_path), '*.miz')
+                try:
+                    while (True):
+                        embed = discord.Embed(title='Available Missions', color=discord.Color.blue())
+                        ids = missions = ''
+                        max_i = (len(files) % 5) if (len(files) - j * 5) < 5 else 5
+                        for i in range(0, max_i):
+                            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+                            missions += files[i+j*5] + '\n'
+                        embed.add_field(name='ID', value=ids)
+                        embed.add_field(name='Mission', value=missions)
+                        embed.add_field(name='_ _', value='_ _')
+                        embed.set_footer(text='Press a number to add the selected mission to the list.')
+                        message = await ctx.send(embed=embed)
+                        if (j > 0):
+                            await message.add_reaction('◀️')
+                        for i in range(1, max_i + 1):
+                            await message.add_reaction(chr(0x30 + i) + '\u20E3')
+                        await message.add_reaction('⏹️')
+                        if (((j + 1) * 5) < len(files)):
+                            await message.add_reaction('▶️')
+                        react = await self.wait_for_single_reaction(ctx, message)
+                        await message.delete()
+                        if (react.emoji == '◀️'):
+                            j -= 1
+                            message = None
+                        elif (react.emoji == '▶️'):
+                            j += 1
+                            message = None
+                        if (react.emoji == '⏹️'):
+                            return
+                        elif ((len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x36)):
+                            file = files[(ord(react.emoji[0]) - 0x31) + j * 5]
+                            break
+                except asyncio.TimeoutError:
                     await message.delete()
-                    if (react.emoji == '◀️'):
-                        j -= 1
-                        message = None
-                    elif (react.emoji == '▶️'):
-                        j += 1
-                        message = None
-                    if (react.emoji == '⏹️'):
-                        return
-                    elif ((len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x36)):
-                        file = files[(ord(react.emoji[0]) - 0x31) + j * 5]
-                        break
-            except asyncio.TimeoutError:
-                await message.delete()
-        else:
-            file = ' '.join(path)
-        self.sendtoDCS('{"command":"addMission", "path":"' + file + '", "channel":"' +
-                       str(ctx.channel.id) + '"}', server['host'], server['port'])
+            else:
+                file = ' '.join(path)
+            self.sendtoDCS('{"command":"addMission", "path":"' + file + '", "channel":"' +
+                           str(ctx.channel.id) + '"}', server['host'], server['port'])
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
     @commands.has_any_role('Admin', 'Moderator')
@@ -477,14 +456,10 @@ class DCS(commands.Cog):
                     # ban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    cursor.execute('UPDATE players SET ban = true WHERE ucid = %s', (ucid, ))
                     for server in self.bot.DCSServers:
                         self.sendtoDCS('{"command":"ban", "ucid":"' + ucid + '", "channel":"' +
                                        str(ctx.channel.id) + '"}', server['host'], server['port'])
-                conn.commit()
-            await ctx.send('Player {} banned.'.format(user))
         except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
             self.bot.log.exception(error)
         self.bot.pool.putconn(conn)
 
@@ -492,7 +467,6 @@ class DCS(commands.Cog):
     @commands.has_any_role('Admin', 'Moderator')
     @commands.guild_only()
     async def unban(self, ctx, user):
-        server = await self.get_server(ctx)
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -505,79 +479,12 @@ class DCS(commands.Cog):
                     # unban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    cursor.execute('UPDATE players SET ban = false WHERE ucid = %s', (ucid, ))
                     for server in self.bot.DCSServers:
                         self.sendtoDCS('{"command":"unban", "ucid":"' + ucid + '", "channel":"' +
                                        str(ctx.channel.id) + '"}', server['host'], server['port'])
-                conn.commit()
-            await ctx.send('Player {} unbanned.'.format(user))
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
-
-    @commands.command(description='Shows active bans')
-    @commands.has_any_role('Admin', 'Moderator')
-    @commands.guild_only()
-    async def bans(self, ctx):
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT ucid, discord_id FROM players WHERE ban = true')
-                rows = list(cursor.fetchall())
-                if (rows is not None and len(rows) > 0):
-                    embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
-                    ucids = discord_ids = discord_names = ''
-                    for ban in rows:
-                        if (ban['discord_id'] != -1):
-                            user = await self.bot.fetch_user(ban['discord_id'])
-                        else:
-                            user = None
-                        discord_names += (user.name if user else '<unknown>') + '\n'
-                        ucids += ban['ucid'] + '\n'
-                        discord_ids += str(ban['discord_id']) + '\n'
-                    embed.add_field(name='Name', value=discord_names)
-                    embed.add_field(name='UCID', value=ucids)
-                    embed.add_field(name='Discord ID', value=discord_ids)
-                    await ctx.send(embed=embed)
-                else:
-                    await ctx.send('No players are banned at the moment.')
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         self.bot.pool.putconn(conn)
-
-    @commands.Cog.listener()
-    async def on_member_remove(self, member):
-        if (self.bot.config.getboolean('BOT', 'AUTOBAN') is True):
-            self.bot.log.info(
-                'Member {} has left guild {} - ban them on DCS servers and delete their stats.'.format(member.display_name, member.guild.name))
-            conn = self.bot.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET ban = 1 WHERE discord_id = %s', (member.id, ))
-                    cursor.execute(
-                        'DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE discord_id = %s)', (member.id, ))
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.bot.log.exception(error)
-                conn.rollback()
-            self.bot.pool.putconn(conn)
-
-    @commands.Cog.listener()
-    async def on_member_join(self, member):
-        if (self.bot.config.getboolean('BOT', 'AUTOBAN') is True):
-            self.bot.log.info(
-                'Member {} has joined guild {} - remove possible bans from DCS servers.'.format(member.display_name, member.guild.name))
-            conn = self.bot.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET ban = 0 WHERE discord_id = %s', (member.id, ))
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.bot.log.exception(error)
-                conn.rollback()
-            self.bot.pool.putconn(conn)
-            self.updateBans()
 
     @tasks.loop(minutes=10.0)
     async def update_status(self):
@@ -619,13 +526,13 @@ class DCS(commands.Cog):
                         self.bot.DCSServers[index] = data
                     else:
                         self.bot.DCSServers.append(data)
-                    SQL = 'INSERT INTO servers (server_name, host, port, chat_channel, status_channel, admin_channel) VALUES(%s, %s, %s, %s, %s, %s) ON CONFLICT (server_name) DO UPDATE SET host=%s, port=%s, chat_channel=%s, status_channel=%s, admin_channel=%s'
+                    SQL = 'INSERT INTO servers (server_name, agent_host, host, port, chat_channel, status_channel, admin_channel) VALUES(%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, chat_channel=%s, status_channel=%s, admin_channel=%s'
                     conn = self.bot.pool.getconn()
                     try:
                         with closing(conn.cursor()) as cursor:
-                            cursor.execute(SQL, (data['server_name'], data['host'], data['port'],
+                            cursor.execute(SQL, (data['server_name'], platform.node(), data['host'], data['port'],
                                                  data['chat_channel'], data['status_channel'], data['admin_channel'],
-                                                 data['host'], data['port'],
+                                                 platform.node(), data['host'], data['port'],
                                                  data['chat_channel'], data['status_channel'], data['admin_channel']))
                             conn.commit()
                     except (Exception, psycopg2.DatabaseError) as error:
@@ -958,4 +865,4 @@ class DCS(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(DCS(bot))
+    bot.add_cog(Agent(bot))
