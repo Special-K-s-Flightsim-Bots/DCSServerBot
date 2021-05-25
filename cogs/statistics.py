@@ -1,4 +1,5 @@
 # statistics.py
+import concurrent
 import discord
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,6 +45,7 @@ class Statistics(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        plt.switch_backend('agg')
 
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
     @commands.has_any_role('Admin', 'Moderator')
@@ -318,10 +320,15 @@ class Statistics(commands.Cog):
             plt.style.use('dark_background')
             plt.rcParams['axes.facecolor'] = '2C2F33'
             figure = plt.figure(figsize=(20, 20))
-            self.draw_playtime_planes(member, plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure))
-            self.draw_recent(member, plt.subplot2grid((3, 3), (0, 2), colspan=1, fig=figure))
-            self.draw_server_time(member, plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
-            self.draw_flight_performance(member, plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                executor.submit(self.draw_playtime_planes, member=member,
+                                axis=plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure))
+                executor.submit(self.draw_recent, member=member, axis=plt.subplot2grid(
+                    (3, 3), (0, 2), colspan=1, fig=figure))
+                executor.submit(self.draw_server_time, member=member,
+                                axis=plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
+                executor.submit(self.draw_flight_performance, member=member,
+                                axis=plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure))
             ax1 = plt.subplot2grid((3, 3), (2, 0), colspan=1, fig=figure)
             ax2 = plt.subplot2grid((3, 3), (2, 1), colspan=1, fig=figure)
             ax3 = plt.subplot2grid((3, 3), (2, 2), colspan=1, fig=figure)
@@ -492,8 +499,10 @@ class Statistics(commands.Cog):
             plt.style.use('dark_background')
             plt.rcParams['axes.facecolor'] = '2C2F33'
             figure = plt.figure(figsize=(15, 20))
-            self.draw_highscore_playtime(ctx, plt.subplot2grid((4, 2), (0, 0), colspan=2, fig=figure), period)
-            self.draw_highscore_kills(ctx, figure, period)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                executor.submit(self.draw_highscore_playtime, ctx=ctx, axis=plt.subplot2grid(
+                    (4, 2), (0, 0), colspan=2, fig=figure), period=period)
+                executor.submit(self.draw_highscore_kills, ctx=ctx, figure=figure, period=period)
             plt.subplots_adjust(hspace=0.5, wspace=0.5)
             title = 'Highscores'
             if (period):

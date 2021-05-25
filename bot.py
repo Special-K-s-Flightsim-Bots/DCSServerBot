@@ -106,7 +106,7 @@ async def reload(ctx, cog=None):
         await ctx.send('COG {} reloaded.'.format(cog))
 
 # Creating connection pool
-bot.pool = pool.ThreadedConnectionPool(POOL_MIN, POOL_MAX, config['BOT']['DATABASE_URL'], sslmode='require')
+bot.pool = pool.ThreadedConnectionPool(POOL_MIN, POOL_MAX, config['BOT']['DATABASE_URL'], sslmode='allow')
 if (config.getboolean('BOT', 'MASTER') is True):
     # Initialize the database
     if (path.exists(TABLES_SQL)):
