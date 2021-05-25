@@ -1,3 +1,4 @@
 discord.py>=1.5.0
 pandas
 matplotlib
+psycopg2-binary

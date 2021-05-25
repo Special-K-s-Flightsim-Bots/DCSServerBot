@@ -20,7 +20,7 @@ config = configparser.ConfigParser()
 config.read('config/dcsserverbot.ini')
 
 # COGs to load
-COGS = ['cogs.host', 'cogs.statistics', 'cogs.help'] if config['BOT']['MASTER'] is True else ['cogs.agent']
+COGS = ['cogs.master', 'cogs.statistics', 'cogs.help'] if config.getboolean('BOT', 'MASTER') is True else ['cogs.agent']
 
 # Database Configuration
 SQLITE_DATABASE = 'dcsserverbot.db'
@@ -168,7 +168,8 @@ else:
     bot.log.info('Installing Hook ...')
 shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
 bot.log.info('Hook installed.')
-# TODO change sanitizeModules
 
-bot.log.warning('Starting {} at {}'.format('Master' if config['BOT']['MASTER'] is True else 'Agent', platform.node()))
+# TODO change sanitizeModules
+bot.log.warning('Starting {} at {}'.format('Master' if config.getboolean(
+    'BOT', 'MASTER') is True else 'Agent', platform.node()))
 bot.run(config['BOT']['TOKEN'], bot=True, reconnect=True)
