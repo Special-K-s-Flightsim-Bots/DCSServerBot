@@ -103,58 +103,59 @@ async def reload(ctx, cog=None):
     else:
         await ctx.send('COG {} reloaded.'.format(cog))
 
-# Initialize the database
-if (path.exists(TABLES_SQL)):
-    bot.log.warning('Initializing Database ...')
-    bot.pool = pool.ThreadedConnectionPool(0, 10, config['BOT']['DATABASE_URL'], sslmode='require')
-    conn = bot.pool.getconn()
-    try:
-        cursor = conn.cursor()
-        with open(TABLES_SQL) as tables_sql:
-            for query in tables_sql.readlines():
-                bot.log.debug(query.rstrip())
-                cursor.execute(query.rstrip())
-        conn.commit()
-        bot.log.warning('Database initialized.')
-    except (Exception, psycopg2.DatabaseError) as error:
-        conn.rollback()
-        bot.log.exception(error)
-        exit(-1)
-    bot.pool.putconn(conn)
+if (config.getboolean('BOT', 'MASTER') is True):
+    # Initialize the database
+    if (path.exists(TABLES_SQL)):
+        bot.log.warning('Initializing Database ...')
+        bot.pool = pool.ThreadedConnectionPool(0, 10, config['BOT']['DATABASE_URL'], sslmode='require')
+        conn = bot.pool.getconn()
+        try:
+            cursor = conn.cursor()
+            with open(TABLES_SQL) as tables_sql:
+                for query in tables_sql.readlines():
+                    bot.log.debug(query.rstrip())
+                    cursor.execute(query.rstrip())
+            conn.commit()
+            bot.log.warning('Database initialized.')
+        except (Exception, psycopg2.DatabaseError) as error:
+            conn.rollback()
+            bot.log.exception(error)
+            exit(-1)
+        bot.pool.putconn(conn)
 
-if (path.exists(SQLITE_DATABASE)):
-    bot.log.warning('SQLite Database found. Migrating... (this may take a while)')
-    conn_tgt = bot.pool.getconn()
-    try:
-        with closing(sqlite3.connect(SQLITE_DATABASE)) as conn_src:
-            conn_src.row_factory = sqlite3.Row
-            with closing(conn_src.cursor()) as cursor_src:
-                for table in [row[0] for row in cursor_src.execute('SELECT name FROM sqlite_master WHERE type=\'table\' and name not like \'sqlite_%\'').fetchall()]:
-                    bot.log.info('Migrating table ' + table + ' ...')
-                    for row in [dict(row) for row in cursor_src.execute('SELECT * FROM ' + table).fetchall()]:
-                        if ('ban' in row):
-                            row['ban'] = 'f' if (row['ban'] == 0) else 't'
-                        # add a new column agent_host to support multiple bot hosts
-                        if (table == 'servers'):
-                            row['agent_host'] = platform.node()
-                        with closing(conn_tgt.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor_tgt:
-                            keys = row.keys()
-                            columns = ','.join(keys)
-                            values = ','.join(['%({})s'.format(k) for k in keys])
-                            SQL = 'INSERT INTO ' + table + '({0}) VALUES ({1})'.format(columns, values)
-                            cursor_tgt.execute(SQL, row)
-        bot.log.info('Re-initializing sequences...')
-        with closing(conn_tgt.cursor()) as cursor_tgt:
-            cursor_tgt.execute('SELECT setval(\'missions_id_seq\', (select max(id)+1 from missions), false)')
-        conn_tgt.commit()
-    except (Error, Exception, psycopg2.DatabaseError) as error:
-        conn_tgt.rollback()
-        bot.log.exception(error)
-        exit(-1)
-    bot.pool.putconn(conn_tgt)
-    new_filename = SQLITE_DATABASE[0: SQLITE_DATABASE.rfind('.')] + '.bak'
-    bot.log.warning('SQLite Database migrated. Renaming to ' + new_filename)
-    os.rename(SQLITE_DATABASE, new_filename)
+    if (path.exists(SQLITE_DATABASE)):
+        bot.log.warning('SQLite Database found. Migrating... (this may take a while)')
+        conn_tgt = bot.pool.getconn()
+        try:
+            with closing(sqlite3.connect(SQLITE_DATABASE)) as conn_src:
+                conn_src.row_factory = sqlite3.Row
+                with closing(conn_src.cursor()) as cursor_src:
+                    for table in [row[0] for row in cursor_src.execute('SELECT name FROM sqlite_master WHERE type=\'table\' and name not like \'sqlite_%\'').fetchall()]:
+                        bot.log.info('Migrating table ' + table + ' ...')
+                        for row in [dict(row) for row in cursor_src.execute('SELECT * FROM ' + table).fetchall()]:
+                            if ('ban' in row):
+                                row['ban'] = 'f' if (row['ban'] == 0) else 't'
+                            # add a new column agent_host to support multiple bot hosts
+                            if (table == 'servers'):
+                                row['agent_host'] = platform.node()
+                            with closing(conn_tgt.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor_tgt:
+                                keys = row.keys()
+                                columns = ','.join(keys)
+                                values = ','.join(['%({})s'.format(k) for k in keys])
+                                SQL = 'INSERT INTO ' + table + '({0}) VALUES ({1})'.format(columns, values)
+                                cursor_tgt.execute(SQL, row)
+            bot.log.info('Re-initializing sequences...')
+            with closing(conn_tgt.cursor()) as cursor_tgt:
+                cursor_tgt.execute('SELECT setval(\'missions_id_seq\', (select max(id)+1 from missions), false)')
+            conn_tgt.commit()
+        except (Error, Exception, psycopg2.DatabaseError) as error:
+            conn_tgt.rollback()
+            bot.log.exception(error)
+            exit(-1)
+        bot.pool.putconn(conn_tgt)
+        new_filename = SQLITE_DATABASE[0: SQLITE_DATABASE.rfind('.')] + '.bak'
+        bot.log.warning('SQLite Database migrated. Renaming to ' + new_filename)
+        os.rename(SQLITE_DATABASE, new_filename)
 
 
 # Installing Hook
