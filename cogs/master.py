@@ -115,7 +115,7 @@ class Master(Agent):
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET ban = 1 WHERE discord_id = %s', (member.id, ))
+                    cursor.execute('UPDATE players SET ban = true WHERE discord_id = %s', (member.id, ))
                     cursor.execute(
                         'DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE discord_id = %s)', (member.id, ))
                     conn.commit()
@@ -132,7 +132,7 @@ class Master(Agent):
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET ban = 0 WHERE discord_id = %s', (member.id, ))
+                    cursor.execute('UPDATE players SET ban = false WHERE discord_id = %s', (member.id, ))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
