@@ -25,7 +25,7 @@ function dcsbot.sendBotTable(tbl, channel)
 	tbl.server_name = dcsbot.config.SERVER_NAME
 	tbl.channel = channel or -1
 	local tbl_json_txt = JSON:encode(tbl)
-	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, dcsbot.config.HOST, dcsbot.config.SEND_PORT))
+	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, dcsbot.config.BOT_HOST, dcsbot.config.BOT_PORT))
 end
 
 function dcsbot.sendBotMessage(msg, channel)
@@ -41,8 +41,8 @@ function dcsbot.registerDCSServer(json)
 		msg = {}
 		msg.command = 'registerDCSServer'
 		msg.hook_version = dcsbot.config.VERSION
-	  msg.host = dcsbot.config.HOST
-		msg.port = dcsbot.config.RECV_PORT
+	  msg.host = dcsbot.config.DCS_HOST
+		msg.port = dcsbot.config.DCS_PORT
 		msg.chat_channel = dcsbot.config.CHAT_CHANNEL
 		msg.status_channel = dcsbot.config.STATUS_CHANNEL
 		msg.admin_channel = dcsbot.config.ADMIN_CHANNEL

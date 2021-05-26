@@ -41,7 +41,7 @@ end
 function dcsbotgui.onSimulationFrame()
 	-- idea from HypeMan
 	if not dcsbotgui.UDPRecvSocket then
-		local host, port = dcsbot.config.HOST, dcsbot.config.RECV_PORT
+		local host, port = dcsbot.config.DCS_HOST, dcsbot.config.DCS_PORT
 		local ip = socket.dns.toip(host)
 		dcsbotgui.UDPRecvSocket = socket.udp()
 		dcsbotgui.UDPRecvSocket:setsockname(ip, port)
