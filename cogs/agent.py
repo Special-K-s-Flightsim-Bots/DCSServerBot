@@ -677,10 +677,9 @@ class Agent(commands.Cog):
                             conn.rollback()
                         self.bot.pool.putconn(conn)
                         if (player is not None):
-                            side = player['side']
                             await self.get_channel(data, 'chat_channel').send('{} player {} occupied {} {}'.format(
-                                self.PLAYER_SIDES[side if side != 0 else 3], data['name'],
-                                self.PLAYER_SIDES[side], data['unit_type']))
+                                self.PLAYER_SIDES[player['side'] if player['side'] != 0 else 3], data['name'],
+                                self.PLAYER_SIDES[data['side']], data['unit_type']))
                     elif (player is not None):
                         await self.get_channel(data, 'chat_channel').send('{} player {} returned to Spectators'.format(
                             self.PLAYER_SIDES[player['side']], data['name']))
