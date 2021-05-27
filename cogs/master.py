@@ -12,21 +12,6 @@ class Master(Agent):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @commands.command(description='Lists the configured DCS servers')
-    @commands.has_permissions(administrator=True)
-    @commands.guild_only()
-    async def status(self, ctx):
-        embed = discord.Embed(title='Currently configured DCS servers:', color=discord.Color.blue())
-        ids = servers = conns = ''
-        for server in self.bot.DCSServers:
-            ids += str(self.bot.DCSServers.index(server)) + '\n'
-            servers += server['server_name'] + '\n'
-            conns += '{}:{}'.format(server['host'], server['port']) + '\n'
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Server', value=servers)
-        embed.add_field(name='Connection', value=conns)
-        await ctx.send(embed=embed)
-
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
     @commands.has_any_role('Admin', 'Moderator')
     @commands.guild_only()

@@ -56,7 +56,7 @@ ch.setLevel(logging.WARN)
 bot.log.addHandler(fh)
 bot.log.addHandler(ch)
 
-# Initialize DCS servers
+# List of DCS servers has to be global
 bot.DCSServers = []
 
 
@@ -174,6 +174,6 @@ shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
 bot.log.info('Hook installed.')
 
 # TODO change sanitizeModules
-bot.log.warning('Starting {} at {}'.format('Master' if config.getboolean(
+bot.log.warning('Starting {}-Node on {}'.format('Master' if config.getboolean(
     'BOT', 'MASTER') is True else 'Agent', platform.node()))
 bot.run(config['BOT']['TOKEN'], bot=True, reconnect=True)
