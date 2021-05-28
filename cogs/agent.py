@@ -606,6 +606,7 @@ class Agent(commands.Cog):
                 return await self.setMissionEmbed(data, embed)
 
             async def onMissionLoadEnd(data):
+                self.bot.DCSServers[data['server_name']]['status'] = 'Running'
                 SQL_CLOSE_STATISTICS = 'UPDATE statistics SET hop_off = NOW() WHERE mission_id IN (SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL) AND hop_off IS NULL'
                 SQL_CLOSE_MISSIONS = 'UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL'
                 SQL_START_MISSION = 'INSERT INTO missions (server_name, mission_name, mission_theatre) VALUES(%s, %s, %s)'
