@@ -108,11 +108,11 @@ class Agent(commands.Cog):
                         self.players_embeds[key] = await channel.fetch_message(server['players_embed'])
                 try:
                     await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": server['status_channel']})
-                    await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
+                    data = await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
+                    self.player_data[data['server_name']] = pd.DataFrame.from_dict(data['players'])
                     server['status'] = 'Running'
                 except asyncio.TimeoutError:
                     server['status'] = 'Shutdown'
-                    # TODO check internal database structures on startup
             self.updateBans()
         finally:
             self.lock.release()
