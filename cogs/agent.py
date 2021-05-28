@@ -596,6 +596,7 @@ class Agent(commands.Cog):
                 return embed
 
             async def onMissionLoadBegin(data):
+                self.bot.DCSServers[data['server_name']]['status'] = 'Loading'
                 embed = discord.Embed(title='Loading ...', color=discord.Color.blue())
                 embed.add_field(name='Name', value=data['current_mission'])
                 embed.add_field(name='Map', value=data['current_map'])
