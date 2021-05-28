@@ -98,22 +98,23 @@ class Agent(commands.Cog):
     async def init_status(self):
         await self.lock.acquire()
         try:
-            for key, server in self.bot.DCSServers.items():
+            for server_name, server in self.bot.DCSServers.items():
                 channel = await self.bot.fetch_channel(server['status_channel'])
                 if ('mission_embed' in server and server['mission_embed']):
                     with suppress(Exception):
-                        self.mission_embeds[key] = await channel.fetch_message(server['mission_embed'])
+                        self.mission_embeds[server_name] = await channel.fetch_message(server['mission_embed'])
                 if ('players_embed' in server and server['players_embed']):
                     with suppress(Exception):
-                        self.players_embeds[key] = await channel.fetch_message(server['players_embed'])
+                        self.players_embeds[server_name] = await channel.fetch_message(server['players_embed'])
                 try:
+                    # check for any registration updates (channels, etc)
+                    await self.sendtoDCSSync(server, {"command": "registerDCSServer", "channel": -1})
+                    # check for any mission changes and update embed
                     await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": server['status_channel']})
-                    data = await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
-                    self.player_data[data['server_name']] = pd.DataFrame.from_dict(data['players'])
-                    server['status'] = 'Running'
+                    # preload players list
+                    await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
                 except asyncio.TimeoutError:
                     server['status'] = 'Shutdown'
-            self.updateBans()
         finally:
             self.lock.release()
 
@@ -128,16 +129,6 @@ class Agent(commands.Cog):
         # kill the remaining task
         pending_tasks.pop().cancel()
         return react
-
-    def wait_for(self, command, token, timeout=5):
-        future = self.loop.create_future()
-        try:
-            listeners = self.listeners[command]
-        except KeyError:
-            listeners = []
-            self.listeners[command] = listeners
-        listeners.append((future, token))
-        return asyncio.wait_for(future, timeout)
 
     async def get_server(self, ctx):
         server = None
@@ -201,6 +192,7 @@ class Agent(commands.Cog):
                 return member
         return None
 
+    # TODO: cache that
     def getCurrentMissionID(self, server_name):
         conn = self.bot.pool.getconn()
         id = -1
@@ -218,10 +210,6 @@ class Agent(commands.Cog):
     def updatePlayerList(self, data):
         server = self.bot.DCSServers[data['server_name']]
         self.sendtoDCS(server, {"command": "getCurrentPlayers", "channel": data['channel']})
-
-    def updateMission(self, data):
-        server = self.bot.DCSServers[data['server_name']]
-        self.sendtoDCS(server, {"command": "getRunningMission", "channel": data['channel']})
 
     def updateBans(self, data=None):
         conn = self.bot.pool.getconn()
@@ -337,15 +325,12 @@ class Agent(commands.Cog):
         server = await self.get_server(ctx)
         if (server is not None):
             if (self.getCurrentMissionID(server['server_name']) != -1):
-                self.sendtoDCS(server, {"command": "getMissionDetails", "channel": ctx.message.id})
-                data = await self.wait_for('getMissionDetails', str(ctx.message.id))
-                embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
-                embed.description = data['mission_description'][:2048]
+                embed = await self.sendtoDCSSync(server, {"command": "getMissionDetails", "channel": ctx.message.id})
                 await ctx.send(embed=embed)
             else:
                 await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
 
-    @commands.command(description='List the current players on this server', usage='<server>', hidden=True)
+    @commands.command(description='List the current players on this server', hidden=True)
     @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def players(self, ctx):
@@ -404,18 +389,7 @@ class Agent(commands.Cog):
         server = await self.get_server(ctx)
         if (server is not None):
             with suppress(asyncio.TimeoutError):
-                self.sendtoDCS(server, {"command": "listMissions", "channel": ctx.message.id})
-                data = await self.wait_for('listMissions', str(ctx.message.id))
-                embed = discord.Embed(title='Mission List', color=discord.Color.blue())
-                ids = active = missions = ''
-                for i in range(0, len(data['missionList'])):
-                    ids += (chr(0x31 + i) + '\u20E3' + '\n')
-                    active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
-                    mission = data['missionList'][i]
-                    missions += mission[(mission.rfind('\\') + 1):] + '\n'
-                embed.add_field(name='ID', value=ids)
-                embed.add_field(name='Active', value=active)
-                embed.add_field(name='Mission', value=missions)
+                embed = await self.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                 return await ctx.send(embed=embed)
             return await ctx.send('Server ' + server['server_name'] + ' is not running.')
 
@@ -576,6 +550,51 @@ class Agent(commands.Cog):
                     self.bot.log.error(
                         'Configuration mismatch. Please check settings in DCSServerBotConfig.lua!')
 
+            async def getRunningMission(data):
+                embed = discord.Embed(title='Running', color=discord.Color.blue())
+                embed.add_field(name='Name', value=data['current_mission'])
+                embed.add_field(name='Map', value=data['current_map'])
+                embed.add_field(name='Uptime', value=str(timedelta(seconds=int(data['mission_time']))))
+                embed.add_field(name='Active Players', value=str(int(data['num_players']) - 1))
+                embed.add_field(name='Blue Slots', value=data['num_slots_blue']
+                                if ('num_slots_blue' in data) else '-')
+                embed.add_field(name='Red Slots', value=data['num_slots_red'] if ('num_slots_red' in data) else '-')
+                return await self.setMissionEmbed(data, embed)
+
+            async def getCurrentPlayers(data):
+                self.player_data[data['server_name']] = pd.DataFrame.from_dict(data['players'])
+                embed = discord.Embed(title='Active Players', color=discord.Color.blue())
+                names = units = sides = '' if (len(data['players']) > 1) else '_ _'
+                for player in data['players']:
+                    side = player['side']
+                    if(player['id'] == 1):
+                        continue
+                    names += player['name'] + '\n'
+                    units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
+                    sides += self.PLAYER_SIDES[side] + '\n'
+                embed.add_field(name='Name', value=names)
+                embed.add_field(name='Unit', value=units)
+                embed.add_field(name='Side', value=sides)
+                return await self.setPlayersEmbed(data, embed)
+
+            async def listMissions(data):
+                embed = discord.Embed(title='Mission List', color=discord.Color.blue())
+                ids = active = missions = ''
+                for i in range(0, len(data['missionList'])):
+                    ids += (chr(0x31 + i) + '\u20E3' + '\n')
+                    active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
+                    mission = data['missionList'][i]
+                    missions += mission[(mission.rfind('\\') + 1):] + '\n'
+                embed.add_field(name='ID', value=ids)
+                embed.add_field(name='Active', value=active)
+                embed.add_field(name='Mission', value=missions)
+                return embed
+
+            async def getMissionDetails(data):
+                embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
+                embed.description = data['mission_description'][:2048]
+                return embed
+
             async def onMissionLoadBegin(data):
                 embed = discord.Embed(title='Loading ...', color=discord.Color.blue())
                 embed.add_field(name='Name', value=data['current_mission'])
@@ -610,34 +629,6 @@ class Agent(commands.Cog):
             async def onSimulationStart(data):
                 return None
 
-            async def getRunningMission(data):
-                embed = discord.Embed(title='Running', color=discord.Color.blue())
-                embed.add_field(name='Name', value=data['current_mission'])
-                embed.add_field(name='Map', value=data['current_map'])
-                embed.add_field(name='Uptime', value=str(timedelta(seconds=int(data['mission_time']))))
-                embed.add_field(name='Active Players', value=str(int(data['num_players']) - 1))
-                embed.add_field(name='Blue Slots', value=data['num_slots_blue']
-                                if ('num_slots_blue' in data) else '-')
-                embed.add_field(name='Red Slots', value=data['num_slots_red'] if ('num_slots_red' in data) else '-')
-                embed.set_footer(text='Updates every 10 minutes')
-                return await self.setMissionEmbed(data, embed)
-
-            async def getCurrentPlayers(data):
-                self.player_data[data['server_name']] = pd.DataFrame.from_dict(data['players'])
-                embed = discord.Embed(title='Active Players', color=discord.Color.blue())
-                names = units = sides = '' if (len(data['players']) > 1) else '_ _'
-                for player in data['players']:
-                    side = player['side']
-                    if(player['id'] == 1):
-                        continue
-                    names += player['name'] + '\n'
-                    units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
-                    sides += self.PLAYER_SIDES[side] + '\n'
-                embed.add_field(name='Name', value=names)
-                embed.add_field(name='Unit', value=units)
-                embed.add_field(name='Side', value=sides)
-                return await self.setPlayersEmbed(data, embed)
-
             async def onPlayerConnect(data):
                 if (data['id'] != 1):
                     await self.get_channel(data, 'chat_channel').send('{} connected to server'.format(data['name']))
@@ -667,7 +658,6 @@ class Agent(commands.Cog):
                         self.sendtoDCS(server, {"command": "sendChatMessage", "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(
                             name, data['server_name']), "to": data['id']})
                     self.updatePlayerList(data)
-                    self.updateMission(data)
                     return None
 
             async def onPlayerStop(data):
@@ -753,7 +743,6 @@ class Agent(commands.Cog):
                                 await self.get_channel(data, 'chat_channel').send('{} player {} disconnected'.format(
                                     self.PLAYER_SIDES[player['side']], player['name']))
                             self.updatePlayerList(data)
-                            self.updateMission(data)
                     elif (data['eventName'] == 'friendly_fire'):
                         player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
                         if (data['arg3'] != -1):
@@ -876,6 +865,8 @@ class Agent(commands.Cog):
                 self.bot.log.info('{}->HOST: {}'.format(dt['server_name'], json.dumps(dt)))
                 try:
                     command = dt['command']
+                    future = asyncio.run_coroutine_threadsafe(getattr(UDPListener, command)(dt), self.loop)
+                    result = future.result()
                     if (command.startswith('on') is False):
                         listeners = self.listeners.get(command)
                         if (listeners):
@@ -886,16 +877,13 @@ class Agent(commands.Cog):
                                     continue
                                 if (token == dt['channel']):
                                     # set result with call_soon_threadsafe as we are in a different thread
-                                    self.loop.call_soon_threadsafe(future.set_result, dt)
+                                    self.loop.call_soon_threadsafe(future.set_result, result)
                                     removed.append(i)
                             if len(removed) == len(listeners):
                                 self.listeners.pop(command)
                             else:
                                 for idx in reversed(removed):
                                     del listeners[idx]
-                            return
-                    future = asyncio.run_coroutine_threadsafe(getattr(UDPListener, command)(dt), self.loop)
-                    future.result()
                 except (AttributeError) as error:
                     self.bot.log.exception(error)
                     self.bot.log.info('Method ' + dt['command'] + '() not implemented.')

@@ -104,7 +104,10 @@ function dcsbotgui.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
 end
 
 function dcsbotgui.onPlayerConnect(id)
-	dcsbot.registerDCSServer()
+	if (dcsbot.registered == false) then
+		dcsbot.config.SERVER_NAME = net.get_server_settings().name
+		dcsbot.registerDCSServer()
+	end
 	msg = {}
 	msg.command = 'onPlayerConnect'
 	msg.id = id
@@ -114,7 +117,6 @@ function dcsbotgui.onPlayerConnect(id)
 end
 
 function dcsbotgui.onPlayerStart(id)
-	dcsbot.registerDCSServer()
 	msg = {}
 	msg.command = 'onPlayerStart'
 	msg.id = id
@@ -124,7 +126,6 @@ function dcsbotgui.onPlayerStart(id)
 end
 
 function dcsbotgui.onPlayerChangeSlot(id)
-	dcsbot.registerDCSServer()
 	msg = {}
 	msg.command = 'onPlayerChangeSlot'
 	msg.id = id

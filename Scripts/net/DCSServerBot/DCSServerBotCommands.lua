@@ -36,19 +36,16 @@ function dcsbot.sendBotMessage(msg, channel)
 end
 
 function dcsbot.registerDCSServer(json)
-  if (dcsbot.registered == false) then
-		dcsbot.config.SERVER_NAME = net.get_server_settings().name
-		msg = {}
-		msg.command = 'registerDCSServer'
-		msg.hook_version = dcsbot.config.VERSION
-	  msg.host = dcsbot.config.DCS_HOST
-		msg.port = dcsbot.config.DCS_PORT
-		msg.chat_channel = dcsbot.config.CHAT_CHANNEL
-		msg.status_channel = dcsbot.config.STATUS_CHANNEL
-		msg.admin_channel = dcsbot.config.ADMIN_CHANNEL
-		dcsbot.sendBotTable(msg)
-		dcsbot.registered = true
-	end
+	msg = {}
+	msg.command = 'registerDCSServer'
+	msg.hook_version = dcsbot.config.VERSION
+  msg.host = dcsbot.config.DCS_HOST
+	msg.port = dcsbot.config.DCS_PORT
+	msg.chat_channel = dcsbot.config.CHAT_CHANNEL
+	msg.status_channel = dcsbot.config.STATUS_CHANNEL
+	msg.admin_channel = dcsbot.config.ADMIN_CHANNEL
+	dcsbot.sendBotTable(msg)
+	dcsbot.registered = true
 end
 
 function dcsbot.sendChatMessage(json)
