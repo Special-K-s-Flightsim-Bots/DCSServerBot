@@ -35,7 +35,8 @@ class Master(Agent):
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
     @commands.has_any_role('Admin', 'Moderator')
@@ -60,7 +61,8 @@ class Master(Agent):
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     @commands.command(description='Shows active bans')
     @commands.has_any_role('Admin', 'Moderator')
@@ -90,7 +92,8 @@ class Master(Agent):
                     await ctx.send('No players are banned at the moment.')
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
@@ -107,7 +110,8 @@ class Master(Agent):
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
                 conn.rollback()
-            self.bot.pool.putconn(conn)
+            finally:
+                self.bot.pool.putconn(conn)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -122,7 +126,8 @@ class Master(Agent):
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
                 conn.rollback()
-            self.bot.pool.putconn(conn)
+            finally:
+                self.bot.pool.putconn(conn)
             self.updateBans()
 
 

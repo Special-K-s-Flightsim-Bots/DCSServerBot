@@ -60,7 +60,8 @@ class Statistics(commands.Cog):
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
             conn.rollback()
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     def draw_playtime_planes(self, member, axis):
         SQL_PLAYTIME = 'SELECT s.slot, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, ' \
@@ -90,7 +91,8 @@ class Statistics(commands.Cog):
                     axis.axis('off')
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     def draw_server_time(self, member, axis):
         SQL_STATISTICS = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime '\
@@ -119,7 +121,8 @@ class Statistics(commands.Cog):
                     axis.set_visible(False)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     def draw_recent(self, member, axis):
         SQL_STATISTICS = 'SELECT TO_CHAR(s.hop_on, \'MM/DD\') as day, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW()) - s.hop_on)))) AS playtime ' \
@@ -144,7 +147,8 @@ class Statistics(commands.Cog):
                     axis.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     def draw_flight_performance(self, member, axis):
         SQL_STATISTICS = 'SELECT SUM(ejections) as ejections, SUM(crashes) as crashes, ' \
@@ -174,7 +178,8 @@ class Statistics(commands.Cog):
                     axis.set_visible(False)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     def draw_kill_performance(self, member, axis):
         SQL_STATISTICS = 'SELECT SUM(kills) as kills, SUM(deaths) as deaths, SUM(teamkills) as teamkills FROM statistics s, ' \
@@ -221,7 +226,8 @@ class Statistics(commands.Cog):
                     axis.set_visible(False)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
         return retval
 
     def draw_kill_types(self, member, axis):
@@ -263,7 +269,8 @@ class Statistics(commands.Cog):
                         retval = True
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
         return retval
 
     def draw_death_types(self, member, axis, legend):
@@ -307,7 +314,8 @@ class Statistics(commands.Cog):
                         retval = True
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
         return retval
 
     @commands.command(description='Shows player statistics', usage='[member]', aliases=['stats'])
@@ -432,7 +440,8 @@ class Statistics(commands.Cog):
                     axis.text(0, 0, 'No data available.', ha='center', va='center', size=15)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     def draw_highscore_kills(self, ctx, figure, period=None):
         SQL_PARTS = {
@@ -486,7 +495,8 @@ class Statistics(commands.Cog):
                         axis.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     @commands.command(description='Shows actual highscores', usage='[period]', aliases=['hs'])
     @commands.has_role('DCS')
@@ -637,7 +647,8 @@ class Statistics(commands.Cog):
                 os.remove(filename)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
 
 def setup(bot):

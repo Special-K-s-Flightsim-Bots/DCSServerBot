@@ -57,7 +57,7 @@ bot.log.addHandler(fh)
 bot.log.addHandler(ch)
 
 # List of DCS servers has to be global
-bot.DCSServers = []
+bot.DCSServers = {}
 
 
 @bot.event
@@ -87,9 +87,10 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_message(message):
-    if (next((item for item in bot.DCSServers if int(item["chat_channel"]) == message.channel.id), None) is not None):
-        if (message.content.startswith(config['BOT']['COMMAND_PREFIX']) is False):
-            message.content = config['BOT']['COMMAND_PREFIX'] + 'chat ' + message.content
+    for key, value in bot.DCSServers.items():
+        if (value["chat_channel"] == message.channel.id):
+            if (message.content.startswith(config['BOT']['COMMAND_PREFIX']) is False):
+                message.content = config['BOT']['COMMAND_PREFIX'] + 'chat ' + message.content
     await bot.process_commands(message)
 
 
@@ -124,7 +125,8 @@ if (config.getboolean('BOT', 'MASTER') is True):
             conn.rollback()
             bot.log.exception(error)
             exit(-1)
-        bot.pool.putconn(conn)
+        finally:
+            bot.pool.putconn(conn)
 
     if (path.exists(SQLITE_DATABASE)):
         bot.log.warning('SQLite Database found. Migrating... (this may take a while)')
@@ -155,7 +157,8 @@ if (config.getboolean('BOT', 'MASTER') is True):
             conn_tgt.rollback()
             bot.log.exception(error)
             exit(-1)
-        bot.pool.putconn(conn_tgt)
+        finally:
+            bot.pool.putconn(conn_tgt)
         new_filename = SQLITE_DATABASE[0: SQLITE_DATABASE.rfind('.')] + '.bak'
         bot.log.warning('SQLite Database migrated. Renaming to ' + new_filename)
         os.rename(SQLITE_DATABASE, new_filename)

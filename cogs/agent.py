@@ -77,12 +77,14 @@ class Agent(commands.Cog):
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(
-                    'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, mission_embed, players_embed FROM servers WHERE agent_host = %s', (platform.node(), ))
-                self.bot.DCSServers = [dict(row) for row in cursor.fetchall()]
+                    'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, mission_embed, players_embed, \'Pending...\' AS status FROM servers WHERE agent_host = %s', (platform.node(), ))
+                for row in cursor.fetchall():
+                    self.bot.DCSServers[row['server_name']] = dict(row)
             self.bot.log.info('{} server(s) read from database.'.format(len(self.bot.DCSServers)))
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
         self.loop = asyncio.get_event_loop()
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.loop.create_task(self.handleUDPRequests())
@@ -95,23 +97,25 @@ class Agent(commands.Cog):
 
     async def init_status(self):
         await self.lock.acquire()
-        for server in self.bot.DCSServers:
-            channel = await self.bot.fetch_channel(server['status_channel'])
-            if ('mission_embed' in server and server['mission_embed']):
-                with suppress(Exception):
-                    self.mission_embeds[server['server_name']] = await channel.fetch_message(server['mission_embed'])
-            if ('players_embed' in server and server['players_embed']):
-                with suppress(Exception):
-                    self.players_embeds[server['server_name']] = await channel.fetch_message(server['players_embed'])
-            try:
-                await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": server['status_channel']})
-                await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
-                server['status'] = 'Running'
-            except asyncio.TimeoutError:
-                server['status'] = 'Shutdown'
-                # TODO check internal database structures on startup
-        self.updateBans()
-        self.lock.release()
+        try:
+            for key, server in self.bot.DCSServers.items():
+                channel = await self.bot.fetch_channel(server['status_channel'])
+                if ('mission_embed' in server and server['mission_embed']):
+                    with suppress(Exception):
+                        self.mission_embeds[key] = await channel.fetch_message(server['mission_embed'])
+                if ('players_embed' in server and server['players_embed']):
+                    with suppress(Exception):
+                        self.players_embeds[key] = await channel.fetch_message(server['players_embed'])
+                try:
+                    await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": server['status_channel']})
+                    await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
+                    server['status'] = 'Running'
+                except asyncio.TimeoutError:
+                    server['status'] = 'Shutdown'
+                    # TODO check internal database structures on startup
+            self.updateBans()
+        finally:
+            self.lock.release()
 
     async def wait_for_single_reaction(self, ctx, message):
         def check_press(react, user):
@@ -137,7 +141,7 @@ class Agent(commands.Cog):
 
     async def get_server(self, ctx):
         server = None
-        for item in self.bot.DCSServers:
+        for key, item in self.bot.DCSServers.items():
             if ((int(item['status_channel']) == ctx.channel.id) or
                 (int(item['chat_channel']) == ctx.channel.id) or
                     (int(item['admin_channel']) == ctx.channel.id)):
@@ -168,7 +172,7 @@ class Agent(commands.Cog):
 
     def get_channel(self, data, type='status_channel'):
         if (int(data['channel']) == -1):
-            return self.bot.get_channel(int(next(item for item in self.bot.DCSServers if item["server_name"] == data['server_name'])[type]))
+            return self.bot.get_channel(int(self.bot.DCSServers[data['server_name']][type]))
         else:
             return self.bot.get_channel(int(data['channel']))
 
@@ -184,7 +188,8 @@ class Agent(commands.Cog):
                     discord_id = result[0]
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
         dcs_name = data['name']
         for member in self.bot.get_all_members():
             if ((discord_id != -1) and (member.id == discord_id)):
@@ -206,15 +211,16 @@ class Agent(commands.Cog):
                     id = cursor.fetchone()[0]
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
         return id
 
     def updatePlayerList(self, data):
-        server = next(item for item in self.bot.DCSServers if item["server_name"] == data['server_name'])
+        server = self.bot.DCSServers[data['server_name']]
         self.sendtoDCS(server, {"command": "getCurrentPlayers", "channel": data['channel']})
 
     def updateMission(self, data):
-        server = next(item for item in self.bot.DCSServers if item["server_name"] == data['server_name'])
+        server = self.bot.DCSServers[data['server_name']]
         self.sendtoDCS(server, {"command": "getRunningMission", "channel": data['channel']})
 
     def updateBans(self, data=None):
@@ -225,11 +231,12 @@ class Agent(commands.Cog):
                 self.banList = [dict(row) for row in cursor.fetchall()]
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
         if (data is not None):
-            servers = [next(item for item in self.bot.DCSServers if item["server_name"] == data['server_name'])]
+            servers = [self.bot.DCSServers[data['server_name']]]
         else:
-            servers = self.bot.DCSServers
+            servers = self.bot.DCSServers.values()
         for server in servers:
             for ban in self.banList:
                 self.sendtoDCS(server, {"command": "ban", "ucid": ban['ucid'], "channel": server['status_channel']})
@@ -253,7 +260,8 @@ class Agent(commands.Cog):
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
                 conn.rollback()
-            self.bot.pool.putconn(conn)
+            finally:
+                self.bot.pool.putconn(conn)
 
     async def setMissionEmbed(self, data, embed):
         message = self.mission_embeds[data['server_name']] if (
@@ -274,17 +282,18 @@ class Agent(commands.Cog):
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
                 conn.rollback()
-            self.bot.pool.putconn(conn)
+            finally:
+                self.bot.pool.putconn(conn)
 
     @commands.command(description='Lists the registered DCS servers')
     @commands.has_permissions(administrator=True)
     @commands.guild_only()
     async def status(self, ctx):
-        embed = discord.Embed(title='Servers on Node {}:'.format(
-            platform.node()), color=discord.Color.blue())
+        embed = discord.Embed(title='Servers on {}-Node {}:'.format('Master' if self.bot.config.getboolean(
+            'BOT', 'MASTER') is True else 'Slave', platform.node()), color=discord.Color.blue())
         servers = conns = status = ''
-        for server in self.bot.DCSServers:
-            servers += server['server_name'] + '\n'
+        for server_name, server in self.bot.DCSServers.items():
+            servers += server_name + '\n'
             conns += '{}:{}'.format(server['host'], server['port']) + '\n'
             status += server['status'] + '\n'
         if (len(servers) > 0):
@@ -493,11 +502,12 @@ class Agent(commands.Cog):
                     # ban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    for server in self.bot.DCSServers:
+                    for server in self.bot.DCSServers.values():
                         self.sendtoDCS(server, {"command": "ban", "ucid": ucid, "channel": ctx.channel.id})
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
 
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
     @commands.has_any_role('Admin', 'Moderator')
@@ -515,11 +525,20 @@ class Agent(commands.Cog):
                     # unban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    for server in self.bot.DCSServers:
+                    for server in self.bot.DCSServers.values():
                         self.sendtoDCS(server, {"command": "unban", "ucid": ucid, "channel": ctx.channel.id})
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
-        self.bot.pool.putconn(conn)
+        finally:
+            self.bot.pool.putconn(conn)
+
+    @commands.command(description='Restarts the current active mission', usage='[delay] [message]')
+    @commands.has_role('DCS Admin')
+    @commands.guild_only()
+    async def unregister(self, ctx, node=platform.node()):
+        server = await self.get_server(ctx)
+        if (server is not None):
+            pass
 
     async def handleUDPRequests(self):
 
@@ -536,12 +555,7 @@ class Agent(commands.Cog):
                 self.bot.log.info('Registering DCS-Server ' + data['server_name'])
                 if (data['status_channel'].isnumeric() is True):
                     data['status'] = 'Running'
-                    index = next((i for i, item in enumerate(self.bot.DCSServers)
-                                  if item['server_name'] == data['server_name']), None)
-                    if (index is not None):
-                        self.bot.DCSServers[index] = data
-                    else:
-                        self.bot.DCSServers.append(data)
+                    self.bot.DCSServers[data['server_name']] = data
                     SQL = 'INSERT INTO servers (server_name, agent_host, host, port, chat_channel, status_channel, admin_channel) VALUES(%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, chat_channel=%s, status_channel=%s, admin_channel=%s'
                     conn = self.bot.pool.getconn()
                     try:
@@ -554,7 +568,8 @@ class Agent(commands.Cog):
                     except (Exception, psycopg2.DatabaseError) as error:
                         self.bot.log.exception(error)
                         conn.rollback()
-                    self.bot.pool.putconn(conn)
+                    finally:
+                        self.bot.pool.putconn(conn)
                     # a new server has connected, so send all our bans to it
                     self.updateBans(data)
                 else:
@@ -586,7 +601,8 @@ class Agent(commands.Cog):
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.bot.log.exception(error)
                     conn.rollback()
-                self.bot.pool.putconn(conn)
+                finally:
+                    self.bot.pool.putconn(conn)
                 await UDPListener.getRunningMission(data)
                 self.updatePlayerList(data)
                 return None
@@ -639,8 +655,9 @@ class Agent(commands.Cog):
                     except (Exception, psycopg2.DatabaseError) as error:
                         self.bot.log.exception(error)
                         conn.rollback()
-                    self.bot.pool.putconn(conn)
-                    server = next(item for item in self.bot.DCSServers if item["server_name"] == data['server_name'])
+                    finally:
+                        self.bot.pool.putconn(conn)
+                    server = self.bot.DCSServers[data['server_name']]
                     if (discord_user is None):
                         self.sendtoDCS(server, {"command": "sendChatMessage", "message": self.bot.config['DCS']['GREETING_MESSAGE_UNKNOWN'].format(
                             data['name']), "to": data['id']})
@@ -675,7 +692,8 @@ class Agent(commands.Cog):
                         except (Exception, psycopg2.DatabaseError) as error:
                             self.bot.log.exception(error)
                             conn.rollback()
-                        self.bot.pool.putconn(conn)
+                        finally:
+                            self.bot.pool.putconn(conn)
                         if (player is not None):
                             await self.get_channel(data, 'chat_channel').send('{} player {} occupied {} {}'.format(
                                 self.PLAYER_SIDES[player['side'] if player['side'] != 0 else 3], data['name'],
@@ -687,157 +705,165 @@ class Agent(commands.Cog):
                 return None
 
             async def onGameEvent(data):
-                if (data['eventName'] == 'mission_end'):
-                    embed = discord.Embed(title='Shutdown', color=discord.Color.blue())
-                    embed.add_field(name='Name', value='No mission running')
-                    embed.add_field(name='Map', value='-')
-                    embed.add_field(name='Uptime', value='-:--:--')
-                    embed.add_field(name='Active Players', value='-')
-                    embed.add_field(name='Blue Slots', value='-')
-                    embed.add_field(name='Red Slots', value='-')
-                    await self.setMissionEmbed(data, embed)
-                    next(item for item in self.bot.DCSServers if item["server_name"] == data['server_name'])[
-                        'status'] = 'Shutdown'
-                    conn = self.bot.pool.getconn()
-                    try:
-                        with closing(conn.cursor()) as cursor:
-                            cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND hop_off IS NULL',
-                                           (self.getCurrentMissionID(data['server_name']), ))
-                            cursor.execute('UPDATE missions SET mission_end = NOW() WHERE id = %s',
-                                           (self.getCurrentMissionID(data['server_name']), ))
-                            conn.commit()
-                    except (Exception, psycopg2.DatabaseError) as error:
-                        self.bot.log.exception(error)
-                        conn.rollback()
-                    self.bot.pool.putconn(conn)
-                elif (data['eventName'] in ['connect', 'change_slot']):  # these events are handled differently
-                    return None
-                elif (data['eventName'] == 'disconnect'):
-                    if (data['arg1'] != 1):
-                        player = UDPListener.get_player(self, data['server_name'], data['arg1'])
+                # make sure we don't accept game events before the bot is not set up correctly
+                await self.lock.acquire()
+                try:
+                    if (data['eventName'] == 'mission_end'):
+                        embed = discord.Embed(title='Shutdown', color=discord.Color.blue())
+                        embed.add_field(name='Name', value='No mission running')
+                        embed.add_field(name='Map', value='-')
+                        embed.add_field(name='Uptime', value='-:--:--')
+                        embed.add_field(name='Active Players', value='-')
+                        embed.add_field(name='Blue Slots', value='-')
+                        embed.add_field(name='Red Slots', value='-')
+                        await self.setMissionEmbed(data, embed)
+                        self.bot.DCSServers[data['server_name']]['status'] = 'Shutdown'
                         conn = self.bot.pool.getconn()
                         try:
                             with closing(conn.cursor()) as cursor:
-                                cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
-                                               (self.getCurrentMissionID(data['server_name']), player['ucid']))
+                                cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND hop_off IS NULL',
+                                               (self.getCurrentMissionID(data['server_name']), ))
+                                cursor.execute('UPDATE missions SET mission_end = NOW() WHERE id = %s',
+                                               (self.getCurrentMissionID(data['server_name']), ))
                                 conn.commit()
                         except (Exception, psycopg2.DatabaseError) as error:
                             self.bot.log.exception(error)
                             conn.rollback()
-                        self.bot.pool.putconn(conn)
-                        if (player['side'] == self.SIDE_SPECTATOR):
-                            await self.get_channel(data, 'chat_channel').send('Player {} disconnected'.format(player['name']))
-                        else:
-                            await self.get_channel(data, 'chat_channel').send('{} player {} disconnected'.format(
-                                self.PLAYER_SIDES[player['side']], player['name']))
-                        self.updatePlayerList(data)
-                        self.updateMission(data)
-                elif (data['eventName'] == 'friendly_fire'):
-                    player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
-                    if (data['arg3'] != -1):
-                        player2 = UDPListener.get_player(self, data['server_name'], data['arg3'])
-                    else:
-                        player2 = None
-                    await self.get_channel(data, 'chat_channel').send(self.EVENT_TEXTS[data['eventName']].format(
-                        self.PLAYER_SIDES[player1['side']], 'player ' + player1['name'],
-                        ('player ' + player2['name']) if player2 is not None else 'AI',
-                        data['arg2'] if (len(data['arg2']) > 0) else 'Cannon'))
-                elif (data['eventName'] == 'kill'):
-                    conn = self.bot.pool.getconn()
-                    try:
-                        with closing(conn.cursor()) as cursor:
-                            # Player is not an AI
-                            if (data['arg1'] != -1):
-                                if (data['arg4'] != -1):
-                                    if (data['arg1'] == data['arg4']):  # self kill
-                                        kill_type = 'self_kill'
-                                    elif (data['arg3'] == data['arg6']):  # teamkills
-                                        kill_type = 'teamkill'
-                                    elif (data['victimCategory'] in ['Planes', 'Helicopters']):  # pvp
-                                        kill_type = 'pvp'
-                                elif (data['victimCategory'] == 'Planes'):
-                                    kill_type = 'kill_planes'
-                                elif (data['victimCategory'] == 'Helicopters'):
-                                    kill_type = 'kill_helicopters'
-                                elif (data['victimCategory'] == 'Ships'):
-                                    kill_type = 'kill_ships'
-                                elif (data['victimCategory'] == 'Air Defence'):
-                                    kill_type = 'kill_sams'
-                                elif (data['victimCategory'] in ['Unarmed', 'Armor', 'Infantry' 'Fortification', 'Artillery', 'MissilesSS']):
-                                    kill_type = 'kill_ground'
-                                else:
-                                    kill_type = 'kill_other'  # Static objects
-                                # Update database
-                                player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
-                                if (kill_type in self.SQL_EVENT_UPDATES.keys()):
-                                    cursor.execute(self.SQL_EVENT_UPDATES[kill_type],
-                                                   (self.getCurrentMissionID(data['server_name']), player1['ucid']))
-                            else:
-                                player1 = None
-
-                            # Victim is not an AI
-                            if (data['arg4'] != -1):
-                                if (data['arg1'] != -1):
-                                    if (data['arg1'] == data['arg4']):  # self kill
-                                        death_type = 'self_kill'
-                                    elif (data['arg3'] == data['arg6']):  # killed by team member - no death counted
-                                        death_type = 'teamdeath'
-                                    elif (data['killerCategory'] in ['Planes', 'Helicopters']):  # pvp
-                                        death_type = 'deaths_pvp'
-                                elif (data['killerCategory'] == 'Planes'):
-                                    death_type = 'deaths_planes'
-                                elif (data['killerCategory'] == 'Helicopters'):
-                                    death_type = 'deaths_helicopters'
-                                elif (data['killerCategory'] == 'Ships'):
-                                    death_type = 'deaths_ships'
-                                elif (data['killerCategory'] == 'Air Defence'):
-                                    death_type = 'deaths_sams'
-                                elif (data['killerCategory'] in ['Armor', 'Infantry' 'Fortification', 'Artillery', 'MissilesSS']):
-                                    death_type = 'deaths_ground'
-                                player2 = UDPListener.get_player(self, data['server_name'], data['arg4'])
-                                if (death_type in self.SQL_EVENT_UPDATES.keys()):
-                                    cursor.execute(self.SQL_EVENT_UPDATES[death_type],
-                                                   (self.getCurrentMissionID(data['server_name']), player2['ucid']))
-                            else:
-                                player2 = None
-                            conn.commit()
-                            await self.get_channel(data, 'chat_channel').send(self.EVENT_TEXTS[data['eventName']].format(
-                                self.PLAYER_SIDES[data['arg3']],
-                                ('player ' + player1['name']) if player1 is not None else 'AI',
-                                data['arg2'], self.PLAYER_SIDES[data['arg6']],
-                                ('player ' + player2['name']) if player2 is not None else 'AI',
-                                data['arg5'], data['arg7']))
-                            # report teamkills from unknown players to admins
-                            if ((player1 is not None) and (kill_type == 'teamkill')):
-                                discord_user = self.find_discord_user(player1)
-                                if (discord_user is None):
-                                    await self.get_channel(data, 'admin_channel').send('Unknown player {} (ucid={}) is killing team members. Please investigate.'.format(player1['name'], player1['ucid']))
-                    except (Exception, psycopg2.DatabaseError) as error:
-                        self.bot.log.exception(error)
-                        conn.rollback()
-                    self.bot.pool.putconn(conn)
-                elif (data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']):
-                    if (data['arg1'] != -1):
-                        player = UDPListener.get_player(self, data['server_name'], data['arg1'])
-                        if (data['eventName'] in ['takeoff', 'landing']):
-                            await self.get_channel(data, 'chat_channel').send(self.EVENT_TEXTS[data['eventName']].format(
-                                self.PLAYER_SIDES[player['side']], player['name'], data['arg3']))
-                        else:
-                            await self.get_channel(data, 'chat_channel').send(self.EVENT_TEXTS[data['eventName']].format(
-                                self.PLAYER_SIDES[player['side']], player['name']))
-                        if (data['eventName'] in self.SQL_EVENT_UPDATES.keys()):
+                        finally:
+                            self.bot.pool.putconn(conn)
+                    elif (data['eventName'] in ['connect', 'change_slot']):  # these events are handled differently
+                        return None
+                    elif (data['eventName'] == 'disconnect'):
+                        if (data['arg1'] != 1):
+                            player = UDPListener.get_player(self, data['server_name'], data['arg1'])
                             conn = self.bot.pool.getconn()
                             try:
                                 with closing(conn.cursor()) as cursor:
-                                    cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
+                                    cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
                                                    (self.getCurrentMissionID(data['server_name']), player['ucid']))
                                     conn.commit()
                             except (Exception, psycopg2.DatabaseError) as error:
                                 self.bot.log.exception(error)
                                 conn.rollback()
+                            finally:
+                                self.bot.pool.putconn(conn)
+                            if (player['side'] == self.SIDE_SPECTATOR):
+                                await self.get_channel(data, 'chat_channel').send('Player {} disconnected'.format(player['name']))
+                            else:
+                                await self.get_channel(data, 'chat_channel').send('{} player {} disconnected'.format(
+                                    self.PLAYER_SIDES[player['side']], player['name']))
+                            self.updatePlayerList(data)
+                            self.updateMission(data)
+                    elif (data['eventName'] == 'friendly_fire'):
+                        player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
+                        if (data['arg3'] != -1):
+                            player2 = UDPListener.get_player(self, data['server_name'], data['arg3'])
+                        else:
+                            player2 = None
+                        await self.get_channel(data, 'chat_channel').send(self.EVENT_TEXTS[data['eventName']].format(
+                            self.PLAYER_SIDES[player1['side']], 'player ' + player1['name'],
+                            ('player ' + player2['name']) if player2 is not None else 'AI',
+                            data['arg2'] if (len(data['arg2']) > 0) else 'Cannon'))
+                    elif (data['eventName'] == 'kill'):
+                        conn = self.bot.pool.getconn()
+                        try:
+                            with closing(conn.cursor()) as cursor:
+                                # Player is not an AI
+                                if (data['arg1'] != -1):
+                                    if (data['arg4'] != -1):
+                                        if (data['arg1'] == data['arg4']):  # self kill
+                                            kill_type = 'self_kill'
+                                        elif (data['arg3'] == data['arg6']):  # teamkills
+                                            kill_type = 'teamkill'
+                                        elif (data['victimCategory'] in ['Planes', 'Helicopters']):  # pvp
+                                            kill_type = 'pvp'
+                                    elif (data['victimCategory'] == 'Planes'):
+                                        kill_type = 'kill_planes'
+                                    elif (data['victimCategory'] == 'Helicopters'):
+                                        kill_type = 'kill_helicopters'
+                                    elif (data['victimCategory'] == 'Ships'):
+                                        kill_type = 'kill_ships'
+                                    elif (data['victimCategory'] == 'Air Defence'):
+                                        kill_type = 'kill_sams'
+                                    elif (data['victimCategory'] in ['Unarmed', 'Armor', 'Infantry' 'Fortification', 'Artillery', 'MissilesSS']):
+                                        kill_type = 'kill_ground'
+                                    else:
+                                        kill_type = 'kill_other'  # Static objects
+                                    # Update database
+                                    player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
+                                    if (kill_type in self.SQL_EVENT_UPDATES.keys()):
+                                        cursor.execute(self.SQL_EVENT_UPDATES[kill_type],
+                                                       (self.getCurrentMissionID(data['server_name']), player1['ucid']))
+                                else:
+                                    player1 = None
+
+                                # Victim is not an AI
+                                if (data['arg4'] != -1):
+                                    if (data['arg1'] != -1):
+                                        if (data['arg1'] == data['arg4']):  # self kill
+                                            death_type = 'self_kill'
+                                        elif (data['arg3'] == data['arg6']):  # killed by team member - no death counted
+                                            death_type = 'teamdeath'
+                                        elif (data['killerCategory'] in ['Planes', 'Helicopters']):  # pvp
+                                            death_type = 'deaths_pvp'
+                                    elif (data['killerCategory'] == 'Planes'):
+                                        death_type = 'deaths_planes'
+                                    elif (data['killerCategory'] == 'Helicopters'):
+                                        death_type = 'deaths_helicopters'
+                                    elif (data['killerCategory'] == 'Ships'):
+                                        death_type = 'deaths_ships'
+                                    elif (data['killerCategory'] == 'Air Defence'):
+                                        death_type = 'deaths_sams'
+                                    elif (data['killerCategory'] in ['Armor', 'Infantry' 'Fortification', 'Artillery', 'MissilesSS']):
+                                        death_type = 'deaths_ground'
+                                    player2 = UDPListener.get_player(self, data['server_name'], data['arg4'])
+                                    if (death_type in self.SQL_EVENT_UPDATES.keys()):
+                                        cursor.execute(self.SQL_EVENT_UPDATES[death_type],
+                                                       (self.getCurrentMissionID(data['server_name']), player2['ucid']))
+                                else:
+                                    player2 = None
+                                conn.commit()
+                                await self.get_channel(data, 'chat_channel').send(self.EVENT_TEXTS[data['eventName']].format(
+                                    self.PLAYER_SIDES[data['arg3']],
+                                    ('player ' + player1['name']) if player1 is not None else 'AI',
+                                    data['arg2'], self.PLAYER_SIDES[data['arg6']],
+                                    ('player ' + player2['name']) if player2 is not None else 'AI',
+                                    data['arg5'], data['arg7']))
+                                # report teamkills from unknown players to admins
+                                if ((player1 is not None) and (kill_type == 'teamkill')):
+                                    discord_user = self.find_discord_user(player1)
+                                    if (discord_user is None):
+                                        await self.get_channel(data, 'admin_channel').send('Unknown player {} (ucid={}) is killing team members. Please investigate.'.format(player1['name'], player1['ucid']))
+                        except (Exception, psycopg2.DatabaseError) as error:
+                            self.bot.log.exception(error)
+                            conn.rollback()
+                        finally:
                             self.bot.pool.putconn(conn)
-                else:
-                    self.bot.log.info('Unhandled event: ' + data['eventName'])
+                    elif (data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']):
+                        if (data['arg1'] != -1):
+                            player = UDPListener.get_player(self, data['server_name'], data['arg1'])
+                            if (data['eventName'] in ['takeoff', 'landing']):
+                                await self.get_channel(data, 'chat_channel').send(self.EVENT_TEXTS[data['eventName']].format(
+                                    self.PLAYER_SIDES[player['side']], player['name'], data['arg3']))
+                            else:
+                                await self.get_channel(data, 'chat_channel').send(self.EVENT_TEXTS[data['eventName']].format(
+                                    self.PLAYER_SIDES[player['side']], player['name']))
+                            if (data['eventName'] in self.SQL_EVENT_UPDATES.keys()):
+                                conn = self.bot.pool.getconn()
+                                try:
+                                    with closing(conn.cursor()) as cursor:
+                                        cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
+                                                       (self.getCurrentMissionID(data['server_name']), player['ucid']))
+                                        conn.commit()
+                                except (Exception, psycopg2.DatabaseError) as error:
+                                    self.bot.log.exception(error)
+                                    conn.rollback()
+                                finally:
+                                    self.bot.pool.putconn(conn)
+                    else:
+                        self.bot.log.info('Unhandled event: ' + data['eventName'])
+                finally:
+                    self.lock.release()
                 return None
 
             async def onChatMessage(data):
@@ -882,12 +908,14 @@ class Agent(commands.Cog):
                 super().__init__(server_address, RequestHandlerClass)
 
         await self.lock.acquire()
-        host = self.bot.config['BOT']['HOST']
-        port = int(self.bot.config['BOT']['PORT'])
-        self.server = MyThreadingUDPServer((host, port), UDPListener)
-        self.loop.run_in_executor(self.executor, self.server.serve_forever)
-        self.bot.log.info('UDP listener started on interface {} port {} accepting commands.'.format(host, port))
-        self.lock.release()
+        try:
+            host = self.bot.config['BOT']['HOST']
+            port = int(self.bot.config['BOT']['PORT'])
+            self.server = MyThreadingUDPServer((host, port), UDPListener)
+            self.loop.run_in_executor(self.executor, self.server.serve_forever)
+            self.bot.log.info('UDP listener started on interface {} port {} accepting commands.'.format(host, port))
+        finally:
+            self.lock.release()
 
 
 def setup(bot):
