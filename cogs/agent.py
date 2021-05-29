@@ -213,6 +213,10 @@ class Agent(commands.Cog):
         server = self.bot.DCSServers[data['server_name']]
         self.sendtoDCS(server, {"command": "getCurrentPlayers", "channel": data['channel']})
 
+    def updateMission(self, data):
+        server = self.bot.DCSServers[data['server_name']]
+        self.sendtoDCS(server, {"command": "getRunningMission", "channel": data['channel']})
+
     def updateBans(self, data=None):
         conn = self.bot.pool.getconn()
         try:
@@ -670,7 +674,7 @@ class Agent(commands.Cog):
                         self.sendtoDCS(server, {"command": "sendChatMessage", "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(
                             name, data['server_name']), "to": data['id']})
                     self.updatePlayerList(data)
-                    await UDPListener.getRunningMission(data)
+                    self.updateMission(data)
                     return None
 
             async def onPlayerStop(data):
@@ -705,7 +709,7 @@ class Agent(commands.Cog):
                         await self.get_channel(data, 'chat_channel').send('{} player {} returned to Spectators'.format(
                             self.PLAYER_SIDES[player['side']], data['name']))
                     self.updatePlayerList(data)
-                    await UDPListener.getRunningMission(data)
+                    self.updateMission(data)
                 return None
 
             async def onGameEvent(data):
@@ -757,7 +761,7 @@ class Agent(commands.Cog):
                                 await self.get_channel(data, 'chat_channel').send('{} player {} disconnected'.format(
                                     self.PLAYER_SIDES[player['side']], player['name']))
                             self.updatePlayerList(data)
-                            await UDPListener.getRunningMission(data)
+                            self.updateMission(data)
                     elif (data['eventName'] == 'friendly_fire'):
                         player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
                         if (data['arg3'] != -1):
