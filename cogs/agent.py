@@ -520,8 +520,8 @@ class Agent(commands.Cog):
     async def update_mission_status(self):
         for server_name, server in self.bot.DCSServers.items():
             if (self.getCurrentMissionID(server_name) != -1):
-                self.sendtoDCS('{"command":"getRunningMission", "channel":"' +
-                               str(server['status_channel']) + '"}', server['host'], server['port'])
+                self.sendtoDCS(server, {"command": "getRunningMission",
+                                        "channel": server['status_channel']})
 
     async def handleUDPRequests(self):
 
