@@ -12,7 +12,7 @@ import socketserver
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
 from datetime import timedelta
-from discord.ext import commands
+from discord.ext import commands, tasks
 from os import listdir
 from os.path import expandvars
 
@@ -89,8 +89,10 @@ class Agent(commands.Cog):
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.loop.create_task(self.handleUDPRequests())
         self.loop.create_task(self.init_status())
+        self.update_mission_status.start()
 
     def cog_unload(self):
+        self.update_mission_status.cancel()
         self.server.shutdown()
         self.server.server_close()
         self.executor.shutdown(wait=True)
@@ -514,6 +516,13 @@ class Agent(commands.Cog):
         if (server is not None):
             pass
 
+    @tasks.loop(minutes=10.0)
+    async def update_mission_status(self):
+        for server_name, server in self.bot.DCSServers.items():
+            if (self.getCurrentMissionID(server_name) != -1):
+                self.sendtoDCS('{"command":"getRunningMission", "channel":"' +
+                               str(server['status_channel']) + '"}', server['host'], server['port'])
+
     async def handleUDPRequests(self):
 
         class UDPListener(socketserver.BaseRequestHandler):
@@ -559,6 +568,7 @@ class Agent(commands.Cog):
                 embed.add_field(name='Blue Slots', value=data['num_slots_blue']
                                 if ('num_slots_blue' in data) else '-')
                 embed.add_field(name='Red Slots', value=data['num_slots_red'] if ('num_slots_red' in data) else '-')
+                embed.set_footer(text='Updates every 10 minutes')
                 return await self.setMissionEmbed(data, embed)
 
             async def getCurrentPlayers(data):
@@ -660,6 +670,7 @@ class Agent(commands.Cog):
                         self.sendtoDCS(server, {"command": "sendChatMessage", "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(
                             name, data['server_name']), "to": data['id']})
                     self.updatePlayerList(data)
+                    await UDPListener.getRunningMission(data)
                     return None
 
             async def onPlayerStop(data):
@@ -694,6 +705,7 @@ class Agent(commands.Cog):
                         await self.get_channel(data, 'chat_channel').send('{} player {} returned to Spectators'.format(
                             self.PLAYER_SIDES[player['side']], data['name']))
                     self.updatePlayerList(data)
+                    await UDPListener.getRunningMission(data)
                 return None
 
             async def onGameEvent(data):
@@ -745,6 +757,7 @@ class Agent(commands.Cog):
                                 await self.get_channel(data, 'chat_channel').send('{} player {} disconnected'.format(
                                     self.PLAYER_SIDES[player['side']], player['name']))
                             self.updatePlayerList(data)
+                            await UDPListener.getRunningMission(data)
                     elif (data['eventName'] == 'friendly_fire'):
                         player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
                         if (data['arg3'] != -1):
