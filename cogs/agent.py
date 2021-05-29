@@ -89,7 +89,6 @@ class Agent(commands.Cog):
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.loop.create_task(self.handleUDPRequests())
         self.loop.create_task(self.init_status())
-        self.update_mission_status.start()
 
     def cog_unload(self):
         self.update_mission_status.cancel()
@@ -119,6 +118,7 @@ class Agent(commands.Cog):
                     server['status'] = 'Shutdown'
         finally:
             self.lock.release()
+        self.update_mission_status.start()
 
     async def wait_for_single_reaction(self, ctx, message):
         def check_press(react, user):
