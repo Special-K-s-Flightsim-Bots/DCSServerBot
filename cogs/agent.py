@@ -1,4 +1,5 @@
 # agent.py
+import aiohttp
 import asyncio
 import discord
 import fnmatch
@@ -7,6 +8,7 @@ import pandas as pd
 import platform
 import psycopg2
 import psycopg2.extras
+import re
 import socket
 import socketserver
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +17,11 @@ from datetime import timedelta
 from discord.ext import commands, tasks
 from os import listdir
 from os.path import expandvars
+
+# Settings for EDs website
+ED_URL = "https://www.digitalcombatsimulator.com/en/auth/"
+ED_BACKURL = "/en/personal/server/?bitrix_sessid=1&ajax=y"
+ED_URL_PARAMS = {'AUTH_FORM': 'Y', 'TYPE': 'AUTH', 'backurl': ED_BACKURL, 'Login': 'Login'}
 
 
 class Agent(commands.Cog):
@@ -279,21 +286,40 @@ class Agent(commands.Cog):
             finally:
                 self.bot.pool.putconn(conn)
 
+    async def read_dcs_servers(self, servers):
+        retval = []
+        async with aiohttp.ClientSession() as session:
+            ED_URL_PARAMS['USER_LOGIN'] = self.bot.config['DCS']['USER_LOGIN']
+            ED_URL_PARAMS['USER_PASSWORD'] = self.bot.config['DCS']['USER_PASSWORD']
+            async with session.post(ED_URL, data=ED_URL_PARAMS) as response:
+                if response.status == 200:
+                    retval = json.loads(await response.text())['SERVERS']
+        return list(filter(lambda x: x['NAME'] in servers, retval))
+
     @commands.command(description='Lists the registered DCS servers')
     @commands.has_permissions(administrator=True)
     @commands.guild_only()
     async def status(self, ctx):
         embed = discord.Embed(title='Servers on {}-Node {}:'.format('Master' if self.bot.config.getboolean(
             'BOT', 'MASTER') is True else 'Slave', platform.node()), color=discord.Color.blue())
-        servers = conns = status = ''
-        for server_name, server in self.bot.DCSServers.items():
-            servers += server_name + '\n'
-            conns += '{}:{}'.format(server['host'], server['port']) + '\n'
-            status += server['status'] + '\n'
-        if (len(servers) > 0):
-            embed.add_field(name='Server', value=servers)
-            embed.add_field(name='Connection', value=conns)
-            embed.add_field(name='Status', value=status)
+        dcs_servers = await self.read_dcs_servers(list(self.bot.DCSServers.keys()))
+        if (len(dcs_servers) > 0):
+            for server in dcs_servers:
+                serverSettings = await self.sendtoDCSSync(self.bot.DCSServers[server['NAME']], {"command": "getServerSettings", "channel": -1})
+                mission = await self.sendtoDCSSync(self.bot.DCSServers[server['NAME']], {"command": "getRunningMission", "channel": -1})
+                name = ('🔐 ' if server['PASSWORD'] == 'Yes' else '🔓 ')
+                name += server['NAME'] + ' [' + str(server['PLAYERS']) + \
+                    '/' + str(server['PLAYERS_MAX']) + ']\n'
+                value = 'IP/Port:  ' + server['IP_ADDRESS'] + ':' + server['PORT'] + '\n'
+                if (server['PASSWORD'] == 'Yes'):
+                    if (len(serverSettings['password']) > 0):
+                        value += 'Password: ' + serverSettings['password'] + '\n'
+                value += 'Mission:  ' + mission['current_mission'] + '\n'
+                value += 'Map:      ' + mission['current_map'] + '\n'
+                value += 'Slots:    {} blue / {} red\n'.format(
+                    mission['num_slots_blue'] if 'num_slots_blue' in mission else '-', mission['num_slots_red'] if 'num_slots_red' in mission else '-')
+                value += 'Uptime:   ' + str(timedelta(seconds=int(mission['mission_time']))) + '\n'
+                embed.add_field(name=name, value='```' + value + '```', inline=False)
             await ctx.send(embed=embed)
         else:
             await ctx.send('No server running on host {}'.format(platform.node()))
@@ -541,16 +567,17 @@ class Agent(commands.Cog):
             async def registerDCSServer(data):
                 self.bot.log.info('Registering DCS-Server ' + data['server_name'])
                 if (data['status_channel'].isnumeric() is True):
-                    data['status'] = 'Running'
-                    self.bot.DCSServers[data['server_name']] = data
-                    SQL = 'INSERT INTO servers (server_name, agent_host, host, port, chat_channel, status_channel, admin_channel) VALUES(%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, chat_channel=%s, status_channel=%s, admin_channel=%s'
+                    SQL_INSERT = 'INSERT INTO servers (server_name, agent_host, host, port, chat_channel, status_channel, admin_channel) VALUES(%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, chat_channel=%s, status_channel=%s, admin_channel=%s'
+                    SQL_SELECT = 'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, mission_embed, players_embed, \'Running\' AS status FROM servers WHERE server_name = %s'
                     conn = self.bot.pool.getconn()
                     try:
-                        with closing(conn.cursor()) as cursor:
-                            cursor.execute(SQL, (data['server_name'], platform.node(), data['host'], data['port'],
-                                                 data['chat_channel'], data['status_channel'], data['admin_channel'],
-                                                 platform.node(), data['host'], data['port'],
-                                                 data['chat_channel'], data['status_channel'], data['admin_channel']))
+                        with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                            cursor.execute(SQL_INSERT, (data['server_name'], platform.node(), data['host'], data['port'],
+                                                        data['chat_channel'], data['status_channel'], data['admin_channel'],
+                                                        platform.node(), data['host'], data['port'],
+                                                        data['chat_channel'], data['status_channel'], data['admin_channel']))
+                            cursor.execute(SQL_SELECT, (data['server_name'], ))
+                            self.bot.DCSServers[data['server_name']] = dict(cursor.fetchone())
                             conn.commit()
                     except (Exception, psycopg2.DatabaseError) as error:
                         self.bot.log.exception(error)
@@ -563,33 +590,42 @@ class Agent(commands.Cog):
                     self.bot.log.error(
                         'Configuration mismatch. Please check settings in DCSServerBotConfig.lua!')
 
+            async def getServerSettings(data):
+                return data['serverSettings']
+
             async def getRunningMission(data):
-                embed = discord.Embed(title='Running', color=discord.Color.blue())
-                embed.add_field(name='Name', value=data['current_mission'])
-                embed.add_field(name='Map', value=data['current_map'])
-                embed.add_field(name='Uptime', value=str(timedelta(seconds=int(data['mission_time']))))
-                embed.add_field(name='Active Players', value=str(int(data['num_players']) - 1))
-                embed.add_field(name='Blue Slots', value=data['num_slots_blue']
-                                if ('num_slots_blue' in data) else '-')
-                embed.add_field(name='Red Slots', value=data['num_slots_red'] if ('num_slots_red' in data) else '-')
-                embed.set_footer(text='Updates every 10 minutes')
-                return await self.setMissionEmbed(data, embed)
+                if (int(data['channel']) != -1):
+                    embed = discord.Embed(title='Running', color=discord.Color.blue())
+                    embed.add_field(name='Name', value=data['current_mission'])
+                    embed.add_field(name='Map', value=data['current_map'])
+                    embed.add_field(name='Uptime', value=str(timedelta(seconds=int(data['mission_time']))))
+                    embed.add_field(name='Active Players', value=str(int(data['num_players']) - 1))
+                    embed.add_field(name='Blue Slots', value=data['num_slots_blue']
+                                    if ('num_slots_blue' in data) else '-')
+                    embed.add_field(name='Red Slots', value=data['num_slots_red'] if ('num_slots_red' in data) else '-')
+                    embed.set_footer(text='Updates every 10 minutes')
+                    return await self.setMissionEmbed(data, embed)
+                else:
+                    return data
 
             async def getCurrentPlayers(data):
-                self.player_data[data['server_name']] = pd.DataFrame.from_dict(data['players'])
-                embed = discord.Embed(title='Active Players', color=discord.Color.blue())
-                names = units = sides = '' if (len(data['players']) > 1) else '_ _'
-                for player in data['players']:
-                    side = player['side']
-                    if(player['id'] == 1):
-                        continue
-                    names += player['name'] + '\n'
-                    units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
-                    sides += self.PLAYER_SIDES[side] + '\n'
-                embed.add_field(name='Name', value=names)
-                embed.add_field(name='Unit', value=units)
-                embed.add_field(name='Side', value=sides)
-                return await self.setPlayersEmbed(data, embed)
+                if (int(data['channel']) != -1):
+                    self.player_data[data['server_name']] = pd.DataFrame.from_dict(data['players'])
+                    embed = discord.Embed(title='Active Players', color=discord.Color.blue())
+                    names = units = sides = '' if (len(data['players']) > 1) else '_ _'
+                    for player in data['players']:
+                        side = player['side']
+                        if(player['id'] == 1):
+                            continue
+                        names += player['name'] + '\n'
+                        units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
+                        sides += self.PLAYER_SIDES[side] + '\n'
+                    embed.add_field(name='Name', value=names)
+                    embed.add_field(name='Unit', value=units)
+                    embed.add_field(name='Side', value=sides)
+                    return await self.setPlayersEmbed(data, embed)
+                else:
+                    return data
 
             async def listMissions(data):
                 embed = discord.Embed(title='Mission List', color=discord.Color.blue())
@@ -690,11 +726,10 @@ class Agent(commands.Cog):
                     if (data['side'] != self.SIDE_SPECTATOR):
                         conn = self.bot.pool.getconn()
                         try:
+                            mission_id = self.getCurrentMissionID(data['server_name'])
                             with closing(conn.cursor()) as cursor:
-                                cursor.execute(SQL_CLOSE_STATISTICS, (self.getCurrentMissionID(
-                                    data['server_name']), data['ucid']))
-                                cursor.execute(SQL_INSERT_STATISTICS, (self.getCurrentMissionID(
-                                    data['server_name']), data['ucid'], data['unit_type']))
+                                cursor.execute(SQL_CLOSE_STATISTICS, (mission_id, data['ucid']))
+                                cursor.execute(SQL_INSERT_STATISTICS, (mission_id, data['ucid'], data['unit_type']))
                                 conn.commit()
                         except (Exception, psycopg2.DatabaseError) as error:
                             self.bot.log.exception(error)
@@ -728,11 +763,12 @@ class Agent(commands.Cog):
                         self.bot.DCSServers[data['server_name']]['status'] = 'Shutdown'
                         conn = self.bot.pool.getconn()
                         try:
+                            mission_id = self.getCurrentMissionID(data['server_name'])
                             with closing(conn.cursor()) as cursor:
                                 cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND hop_off IS NULL',
-                                               (self.getCurrentMissionID(data['server_name']), ))
+                                               (mission_id, ))
                                 cursor.execute('UPDATE missions SET mission_end = NOW() WHERE id = %s',
-                                               (self.getCurrentMissionID(data['server_name']), ))
+                                               (mission_id, ))
                                 conn.commit()
                         except (Exception, psycopg2.DatabaseError) as error:
                             self.bot.log.exception(error)

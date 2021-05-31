@@ -94,17 +94,18 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-@bot.command(description='Reloads a COG', usage='[cog]')
+@bot.command(description='Reloads a COG', usage='<node> [cog]')
 @commands.is_owner()
-async def reload(ctx, cog=None):
-    bot.config.read('config/dcsserverbot.ini')
-    for c in COGS:
-        if ((cog is None) or (c == cog)):
-            bot.reload_extension(c)
-    if (cog is None):
-        await ctx.send('All COGs reloaded.')
-    else:
-        await ctx.send('COG {} reloaded.'.format(cog))
+async def reload(ctx, node=platform.node(), cog=None):
+    if (node == platform.node()):
+        bot.config.read('config/dcsserverbot.ini')
+        for c in COGS:
+            if ((cog is None) or (c == cog)):
+                bot.reload_extension(c)
+        if (cog is None):
+            await ctx.send('All COGs reloaded.')
+        else:
+            await ctx.send('COG {} reloaded.'.format(cog))
 
 # Creating connection pool
 bot.pool = pool.ThreadedConnectionPool(POOL_MIN, POOL_MAX, config['BOT']['DATABASE_URL'], sslmode='allow')

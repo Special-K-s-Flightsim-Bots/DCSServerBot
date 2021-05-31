@@ -78,6 +78,8 @@ function dcsbotgui.onSimulationFrame()
 				dcsbot.ban(json)
 			elseif (json.command == 'unban') then
 				dcsbot.unban(json)
+			elseif (json.command == 'getServerSettings') then
+				dcsbot.getServerSettings(json)
 			end
 		end
 	until err

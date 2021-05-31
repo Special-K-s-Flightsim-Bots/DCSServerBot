@@ -239,3 +239,11 @@ function dcsbot.getCategory(id)
 
     return _killed_target_category
 end
+
+function dcsbot.getServerSettings(json)
+	loadfile(lfs.writedir() .. 'Config/serverSettings.lua')()
+	msg = {}
+	msg.command = 'getServerSettings'
+	msg.serverSettings = cfg
+	dcsbot.sendBotTable(msg, json.channel)
+end
