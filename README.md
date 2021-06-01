@@ -65,6 +65,8 @@ MASTER|If true, start the bot in master-mode which enables specific commands tha
 AUTOBAN|If true, members leaving the discord will be automatically banned.
 SERVER_FILTER|Filter to shorten server names (if needed)
 MISSION_FILTER|Filter to shorten mission names (if needed)
+USER_LOGIN|Your login to ED's website. Needed to gather status information of the running server(s).
+USER_PASSWORD|Your password to ED's website. Needed to gather status information of the running server(s).
 DCS_HOME|The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.
 GREETING_MESSAGE_MEMBERS|A greeting message, that people will receive in DCS, if they get recognized by the bot as a member of your discord.
 GREETING_MESSAGE_UNKNOWN|A greeting message, that people will receive in DCS, if they or not recognized as a member of your discord.
