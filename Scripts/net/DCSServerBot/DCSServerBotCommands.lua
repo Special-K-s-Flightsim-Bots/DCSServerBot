@@ -32,22 +32,24 @@ if f then
 	loadstring(data)()
 	f:close()
 end
-net.log(string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg'))
-local config_path = string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg')
-local f = io.open(config_path, 'r')
-if f then
-	for line in f:lines() do
-	    k,v = line:match('^([^=]+)=(.+)$')
-      if k ~= nil then
-				if (string.upper(v) == 'FALSE') then
-					v = false
-				elseif (string.upper(v) == 'TRUE') then
-					v = true
-				end
-        SRSAuto[k] = v
-	    end
-	  end
-	f:close()
+if (SRSAuto ~= nil) then
+	net.log(string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg'))
+	local config_path = string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg')
+	local f = io.open(config_path, 'r')
+	if f then
+		for line in f:lines() do
+			k,v = line:match('^([^=]+)=(.+)$')
+		  if k ~= nil then
+					if (string.upper(v) == 'FALSE') then
+						v = false
+					elseif (string.upper(v) == 'TRUE') then
+						v = true
+					end
+			SRSAuto[k] = v
+			end
+		  end
+		f:close()
+	end
 end
 
 

@@ -1,6 +1,7 @@
 # agent.py
 import aiohttp
 import asyncio
+import datetime
 import discord
 import fnmatch
 import json
@@ -12,7 +13,7 @@ import socket
 import socketserver
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
-from datetime import datetime, timedelta
+from datetime import timedelta
 from discord.ext import commands, tasks
 from os import listdir
 from os.path import expandvars
@@ -317,13 +318,19 @@ class Agent(commands.Cog):
             embed.add_field(name='Server-IP / Port', value='Pending...')
         if (len(server['serverSettings']['password']) > 0):
             embed.add_field(name='Password', value=server['serverSettings']['password'])
+        else:
+            embed.add_field(name='Password', value='_ _')
         uptime = int(mission['mission_time'])
         embed.add_field(name='Runtime', value=str(timedelta(seconds=uptime)))
         if ('start_time' in mission):
-            date = datetime(int(mission['date']['Year']), int(
-                mission['date']['Month']), int(mission['date']['Day']), 0, 0).timestamp()
-            real_time = date + int(mission['start_time']) + uptime
-            value = str(datetime.fromtimestamp(real_time))
+            if (mission['date']['Year'] > 1970):
+                date = datetime.datetime(mission['date']['Year'], mission['date']['Month'],
+                                         mission['date']['Day'], 0, 0).timestamp()
+                real_time = date + mission['start_time'] + uptime
+                value = str(datetime.datetime.fromtimestamp(real_time))
+            else:
+                value = '{}-{:02d}-{:02d} {}'.format(mission['date']['Year'], mission['date']['Month'],
+                                                     mission['date']['Day'], timedelta(seconds=mission['start_time'] + uptime))
         else:
             value = '-'
         embed.add_field(name='Date/Time in Mission', value=value)
@@ -658,8 +665,10 @@ class Agent(commands.Cog):
                     # Store server configuration
                     self.bot.DCSServers[data['server_name']]['serverSettings'] = data['serverSettings']
                     self.bot.DCSServers[data['server_name']]['options'] = data['options']
-                    self.bot.DCSServers[data['server_name']]['SRSSettings'] = data['SRSSettings']
-                    self.bot.DCSServers[data['server_name']]['lotAtcSettings'] = data['lotAtcSettings']
+                    if ('SRSSettings' in data):
+                        self.bot.DCSServers[data['server_name']]['SRSSettings'] = data['SRSSettings']
+                    if ('lotAtcSettings' in data):
+                        self.bot.DCSServers[data['server_name']]['lotAtcSettings'] = data['lotAtcSettings']
                     # read server information from ED
                     dcs_server = await self.read_dcs_servers([data['server_name']])
                     if (len(dcs_server) > 0):
