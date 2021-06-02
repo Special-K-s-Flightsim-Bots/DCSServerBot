@@ -8,12 +8,11 @@ import pandas as pd
 import platform
 import psycopg2
 import psycopg2.extras
-import re
 import socket
 import socketserver
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
-from datetime import timedelta
+from datetime import datetime, timedelta
 from discord.ext import commands, tasks
 from os import listdir
 from os.path import expandvars
@@ -38,6 +37,12 @@ class Agent(commands.Cog):
         SIDE_RED: 'RED',
         SIDE_BLUE: 'BLUE',
         SIDE_NEUTRAL: 'NEUTRAL'
+    }
+
+    STATUS_IMG = {
+        'Loading': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
+        'Running': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe3e40f0b6156700004f/traffic-light-green.jpg',
+        'Shutdown': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg'
     }
 
     SQL_EVENT_UPDATES = {
@@ -116,7 +121,7 @@ class Agent(commands.Cog):
                         self.players_embeds[server_name] = await channel.fetch_message(server['players_embed'])
                 try:
                     # check for any registration updates (channels, etc)
-                    await self.sendtoDCSSync(server, {"command": "registerDCSServer", "channel": -1})
+                    await self.sendtoDCSSync(server, {"command": "registerDCSServer", "channel": 0})
                     # check for any mission changes and update embed
                     await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": server['status_channel']})
                     # preload players list
@@ -296,31 +301,89 @@ class Agent(commands.Cog):
                     retval = json.loads(await response.text())['SERVERS']
         return list(filter(lambda x: x['NAME'] in servers, retval))
 
+    def format_mission_embed(self, mission):
+        server = self.bot.DCSServers[mission['server_name']]
+        plugins = []
+        embed = discord.Embed(title='{} [{}/{}]\n{}'.format(mission['server_name'],
+                                                            mission['num_players'], server['serverSettings']['maxPlayers'],
+                                                            ('"' + mission['current_mission'] + '"') if server['status'] == 'Running' else ('_' + server['status'] + '_')),
+                              color=discord.Color.blue())
+
+        embed.set_thumbnail(url=self.STATUS_IMG[server['status']])
+        embed.add_field(name='Map', value=mission['current_map'])
+        if ('DCS_IP' in server):
+            embed.add_field(name='Server-IP / Port', value=server['DCS_IP'] + ':' + str(server['DCS_PORT']))
+        else:
+            embed.add_field(name='Server-IP / Port', value='Pending...')
+        if (len(server['serverSettings']['password']) > 0):
+            embed.add_field(name='Password', value=server['serverSettings']['password'])
+        uptime = int(mission['mission_time'])
+        embed.add_field(name='Runtime', value=str(timedelta(seconds=uptime)))
+        if ('start_time' in mission):
+            date = datetime(int(mission['date']['Year']), int(
+                mission['date']['Month']), int(mission['date']['Day']), 0, 0).timestamp()
+            real_time = date + int(mission['start_time']) + uptime
+            value = str(datetime.fromtimestamp(real_time))
+        else:
+            value = '-'
+        embed.add_field(name='Date/Time in Mission', value=value)
+        embed.add_field(name='Avail. Slots',
+                        value='🔹 {}  |  {} 🔸'.format(mission['num_slots_blue'] if 'num_slots_blue' in mission else '-', mission['num_slots_red'] if 'num_slots_red' in mission else '-'))
+        embed.add_field(name='▬' * 25, value='_ _', inline=False)
+        if ('SRSSettings' in server):
+            plugins.append('SRS')
+            if (server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True):
+                value = '🔹 Pass: {}\n🔸 Pass: {}'.format(
+                    server['SRSSettings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'], server['SRSSettings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'])
+            else:
+                value = '_ _'
+            embed.add_field(name='SRS [{}]'.format(
+                server['SRSSettings']['SERVER_SRS_PORT']), value=value)
+        if ('lotAtcSettings' in server):
+            plugins.append('LotAtc')
+            embed.add_field(name='LotAtc [{}]'.format(server['lotAtcSettings']['port']), value='🔹 Pass: {}\n🔸 Pass: {}'.format(
+                server['lotAtcSettings']['blue_password'], server['lotAtcSettings']['red_password']))
+        if (('Tacview' in server['options']['plugins']) and (server['options']['plugins']['Tacview']['tacviewModuleEnabled'] is True) and (server['options']['plugins']['Tacview']['tacviewFlightDataRecordingEnabled'] is True)):
+            plugins.append('Tacview')
+            name = 'Tacview'
+            value = ''
+            if (server['options']['plugins']['Tacview']['tacviewRealTimeTelemetryEnabled'] is True):
+                name += ' RT [{}]'.format(server['options']['plugins']['Tacview']['tacviewRealTimeTelemetryPort'])
+                if (len(server['options']['plugins']['Tacview']['tacviewRealTimeTelemetryPassword']) > 0):
+                    value += 'Password: {}\n'.format(server['options']['plugins']
+                                                     ['Tacview']['tacviewRealTimeTelemetryPassword'])
+            elif (len(server['options']['plugins']['Tacview']['tacviewHostTelemetryPassword']) > 0):
+                name += '[{}]'.format(server['options']['plugins']['Tacview']['tacviewRealTimeTelemetryPort'])
+                value += 'Password: "{}"\n'.format(server['options']['plugins']
+                                                   ['Tacview']['tacviewHostTelemetryPassword'])
+            if (server['options']['plugins']['Tacview']['tacviewRemoteControlEnabled'] is True):
+                value += '**Remote Ctrl [{}]**\n'.format(server['options']
+                                                         ['plugins']['Tacview']['tacviewRemoteControlPort'])
+                if (len(server['options']['plugins']['Tacview']['tacviewRemoteControlPassword']) > 0):
+                    value += 'Password: {}'.format(server['options']['plugins']
+                                                   ['Tacview']['tacviewRemoteControlPassword'])
+            embed.add_field(name=name, value=value)
+        if (len(plugins) > 0):
+            footer = 'The IP address of '
+            if (len(plugins) == 1):
+                footer += plugins[0]
+            else:
+                footer += ', '.join(plugins[0:len(plugins) - 1]) + ' and ' + plugins[len(plugins) - 1]
+            footer += ' is the same as the server.'
+        embed.set_footer(text=footer)
+        return embed
+
     @commands.command(description='Lists the registered DCS servers')
     @commands.has_permissions(administrator=True)
     @commands.guild_only()
     async def status(self, ctx):
-        embed = discord.Embed(title='Servers on {}-Node {}:'.format('Master' if self.bot.config.getboolean(
-            'BOT', 'MASTER') is True else 'Slave', platform.node()), color=discord.Color.blue())
-        dcs_servers = await self.read_dcs_servers(list(self.bot.DCSServers.keys()))
-        if (len(dcs_servers) > 0):
-            for server in dcs_servers:
-                serverSettings = await self.sendtoDCSSync(self.bot.DCSServers[server['NAME']], {"command": "getServerSettings", "channel": -1})
-                mission = await self.sendtoDCSSync(self.bot.DCSServers[server['NAME']], {"command": "getRunningMission", "channel": -1})
-                name = ('🔐 ' if server['PASSWORD'] == 'Yes' else '🔓 ')
-                name += server['NAME'] + ' [' + str(server['PLAYERS']) + \
-                    '/' + str(server['PLAYERS_MAX']) + ']\n'
-                value = 'IP/Port:  ' + server['IP_ADDRESS'] + ':' + server['PORT'] + '\n'
-                if (server['PASSWORD'] == 'Yes'):
-                    if (len(serverSettings['password']) > 0):
-                        value += 'Password: ' + serverSettings['password'] + '\n'
-                value += 'Mission:  ' + mission['current_mission'] + '\n'
-                value += 'Map:      ' + mission['current_map'] + '\n'
-                value += 'Slots:    {} blue / {} red\n'.format(
-                    mission['num_slots_blue'] if 'num_slots_blue' in mission else '-', mission['num_slots_red'] if 'num_slots_red' in mission else '-')
-                value += 'Uptime:   ' + str(timedelta(seconds=int(mission['mission_time']))) + '\n'
-                embed.add_field(name=name, value='```' + value + '```', inline=False)
-            await ctx.send(embed=embed)
+        if (len(self.bot.DCSServers) > 0):
+            await ctx.send('Servers on {}-Node {}:'.format('Master' if self.bot.config.getboolean('BOT',
+                                                                                                  'MASTER') is True else 'Slave', platform.node()))
+            for server_name, server in self.bot.DCSServers.items():
+                if (server['status'] == 'Running'):
+                    mission = await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
+                    await ctx.send(embed=self.format_mission_embed(mission))
         else:
             await ctx.send('No server running on host {}'.format(platform.node()))
 
@@ -340,7 +403,8 @@ class Agent(commands.Cog):
         server = await self.get_server(ctx)
         if (server is not None):
             if (int(server['status_channel']) != ctx.channel.id):
-                await ctx.send('This command can only be used in the status channel.')
+                mission = await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
+                await ctx.send(embed=self.format_mission_embed(mission))
             else:
                 await ctx.message.delete()
                 if (self.getCurrentMissionID(server['server_name']) != -1):
@@ -566,6 +630,11 @@ class Agent(commands.Cog):
 
             async def registerDCSServer(data):
                 self.bot.log.info('Registering DCS-Server ' + data['server_name'])
+                # check for protocol incompatibilities
+                if (data['hook_version'] != self.bot.config['BOT']['VERSION']):
+                    self.bot.log.error(
+                        'Server {} has wrong Hook version installed. Please update lua files and restart server. Registration ignored.'.format(data['server_name']))
+                    return
                 if (data['status_channel'].isnumeric() is True):
                     SQL_INSERT = 'INSERT INTO servers (server_name, agent_host, host, port, chat_channel, status_channel, admin_channel) VALUES(%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, chat_channel=%s, status_channel=%s, admin_channel=%s'
                     SQL_SELECT = 'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, mission_embed, players_embed, \'Running\' AS status FROM servers WHERE server_name = %s'
@@ -584,32 +653,36 @@ class Agent(commands.Cog):
                         conn.rollback()
                     finally:
                         self.bot.pool.putconn(conn)
+                    # Store server configuration
+                    self.bot.DCSServers[data['server_name']]['serverSettings'] = data['serverSettings']
+                    self.bot.DCSServers[data['server_name']]['options'] = data['options']
+                    self.bot.DCSServers[data['server_name']]['SRSSettings'] = data['SRSSettings']
+                    self.bot.DCSServers[data['server_name']]['lotAtcSettings'] = data['lotAtcSettings']
+                    # read server information from ED
+                    dcs_server = await self.read_dcs_servers([data['server_name']])
+                    if (len(dcs_server) > 0):
+                        self.bot.DCSServers[data['server_name']]['DCS_IP'] = dcs_server[0]['IP_ADDRESS']
+                        self.bot.DCSServers[data['server_name']]['DCS_PORT'] = dcs_server[0]['PORT']
                     # a new server has connected, so send all our bans to it
                     self.updateBans(data)
                 else:
                     self.bot.log.error(
-                        'Configuration mismatch. Please check settings in DCSServerBotConfig.lua!')
+                        'Configuration mismatch. Please check settings in DCSServerBotConfig.lua on server {}!'.format(data['server_name']))
 
             async def getServerSettings(data):
-                return data['serverSettings']
+                return data
 
             async def getRunningMission(data):
-                if (int(data['channel']) != -1):
-                    embed = discord.Embed(title='Running', color=discord.Color.blue())
-                    embed.add_field(name='Name', value=data['current_mission'])
-                    embed.add_field(name='Map', value=data['current_map'])
-                    embed.add_field(name='Uptime', value=str(timedelta(seconds=int(data['mission_time']))))
-                    embed.add_field(name='Active Players', value=str(int(data['num_players']) - 1))
-                    embed.add_field(name='Blue Slots', value=data['num_slots_blue']
-                                    if ('num_slots_blue' in data) else '-')
-                    embed.add_field(name='Red Slots', value=data['num_slots_red'] if ('num_slots_red' in data) else '-')
-                    embed.set_footer(text='Updates every 10 minutes')
+                if (int(data['channel']) != 0):
+                    if (data['num_players'] == 0):
+                        self.bot.DCSServers[data['server_name']]['status'] = 'Shutdown'
+                    embed = self.format_mission_embed(data)
                     return await self.setMissionEmbed(data, embed)
                 else:
                     return data
 
             async def getCurrentPlayers(data):
-                if (int(data['channel']) != -1):
+                if (int(data['channel']) != 0):
                     self.player_data[data['server_name']] = pd.DataFrame.from_dict(data['players'])
                     embed = discord.Embed(title='Active Players', color=discord.Color.blue())
                     names = units = sides = '' if (len(data['players']) > 1) else '_ _'
@@ -641,20 +714,16 @@ class Agent(commands.Cog):
                 return embed
 
             async def getMissionDetails(data):
-                embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
-                embed.description = data['mission_description'][:2048]
-                return embed
+                if (int(data['channel']) != 0):
+                    embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
+                    embed.description = data['mission_description'][:2048]
+                    return embed
+                else:
+                    return data
 
             async def onMissionLoadBegin(data):
                 self.bot.DCSServers[data['server_name']]['status'] = 'Loading'
-                embed = discord.Embed(title='Loading ...', color=discord.Color.blue())
-                embed.add_field(name='Name', value=data['current_mission'])
-                embed.add_field(name='Map', value=data['current_map'])
-                embed.add_field(name='Uptime', value='-:--:--')
-                embed.add_field(name='Active Players', value='-')
-                embed.add_field(name='Blue Slots', value='-')
-                embed.add_field(name='Red Slots', value='-')
-                return await self.setMissionEmbed(data, embed)
+                await UDPListener.getRunningMission(data)
 
             async def onMissionLoadEnd(data):
                 self.bot.DCSServers[data['server_name']]['status'] = 'Running'
@@ -674,6 +743,11 @@ class Agent(commands.Cog):
                     conn.rollback()
                 finally:
                     self.bot.pool.putconn(conn)
+                # read server information from ED
+                dcs_server = await self.read_dcs_servers([data['server_name']])
+                if (len(dcs_server) > 0):
+                    self.bot.DCSServers[data['server_name']]['DCS_IP'] = dcs_server[0]['IP_ADDRESS']
+                    self.bot.DCSServers[data['server_name']]['DCS_PORT'] = dcs_server[0]['PORT']
                 await UDPListener.getRunningMission(data)
                 self.updatePlayerList(data)
                 return None
@@ -752,15 +826,10 @@ class Agent(commands.Cog):
                 await self.lock.acquire()
                 try:
                     if (data['eventName'] == 'mission_end'):
-                        embed = discord.Embed(title='Shutdown', color=discord.Color.blue())
-                        embed.add_field(name='Name', value='No mission running')
-                        embed.add_field(name='Map', value='-')
-                        embed.add_field(name='Uptime', value='-:--:--')
-                        embed.add_field(name='Active Players', value='-')
-                        embed.add_field(name='Blue Slots', value='-')
-                        embed.add_field(name='Red Slots', value='-')
-                        await self.setMissionEmbed(data, embed)
-                        self.bot.DCSServers[data['server_name']]['status'] = 'Shutdown'
+                        data['num_players'] = 0
+                        data['current_map'] = '-'
+                        data['mission_time'] = 0
+                        await UDPListener.getRunningMission(data)
                         conn = self.bot.pool.getconn()
                         try:
                             mission_id = self.getCurrentMissionID(data['server_name'])

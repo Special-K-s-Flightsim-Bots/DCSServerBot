@@ -21,6 +21,36 @@ package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
 local socket = require("socket")
 dcsbot.UDPSendSocket = socket.udp()
 
+-- preload information for serverSettings
+loadfile(lfs.writedir() .. 'Config\\serverSettings.lua')()
+loadfile(lfs.writedir() .. 'Config\\options.lua')()
+local f = io.open(lfs.writedir() .. 'Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua', 'r')
+if f then
+	local content = f:read("*all")
+	data = string.gsub(content, 'local SRSAuto = {}', 'SRSAuto = {}')
+	data = string.gsub(data, '-- DO NOT EDIT BELOW HERE --(.*)$', '')
+	loadstring(data)()
+	f:close()
+end
+net.log(string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg'))
+local config_path = string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg')
+local f = io.open(config_path, 'r')
+if f then
+	for line in f:lines() do
+	    k,v = line:match('^([^=]+)=(.+)$')
+      if k ~= nil then
+				if (string.upper(v) == 'FALSE') then
+					v = false
+				elseif (string.upper(v) == 'TRUE') then
+					v = true
+				end
+        SRSAuto[k] = v
+	    end
+	  end
+	f:close()
+end
+
+
 function dcsbot.sendBotTable(tbl, channel)
 	tbl.server_name = dcsbot.config.SERVER_NAME
 	tbl.channel = channel or -1
@@ -44,6 +74,10 @@ function dcsbot.registerDCSServer(json)
 	msg.chat_channel = dcsbot.config.CHAT_CHANNEL
 	msg.status_channel = dcsbot.config.STATUS_CHANNEL
 	msg.admin_channel = dcsbot.config.ADMIN_CHANNEL
+	msg.serverSettings = cfg
+	msg.options = options
+	msg.SRSSettings = SRSAuto
+	msg.lotAtcSettings = lotatc_inst.options
 	dcsbot.sendBotTable(msg)
 	dcsbot.registered = true
 end
@@ -145,6 +179,8 @@ function dcsbot.getRunningMission(json)
   msg.current_map = DCS.getCurrentMission().mission.theatre
 	msg.mission_time = DCS.getModelTime()
 	msg.num_players = table.getn(net.get_player_list())
+	msg.start_time = DCS.getCurrentMission().mission.start_time
+	msg.date = DCS.getCurrentMission().mission.date
 	if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
 		msg.num_slots_blue = table.getn(dcsbot.updateSlots()['slots']['blue'])
 	end
@@ -238,12 +274,4 @@ function dcsbot.getCategory(id)
 	end
 
     return _killed_target_category
-end
-
-function dcsbot.getServerSettings(json)
-	loadfile(lfs.writedir() .. 'Config/serverSettings.lua')()
-	msg = {}
-	msg.command = 'getServerSettings'
-	msg.serverSettings = cfg
-	dcsbot.sendBotTable(msg, json.channel)
 end

@@ -19,6 +19,9 @@ function dcsbotgui.onMissionLoadBegin()
 	msg.command = 'onMissionLoadBegin'
 	msg.current_mission = DCS.getMissionName()
 	msg.current_map = DCS.getCurrentMission().mission.theatre
+	msg.mission_time = 0
+	msg.num_players = 0
+	msg.lotAtcSettings = lotatc_inst.options
 	dcsbot.sendBotTable(msg)
 end
 
@@ -29,6 +32,8 @@ function dcsbotgui.onMissionLoadEnd()
   msg.current_map = DCS.getCurrentMission().mission.theatre
 	msg.mission_time = 0
 	msg.num_players = 1
+	msg.start_time = DCS.getCurrentMission().mission.start_time
+	msg.date = DCS.getCurrentMission().mission.date
 	if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
 		msg.num_slots_blue = table.getn(dcsbot.updateSlots()['slots']['blue'])
 	end
@@ -78,8 +83,6 @@ function dcsbotgui.onSimulationFrame()
 				dcsbot.ban(json)
 			elseif (json.command == 'unban') then
 				dcsbot.unban(json)
-			elseif (json.command == 'getServerSettings') then
-				dcsbot.getServerSettings(json)
 			end
 		end
 	until err
