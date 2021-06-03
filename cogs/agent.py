@@ -361,8 +361,9 @@ class Agent(commands.Cog):
             if (len(value) == 0):
                 value = 'enabled'
             embed.add_field(name=name, value=value)
+        footer = ''
         if (len(plugins) > 0):
-            footer = 'The IP address of '
+            footer += 'The IP address of '
             if (len(plugins) == 1):
                 footer += plugins[0]
             else:
