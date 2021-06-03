@@ -736,11 +736,6 @@ class Agent(commands.Cog):
                     conn.rollback()
                 finally:
                     self.bot.pool.putconn(conn)
-                # read server information from ED
-                dcs_server = await self.read_dcs_servers([data['server_name']])
-                if (len(dcs_server) > 0):
-                    self.bot.DCSServers[data['server_name']]['DCS_IP'] = dcs_server[0]['IP_ADDRESS']
-                    self.bot.DCSServers[data['server_name']]['DCS_PORT'] = dcs_server[0]['PORT']
                 await UDPListener.getRunningMission(data)
                 self.updatePlayerList(data)
                 return None
