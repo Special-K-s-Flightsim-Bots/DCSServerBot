@@ -21,7 +21,9 @@ function dcsbotgui.onMissionLoadBegin()
 	msg.current_map = DCS.getCurrentMission().mission.theatre
 	msg.mission_time = 0
 	msg.num_players = 0
-	msg.lotAtcSettings = lotatc_inst.options
+	if (lotatc_inst ~= nil) then
+		msg.lotAtcSettings = lotatc_inst.options
+	end
 	dcsbot.sendBotTable(msg)
 end
 
@@ -122,6 +124,10 @@ function dcsbotgui.onPlayerConnect(id)
 end
 
 function dcsbotgui.onPlayerStart(id)
+	if (dcsbot.registered == false) then
+		dcsbot.config.SERVER_NAME = net.get_server_settings().name
+		dcsbot.registerDCSServer()
+	end
 	msg = {}
 	msg.command = 'onPlayerStart'
 	msg.id = id

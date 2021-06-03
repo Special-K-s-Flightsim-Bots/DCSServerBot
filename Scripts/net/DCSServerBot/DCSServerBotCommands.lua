@@ -79,7 +79,9 @@ function dcsbot.registerDCSServer(json)
 	msg.serverSettings = cfg
 	msg.options = options
 	msg.SRSSettings = SRSAuto
-	msg.lotAtcSettings = lotatc_inst.options
+	if (lotatc_inst ~= nil) then
+		msg.lotAtcSettings = lotatc_inst.options
+	end
 	dcsbot.sendBotTable(msg)
 	dcsbot.registered = true
 end

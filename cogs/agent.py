@@ -107,6 +107,8 @@ class Agent(commands.Cog):
     async def init_status(self):
         await self.lock.acquire()
         try:
+            # TODO: move that to the lua code
+            self.external_ip = await self.get_external_ip()
             for server_name, server in self.bot.DCSServers.items():
                 channel = await self.bot.fetch_channel(server['status_channel'])
                 if ('mission_embed' in server and server['mission_embed']):
@@ -651,7 +653,7 @@ class Agent(commands.Cog):
                         self.bot.pool.putconn(conn)
                     # Store server configuration
                     self.bot.DCSServers[data['server_name']]['serverSettings'] = data['serverSettings']
-                    self.bot.DCSServers[data['server_name']]['serverSettings']['external_ip'] = await self.get_external_ip()
+                    self.bot.DCSServers[data['server_name']]['serverSettings']['external_ip'] = self.external_ip
                     self.bot.DCSServers[data['server_name']]['options'] = data['options']
                     if ('SRSSettings' in data):
                         self.bot.DCSServers[data['server_name']]['SRSSettings'] = data['SRSSettings']
