@@ -340,26 +340,27 @@ class Agent(commands.Cog):
             plugins.append('LotAtc')
             embed.add_field(name='LotAtc [{}]'.format(server['lotAtcSettings']['port']), value='🔹 Pass: {}\n🔸 Pass: {}'.format(
                 server['lotAtcSettings']['blue_password'], server['lotAtcSettings']['red_password']))
-        if (('Tacview' in server['options']['plugins'])
-            and ('tacviewModuleEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewModuleEnabled'] is not False)
-                and ('tacviewFlightDataRecordingEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewFlightDataRecordingEnabled'] is not False)):
-            plugins.append('Tacview')
+        if ('Tacview' in server['options']['plugins']):
             name = 'Tacview'
-            value = ''
-            tacview = server['options']['plugins']['Tacview']
-            if ('tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled'] is True):
-                name += ' RT [{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
-                if ('tacviewRealTimeTelemetryPassword' in tacview and len(tacview['tacviewRealTimeTelemetryPassword']) > 0):
-                    value += 'Password: {}\n'.format(tacview['tacviewRealTimeTelemetryPassword'])
-            elif ('tacviewHostTelemetryPassword' in tacview and len(tacview['tacviewHostTelemetryPassword']) > 0):
-                name += '[{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
-                value += 'Password: "{}"\n'.format(tacview['tacviewHostTelemetryPassword'])
-            if ('tacviewRemoteControlEnabled' in tacview and tacview['tacviewRemoteControlEnabled'] is True):
-                value += '**Remote Ctrl [{}]**\n'.format(tacview['tacviewRemoteControlPort'])
-                if ('tacviewRemoteControlPassword' in tacview and len(tacview['tacviewRemoteControlPassword']) > 0):
-                    value += 'Password: {}'.format(tacview['tacviewRemoteControlPassword'])
-            if (len(value) == 0):
-                value = 'enabled'
+            if (('tacviewModuleEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewModuleEnabled'] is False) or ('tacviewFlightDataRecordingEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewFlightDataRecordingEnabled'] is False)):
+                value = 'disabled'
+            else:
+                plugins.append('Tacview')
+                value = ''
+                tacview = server['options']['plugins']['Tacview']
+                if ('tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled'] is True):
+                    name += ' RT [{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
+                    if ('tacviewRealTimeTelemetryPassword' in tacview and len(tacview['tacviewRealTimeTelemetryPassword']) > 0):
+                        value += 'Password: {}\n'.format(tacview['tacviewRealTimeTelemetryPassword'])
+                elif ('tacviewHostTelemetryPassword' in tacview and len(tacview['tacviewHostTelemetryPassword']) > 0):
+                    name += '[{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
+                    value += 'Password: "{}"\n'.format(tacview['tacviewHostTelemetryPassword'])
+                if ('tacviewRemoteControlEnabled' in tacview and tacview['tacviewRemoteControlEnabled'] is True):
+                    value += '**Remote Ctrl [{}]**\n'.format(tacview['tacviewRemoteControlPort'])
+                    if ('tacviewRemoteControlPassword' in tacview and len(tacview['tacviewRemoteControlPassword']) > 0):
+                        value += 'Password: {}'.format(tacview['tacviewRemoteControlPassword'])
+                if (len(value) == 0):
+                    value = 'enabled'
             embed.add_field(name=name, value=value)
         footer = ''
         if (len(plugins) > 0):
