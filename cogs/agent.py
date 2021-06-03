@@ -349,12 +349,13 @@ class Agent(commands.Cog):
                 value = ''
                 tacview = server['options']['plugins']['Tacview']
                 if ('tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled'] is True):
-                    name += ' RT [{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
+                    name += ' RT'
                     if ('tacviewRealTimeTelemetryPassword' in tacview and len(tacview['tacviewRealTimeTelemetryPassword']) > 0):
                         value += 'Password: {}\n'.format(tacview['tacviewRealTimeTelemetryPassword'])
                 elif ('tacviewHostTelemetryPassword' in tacview and len(tacview['tacviewHostTelemetryPassword']) > 0):
-                    name += '[{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
                     value += 'Password: "{}"\n'.format(tacview['tacviewHostTelemetryPassword'])
+                if ('tacviewRealTimeTelemetryPort' in tacview and len(tacview['tacviewRealTimeTelemetryPort']) > 0):
+                    name += '[{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
                 if ('tacviewRemoteControlEnabled' in tacview and tacview['tacviewRemoteControlEnabled'] is True):
                     value += '**Remote Ctrl [{}]**\n'.format(tacview['tacviewRemoteControlPort'])
                     if ('tacviewRemoteControlPassword' in tacview and len(tacview['tacviewRemoteControlPassword']) > 0):
