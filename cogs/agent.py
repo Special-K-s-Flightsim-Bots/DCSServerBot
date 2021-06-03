@@ -18,11 +18,6 @@ from discord.ext import commands, tasks
 from os import listdir
 from os.path import expandvars
 
-# Settings for EDs website
-ED_URL = "https://www.digitalcombatsimulator.com/en/auth/"
-ED_BACKURL = "/en/personal/server/?bitrix_sessid=1&ajax=y"
-ED_URL_PARAMS = {'AUTH_FORM': 'Y', 'TYPE': 'AUTH', 'backurl': ED_BACKURL, 'Login': 'Login'}
-
 
 class Agent(commands.Cog):
 
@@ -292,15 +287,10 @@ class Agent(commands.Cog):
             finally:
                 self.bot.pool.putconn(conn)
 
-    async def read_dcs_servers(self, servers):
-        retval = []
+    async def get_external_ip(self):
         async with aiohttp.ClientSession() as session:
-            ED_URL_PARAMS['USER_LOGIN'] = self.bot.config['DCS']['USER_LOGIN']
-            ED_URL_PARAMS['USER_PASSWORD'] = self.bot.config['DCS']['USER_PASSWORD']
-            async with session.post(ED_URL, data=ED_URL_PARAMS) as response:
-                if response.status == 200:
-                    retval = json.loads(await response.text())['SERVERS']
-        return list(filter(lambda x: x['NAME'] in servers, retval))
+            async with session.get('https://api.ipify.org') as resp:
+                return await resp.text()
 
     def format_mission_embed(self, mission):
         server = self.bot.DCSServers[mission['server_name']]
@@ -312,10 +302,8 @@ class Agent(commands.Cog):
 
         embed.set_thumbnail(url=self.STATUS_IMG[server['status']])
         embed.add_field(name='Map', value=mission['current_map'])
-        if ('DCS_IP' in server):
-            embed.add_field(name='Server-IP / Port', value=server['DCS_IP'] + ':' + str(server['DCS_PORT']))
-        else:
-            embed.add_field(name='Server-IP / Port', value='Pending...')
+        embed.add_field(name='Server-IP / Port', value=server['serverSettings']
+                        ['external_ip'] + ':' + str(server['serverSettings']['port']))
         if (len(server['serverSettings']['password']) > 0):
             embed.add_field(name='Password', value=server['serverSettings']['password'])
         else:
@@ -350,25 +338,24 @@ class Agent(commands.Cog):
             plugins.append('LotAtc')
             embed.add_field(name='LotAtc [{}]'.format(server['lotAtcSettings']['port']), value='🔹 Pass: {}\n🔸 Pass: {}'.format(
                 server['lotAtcSettings']['blue_password'], server['lotAtcSettings']['red_password']))
-        if (('Tacview' in server['options']['plugins']) and (server['options']['plugins']['Tacview']['tacviewModuleEnabled'] is True) and (server['options']['plugins']['Tacview']['tacviewFlightDataRecordingEnabled'] is True)):
+        if (('Tacview' in server['options']['plugins'])
+            and ('tacviewModuleEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewModuleEnabled'] is not False)
+                and ('tacviewFlightDataRecordingEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewFlightDataRecordingEnabled'] is not False)):
             plugins.append('Tacview')
             name = 'Tacview'
             value = ''
-            if (server['options']['plugins']['Tacview']['tacviewRealTimeTelemetryEnabled'] is True):
-                name += ' RT [{}]'.format(server['options']['plugins']['Tacview']['tacviewRealTimeTelemetryPort'])
-                if (len(server['options']['plugins']['Tacview']['tacviewRealTimeTelemetryPassword']) > 0):
-                    value += 'Password: {}\n'.format(server['options']['plugins']
-                                                     ['Tacview']['tacviewRealTimeTelemetryPassword'])
-            elif (len(server['options']['plugins']['Tacview']['tacviewHostTelemetryPassword']) > 0):
-                name += '[{}]'.format(server['options']['plugins']['Tacview']['tacviewRealTimeTelemetryPort'])
-                value += 'Password: "{}"\n'.format(server['options']['plugins']
-                                                   ['Tacview']['tacviewHostTelemetryPassword'])
-            if (server['options']['plugins']['Tacview']['tacviewRemoteControlEnabled'] is True):
-                value += '**Remote Ctrl [{}]**\n'.format(server['options']
-                                                         ['plugins']['Tacview']['tacviewRemoteControlPort'])
-                if (len(server['options']['plugins']['Tacview']['tacviewRemoteControlPassword']) > 0):
-                    value += 'Password: {}'.format(server['options']['plugins']
-                                                   ['Tacview']['tacviewRemoteControlPassword'])
+            tacview = server['options']['plugins']['Tacview']
+            if ('tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled'] is True):
+                name += ' RT [{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
+                if ('tacviewRealTimeTelemetryPassword' in tacview and len(tacview['tacviewRealTimeTelemetryPassword']) > 0):
+                    value += 'Password: {}\n'.format(tacview['tacviewRealTimeTelemetryPassword'])
+            elif ('tacviewHostTelemetryPassword' in tacview and len(tacview['tacviewHostTelemetryPassword']) > 0):
+                name += '[{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
+                value += 'Password: "{}"\n'.format(tacview['tacviewHostTelemetryPassword'])
+            if ('tacviewRemoteControlEnabled' in tacview and tacview['tacviewRemoteControlEnabled'] is True):
+                value += '**Remote Ctrl [{}]**\n'.format(tacview['tacviewRemoteControlPort'])
+                if ('tacviewRemoteControlPassword' in tacview and len(tacview['tacviewRemoteControlPassword']) > 0):
+                    value += 'Password: {}'.format(tacview['tacviewRemoteControlPassword'])
             if (len(value) == 0):
                 value = 'enabled'
             embed.add_field(name=name, value=value)
@@ -664,17 +651,12 @@ class Agent(commands.Cog):
                         self.bot.pool.putconn(conn)
                     # Store server configuration
                     self.bot.DCSServers[data['server_name']]['serverSettings'] = data['serverSettings']
+                    self.bot.DCSServers[data['server_name']]['serverSettings']['external_ip'] = await self.get_external_ip()
                     self.bot.DCSServers[data['server_name']]['options'] = data['options']
                     if ('SRSSettings' in data):
                         self.bot.DCSServers[data['server_name']]['SRSSettings'] = data['SRSSettings']
                     if ('lotAtcSettings' in data):
                         self.bot.DCSServers[data['server_name']]['lotAtcSettings'] = data['lotAtcSettings']
-                    # read server information from ED
-                    dcs_server = await self.read_dcs_servers([data['server_name']])
-                    if (len(dcs_server) > 0):
-                        self.bot.DCSServers[data['server_name']]['DCS_IP'] = dcs_server[0]['IP_ADDRESS']
-                        self.bot.DCSServers[data['server_name']]['DCS_PORT'] = dcs_server[0]['PORT']
-                    # a new server has connected, so send all our bans to it
                     self.updateBans(data)
                 else:
                     self.bot.log.error(
