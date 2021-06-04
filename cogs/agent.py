@@ -655,7 +655,11 @@ class Agent(commands.Cog):
                     finally:
                         self.bot.pool.putconn(conn)
                     # Store server configuration
-                    self.bot.DCSServers[data['server_name']]['statistics'] = data['statistics']
+                    # Backwards compatibility check
+                    if ('statistics' in data):
+                        self.bot.DCSServers[data['server_name']]['statistics'] = data['statistics']
+                    else:
+                        self.bot.DCSServers[data['server_name']]['statistics'] = True
                     self.bot.DCSServers[data['server_name']]['serverSettings'] = data['serverSettings']
                     self.bot.DCSServers[data['server_name']]['serverSettings']['external_ip'] = self.external_ip
                     self.bot.DCSServers[data['server_name']]['options'] = data['options']

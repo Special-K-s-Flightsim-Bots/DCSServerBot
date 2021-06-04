@@ -9,7 +9,7 @@ The following commands are supported:
 Command|Parameter|Description
 -------|-----------|--------------
 .status||(Admin only) Lists all registered DCS servers. They will auto-register on startup.
-.mission||Information about the active mission.
+.mission||Information about the active mission. To be run in the servers status- or admin-channel.
 .briefing/.brief||Shows the description / briefing of the running mission.
 .players||Lists the players currently active on the server.
 .list||Lists all missions with IDs available on this server (same as WebGUI).
