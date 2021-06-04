@@ -14,6 +14,7 @@ dcsbot.config.VERSION = '1.0'
 --[[ START OF USER CONFIGURATION ]]--
 dcsbot.config.BOT_HOST = '127.0.0.1'
 dcsbot.config.BOT_PORT = 10081
+dcsbot.config.STATISTICS = true           -- false = disable statistics
 -- when running multiple instances, these values have to be changed to unique values
 dcsbot.config.DCS_HOST = '127.0.0.1'
 dcsbot.config.DCS_PORT = 6666

@@ -76,6 +76,12 @@ function dcsbot.registerDCSServer(json)
 	msg.chat_channel = dcsbot.config.CHAT_CHANNEL
 	msg.status_channel = dcsbot.config.STATUS_CHANNEL
 	msg.admin_channel = dcsbot.config.ADMIN_CHANNEL
+	-- backwards compatibility
+	if (dcsbot.config.STATISTICS ~= nil) then
+		msg.statistics = dcsbot.config.STATISTICS
+	else
+		msg.statistics = true
+	end
 	msg.serverSettings = cfg
 	msg.options = options
 	msg.SRSSettings = SRSAuto
