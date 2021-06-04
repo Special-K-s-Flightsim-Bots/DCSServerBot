@@ -329,7 +329,7 @@ class Agent(commands.Cog):
         embed.add_field(name='▬' * 25, value='_ _', inline=False)
         if ('SRSSettings' in server):
             plugins.append('SRS')
-            if (server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True):
+            if ('EXTERNAL_AWACS_MODE' in server['SRSSettings'] and server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True):
                 value = '🔹 Pass: {}\n🔸 Pass: {}'.format(
                     server['SRSSettings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'], server['SRSSettings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'])
             else:
