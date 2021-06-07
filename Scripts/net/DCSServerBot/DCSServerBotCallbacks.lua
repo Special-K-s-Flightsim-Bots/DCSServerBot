@@ -85,6 +85,10 @@ function dcsbotgui.onSimulationFrame()
 				dcsbot.ban(json)
 			elseif (json.command == 'unban') then
 				dcsbot.unban(json)
+			elseif (json.command == 'pause') then
+				dcsbot.pause(json)
+			elseif (json.command == 'unpause') then
+				dcsbot.unpause(json)
 			end
 		end
 	until err
@@ -136,6 +140,14 @@ function dcsbotgui.onPlayerStart(id)
 	dcsbot.sendBotTable(msg)
 end
 
+function dcsbotgui.onPlayerStop(id)
+	msg.command = 'onPlayerStop'
+	msg.id = id
+	msg.ucid = net.get_player_info(id, 'ucid')
+	msg.name = net.get_player_info(id, 'name')
+	dcsbot.sendBotTable(msg)
+end
+
 function dcsbotgui.onPlayerChangeSlot(id)
 	msg = {}
 	msg.command = 'onPlayerChangeSlot'
@@ -160,6 +172,30 @@ end
 
 function dcsbotgui.onPlayerTryConnect(addr, name, ucid, playerID)
 	return not dcsbot.isBanned(ucid)
+end
+
+function dcsbotgui.onSimulationStart()
+	msg = {}
+	msg.command = 'onSimulationStart'
+	dcsbot.sendBotTable(msg)
+end
+
+function dcsbotgui.onSimulationStop()
+	msg = {}
+	msg.command = 'onSimulationStop'
+	dcsbot.sendBotTable(msg)
+end
+
+function dcsbotgui.onSimulationPause()
+	msg = {}
+	msg.command = 'onSimulationPause'
+	dcsbot.sendBotTable(msg)
+end
+
+function dcsbotgui.onSimulationResume()
+	msg = {}
+	msg.command = 'onSimulationResume'
+	dcsbot.sendBotTable(msg)
 end
 
 if DCS.isServer() then

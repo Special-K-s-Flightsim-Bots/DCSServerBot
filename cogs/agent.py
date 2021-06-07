@@ -37,6 +37,7 @@ class Agent(commands.Cog):
 
     STATUS_IMG = {
         'Loading': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
+        'Paused': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
         'Running': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe3e40f0b6156700004f/traffic-light-green.jpg',
         'Shutdown': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg'
     }
@@ -299,7 +300,7 @@ class Agent(commands.Cog):
         plugins = []
         embed = discord.Embed(title='{} [{}/{}]\n{}'.format(mission['server_name'],
                                                             mission['num_players'], server['serverSettings']['maxPlayers'],
-                                                            ('"' + mission['current_mission'] + '"') if server['status'] == 'Running' else ('_' + server['status'] + '_')),
+                                                            ('"' + mission['current_mission'] + '"') if server['status'] in ['Running', 'Paused'] else ('_' + server['status'] + '_')),
                               color=discord.Color.blue())
 
         embed.set_thumbnail(url=self.STATUS_IMG[server['status']])
@@ -375,9 +376,9 @@ class Agent(commands.Cog):
         return embed
 
     @commands.command(description='Lists the registered DCS servers')
-    @commands.has_permissions(administrator=True)
+    @commands.has_role('DCS')
     @commands.guild_only()
-    async def status(self, ctx):
+    async def servers(self, ctx):
         if (len(self.bot.DCSServers) > 0):
             await ctx.send('Servers on {}-Node {}:'.format('Master' if self.bot.config.getboolean('BOT',
                                                                                                   'MASTER') is True else 'Slave', platform.node()))
@@ -603,13 +604,43 @@ class Agent(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    @commands.command(description='Restarts the current active mission', usage='[delay] [message]')
-    @commands.has_role('DCS Admin')
+    @commands.command(description='Unregisters the server from this instance')
+    @commands.has_role('Admin')
     @commands.guild_only()
     async def unregister(self, ctx, node=platform.node()):
         server = await self.get_server(ctx)
         if (server is not None):
-            pass
+            server_name = server['server_name']
+            await self.mission_embeds[server_name].delete()
+            self.mission_embeds.pop(server_name)
+            await self.player_embeds[server_name].delete()
+            self.player_embeds.pop(server_name)
+            self.bot.DCSServers.pop(server_name)
+            await ctx.send('Server {} unregistered.'.format(server_name))
+
+    @commands.command(description='Pauses the current running mission')
+    @commands.has_role('DCS Admin')
+    @commands.guild_only()
+    async def pause(self, ctx):
+        server = await self.get_server(ctx)
+        if (server is not None):
+            if (server['status'] == 'Running'):
+                self.sendtoDCS(server, {"command": "pause", "channel": ctx.channel.id})
+                await ctx.send('Server "{}" paused.'.format(server['server_name']))
+            else:
+                await ctx.send('Server "{}" is not running.'.format(server['server_name']))
+
+    @commands.command(description='Unpauses the current running mission')
+    @commands.has_role('DCS Admin')
+    @commands.guild_only()
+    async def unpause(self, ctx):
+        server = await self.get_server(ctx)
+        if (server is not None):
+            if (server['status'] == 'Paused'):
+                self.sendtoDCS(server, {"command": "unpause", "channel": ctx.channel.id})
+                await ctx.send('Server "{}" unpaused.'.format(server['server_name']))
+            else:
+                await ctx.send('Server "{}" is already running.'.format(server['server_name']))
 
     @tasks.loop(minutes=10.0)
     async def update_mission_status(self):
@@ -677,6 +708,9 @@ class Agent(commands.Cog):
 
             async def getRunningMission(data):
                 if (int(data['channel']) != 0):
+                    if ('pause' in data):
+                        self.bot.DCSServers[data['server_name']
+                                            ]['status'] = 'Paused' if data['pause'] is True else 'Running'
                     embed = self.format_mission_embed(data)
                     return await self.setMissionEmbed(data, embed)
                 else:
@@ -727,7 +761,7 @@ class Agent(commands.Cog):
                 await UDPListener.getRunningMission(data)
 
             async def onMissionLoadEnd(data):
-                self.bot.DCSServers[data['server_name']]['status'] = 'Running'
+                self.bot.DCSServers[data['server_name']]['status'] = 'Paused'
                 if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
                     SQL_CLOSE_STATISTICS = 'UPDATE statistics SET hop_off = NOW() WHERE mission_id IN (SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL) AND hop_off IS NULL'
                     SQL_CLOSE_MISSIONS = 'UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL'
@@ -751,6 +785,38 @@ class Agent(commands.Cog):
 
             async def onSimulationStart(data):
                 return None
+
+            async def onSimulationStop(data):
+                data['num_players'] = 0
+                data['current_map'] = '-'
+                data['mission_time'] = 0
+                self.bot.DCSServers[data['server_name']]['status'] = 'Shutdown'
+                await UDPListener.getRunningMission(data)
+                data['players'] = []
+                await UDPListener.getCurrentPlayers(data)
+                if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
+                    conn = self.bot.pool.getconn()
+                    try:
+                        mission_id = self.getCurrentMissionID(data['server_name'])
+                        with closing(conn.cursor()) as cursor:
+                            cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND hop_off IS NULL',
+                                           (mission_id, ))
+                            cursor.execute('UPDATE missions SET mission_end = NOW() WHERE id = %s',
+                                           (mission_id, ))
+                            conn.commit()
+                    except (Exception, psycopg2.DatabaseError) as error:
+                        self.bot.log.exception(error)
+                        conn.rollback()
+                    finally:
+                        self.bot.pool.putconn(conn)
+
+            async def onSimulationPause(data):
+                self.bot.DCSServers[data['server_name']]['status'] = 'Paused'
+                self.updateMission(data)
+
+            async def onSimulationResume(data):
+                self.bot.DCSServers[data['server_name']]['status'] = 'Running'
+                self.updateMission(data)
 
             async def onPlayerConnect(data):
                 if (data['id'] != 1):
@@ -778,13 +844,15 @@ class Agent(commands.Cog):
                     if (discord_user is None):
                         self.sendtoDCS(server, {"command": "sendChatMessage", "message": self.bot.config['DCS']['GREETING_MESSAGE_UNKNOWN'].format(
                             data['name']), "to": data['id']})
-                        await self.get_channel(data, 'admin_channel').send('Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
+                        # only warn for unknown users if it is a non-public server
+                        if (len(self.bot.DCSServers[data['server_name']]['password']) > 0):
+                            await self.get_channel(data, 'admin_channel').send('Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
                     else:
                         name = discord_user.nick if (discord_user.nick) else discord_user.name
                         self.sendtoDCS(server, {"command": "sendChatMessage", "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(
                             name, data['server_name']), "to": data['id']})
-                    self.updatePlayerList(data)
                     self.updateMission(data)
+                    self.updatePlayerList(data)
                     return None
 
             async def onPlayerStop(data):
@@ -822,8 +890,8 @@ class Agent(commands.Cog):
                         if (chat_channel is not None):
                             await chat_channel.send('{} player {} returned to Spectators'.format(
                                 self.PLAYER_SIDES[player['side']], data['name']))
-                    self.updatePlayerList(data)
                     self.updateMission(data)
+                    self.updatePlayerList(data)
                 return None
 
             async def onGameEvent(data):
@@ -831,26 +899,7 @@ class Agent(commands.Cog):
                 await self.lock.acquire()
                 try:
                     if (data['eventName'] == 'mission_end'):
-                        data['num_players'] = 0
-                        data['current_map'] = '-'
-                        data['mission_time'] = 0
-                        self.bot.DCSServers[data['server_name']]['status'] = 'Shutdown'
-                        await UDPListener.getRunningMission(data)
-                        if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
-                            conn = self.bot.pool.getconn()
-                            try:
-                                mission_id = self.getCurrentMissionID(data['server_name'])
-                                with closing(conn.cursor()) as cursor:
-                                    cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND hop_off IS NULL',
-                                                   (mission_id, ))
-                                    cursor.execute('UPDATE missions SET mission_end = NOW() WHERE id = %s',
-                                                   (mission_id, ))
-                                    conn.commit()
-                            except (Exception, psycopg2.DatabaseError) as error:
-                                self.bot.log.exception(error)
-                                conn.rollback()
-                            finally:
-                                self.bot.pool.putconn(conn)
+                        None
                     elif (data['eventName'] in ['connect', 'change_slot']):  # these events are handled differently
                         return None
                     elif (data['eventName'] == 'disconnect'):
@@ -875,8 +924,8 @@ class Agent(commands.Cog):
                                 else:
                                     await chat_channel.send('{} player {} disconnected'.format(
                                         self.PLAYER_SIDES[player['side']], player['name']))
-                            self.updatePlayerList(data)
                             self.updateMission(data)
+                            self.updatePlayerList(data)
                     elif (data['eventName'] == 'friendly_fire'):
                         player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
                         if (data['arg3'] != -1):

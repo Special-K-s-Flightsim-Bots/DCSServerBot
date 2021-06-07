@@ -21,37 +21,6 @@ package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
 local socket = require("socket")
 dcsbot.UDPSendSocket = socket.udp()
 
--- preload information for serverSettings
-loadfile(lfs.writedir() .. 'Config\\serverSettings.lua')()
-loadfile(lfs.writedir() .. 'Config\\options.lua')()
-local f = io.open(lfs.writedir() .. 'Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua', 'r')
-if f then
-	local content = f:read("*all")
-	data = string.gsub(content, 'local SRSAuto = {}', 'SRSAuto = {}')
-	data = string.gsub(data, '-- DO NOT EDIT BELOW HERE --(.*)$', '')
-	loadstring(data)()
-	f:close()
-end
-if (SRSAuto ~= nil) then
-	net.log(string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg'))
-	local config_path = string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg')
-	local f = io.open(config_path, 'r')
-	if f then
-		for line in f:lines() do
-			k,v = line:match('^([^=]+)=(.+)$')
-		  if k ~= nil then
-					if (string.upper(v) == 'FALSE') then
-						v = false
-					elseif (string.upper(v) == 'TRUE') then
-						v = true
-					end
-			SRSAuto[k] = v
-			end
-		  end
-		f:close()
-	end
-end
-
 
 function dcsbot.sendBotTable(tbl, channel)
 	tbl.server_name = dcsbot.config.SERVER_NAME
@@ -68,6 +37,36 @@ function dcsbot.sendBotMessage(msg, channel)
 end
 
 function dcsbot.registerDCSServer(json)
+	-- load the servers configuration (SRS, et al)
+	loadfile(lfs.writedir() .. 'Config\\serverSettings.lua')()
+	loadfile(lfs.writedir() .. 'Config\\options.lua')()
+	local f = io.open(lfs.writedir() .. 'Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua', 'r')
+	if f then
+		local content = f:read("*all")
+		data = string.gsub(content, 'local SRSAuto = {}', 'SRSAuto = {}')
+		data = string.gsub(data, '-- DO NOT EDIT BELOW HERE --(.*)$', '')
+		loadstring(data)()
+		f:close()
+	end
+	if (SRSAuto ~= nil) then
+		net.log(string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg'))
+		local config_path = string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg')
+		local f = io.open(config_path, 'r')
+		if f then
+			for line in f:lines() do
+				k,v = line:match('^([^=]+)=(.+)$')
+			  if k ~= nil then
+						if (string.upper(v) == 'FALSE') then
+							v = false
+						elseif (string.upper(v) == 'TRUE') then
+							v = true
+						end
+				SRSAuto[k] = v
+				end
+			  end
+			f:close()
+		end
+	end
 	msg = {}
 	msg.command = 'registerDCSServer'
 	msg.hook_version = dcsbot.config.VERSION
@@ -191,6 +190,7 @@ function dcsbot.getRunningMission(json)
 	msg.num_players = table.getn(net.get_player_list())
 	msg.start_time = DCS.getCurrentMission().mission.start_time
 	msg.date = DCS.getCurrentMission().mission.date
+	msg.pause = DCS.getPause()
 	if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
 		msg.num_slots_blue = table.getn(dcsbot.updateSlots()['slots']['blue'])
 	end
@@ -258,6 +258,14 @@ end
 
 function dcsbot.isBanned(ucid)
 	return dcsbot.banList[ucid] ~= nil
+end
+
+function dcsbot.pause(json)
+	DCS.setPause(true)
+end
+
+function dcsbot.unpause(json)
+	DCS.setPause(false)
 end
 
 function dcsbot.getCategory(id)
