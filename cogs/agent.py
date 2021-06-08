@@ -574,10 +574,13 @@ class Agent(commands.Cog):
                     # ban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
+                    cursor.execute('UPDATE players SET ban = true WHERE ucid = %s', (ucid, ))
                     for server in self.bot.DCSServers.values():
                         self.sendtoDCS(server, {"command": "ban", "ucid": ucid, "channel": ctx.channel.id})
+                conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
+            conn.rollback()
         finally:
             self.bot.pool.putconn(conn)
 
@@ -597,10 +600,13 @@ class Agent(commands.Cog):
                     # unban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
+                    cursor.execute('UPDATE players SET ban = false WHERE ucid = %s', (ucid, ))
                     for server in self.bot.DCSServers.values():
                         self.sendtoDCS(server, {"command": "unban", "ucid": ucid, "channel": ctx.channel.id})
+                conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
+            conn.rollback()
         finally:
             self.bot.pool.putconn(conn)
 
