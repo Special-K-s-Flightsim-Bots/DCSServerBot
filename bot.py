@@ -20,7 +20,7 @@ config = configparser.ConfigParser()
 config.read('config/dcsserverbot.ini')
 
 # Set the bot's version (not externally configurable)
-VERSION = 1.0
+VERSION = "1.0"
 
 # COGs to load
 COGS = ['cogs.master', 'cogs.statistics', 'cogs.help'] if config.getboolean('BOT', 'MASTER') is True else ['cogs.agent']
