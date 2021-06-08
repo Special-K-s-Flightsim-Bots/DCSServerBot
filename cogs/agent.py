@@ -613,8 +613,8 @@ class Agent(commands.Cog):
             server_name = server['server_name']
             await self.mission_embeds[server_name].delete()
             self.mission_embeds.pop(server_name)
-            await self.player_embeds[server_name].delete()
-            self.player_embeds.pop(server_name)
+            await self.players_embeds[server_name].delete()
+            self.players_embeds.pop(server_name)
             self.bot.DCSServers.pop(server_name)
             await ctx.send('Server {} unregistered.'.format(server_name))
 

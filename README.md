@@ -8,7 +8,7 @@ Control DCS servers in your local network via Discord commands.
 The following commands are supported:
 Command|Parameter|Description
 -------|-----------|--------------
-.status||(Admin only) Lists all registered DCS servers. They will auto-register on startup.
+.servers||Lists all registered DCS servers. They will auto-register on startup.
 .mission||Information about the active mission. To be run in the servers status- or admin-channel.
 .briefing/.brief||Shows the description / briefing of the running mission.
 .players||Lists the players currently active on the server.
@@ -17,10 +17,13 @@ Command|Parameter|Description
 .delete|ID|Deletes the mission with this ID from the list of missions.
 .load|ID|Load a specific mission by ID.
 .restart|[time in secs] [message]|Restarts the current mission after [time] seconds. A message will be sent into the ingame chat of that server.
+.pause||Pauses the current running mission.
+.unpause||Resumes the current running mission.
 .chat|message|Send a message to the DCS ingame-chat.
 .ban|@member or ucid|Bans a specific player either by his Discord ID or his UCID
 .unban|@member or ucid|Unbans a specific player either by his Discord ID or his UCID
 .bans||Lists the current bans.
+.unregister||(Admin only) Unregisters the current server from this agent. Needed, if the very same server is going to be started on another machine connected to another agent.
 
 ## User Statistics
 Gather statistics data from users and display them in a user-friendly way in your Discord.
@@ -92,7 +95,7 @@ DCS Admin|People with this role are allowed to restart missions and managing the
 Admin / Moderator|People with that role are allowed to ban/unban people and to link discord-IDs to ucids, when the autodetection didn't work
 
 ### **ATTENTION**
-_One of the main concepts of this bot it to bind people to your discord. Therefor, this solution is not very suitable for public servers._
+_One of the concepts of this bot it to bind people to your discord._
 
 The bot automatically bans / unbans people from the configured DCS servers, as soon as they leave / join the configured Discord guild.
 If you don't like that feature, set AUTOBAN = false in dcsserverbot.ini.
@@ -101,7 +104,6 @@ If you don't like that feature, set AUTOBAN = false in dcsserverbot.ini.
 Things to be added in the future:
 * Database versioning / update handling
 * More statistics
-* Ability to combine stats from different bots (if multiple servers are being run in different locations)
 
 ## Credits
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this solution.
