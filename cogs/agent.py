@@ -663,7 +663,7 @@ class Agent(commands.Cog):
             async def registerDCSServer(data):
                 self.bot.log.info('Registering DCS-Server ' + data['server_name'])
                 # check for protocol incompatibilities
-                if (data['hook_version'] != self.bot.config['BOT']['VERSION']):
+                if (data['hook_version'] != self.bot.version):
                     self.bot.log.error(
                         'Server {} has wrong Hook version installed. Please update lua files and restart server. Registration ignored.'.format(data['server_name']))
                     return

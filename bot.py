@@ -47,6 +47,7 @@ bot = commands.Bot(command_prefix=get_prefix,
 
 # Allow COGs to access configuration
 bot.config = config
+bot.version = VERSION
 
 # Initialize the logger and i18n
 bot.log = logging.getLogger(name='dcsserverbot')
