@@ -9,6 +9,7 @@
 ---------------------------------------------------------
 dcsbot = dcsbot or {}
 
+dcsbot.VERSION = '1.0'
 dcsbot.SERVER_NAME = 'initializing'
 dcsbot.registered = false
 dcsbot.SlotsData = {}
@@ -69,7 +70,7 @@ function dcsbot.registerDCSServer(json)
 	end
 	msg = {}
 	msg.command = 'registerDCSServer'
-	msg.hook_version = dcsbot.config.VERSION
+	msg.hook_version = dcsbot.VERSION
   msg.host = dcsbot.config.DCS_HOST
 	msg.port = dcsbot.config.DCS_PORT
 	msg.chat_channel = dcsbot.config.CHAT_CHANNEL

@@ -10,7 +10,6 @@
 dcsbot = dcsbot or {}
 dcsbot.config = dcsbot.config or {}
 
-dcsbot.config.VERSION = '1.0'
 --[[ START OF USER CONFIGURATION ]]--
 dcsbot.config.BOT_HOST = '127.0.0.1'
 dcsbot.config.BOT_PORT = 10081
