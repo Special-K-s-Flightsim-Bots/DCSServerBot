@@ -86,9 +86,13 @@ class Agent(commands.Cog):
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(
-                    'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, mission_embed, players_embed, \'Pending...\' AS status FROM servers WHERE agent_host = %s', (platform.node(), ))
+                    'SELECT server_name, host, port, chat_channel, status_channel, admin_channel FROM servers WHERE agent_host = %s', (platform.node(), ))
                 for row in cursor.fetchall():
                     self.bot.DCSServers[row['server_name']] = dict(row)
+                cursor.execute(
+                    'SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name IN (SELECT server_name FROM servers WHERE agent_host = %s)', (platform.node(), ))
+                for row in cursor.fetchall():
+                    self.bot.DCSServers[row['server_name']][row['embed_name']] = row['embed']
             self.bot.log.info('{} server(s) read from database.'.format(len(self.bot.DCSServers)))
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -120,9 +124,9 @@ class Agent(commands.Cog):
                         self.players_embeds[server_name] = await channel.fetch_message(server['players_embed'])
                 try:
                     # check for any registration updates (channels, etc)
-                    await self.sendtoDCSSync(server, {"command": "registerDCSServer", "channel": 0})
+                    await self.sendtoDCSSync(server, {"command": "registerDCSServer", "channel": -1})
                     # check for any mission changes and update embed
-                    await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": server['status_channel']})
+                    # await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": server['status_channel']})
                     # preload players list
                     await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
                 except asyncio.TimeoutError:
@@ -259,8 +263,8 @@ class Agent(commands.Cog):
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE servers SET players_embed=%s WHERE server_name=%s',
-                                   (self.players_embeds[data['server_name']].id, data['server_name']))
+                    cursor.execute('INSERT INTO message_persistence (server_name, embed_name, embed) VALUES (%s, %s, %s) ON CONFLICT (server_name, embed_name) DO UPDATE SET embed=%s', (
+                        data['server_name'], 'players_embed', self.players_embeds[data['server_name']].id, self.players_embeds[data['server_name']].id))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
@@ -281,8 +285,8 @@ class Agent(commands.Cog):
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE servers SET mission_embed=%s WHERE server_name=%s',
-                                   (self.mission_embeds[data['server_name']].id, data['server_name']))
+                    cursor.execute('INSERT INTO message_persistence (server_name, embed_name, embed) VALUES (%s, %s, %s) ON CONFLICT (server_name, embed_name) DO UPDATE SET embed=%s', (
+                        data['server_name'], 'mission_embed', self.mission_embeds[data['server_name']].id, self.mission_embeds[data['server_name']].id))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
@@ -610,13 +614,14 @@ class Agent(commands.Cog):
     async def unregister(self, ctx, node=platform.node()):
         server = await self.get_server(ctx)
         if (server is not None):
-            server_name = server['server_name']
-            await self.mission_embeds[server_name].delete()
-            self.mission_embeds.pop(server_name)
-            await self.players_embeds[server_name].delete()
-            self.players_embeds.pop(server_name)
-            self.bot.DCSServers.pop(server_name)
-            await ctx.send('Server {} unregistered.'.format(server_name))
+            if (server['status'] != 'Shutdown'):
+                server_name = server['server_name']
+                self.mission_embeds.pop(server_name)
+                self.players_embeds.pop(server_name)
+                self.bot.DCSServers.pop(server_name)
+                await ctx.send('Server {} unregistered.'.format(server_name))
+            else:
+                await ctx.send('Please stop server {} before unregistering!'.format(server_name))
 
     @commands.command(description='Pauses the current running mission')
     @commands.has_role('DCS Admin')
@@ -669,7 +674,7 @@ class Agent(commands.Cog):
                     return
                 if (data['status_channel'].isnumeric() is True):
                     SQL_INSERT = 'INSERT INTO servers (server_name, agent_host, host, port, chat_channel, status_channel, admin_channel) VALUES(%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, chat_channel=%s, status_channel=%s, admin_channel=%s'
-                    SQL_SELECT = 'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, mission_embed, players_embed, \'Running\' AS status FROM servers WHERE server_name = %s'
+                    SQL_SELECT = 'SELECT server_name, host, port, chat_channel, status_channel, admin_channel FROM servers WHERE server_name = %s'
                     conn = self.bot.pool.getconn()
                     try:
                         with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -686,11 +691,7 @@ class Agent(commands.Cog):
                     finally:
                         self.bot.pool.putconn(conn)
                     # Store server configuration
-                    # Backwards compatibility check
-                    if ('statistics' in data):
-                        self.bot.DCSServers[data['server_name']]['statistics'] = data['statistics']
-                    else:
-                        self.bot.DCSServers[data['server_name']]['statistics'] = True
+                    self.bot.DCSServers[data['server_name']]['statistics'] = data['statistics']
                     self.bot.DCSServers[data['server_name']]['serverSettings'] = data['serverSettings']
                     self.bot.DCSServers[data['server_name']]['serverSettings']['external_ip'] = self.external_ip
                     self.bot.DCSServers[data['server_name']]['options'] = data['options']

@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);
-INSERT INTO version (version) VALUES ('v1.0') ON CONFLICT (version) DO NOTHING;
-CREATE TABLE IF NOT EXISTS servers (server_name TEXT PRIMARY KEY, agent_host TEXT NOT NULL, host TEXT NOT NULL DEFAULT '127.0.0.1', port BIGINT NOT NULL, chat_channel BIGINT, status_channel BIGINT, admin_channel BIGINT, players_embed BIGINT, mission_embed BIGINT);
+INSERT INTO version (version) VALUES ('v1.1') ON CONFLICT (version) DO NOTHING;
+CREATE TABLE IF NOT EXISTS servers (server_name TEXT PRIMARY KEY, agent_host TEXT NOT NULL, host TEXT NOT NULL DEFAULT '127.0.0.1', port BIGINT NOT NULL, chat_channel BIGINT, status_channel BIGINT, admin_channel BIGINT);
+CREATE TABLE IF NOT EXISTS message_persistence (server_name TEXT NOT NULL, embed_name TEXT NOT NULL, embed BIGINT NOT NULL, PRIMARY KEY (server_name, embed_name));
 CREATE TABLE IF NOT EXISTS players (ucid TEXT PRIMARY KEY, discord_id BIGINT, ban BOOLEAN DEFAULT false);
 CREATE INDEX IF NOT EXISTS idx_players_discord_id ON players(discord_id);
 CREATE TABLE IF NOT EXISTS missions (id SERIAL PRIMARY KEY, server_name TEXT NOT NULL, mission_name TEXT NOT NULL, mission_theatre TEXT NOT NULL, mission_start TIMESTAMP NOT NULL DEFAULT NOW(), mission_end TIMESTAMP);

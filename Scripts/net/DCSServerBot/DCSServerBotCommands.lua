@@ -25,7 +25,7 @@ dcsbot.UDPSendSocket = socket.udp()
 
 function dcsbot.sendBotTable(tbl, channel)
 	tbl.server_name = dcsbot.config.SERVER_NAME
-	tbl.channel = channel or -1
+	tbl.channel = channel or "-1"
 	local tbl_json_txt = JSON:encode(tbl)
 	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, dcsbot.config.BOT_HOST, dcsbot.config.BOT_PORT))
 end
@@ -50,7 +50,6 @@ function dcsbot.registerDCSServer(json)
 		f:close()
 	end
 	if (SRSAuto ~= nil) then
-		net.log(string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg'))
 		local config_path = string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg')
 		local f = io.open(config_path, 'r')
 		if f then
@@ -88,7 +87,11 @@ function dcsbot.registerDCSServer(json)
 	if (lotatc_inst ~= nil) then
 		msg.lotAtcSettings = lotatc_inst.options
 	end
-	dcsbot.sendBotTable(msg)
+	if (json ~= nil) then
+		dcsbot.sendBotTable(msg, json.channel)
+	else
+		dcsbot.sendBotTable(msg)
+	end
 	dcsbot.registered = true
 end
 
