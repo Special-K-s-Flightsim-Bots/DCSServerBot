@@ -120,9 +120,7 @@ class Agent(commands.Cog):
                         self.players_embeds[server_name] = await channel.fetch_message(server['players_embed'])
                 try:
                     # check for any registration updates (channels, etc)
-                    await self.sendtoDCSSync(server, {"command": "registerDCSServer", "channel": 0})
-                    # check for any mission changes and update embed
-                    await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": server['status_channel']})
+                    await self.sendtoDCSSync(server, {"command": "registerDCSServer", "channel": -1})
                     # preload players list
                     await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
                 except asyncio.TimeoutError:
@@ -171,7 +169,7 @@ class Agent(commands.Cog):
         except KeyError:
             listeners = []
             self.listeners[message['command']] = listeners
-        listeners.append((future, message['channel']))
+        listeners.append((future, str(message['channel'])))
         return asyncio.wait_for(future, timeout)
 
     def get_channel(self, data, type='status_channel'):
