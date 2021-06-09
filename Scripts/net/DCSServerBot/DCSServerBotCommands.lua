@@ -295,5 +295,17 @@ function dcsbot.getCategory(id)
 		end
 	end
 
-    return _killed_target_category
+  return _killed_target_category
+end
+
+function dcsbot.listMizFiles(json)
+	msg = {}
+	msg.command = 'listMizFiles'
+	msg.missions = {}
+	for file in lfs.dir(lfs.writedir() .. 'Missions') do
+		if ((lfs.attributes(file, 'mode') ~= 'directory') and (file:sub(-4) == '.miz')) then
+			table.insert(msg.missions, file)
+		end
+	end
+	dcsbot.sendBotTable(msg, json.channel)
 end

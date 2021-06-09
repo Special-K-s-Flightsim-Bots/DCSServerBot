@@ -14,8 +14,8 @@ import socketserver
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
 from datetime import timedelta
-from discord.ext import commands, tasks
 from os import listdir
+from discord.ext import commands, tasks
 from os.path import expandvars
 
 
@@ -125,8 +125,6 @@ class Agent(commands.Cog):
                 try:
                     # check for any registration updates (channels, etc)
                     await self.sendtoDCSSync(server, {"command": "registerDCSServer", "channel": -1})
-                    # check for any mission changes and update embed
-                    # await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": server['status_channel']})
                     # preload players list
                     await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
                 except asyncio.TimeoutError:
@@ -517,14 +515,15 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def add(self, ctx, *path):
         server = await self.get_server(ctx)
+        file = None
         if (server is not None):
             if (len(path) == 0):
                 j = 0
                 message = None
-                dcs_path = expandvars(self.bot.config['DCS']['DCS_HOME'] + '\\Missions')
-                files = fnmatch.filter(listdir(dcs_path), '*.miz')
+                data = await self.sendtoDCSSync(server, {"command": "listMizFiles", "channel": ctx.channel.id})
+                files = data['missions']
                 try:
-                    while (True):
+                    while (len(files) > 0):
                         embed = discord.Embed(title='Available Missions', color=discord.Color.blue())
                         ids = missions = ''
                         max_i = (len(files) % 5) if (len(files) - j * 5) < 5 else 5
@@ -560,7 +559,10 @@ class Agent(commands.Cog):
                     await message.delete()
             else:
                 file = ' '.join(path)
-            self.sendtoDCS(server, {"command": "addMission", "path": file, "channel": ctx.channel.id})
+            if (file is not None):
+                self.sendtoDCS(server, {"command": "addMission", "path": file, "channel": ctx.channel.id})
+            else:
+                await ctx.send('There is no file in the Missions directory of server {}.'.format(server['server_name']))
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
     @commands.has_any_role('Admin', 'Moderator')
@@ -739,14 +741,15 @@ class Agent(commands.Cog):
             async def listMissions(data):
                 embed = discord.Embed(title='Mission List', color=discord.Color.blue())
                 ids = active = missions = ''
-                for i in range(0, len(data['missionList'])):
-                    ids += (chr(0x31 + i) + '\u20E3' + '\n')
-                    active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
-                    mission = data['missionList'][i]
-                    missions += mission[(mission.rfind('\\') + 1):] + '\n'
-                embed.add_field(name='ID', value=ids)
-                embed.add_field(name='Active', value=active)
-                embed.add_field(name='Mission', value=missions)
+                if (len(data['missionList']) > 0):
+                    for i in range(0, len(data['missionList'])):
+                        ids += (chr(0x31 + i) + '\u20E3' + '\n')
+                        active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
+                        mission = data['missionList'][i]
+                        missions += mission[(mission.rfind('\\') + 1):] + '\n'
+                    embed.add_field(name='ID', value=ids)
+                    embed.add_field(name='Active', value=active)
+                    embed.add_field(name='Mission', value=missions)
                 return embed
 
             async def getMissionDetails(data):
@@ -756,6 +759,9 @@ class Agent(commands.Cog):
                     return embed
                 else:
                     return data
+
+            async def listMizFiles(data):
+                return data
 
             async def onMissionLoadBegin(data):
                 self.bot.DCSServers[data['server_name']]['status'] = 'Loading'

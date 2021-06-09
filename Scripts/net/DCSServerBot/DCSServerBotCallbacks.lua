@@ -89,6 +89,8 @@ function dcsbotgui.onSimulationFrame()
 				dcsbot.pause(json)
 			elseif (json.command == 'unpause') then
 				dcsbot.unpause(json)
+			elseif (json.command == 'listMizFiles') then
+				dcsbot.listMizFiles(json)
 			end
 		end
 	until err
