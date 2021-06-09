@@ -65,6 +65,7 @@ COMMAND_PREFIX|The prefix to be used. Default is '.'
 HOST|IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.
 PORT|UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose that port to the outside world!__**
 MASTER|If true, start the bot in master-mode which enables specific commands that are only allowed **once** on your server. If only one bot is running, then there is only a master.\nIf you have to use more than one bot, for multiple DCS servers that are spanned over several locations, you have to install one agent at every location. All DCS servers of that specific location will then automatically register with that specific bot and can only be controlled by that bot.
+AUTOUPDATE|If true, the bot autoupdates itself with the latest release on startup.
 AUTOBAN|If true, members leaving the discord will be automatically banned.
 SERVER_FILTER|Filter to shorten server names (if needed)
 MISSION_FILTER|Filter to shorten mission names (if needed)
