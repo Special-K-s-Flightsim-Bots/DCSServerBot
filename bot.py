@@ -20,6 +20,9 @@ config.read('config/dcsserverbot.ini')
 # Set the bot's version (not externally configurable)
 VERSION = "1.0"
 
+# git repository
+GIT_REPO_URL = 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git'
+
 # COGs to load
 COGS = ['cogs.master', 'cogs.statistics', 'cogs.help'] if config.getboolean('BOT', 'MASTER') is True else ['cogs.agent']
 
@@ -67,29 +70,39 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
     try:
         import git
 
-        with closing(git.Repo('.')) as repo:
-            print('Checking for updates...')
-            assert not repo.bare
-            current_hash = repo.head.commit.hexsha
-            origin = repo.remotes.origin
+        try:
+            with closing(git.Repo('.')) as repo:
+                bot.log.info('Checking for updates...')
+                current_hash = repo.head.commit.hexsha
+                origin = repo.remotes.origin
+                origin.fetch()
+                new_hash = origin.refs[repo.active_branch.name].object.hexsha
+                if (new_hash != current_hash):
+                    restart = False
+                    bot.log.warn('Remote repo has changed. Updating myself...')
+                    diff = repo.head.commit.diff(new_hash)
+                    for d in diff:
+                        if (d.b_path == 'bot.py'):
+                            restart = True
+                    repo.remote().pull(repo.active_branch)
+                    bot.log.warn('Updated to latest version.')
+                    if (restart is True):
+                        bot.log.warn('bot.py has changed. Restart needed.')
+                        exit(-1)
+                else:
+                    bot.log.info('No update found.')
+        except git.exc.InvalidGitRepositoryError:
+            bot.log.warn('Linking bot to remote repository for auto update...')
+            repo = git.Repo.init()
+            origin = repo.create_remote('origin', url=GIT_REPO_URL)
             origin.fetch()
-            new_hash = origin.refs[repo.active_branch.name].object.hexsha
-            if (new_hash != current_hash):
-                restart = False
-                print('Remote repo has changed. Updating myself...')
-                diff = repo.head.commit.diff(new_hash)
-                for d in diff:
-                    if (d.b_path == 'bot.py'):
-                        restart = True
-                repo.remote().pull(repo.active_branch)
-                print('Updated to latest version.')
-                if (restart is True):
-                    print('bot.py has changed. Restart needed.')
-                    exit(-1)
-            else:
-                print('No update found.')
+            repo.git.checkout('origin/master', '-f')
+            bot.log.warn('Repository is linked. Restart needed.')
+            exit(-1)
+
     except ImportError:
-        print('Autoupdate functionality requires "git" executable to be in the PATH.')
+        bot.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
+        exit(-1)
 
 
 @bot.event
