@@ -4,36 +4,36 @@ The bot has to be installed on the same machine that runs DCS or at least in the
 The following two main features are supported:
 
 ## DCS Server Remote Control
-Control DCS servers in your local network via Discord commands.
+Control registered DCS servers via Discord commands.
 The following commands are supported:
-Command|Parameter|Description
+Command|Parameter|Channel|Role|Description
 -------|-----------|--------------
-.servers||Lists all registered DCS servers. They will auto-register on startup.
-.mission||Information about the active mission. To be run in the servers status- or admin-channel.
-.briefing/.brief||Shows the description / briefing of the running mission.
-.players||Lists the players currently active on the server.
-.list||Lists all missions with IDs available on this server (same as WebGUI).
-.add|[miz-file]|Adds a specific mission to the list of missions. Has to be in DCS_HOME/Missions. If no miz file is provided, a list of all files will be provided.
-.delete|ID|Deletes the mission with this ID from the list of missions.
-.load|ID|Load a specific mission by ID.
-.restart|[time in secs] [message]|Restarts the current mission after [time] seconds. A message will be sent into the ingame chat of that server.
-.pause||Pauses the current running mission.
-.unpause||Resumes the current running mission.
-.chat|message|Send a message to the DCS ingame-chat.
-.ban|@member or ucid|Bans a specific player either by his Discord ID or his UCID
-.unban|@member or ucid|Unbans a specific player either by his Discord ID or his UCID
-.bans||Lists the current bans.
-.unregister||(Admin only) Unregisters the current server from this agent. Needed, if the very same server is going to be started on another machine connected to another agent.
+.servers||all|DCS|Lists all registered DCS servers and their status (same as .mission but for all). They will auto-register on startup.
+.mission||status-/admin-channel|DCS Admin|Information about the active mission. Persistent display in status-channel.
+.briefing/.brief||status-/chat-/admin-channel|DCS|Shows the description / briefing of the running mission.
+.players||status-/admin-channel|DCS Admin|Lists the players currently active on the server. Persistent display in status-channel.
+.list||admin-channel|DCS Admin|Lists all missions with IDs available on this server (same as WebGUI).
+.add|[miz-file]|admin-channel|DCS Admin|Adds a specific mission to the list of missions, that has to be in Saved Games/DCS[.OpenBeta]/Missions. If no miz file is provided, a list of all available files in the servers Missions directory will be provided.
+.delete|ID|admin-channel|DCS Admin|Deletes the mission with this ID from the list of missions.
+.load|ID|admin-channel|DCS Admin|Load a specific mission by ID.
+.restart|[time in secs] [message]|admin-channel|DCS Admin|Restarts the current mission after [time] seconds. A message will be sent into the ingame chat of that server.
+.pause||admin-channel|DCS Admin|Pauses the current running mission.
+.unpause||admin-channel|DCS Admin|Resumes the current running mission.
+.chat|message|chat-/admin-channel|DCS|Send a message to the DCS ingame-chat.
+.ban|@member or ucid|all|Admin/Moderator|Bans a specific player either by his Discord ID or his UCID
+.unban|@member or ucid|all|Admin/Moderator|Unbans a specific player either by his Discord ID or his UCID
+.bans||all|Admin/Moderator|Lists the current bans.
+.unregister||all|Admin|Unregisters the current server from this agent. Needed, if the very same server is going to be started on another machine connected to another agent.
 
 ## User Statistics
 Gather statistics data from users and display them in a user-friendly way in your Discord.
 The following commands are supported:
-Command|Parameter|Description
+Command|Parameter|Role|Description
 -------|-----------|--------------
-.link|@member or ucid|Sometimes users can't be linked automatically. That is a manual workaround.
-.statistics/.stats|[@member]|Display your own statistics or that of a specific member.
-.highscore/.hs|[day] / [week] / [month]|Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)
-.serverstats|[week] / [month]|Displays server statistics, like usual playtimes, most frequented servers and missions
+.link|@member or ucid|Admin/Moderator|Sometimes users can't be linked automatically. That is a manual workaround.
+.statistics/.stats|[@member]|DCS|Display your own statistics or that of a specific member.
+.highscore/.hs|[day] / [week] / [month]|DCS|Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)
+.serverstats|[week] / [month]|Admin/Moderator|Displays server statistics, like usual playtimes, most frequented servers and missions
 
 ## Installation
 First of all, download the latest release version and extract it somewhere on your server, where it has write access.
@@ -93,7 +93,7 @@ Role|Description
 -------|-----------
 DCS|People with this role are allowed to chat, check their statistics and gather information about running missions and players.
 DCS Admin|People with this role are allowed to restart missions and managing the mission list.
-Admin / Moderator|People with that role are allowed to ban/unban people and to link discord-IDs to ucids, when the autodetection didn't work
+Admin / Moderator|People with one of these roles are allowed to ban/unban people and to link discord-IDs to ucids, when the autodetection didn't work
 
 ### **ATTENTION**
 _One of the concepts of this bot it to bind people to your discord._
@@ -103,8 +103,9 @@ If you don't like that feature, set AUTOBAN = false in dcsserverbot.ini.
 
 ## TODO
 Things to be added in the future:
-* Database versioning / update handling
 * More statistics
+* user-friendly installation
+* Make discord roles configurable
 
 ## Credits
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this solution.
