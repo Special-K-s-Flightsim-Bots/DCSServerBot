@@ -4,10 +4,10 @@ import configparser
 import discord
 import logging
 import os
-import shutil
 import platform
 import psycopg2
 import psycopg2.extras
+import shutil
 from contextlib import closing, suppress
 from discord.ext import commands
 from logging.handlers import RotatingFileHandler
@@ -61,6 +61,35 @@ bot.log.addHandler(ch)
 
 # List of DCS servers has to be global
 bot.DCSServers = {}
+
+# Autoupdate
+if (config.getboolean('BOT', 'AUTOUPDATE') is True):
+    try:
+        import git
+
+        with closing(git.Repo('.')) as repo:
+            print('Checking for updates...')
+            assert not repo.bare
+            current_hash = repo.head.commit.hexsha
+            origin = repo.remotes.origin
+            origin.fetch()
+            new_hash = origin.refs[repo.active_branch.name].object.hexsha
+            if (new_hash != current_hash):
+                restart = False
+                print('Remote repo has changed. Updating myself...')
+                diff = repo.head.commit.diff(new_hash)
+                for d in diff:
+                    if (d.b_path == 'bot.py'):
+                        restart = True
+                repo.remote().pull(repo.active_branch)
+                print('Updated to latest version.')
+                if (restart is True):
+                    print('bot.py has changed. Restart needed.')
+                    exit(-1)
+            else:
+                print('No update found.')
+    except ImportError:
+        print('Autoupdate functionality requires "git" executable to be in the PATH.')
 
 
 @bot.event
