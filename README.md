@@ -7,7 +7,7 @@ The following two main features are supported:
 Control registered DCS servers via Discord commands.
 The following commands are supported:
 Command|Parameter|Channel|Role|Description
--------|-----------|--------------
+-------|-----------|-------|-------|---------
 .servers||all|DCS|Lists all registered DCS servers and their status (same as .mission but for all). They will auto-register on startup.
 .mission||status-/admin-channel|DCS Admin|Information about the active mission. Persistent display in status-channel.
 .briefing/.brief||status-/chat-/admin-channel|DCS|Shows the description / briefing of the running mission.
@@ -29,7 +29,7 @@ Command|Parameter|Channel|Role|Description
 Gather statistics data from users and display them in a user-friendly way in your Discord.
 The following commands are supported:
 Command|Parameter|Role|Description
--------|-----------|--------------
+-------|-----------|---------|----------
 .link|@member or ucid|Admin/Moderator|Sometimes users can't be linked automatically. That is a manual workaround.
 .statistics/.stats|[@member]|DCS|Display your own statistics or that of a specific member.
 .highscore/.hs|[day] / [week] / [month]|DCS|Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)
