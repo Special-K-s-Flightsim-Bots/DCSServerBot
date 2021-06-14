@@ -843,7 +843,7 @@ class Agent(commands.Cog):
                         self.sendtoDCS(server, {"command": "sendChatMessage", "message": self.bot.config['DCS']['GREETING_MESSAGE_UNKNOWN'].format(
                             data['name']), "to": data['id']})
                         # only warn for unknown users if it is a non-public server
-                        if (len(self.bot.DCSServers[data['server_name']]['password']) > 0):
+                        if (len(self.bot.DCSServers[data['server_name']]['serverSettings']['password']) > 0):
                             await self.get_channel(data, 'admin_channel').send('Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
                     else:
                         name = discord_user.nick if (discord_user.nick) else discord_user.name
