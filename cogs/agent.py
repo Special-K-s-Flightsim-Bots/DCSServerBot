@@ -3,7 +3,6 @@ import aiohttp
 import asyncio
 import datetime
 import discord
-import fnmatch
 import json
 import pandas as pd
 import platform
@@ -14,9 +13,7 @@ import socketserver
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
 from datetime import timedelta
-from os import listdir
 from discord.ext import commands, tasks
-from os.path import expandvars
 
 
 class Agent(commands.Cog):

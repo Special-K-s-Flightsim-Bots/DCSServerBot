@@ -186,6 +186,8 @@ function dcsbotgui.onSimulationStop()
 	msg = {}
 	msg.command = 'onSimulationStop'
 	dcsbot.sendBotTable(msg)
+	-- re-register the DCS server after a new start (as parameters might have changed)
+	dcsbot.registered = false
 end
 
 function dcsbotgui.onSimulationPause()
