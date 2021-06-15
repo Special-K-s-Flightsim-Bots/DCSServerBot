@@ -124,6 +124,35 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
+    def draw_map_time(self, member, axis):
+        SQL_STATISTICS = 'SELECT m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime '\
+            'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND m.id = s.mission_id AND s.hop_off IS NOT NULL GROUP BY m.mission_theatre'
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute(SQL_STATISTICS, (member.id, ))
+                if (cursor.rowcount > 0):
+                    def func(pct, allvals):
+                        absolute = int(round(pct/100.*np.sum(allvals)))
+                        return '{:.1f}%\n({:s}h)'.format(pct, str(timedelta(seconds=absolute)))
+
+                    labels = []
+                    values = []
+                    for row in cursor.fetchall():
+                        labels.insert(0, row['mission_theatre'])
+                        values.insert(0, row['playtime'])
+                    patches, texts, pcts = axis.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
+                                                    wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+                    plt.setp(pcts, color='black', fontweight='bold')
+                    axis.set_title('Time per Map', color='white', fontsize=25)
+                    axis.axis('equal')
+                else:
+                    axis.set_visible(False)
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+        finally:
+            self.bot.pool.putconn(conn)
+
     def draw_recent(self, member, axis):
         SQL_STATISTICS = 'SELECT TO_CHAR(s.hop_on, \'MM/DD\') as day, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW()) - s.hop_on)))) AS playtime ' \
             'FROM statistics s, players p WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.hop_on > (DATE(NOW()) - integer \'7\') GROUP BY day'
@@ -328,13 +357,15 @@ class Statistics(commands.Cog):
             plt.style.use('dark_background')
             plt.rcParams['axes.facecolor'] = '2C2F33'
             figure = plt.figure(figsize=(20, 20))
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
                 executor.submit(self.draw_playtime_planes, member=member,
                                 axis=plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure))
                 executor.submit(self.draw_recent, member=member, axis=plt.subplot2grid(
                     (3, 3), (0, 2), colspan=1, fig=figure))
                 executor.submit(self.draw_server_time, member=member,
                                 axis=plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
+                executor.submit(self.draw_map_time, member=member,
+                                axis=plt.subplot2grid((3, 3), (1, 1), colspan=1, fig=figure))
                 executor.submit(self.draw_flight_performance, member=member,
                                 axis=plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure))
             ax1 = plt.subplot2grid((3, 3), (2, 0), colspan=1, fig=figure)
