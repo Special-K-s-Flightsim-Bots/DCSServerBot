@@ -27,22 +27,6 @@ class Statistics(commands.Cog):
         6: 'Sun'
     }
 
-    FIXED_WING = [
-        'FA-18C_hornet', 'F-14A-135-GR', 'F-14B', 'F-16C_50', 'J-11A', 'JF-17',
-        'A-10C', 'A-10C_2', 'F-15C', 'A-10A', 'MiG-29S', 'AJS37', 'Su-27',
-        'M-2000C', 'F-86F Sabre', 'Su-25T', 'Su-33', 'F-5E-3', 'AV8BNA',
-        'MiG-15bis', 'MiG-19P', 'MiG-21bis', 'MiG-29A'
-    ]
-
-    ROTARY = [
-        'SA342L', 'SA342M', 'SA342Minigun', 'SA342Mistral', 'Mi-8MT', 'Ka-50',
-        'UH-1H'
-    ]
-
-    WARBIRD = [
-        'SpitfireLFMkIX'
-    ]
-
     def __init__(self, bot):
         self.bot = bot
         plt.switch_backend('agg')
@@ -116,6 +100,35 @@ class Statistics(commands.Cog):
                                                     wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
                     plt.setp(pcts, color='black', fontweight='bold')
                     axis.set_title('Server Time', color='white', fontsize=25)
+                    axis.axis('equal')
+                else:
+                    axis.set_visible(False)
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+        finally:
+            self.bot.pool.putconn(conn)
+
+    def draw_map_time(self, member, axis):
+        SQL_STATISTICS = 'SELECT m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime '\
+            'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND m.id = s.mission_id AND s.hop_off IS NOT NULL GROUP BY m.mission_theatre'
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute(SQL_STATISTICS, (member.id, ))
+                if (cursor.rowcount > 0):
+                    def func(pct, allvals):
+                        absolute = int(round(pct/100.*np.sum(allvals)))
+                        return '{:.1f}%\n({:s}h)'.format(pct, str(timedelta(seconds=absolute)))
+
+                    labels = []
+                    values = []
+                    for row in cursor.fetchall():
+                        labels.insert(0, row['mission_theatre'])
+                        values.insert(0, row['playtime'])
+                    patches, texts, pcts = axis.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
+                                                    wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+                    plt.setp(pcts, color='black', fontweight='bold')
+                    axis.set_title('Time per Map', color='white', fontsize=25)
                     axis.axis('equal')
                 else:
                     axis.set_visible(False)
@@ -328,13 +341,15 @@ class Statistics(commands.Cog):
             plt.style.use('dark_background')
             plt.rcParams['axes.facecolor'] = '2C2F33'
             figure = plt.figure(figsize=(20, 20))
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
                 executor.submit(self.draw_playtime_planes, member=member,
                                 axis=plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure))
                 executor.submit(self.draw_recent, member=member, axis=plt.subplot2grid(
                     (3, 3), (0, 2), colspan=1, fig=figure))
                 executor.submit(self.draw_server_time, member=member,
                                 axis=plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
+                executor.submit(self.draw_map_time, member=member,
+                                axis=plt.subplot2grid((3, 3), (1, 1), colspan=1, fig=figure))
                 executor.submit(self.draw_flight_performance, member=member,
                                 axis=plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure))
             ax1 = plt.subplot2grid((3, 3), (2, 0), colspan=1, fig=figure)
