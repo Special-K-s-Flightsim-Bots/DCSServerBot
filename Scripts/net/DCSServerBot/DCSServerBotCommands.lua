@@ -9,13 +9,14 @@
 ---------------------------------------------------------
 dcsbot = dcsbot or {}
 
-dcsbot.VERSION = '1.0'
-dcsbot.SERVER_NAME = 'initializing'
+dcsbot.VERSION = '1.1'
 dcsbot.registered = false
 dcsbot.SlotsData = {}
 dcsbot.banList = {}
 
-local JSON = require("JSON")
+local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
+loadfile(lfs.writedir() .. 'Config\\serverSettings.lua')()
+loadfile(lfs.writedir() .. 'Config\\options.lua')()
 
 package.path  = package.path..";.\\LuaSocket\\?.lua;"
 package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
@@ -24,7 +25,7 @@ dcsbot.UDPSendSocket = socket.udp()
 
 
 function dcsbot.sendBotTable(tbl, channel)
-	tbl.server_name = dcsbot.config.SERVER_NAME
+	tbl.server_name = cfg.name
 	tbl.channel = channel or "-1"
 	local tbl_json_txt = JSON:encode(tbl)
 	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, dcsbot.config.BOT_HOST, dcsbot.config.BOT_PORT))
@@ -39,8 +40,6 @@ end
 
 function dcsbot.registerDCSServer(json)
 	-- load the servers configuration (SRS, et al)
-	loadfile(lfs.writedir() .. 'Config\\serverSettings.lua')()
-	loadfile(lfs.writedir() .. 'Config\\options.lua')()
 	local f = io.open(lfs.writedir() .. 'Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua', 'r')
 	if f then
 		local content = f:read("*all")
@@ -70,6 +69,7 @@ function dcsbot.registerDCSServer(json)
 	msg = {}
 	msg.command = 'registerDCSServer'
 	msg.hook_version = dcsbot.VERSION
+	msg.dcs_version = Export.LoGetVersionInfo().ProductVersion[1] .. '.' .. Export.LoGetVersionInfo().ProductVersion[2] .. '.' .. Export.LoGetVersionInfo().ProductVersion[3] .. '.' .. Export.LoGetVersionInfo().ProductVersion[4]
   msg.host = dcsbot.config.DCS_HOST
 	msg.port = dcsbot.config.DCS_PORT
 	msg.chat_channel = dcsbot.config.CHAT_CHANNEL

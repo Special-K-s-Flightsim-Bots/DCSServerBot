@@ -118,7 +118,6 @@ end
 
 function dcsbotgui.onPlayerConnect(id)
 	if (dcsbot.registered == false) then
-		dcsbot.config.SERVER_NAME = net.get_server_settings().name
 		dcsbot.registerDCSServer()
 	end
 	msg = {}
@@ -131,7 +130,6 @@ end
 
 function dcsbotgui.onPlayerStart(id)
 	if (dcsbot.registered == false) then
-		dcsbot.config.SERVER_NAME = net.get_server_settings().name
 		dcsbot.registerDCSServer()
 	end
 	msg = {}
