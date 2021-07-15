@@ -79,25 +79,25 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
                 new_hash = origin.refs[repo.active_branch.name].object.hexsha
                 if (new_hash != current_hash):
                     restart = False
-                    bot.log.warn('Remote repo has changed. Updating myself...')
+                    bot.log.warning('Remote repo has changed. Updating myself...')
                     diff = repo.head.commit.diff(new_hash)
                     for d in diff:
                         if (d.b_path == 'bot.py'):
                             restart = True
                     repo.remote().pull(repo.active_branch)
-                    bot.log.warn('Updated to latest version.')
+                    bot.log.warning('Updated to latest version.')
                     if (restart is True):
-                        bot.log.warn('bot.py has changed. Restart needed.')
+                        bot.log.warning('bot.py has changed. Restart needed.')
                         exit(-1)
                 else:
                     bot.log.info('No update found.')
         except git.exc.InvalidGitRepositoryError:
-            bot.log.warn('Linking bot to remote repository for auto update...')
+            bot.log.warning('Linking bot to remote repository for auto update...')
             repo = git.Repo.init()
             origin = repo.create_remote('origin', url=GIT_REPO_URL)
             origin.fetch()
             repo.git.checkout('origin/master', '-f')
-            bot.log.warn('Repository is linked. Restart needed.')
+            bot.log.warning('Repository is linked. Restart needed.')
             exit(-1)
 
     except ImportError:
