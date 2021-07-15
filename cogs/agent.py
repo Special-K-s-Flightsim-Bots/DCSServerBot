@@ -8,6 +8,7 @@ import pandas as pd
 import platform
 import psycopg2
 import psycopg2.extras
+import re
 import socket
 import socketserver
 from concurrent.futures import ThreadPoolExecutor
@@ -37,6 +38,13 @@ class Agent(commands.Cog):
         'Paused': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
         'Running': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe3e40f0b6156700004f/traffic-light-green.jpg',
         'Shutdown': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg'
+    }
+
+    STATUS_EMOJI = {
+        'Loading': '🔀',
+        'Paused': '⏸️',
+        'Running': '▶️',
+        'Shutdown': '⏹️'
     }
 
     SQL_EVENT_UPDATES = {
@@ -101,6 +109,7 @@ class Agent(commands.Cog):
         self.loop.create_task(self.init_status())
 
     def cog_unload(self):
+        self.update_bot_status.cancel()
         self.update_mission_status.cancel()
         self.server.shutdown()
         self.server.server_close()
@@ -129,6 +138,7 @@ class Agent(commands.Cog):
         finally:
             self.lock.release()
         self.update_mission_status.start()
+        self.update_bot_status.start()
 
     async def wait_for_single_reaction(self, ctx, message):
         def check_press(react, user):
@@ -363,7 +373,7 @@ class Agent(commands.Cog):
                 if (len(value) == 0):
                     value = 'enabled'
             embed.add_field(name=name, value=value)
-        footer = ''
+        footer = 'Server is running DCS {}\n'.format(server['dcs_version'])
         if (len(plugins) > 0):
             footer += 'The IP address of '
             if (len(plugins) == 1):
@@ -379,10 +389,8 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def servers(self, ctx):
         if (len(self.bot.DCSServers) > 0):
-            await ctx.send('Servers on {}-Node {}:'.format('Master' if self.bot.config.getboolean('BOT',
-                                                                                                  'MASTER') is True else 'Slave', platform.node()))
             for server_name, server in self.bot.DCSServers.items():
-                if (server['status'] == 'Running'):
+                if (server['status'] in ['Running', 'Paused']):
                     mission = await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
                     await ctx.send(embed=self.format_mission_embed(mission))
         else:
@@ -613,7 +621,7 @@ class Agent(commands.Cog):
     async def unregister(self, ctx, node=platform.node()):
         server = await self.get_server(ctx)
         if (server is not None):
-            if (server['status'] != 'Shutdown'):
+            if (server['status'] == 'Shutdown'):
                 server_name = server['server_name']
                 self.mission_embeds.pop(server_name)
                 self.players_embeds.pop(server_name)
@@ -653,6 +661,15 @@ class Agent(commands.Cog):
                 self.sendtoDCS(server, {"command": "getRunningMission",
                                         "channel": server['status_channel']})
 
+    @tasks.loop(minutes=1.0)
+    async def update_bot_status(self):
+        for server_name, server in self.bot.DCSServers.items():
+            if ('status' in server):
+                await self.bot.change_presence(activity=discord.Game(self.STATUS_EMOJI[server['status']] + ' ' +
+                                                                     re.sub(self.bot.config['FILTER']['SERVER_FILTER'],
+                                                                            '', server_name).strip()))
+                await asyncio.sleep(10)
+
     async def handleUDPRequests(self):
 
         class UDPListener(socketserver.BaseRequestHandler):
@@ -690,6 +707,7 @@ class Agent(commands.Cog):
                     finally:
                         self.bot.pool.putconn(conn)
                     # Store server configuration
+                    self.bot.DCSServers[data['server_name']]['dcs_version'] = data['dcs_version']
                     self.bot.DCSServers[data['server_name']]['statistics'] = data['statistics']
                     self.bot.DCSServers[data['server_name']]['serverSettings'] = data['serverSettings']
                     self.bot.DCSServers[data['server_name']]['serverSettings']['external_ip'] = self.external_ip

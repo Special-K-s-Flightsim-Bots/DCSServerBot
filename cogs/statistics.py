@@ -27,22 +27,6 @@ class Statistics(commands.Cog):
         6: 'Sun'
     }
 
-    FIXED_WING = [
-        'FA-18C_hornet', 'F-14A-135-GR', 'F-14B', 'F-16C_50', 'J-11A', 'JF-17',
-        'A-10C', 'A-10C_2', 'F-15C', 'A-10A', 'MiG-29S', 'AJS37', 'Su-27',
-        'M-2000C', 'F-86F Sabre', 'Su-25T', 'Su-33', 'F-5E-3', 'AV8BNA',
-        'MiG-15bis', 'MiG-19P', 'MiG-21bis', 'MiG-29A'
-    ]
-
-    ROTARY = [
-        'SA342L', 'SA342M', 'SA342Minigun', 'SA342Mistral', 'Mi-8MT', 'Ka-50',
-        'UH-1H'
-    ]
-
-    WARBIRD = [
-        'SpitfireLFMkIX'
-    ]
-
     def __init__(self, bot):
         self.bot = bot
         plt.switch_backend('agg')
