@@ -3,20 +3,18 @@ import aiohttp
 import asyncio
 import datetime
 import discord
-import fnmatch
 import json
 import pandas as pd
 import platform
 import psycopg2
 import psycopg2.extras
+import re
 import socket
 import socketserver
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
 from datetime import timedelta
 from discord.ext import commands, tasks
-from os import listdir
-from os.path import expandvars
 
 
 class Agent(commands.Cog):
@@ -40,6 +38,13 @@ class Agent(commands.Cog):
         'Paused': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
         'Running': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe3e40f0b6156700004f/traffic-light-green.jpg',
         'Shutdown': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg'
+    }
+
+    STATUS_EMOJI = {
+        'Loading': '🔀',
+        'Paused': '⏸️',
+        'Running': '▶️',
+        'Shutdown': '⏹️'
     }
 
     SQL_EVENT_UPDATES = {
@@ -86,9 +91,13 @@ class Agent(commands.Cog):
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(
-                    'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, mission_embed, players_embed, \'Pending...\' AS status FROM servers WHERE agent_host = %s', (platform.node(), ))
+                    'SELECT server_name, host, port, chat_channel, status_channel, admin_channel FROM servers WHERE agent_host = %s', (platform.node(), ))
                 for row in cursor.fetchall():
                     self.bot.DCSServers[row['server_name']] = dict(row)
+                cursor.execute(
+                    'SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name IN (SELECT server_name FROM servers WHERE agent_host = %s)', (platform.node(), ))
+                for row in cursor.fetchall():
+                    self.bot.DCSServers[row['server_name']][row['embed_name']] = row['embed']
             self.bot.log.info('{} server(s) read from database.'.format(len(self.bot.DCSServers)))
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -100,6 +109,7 @@ class Agent(commands.Cog):
         self.loop.create_task(self.init_status())
 
     def cog_unload(self):
+        self.update_bot_status.cancel()
         self.update_mission_status.cancel()
         self.server.shutdown()
         self.server.server_close()
@@ -128,6 +138,7 @@ class Agent(commands.Cog):
         finally:
             self.lock.release()
         self.update_mission_status.start()
+        self.update_bot_status.start()
 
     async def wait_for_single_reaction(self, ctx, message):
         def check_press(react, user):
@@ -257,8 +268,8 @@ class Agent(commands.Cog):
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE servers SET players_embed=%s WHERE server_name=%s',
-                                   (self.players_embeds[data['server_name']].id, data['server_name']))
+                    cursor.execute('INSERT INTO message_persistence (server_name, embed_name, embed) VALUES (%s, %s, %s) ON CONFLICT (server_name, embed_name) DO UPDATE SET embed=%s', (
+                        data['server_name'], 'players_embed', self.players_embeds[data['server_name']].id, self.players_embeds[data['server_name']].id))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
@@ -279,8 +290,8 @@ class Agent(commands.Cog):
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE servers SET mission_embed=%s WHERE server_name=%s',
-                                   (self.mission_embeds[data['server_name']].id, data['server_name']))
+                    cursor.execute('INSERT INTO message_persistence (server_name, embed_name, embed) VALUES (%s, %s, %s) ON CONFLICT (server_name, embed_name) DO UPDATE SET embed=%s', (
+                        data['server_name'], 'mission_embed', self.mission_embeds[data['server_name']].id, self.mission_embeds[data['server_name']].id))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
@@ -362,7 +373,7 @@ class Agent(commands.Cog):
                 if (len(value) == 0):
                     value = 'enabled'
             embed.add_field(name=name, value=value)
-        footer = ''
+        footer = 'Server is running DCS {}\n'.format(server['dcs_version'])
         if (len(plugins) > 0):
             footer += 'The IP address of '
             if (len(plugins) == 1):
@@ -378,10 +389,8 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def servers(self, ctx):
         if (len(self.bot.DCSServers) > 0):
-            await ctx.send('Servers on {}-Node {}:'.format('Master' if self.bot.config.getboolean('BOT',
-                                                                                                  'MASTER') is True else 'Slave', platform.node()))
             for server_name, server in self.bot.DCSServers.items():
-                if (server['status'] == 'Running'):
+                if (server['status'] in ['Running', 'Paused']):
                     mission = await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
                     await ctx.send(embed=self.format_mission_embed(mission))
         else:
@@ -511,14 +520,15 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def add(self, ctx, *path):
         server = await self.get_server(ctx)
+        file = None
         if (server is not None):
             if (len(path) == 0):
                 j = 0
                 message = None
-                dcs_path = expandvars(self.bot.config['DCS']['DCS_HOME'] + '\\Missions')
-                files = fnmatch.filter(listdir(dcs_path), '*.miz')
+                data = await self.sendtoDCSSync(server, {"command": "listMizFiles", "channel": ctx.channel.id})
+                files = data['missions']
                 try:
-                    while (True):
+                    while (len(files) > 0):
                         embed = discord.Embed(title='Available Missions', color=discord.Color.blue())
                         ids = missions = ''
                         max_i = (len(files) % 5) if (len(files) - j * 5) < 5 else 5
@@ -554,7 +564,10 @@ class Agent(commands.Cog):
                     await message.delete()
             else:
                 file = ' '.join(path)
-            self.sendtoDCS(server, {"command": "addMission", "path": file, "channel": ctx.channel.id})
+            if (file is not None):
+                self.sendtoDCS(server, {"command": "addMission", "path": file, "channel": ctx.channel.id})
+            else:
+                await ctx.send('There is no file in the Missions directory of server {}.'.format(server['server_name']))
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
     @commands.has_any_role('Admin', 'Moderator')
@@ -608,13 +621,14 @@ class Agent(commands.Cog):
     async def unregister(self, ctx, node=platform.node()):
         server = await self.get_server(ctx)
         if (server is not None):
-            server_name = server['server_name']
-            await self.mission_embeds[server_name].delete()
-            self.mission_embeds.pop(server_name)
-            await self.players_embeds[server_name].delete()
-            self.players_embeds.pop(server_name)
-            self.bot.DCSServers.pop(server_name)
-            await ctx.send('Server {} unregistered.'.format(server_name))
+            if (server['status'] == 'Shutdown'):
+                server_name = server['server_name']
+                self.mission_embeds.pop(server_name)
+                self.players_embeds.pop(server_name)
+                self.bot.DCSServers.pop(server_name)
+                await ctx.send('Server {} unregistered.'.format(server_name))
+            else:
+                await ctx.send('Please stop server {} before unregistering!'.format(server_name))
 
     @commands.command(description='Pauses the current running mission')
     @commands.has_role('DCS Admin')
@@ -647,6 +661,15 @@ class Agent(commands.Cog):
                 self.sendtoDCS(server, {"command": "getRunningMission",
                                         "channel": server['status_channel']})
 
+    @tasks.loop(minutes=1.0)
+    async def update_bot_status(self):
+        for server_name, server in self.bot.DCSServers.items():
+            if ('status' in server):
+                await self.bot.change_presence(activity=discord.Game(self.STATUS_EMOJI[server['status']] + ' ' +
+                                                                     re.sub(self.bot.config['FILTER']['SERVER_FILTER'],
+                                                                            '', server_name).strip()))
+                await asyncio.sleep(10)
+
     async def handleUDPRequests(self):
 
         class UDPListener(socketserver.BaseRequestHandler):
@@ -667,7 +690,7 @@ class Agent(commands.Cog):
                     return
                 if (data['status_channel'].isnumeric() is True):
                     SQL_INSERT = 'INSERT INTO servers (server_name, agent_host, host, port, chat_channel, status_channel, admin_channel) VALUES(%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, chat_channel=%s, status_channel=%s, admin_channel=%s'
-                    SQL_SELECT = 'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, mission_embed, players_embed, \'Running\' AS status FROM servers WHERE server_name = %s'
+                    SQL_SELECT = 'SELECT server_name, host, port, chat_channel, status_channel, admin_channel FROM servers WHERE server_name = %s'
                     conn = self.bot.pool.getconn()
                     try:
                         with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -684,11 +707,8 @@ class Agent(commands.Cog):
                     finally:
                         self.bot.pool.putconn(conn)
                     # Store server configuration
-                    # Backwards compatibility check
-                    if ('statistics' in data):
-                        self.bot.DCSServers[data['server_name']]['statistics'] = data['statistics']
-                    else:
-                        self.bot.DCSServers[data['server_name']]['statistics'] = True
+                    self.bot.DCSServers[data['server_name']]['dcs_version'] = data['dcs_version']
+                    self.bot.DCSServers[data['server_name']]['statistics'] = data['statistics']
                     self.bot.DCSServers[data['server_name']]['serverSettings'] = data['serverSettings']
                     self.bot.DCSServers[data['server_name']]['serverSettings']['external_ip'] = self.external_ip
                     self.bot.DCSServers[data['server_name']]['options'] = data['options']
@@ -736,14 +756,15 @@ class Agent(commands.Cog):
             async def listMissions(data):
                 embed = discord.Embed(title='Mission List', color=discord.Color.blue())
                 ids = active = missions = ''
-                for i in range(0, len(data['missionList'])):
-                    ids += (chr(0x31 + i) + '\u20E3' + '\n')
-                    active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
-                    mission = data['missionList'][i]
-                    missions += mission[(mission.rfind('\\') + 1):] + '\n'
-                embed.add_field(name='ID', value=ids)
-                embed.add_field(name='Active', value=active)
-                embed.add_field(name='Mission', value=missions)
+                if (len(data['missionList']) > 0):
+                    for i in range(0, len(data['missionList'])):
+                        ids += (chr(0x31 + i) + '\u20E3' + '\n')
+                        active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
+                        mission = data['missionList'][i]
+                        missions += mission[(mission.rfind('\\') + 1):] + '\n'
+                    embed.add_field(name='ID', value=ids)
+                    embed.add_field(name='Active', value=active)
+                    embed.add_field(name='Mission', value=missions)
                 return embed
 
             async def getMissionDetails(data):
@@ -753,6 +774,9 @@ class Agent(commands.Cog):
                     return embed
                 else:
                     return data
+
+            async def listMizFiles(data):
+                return data
 
             async def onMissionLoadBegin(data):
                 self.bot.DCSServers[data['server_name']]['status'] = 'Loading'

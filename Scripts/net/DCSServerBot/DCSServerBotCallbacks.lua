@@ -89,6 +89,8 @@ function dcsbotgui.onSimulationFrame()
 				dcsbot.pause(json)
 			elseif (json.command == 'unpause') then
 				dcsbot.unpause(json)
+			elseif (json.command == 'listMizFiles') then
+				dcsbot.listMizFiles(json)
 			end
 		end
 	until err
@@ -116,7 +118,6 @@ end
 
 function dcsbotgui.onPlayerConnect(id)
 	if (dcsbot.registered == false) then
-		dcsbot.config.SERVER_NAME = net.get_server_settings().name
 		dcsbot.registerDCSServer()
 	end
 	msg = {}
@@ -129,7 +130,6 @@ end
 
 function dcsbotgui.onPlayerStart(id)
 	if (dcsbot.registered == false) then
-		dcsbot.config.SERVER_NAME = net.get_server_settings().name
 		dcsbot.registerDCSServer()
 	end
 	msg = {}
@@ -184,6 +184,8 @@ function dcsbotgui.onSimulationStop()
 	msg = {}
 	msg.command = 'onSimulationStop'
 	dcsbot.sendBotTable(msg)
+	-- re-register the DCS server after a new start (as parameters might have changed)
+	dcsbot.registered = false
 end
 
 function dcsbotgui.onSimulationPause()

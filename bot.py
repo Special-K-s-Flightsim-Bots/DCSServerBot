@@ -4,23 +4,24 @@ import configparser
 import discord
 import logging
 import os
-import shutil
 import platform
 import psycopg2
 import psycopg2.extras
-import sqlite3
-from contextlib import closing
+import shutil
+from contextlib import closing, suppress
 from discord.ext import commands
 from logging.handlers import RotatingFileHandler
 from os import path
 from psycopg2 import pool
-from sqlite3 import Error
 
 config = configparser.ConfigParser()
 config.read('config/dcsserverbot.ini')
 
 # Set the bot's version (not externally configurable)
-VERSION = "1.0"
+VERSION = "1.1"
+
+# git repository
+GIT_REPO_URL = 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git'
 
 # COGs to load
 COGS = ['cogs.master', 'cogs.statistics', 'cogs.help'] if config.getboolean('BOT', 'MASTER') is True else ['cogs.agent']
@@ -28,6 +29,7 @@ COGS = ['cogs.master', 'cogs.statistics', 'cogs.help'] if config.getboolean('BOT
 # Database Configuration
 SQLITE_DATABASE = 'dcsserverbot.db'
 TABLES_SQL = 'sql/tables.sql'
+UPDATES_SQL = 'sql/update_{}.sql'
 POOL_MIN = 5 if config.getboolean('BOT', 'MASTER') is True else 2
 POOL_MAX = 10 if config.getboolean('BOT', 'MASTER') is True else 5
 
@@ -62,6 +64,45 @@ bot.log.addHandler(ch)
 
 # List of DCS servers has to be global
 bot.DCSServers = {}
+
+# Autoupdate
+if (config.getboolean('BOT', 'AUTOUPDATE') is True):
+    try:
+        import git
+
+        try:
+            with closing(git.Repo('.')) as repo:
+                bot.log.info('Checking for updates...')
+                current_hash = repo.head.commit.hexsha
+                origin = repo.remotes.origin
+                origin.fetch()
+                new_hash = origin.refs[repo.active_branch.name].object.hexsha
+                if (new_hash != current_hash):
+                    restart = False
+                    bot.log.warn('Remote repo has changed. Updating myself...')
+                    diff = repo.head.commit.diff(new_hash)
+                    for d in diff:
+                        if (d.b_path == 'bot.py'):
+                            restart = True
+                    repo.remote().pull(repo.active_branch)
+                    bot.log.warn('Updated to latest version.')
+                    if (restart is True):
+                        bot.log.warn('bot.py has changed. Restart needed.')
+                        exit(-1)
+                else:
+                    bot.log.info('No update found.')
+        except git.exc.InvalidGitRepositoryError:
+            bot.log.warn('Linking bot to remote repository for auto update...')
+            repo = git.Repo.init()
+            origin = repo.create_remote('origin', url=GIT_REPO_URL)
+            origin.fetch()
+            repo.git.checkout('origin/master', '-f')
+            bot.log.warn('Repository is linked. Restart needed.')
+            exit(-1)
+
+    except ImportError:
+        bot.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
+        exit(-1)
 
 
 @bot.event
@@ -115,59 +156,39 @@ async def reload(ctx, node=platform.node(), cog=None):
 bot.pool = pool.ThreadedConnectionPool(POOL_MIN, POOL_MAX, config['BOT']['DATABASE_URL'], sslmode='allow')
 if (config.getboolean('BOT', 'MASTER') is True):
     # Initialize the database
-    if (path.exists(TABLES_SQL)):
-        bot.log.warning('Initializing Database ...')
-        conn = bot.pool.getconn()
-        try:
-            cursor = conn.cursor()
-            with open(TABLES_SQL) as tables_sql:
-                for query in tables_sql.readlines():
-                    bot.log.debug(query.rstrip())
-                    cursor.execute(query.rstrip())
+    conn = bot.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            # check if there is a database already
+            bot.db_version = None
+            with suppress(Exception):
+                cursor.execute('SELECT version FROM version')
+                if (cursor.rowcount == 1):
+                    bot.db_version = cursor.fetchone()[0]
+                    while (path.exists(UPDATES_SQL.format(bot.db_version))):
+                        bot.log.warning('Upgrading Database version {} ...'.format(bot.db_version))
+                        with open(UPDATES_SQL.format(bot.db_version)) as tables_sql:
+                            for query in tables_sql.readlines():
+                                bot.log.debug(query.rstrip())
+                                cursor.execute(query.rstrip())
+                        cursor.execute('SELECT version FROM version')
+                        bot.db_version = cursor.fetchone()[0]
+                        bot.log.warning('Database upgraded to version {}.'.format(bot.db_version))
+            # no, create one
+            if (bot.db_version is None):
+                bot.log.warning('Initializing Database ...')
+                with open(TABLES_SQL) as tables_sql:
+                    for query in tables_sql.readlines():
+                        bot.log.debug(query.rstrip())
+                        cursor.execute(query.rstrip())
+                bot.log.warning('Database initialized.')
             conn.commit()
-            bot.log.warning('Database initialized.')
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            bot.log.exception(error)
-            exit(-1)
-        finally:
-            bot.pool.putconn(conn)
-
-    if (path.exists(SQLITE_DATABASE)):
-        bot.log.warning('SQLite Database found. Migrating... (this may take a while)')
-        conn_tgt = bot.pool.getconn()
-        try:
-            with closing(sqlite3.connect(SQLITE_DATABASE)) as conn_src:
-                conn_src.row_factory = sqlite3.Row
-                with closing(conn_src.cursor()) as cursor_src:
-                    for table in [row[0] for row in cursor_src.execute('SELECT name FROM sqlite_master WHERE type=\'table\' and name not like \'sqlite_%\'').fetchall()]:
-                        bot.log.info('Migrating table ' + table + ' ...')
-                        for row in [dict(row) for row in cursor_src.execute('SELECT * FROM ' + table).fetchall()]:
-                            if ('ban' in row):
-                                row['ban'] = 'f' if (row['ban'] == 0) else 't'
-                            # add a new column agent_host to support multiple bot hosts
-                            if (table == 'servers'):
-                                row['agent_host'] = platform.node()
-                            with closing(conn_tgt.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor_tgt:
-                                keys = row.keys()
-                                columns = ','.join(keys)
-                                values = ','.join(['%({})s'.format(k) for k in keys])
-                                SQL = 'INSERT INTO ' + table + '({0}) VALUES ({1})'.format(columns, values)
-                                cursor_tgt.execute(SQL, row)
-            bot.log.info('Re-initializing sequences...')
-            with closing(conn_tgt.cursor()) as cursor_tgt:
-                cursor_tgt.execute('SELECT setval(\'missions_id_seq\', (select max(id)+1 from missions), false)')
-            conn_tgt.commit()
-        except (Error, Exception, psycopg2.DatabaseError) as error:
-            conn_tgt.rollback()
-            bot.log.exception(error)
-            exit(-1)
-        finally:
-            bot.pool.putconn(conn_tgt)
-        new_filename = SQLITE_DATABASE[0: SQLITE_DATABASE.rfind('.')] + '.bak'
-        bot.log.warning('SQLite Database migrated. Renaming to ' + new_filename)
-        os.rename(SQLITE_DATABASE, new_filename)
-
+    except (Exception, psycopg2.DatabaseError) as error:
+        conn.rollback()
+        bot.log.exception(error)
+        exit(-1)
+    finally:
+        bot.pool.putconn(conn)
 
 # Installing Hook
 dcs_path = os.path.expandvars(config['DCS']['DCS_HOME'] + '\\Scripts')

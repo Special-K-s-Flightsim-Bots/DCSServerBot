@@ -9,13 +9,14 @@
 ---------------------------------------------------------
 dcsbot = dcsbot or {}
 
-dcsbot.VERSION = '1.0'
-dcsbot.SERVER_NAME = 'initializing'
+dcsbot.VERSION = '1.1'
 dcsbot.registered = false
 dcsbot.SlotsData = {}
 dcsbot.banList = {}
 
-local JSON = require("JSON")
+local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
+loadfile(lfs.writedir() .. 'Config\\serverSettings.lua')()
+loadfile(lfs.writedir() .. 'Config\\options.lua')()
 
 package.path  = package.path..";.\\LuaSocket\\?.lua;"
 package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
@@ -24,8 +25,8 @@ dcsbot.UDPSendSocket = socket.udp()
 
 
 function dcsbot.sendBotTable(tbl, channel)
-	tbl.server_name = dcsbot.config.SERVER_NAME
-	tbl.channel = channel or -1
+	tbl.server_name = cfg.name
+	tbl.channel = channel or "-1"
 	local tbl_json_txt = JSON:encode(tbl)
 	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, dcsbot.config.BOT_HOST, dcsbot.config.BOT_PORT))
 end
@@ -39,8 +40,6 @@ end
 
 function dcsbot.registerDCSServer(json)
 	-- load the servers configuration (SRS, et al)
-	loadfile(lfs.writedir() .. 'Config\\serverSettings.lua')()
-	loadfile(lfs.writedir() .. 'Config\\options.lua')()
 	local f = io.open(lfs.writedir() .. 'Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua', 'r')
 	if f then
 		local content = f:read("*all")
@@ -50,7 +49,6 @@ function dcsbot.registerDCSServer(json)
 		f:close()
 	end
 	if (SRSAuto ~= nil) then
-		net.log(string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg'))
 		local config_path = string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg')
 		local f = io.open(config_path, 'r')
 		if f then
@@ -71,6 +69,7 @@ function dcsbot.registerDCSServer(json)
 	msg = {}
 	msg.command = 'registerDCSServer'
 	msg.hook_version = dcsbot.VERSION
+	msg.dcs_version = Export.LoGetVersionInfo().ProductVersion[1] .. '.' .. Export.LoGetVersionInfo().ProductVersion[2] .. '.' .. Export.LoGetVersionInfo().ProductVersion[3] .. '.' .. Export.LoGetVersionInfo().ProductVersion[4]
   msg.host = dcsbot.config.DCS_HOST
 	msg.port = dcsbot.config.DCS_PORT
 	msg.chat_channel = dcsbot.config.CHAT_CHANNEL
@@ -88,7 +87,11 @@ function dcsbot.registerDCSServer(json)
 	if (lotatc_inst ~= nil) then
 		msg.lotAtcSettings = lotatc_inst.options
 	end
-	dcsbot.sendBotTable(msg)
+	if (json ~= nil) then
+		dcsbot.sendBotTable(msg, json.channel)
+	else
+		dcsbot.sendBotTable(msg)
+	end
 	dcsbot.registered = true
 end
 
@@ -292,5 +295,17 @@ function dcsbot.getCategory(id)
 		end
 	end
 
-    return _killed_target_category
+  return _killed_target_category
+end
+
+function dcsbot.listMizFiles(json)
+	msg = {}
+	msg.command = 'listMizFiles'
+	msg.missions = {}
+	for file in lfs.dir(lfs.writedir() .. 'Missions') do
+		if ((lfs.attributes(file, 'mode') ~= 'directory') and (file:sub(-4) == '.miz')) then
+			table.insert(msg.missions, file)
+		end
+	end
+	dcsbot.sendBotTable(msg, json.channel)
 end
