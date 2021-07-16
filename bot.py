@@ -158,13 +158,18 @@ if (config.getboolean('BOT', 'MASTER') is True):
     # Initialize the database
     conn = bot.pool.getconn()
     try:
-        with closing(conn.cursor()) as cursor:
-            # check if there is a database already
-            bot.db_version = None
-            with suppress(Exception):
-                cursor.execute('SELECT version FROM version')
-                if (cursor.rowcount == 1):
-                    bot.db_version = cursor.fetchone()[0]
+        # check if there is a database already
+        bot.db_version = None
+        with suppress(Exception):
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename in (\'servers\', \'version\')')
+                cnt = cursor.fetchone()[0]
+                if (cnt > 0):
+                    if (cnt == 2):
+                        cursor.execute('SELECT version FROM version')
+                        bot.db_version = cursor.fetchone()[0]
+                    elif (cnt == 1):
+                        bot.db_version = 'v1.0'
                     while (path.exists(UPDATES_SQL.format(bot.db_version))):
                         bot.log.warning('Upgrading Database version {} ...'.format(bot.db_version))
                         with open(UPDATES_SQL.format(bot.db_version)) as tables_sql:
@@ -177,10 +182,11 @@ if (config.getboolean('BOT', 'MASTER') is True):
             # no, create one
             if (bot.db_version is None):
                 bot.log.warning('Initializing Database ...')
-                with open(TABLES_SQL) as tables_sql:
-                    for query in tables_sql.readlines():
-                        bot.log.debug(query.rstrip())
-                        cursor.execute(query.rstrip())
+                with closing(conn.cursor()) as cursor:
+                    with open(TABLES_SQL) as tables_sql:
+                        for query in tables_sql.readlines():
+                            bot.log.debug(query.rstrip())
+                            cursor.execute(query.rstrip())
                 bot.log.warning('Database initialized.')
             conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
