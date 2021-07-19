@@ -7,9 +7,13 @@
 -- they might do what you need already and even more than
 -- what my little code does here.
 ---------------------------------------------------------
+local Tools = require("tools")
+local TableUtils = require("TableUtils")
+local U = require("me_utilities")
+
 dcsbot = dcsbot or {}
 
-dcsbot.VERSION = '1.1'
+dcsbot.VERSION = '1.2'
 dcsbot.registered = false
 dcsbot.SlotsData = {}
 dcsbot.banList = {}
@@ -23,6 +27,33 @@ package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
 local socket = require("socket")
 dcsbot.UDPSendSocket = socket.udp()
 
+-- load server settings
+local defaultSettingsServer = net.get_default_server_settings()
+
+local function loadSettingsRaw()
+    local tbl = Tools.safeDoFile(lfs.writedir() .. "Config/serverSettings.lua", false)
+    if (tbl and tbl.cfg) then
+        return TableUtils.mergeTables(defaultSettingsServer, tbl.cfg)
+    else
+        return defaultSettingsServer
+    end
+end
+
+function mergeGuiSettings(new_settings)
+    local settings = loadSettingsRaw()
+
+    for k, v in pairs(new_settings) do
+        settings[k] = v
+    end
+
+    return settings
+end
+
+function saveSettings(settings)
+    mergedSettings = mergeGuiSettings(settings)
+    U.saveInFile(mergedSettings, "cfg", lfs.writedir() .. "Config/serverSettings.lua")
+    return true
+end
 
 function dcsbot.sendBotTable(tbl, channel)
 	tbl.server_name = cfg.name
@@ -81,7 +112,7 @@ function dcsbot.registerDCSServer(json)
 	else
 		msg.statistics = true
 	end
-	msg.serverSettings = cfg
+	msg.serverSettings = loadSettingsRaw()
 	msg.options = options
 	msg.SRSSettings = SRSAuto
 	if (lotatc_inst ~= nil) then
@@ -234,8 +265,17 @@ function dcsbot.listMissions(json)
 	dcsbot.sendBotTable(msg, json.channel)
 end
 
-function dcsbot.loadMission(json)
-	net.missionlist_run(json.id)
+function dcsbot.startMission(json)
+	local result = net.missionlist_run(json.id)
+	local mission_list = net.missionlist_get()
+	saveSettings({
+			missionList=mission_list["missionList"],
+			listStartIndex=mission_list["listStartIndex"]
+	})
+end
+
+function dcsbot.shutdown(json)
+	DCS.exitProcess()
 end
 
 function dcsbot.restartMission(json)
@@ -244,11 +284,15 @@ end
 
 function dcsbot.addMission(json)
 	net.missionlist_append(lfs.writedir() .. 'Missions\\' .. json.path)
+	local current_missions = net.missionlist_get()
+	result = saveSettings({missionList = current_missions["missionList"]})
 	dcsbot.listMissions(json)
 end
 
 function dcsbot.deleteMission(json)
 	net.missionlist_delete(json.id)
+	local current_missions = net.missionlist_get()
+	result = saveSettings({missionList = current_missions["missionList"]})
 	dcsbot.listMissions(json)
 end
 

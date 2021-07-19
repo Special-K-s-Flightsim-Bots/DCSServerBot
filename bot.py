@@ -18,7 +18,7 @@ config = configparser.ConfigParser()
 config.read('config/dcsserverbot.ini')
 
 # Set the bot's version (not externally configurable)
-VERSION = "1.1"
+VERSION = "1.2"
 
 # git repository
 GIT_REPO_URL = 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git'

@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import discord
 import json
+import os
 import pandas as pd
 import platform
 import psycopg2
@@ -11,6 +12,8 @@ import psycopg2.extras
 import re
 import socket
 import socketserver
+import subprocess
+import util
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
 from datetime import timedelta
@@ -37,6 +40,7 @@ class Agent(commands.Cog):
         'Loading': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
         'Paused': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
         'Running': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe3e40f0b6156700004f/traffic-light-green.jpg',
+        'Stopped': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg',
         'Shutdown': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg'
     }
 
@@ -44,6 +48,7 @@ class Agent(commands.Cog):
         'Loading': '🔀',
         'Paused': '⏸️',
         'Running': '▶️',
+        'Stopped': '⏹️',
         'Shutdown': '⏹️'
     }
 
@@ -151,6 +156,17 @@ class Agent(commands.Cog):
         # kill the remaining task
         pending_tasks.pop().cancel()
         return react
+
+    async def yn_question(self, ctx, question, msg=None):
+        yn_embed = discord.Embed(title=question, color=discord.Color.red())
+        if (msg is not None):
+            yn_embed.add_field(name=msg, value='_ _')
+        yn_msg = await ctx.send(embed=yn_embed)
+        await yn_msg.add_reaction('🇾')
+        await yn_msg.add_reaction('🇳')
+        react = await self.wait_for_single_reaction(ctx, yn_msg)
+        await yn_msg.delete()
+        return (react.emoji == '🇾')
 
     async def get_server(self, ctx):
         server = None
@@ -498,14 +514,57 @@ class Agent(commands.Cog):
                 return await ctx.send(embed=embed)
             return await ctx.send('Server ' + server['server_name'] + ' is not running.')
 
-    @commands.command(description='Loads a mission by ID', usage='<ID>')
+    @commands.command(description='Starts a mission by ID', usage='<ID>', aliases=['load'])
     @commands.has_role('DCS Admin')
     @commands.guild_only()
-    async def load(self, ctx, id):
+    async def start(self, ctx, id):
         server = await self.get_server(ctx)
         if (server is not None):
-            self.sendtoDCS(server, {"command": "loadMission", "id": id, "channel": ctx.channel.id})
+            self.sendtoDCS(server, {"command": "startMission", "id": id, "channel": ctx.channel.id})
             await ctx.send('Loading mission ' + id + ' ...')
+
+    @commands.command(description='Starts a DCS server')
+    @commands.has_permissions(administrator=True)
+    @commands.guild_only()
+    async def startup(self, ctx):
+        server = await self.get_server(ctx)
+        if (server is not None):
+            if (server['status'] == 'Shutdown'):
+                self.bot.log.info('Launching DCS instance with: "{}\\bin\\dcs.exe" --server --norender -w {}'.format(
+                    os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']), util.findDCSInstallations(server['server_name'])[0]))
+                subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', util.findDCSInstallations(server['server_name'])
+                                  [0]], executable=os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs.exe')
+                await ctx.send('Server "{}" starting up ...'.format(server['server_name']))
+            else:
+                await ctx.send('Server "{}" is already started.'.format(server['server_name']))
+
+    @commands.command(description='Shutdown a DCS server')
+    @commands.has_permissions(administrator=True)
+    @commands.guild_only()
+    async def shutdown(self, ctx):
+        server = await self.get_server(ctx)
+        if (server is not None):
+            if (await self.yn_question(ctx, 'Are you sure to shut down server "{}"?'.format(server['server_name'])) is True):
+                self.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
+                await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
+                server['status'] = 'Shutdown'
+
+    @commands.command(description='Change the password of a DCS server')
+    @commands.has_permissions(administrator=True)
+    @commands.guild_only()
+    async def password(self, ctx):
+        server = await self.get_server(ctx)
+        if (server is not None):
+            if (server['status'] == 'Shutdown'):
+                msg = await ctx.send('Please enter the new password: ')
+                response = await self.bot.wait_for('message', timeout=300.0)
+                password = response.content
+                await msg.delete()
+                await response.delete()
+                util.changeServerSettings(server['server_name'], 'password', password)
+                await ctx.send('Password has been changed.')
+            else:
+                await ctx.send('Server "{}" has to be shut down to change the password.'.format(server['server_name']))
 
     @commands.command(description='Deletes a mission from the list', usage='<ID>')
     @commands.has_role('DCS Admin')
@@ -621,14 +680,45 @@ class Agent(commands.Cog):
     async def unregister(self, ctx, node=platform.node()):
         server = await self.get_server(ctx)
         if (server is not None):
+            server_name = server['server_name']
             if (server['status'] == 'Shutdown'):
-                server_name = server['server_name']
-                self.mission_embeds.pop(server_name)
-                self.players_embeds.pop(server_name)
-                self.bot.DCSServers.pop(server_name)
-                await ctx.send('Server {} unregistered.'.format(server_name))
+                if (await self.yn_question(ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True):
+                    self.mission_embeds.pop(server_name)
+                    self.players_embeds.pop(server_name)
+                    self.bot.DCSServers.pop(server_name)
+                    await ctx.send('Server {} unregistered.'.format(server_name))
+                else:
+                    await ctx.send('Aborted.')
             else:
-                await ctx.send('Please stop server {} before unregistering!'.format(server_name))
+                await ctx.send('Please stop server "{}" before unregistering!'.format(server_name))
+
+    @commands.command(description='Rename a server')
+    @commands.has_role('Admin')
+    @commands.guild_only()
+    async def rename(self, ctx, *args):
+        server = await self.get_server(ctx)
+        if (server is not None):
+            oldname = server['server_name']
+            newname = ' '.join(args)
+            if (server['status'] == 'Shutdown'):
+                conn = self.bot.pool.getconn()
+                try:
+                    if (await self.yn_question(ctx, 'Are you sure to rename server "{}" to "{}"?'.format(oldname, newname)) is True):
+                        with closing(conn.cursor()) as cursor:
+                            cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
+                                           (oldname, newname))
+                            cursor.execute('UPDATE missions SET server_name = %s WHERE server_name = %s',
+                                           (oldname, newname))
+                            conn.commit()
+                        util.changeServerSettings(server['server_name'], 'name', newname)
+                        await ctx.send('Server has been renamed.')
+                except (Exception, psycopg2.DatabaseError) as error:
+                    self.bot.log.exception(error)
+                    conn.rollback()
+                finally:
+                    self.bot.pool.putconn(conn)
+            else:
+                await ctx.send('Please stop server "{}" before renaming!'.format(oldname))
 
     @commands.command(description='Pauses the current running mission')
     @commands.has_role('DCS Admin')
@@ -812,7 +902,8 @@ class Agent(commands.Cog):
                 data['num_players'] = 0
                 data['current_map'] = '-'
                 data['mission_time'] = 0
-                self.bot.DCSServers[data['server_name']]['status'] = 'Shutdown'
+                if (self.bot.DCSServers[data['server_name']]['status'] != 'Shutdown'):
+                    self.bot.DCSServers[data['server_name']]['status'] = 'Stopped'
                 await UDPListener.getRunningMission(data)
                 data['players'] = []
                 await UDPListener.getCurrentPlayers(data)
@@ -1013,6 +1104,8 @@ class Agent(commands.Cog):
                                             death_type = 'deaths_sams'
                                         elif (data['killerCategory'] in ['Armor', 'Infantry' 'Fortification', 'Artillery', 'MissilesSS']):
                                             death_type = 'deaths_ground'
+                                        else:
+                                            death_type = 'other'
                                         player2 = UDPListener.get_player(self, data['server_name'], data['arg4'])
                                         if (death_type in self.SQL_EVENT_UPDATES.keys()):
                                             cursor.execute(self.SQL_EVENT_UPDATES[death_type],
