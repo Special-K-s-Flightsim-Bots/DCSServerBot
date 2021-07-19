@@ -73,8 +73,8 @@ function dcsbotgui.onSimulationFrame()
 				dcsbot.getCurrentPlayers(json)
 			elseif (json.command == 'listMissions') then
 				dcsbot.listMissions(json)
-			elseif (json.command == 'loadMission') then
-				dcsbot.loadMission(json)
+			elseif (json.command == 'startMission') then
+				dcsbot.startMission(json)
 			elseif (json.command == 'restartMission') then
 				dcsbot.restartMission(json)
 			elseif (json.command == 'addMission') then
@@ -91,6 +91,8 @@ function dcsbotgui.onSimulationFrame()
 				dcsbot.unpause(json)
 			elseif (json.command == 'listMizFiles') then
 				dcsbot.listMizFiles(json)
+			elseif (json.command == 'shutdown') then
+				dcsbot.shutdown(json)
 			end
 		end
 	until err

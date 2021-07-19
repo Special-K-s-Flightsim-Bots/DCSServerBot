@@ -8,14 +8,14 @@ Control registered DCS servers via Discord commands.
 The following commands are supported:
 Command|Parameter|Channel|Role|Description
 -------|-----------|-------|-------|---------
-.servers||all|DCS|Lists all registered DCS servers and their status (same as .mission but for all). They will auto-register on startup.
+.servers||all|DCS|Lists all registered DCS servers and their status (same as .mission but for all). Servers will auto-register on startup.
 .mission||status-/admin-channel|DCS Admin|Information about the active mission. Persistent display in status-channel.
 .briefing/.brief||status-/chat-/admin-channel|DCS|Shows the description / briefing of the running mission.
 .players||status-/admin-channel|DCS Admin|Lists the players currently active on the server. Persistent display in status-channel.
 .list||admin-channel|DCS Admin|Lists all missions with IDs available on this server (same as WebGUI).
 .add|[miz-file]|admin-channel|DCS Admin|Adds a specific mission to the list of missions, that has to be in Saved Games/DCS[.OpenBeta]/Missions. If no miz file is provided, a list of all available files in the servers Missions directory will be provided.
 .delete|ID|admin-channel|DCS Admin|Deletes the mission with this ID from the list of missions.
-.load|ID|admin-channel|DCS Admin|Load a specific mission by ID.
+.start / .load|ID|admin-channel|DCS Admin|Starts a specific mission by ID.
 .restart|[time in secs] [message]|admin-channel|DCS Admin|Restarts the current mission after [time] seconds. A message will be sent into the ingame chat of that server.
 .pause||admin-channel|DCS Admin|Pauses the current running mission.
 .unpause||admin-channel|DCS Admin|Resumes the current running mission.
@@ -24,6 +24,11 @@ Command|Parameter|Channel|Role|Description
 .unban|@member or ucid|all|Admin/Moderator|Unbans a specific player either by his Discord ID or his UCID
 .bans||all|Admin/Moderator|Lists the current bans.
 .unregister||all|Admin|Unregisters the current server from this agent. Needed, if the very same server is going to be started on another machine connected to another agent.
+.rename|newname|admin-channel|Admin|Renames a DCS server. Server has to be shut down for the command to work.
+.password||admin-channel|Admin|Changes the password of a DCS server.
+.startup||admin-channel|Admin|Starts a dedicated DCS server instance (has to be registered, so it has to be started once outside of Discord).
+.shutdown||admin-channel|Admin|Shuts the dedicated DCS server down.
+
 
 ## User Statistics
 Gather statistics data from users and display them in a user-friendly way in your Discord.
@@ -87,13 +92,27 @@ Parameter|Description
 ..STATUS_CHANNEL|The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.
 ..ADMIN_CHANNEL|The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.
 
+### Sanitization
+The DCSServerBot uses lua functions that are santitized by default. To enable them, you have to change the following lines in DCS_HOME\\Scripts\\MissionScripting.lua:
+```
+      sanitizeModule('os')
+  -- >>> THESE LINES HAVE TO BE COMMENTED <<<
+  --  sanitizeModule('io')
+  --  sanitizeModule('lfs')
+  --  require = nil
+  -- <<< THESE LINES HAVE TO BE COMMENTED >>>
+      loadlib = nil
+```
+If you are using Slmod, you can change these lines in Saved Games\\DCS[.openbeta]\\Scripts\\net\\Slmodv7_5\\SlmodMissionScripting.lua. That has the advantage that the file gets replaced on every server start and overwrites and replacement that might come with a DCS update.
+If you run more than one instance of DCS, don't forget to change SlmodMissionScripting.lua **in all instances**, as they would overwrite each other otherwise.
+
 ### Discord Configuration
 The following roles have to be set up in your Discord guild:
 Role|Description
 -------|-----------
 DCS|People with this role are allowed to chat, check their statistics and gather information about running missions and players.
 DCS Admin|People with this role are allowed to restart missions and managing the mission list.
-Admin / Moderator|People with one of these roles are allowed to ban/unban people and to link discord-IDs to ucids, when the autodetection didn't work
+Admin / Moderator|People with one of these roles are allowed to manage the server, to ban/unban people and to link discord-IDs to ucids, when the autodetection didn't work
 
 ### **ATTENTION**
 _One of the concepts of this bot it to bind people to your discord._
@@ -106,6 +125,7 @@ Things to be added in the future:
 * More statistics
 * user-friendly installation
 * Make discord roles configurable
+* Own sanitization
 
 ## Credits
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this solution.

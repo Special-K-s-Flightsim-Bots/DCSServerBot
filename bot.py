@@ -18,7 +18,7 @@ config = configparser.ConfigParser()
 config.read('config/dcsserverbot.ini')
 
 # Set the bot's version (not externally configurable)
-VERSION = "1.1"
+VERSION = "1.2"
 
 # git repository
 GIT_REPO_URL = 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git'
@@ -79,25 +79,25 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
                 new_hash = origin.refs[repo.active_branch.name].object.hexsha
                 if (new_hash != current_hash):
                     restart = False
-                    bot.log.warn('Remote repo has changed. Updating myself...')
+                    bot.log.warning('Remote repo has changed. Updating myself...')
                     diff = repo.head.commit.diff(new_hash)
                     for d in diff:
                         if (d.b_path == 'bot.py'):
                             restart = True
                     repo.remote().pull(repo.active_branch)
-                    bot.log.warn('Updated to latest version.')
+                    bot.log.warning('Updated to latest version.')
                     if (restart is True):
-                        bot.log.warn('bot.py has changed. Restart needed.')
+                        bot.log.warning('bot.py has changed. Restart needed.')
                         exit(-1)
                 else:
                     bot.log.info('No update found.')
         except git.exc.InvalidGitRepositoryError:
-            bot.log.warn('Linking bot to remote repository for auto update...')
+            bot.log.warning('Linking bot to remote repository for auto update...')
             repo = git.Repo.init()
             origin = repo.create_remote('origin', url=GIT_REPO_URL)
             origin.fetch()
             repo.git.checkout('origin/master', '-f')
-            bot.log.warn('Repository is linked. Restart needed.')
+            bot.log.warning('Repository is linked. Restart needed.')
             exit(-1)
 
     except ImportError:
@@ -158,13 +158,18 @@ if (config.getboolean('BOT', 'MASTER') is True):
     # Initialize the database
     conn = bot.pool.getconn()
     try:
-        with closing(conn.cursor()) as cursor:
-            # check if there is a database already
-            bot.db_version = None
-            with suppress(Exception):
-                cursor.execute('SELECT version FROM version')
-                if (cursor.rowcount == 1):
-                    bot.db_version = cursor.fetchone()[0]
+        # check if there is a database already
+        bot.db_version = None
+        with suppress(Exception):
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename in (\'servers\', \'version\')')
+                cnt = cursor.fetchone()[0]
+                if (cnt > 0):
+                    if (cnt == 2):
+                        cursor.execute('SELECT version FROM version')
+                        bot.db_version = cursor.fetchone()[0]
+                    elif (cnt == 1):
+                        bot.db_version = 'v1.0'
                     while (path.exists(UPDATES_SQL.format(bot.db_version))):
                         bot.log.warning('Upgrading Database version {} ...'.format(bot.db_version))
                         with open(UPDATES_SQL.format(bot.db_version)) as tables_sql:
@@ -177,10 +182,11 @@ if (config.getboolean('BOT', 'MASTER') is True):
             # no, create one
             if (bot.db_version is None):
                 bot.log.warning('Initializing Database ...')
-                with open(TABLES_SQL) as tables_sql:
-                    for query in tables_sql.readlines():
-                        bot.log.debug(query.rstrip())
-                        cursor.execute(query.rstrip())
+                with closing(conn.cursor()) as cursor:
+                    with open(TABLES_SQL) as tables_sql:
+                        for query in tables_sql.readlines():
+                            bot.log.debug(query.rstrip())
+                            cursor.execute(query.rstrip())
                 bot.log.warning('Database initialized.')
             conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
