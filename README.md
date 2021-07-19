@@ -76,6 +76,7 @@ AUTOBAN|If true, members leaving the discord will be automatically banned.
 SERVER_FILTER|Filter to shorten server names (if needed)
 MISSION_FILTER|Filter to shorten mission names (if needed)
 DCS_HOME|The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.
+DCS_INSTALLATION|The installation directory of DCS World.
 GREETING_MESSAGE_MEMBERS|A greeting message, that people will receive in DCS, if they get recognized by the bot as a member of your discord.
 GREETING_MESSAGE_UNKNOWN|A greeting message, that people will receive in DCS, if they or not recognized as a member of your discord.
 
