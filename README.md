@@ -29,7 +29,6 @@ Command|Parameter|Channel|Role|Description
 .startup||admin-channel|Admin|Starts a dedicated DCS server instance (has to be registered, so it has to be started once outside of Discord).
 .shutdown||admin-channel|Admin|Shuts the dedicated DCS server down.
 
-
 ## User Statistics
 Gather statistics data from users and display them in a user-friendly way in your Discord.
 The following commands are supported:
@@ -95,8 +94,8 @@ Parameter|Description
 ..ADMIN_CHANNEL|The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.
 
 ### Sanitization
-The DCSServerBot uses lua functions that are santitized by default. To enable them, you have to change the following lines in DCS_HOME\\Scripts\\MissionScripting.lua:
-```
+The DCSServerBot uses lua functions that are santitized by default. To enable them, you have to change the following lines in DCS_INSTALLATION\\Scripts\\MissionScripting.lua:
+```lua
       sanitizeModule('os')
   -- >>> THESE LINES HAVE TO BE COMMENTED <<<
   --  sanitizeModule('io')
@@ -116,17 +115,54 @@ DCS|People with this role are allowed to chat, check their statistics and gather
 DCS Admin|People with this role are allowed to restart missions and managing the mission list.
 Admin / Moderator|People with one of these roles are allowed to manage the server, to ban/unban people and to link discord-IDs to ucids, when the autodetection didn't work
 
-### **ATTENTION**
+### **!!! ATTENTION !!!**
 _One of the concepts of this bot it to bind people to your discord._
 
 The bot automatically bans / unbans people from the configured DCS servers, as soon as they leave / join the configured Discord guild.
 If you don't like that feature, set AUTOBAN = false in dcsserverbot.ini.
 
+## How to do the more complex stuff?
+DCSServerBot can be used to run a whole worldwide distributed set of DCS servers and therefore supports the largest communities.
+The installation and maintenance of such a use-case is a bit more complex than a single server installation.
+
+### Setup Multiple Servers on a Single Host
+DCSServerBot is able to contact DCS servers at the same machine or over the local network. So it is sufficient to configure a single DCSServerBot per location.
+To run multiple DCS servers under control of DCSServerBot you just have to make sure that you configure different communication ports. This can be done with the parameter DCS_PORT in DCSServerBotConfig.lua. The default is 6666, you can just increase that for every server (6667, 6668, ...).
+Unfortunately, the files in Scripts/Hook and Scripts/net are only copied to the first instance atm. That said, you need to copy these files over by hand to the 2nd instance and change the configuration accordingly. Don't forget to configure different Discord channels (CHAT_CHANNEL, STATUS_CHANNEL and ADMIN_CHANNEL) for the secondary server, too.
+To add subsequent servers, just follow the steps above and you're good unless they are on a different Windows server.
+
+### Setup Multiple Servers on Multiple Host at the Same Location
+To communicate with DCSServerBot over the network, you need to change two configurations.
+By default, DCSServerBot is configured to be bound to the loopback interface (127.0.0.1) not allowing any external connection to the system. This can be changed in dcsserverbot.ini by using the LAN IP address of the Windows server running DCSServerBot instead. All DCS servers then have to be configured to use that IP address, too. This can be done by changing BOT_HOST in the dedicated DCSServerBotConfig.lua files of the DCS servers to the very same LAN IP address of the Windows server running the DCSSServerBot.
+
+### Setup Multiple Servers on Multiple Host at Different Locations
+DCSServerBot is able to run in multiple locations, worldwide. In every location, one instance of DCSServerBot is needed to be installed in the local network containing the DCS servers.
+Only one single instance of the bot is to be configured as a master. This instance has to be up 24/7. Currently, DCSServerBot does not support handing over the master to other bot instances.
+To configure a server as a master, you have to set MASTER to true (default) in the dcsserverbot.ini configuration file. Every other instance of the bot has to be set as an agent (MASTER = false).
+The master and all agents are collecting statistics of the DCS servers they control, but only the master runs the statistics module to display them in Discord. To be able to write the statistics to the **central** database, all servers need access. You can either host that database at the location where the master runs and enable all other agents to access that instance (keep security like SSL encryption in mind) or you use a cloud database, available on services like Amazon, Heroku, etc.
+
+### Moving a Server from one Location to Another
+When running multiple servers over different locations it might be necessary to move a server from one location to another. As all servers are registered with their local bots, some steps are needed to move a server over.
+1) Stop the server in the **old** location from where it should be moved.
+2) Goto the ADMIN_CHANNEL of that server and type ```.unregister```
+3) Configure a server at the **new** location with the very same name and make sure the the correct channels are configured in DCSServerBotConfig.lua of that server.
+4) Start the server at the **new** location.
+
+### How to talk to the Bot from inside Missions
+If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a mission start trigger:
+```lua
+  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
+```
+After that, you can for instance send chat messages to the bot using
+```lua
+  dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear
+```
+
 ## TODO
 Things to be added in the future:
 * user-friendly installation
 * Make discord roles configurable
-* Own sanitization
+* Own sanitization implementation
 
 ## Credits
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this solution.

@@ -706,11 +706,14 @@ class Agent(commands.Cog):
                     if (await self.yn_question(ctx, 'Are you sure to rename server "{}" to "{}"?'.format(oldname, newname)) is True):
                         with closing(conn.cursor()) as cursor:
                             cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                                           (oldname, newname))
+                                           (newname, oldname))
+                            cursor.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
+                                           (newname, oldname))
                             cursor.execute('UPDATE missions SET server_name = %s WHERE server_name = %s',
-                                           (oldname, newname))
+                                           (newname, oldname))
                             conn.commit()
                         util.changeServerSettings(server['server_name'], 'name', newname)
+                        server['server_name'] = newname
                         await ctx.send('Server has been renamed.')
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.bot.log.exception(error)
