@@ -11,7 +11,7 @@ def findDCSInstallations(server_name=None):
             serverSettings = os.path.join(SAVED_GAMES, dirname, 'Config\\serverSettings.lua')
             if (os.path.exists(serverSettings)):
                 if (server_name):
-                    with open(serverSettings) as f:
+                    with open(serverSettings, encoding='utf8') as f:
                         if '["name"] = "{}"'.format(server_name) in f.read():
                             installations.append(dirname)
                 else:
@@ -26,7 +26,7 @@ def changeServerSettings(server_name, name, value):
     installation = findDCSInstallations(server_name)[0]
     serverSettings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.lua')
     tmpSettings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.tmp')
-    with open(serverSettings) as infile:
+    with open(serverSettings, encoding='utf8') as infile:
         inlines = infile.readlines()
     outlines = []
     for line in inlines:
@@ -35,7 +35,7 @@ def changeServerSettings(server_name, name, value):
             outlines.append(re.sub(' = ([^,]*)', ' = {}'.format(value), line))
         else:
             outlines.append(line)
-    with open(tmpSettings, 'w') as outfile:
+    with open(tmpSettings, 'w', encoding='utf8') as outfile:
         outfile.writelines(outlines)
     os.remove(serverSettings)
     os.rename(tmpSettings, serverSettings)
