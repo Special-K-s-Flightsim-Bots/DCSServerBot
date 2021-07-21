@@ -46,7 +46,8 @@ Make sure that this directory can only be seen by yourself and is not exposed to
 ### Prerequisites
 You need to have [python 3.8](https://www.python.org/downloads/) or higher and [PostgreSQL](https://www.postgresql.org/download/) installed.
 The python modules needed are listed in requirements.txt and can be installed with ```pip3 install -r requirements.txt```.
-If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled. For autoupdate to work, you have to install GIT and make sure, git is in your PATH.
+If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled.
+For autoupdate to work, you have to install [GIT](https://git-scm.com/download/win) and make sure, ```git``` is in your PATH.
 
 ### Discord Token
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers.

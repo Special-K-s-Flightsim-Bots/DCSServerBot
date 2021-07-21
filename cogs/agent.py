@@ -523,7 +523,7 @@ class Agent(commands.Cog):
             self.sendtoDCS(server, {"command": "startMission", "id": id, "channel": ctx.channel.id})
             await ctx.send('Loading mission ' + id + ' ...')
 
-    @commands.command(description='Starts a DCS server')
+    @commands.command(description='Starts a DCS Server')
     @commands.has_permissions(administrator=True)
     @commands.guild_only()
     async def startup(self, ctx):
@@ -538,7 +538,7 @@ class Agent(commands.Cog):
             else:
                 await ctx.send('Server "{}" is already started.'.format(server['server_name']))
 
-    @commands.command(description='Shutdown a DCS server')
+    @commands.command(description='Shutdown a DCS Server')
     @commands.has_permissions(administrator=True)
     @commands.guild_only()
     async def shutdown(self, ctx):
@@ -548,6 +548,34 @@ class Agent(commands.Cog):
                 self.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                 await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
                 server['status'] = 'Shutdown'
+
+    @commands.command(description='Update a DCS Installation')
+    @commands.has_permissions(administrator=True)
+    @commands.guild_only()
+    async def update(self, ctx):
+        # check versions
+        branch, old_version = util.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
+        new_version = await util.getLatestVersion(branch)
+        if (old_version == new_version):
+            await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
+        else:
+            servers = []
+            for key, item in self.bot.DCSServers.items():
+                if (item['status'] not in ['Stopped', 'Shutdown']):
+                    servers.append(item)
+            if (len(servers)):
+                if (await self.yn_question(ctx, 'Would you like me to stop the running servers and run the update?') is True):
+                    for server in servers:
+                        self.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
+                        await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
+                        server['status'] = 'Shutdown'
+                else:
+                    return
+            if (await self.yn_question(ctx, 'Would you like to update from version {} to {}?'.format(old_version, new_version)) is True):
+                self.bot.log.info('Updating DCS to the latest version.')
+                subprocess.Popen(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
+                    self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
+                await ctx.send('Updating DCS to the latest version ...')
 
     @commands.command(description='Change the password of a DCS server')
     @commands.has_permissions(administrator=True)
@@ -573,6 +601,7 @@ class Agent(commands.Cog):
         server = await self.get_server(ctx)
         if (server is not None):
             self.sendtoDCS(server, {"command": "deleteMission", "id": id, "channel": ctx.channel.id})
+            await ctx.send('Mission {} deleted.'.format(id))
 
     @commands.command(description='Adds a mission to the list', usage='<path>')
     @commands.has_role('DCS Admin')
@@ -681,7 +710,7 @@ class Agent(commands.Cog):
         server = await self.get_server(ctx)
         if (server is not None):
             server_name = server['server_name']
-            if (server['status'] == 'Shutdown'):
+            if (server['status'] in ['Stopped', 'Shutdown']):
                 if (await self.yn_question(ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True):
                     self.mission_embeds.pop(server_name)
                     self.players_embeds.pop(server_name)
@@ -700,7 +729,7 @@ class Agent(commands.Cog):
         if (server is not None):
             oldname = server['server_name']
             newname = ' '.join(args)
-            if (server['status'] == 'Shutdown'):
+            if (server['status'] in ['Stopped', 'Shutdown']):
                 conn = self.bot.pool.getconn()
                 try:
                     if (await self.yn_question(ctx, 'Are you sure to rename server "{}" to "{}"?'.format(oldname, newname)) is True):
@@ -714,6 +743,12 @@ class Agent(commands.Cog):
                             conn.commit()
                         util.changeServerSettings(server['server_name'], 'name', newname)
                         server['server_name'] = newname
+                        self.mission_embeds[newname] = self.mission_embeds[oldname]
+                        self.players_embeds[newname] = self.players_embeds[oldname]
+                        self.player_data[newname] = self.player_data[oldname]
+                        self.mission_embeds.pop(oldname)
+                        self.players_embeds.pop(oldname)
+                        self.player_data.pop(oldname)
                         await ctx.send('Server has been renamed.')
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.bot.log.exception(error)

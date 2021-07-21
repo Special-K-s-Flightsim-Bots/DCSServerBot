@@ -1,7 +1,15 @@
+import asyncio
+import aiohttp
 import os
 import re
+import xmltodict
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
+REGEXP = {
+    'branch': re.compile(r'"branch": "(?P<branch>.*)"'),
+    'version': re.compile(r'"version": "(?P<version>.*)"')
+}
+PATCHNOTES_URL = 'https://www.digitalcombatsimulator.com/en/news/changelog/rss/'
 
 
 def findDCSInstallations(server_name=None):
@@ -39,3 +47,28 @@ def changeServerSettings(server_name, name, value):
         outfile.writelines(outlines)
     os.remove(serverSettings)
     os.rename(tmpSettings, serverSettings)
+
+
+def getInstalledVersion(path):
+    branch = version = None
+    with open(os.path.join(os.path.expandvars(path), 'autoupdate.cfg'), encoding='utf8') as config:
+        lines = config.readlines()
+    for line in lines:
+        if ('"branch"' in line):
+            match = REGEXP['branch'].search(line)
+            if (match):
+                branch = match.group('branch')
+        elif ('"version"' in line):
+            match = REGEXP['version'].search(line)
+            if (match):
+                version = match.group('version')
+    return branch, version
+
+
+async def getLatestVersion(branch):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(PATCHNOTES_URL) as response:
+            xpars = xmltodict.parse(await response.text())
+            for item in xpars['rss']['channel']['item']:
+                if (branch in item['link']):
+                    return item['link'].split('/')[-2]
