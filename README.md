@@ -28,6 +28,7 @@ Command|Parameter|Channel|Role|Description
 .password||admin-channel|Admin|Changes the password of a DCS server.
 .startup||admin-channel|Admin|Starts a dedicated DCS server instance (has to be registered, so it has to be started once outside of Discord).
 .shutdown||admin-channel|Admin|Shuts the dedicated DCS server down.
+.update||admin-channel|Admin|Updates DCS World to the latest available version.
 
 ## User Statistics
 Gather statistics data from users and display them in a user-friendly way in your Discord.
