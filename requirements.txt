@@ -3,3 +3,4 @@ pandas
 matplotlib
 psycopg2-binary
 GitPython
+xmltodict
