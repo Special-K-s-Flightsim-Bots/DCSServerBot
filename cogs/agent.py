@@ -553,29 +553,31 @@ class Agent(commands.Cog):
     @commands.has_permissions(administrator=True)
     @commands.guild_only()
     async def update(self, ctx):
-        # check versions
-        branch, old_version = util.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
-        new_version = await util.getLatestVersion(branch)
-        if (old_version == new_version):
-            await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
-        else:
-            servers = []
-            for key, item in self.bot.DCSServers.items():
-                if (item['status'] not in ['Stopped', 'Shutdown']):
-                    servers.append(item)
-            if (len(servers)):
-                if (await self.yn_question(ctx, 'Would you like me to stop the running servers and run the update?') is True):
-                    for server in servers:
-                        self.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
-                        await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
-                        server['status'] = 'Shutdown'
-                else:
-                    return
-            if (await self.yn_question(ctx, 'Would you like to update from version {} to {}?'.format(old_version, new_version)) is True):
-                self.bot.log.info('Updating DCS to the latest version.')
-                subprocess.Popen(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
-                    self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
-                await ctx.send('Updating DCS to the latest version ...')
+        server = await self.get_server(ctx)
+        if (server is not None):
+            # check versions
+            branch, old_version = util.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
+            new_version = await util.getLatestVersion(branch)
+            if (old_version == new_version):
+                await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
+            else:
+                servers = []
+                for key, item in self.bot.DCSServers.items():
+                    if (item['status'] not in ['Stopped', 'Shutdown']):
+                        servers.append(item)
+                if (len(servers)):
+                    if (await self.yn_question(ctx, 'Would you like me to stop the running servers and run the update?') is True):
+                        for server in servers:
+                            self.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
+                            await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
+                            server['status'] = 'Shutdown'
+                    else:
+                        return
+                if (await self.yn_question(ctx, 'Would you like to update from version {} to {}?'.format(old_version, new_version)) is True):
+                    self.bot.log.info('Updating DCS to the latest version.')
+                    subprocess.Popen(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
+                        self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
+                    await ctx.send('Updating DCS to the latest version ...')
 
     @commands.command(description='Change the password of a DCS server')
     @commands.has_permissions(administrator=True)
