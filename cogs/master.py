@@ -30,7 +30,7 @@ class Master(Agent):
                 for ucid in ucids:
                     cursor.execute('UPDATE players SET ban = true WHERE ucid = %s', (ucid, ))
                 conn.commit()
-                super.ban(self, ctx, user)
+                await super().ban(self, ctx, user)
             await ctx.send('Player {} banned.'.format(user))
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
@@ -56,7 +56,7 @@ class Master(Agent):
                 for ucid in ucids:
                     cursor.execute('UPDATE players SET ban = false WHERE ucid = %s', (ucid, ))
                 conn.commit()
-                super.unban(self, ctx, user)
+                await super().unban(self, ctx, user)
             await ctx.send('Player {} unbanned.'.format(user))
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
