@@ -1,4 +1,5 @@
 # statistics.py
+import asyncio
 import concurrent
 import discord
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ import os
 import psycopg2
 import psycopg2.extras
 import re
+import util
 from contextlib import closing, suppress
 from datetime import timedelta
 from discord.ext import commands
@@ -30,6 +32,17 @@ class Statistics(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         plt.switch_backend('agg')
+        self.servers = []
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT DISTINCT server_name FROM missions')
+                for row in cursor.fetchall():
+                    self.servers.append(row[0])
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+        finally:
+            self.bot.pool.putconn(conn)
 
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
     @commands.has_any_role('Admin', 'Moderator')
@@ -47,40 +60,48 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_playtime_planes(self, member, axis):
+    def draw_playtime_planes(self, member, axis, server):
         SQL_PLAYTIME = 'SELECT s.slot, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, ' \
-            'players p WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.hop_off IS NOT NULL GROUP BY s.slot ORDER BY 2'
+            'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.hop_off IS NOT NULL AND s.mission_id = m.id '
+        if (server is not None):
+            SQL_PLAYTIME += 'AND m.server_name = \'{}\' '.format(server)
+        SQL_PLAYTIME += 'GROUP BY s.slot ORDER BY 2'
+
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(SQL_PLAYTIME, (member.id, ))
-                if (cursor.rowcount > 0):
-                    labels = []
-                    values = []
-                    for row in cursor.fetchall():
-                        labels.insert(0, row['slot'])
-                        values.insert(0, row['playtime'] / 3600.0)
-                    axis.bar(labels, values, width=0.5, color='mediumaquamarine')
-                    # axis.set_xticklabels(axis.get_xticklabels(), rotation=45, ha='right')
-                    for label in axis.get_xticklabels():
-                        label.set_rotation(30)
-                        label.set_ha('right')
-                    axis.set_title('Overall Flighttimes per Plane', color='white', fontsize=25)
-                    # axis.set_yscale('log')
-                    axis.set_yticks([])
-                    for i in range(0, len(values)):
-                        axis.annotate('{:.1f} h'.format(values[i]), xy=(
-                            labels[i], values[i]), ha='center', va='bottom', weight='bold')
-                else:
-                    axis.axis('off')
+                labels = []
+                values = []
+                for row in cursor.fetchall():
+                    labels.insert(0, row['slot'])
+                    values.insert(0, row['playtime'] / 3600.0)
+                axis.bar(labels, values, width=0.5, color='mediumaquamarine')
+                # axis.set_xticklabels(axis.get_xticklabels(), rotation=45, ha='right')
+                for label in axis.get_xticklabels():
+                    label.set_rotation(30)
+                    label.set_ha('right')
+                axis.set_title('Flighttimes per Plane', color='white', fontsize=25)
+                # axis.set_yscale('log')
+                axis.set_yticks([])
+                for i in range(0, len(values)):
+                    axis.annotate('{:.1f} h'.format(values[i]), xy=(
+                        labels[i], values[i]), ha='center', va='bottom', weight='bold')
+                if (cursor.rowcount == 0):
+                    axis.set_xticks([])
+                    axis.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_server_time(self, member, axis):
+    def draw_server_time(self, member, axis, server):
         SQL_STATISTICS = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime '\
-            'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND m.id = s.mission_id AND s.hop_off IS NOT NULL GROUP BY trim(m.server_name)'
+            'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND m.id = s.mission_id AND s.hop_off IS NOT NULL '
+        if (server is not None):
+            SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
+        SQL_STATISTICS += 'GROUP BY trim(m.server_name)'
+
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -108,9 +129,13 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_map_time(self, member, axis):
+    def draw_map_time(self, member, axis, server):
         SQL_STATISTICS = 'SELECT m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime '\
-            'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND m.id = s.mission_id AND s.hop_off IS NOT NULL GROUP BY m.mission_theatre'
+            'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND m.id = s.mission_id AND s.hop_off IS NOT NULL '
+        if (server is not None):
+            SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
+        SQL_STATISTICS += 'GROUP BY m.mission_theatre'
+
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -137,9 +162,14 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_recent(self, member, axis):
+    def draw_recent(self, member, axis, server):
         SQL_STATISTICS = 'SELECT TO_CHAR(s.hop_on, \'MM/DD\') as day, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW()) - s.hop_on)))) AS playtime ' \
-            'FROM statistics s, players p WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.hop_on > (DATE(NOW()) - integer \'7\') GROUP BY day'
+            'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.hop_on > (DATE(NOW()) - integer \'7\') ' \
+            'AND s.mission_id = m.id '
+        if (server is not None):
+            SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
+        SQL_STATISTICS += 'GROUP BY day'
+
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -163,10 +193,14 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_flight_performance(self, member, axis):
+    def draw_flight_performance(self, member, axis, server):
         SQL_STATISTICS = 'SELECT SUM(ejections) as ejections, SUM(crashes) as crashes, ' \
             'SUM(takeoffs) as takeoffs, SUM(landings) as landings FROM statistics s, ' \
-            'players p WHERE s.player_ucid = p.ucid AND p.discord_id = %s'
+            'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s' \
+            'AND s.mission_id = m.id '
+        if (server is not None):
+            SQL_STATISTICS += 'AND m.server_name = \'{}\''.format(server)
+
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -182,11 +216,14 @@ class Statistics(commands.Cog):
                         if(item[1] is not None and item[1] > 0):
                             labels.append(string.capwords(item[0]))
                             values.append(item[1])
-                    patches, texts, pcts = axis.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
-                                                    wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
-                    plt.setp(pcts, color='black', fontweight='bold')
-                    axis.set_title('Flying', color='white', fontsize=25)
-                    axis.axis('equal')
+                    if (len(values) > 0):
+                        patches, texts, pcts = axis.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
+                                                        wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+                        plt.setp(pcts, color='black', fontweight='bold')
+                        axis.set_title('Flying', color='white', fontsize=25)
+                        axis.axis('equal')
+                    else:
+                        axis.set_visible(False)
                 else:
                     axis.set_visible(False)
         except (Exception, psycopg2.DatabaseError) as error:
@@ -194,9 +231,12 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_kill_performance(self, member, axis):
-        SQL_STATISTICS = 'SELECT SUM(kills) as kills, SUM(deaths) as deaths, SUM(teamkills) as teamkills FROM statistics s, ' \
-            'players p WHERE s.player_ucid = p.ucid AND p.discord_id = %s'
+    def draw_kill_performance(self, member, axis, server):
+        SQL_STATISTICS = 'SELECT COALESCE(SUM(kills), 0) as kills, COALESCE(SUM(deaths), 0) as deaths, COALESCE(SUM(teamkills), 0) as teamkills FROM statistics s, ' \
+            'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.mission_id = m.id '
+        if (server is not None):
+            SQL_STATISTICS += 'AND m.server_name = \'{}\''.format(server)
+
         retval = []
         conn = self.bot.pool.getconn()
         try:
@@ -220,21 +260,24 @@ class Statistics(commands.Cog):
                                 explode.append(0.1)
                             else:
                                 explode.append(0.0)
-                    angle1 = -180 * result[0]/np.sum(values)
-                    angle2 = 180 - 180*result[1]/np.sum(values)
-                    if (angle1 == 0):
-                        angle = angle2
-                    elif (angle2 == 180):
-                        angle = angle1
-                    else:
-                        angle = angle1 + (angle2 + angle1) / 2
+                    if (len(values)):
+                        angle1 = -180 * result[0]/np.sum(values)
+                        angle2 = 180 - 180*result[1]/np.sum(values)
+                        if (angle1 == 0):
+                            angle = angle2
+                        elif (angle2 == 180):
+                            angle = angle1
+                        else:
+                            angle = angle1 + (angle2 + angle1) / 2
 
-                    patches, texts, pcts = axis.pie(values, labels=labels, startangle=angle, explode=explode,
-                                                    autopct=lambda pct: func(pct, values), colors=['lightgreen', 'darkorange', 'lightblue'],
-                                                    wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
-                    plt.setp(pcts, color='black', fontweight='bold')
-                    axis.set_title('Kill/Death-Ratio', color='white', fontsize=25)
-                    axis.axis('equal')
+                        patches, texts, pcts = axis.pie(values, labels=labels, startangle=angle, explode=explode,
+                                                        autopct=lambda pct: func(pct, values), colors=['lightgreen', 'darkorange', 'lightblue'],
+                                                        wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+                        plt.setp(pcts, color='black', fontweight='bold')
+                        axis.set_title('Kill/Death-Ratio', color='white', fontsize=25)
+                        axis.axis('equal')
+                    else:
+                        axis.set_visible(False)
                 else:
                     axis.set_visible(False)
         except (Exception, psycopg2.DatabaseError) as error:
@@ -243,10 +286,13 @@ class Statistics(commands.Cog):
             self.bot.pool.putconn(conn)
         return retval
 
-    def draw_kill_types(self, member, axis):
-        SQL_STATISTICS = 'SELECT SUM(kills_planes) as planes, SUM(kills_helicopters) helicopters, SUM(kills_ships) as ships, ' \
-            'SUM(kills_sams) as air_defence, SUM(kills_ground) as ground FROM statistics s, ' \
-            'players p WHERE s.player_ucid = p.ucid AND p.discord_id = %s'
+    def draw_kill_types(self, member, axis, server):
+        SQL_STATISTICS = 'SELECT COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(kills_helicopters), 0) helicopters, COALESCE(SUM(kills_ships), 0) as ships, ' \
+            'COALESCE(SUM(kills_sams), 0) as air_defence, COALESCE(SUM(kills_ground), 0) as ground FROM statistics s, ' \
+            'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.mission_id = m.id '
+        if (server is not None):
+            SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
+
         retval = False
         conn = self.bot.pool.getconn()
         try:
@@ -286,10 +332,13 @@ class Statistics(commands.Cog):
             self.bot.pool.putconn(conn)
         return retval
 
-    def draw_death_types(self, member, axis, legend):
+    def draw_death_types(self, member, axis, legend, server):
         SQL_STATISTICS = 'SELECT SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, SUM(deaths_ships) as ships, ' \
             'SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground FROM statistics s, ' \
-            'players p WHERE s.player_ucid = p.ucid AND p.discord_id = %s'
+            'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.mission_id = m.id '
+        if (server is not None):
+            SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
+
         retval = False
         conn = self.bot.pool.getconn()
         try:
@@ -334,7 +383,7 @@ class Statistics(commands.Cog):
     @commands.command(description='Shows player statistics', usage='[member]', aliases=['stats'])
     @commands.has_role('DCS')
     @commands.guild_only()
-    async def statistics(self, ctx, member: discord.Member = None):
+    async def statistics(self, ctx, member: discord.Member = None, server=None):
         try:
             if (member is None):
                 member = ctx.message.author
@@ -343,21 +392,21 @@ class Statistics(commands.Cog):
             figure = plt.figure(figsize=(20, 20))
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
                 executor.submit(self.draw_playtime_planes, member=member,
-                                axis=plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure))
+                                axis=plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure), server=server)
                 executor.submit(self.draw_recent, member=member, axis=plt.subplot2grid(
-                    (3, 3), (0, 2), colspan=1, fig=figure))
+                    (3, 3), (0, 2), colspan=1, fig=figure), server=server)
                 executor.submit(self.draw_server_time, member=member,
-                                axis=plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure))
+                                axis=plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure), server=server)
                 executor.submit(self.draw_map_time, member=member,
-                                axis=plt.subplot2grid((3, 3), (1, 1), colspan=1, fig=figure))
+                                axis=plt.subplot2grid((3, 3), (1, 1), colspan=1, fig=figure), server=server)
                 executor.submit(self.draw_flight_performance, member=member,
-                                axis=plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure))
+                                axis=plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure), server=server)
             ax1 = plt.subplot2grid((3, 3), (2, 0), colspan=1, fig=figure)
             ax2 = plt.subplot2grid((3, 3), (2, 1), colspan=1, fig=figure)
             ax3 = plt.subplot2grid((3, 3), (2, 2), colspan=1, fig=figure)
-            retval = self.draw_kill_performance(member, ax2)
+            retval = self.draw_kill_performance(member, ax2, server)
             i = 0
-            if (('kills' in retval) and (self.draw_kill_types(member, ax3) is True)):
+            if (('kills' in retval) and (self.draw_kill_types(member, ax3, server) is True)):
                 # use ConnectionPatch to draw lines between the two plots
                 # get the wedge data
                 theta1, theta2 = ax2.patches[i].theta1, ax2.patches[i].theta2
@@ -386,7 +435,7 @@ class Statistics(commands.Cog):
                 i += 1
             else:
                 ax3.set_visible(False)
-            if (('deaths' in retval) and (self.draw_death_types(member, ax1, (i == 0)) is True)):
+            if (('deaths' in retval) and (self.draw_death_types(member, ax1, (i == 0), server) is True)):
                 # use ConnectionPatch to draw lines between the two plots
                 # get the wedge data
                 theta1, theta2 = ax2.patches[i].theta1, ax2.patches[i].theta2
@@ -416,16 +465,51 @@ class Statistics(commands.Cog):
                 ax1.set_visible(False)
 
             plt.subplots_adjust(hspace=0.5, wspace=0.5)
-            embed = discord.Embed(title='Statistics for {}'.format(member.display_name), color=discord.Color.blue())
+            title = 'Statistics for {}'.format(member.display_name)
+            if (server is not None):
+                title += '\n_{}_'.format(server)
+            else:
+                title += '\n_- Overall -_'
+            embed = discord.Embed(title=title, color=discord.Color.blue())
             filename = '{}.png'.format(member.id)
             figure.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
             plt.close(figure)
             file = discord.File(filename)
             embed.set_image(url='attachment://' + filename)
             embed.set_footer(text='Click on the image to zoom in.')
-            with suppress(Exception):
-                await ctx.send(file=file, embed=embed)
-            os.remove(filename)
+            message = None
+            try:
+                with suppress(Exception):
+                    message = await ctx.send(file=file, embed=embed)
+                os.remove(filename)
+                if (message):
+                    await message.add_reaction('◀️')
+                    await message.add_reaction('▶️')
+                    react = await util.wait_for_single_reaction(self, ctx, message)
+                    await message.delete()
+                    if (server is None):
+                        prev = self.servers[-1]
+                        next = self.servers[0]
+                    else:
+                        i = 0
+                        prev = next = None
+                        for s in self.servers:
+                            if (s == server):
+                                break
+                            i += 1
+                        if (i < len(self.servers) - 1):
+                            next = self.servers[i + 1]
+                        if (i > 0):
+                            prev = self.servers[i - 1]
+
+                    if (react.emoji == '◀️'):
+                        await self.statistics(ctx, member, prev)
+                    elif (react.emoji == '▶️'):
+                        await self.statistics(ctx, member, next)
+
+            except asyncio.TimeoutError:
+                await message.delete()
+
         except (Exception) as error:
             self.bot.log.exception(error)
 
@@ -551,7 +635,7 @@ class Statistics(commands.Cog):
     async def serverstats(self, ctx, period=None):
         SQL_USER_BASE = 'SELECT COUNT(DISTINCT ucid) AS dcs_users, COUNT(DISTINCT discord_id)-1 AS discord_users FROM players WHERE ban = false'
         SQL_SERVER_USAGE = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 60) AS avg FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND s.hop_off IS NOT NULL'
-        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS total, ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS avg FROM missions'
+        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS total, ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS avg FROM missions ORDER BY 2 DESC'
         SQL_TOP5_MISSIONS_USAGE = 'SELECT m.mission_name, COUNT(distinct s.player_ucid) AS players FROM missions m, statistics s WHERE s.mission_id = m.id'
         SQL_LAST_14DAYS = 'SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, generate_series(DATE(NOW()) - INTERVAL \'2 weeks\', DATE(NOW()), INTERVAL \'1 day\') d WHERE d.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off) GROUP BY d.date'
         SQL_MAIN_TIMES = 'SELECT to_char(s.hop_on, \'ID\') as weekday, to_char(h.time, \'HH24\') AS hour, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, generate_series(TIMESTAMP \'01.01.1970 00:00:00\', TIMESTAMP \'01.01.1970 23:00:00\', INTERVAL \'1 hour\') h WHERE date_part(\'hour\', h.time) BETWEEN date_part(\'hour\', s.hop_on) AND date_part(\'hour\', s.hop_off)'
