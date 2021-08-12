@@ -1,0 +1,128 @@
+{
+  "filename": "config/dcsserverbot.ini.new",
+  "sections":
+  [
+    {
+      "name": "BOT",
+      "values":
+      [
+        {
+          "name": "OWNER",
+          "description": "Discord ID of the bot's owner",
+          "format": "{%18d}"
+        },
+        {
+          "name": "TOKEN",
+          "description": "Discord token (see. README.md) of the bot",
+          "format": "{%60s}",
+          "check": "check_token"
+        },
+        {
+          "name": "DATABASE_URL",
+          "description": "Database URL",
+          "example": "postgres://dcsserverbot:secret@localhost/dcsserverbot",
+          "params":
+          [
+            {
+              "name": "user",
+              "description": "database user name",
+              "default": "dcsserverbot"
+            },
+            {
+              "name": "pass",
+              "description": "database user password"
+            },
+            {
+              "name": "hostname",
+              "description": "hostname the database is installed",
+              "default": "localhost"
+            },
+            {
+              "name": "dbname",
+              "description": "name of the database",
+              "default": "dcsserverbot"
+            }
+          ],
+          "check": "check_database"
+        },
+        {
+          "name": "COMMAND_PREFIX",
+          "description": "Prefix for each bot command",
+          "default": "."
+        },
+        {
+          "name": "HOST",
+          "description": "IP-address to bind the host to (default is all interfaces)",
+          "default": "0.0.0.0"
+        },
+        {
+          "name": "PORT",
+          "description": "Port the bot listens onto",
+          "default": 10081
+        },
+        {
+          "name": "MASTER",
+          "description": "True, if this is the master bot (or the only one)",
+          "default": true
+        },
+        {
+          "name": "AUTOUPDATE",
+          "description": "True, if we shall automatically update the bot on startup",
+          "default": true
+        },
+        {
+          "name": "AUTOBAN",
+          "description": "True, if people leaving our discord should be automatically banned from the configured DCS-servers",
+          "default": true
+        }
+      ]
+    },
+    {
+      "name": "FILTER",
+      "values":
+      [
+        {
+          "name": "SERVER_FILTER",
+          "description": "A regular expression to shorten server names (statistics only).\nCan be used for better readabiliy",
+          "example": "^My Servers - will cut 'My Servers' from the beginning of each server name"
+        },
+        {
+          "name": "MISSION_FILTER",
+          "description": "A regular expression to shorten mission names (statistics only).\nCan be used for better readability.",
+          "example": "\\(.*\\) - will remove everyhing in brackets from the mission names (like weather information)"
+        }
+      ]
+    },
+    {
+      "name": "DCS",
+      "values":
+      [
+        {
+          "name": "DCS_HOME",
+          "description": "DCS World server directories to install the bot's Hook files into",
+          "default": "%%USERPROFILE%%\\Saved Games\\DCS.OpenBeta"
+        },
+        {
+          "name": "DCS_INSTALLATION",
+          "description": "DCS World installation directory",
+          "default": "%%ProgramFiles%%\\Eagle Dynamics\\DCS World OpenBeta"
+        },
+        {
+          "name": "GREETING_MESSAGE_MEMBERS",
+          "description": "A greeting message for every known discord member  joining your DCS server. Will be displayed in chat.\nFirst parameter ({1}) is the username, 2nd ({2}) the server name.",
+          "default": "{1}, welcome back at {2}!"
+        },
+        {
+          "name": "GREETING_MESSAGE_UNKNOWN",
+          "description": "A greeting message for every unknown user joining your DCS server. Will be displayed in chat.\nFirst parameter ({1}) is the username, 2nd ({2}) the invite link to your discord.",
+          "default": "{1}, please join our discord at {2}!"
+        },
+        {
+          "name": "INVITE_LINK",
+          "description": "The invite link to your discord.",
+          "example": "https://discord.gg/zjRateN"
+        }
+      ]
+    }
+  ]
+}

@@ -482,7 +482,7 @@ class Statistics(commands.Cog):
                 with suppress(Exception):
                     message = await ctx.send(file=file, embed=embed)
                 os.remove(filename)
-                if (message):
+                if (message and (len(self.servers) > 1)):
                     await message.add_reaction('◀️')
                     await message.add_reaction('▶️')
                     react = await util.wait_for_single_reaction(self, ctx, message)
@@ -634,7 +634,7 @@ class Statistics(commands.Cog):
                 with suppress(Exception):
                     message = await ctx.send(file=file, embed=embed)
                 os.remove(filename)
-                if (message):
+                if (message and (len(self.servers) > 1)):
                     await message.add_reaction('◀️')
                     await message.add_reaction('▶️')
                     react = await util.wait_for_single_reaction(self, ctx, message)
@@ -792,7 +792,7 @@ class Statistics(commands.Cog):
                     with suppress(Exception):
                         message = await ctx.send(file=file, embed=embed)
                     os.remove(filename)
-                    if (message):
+                    if (message and (len(self.servers) > 1)):
                         await message.add_reaction('◀️')
                         await message.add_reaction('▶️')
                         react = await util.wait_for_single_reaction(self, ctx, message)
