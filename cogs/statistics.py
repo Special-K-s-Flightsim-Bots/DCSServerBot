@@ -506,16 +506,16 @@ class Statistics(commands.Cog):
                         await self.statistics(ctx, member, prev)
                     elif (react.emoji == '▶️'):
                         await self.statistics(ctx, member, next)
-
             except asyncio.TimeoutError:
-                await message.delete()
-
+                await message.clear_reactions()
         except (Exception) as error:
             self.bot.log.exception(error)
 
-    def draw_highscore_playtime(self, ctx, axis, period=None):
+    def draw_highscore_playtime(self, ctx, axis, period, server):
         SQL_HIGHSCORE_PLAYTIME = 'SELECT p.discord_id, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime '\
-            'FROM statistics s, players p WHERE p.ucid = s.player_ucid AND s.hop_off IS NOT NULL AND p.discord_id <> -1'
+            'FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND s.hop_off IS NOT NULL AND p.discord_id <> -1 AND s.mission_id = m.id'
+        if (server):
+            SQL_HIGHSCORE_PLAYTIME += ' AND m.server_name = \'{}\' '.format(server)
         if (period):
             SQL_HIGHSCORE_PLAYTIME += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
         SQL_HIGHSCORE_PLAYTIME += ' GROUP BY p.discord_id ORDER BY 2 DESC LIMIT 3'
@@ -542,7 +542,7 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_highscore_kills(self, ctx, figure, period=None):
+    def draw_highscore_kills(self, ctx, figure, period, server):
         SQL_PARTS = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',
@@ -562,8 +562,10 @@ class Statistics(commands.Cog):
         COLORS = ['#CD7F32', 'silver', 'gold']
         SQL_HIGHSCORE = {}
         for key in SQL_PARTS.keys():
-            SQL_HIGHSCORE[key] = 'SELECT p.discord_id, {} FROM players p, statistics s WHERE s.player_ucid = p.ucid AND p.discord_id <> -1'.format(
+            SQL_HIGHSCORE[key] = 'SELECT p.discord_id, {} FROM players p, statistics s, missions m WHERE s.player_ucid = p.ucid AND p.discord_id <> -1 AND s.mission_id = m.id'.format(
                 SQL_PARTS[key])
+            if (server):
+                SQL_HIGHSCORE[key] += ' AND m.server_name = \'{}\' '.format(server)
             if (period):
                 SQL_HIGHSCORE[key] += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_HIGHSCORE[key] += ' GROUP BY p.discord_id HAVING {} > 0 ORDER BY 2 DESC LIMIT 3'.format(SQL_PARTS[key])
@@ -600,7 +602,7 @@ class Statistics(commands.Cog):
     @commands.command(description='Shows actual highscores', usage='[period]', aliases=['hs'])
     @commands.has_role('DCS')
     @commands.guild_only()
-    async def highscore(self, ctx, period=None):
+    async def highscore(self, ctx, period=None, server=None):
         if (period and period not in ['day', 'week', 'month']):
             await ctx.send('Period must be one of day/week/month!')
             return
@@ -610,12 +612,16 @@ class Statistics(commands.Cog):
             figure = plt.figure(figsize=(15, 20))
             with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
                 executor.submit(self.draw_highscore_playtime, ctx=ctx, axis=plt.subplot2grid(
-                    (4, 2), (0, 0), colspan=2, fig=figure), period=period)
-                executor.submit(self.draw_highscore_kills, ctx=ctx, figure=figure, period=period)
+                    (4, 2), (0, 0), colspan=2, fig=figure), period=period, server=server)
+                executor.submit(self.draw_highscore_kills, ctx=ctx, figure=figure, period=period, server=server)
             plt.subplots_adjust(hspace=0.5, wspace=0.5)
             title = 'Highscores'
             if (period):
                 title += ' of the ' + string.capwords(period)
+            if (server is not None):
+                title += '\n_{}_'.format(server)
+            else:
+                title += '\n_- Overall -_'
             embed = discord.Embed(title=title, color=discord.Color.blue())
             filename = 'highscore.png'
             figure.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
@@ -623,25 +629,59 @@ class Statistics(commands.Cog):
             file = discord.File(filename)
             embed.set_image(url='attachment://' + filename)
             embed.set_footer(text='Click on the image to zoom in.')
-            with suppress(Exception):
-                await ctx.send(file=file, embed=embed)
-            os.remove(filename)
+            message = None
+            try:
+                with suppress(Exception):
+                    message = await ctx.send(file=file, embed=embed)
+                os.remove(filename)
+                if (message):
+                    await message.add_reaction('◀️')
+                    await message.add_reaction('▶️')
+                    react = await util.wait_for_single_reaction(self, ctx, message)
+                    await message.delete()
+                    if (server is None):
+                        prev = self.servers[-1]
+                        next = self.servers[0]
+                    else:
+                        i = 0
+                        prev = next = None
+                        for s in self.servers:
+                            if (s == server):
+                                break
+                            i += 1
+                        if (i < len(self.servers) - 1):
+                            next = self.servers[i + 1]
+                        if (i > 0):
+                            prev = self.servers[i - 1]
+
+                    if (react.emoji == '◀️'):
+                        await self.highscore(ctx, period, prev)
+                    elif (react.emoji == '▶️'):
+                        await self.highscore(ctx, period, next)
+            except asyncio.TimeoutError:
+                await message.clear_reactions()
         except (Exception) as error:
             self.bot.log.exception(error)
 
     @commands.command(description='Shows servers statistics', usage='[period]')
     @commands.has_any_role('Admin', 'Moderator')
     @commands.guild_only()
-    async def serverstats(self, ctx, period=None):
+    async def serverstats(self, ctx, period=None, server=None):
         SQL_USER_BASE = 'SELECT COUNT(DISTINCT ucid) AS dcs_users, COUNT(DISTINCT discord_id)-1 AS discord_users FROM players WHERE ban = false'
         SQL_SERVER_USAGE = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 60) AS avg FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND s.hop_off IS NOT NULL'
-        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS total, ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS avg FROM missions ORDER BY 2 DESC'
+        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS total, ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS avg FROM missions'
         SQL_TOP5_MISSIONS_USAGE = 'SELECT m.mission_name, COUNT(distinct s.player_ucid) AS players FROM missions m, statistics s WHERE s.mission_id = m.id'
-        SQL_LAST_14DAYS = 'SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, generate_series(DATE(NOW()) - INTERVAL \'2 weeks\', DATE(NOW()), INTERVAL \'1 day\') d WHERE d.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off) GROUP BY d.date'
-        SQL_MAIN_TIMES = 'SELECT to_char(s.hop_on, \'ID\') as weekday, to_char(h.time, \'HH24\') AS hour, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, generate_series(TIMESTAMP \'01.01.1970 00:00:00\', TIMESTAMP \'01.01.1970 23:00:00\', INTERVAL \'1 hour\') h WHERE date_part(\'hour\', h.time) BETWEEN date_part(\'hour\', s.hop_on) AND date_part(\'hour\', s.hop_off)'
+        SQL_LAST_14DAYS = 'SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(DATE(NOW()) - INTERVAL \'2 weeks\', DATE(NOW()), INTERVAL \'1 day\') d WHERE d.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off) AND s.mission_id = m.id'
+        SQL_MAIN_TIMES = 'SELECT to_char(s.hop_on, \'ID\') as weekday, to_char(h.time, \'HH24\') AS hour, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(TIMESTAMP \'01.01.1970 00:00:00\', TIMESTAMP \'01.01.1970 23:00:00\', INTERVAL \'1 hour\') h WHERE date_part(\'hour\', h.time) BETWEEN date_part(\'hour\', s.hop_on) AND date_part(\'hour\', s.hop_off) AND s.mission_id = m.id'
 
         embed = discord.Embed(color=discord.Color.blue())
         embed.title = 'Server Statistics'
+        if (server):
+            SQL_SERVER_USAGE += ' AND m.server_name = \'{}\' '.format(server)
+            SQL_TOP3_MISSION_UPTIMES += ' WHERE server_name = \'{}\' '.format(server)
+            SQL_TOP5_MISSIONS_USAGE += ' AND m.server_name = \'{}\' '.format(server)
+            SQL_LAST_14DAYS += ' AND m.server_name = \'{}\' '.format(server)
+            SQL_MAIN_TIMES += ' AND m.server_name = \'{}\' '.format(server)
         if (period):
             SQL_SERVER_USAGE += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_TOP3_MISSION_UPTIMES += ' WHERE date(mission_start) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
@@ -653,7 +693,12 @@ class Statistics(commands.Cog):
         SQL_SERVER_USAGE += ' GROUP BY trim(m.server_name)'
         SQL_TOP3_MISSION_UPTIMES += ' GROUP BY mission_name ORDER BY 2 DESC LIMIT 3'
         SQL_TOP5_MISSIONS_USAGE += ' GROUP BY m.mission_name ORDER BY 2 DESC LIMIT 5'
+        SQL_LAST_14DAYS += ' GROUP BY d.date'
         SQL_MAIN_TIMES += ' GROUP BY 1, 2'
+
+        if (server):
+            embed.title += '\n_{}_'.format(server)
+
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -742,8 +787,37 @@ class Statistics(commands.Cog):
                 file = discord.File(filename)
                 embed.set_image(url='attachment://' + filename)
                 embed.set_footer(text='Click on the image to zoom in.')
-                await ctx.send(file=file, embed=embed)
-                os.remove(filename)
+                message = None
+                try:
+                    with suppress(Exception):
+                        message = await ctx.send(file=file, embed=embed)
+                    os.remove(filename)
+                    if (message):
+                        await message.add_reaction('◀️')
+                        await message.add_reaction('▶️')
+                        react = await util.wait_for_single_reaction(self, ctx, message)
+                        await message.delete()
+                        if (server is None):
+                            prev = self.servers[-1]
+                            next = self.servers[0]
+                        else:
+                            i = 0
+                            prev = next = None
+                            for s in self.servers:
+                                if (s == server):
+                                    break
+                                i += 1
+                            if (i < len(self.servers) - 1):
+                                next = self.servers[i + 1]
+                            if (i > 0):
+                                prev = self.servers[i - 1]
+
+                        if (react.emoji == '◀️'):
+                            await self.serverstats(ctx, period, prev)
+                        elif (react.emoji == '▶️'):
+                            await self.serverstats(ctx, period, next)
+                except asyncio.TimeoutError:
+                    await message.clear_reactions()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         finally:
