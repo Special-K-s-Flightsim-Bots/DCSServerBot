@@ -96,7 +96,15 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
             repo = git.Repo.init()
             origin = repo.create_remote('origin', url=GIT_REPO_URL)
             origin.fetch()
-            repo.git.checkout('origin/master', '-f')
+            os.rename('config/dcsserverbot.ini', 'config/dcsserverbot.old')
+            os.rename('Scripts/net/DCSServerBot/DCSServerBotConfig.lua',
+                      'Scripts/net/DCSServerBot/DCSServerBotConfig.old')
+            repo.git.checkout('origin/master', '-f', '--track')
+            shutil.copyfile('config/dcsserverbot.old', 'config/dcsserverbot.ini')
+            shutil.copyfile('Scripts/net/DCSServerBot/DCSServerBotConfig.old',
+                            'Scripts/net/DCSServerBot/DCSServerBotConfig.lua')
+            os.remove('config/dcsserverbot.old')
+            os.remove('Scripts/net/DCSServerBot/DCSServerBotConfig.old')
             bot.log.warning('Repository is linked. Restart needed.')
             exit(-1)
 
