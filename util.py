@@ -1,5 +1,6 @@
 import asyncio
 import aiohttp
+import discord
 import os
 import re
 import xmltodict
@@ -72,3 +73,39 @@ async def getLatestVersion(branch):
             for item in xpars['rss']['channel']['item']:
                 if (branch in item['link']):
                     return item['link'].split('/')[-2]
+
+
+async def wait_for_single_reaction(self, ctx, message):
+    def check_press(react, user):
+        return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.message.id == message.id)
+
+    pending_tasks = [self.bot.wait_for('reaction_add', check=check_press, timeout=300.0),
+                     self.bot.wait_for('reaction_remove', check=check_press, timeout=300.0)]
+    done_tasks, pending_tasks = await asyncio.wait(pending_tasks, return_when=asyncio.FIRST_COMPLETED)
+    react, user = done_tasks.pop().result()
+    # kill the remaining task
+    pending_tasks.pop().cancel()
+    return react
+
+
+async def yn_question(self, ctx, question, msg=None):
+    yn_embed = discord.Embed(title=question, color=discord.Color.red())
+    if (msg is not None):
+        yn_embed.add_field(name=msg, value='_ _')
+    yn_msg = await ctx.send(embed=yn_embed)
+    await yn_msg.add_reaction('🇾')
+    await yn_msg.add_reaction('🇳')
+    react = await self.wait_for_single_reaction(ctx, yn_msg)
+    await yn_msg.delete()
+    return (react.emoji == '🇾')
+
+
+async def get_server(self, ctx):
+    server = None
+    for key, item in self.bot.DCSServers.items():
+        if ((int(item['status_channel']) == ctx.channel.id) or
+            (int(item['chat_channel']) == ctx.channel.id) or
+                (int(item['admin_channel']) == ctx.channel.id)):
+            server = item
+            break
+    return server
