@@ -476,7 +476,10 @@ class Statistics(commands.Cog):
             plt.close(figure)
             file = discord.File(filename)
             embed.set_image(url='attachment://' + filename)
-            embed.set_footer(text='Click on the image to zoom in.')
+            footer = 'Click on the image to zoom in.'
+            if (len(self.servers) > 1):
+                footer += '\nPress ◀️ or ▶️ to cycle through per-server statistics.'
+            embed.set_footer(text=footer)
             message = None
             try:
                 with suppress(Exception):
@@ -507,6 +510,8 @@ class Statistics(commands.Cog):
                     elif (react.emoji == '▶️'):
                         await self.statistics(ctx, member, next)
             except asyncio.TimeoutError:
+                embed.set_footer(text='Click on the image to zoom in.')
+                await message.edit(embed=embed)
                 await message.clear_reactions()
         except (Exception) as error:
             self.bot.log.exception(error)
@@ -628,7 +633,10 @@ class Statistics(commands.Cog):
             plt.close(figure)
             file = discord.File(filename)
             embed.set_image(url='attachment://' + filename)
-            embed.set_footer(text='Click on the image to zoom in.')
+            footer = 'Click on the image to zoom in.'
+            if (len(self.servers) > 1):
+                footer += '\nPress ◀️ or ▶️ to cycle through per-server highscores.'
+            embed.set_footer(text=footer)
             message = None
             try:
                 with suppress(Exception):
@@ -659,6 +667,8 @@ class Statistics(commands.Cog):
                     elif (react.emoji == '▶️'):
                         await self.highscore(ctx, period, next)
             except asyncio.TimeoutError:
+                embed.set_footer(text='Click on the image to zoom in.')
+                await message.edit(embed=embed)
                 await message.clear_reactions()
         except (Exception) as error:
             self.bot.log.exception(error)
@@ -786,7 +796,10 @@ class Statistics(commands.Cog):
                 plt.close(figure)
                 file = discord.File(filename)
                 embed.set_image(url='attachment://' + filename)
-                embed.set_footer(text='Click on the image to zoom in.')
+                footer = 'Click on the image to zoom in.'
+                if (len(self.servers) > 1):
+                    footer += '\nPress ◀️ or ▶️ to cycle through per-server statistics.'
+                embed.set_footer(text=footer)
                 message = None
                 try:
                     with suppress(Exception):
@@ -817,6 +830,8 @@ class Statistics(commands.Cog):
                         elif (react.emoji == '▶️'):
                             await self.serverstats(ctx, period, next)
                 except asyncio.TimeoutError:
+                    embed.set_footer(text='Click on the image to zoom in.')
+                    await message.edit(embed=embed)
                     await message.clear_reactions()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
