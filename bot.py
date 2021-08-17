@@ -8,6 +8,8 @@ import platform
 import psycopg2
 import psycopg2.extras
 import shutil
+import subprocess
+import sys
 from contextlib import closing, suppress
 from discord.ext import commands
 from logging.handlers import RotatingFileHandler
@@ -78,16 +80,21 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
                 origin.fetch()
                 new_hash = origin.refs[repo.active_branch.name].object.hexsha
                 if (new_hash != current_hash):
-                    restart = False
+                    restart = modules = False
                     bot.log.warning('Remote repo has changed. Updating myself...')
                     diff = repo.head.commit.diff(new_hash)
                     for d in diff:
                         if (d.b_path == 'bot.py'):
                             restart = True
+                        elif (d.b_path == 'requirements.txt'):
+                            modules = True
                     repo.remote().pull(repo.active_branch)
                     bot.log.warning('Updated to latest version.')
+                    if (modules is True):
+                        bot.log.warning('requirements.txt has changed. Installing missing modules...')
+                        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
                     if (restart is True):
-                        bot.log.warning('bot.py has changed. Restart needed.')
+                        bot.log.warning('bot.py has changed.\nRestart needed => exiting.')
                         exit(-1)
                 else:
                     bot.log.info('No update found.')
