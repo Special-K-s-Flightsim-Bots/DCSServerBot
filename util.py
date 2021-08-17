@@ -95,7 +95,7 @@ async def yn_question(self, ctx, question, msg=None):
     yn_msg = await ctx.send(embed=yn_embed)
     await yn_msg.add_reaction('🇾')
     await yn_msg.add_reaction('🇳')
-    react = await self.wait_for_single_reaction(ctx, yn_msg)
+    react = await wait_for_single_reaction(self, ctx, yn_msg)
     await yn_msg.delete()
     return (react.emoji == '🇾')
 
