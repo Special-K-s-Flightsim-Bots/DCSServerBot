@@ -204,4 +204,7 @@ end
 
 if DCS.isServer() then
 	DCS.setUserCallbacks(dcsbotgui)  -- here we set our callbacks
+	if dcsbot.config.SERVER_USER ~= nil then
+		net.set_name(dcsbot.config.SERVER_USER)
+	end
 end

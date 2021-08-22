@@ -778,7 +778,7 @@ class Agent(commands.Cog):
                 return df[df['id'] == id].to_dict('records')[0]
 
             async def sendMessage(data):
-                return await self.get_channel(data).send(data['message'])
+                return await self.get_channel(data, 'chat_channel' if (data['channel'] == '-1') else None).send(data['message'])
 
             async def sendEmbed(data):
                 embed = discord.Embed(color=discord.Color.blue())
@@ -792,7 +792,7 @@ class Agent(commands.Cog):
                     embed.set_footer(text=data['footer'])
                 for name, value in data['fields'].items():
                     embed.add_field(name=name, value=value)
-                return await self.get_channel(data).send(embed=embed)
+                return await self.get_channel(data, 'chat_channel' if (data['channel'] == '-1') else None).send(embed=embed)
 
             async def registerDCSServer(data):
                 self.bot.log.info('Registering DCS-Server ' + data['server_name'])
@@ -1193,10 +1193,10 @@ class Agent(commands.Cog):
 
             async def displayMissionStats(data):
                 if (data['server_name'] in self.mission_stats):
-                    stats = self.mission_stats[data['server_name']]
+                    curr = self.mission_stats[data['server_name']]
                     embed = discord.Embed(title='Mission Statistics', color=discord.Color.blue())
                     for coalition in ['Blue', 'Red']:
-                        coalition_data = stats['coalitions'][coalition]
+                        coalition_data = curr['coalitions'][coalition]
                         airplanes = len(coalition_data['units']['Airplanes']
                                         ) if 'Airplanes' in coalition_data['units'] else 0
                         helicopters = len(coalition_data['units']['Helicopters']
@@ -1204,25 +1204,65 @@ class Agent(commands.Cog):
                         ground = len(coalition_data['units']['Ground Units']
                                      ) if 'Ground Units' in coalition_data['units'] else 0
                         ships = len(coalition_data['units']['Ships']) if 'Ships' in coalition_data['units'] else 0
-                        embed.add_field(name=coalition, value='```Airbases:    {}\nPlanes:      {}\nHelicopters: {}\nGround:      {}\nShips:       {}\nStatics:     {}```'.format(
-                            len(coalition_data['airbases']), airplanes, helicopters, ground, ships, len(coalition_data['statics'])))
+                        statics = len(coalition_data['statics'])
+                        value = '```Airbases:    {}[{}]'.format(
+                            len(coalition_data['airbases']), coalition_data['Airbases'])
+                        if (airplanes > 0 or coalition_data['Airplanes'] > 0):
+                            value += '\nPlanes:      {}[{}]'.format(airplanes, coalition_data['Airplanes'])
+                        if (helicopters > 0 or coalition_data['Helicopters'] > 0):
+                            value += '\nHelicopters: {}[{}]'.format(helicopters, coalition_data['Helicopters'])
+                        if (ground > 0 or coalition_data['Ground Units'] > 0):
+                            value += '\nGround:      {}[{}]'.format(ground, coalition_data['Ground Units'])
+                        if (ships > 0 or coalition_data['Ships'] > 0):
+                            value += '\nShips:       {}[{}]'.format(ships, coalition_data['Ships'])
+                        if (statics > 0 or coalition_data['Statics'] > 0):
+                            value += '\nStatics:     {}[{}]'.format(statics, coalition_data['Statics'])
+                        value += '```'
+                        embed.add_field(name=coalition, value=value)
+                    embed.set_footer(text='Original values from mission start in [].')
                     return await self.setEmbed(data, self.stats_embeds, 'stats_embed', embed)
 
             async def enableMissionStats(data):
                 self.mission_stats[data['server_name']] = data
+                for coalition in ['Blue', 'Red']:
+                    coalition_data = data['coalitions'][coalition]
+                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Airbases'] = len(
+                        coalition_data['airbases'])
+                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Airplanes'] = len(
+                        coalition_data['units']['Airplanes']) if 'Airplanes' in coalition_data['units'] else 0
+                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Helicopters'] = len(
+                        coalition_data['units']['Helicopters']) if 'Helicopters' in coalition_data['units'] else 0
+                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Ground Units'] = len(
+                        coalition_data['units']['Ground Units']) if 'Ground Units' in coalition_data['units'] else 0
+                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Ships'] = len(
+                        coalition_data['units']['Ships']) if 'Ships' in coalition_data['units'] else 0
+                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Statics'] = len(
+                        coalition_data['statics'])
                 return await UDPListener.displayMissionStats(data)
 
             async def onMissionEvent(data):
                 if (data['server_name'] in self.mission_stats):
                     stats = self.mission_stats[data['server_name']]
                     update = False
-                    if (data['eventName'] == 'lost'):
+                    if (data['eventName'] == 'birth'):
                         initiator = data['initiator']
                         if (initiator is not None and len(initiator) > 0):
                             category = self.UNIT_CATEGORY[initiator['category']]
                             coalition = self.COALITION[initiator['coalition']]
                             unit_name = initiator['unit_name']
-                            stats['coalitions'][coalition]['units'][category].remove(unit_name)
+                            if (category not in stats['coalitions'][coalition]['units']):
+                                stats['coalitions'][coalition]['units'][category] = []
+                            if (unit_name not in stats['coalitions'][coalition]['units'][category]):
+                                stats['coalitions'][coalition]['units'][category].append(unit_name)
+                            update = True
+                    elif (data['eventName'] in ['lost', 'dismiss']):
+                        initiator = data['initiator']
+                        if (initiator is not None and len(initiator) > 0):
+                            category = self.UNIT_CATEGORY[initiator['category']]
+                            coalition = self.COALITION[initiator['coalition']]
+                            unit_name = initiator['unit_name']
+                            if (unit_name in stats['coalitions'][coalition]['units'][category]):
+                                stats['coalitions'][coalition]['units'][category].remove(unit_name)
                             update = True
                     elif (data['eventName'] == 'BaseCaptured'):
                         win_coalition = self.COALITION[data['initiator']['coalition']]
