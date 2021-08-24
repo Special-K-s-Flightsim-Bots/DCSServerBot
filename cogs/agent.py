@@ -218,18 +218,22 @@ class Agent(commands.Cog):
 
     # TODO: cache that
     def getCurrentMissionID(self, server_name):
-        conn = self.bot.pool.getconn()
-        id = -1
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name, ))
-                if (cursor.rowcount > 0):
-                    id = cursor.fetchone()[0]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-        finally:
-            self.bot.pool.putconn(conn)
-        return id
+        if (self.bot.DCSServers[server_name]['statistics'] is True):
+            id = -1
+            conn = self.bot.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(
+                        'SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name, ))
+                    if (cursor.rowcount > 0):
+                        id = cursor.fetchone()[0]
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.bot.log.exception(error)
+            finally:
+                self.bot.pool.putconn(conn)
+            return id
+        else:
+            return 99
 
     def updatePlayerList(self, data):
         server = self.bot.DCSServers[data['server_name']]
