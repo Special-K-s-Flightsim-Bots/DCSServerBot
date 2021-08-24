@@ -488,7 +488,7 @@ class Agent(commands.Cog):
             await ctx.send('Loading mission ' + id + ' ...')
 
     @commands.command(description='Starts a DCS Server')
-    @commands.has_permissions(administrator=True)
+    @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def startup(self, ctx):
         server = await util.get_server(self, ctx)
@@ -504,7 +504,7 @@ class Agent(commands.Cog):
                 await ctx.send('Server "{}" is already started.'.format(server['server_name']))
 
     @commands.command(description='Shutdown a DCS Server')
-    @commands.has_permissions(administrator=True)
+    @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def shutdown(self, ctx):
         server = await util.get_server(self, ctx)
@@ -515,7 +515,7 @@ class Agent(commands.Cog):
                 server['status'] = 'Shutdown'
 
     @commands.command(description='Update a DCS Installation')
-    @commands.has_permissions(administrator=True)
+    @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def update(self, ctx):
         server = await util.get_server(self, ctx)
@@ -545,7 +545,7 @@ class Agent(commands.Cog):
                     await ctx.send('Updating DCS to the latest version ...')
 
     @commands.command(description='Change the password of a DCS server')
-    @commands.has_permissions(administrator=True)
+    @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def password(self, ctx):
         server = await util.get_server(self, ctx)
@@ -625,7 +625,7 @@ class Agent(commands.Cog):
                 await ctx.send('There is no file in the Missions directory of server {}.'.format(server['server_name']))
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
-    @commands.has_any_role('Admin', 'Moderator')
+    @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user):
         conn = self.bot.pool.getconn()
@@ -648,7 +648,7 @@ class Agent(commands.Cog):
             self.bot.pool.putconn(conn)
 
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
-    @commands.has_any_role('Admin', 'Moderator')
+    @commands.has_role('DCS Admin')
     @commands.guild_only()
     async def unban(self, ctx, user):
         conn = self.bot.pool.getconn()
@@ -724,6 +724,31 @@ class Agent(commands.Cog):
                     self.bot.pool.putconn(conn)
             else:
                 await ctx.send('Please stop server "{}" before renaming!'.format(oldname))
+
+    @commands.command(description='Resets the statistics of a specific server')
+    @commands.has_role('Admin')
+    @commands.guild_only()
+    async def reset(self, ctx):
+        server = await util.get_server(self, ctx)
+        if (server is not None):
+            server_name = server['server_name']
+            if (server['status'] in ['Stopped', 'Shutdown']):
+                conn = self.bot.pool.getconn()
+                try:
+                    if (await util.yn_question(self, ctx, 'I\'m going to **DELETE ALL STATISTICS**\nof server "{}".\n\nAre you sure?'.format(server_name)) is True):
+                        with closing(conn.cursor()) as cursor:
+                            cursor.execute(
+                                'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE server_name = %s)', (server_name, ))
+                            cursor.execute('DELETE FROM missions WHERE server_name = %s', (server_name, ))
+                            conn.commit()
+                        await ctx.send('Statistics for server "{}" have been wiped.'.format(server_name))
+                except (Exception, psycopg2.DatabaseError) as error:
+                    self.bot.log.exception(error)
+                    conn.rollback()
+                finally:
+                    self.bot.pool.putconn(conn)
+            else:
+                await ctx.send('Please stop server "{}" before deleteing the statistics!'.format(server_name))
 
     @commands.command(description='Pauses the current running mission')
     @commands.has_role('DCS Admin')
@@ -1195,49 +1220,35 @@ class Agent(commands.Cog):
                 if (data['server_name'] in self.mission_stats):
                     curr = self.mission_stats[data['server_name']]
                     embed = discord.Embed(title='Mission Statistics', color=discord.Color.blue())
+                    embed.add_field(name='▬▬▬▬▬▬ Current Situation ▬▬▬▬▬▬', value='_ _', inline=False)
+                    embed.add_field(
+                        name='_ _', value='Airbases / FARPs\nPlanes\nHelicopters\nGround Units\nShips\nStructures')
                     for coalition in ['Blue', 'Red']:
                         coalition_data = curr['coalitions'][coalition]
-                        airplanes = len(coalition_data['units']['Airplanes']
-                                        ) if 'Airplanes' in coalition_data['units'] else 0
-                        helicopters = len(coalition_data['units']['Helicopters']
-                                          ) if 'Helicopters' in coalition_data['units'] else 0
-                        ground = len(coalition_data['units']['Ground Units']
-                                     ) if 'Ground Units' in coalition_data['units'] else 0
-                        ships = len(coalition_data['units']['Ships']) if 'Ships' in coalition_data['units'] else 0
-                        statics = len(coalition_data['statics'])
-                        value = '```Airbases:    {}[{}]'.format(
-                            len(coalition_data['airbases']), coalition_data['Airbases'])
-                        if (airplanes > 0 or coalition_data['Airplanes'] > 0):
-                            value += '\nPlanes:      {}[{}]'.format(airplanes, coalition_data['Airplanes'])
-                        if (helicopters > 0 or coalition_data['Helicopters'] > 0):
-                            value += '\nHelicopters: {}[{}]'.format(helicopters, coalition_data['Helicopters'])
-                        if (ground > 0 or coalition_data['Ground Units'] > 0):
-                            value += '\nGround:      {}[{}]'.format(ground, coalition_data['Ground Units'])
-                        if (ships > 0 or coalition_data['Ships'] > 0):
-                            value += '\nShips:       {}[{}]'.format(ships, coalition_data['Ships'])
-                        if (statics > 0 or coalition_data['Statics'] > 0):
-                            value += '\nStatics:     {}[{}]'.format(statics, coalition_data['Statics'])
-                        value += '```'
+                        value = '{}\n'.format(len(coalition_data['airbases']))
+                        for unit_type in ['Airplanes', 'Helicopters', 'Ground Units', 'Ships']:
+                            value += '{}\n'.format(len(coalition_data['units'][unit_type])
+                                                   if unit_type in coalition_data['units'] else 0)
+                        value += '{}\n'.format(len(coalition_data['statics']))
                         embed.add_field(name=coalition, value=value)
-                    embed.set_footer(text='Original values from mission start in [].')
+                    embed.add_field(name='▬▬▬▬▬▬ Achievements ▬▬▬▬▬▬▬', value='_ _', inline=False)
+                    embed.add_field(
+                        name='_ _', value='Base Captures\nKilled Planes\nDowned Helicopters\nGround Shacks\nSunken Ships\nDemolished Structures')
+                    for coalition in ['Blue', 'Red']:
+                        value = ''
+                        coalition_data = curr['coalitions'][coalition]
+                        value += '{}\n'.format(coalition_data['captures'] if ('captures' in coalition_data) else 0)
+                        if ('kills' in coalition_data):
+                            for unit_type in ['Airplanes', 'Helicopters', 'Ground Units', 'Ships', 'Static']:
+                                value += '{}\n'.format(coalition_data['kills'][unit_type]
+                                                       if unit_type in coalition_data['kills'] else 0)
+                        else:
+                            value += '0\n' * 5
+                        embed.add_field(name=coalition, value=value)
                     return await self.setEmbed(data, self.stats_embeds, 'stats_embed', embed)
 
             async def enableMissionStats(data):
                 self.mission_stats[data['server_name']] = data
-                for coalition in ['Blue', 'Red']:
-                    coalition_data = data['coalitions'][coalition]
-                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Airbases'] = len(
-                        coalition_data['airbases'])
-                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Airplanes'] = len(
-                        coalition_data['units']['Airplanes']) if 'Airplanes' in coalition_data['units'] else 0
-                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Helicopters'] = len(
-                        coalition_data['units']['Helicopters']) if 'Helicopters' in coalition_data['units'] else 0
-                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Ground Units'] = len(
-                        coalition_data['units']['Ground Units']) if 'Ground Units' in coalition_data['units'] else 0
-                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Ships'] = len(
-                        coalition_data['units']['Ships']) if 'Ships' in coalition_data['units'] else 0
-                    self.mission_stats[data['server_name']]['coalitions'][coalition]['Statics'] = len(
-                        coalition_data['statics'])
                 return await UDPListener.displayMissionStats(data)
 
             async def onMissionEvent(data):
@@ -1250,25 +1261,54 @@ class Agent(commands.Cog):
                             category = self.UNIT_CATEGORY[initiator['category']]
                             coalition = self.COALITION[initiator['coalition']]
                             unit_name = initiator['unit_name']
-                            if (category not in stats['coalitions'][coalition]['units']):
-                                stats['coalitions'][coalition]['units'][category] = []
-                            if (unit_name not in stats['coalitions'][coalition]['units'][category]):
-                                stats['coalitions'][coalition]['units'][category].append(unit_name)
+                            if (initiator['type'] == 'UNIT'):
+                                if (category not in stats['coalitions'][coalition]['units']):
+                                    stats['coalitions'][coalition]['units'][category] = []
+                                if (unit_name not in stats['coalitions'][coalition]['units'][category]):
+                                    stats['coalitions'][coalition]['units'][category].append(unit_name)
+                            elif (initiator['type'] == 'STATIC'):
+                                stats['coalitions'][coalition]['statics'].append(unit_name)
                             update = True
+                    elif (data['eventName'] == 'kill'):
+                        killer = data['initiator']
+                        victim = data['target']
+                        if (killer is not None and len(killer) > 0):
+                            coalition = self.COALITION[killer['coalition']]
+                            category = self.UNIT_CATEGORY[victim['category']]
+                            if (victim['type'] == 'UNIT'):
+                                if ('kills' not in stats['coalitions'][coalition]):
+                                    stats['coalitions'][coalition]['kills'] = {}
+                                if (category not in stats['coalitions'][coalition]['kills']):
+                                    stats['coalitions'][coalition]['kills'][category] = 1
+                                else:
+                                    stats['coalitions'][coalition]['kills'][category] += 1
+                            elif (victim['type'] == 'STATIC'):
+                                if ('Static' not in stats['coalitions'][coalition]['kills']):
+                                    stats['coalitions'][coalition]['kills']['Static'] = 1
+                                else:
+                                    stats['coalitions'][coalition]['kills']['Static'] += 1
                     elif (data['eventName'] in ['lost', 'dismiss']):
                         initiator = data['initiator']
                         if (initiator is not None and len(initiator) > 0):
                             category = self.UNIT_CATEGORY[initiator['category']]
                             coalition = self.COALITION[initiator['coalition']]
                             unit_name = initiator['unit_name']
-                            if (unit_name in stats['coalitions'][coalition]['units'][category]):
-                                stats['coalitions'][coalition]['units'][category].remove(unit_name)
+                            if (initiator['type'] == 'UNIT'):
+                                if (unit_name in stats['coalitions'][coalition]['units'][category]):
+                                    stats['coalitions'][coalition]['units'][category].remove(unit_name)
+                            elif (initiator['type'] == 'STATIC'):
+                                if (unit_name in stats['coalitions'][coalition]['statics']):
+                                    stats['coalitions'][coalition]['statics'].remove(unit_name)
                             update = True
                     elif (data['eventName'] == 'BaseCaptured'):
                         win_coalition = self.COALITION[data['initiator']['coalition']]
                         lose_coalition = self.COALITION[(data['initiator']['coalition'] % 2) + 1]
                         name = data['place']['name']
                         stats['coalitions'][win_coalition]['airbases'].append(name)
+                        if ('captures' not in stats['coalitions'][win_coalition]):
+                            stats['coalitions'][win_coalition]['captures'] = 1
+                        else:
+                            stats['coalitions'][win_coalition]['captures'] += 1
                         message = '{} coalition has captured {}'.format(win_coalition.upper(), name)
                         if (name in stats['coalitions'][lose_coalition]['airbases']):
                             stats['coalitions'][lose_coalition]['airbases'].remove(name)

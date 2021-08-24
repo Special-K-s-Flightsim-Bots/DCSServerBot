@@ -68,15 +68,16 @@ function dcsbot.eventHandler:onEvent(event)
 		elseif event.id == world.event.S_EVENT_UNIT_LOST then
 			msg.eventName = 'lost'
 		else
-			return
+			return -- ignore other events
 		end
 		msg.time = event.time
-		if event.initiator ~= nil then
+		if event.initiator then
 			msg.initiator = {}
 			category = event.initiator:getCategory()
 			-- only gather events for units for now
 			if category == Object.Category.UNIT then
 				msg.initiator.unit = event.initiator
+				msg.initiator.type = 'UNIT'
 				msg.initiator.unit_name = msg.initiator.unit:getName()
 				msg.initiator.group = msg.initiator.unit:getGroup()
 				if msg.initiator.group and msg.initiator.group:isExist() then
@@ -86,12 +87,23 @@ function dcsbot.eventHandler:onEvent(event)
 				msg.initiator.coalition = msg.initiator.unit:getCoalition()
 				msg.initiator.unit_type = msg.initiator.unit:getTypeName()
 				msg.initiator.category = msg.initiator.unit:getDesc().category
+			elseif category == Object.Category.STATIC then
+				-- TODO: ejected pilot, might be useful in the future for possible SAR events
+				--if event.id == 31 then
+				--end
+				msg.initiator.type = 'STATIC'
+				msg.initiator.unit = event.initiator
+				msg.initiator.unit_name = msg.initiator.unit:getName()
+				msg.initiator.coalition = msg.initiator.unit:getCoalition()
+				msg.initiator.unit_type = msg.initiator.unit:getTypeName()
+				msg.initiator.category = msg.initiator.unit:getDesc().category
 			end
 		end
 		if event.target then
 			msg.target = {}
-			msg.target.category = event.target:getCategory()
-			if msg.target.category == Object.Category.UNIT then
+			category = event.target:getCategory()
+			if category == Object.Category.UNIT then
+				msg.target.type = 'UNIT'
 				msg.target.unit = event.target
 				msg.target.unit_name = msg.target.unit:getName()
 				msg.target.group = msg.target.unit:getGroup()
@@ -102,6 +114,15 @@ function dcsbot.eventHandler:onEvent(event)
 				msg.target.coalition = msg.target.unit:getCoalition()
 				msg.target.unit_type = msg.target.unit:getTypeName()
 				msg.target.category = msg.target.unit:getDesc().category
+			elseif category == Object.Category.STATIC then
+				msg.target.type = 'STATIC'
+				msg.target.unit = event.target
+				if event.id ~= 33 then
+					msg.target.unit_name = msg.target.unit:getName()
+					msg.target.coalition = msg.target.unit:getCoalition()
+					msg.target.unit_type = msg.target.unit:getTypeName()
+					msg.target.category = msg.target.unit:getDesc().category
+				end
 			end
 		end
 		if event.place then
@@ -145,7 +166,9 @@ function dcsbot.enableMissionStats()
 			msg.coalitions['Blue'].units[category] = {}
 		end
 		for j, unit in pairs(Group.getUnits(group)) do
-			table.insert(msg.coalitions['Blue'].units[category], unit:getName())
+			if unit:isActive() then
+				table.insert(msg.coalitions['Blue'].units[category], unit:getName())
+			end
 		end
 	end
 	msg.coalitions['Red'].units = {}
@@ -155,16 +178,18 @@ function dcsbot.enableMissionStats()
 			msg.coalitions['Red'].units[category] = {}
 		end
 		for j, unit in pairs(Group.getUnits(group)) do
-			table.insert(msg.coalitions['Red'].units[category], unit:getName())
+			if unit:isActive() then
+				table.insert(msg.coalitions['Red'].units[category], unit:getName())
+			end
 		end
 	end
 	msg.coalitions['Blue'].statics = {}
-	for id, static in pairs(coalition.getPlayers(coalition.side.BLUE)) do
-		table.insert(msg.coalitions['Blue'].statics, static:getID())
+	for id, static in pairs(coalition.getStaticObjects(coalition.side.BLUE)) do
+		table.insert(msg.coalitions['Blue'].statics, static:getName())
 	end
 	msg.coalitions['Red'].statics = {}
-	for id, static in pairs(coalition.getPlayers(coalition.side.BLUE)) do
-		table.insert(msg.coalitions['Red'].statics, static:getID())
+	for id, static in pairs(coalition.getStaticObjects(coalition.side.RED)) do
+		table.insert(msg.coalitions['Red'].statics, static:getName())
 	end
 	dcsbot.sendBotTable(msg)
 	env.info('Mission Statistics enabled.')
