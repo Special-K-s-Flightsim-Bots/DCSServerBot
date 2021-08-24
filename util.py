@@ -103,6 +103,8 @@ async def yn_question(self, ctx, question, msg=None):
 async def get_server(self, ctx):
     server = None
     for key, item in self.bot.DCSServers.items():
+        if (item['status'] == 'Unknown'):
+            continue
         if ((int(item['status_channel']) == ctx.channel.id) or
             (int(item['chat_channel']) == ctx.channel.id) or
                 (int(item['admin_channel']) == ctx.channel.id)):

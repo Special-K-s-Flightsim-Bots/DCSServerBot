@@ -20,15 +20,16 @@ Command|Parameter|Channel|Role|Description
 .pause||admin-channel|DCS Admin|Pauses the current running mission.
 .unpause||admin-channel|DCS Admin|Resumes the current running mission.
 .chat|message|chat-/admin-channel|DCS|Send a message to the DCS ingame-chat.
-.ban|@member or ucid|all|Admin/Moderator|Bans a specific player either by his Discord ID or his UCID
-.unban|@member or ucid|all|Admin/Moderator|Unbans a specific player either by his Discord ID or his UCID
-.bans||all|Admin/Moderator|Lists the current bans.
+.ban|@member or ucid|all|DCS Admin|Bans a specific player either by his Discord ID or his UCID
+.unban|@member or ucid|all|DCS Admin|Unbans a specific player either by his Discord ID or his UCID
+.bans||all|DCS Admin|Lists the current bans.
 .unregister||all|Admin|Unregisters the current server from this agent. Needed, if the very same server is going to be started on another machine connected to another agent.
 .rename|newname|admin-channel|Admin|Renames a DCS server. Server has to be shut down for the command to work.
-.password||admin-channel|Admin|Changes the password of a DCS server.
-.startup||admin-channel|Admin|Starts a dedicated DCS server instance (has to be registered, so it has to be started once outside of Discord).
-.shutdown||admin-channel|Admin|Shuts the dedicated DCS server down.
-.update||admin-channel|Admin|Updates DCS World to the latest available version.
+.password||admin-channel|DCS Admin|Changes the password of a DCS server.
+.reset||admin-channel|Admin|Resets the statistics of that specific server.
+.startup||admin-channel|DCS Admin|Starts a dedicated DCS server instance (has to be registered, so it has to be started once outside of Discord).
+.shutdown||admin-channel|DCS Admin|Shuts the dedicated DCS server down.
+.update||admin-channel|DCS Admin|Updates DCS World to the latest available version.
 
 ## User Statistics
 Gather statistics data from users and display them in a user-friendly way in your Discord.
@@ -88,6 +89,7 @@ Parameter|Description
 ..BOT_HOST|Must be the same as HOST in the Bot configuration.
 ..BOT_PORT|Must be the same as PORT in the Bot configuration (default 10081).
 ..STATISTICS|If false, no statistics will be generated for this server. Default is true.
+..SERVER_USER|The username to display as user no. 1 in the server (Observer)
 ..DCS_HOST|The IP of the machine, DCS is running onto. If you are an agent to a master in the same network but not on your machine, this has to be the internal IP of the DCS server.
 ..DCS_PORT|Must be a unique value > 1024 of a port that is not in use on your system. Must be unique for every DCS server instance configured. **__Don't expose that port to the outside world!__**
 ..CHAT_CHANNEL|The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.
@@ -156,7 +158,15 @@ If you plan to create Bot-events from inside a DCS mission, that is possible! Ju
 ```
 After that, you can for instance send chat messages to the bot using
 ```lua
-  dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear
+  dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear, default is chat channel
+```
+
+### How to enable Mission Statistics
+The bot is capable of capturing some easy mission statistics, that give an overview about the current situation (red vs blue) and how well they played.
+To enable the mission statistics, you need to put the following inside a mission start trigger:
+```lua
+  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
+  dcsbot.enableMissionStats()
 ```
 
 ## TODO
