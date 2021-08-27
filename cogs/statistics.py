@@ -537,7 +537,7 @@ class Statistics(commands.Cog):
                     values.insert(0, row[1] / 3600)
                 axis.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], height=0.75)
                 axis.set_xlabel('hours')
-                axis.set_title('Longes Playtimes', color='white', fontsize=25)
+                axis.set_title('Longest Playtimes', color='white', fontsize=25)
                 if (len(values) == 0):
                     axis.set_xticks([])
                     axis.set_yticks([])
