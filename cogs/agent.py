@@ -45,11 +45,10 @@ class Agent(commands.Cog):
     }
 
     STATUS_EMOJI = {
-        'Loading': '🔀',
+        'Loading': '🔄',
         'Paused': '⏸️',
         'Running': '▶️',
-        'Stopped': '⏹️',
-        'Shutdown': '⏹️'
+        'Stopped': '⏹️'
     }
 
     SQL_EVENT_UPDATES = {
@@ -218,22 +217,19 @@ class Agent(commands.Cog):
 
     # TODO: cache that
     def getCurrentMissionID(self, server_name):
-        if (self.bot.DCSServers[server_name]['statistics'] is True):
-            id = -1
-            conn = self.bot.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(
-                        'SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name, ))
-                    if (cursor.rowcount > 0):
-                        id = cursor.fetchone()[0]
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.bot.log.exception(error)
-            finally:
-                self.bot.pool.putconn(conn)
-            return id
-        else:
-            return 99
+        id = -1
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute(
+                    'SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name, ))
+                if (cursor.rowcount > 0):
+                    id = cursor.fetchone()[0]
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+        finally:
+            self.bot.pool.putconn(conn)
+        return id
 
     def updatePlayerList(self, data):
         server = self.bot.DCSServers[data['server_name']]
@@ -400,12 +396,7 @@ class Agent(commands.Cog):
                 await ctx.send(embed=self.format_mission_embed(mission))
             else:
                 await ctx.message.delete()
-                if (self.getCurrentMissionID(server['server_name']) != -1):
-                    self.sendtoDCS(server, {"command": "getRunningMission", "channel": ctx.channel.id})
-                else:
-                    msg = await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
-                    await asyncio.sleep(5)
-                    await msg.delete()
+                self.sendtoDCS(server, {"command": "getRunningMission", "channel": ctx.channel.id})
 
     @commands.command(description='Shows briefing of the active DCS mission', aliases=['brief'])
     @commands.has_role('DCS')
@@ -413,7 +404,7 @@ class Agent(commands.Cog):
     async def briefing(self, ctx):
         server = await util.get_server(self, ctx)
         if (server is not None):
-            if (self.getCurrentMissionID(server['server_name']) != -1):
+            if (server['status'] not in ['Stopped', 'Shutdown']):
                 embed = await self.sendtoDCSSync(server, {"command": "getMissionDetails", "channel": ctx.message.id})
                 await ctx.send(embed=embed)
             else:
@@ -429,12 +420,7 @@ class Agent(commands.Cog):
                 await ctx.send('This command can only be used in the status channel.')
             else:
                 await ctx.message.delete()
-                if (self.getCurrentMissionID(server['server_name']) != -1):
-                    self.sendtoDCS(server, {"command": "getCurrentPlayers", "channel": ctx.channel.id})
-                else:
-                    msg = await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
-                    await asyncio.sleep(5)
-                    await msg.delete()
+                self.sendtoDCS(server, {"command": "getCurrentPlayers", "channel": ctx.channel.id})
 
     @commands.command(description='Restarts the current active mission', usage='[delay] [message]')
     @commands.has_role('DCS Admin')
@@ -444,7 +430,7 @@ class Agent(commands.Cog):
         if (server is not None):
             delay = 120
             msg = None
-            if (self.getCurrentMissionID(server['server_name']) != -1):
+            if (server['status'] not in ['Stopped', 'Shutdown']):
                 i = 0
                 if (len(args)):
                     # check for delay parameter
@@ -785,14 +771,14 @@ class Agent(commands.Cog):
     @tasks.loop(minutes=10.0)
     async def update_mission_status(self):
         for server_name, server in self.bot.DCSServers.items():
-            if (self.getCurrentMissionID(server_name) != -1):
+            if (server['status'] not in ['Loading', 'Stopped', 'Shutdown']):
                 self.sendtoDCS(server, {"command": "getRunningMission",
                                         "channel": server['status_channel']})
 
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
         for server_name, server in self.bot.DCSServers.items():
-            if ('status' in server):
+            if (server['status'] in ['Loading', 'Stopped', 'Running', 'Paused']):
                 await self.bot.change_presence(activity=discord.Game(self.STATUS_EMOJI[server['status']] + ' ' +
                                                                      re.sub(self.bot.config['FILTER']['SERVER_FILTER'],
                                                                             '', server_name).strip()))
@@ -832,7 +818,7 @@ class Agent(commands.Cog):
                     return
                 if (data['status_channel'].isnumeric() is True):
                     SQL_INSERT = 'INSERT INTO servers (server_name, agent_host, host, port, chat_channel, status_channel, admin_channel) VALUES(%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, chat_channel=%s, status_channel=%s, admin_channel=%s'
-                    SQL_SELECT = 'SELECT server_name, host, port, chat_channel, status_channel, admin_channel FROM servers WHERE server_name = %s'
+                    SQL_SELECT = 'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, \'Unknown\' as status FROM servers WHERE server_name = %s'
                     conn = self.bot.pool.getconn()
                     try:
                         with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -1222,13 +1208,13 @@ class Agent(commands.Cog):
 
             async def displayMissionStats(data):
                 if (data['server_name'] in self.mission_stats):
-                    curr = self.mission_stats[data['server_name']]
+                    stats = self.mission_stats[data['server_name']]
                     embed = discord.Embed(title='Mission Statistics', color=discord.Color.blue())
                     embed.add_field(name='▬▬▬▬▬▬ Current Situation ▬▬▬▬▬▬', value='_ _', inline=False)
                     embed.add_field(
                         name='_ _', value='Airbases / FARPs\nPlanes\nHelicopters\nGround Units\nShips\nStructures')
                     for coalition in ['Blue', 'Red']:
-                        coalition_data = curr['coalitions'][coalition]
+                        coalition_data = stats['coalitions'][coalition]
                         value = '{}\n'.format(len(coalition_data['airbases']))
                         for unit_type in ['Airplanes', 'Helicopters', 'Ground Units', 'Ships']:
                             value += '{}\n'.format(len(coalition_data['units'][unit_type])
@@ -1240,7 +1226,7 @@ class Agent(commands.Cog):
                         name='_ _', value='Base Captures\nKilled Planes\nDowned Helicopters\nGround Shacks\nSunken Ships\nDemolished Structures')
                     for coalition in ['Blue', 'Red']:
                         value = ''
-                        coalition_data = curr['coalitions'][coalition]
+                        coalition_data = stats['coalitions'][coalition]
                         value += '{}\n'.format(coalition_data['captures'] if ('captures' in coalition_data) else 0)
                         if ('kills' in coalition_data):
                             for unit_type in ['Airplanes', 'Helicopters', 'Ground Units', 'Ships', 'Static']:
@@ -1292,8 +1278,8 @@ class Agent(commands.Cog):
                                 else:
                                     stats['coalitions'][coalition]['kills']['Static'] += 1
                     elif (data['eventName'] in ['lost', 'dismiss']):
-                        initiator = data['initiator']
-                        if (initiator is not None and len(initiator) > 0):
+                        if ('initiator' in data):
+                            initiator = data['initiator']
                             category = self.UNIT_CATEGORY[initiator['category']]
                             coalition = self.COALITION[initiator['coalition']]
                             unit_name = initiator['unit_name']
