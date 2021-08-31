@@ -112,9 +112,9 @@ class Agent(commands.Cog):
                     'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, \'Unknown\' as status FROM servers WHERE agent_host = %s', (platform.node(), ))
                 for row in cursor.fetchall():
                     self.bot.DCSServers[row['server_name']] = dict(row)
+                    self.bot.DCSServers[row['server_name']]['embeds'] = {}
                 cursor.execute(
                     'SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name IN (SELECT server_name FROM servers WHERE agent_host = %s)', (platform.node(), ))
-                self.bot.DCSServers[row['server_name']]['embeds'] = {}
                 for row in cursor.fetchall():
                     self.bot.DCSServers[row['server_name']]['embeds'][row['embed_name']] = row['embed']
             self.bot.log.info('{} server(s) read from database.'.format(len(self.bot.DCSServers)))
