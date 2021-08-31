@@ -253,8 +253,7 @@ class Agent(commands.Cog):
 
     async def setEmbed(self, data, embed_name, embed):
         server_name = data['server_name']
-        message = self.embeds[server_name][embed_name] if (
-            embed_name in self.embeds[server_name]) else None
+        message = self.embeds[server_name][embed_name] if (server_name in self.embeds and embed_name in self.embeds[server_name]) else None
         if (message is not None):
             try:
                 await message.edit(embed=embed)
@@ -263,7 +262,8 @@ class Agent(commands.Cog):
         if (message is None):
             if (server_name not in self.embeds):
                 self.embeds[server_name] = {}
-            message = self.embeds[server_name][embed_name] = await self.get_channel(data).send(embed=embed)
+            message = await self.get_channel(data).send(embed=embed)
+            self.embeds[server_name][embed_name] = message
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
