@@ -263,7 +263,7 @@ class Agent(commands.Cog):
         if (message is None):
             if (server_name not in self.embeds):
                 self.embeds[server_name] = {}
-                message = self.embeds[server_name][embed_name] = await self.get_channel(data).send(embed=embed)
+            message = self.embeds[server_name][embed_name] = await self.get_channel(data).send(embed=embed)
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
