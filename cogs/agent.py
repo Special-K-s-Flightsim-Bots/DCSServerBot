@@ -99,9 +99,7 @@ class Agent(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.mission_embeds = {}
-        self.players_embeds = {}
-        self.stats_embeds = {}
+        self.embeds = {}
         self.mission_stats = {}
         self.player_data = {}
         self.banList = []
@@ -116,8 +114,9 @@ class Agent(commands.Cog):
                     self.bot.DCSServers[row['server_name']] = dict(row)
                 cursor.execute(
                     'SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name IN (SELECT server_name FROM servers WHERE agent_host = %s)', (platform.node(), ))
+                self.bot.DCSServers[row['server_name']]['embeds'] = {}
                 for row in cursor.fetchall():
-                    self.bot.DCSServers[row['server_name']][row['embed_name']] = row['embed']
+                    self.bot.DCSServers[row['server_name']]['embeds'][row['embed_name']] = row['embed']
             self.bot.log.info('{} server(s) read from database.'.format(len(self.bot.DCSServers)))
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -142,15 +141,10 @@ class Agent(commands.Cog):
             self.external_ip = await self.get_external_ip()
             for server_name, server in self.bot.DCSServers.items():
                 channel = await self.bot.fetch_channel(server['status_channel'])
-                if ('mission_embed' in server and server['mission_embed']):
+                self.embeds[server_name] = {}
+                for embed_name, embed_id in server['embeds'].items():
                     with suppress(Exception):
-                        self.mission_embeds[server_name] = await channel.fetch_message(server['mission_embed'])
-                if ('players_embed' in server and server['players_embed']):
-                    with suppress(Exception):
-                        self.players_embeds[server_name] = await channel.fetch_message(server['players_embed'])
-                if ('stats_embed' in server and server['stats_embed']):
-                    with suppress(Exception):
-                        self.stats_embeds[server_name] = await channel.fetch_message(server['stats_embed'])
+                        self.embeds[server_name][embed_name] = await channel.fetch_message(embed_id)
                 try:
                     # check for any registration updates (channels, etc)
                     await self.sendtoDCSSync(server, {"command": "registerDCSServer", "channel": -1})
@@ -257,21 +251,24 @@ class Agent(commands.Cog):
             for ban in self.banList:
                 self.sendtoDCS(server, {"command": "ban", "ucid": ban['ucid'], "channel": server['status_channel']})
 
-    async def setEmbed(self, data, all_embeds, embed_name, embed):
-        message = all_embeds[data['server_name']] if (
-            data['server_name'] in all_embeds) else None
+    async def setEmbed(self, data, embed_name, embed):
+        server_name = data['server_name']
+        message = self.embeds[server_name][embed_name] if (
+            embed_name in self.embeds[server_name]) else None
         if (message is not None):
             try:
                 await message.edit(embed=embed)
             except discord.errors.NotFound:
                 message = None
         if (message is None):
-            all_embeds[data['server_name']] = await self.get_channel(data).send(embed=embed)
+            if (server_name not in self.embeds):
+                self.embeds[server_name] = {}
+                message = self.embeds[server_name][embed_name] = await self.get_channel(data).send(embed=embed)
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
                     cursor.execute('INSERT INTO message_persistence (server_name, embed_name, embed) VALUES (%s, %s, %s) ON CONFLICT (server_name, embed_name) DO UPDATE SET embed=%s', (
-                        data['server_name'], embed_name, all_embeds[data['server_name']].id, all_embeds[data['server_name']].id))
+                        server_name, embed_name, message.id, message.id))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
@@ -611,6 +608,7 @@ class Agent(commands.Cog):
                 file = ' '.join(path)
             if (file is not None):
                 self.sendtoDCS(server, {"command": "addMission", "path": file, "channel": ctx.channel.id})
+                await ctx.send('Mission {} added.'.format(file))
             else:
                 await ctx.send('There is no file in the Missions directory of server {}.'.format(server['server_name']))
 
@@ -669,9 +667,7 @@ class Agent(commands.Cog):
             server_name = server['server_name']
             if (server['status'] in ['Stopped', 'Shutdown']):
                 if (await util.yn_question(self, ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True):
-                    self.mission_embeds.pop(server_name)
-                    self.players_embeds.pop(server_name)
-                    self.bot.DCSServers.pop(server_name)
+                    self.embeds.pop(server_name)
                     await ctx.send('Server {} unregistered.'.format(server_name))
                 else:
                     await ctx.send('Aborted.')
@@ -700,12 +696,8 @@ class Agent(commands.Cog):
                             conn.commit()
                         util.changeServerSettings(server['server_name'], 'name', newname)
                         server['server_name'] = newname
-                        self.mission_embeds[newname] = self.mission_embeds[oldname]
-                        self.players_embeds[newname] = self.players_embeds[oldname]
-                        self.player_data[newname] = self.player_data[oldname]
-                        self.mission_embeds.pop(oldname)
-                        self.players_embeds.pop(oldname)
-                        self.player_data.pop(oldname)
+                        self.embeds[newname] = self.embeds[oldname]
+                        self.embeds.pop(oldname)
                         await ctx.send('Server has been renamed.')
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.bot.log.exception(error)
@@ -805,9 +797,13 @@ class Agent(commands.Cog):
                     embed.set_image(url=data['img'])
                 if ('footer' in data and len(data['footer']) > 0):
                     embed.set_footer(text=data['footer'])
-                for name, value in data['fields'].items():
-                    embed.add_field(name=name, value=value)
-                return await self.get_channel(data, 'chat_channel' if (data['channel'] == '-1') else None).send(embed=embed)
+                if ('fields' in data):
+                    for name, value in data['fields'].items():
+                        embed.add_field(name=name, value=value)
+                if ('id' in data and len(data['id']) > 0):
+                    return await self.setEmbed(data, data['id'], embed)
+                else:
+                    return await self.get_channel(data, 'chat_channel' if (data['channel'] == '-1') else None).send(embed=embed)
 
             async def registerDCSServer(data):
                 self.bot.log.info('Registering DCS-Server ' + data['server_name'])
@@ -858,7 +854,7 @@ class Agent(commands.Cog):
                         self.bot.DCSServers[data['server_name']
                                             ]['status'] = 'Paused' if data['pause'] is True else 'Running'
                     embed = self.format_mission_embed(data)
-                    return await self.setEmbed(data, self.mission_embeds, 'mission_embed', embed)
+                    return await self.setEmbed(data, 'mission_embed', embed)
                 else:
                     return data
 
@@ -877,7 +873,7 @@ class Agent(commands.Cog):
                     embed.add_field(name='Name', value=names)
                     embed.add_field(name='Unit', value=units)
                     embed.add_field(name='Side', value=sides)
-                    return await self.setEmbed(data, self.players_embeds, 'players_embed', embed)
+                    return await self.setEmbed(data, 'players_embed', embed)
                 else:
                     return data
 
@@ -1235,7 +1231,7 @@ class Agent(commands.Cog):
                         else:
                             value += '0\n' * 5
                         embed.add_field(name=coalition, value=value)
-                    return await self.setEmbed(data, self.stats_embeds, 'stats_embed', embed)
+                    return await self.setEmbed(data, 'stats_embed', embed)
 
             async def enableMissionStats(data):
                 self.mission_stats[data['server_name']] = data

@@ -37,8 +37,13 @@ function dcsbot.sendBotMessage(msg, channel)
 end
 
 function dcsbot.sendEmbed(title, description, img, fields, footer, channel)
+	dcsbot.updateEmbed(nil, title, description, img, fields, footer, channel)
+end
+
+function dcsbot.updateEmbed(id, title, description, img, fields, footer, channel)
 	local msg = {}
 	msg.command = 'sendEmbed'
+	msg.id = id
 	msg.title = title
 	msg.description = description
 	msg.img = img
@@ -145,7 +150,14 @@ function dcsbot.enableMissionStats()
 	msg.command = 'enableMissionStats'
 	msg.airbases = {}
 	for id, airbase in pairs(world.getAirbases()) do
-		table.insert(msg.airbases, airbase:getName())
+		lat, lon, alt = coord.LOtoLL(airbase:getPoint())
+		local a = {
+			['name'] = airbase:getName(),
+			['lat'] = lat,
+			['long'] = lon,
+			['alt'] = alt
+		}
+		table.insert(msg.airbases, a)
 	end
 	msg.coalitions = {}
 	msg.coalitions['Blue'] = {}
