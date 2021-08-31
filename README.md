@@ -156,13 +156,41 @@ If you plan to create Bot-events from inside a DCS mission, that is possible! Ju
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
 ```
-After that, you can for instance send chat messages to the bot using
+After that, you can send chat messages to the bot using
 ```lua
-  dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear, default is chat channel
+  dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear, default is the configured chat channel
 ```
 
+Embeds can be sent using code similar to that snipplet:
+```lua
+  title = 'Special K successfully landed at Kutaisi!'
+  description = 'The unbelievable and unimaginable event happend. Special K succeeded at his 110th try to successfully land at Kutaisi, belly down.'
+  img = 'https://i.chzbgr.com/full/8459987200/hB315ED4E/damn-instruction-manual'
+  fields = {
+    ['Pilot'] = 'sexy as hell',
+    ['Speed'] = '130 kn',
+    ['Wind'] = 'calm'
+  }
+  footer = 'Just kidding, they forgot to put their gear down!'
+  dcsbot.sendEmbed(title, description, img, fields, footer)
+```
+They will be posted in the chat channel by default, too, if not specified otherwise (adding the channel id as a last parameter of the sendEmbed() call, see sendBotMessage() above).
+
+If you like to use a single embed, maybe in the status channel, and update it instead, you can do that, too:
+```lua
+  title = 'RED Coalition captured Kutaisi!'
+  description = 'After a successful last bombing run, RED succeeded in capturing the strategic base of Kutaisi.\nBLUE has to fight back **NOW** there is just one base left!'
+  dcsbot.updateEmbed('myEmbed', title, description)
+  --[....]
+  title = 'Mission Over!'
+  description = 'RED has won after capturing the last BLUE base Batumi, congratulations!'
+  img = 'http://3.bp.blogspot.com/-2u16gMPPgMQ/T1wfXR-bn9I/AAAAAAAAFrQ/yBKrNa9Q88U/s1600/chuck-norris-in-war-middle-east-funny-pinoy-jokes-2012.jpg'
+  dcsbot.updateEmbed('myEmbed', title, description, img)
+```
+If no embed is there, the updateEmbed() call will generate it for you.
+
 ### How to enable Mission Statistics
-The bot is capable of capturing some easy mission statistics, that give an overview about the current situation (red vs blue) and how well they played.
+The bot is capable of capturing some easy mission statistics, that'll give an overview about the current situation (red vs blue) and how well they played.
 To enable the mission statistics, you need to put the following inside a mission start trigger:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
@@ -178,4 +206,3 @@ Things to be added in the future:
 ## Credits
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this solution.
 I gave my best to mark parts in the code to show where I copied some ideas or even code from you guys. Hope that is ok.
-Both frameworks are much more comprehensive than what I did here, so you better check those out before you look at my simple solution.

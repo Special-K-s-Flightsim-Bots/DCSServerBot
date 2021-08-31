@@ -53,11 +53,12 @@ bot = commands.Bot(command_prefix=get_prefix,
 bot.config = config
 bot.version = VERSION
 
-# Initialize the logger and i18n
+# Initialize the logger
 bot.log = logging.getLogger(name='dcsserverbot')
 bot.log.setLevel(logging.DEBUG)
 fh = RotatingFileHandler('dcsserverbot.log', maxBytes=10*1024*2024, backupCount=2)
 fh.setLevel(logging.INFO)
+fh.setFormatter(logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',datefmt='%Y-%m-%d %H:%M:%S'))
 fh.doRollover()
 ch = logging.StreamHandler()
 ch.setLevel(logging.WARN)
