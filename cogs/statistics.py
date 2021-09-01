@@ -333,7 +333,8 @@ class Statistics(commands.Cog):
         return retval
 
     def draw_death_types(self, member, axis, legend, server):
-        SQL_STATISTICS = 'SELECT SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, SUM(deaths_ships) as ships, ' \
+        SQL_STATISTICS = 'SELECT SUM(deaths - deaths_planes - deaths_helicopters - deaths_ships - deaths_sams - deaths_ground) AS self,' \
+            'SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, SUM(deaths_ships) as ships, ' \
             'SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground FROM statistics s, ' \
             'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.mission_id = m.id '
         if (server is not None):
@@ -554,15 +555,15 @@ class Statistics(commands.Cog):
             'Air Defence': 'SUM(s.kills_sams)',
             'Ground Targets': 'SUM(s.kills_ground)',
             'Most Efficient Killers': 'SUM(s.kills) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600)',
-            'Most Wasteful Pilots': 'SUM(deaths) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600)'
+            'Most Wasteful Pilots': 'SUM(s.crashes) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600)'
         }
         LABELS = {
             'Air Targets': 'kills',
             'Ships': 'kills',
             'Air Defence': 'kills',
             'Ground Targets': 'kills',
-            'Most Efficient Killers': 'avg. kills / 24 hrs flighttime',
-            'Most Wasteful Pilots': 'avg. airframes wasted / 24 hrs flighttime'
+            'Most Efficient Killers': 'kills / h',
+            'Most Wasteful Pilots': 'airframes wasted / h'
         }
         COLORS = ['#CD7F32', 'silver', 'gold']
         SQL_HIGHSCORE = {}
@@ -573,7 +574,7 @@ class Statistics(commands.Cog):
                 SQL_HIGHSCORE[key] += ' AND m.server_name = \'{}\' '.format(server)
             if (period):
                 SQL_HIGHSCORE[key] += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
-            SQL_HIGHSCORE[key] += ' GROUP BY p.discord_id HAVING {} > 0 ORDER BY 2 DESC LIMIT 3'.format(SQL_PARTS[key])
+            SQL_HIGHSCORE[key] += ' AND s.hop_off IS NOT NULL GROUP BY p.discord_id HAVING {} > 0 ORDER BY 2 DESC LIMIT 3'.format(SQL_PARTS[key])
 
         conn = self.bot.pool.getconn()
         try:
