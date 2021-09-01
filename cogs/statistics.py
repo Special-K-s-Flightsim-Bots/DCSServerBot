@@ -287,7 +287,7 @@ class Statistics(commands.Cog):
         return retval
 
     def draw_kill_types(self, member, axis, server):
-        SQL_STATISTICS = 'SELECT COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(kills_helicopters), 0) helicopters, COALESCE(SUM(kills_ships), 0) as ships, ' \
+        SQL_STATISTICS = 'SELECT 0 AS self, COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(kills_helicopters), 0) helicopters, COALESCE(SUM(kills_ships), 0) as ships, ' \
             'COALESCE(SUM(kills_sams), 0) as air_defence, COALESCE(SUM(kills_ground), 0) as ground FROM statistics s, ' \
             'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.mission_id = m.id '
         if (server is not None):
@@ -322,7 +322,7 @@ class Statistics(commands.Cog):
                         axis.set_title('Killed by\nPlayer', color='white', fontsize=15)
                         axis.axis('off')
                         axis.set_xlim(- 2.5 * width, 2.5 * width)
-                        axis.legend(labels, fontsize=15, loc=3, ncol=5, mode='expand',
+                        axis.legend(labels, fontsize=15, loc=3, ncol=6, mode='expand',
                                     bbox_to_anchor=(-2.4, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
                         # Chart was drawn, return True
                         retval = True
@@ -371,7 +371,7 @@ class Statistics(commands.Cog):
                         axis.axis('off')
                         axis.set_xlim(- 2.5 * width, 2.5 * width)
                         if (legend is True):
-                            axis.legend(labels, fontsize=15, loc=3, ncol=5, mode='expand',
+                            axis.legend(labels, fontsize=15, loc=3, ncol=6, mode='expand',
                                         bbox_to_anchor=(0.6, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
                         # Chart was drawn, return True
                         retval = True
