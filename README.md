@@ -6,40 +6,40 @@ The following two main features are supported:
 ## DCS Server Remote Control
 Control registered DCS servers via Discord commands.
 The following commands are supported:
-Command|Parameter|Channel|Role|Description
--------|-----------|-------|-------|---------
-.servers||all|DCS|Lists all registered DCS servers and their status (same as .mission but for all). Servers will auto-register on startup.
-.mission||status-/admin-channel|DCS Admin|Information about the active mission. Persistent display in status-channel.
-.briefing/.brief||status-/chat-/admin-channel|DCS|Shows the description / briefing of the running mission.
-.players||status-/admin-channel|DCS Admin|Lists the players currently active on the server. Persistent display in status-channel.
-.list||admin-channel|DCS Admin|Lists all missions with IDs available on this server (same as WebGUI).
-.add|[miz-file]|admin-channel|DCS Admin|Adds a specific mission to the list of missions, that has to be in Saved Games/DCS[.OpenBeta]/Missions. If no miz file is provided, a list of all available files in the servers Missions directory will be provided.
-.delete|ID|admin-channel|DCS Admin|Deletes the mission with this ID from the list of missions.
-.start / .load|ID|admin-channel|DCS Admin|Starts a specific mission by ID.
-.restart|[time in secs] [message]|admin-channel|DCS Admin|Restarts the current mission after [time] seconds. A message will be sent into the ingame chat of that server.
-.pause||admin-channel|DCS Admin|Pauses the current running mission.
-.unpause||admin-channel|DCS Admin|Resumes the current running mission.
-.chat|message|chat-/admin-channel|DCS|Send a message to the DCS ingame-chat.
-.ban|@member or ucid|all|DCS Admin|Bans a specific player either by his Discord ID or his UCID
-.unban|@member or ucid|all|DCS Admin|Unbans a specific player either by his Discord ID or his UCID
-.bans||all|DCS Admin|Lists the current bans.
-.unregister||all|Admin|Unregisters the current server from this agent. Needed, if the very same server is going to be started on another machine connected to another agent.
-.rename|newname|admin-channel|Admin|Renames a DCS server. Server has to be shut down for the command to work.
-.password||admin-channel|DCS Admin|Changes the password of a DCS server.
-.reset||admin-channel|Admin|Resets the statistics of that specific server.
-.startup||admin-channel|DCS Admin|Starts a dedicated DCS server instance (has to be registered, so it has to be started once outside of Discord).
-.shutdown||admin-channel|DCS Admin|Shuts the dedicated DCS server down.
-.update||admin-channel|DCS Admin|Updates DCS World to the latest available version.
+|Command|Parameter|Channel|Role|Description|
+| ------------ | ------------ | ------------ | ------------ | ------------ |
+|.servers||all|DCS|Lists all registered DCS servers and their status (same as .mission but for all). Servers will auto-register on startup.|
+|.mission||status-/admin-channel|DCS Admin|Information about the active mission. Persistent display in status-channel.|
+|.briefing/.brief||status-/chat-/admin-channel|DCS|Shows the description / briefing of the running mission.|
+|.players||status-/admin-channel|DCS Admin|Lists the players currently active on the server. Persistent display in status-channel.|
+|.list||admin-channel|DCS Admin|Lists all missions with IDs available on this server (same as WebGUI).|
+|.add|[miz-file]|admin-channel|DCS Admin|Adds a specific mission to the list of missions, that has to be in Saved Games/DCS[.OpenBeta]/Missions. If no miz file is provided, a list of all available files in the servers Missions directory will be provided.|
+|.delete|ID|admin-channel|DCS Admin|Deletes the mission with this ID from the list of missions.|
+|.start / .load|ID|admin-channel|DCS Admin|Starts a specific mission by ID.|
+|.restart|[time in secs] [message]|admin-channel|DCS Admin|Restarts the current mission after [time] seconds. A message will be sent into the ingame chat of that server.|
+|.pause||admin-channel|DCS Admin|Pauses the current running mission.|
+|.unpause||admin-channel|DCS Admin|Resumes the current running mission.|
+|.chat|message|chat-/admin-channel|DCS|Send a message to the DCS ingame-chat.|
+|.ban|@member or ucid|all|DCS Admin|Bans a specific player either by their Discord ID or UCID.|
+|.unban|@member or ucid|all|DCS Admin|Unbans a specific player either by their Discord ID or UCID.|
+|.bans||all|DCS Admin|Lists the current bans.|
+|.unregister||all|Admin|Unregisters the current server from this agent. Needed, if the very same server is going to be started on another machine connected to another agent.|
+|.rename|newname|admin-channel|Admin|Renames a DCS server. Server has to be shut down for the command to work.|
+|.password||admin-channel|DCS Admin|Changes the password of a DCS server.|
+|.reset||admin-channel|Admin|Resets the statistics of that specific server.|
+|.startup||admin-channel|DCS Admin|Starts a dedicated DCS server instance (has to be registered, so it has to be started once outside of Discord).|
+|.shutdown||admin-channel|DCS Admin|Shuts the dedicated DCS server down.|
+|.update||admin-channel|DCS Admin|Updates DCS World to the latest available version.|
 
 ## User Statistics
 Gather statistics data from users and display them in a user-friendly way in your Discord.
 The following commands are supported:
-Command|Parameter|Role|Description
--------|-----------|---------|----------
-.link|@member or ucid|Admin/Moderator|Sometimes users can't be linked automatically. That is a manual workaround.
-.statistics/.stats|[@member]|DCS|Display your own statistics or that of a specific member.
-.highscore/.hs|[day] / [week] / [month]|DCS|Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)
-.serverstats|[week] / [month]|Admin/Moderator|Displays server statistics, like usual playtimes, most frequented servers and missions
+|Command|Parameter|Role|Description|
+| ------------ | ------------ | ------------ | ------------ |
+|.link|@member or ucid|Admin/Moderator|Sometimes users can't be linked automatically. That is a manual workaround.|
+|.statistics/.stats|[@member]|DCS|Display your own statistics or that of a specific member.|
+|.highscore/.hs|[day] / [week] / [month]|DCS|Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)|
+|.serverstats|[week] / [month]|Admin/Moderator|Displays server statistics, like usual playtimes, most frequented servers and missions|
 
 ## Installation
 First of all, download the latest release version and extract it somewhere on your server, where it has write access.
@@ -63,38 +63,38 @@ For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings"
 
 ### Bot Configuration
 The bot configuration is held in config/dcsserverbot.ini. The following parameters can be used to configure the bot:
-Parameter|Description
------------|--------------
-OWNER|The Discord ID of the Bot's owner (that's you!). If you don't know your ID, go to your Discord profile, make sure "Developer Mode" is enabled under "Advanced", go to "My Account", press the "..." besides your profile picture and select "Copy ID"
-TOKEN|The token to be used to run the bot. Can be obtained at http://discord.com/developers.
-DATABASE_URL|URL to the PostgreSQL database used to store our data.
-COMMAND_PREFIX|The prefix to be used. Default is '.'
-HOST|IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.
-PORT|UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose that port to the outside world!__**
-MASTER|If true, start the bot in master-mode which enables specific commands that are only allowed **once** on your server. If only one bot is running, then there is only a master.\nIf you have to use more than one bot, for multiple DCS servers that are spanned over several locations, you have to install one agent at every location. All DCS servers of that specific location will then automatically register with that specific bot and can only be controlled by that bot.
-AUTOUPDATE|If true, the bot autoupdates itself with the latest release on startup.
-AUTOBAN|If true, members leaving the discord will be automatically banned.
-SERVER_FILTER|Filter to shorten server names (if needed)
-MISSION_FILTER|Filter to shorten mission names (if needed)
-DCS_HOME|The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.
-DCS_INSTALLATION|The installation directory of DCS World.
-GREETING_MESSAGE_MEMBERS|A greeting message, that people will receive in DCS, if they get recognized by the bot as a member of your discord.
-GREETING_MESSAGE_UNKNOWN|A greeting message, that people will receive in DCS, if they or not recognized as a member of your discord.
+|Parameter|Description|
+| ------------ | ------------ |
+|OWNER|The Discord ID of the Bot's owner (that's you!). If you don't know your ID, go to your Discord profile, make sure "Developer Mode" is enabled under "Advanced", go to "My Account", press the "..." besides your profile picture and select "Copy ID"|
+|TOKEN|The token to be used to run the bot. Can be obtained at http://discord.com/developers.|
+|DATABASE_URL|URL to the PostgreSQL database used to store our data.|
+|COMMAND_PREFIX|The prefix to be used. Default is '.'|
+|HOST|IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.|
+|PORT|UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose that port to the outside world!__**|
+|MASTER|If true, start the bot in master-mode which enables specific commands that are only allowed **once** on your server. If only one bot is running, then there is only a master.\nIf you have to use more than one bot, for multiple DCS servers that are spanned over several locations, you have to install one agent at every location. All DCS servers of that specific location will then automatically register with that specific bot and can only be controlled by that bot.|
+|AUTOUPDATE|If true, the bot autoupdates itself with the latest release on startup.|
+|AUTOBAN|If true, members leaving the discord will be automatically banned.|
+|SERVER_FILTER|Filter to shorten server names (if needed)|
+|MISSION_FILTER|Filter to shorten mission names (if needed)|
+|DCS_HOME|The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.|
+|DCS_INSTALLATION|The installation directory of DCS World.|
+|GREETING_MESSAGE_MEMBERS|A greeting message, that people will receive in DCS, if they get recognized by the bot as a member of your discord.|
+|GREETING_MESSAGE_UNKNOWN|A greeting message, that people will receive in DCS, if they or not recognized as a member of your discord.|
 
 ### DCS/Hook Configuration
 The DCS World integration is done via a Hook. This is being installed automatically.
 You need to configure the Hook upfront in Scripts/net/DCSServerBot/DCSServerBotConfig.lua
-Parameter|Description
------------|--------------
-..BOT_HOST|Must be the same as HOST in the Bot configuration.
-..BOT_PORT|Must be the same as PORT in the Bot configuration (default 10081).
-..STATISTICS|If false, no statistics will be generated for this server. Default is true.
-..SERVER_USER|The username to display as user no. 1 in the server (Observer)
-..DCS_HOST|The IP of the machine, DCS is running onto. If you are an agent to a master in the same network but not on your machine, this has to be the internal IP of the DCS server.
-..DCS_PORT|Must be a unique value > 1024 of a port that is not in use on your system. Must be unique for every DCS server instance configured. **__Don't expose that port to the outside world!__**
-..CHAT_CHANNEL|The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.
-..STATUS_CHANNEL|The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.
-..ADMIN_CHANNEL|The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.
+|Parameter|Description|
+| ------------ | ------------ |
+|..BOT_HOST|Must be the same as HOST in the Bot configuration.|
+|..BOT_PORT|Must be the same as PORT in the Bot configuration (default 10081).|
+|..STATISTICS|If false, no statistics will be generated for this server. Default is true.|
+|..SERVER_USER|The username to display as user no. 1 in the server (Observer)|
+|..DCS_HOST|The IP of the machine, DCS is running onto. If you are an agent to a master in the same network but not on your machine, this has to be the internal IP of the DCS server.|
+|..DCS_PORT|Must be a unique value > 1024 of a port that is not in use on your system. Must be unique for every DCS server instance configured. **__Don't expose that port to the outside world!__**|
+|..CHAT_CHANNEL|The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.|
+|..STATUS_CHANNEL|The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.|
+|..ADMIN_CHANNEL|The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.|
 
 ### Sanitization
 The DCSServerBot uses lua functions that are santitized by default. To enable them, you have to change the following lines in DCS_INSTALLATION\\Scripts\\MissionScripting.lua:
@@ -112,11 +112,11 @@ If you run more than one instance of DCS, don't forget to change SlmodMissionScr
 
 ### Discord Configuration
 The following roles have to be set up in your Discord guild:
-Role|Description
--------|-----------
-DCS|People with this role are allowed to chat, check their statistics and gather information about running missions and players.
-DCS Admin|People with this role are allowed to restart missions and managing the mission list.
-Admin / Moderator|People with one of these roles are allowed to manage the server, to ban/unban people and to link discord-IDs to ucids, when the autodetection didn't work
+|Role|Description|
+| ------------ | ------------ |
+|DCS|People with this role are allowed to chat, check their statistics and gather information about running missions and players.|
+|DCS Admin|People with this role are allowed to restart missions and managing the mission list.|
+|Admin / Moderator|People with one of these roles are allowed to manage the server, to ban/unban people and to link discord-IDs to ucids, when the autodetection didn't work.|
 
 ### **!!! ATTENTION !!!**
 _One of the concepts of this bot it to bind people to your discord._
