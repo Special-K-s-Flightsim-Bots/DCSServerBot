@@ -1290,6 +1290,9 @@ class Agent(commands.Cog):
                         win_coalition = self.COALITION[data['initiator']['coalition']]
                         lose_coalition = self.COALITION[(data['initiator']['coalition'] % 2) + 1]
                         name = data['place']['name']
+                        ## workaround for DCS BaseCapture-bug
+                        if (name in stats['coalitions'][win_coalition]['airbases']):
+                            return None
                         stats['coalitions'][win_coalition]['airbases'].append(name)
                         if ('captures' not in stats['coalitions'][win_coalition]):
                             stats['coalitions'][win_coalition]['captures'] = 1
