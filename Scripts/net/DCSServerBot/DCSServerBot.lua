@@ -206,3 +206,9 @@ function dcsbot.enableMissionStats()
 	dcsbot.sendBotTable(msg)
 	env.info('Mission Statistics enabled.')
 end
+
+function dcsbot.disableUserStats()
+	local msg = {}
+	msg.command = 'disableUserStats'
+	dcsbot.sendBotTable(msg, channel)
+end

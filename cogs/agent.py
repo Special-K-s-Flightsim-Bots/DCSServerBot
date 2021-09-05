@@ -283,6 +283,9 @@ class Agent(commands.Cog):
 
     def format_mission_embed(self, mission):
         server = self.bot.DCSServers[mission['server_name']]
+        if ('serverSettings' not in server):
+            self.bot.log.error('Can\'t format mission embed due to incomplete server data.')
+            return None
         plugins = []
         embed = discord.Embed(title='{} [{}/{}]\n{}'.format(mission['server_name'],
                                                             mission['num_players'], server['serverSettings']['maxPlayers'],
@@ -854,7 +857,10 @@ class Agent(commands.Cog):
                         self.bot.DCSServers[data['server_name']
                                             ]['status'] = 'Paused' if data['pause'] is True else 'Running'
                     embed = self.format_mission_embed(data)
-                    return await self.setEmbed(data, 'mission_embed', embed)
+                    if (embed):
+                        return await self.setEmbed(data, 'mission_embed', embed)
+                    else:
+                        return None
                 else:
                     return data
 
@@ -1236,6 +1242,24 @@ class Agent(commands.Cog):
             async def enableMissionStats(data):
                 self.mission_stats[data['server_name']] = data
                 return await UDPListener.displayMissionStats(data)
+
+            async def disableUserStats(data):
+                SQL_DELETE_STATISTICS = 'DELETE FROM statistics WHERE mission_id = %s'
+                SQL_DELETE_MISSION = 'DELETE FROM missions WHERE id = %s'
+                self.bot.DCSServers[data['server_name']]['statistics'] = False
+                conn = self.bot.pool.getconn()
+                try:
+                    mission_id = self.getCurrentMissionID(data['server_name'])
+                    with closing(conn.cursor()) as cursor:
+                        cursor.execute(SQL_DELETE_MISSION, (mission_id, ))
+                        cursor.execute(SQL_DELETE_STATISTICS, (mission_id, ))
+                        conn.commit()
+                except (Exception, psycopg2.DatabaseError) as error:
+                    self.bot.log.exception(error)
+                    conn.rollback()
+                finally:
+                    self.bot.pool.putconn(conn)
+
 
             async def onMissionEvent(data):
                 if (data['server_name'] in self.mission_stats):

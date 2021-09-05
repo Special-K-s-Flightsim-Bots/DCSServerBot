@@ -173,6 +173,10 @@ function dcsbotgui.onChatMessage(message, from)
 end
 
 function dcsbotgui.onPlayerTryConnect(addr, name, ucid, playerID)
+	-- we don't accept empty player IDs
+	if playerID == nil or playerID == '' then
+		return false
+	end
 	return not dcsbot.isBanned(ucid)
 end
 

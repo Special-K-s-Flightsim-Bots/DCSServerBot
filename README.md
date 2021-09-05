@@ -123,6 +123,7 @@ _One of the concepts of this bot it to bind people to your discord._
 
 The bot automatically bans / unbans people from the configured DCS servers, as soon as they leave / join the configured Discord guild.
 If you don't like that feature, set AUTOBAN = false in dcsserverbot.ini.
+Besides that, people that have no pilot ID (empty), will not get into the server. That is not configurable, it's a general rule (and a good one in my eyes).
 
 ## How to do the more complex stuff?
 DCSServerBot can be used to run a whole worldwide distributed set of DCS servers and therefore supports the largest communities.
@@ -195,6 +196,14 @@ To enable the mission statistics, you need to put the following inside a mission
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
   dcsbot.enableMissionStats()
+```
+
+### How to disable User Statistics from inside Missions
+Sometimes you don't want your mission to generate per-user statistics, but you don't want to configure your server to disable them forever?
+Well, then - just disable them from inside your mission:
+```lua
+  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
+  dcsbot.disableUserStats()
 ```
 
 ## TODO
