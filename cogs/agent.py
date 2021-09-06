@@ -13,7 +13,7 @@ import re
 import socket
 import socketserver
 import subprocess
-import util
+import utils
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
 from datetime import timedelta
@@ -365,7 +365,7 @@ class Agent(commands.Cog):
         return embed
 
     @commands.command(description='Lists the registered DCS servers')
-    @commands.has_role('DCS')
+    @utils.has_role('DCS')
     @commands.guild_only()
     async def servers(self, ctx):
         if (len(self.bot.DCSServers) > 0):
@@ -377,19 +377,19 @@ class Agent(commands.Cog):
             await ctx.send('No server running on host {}'.format(platform.node()))
 
     @commands.command(description='Send a chat message to a running DCS instance', usage='<message>', hidden=True)
-    @commands.has_role('DCS')
+    @utils.has_role('DCS')
     @commands.guild_only()
     async def chat(self, ctx, *args):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             self.sendtoDCS(server, {"command": "sendChatMessage", "channel": ctx.channel.id, "message": ' '.join(args),
                                     "from": ctx.message.author.display_name})
 
     @commands.command(description='Shows the active DCS mission', hidden=True)
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def mission(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             if (int(server['status_channel']) != ctx.channel.id):
                 mission = await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
@@ -399,10 +399,10 @@ class Agent(commands.Cog):
                 self.sendtoDCS(server, {"command": "getRunningMission", "channel": ctx.channel.id})
 
     @commands.command(description='Shows briefing of the active DCS mission', aliases=['brief'])
-    @commands.has_role('DCS')
+    @utils.has_role('DCS')
     @commands.guild_only()
     async def briefing(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             if (server['status'] not in ['Stopped', 'Shutdown']):
                 embed = await self.sendtoDCSSync(server, {"command": "getMissionDetails", "channel": ctx.message.id})
@@ -411,10 +411,10 @@ class Agent(commands.Cog):
                 await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
 
     @commands.command(description='List the current players on this server', hidden=True)
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def players(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             if (int(server['status_channel']) != ctx.channel.id):
                 await ctx.send('This command can only be used in the status channel.')
@@ -423,10 +423,10 @@ class Agent(commands.Cog):
                 self.sendtoDCS(server, {"command": "getCurrentPlayers", "channel": ctx.channel.id})
 
     @commands.command(description='Restarts the current active mission', usage='[delay] [message]')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def restart(self, ctx, *args):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             delay = 120
             msg = None
@@ -458,10 +458,10 @@ class Agent(commands.Cog):
                 await msg.delete()
 
     @commands.command(description='Lists the current configured missions')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def list(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             with suppress(asyncio.TimeoutError):
                 embed = await self.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
@@ -469,24 +469,24 @@ class Agent(commands.Cog):
             return await ctx.send('Server ' + server['server_name'] + ' is not running.')
 
     @commands.command(description='Starts a mission by ID', usage='<ID>', aliases=['load'])
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def start(self, ctx, id):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             self.sendtoDCS(server, {"command": "startMission", "id": id, "channel": ctx.channel.id})
             await ctx.send('Loading mission ' + id + ' ...')
 
     @commands.command(description='Starts a DCS Server')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def startup(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             if (server['status'] in ['Stopped', 'Shutdown']):
                 self.bot.log.info('Launching DCS instance with: "{}\\bin\\dcs.exe" --server --norender -w {}'.format(
-                    os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']), util.findDCSInstallations(server['server_name'])[0]))
-                subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', util.findDCSInstallations(server['server_name'])
+                    os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']), utils.findDCSInstallations(server['server_name'])[0]))
+                subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', utils.findDCSInstallations(server['server_name'])
                                   [0]], executable=os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs.exe')
                 server['status'] = 'Loading'
                 await ctx.send('Server "{}" starting up ...'.format(server['server_name']))
@@ -494,25 +494,25 @@ class Agent(commands.Cog):
                 await ctx.send('Server "{}" is already started.'.format(server['server_name']))
 
     @commands.command(description='Shutdown a DCS Server')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def shutdown(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
-            if (await util.yn_question(self, ctx, 'Are you sure to shut down server "{}"?'.format(server['server_name'])) is True):
+            if (await utils.yn_question(self, ctx, 'Are you sure to shut down server "{}"?'.format(server['server_name'])) is True):
                 self.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                 await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
                 server['status'] = 'Shutdown'
 
     @commands.command(description='Update a DCS Installation')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def update(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             # check versions
-            branch, old_version = util.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
-            new_version = await util.getLatestVersion(branch)
+            branch, old_version = utils.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
+            new_version = await utils.getLatestVersion(branch)
             if (old_version == new_version):
                 await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
             else:
@@ -521,24 +521,24 @@ class Agent(commands.Cog):
                     if (item['status'] not in ['Stopped', 'Shutdown']):
                         servers.append(item)
                 if (len(servers)):
-                    if (await util.yn_question(self, ctx, 'Would you like me to stop the running servers and run the update?') is True):
+                    if (await utils.yn_question(self, ctx, 'Would you like me to stop the running servers and run the update?') is True):
                         for server in servers:
                             self.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                             await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
                             server['status'] = 'Shutdown'
                     else:
                         return
-                if (await util.yn_question(self, ctx, 'Would you like to update from version {} to {}?'.format(old_version, new_version)) is True):
+                if (await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?'.format(old_version, new_version)) is True):
                     self.bot.log.info('Updating DCS to the latest version.')
                     subprocess.Popen(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
                         self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
                     await ctx.send('Updating DCS to the latest version ...')
 
     @commands.command(description='Change the password of a DCS server')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def password(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             if (server['status'] == 'Shutdown'):
                 msg = await ctx.send('Please enter the new password: ')
@@ -546,25 +546,25 @@ class Agent(commands.Cog):
                 password = response.content
                 await msg.delete()
                 await response.delete()
-                util.changeServerSettings(server['server_name'], 'password', password)
+                utils.changeServerSettings(server['server_name'], 'password', password)
                 await ctx.send('Password has been changed.')
             else:
                 await ctx.send('Server "{}" has to be shut down to change the password.'.format(server['server_name']))
 
     @commands.command(description='Deletes a mission from the list', usage='<ID>')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def delete(self, ctx, id):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             self.sendtoDCS(server, {"command": "deleteMission", "id": id, "channel": ctx.channel.id})
             await ctx.send('Mission {} deleted.'.format(id))
 
     @commands.command(description='Adds a mission to the list', usage='<path>')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def add(self, ctx, *path):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         file = None
         if (server is not None):
             if (len(path) == 0):
@@ -592,7 +592,7 @@ class Agent(commands.Cog):
                         await message.add_reaction('⏹️')
                         if (((j + 1) * 5) < len(files)):
                             await message.add_reaction('▶️')
-                        react = await util.wait_for_single_reaction(self, ctx, message)
+                        react = await utils.wait_for_single_reaction(self, ctx, message)
                         await message.delete()
                         if (react.emoji == '◀️'):
                             j -= 1
@@ -616,7 +616,7 @@ class Agent(commands.Cog):
                 await ctx.send('There is no file in the Missions directory of server {}.'.format(server['server_name']))
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user):
         conn = self.bot.pool.getconn()
@@ -639,7 +639,7 @@ class Agent(commands.Cog):
             self.bot.pool.putconn(conn)
 
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unban(self, ctx, user):
         conn = self.bot.pool.getconn()
@@ -662,14 +662,14 @@ class Agent(commands.Cog):
             self.bot.pool.putconn(conn)
 
     @commands.command(description='Unregisters the server from this instance')
-    @commands.has_role('Admin')
+    @utils.has_role('Admin')
     @commands.guild_only()
     async def unregister(self, ctx, node=platform.node()):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             server_name = server['server_name']
             if (server['status'] in ['Stopped', 'Shutdown']):
-                if (await util.yn_question(self, ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True):
+                if (await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True):
                     self.embeds.pop(server_name)
                     await ctx.send('Server {} unregistered.'.format(server_name))
                 else:
@@ -678,17 +678,17 @@ class Agent(commands.Cog):
                 await ctx.send('Please stop server "{}" before unregistering!'.format(server_name))
 
     @commands.command(description='Rename a server')
-    @commands.has_role('Admin')
+    @utils.has_role('Admin')
     @commands.guild_only()
     async def rename(self, ctx, *args):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             oldname = server['server_name']
             newname = ' '.join(args)
             if (server['status'] in ['Stopped', 'Shutdown']):
                 conn = self.bot.pool.getconn()
                 try:
-                    if (await util.yn_question(self, ctx, 'Are you sure to rename server "{}" to "{}"?'.format(oldname, newname)) is True):
+                    if (await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" to "{}"?'.format(oldname, newname)) is True):
                         with closing(conn.cursor()) as cursor:
                             cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
                                            (newname, oldname))
@@ -697,7 +697,7 @@ class Agent(commands.Cog):
                             cursor.execute('UPDATE missions SET server_name = %s WHERE server_name = %s',
                                            (newname, oldname))
                             conn.commit()
-                        util.changeServerSettings(server['server_name'], 'name', newname)
+                        utils.changeServerSettings(server['server_name'], 'name', newname)
                         server['server_name'] = newname
                         self.embeds[newname] = self.embeds[oldname]
                         self.embeds.pop(oldname)
@@ -711,16 +711,16 @@ class Agent(commands.Cog):
                 await ctx.send('Please stop server "{}" before renaming!'.format(oldname))
 
     @commands.command(description='Resets the statistics of a specific server')
-    @commands.has_role('Admin')
+    @utils.has_role('Admin')
     @commands.guild_only()
     async def reset(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             server_name = server['server_name']
             if (server['status'] in ['Stopped', 'Shutdown']):
                 conn = self.bot.pool.getconn()
                 try:
-                    if (await util.yn_question(self, ctx, 'I\'m going to **DELETE ALL STATISTICS**\nof server "{}".\n\nAre you sure?'.format(server_name)) is True):
+                    if (await utils.yn_question(self, ctx, 'I\'m going to **DELETE ALL STATISTICS**\nof server "{}".\n\nAre you sure?'.format(server_name)) is True):
                         with closing(conn.cursor()) as cursor:
                             cursor.execute(
                                 'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE server_name = %s)', (server_name, ))
@@ -736,10 +736,10 @@ class Agent(commands.Cog):
                 await ctx.send('Please stop server "{}" before deleteing the statistics!'.format(server_name))
 
     @commands.command(description='Pauses the current running mission')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def pause(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             if (server['status'] == 'Running'):
                 self.sendtoDCS(server, {"command": "pause", "channel": ctx.channel.id})
@@ -748,10 +748,10 @@ class Agent(commands.Cog):
                 await ctx.send('Server "{}" is not running.'.format(server['server_name']))
 
     @commands.command(description='Unpauses the current running mission')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unpause(self, ctx):
-        server = await util.get_server(self, ctx)
+        server = await utils.get_server(self, ctx)
         if (server is not None):
             if (server['status'] == 'Paused'):
                 self.sendtoDCS(server, {"command": "unpause", "channel": ctx.channel.id})

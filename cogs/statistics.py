@@ -9,7 +9,7 @@ import os
 import psycopg2
 import psycopg2.extras
 import re
-import util
+import utils
 from contextlib import closing, suppress
 from datetime import timedelta
 from discord.ext import commands
@@ -45,7 +45,7 @@ class Statistics(commands.Cog):
             self.bot.pool.putconn(conn)
 
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
-    @commands.has_any_role('Admin', 'Moderator')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def link(self, ctx, member: discord.Member, ucid):
         conn = self.bot.pool.getconn()
@@ -382,7 +382,7 @@ class Statistics(commands.Cog):
         return retval
 
     @commands.command(description='Shows player statistics', usage='[member]', aliases=['stats'])
-    @commands.has_role('DCS')
+    @utils.has_role('DCS')
     @commands.guild_only()
     async def statistics(self, ctx, member: discord.Member = None, server=None):
         try:
@@ -489,7 +489,7 @@ class Statistics(commands.Cog):
                 if (message and (len(self.servers) > 1)):
                     await message.add_reaction('◀️')
                     await message.add_reaction('▶️')
-                    react = await util.wait_for_single_reaction(self, ctx, message)
+                    react = await utils.wait_for_single_reaction(self, ctx, message)
                     await message.delete()
                     if (server is None):
                         prev = self.servers[-1]
@@ -606,7 +606,7 @@ class Statistics(commands.Cog):
             self.bot.pool.putconn(conn)
 
     @commands.command(description='Shows actual highscores', usage='[period]', aliases=['hs'])
-    @commands.has_role('DCS')
+    @utils.has_role('DCS')
     @commands.guild_only()
     async def highscore(self, ctx, period=None, server=None):
         if (period and period not in ['day', 'week', 'month']):
@@ -646,7 +646,7 @@ class Statistics(commands.Cog):
                 if (message and (len(self.servers) > 1)):
                     await message.add_reaction('◀️')
                     await message.add_reaction('▶️')
-                    react = await util.wait_for_single_reaction(self, ctx, message)
+                    react = await utils.wait_for_single_reaction(self, ctx, message)
                     await message.delete()
                     if (server is None):
                         prev = self.servers[-1]
@@ -675,7 +675,7 @@ class Statistics(commands.Cog):
             self.bot.log.exception(error)
 
     @commands.command(description='Shows servers statistics', usage='[period]')
-    @commands.has_any_role('Admin', 'Moderator')
+    @utils.has_role('Admin')
     @commands.guild_only()
     async def serverstats(self, ctx, period=None, server=None):
         SQL_USER_BASE = 'SELECT COUNT(DISTINCT ucid) AS dcs_users, COUNT(DISTINCT discord_id)-1 AS discord_users FROM players WHERE ban = false'
@@ -809,7 +809,7 @@ class Statistics(commands.Cog):
                     if (message and (len(self.servers) > 1)):
                         await message.add_reaction('◀️')
                         await message.add_reaction('▶️')
-                        react = await util.wait_for_single_reaction(self, ctx, message)
+                        react = await utils.wait_for_single_reaction(self, ctx, message)
                         await message.delete()
                         if (server is None):
                             prev = self.servers[-1]

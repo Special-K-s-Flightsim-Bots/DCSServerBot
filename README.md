@@ -36,10 +36,10 @@ Gather statistics data from users and display them in a user-friendly way in you
 The following commands are supported:
 |Command|Parameter|Role|Description|
 | ------------ | ------------ | ------------ | ------------ |
-|.link|@member or ucid|Admin/Moderator|Sometimes users can't be linked automatically. That is a manual workaround.|
+|.link|@member or ucid|DCS Admin|Sometimes users can't be linked automatically. That is a manual workaround.|
 |.statistics/.stats|[@member]|DCS|Display your own statistics or that of a specific member.|
 |.highscore/.hs|[day] / [week] / [month]|DCS|Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)|
-|.serverstats|[week] / [month]|Admin/Moderator|Displays server statistics, like usual playtimes, most frequented servers and missions|
+|.serverstats|[week] / [month]|Admin|Displays server statistics, like usual playtimes, most frequented servers and missions|
 
 ## Installation
 First of all, download the latest release version and extract it somewhere on your server, where it has write access.
@@ -74,6 +74,9 @@ The bot configuration is held in config/dcsserverbot.ini. The following paramete
 |MASTER|If true, start the bot in master-mode which enables specific commands that are only allowed **once** on your server. If only one bot is running, then there is only a master.\nIf you have to use more than one bot, for multiple DCS servers that are spanned over several locations, you have to install one agent at every location. All DCS servers of that specific location will then automatically register with that specific bot and can only be controlled by that bot.|
 |AUTOUPDATE|If true, the bot autoupdates itself with the latest release on startup.|
 |AUTOBAN|If true, members leaving the discord will be automatically banned.|
+|Admin|The name of the admin role in you Discord.|
+|DCS Admin|The name of the role you'd like to give admin rights on your DCS servers (_Moderator_ for instance).|
+|DCS|The role of users being able to see their statistics and mission information (usually the general user role in you Discord).|
 |SERVER_FILTER|Filter to shorten server names (if needed)|
 |MISSION_FILTER|Filter to shorten mission names (if needed)|
 |DCS_HOME|The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.|
@@ -111,12 +114,13 @@ If you are using Slmod, you can change these lines in Saved Games\\DCS[.openbeta
 If you run more than one instance of DCS, don't forget to change SlmodMissionScripting.lua **in all instances**, as they would overwrite each other otherwise.
 
 ### Discord Configuration
-The following roles have to be set up in your Discord guild:
+The bot uses the following **internal** roles to apply specific permissions to commands.
+You can change the role names to the ones being used in your discord. That has to be done in the ini configuration file.
 |Role|Description|
 | ------------ | ------------ |
 |DCS|People with this role are allowed to chat, check their statistics and gather information about running missions and players.|
-|DCS Admin|People with this role are allowed to restart missions and managing the mission list.|
-|Admin / Moderator|People with one of these roles are allowed to manage the server, to ban/unban people and to link discord-IDs to ucids, when the autodetection didn't work.|
+|DCS Admin|People with this role are allowed to restart missions, managing the mission list, ban and unban people.|
+|Admin|People with this role are allowed to manage the server, start it up, shut it down, update it, change the password and gather the server statistics.|
 
 ### **!!! ATTENTION !!!**
 _One of the concepts of this bot it to bind people to your discord._
@@ -209,7 +213,6 @@ Well, then - just disable them from inside your mission:
 ## TODO
 Things to be added in the future:
 * user-friendly installation
-* Make discord roles configurable
 * Own sanitization implementation
 
 ## Credits
