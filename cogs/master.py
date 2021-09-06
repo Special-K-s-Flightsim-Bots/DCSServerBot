@@ -2,10 +2,10 @@
 import discord
 import psycopg2
 import psycopg2.extras
+import utils
+from cogs.agent import Agent
 from contextlib import closing
 from discord.ext import commands
-from .agent import Agent
-
 
 class Master(Agent):
 
@@ -13,7 +13,7 @@ class Master(Agent):
         super().__init__(bot)
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user):
         conn = self.bot.pool.getconn()
@@ -39,7 +39,7 @@ class Master(Agent):
             self.bot.pool.putconn(conn)
 
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unban(self, ctx, user):
         conn = self.bot.pool.getconn()
@@ -65,7 +65,7 @@ class Master(Agent):
             self.bot.pool.putconn(conn)
 
     @commands.command(description='Shows active bans')
-    @commands.has_role('DCS Admin')
+    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def bans(self, ctx):
         conn = self.bot.pool.getconn()

@@ -1,9 +1,12 @@
 import asyncio
 import aiohttp
 import discord
+import functools
 import os
 import re
 import xmltodict
+from configparser import ConfigParser
+from discord.ext import commands
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
 REGEXP = {
@@ -12,6 +15,8 @@ REGEXP = {
 }
 PATCHNOTES_URL = 'https://www.digitalcombatsimulator.com/en/news/changelog/rss/'
 
+config = ConfigParser()
+config.read('config/dcsserverbot.ini')
 
 def findDCSInstallations(server_name=None):
     installations = []
@@ -111,3 +116,19 @@ async def get_server(self, ctx):
             server = item
             break
     return server
+
+def has_role(item: str):
+    def predicate(ctx):
+        if ctx.guild is None:
+            raise commands.errors.NoPrivateMessage()
+
+        if ('ROLES' not in config or item not in config['ROLES']):
+            valid_roles = [ item ]
+        else:
+            valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
+        for role in ctx.author.roles:
+            if role.name in valid_roles:
+                return True
+        raise commands.errors.MissingRole(item)
+
+    return commands.check(predicate)
