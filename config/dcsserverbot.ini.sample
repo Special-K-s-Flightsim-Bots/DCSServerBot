@@ -10,6 +10,11 @@ MASTER = true
 AUTOUPDATE = true
 AUTOBAN = true
 
+[ROLES]
+Admin = Admin
+DCS Admin = DCS Admin
+DCS = DCS
+
 [FILTER]
 ; EXAMPLE: remove "My Servers" from the start of each server name
 SERVER_FILTER = ^My Servers
