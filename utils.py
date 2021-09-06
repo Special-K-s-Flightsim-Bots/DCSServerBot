@@ -122,7 +122,10 @@ def has_role(item: str):
         if ctx.guild is None:
             raise commands.errors.NoPrivateMessage()
 
-        valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
+        if ('ROLES' not in config or item not in config['ROLES']):
+            valid_roles = [ item ]
+        else:
+            valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
         for role in ctx.author.roles:
             if role.name in valid_roles:
                 return True
