@@ -113,6 +113,8 @@ class Agent(commands.Cog):
                 for row in cursor.fetchall():
                     self.bot.DCSServers[row['server_name']] = dict(row)
                     self.bot.DCSServers[row['server_name']]['embeds'] = {}
+                    # Initialize statistics with true unless we get other information from the server
+                    self.bot.DCSServers[row['server_name']]['statistics'] = True
                 cursor.execute(
                     'SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name IN (SELECT server_name FROM servers WHERE agent_host = %s)', (platform.node(), ))
                 for row in cursor.fetchall():

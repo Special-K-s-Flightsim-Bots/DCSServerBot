@@ -84,14 +84,18 @@ async def wait_for_single_reaction(self, ctx, message):
     def check_press(react, user):
         return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.message.id == message.id)
 
-    pending_tasks = [self.bot.wait_for('reaction_add', check=check_press, timeout=300.0),
-                     self.bot.wait_for('reaction_remove', check=check_press, timeout=300.0)]
-    done_tasks, pending_tasks = await asyncio.wait(pending_tasks, return_when=asyncio.FIRST_COMPLETED)
-    react, user = done_tasks.pop().result()
-    # kill the remaining task
-    pending_tasks.pop().cancel()
-    return react
-
+    tasks = [self.bot.wait_for('reaction_add', check=check_press),
+             self.bot.wait_for('reaction_remove', check=check_press)]
+    try:
+        done, tasks = await asyncio.wait(tasks, timeout=300, return_when=asyncio.FIRST_COMPLETED)
+        if (len(done) > 0):
+            react, _ = done.pop().result()
+            return react
+        else:
+            raise asyncio.TimeoutError
+    finally:
+        for task in tasks:
+            task.cancel()
 
 async def yn_question(self, ctx, question, msg=None):
     yn_embed = discord.Embed(title=question, color=discord.Color.red())
