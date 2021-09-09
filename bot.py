@@ -1,6 +1,5 @@
 # bot.py
 import asyncio
-import configparser
 import discord
 import logging
 import os
@@ -10,13 +9,15 @@ import psycopg2.extras
 import shutil
 import subprocess
 import sys
+import utils
+from configparser import ConfigParser
 from contextlib import closing, suppress
 from discord.ext import commands
 from logging.handlers import RotatingFileHandler
 from os import path
 from psycopg2 import pool
 
-config = configparser.ConfigParser()
+config = ConfigParser()
 config.read('config/dcsserverbot.ini')
 
 # Set the bot's version (not externally configurable)
@@ -58,7 +59,7 @@ bot.log = logging.getLogger(name='dcsserverbot')
 bot.log.setLevel(logging.DEBUG)
 fh = RotatingFileHandler('dcsserverbot.log', maxBytes=10*1024*2024, backupCount=2)
 fh.setLevel(logging.INFO)
-fh.setFormatter(logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',datefmt='%Y-%m-%d %H:%M:%S'))
+fh.setFormatter(logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
 fh.doRollover()
 ch = logging.StreamHandler()
 ch.setLevel(logging.WARN)
@@ -213,16 +214,20 @@ if (config.getboolean('BOT', 'MASTER') is True):
         bot.pool.putconn(conn)
 
 # Installing Hook
-dcs_path = os.path.expandvars(config['DCS']['DCS_HOME'] + '\\Scripts')
-assert path.exists(dcs_path), 'Can\'t find DCS installation directory. Exiting.'
-ignore = None
-if (path.exists(dcs_path + '\\net\\DCSServerBot')):
-    bot.log.info('Updating Hook ...')
-    ignore = shutil.ignore_patterns('DCSServerBotConfig.lua')
-else:
-    bot.log.info('Installing Hook ...')
-shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
-bot.log.info('Hook installed.')
+for installation in utils.findDCSInstallations():
+    if (installation not in config):
+        continue
+    bot.log.warning('Adding DCS installation: {}'.format(installation))
+    dcs_path = os.path.expandvars(config[installation]['DCS_HOME'] + '\\Scripts')
+    assert path.exists(dcs_path), 'Can\'t find DCS installation directory. Exiting.'
+    ignore = None
+    if (path.exists(dcs_path + '\\net\\DCSServerBot')):
+        bot.log.info('Updating Hook ...')
+        ignore = shutil.ignore_patterns('DCSServerBotConfig.lua')
+    else:
+        bot.log.info('Installing Hook ...')
+    shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
+    bot.log.info('Hook installed into {}.'.format(installation))
 
 # TODO change sanitizeModules
 bot.log.warning('Starting {}-Node on {}'.format('Master' if config.getboolean(
