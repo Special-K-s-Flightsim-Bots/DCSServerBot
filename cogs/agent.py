@@ -11,6 +11,7 @@ import psycopg2.extras
 import re
 import socket
 import socketserver
+import string
 import subprocess
 import utils
 from concurrent.futures import ThreadPoolExecutor
@@ -153,13 +154,13 @@ class Agent(commands.Cog):
                     # preload players list
                     await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
                 except asyncio.TimeoutError:
-                    if (('START_DCS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'START_DCS') is True)):
+                    if (('AUTOSTART_DCS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'AUTOSTART_DCS') is True)):
                         self.start_dcs(installation)
-                        server['status'] = 'Unknown'
+                        server['status'] = 'Loading'
                     else:
                         server['status'] = 'Shutdown'
                 finally:
-                    if (('START_SRS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'START_SRS') is True)):
+                    if (('AUTOSTART_SRS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'AUTOSTART_SRS') is True)):
                         if (not utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT'])):
                             self.start_srs(installation)
         finally:
@@ -323,6 +324,20 @@ class Agent(commands.Cog):
         embed.add_field(name='Avail. Slots',
                         value='🔹 {}  |  {} 🔸'.format(mission['num_slots_blue'] if 'num_slots_blue' in mission else '-', mission['num_slots_red'] if 'num_slots_red' in mission else '-'))
         embed.add_field(name='▬' * 25, value='_ _', inline=False)
+        if ('weather' in mission):
+            weather = mission['weather']
+            if (weather['atmosphere_type'] == 0):
+                embed.add_field(name='Preset', value=string.capwords(weather['clouds']['preset']).replace('.', '\n'))
+            else:
+                embed.add_field(name='Weather', value='Dynamic')
+            embed.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
+            embed.add_field(name='QNH', value='{:.2f} inHg'.format(weather['qnh'] * 0.0393701))
+            embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {} ft\nDensity:\u2002\u2002 {}/10\nThickness: {} ft'.format(
+                weather['clouds']['base'], weather['clouds']['density'], weather['clouds']['thickness']))
+            embed.add_field(name='Wind', value='at Ground: {}° / {} m/s\nat 2000 ft: {}° / {} m/s\nat 8000 ft: {}° / {} m/s'.format(
+                int(weather['wind']['atGround']['dir']), int(weather['wind']['atGround']['speed']), int(weather['wind']['at2000']['dir']), int(weather['wind']['at2000']['speed']), int(weather['wind']['at8000']['dir']), int(weather['wind']['at8000']['speed'])))
+            embed.add_field(name='Visibility', value=str(weather['visibility']['distance']) + ' ft')
+            embed.add_field(name='▬' * 25, value='_ _', inline=False)
         if ('SRSSettings' in server):
             plugins.append('SRS')
             if ('EXTERNAL_AWACS_MODE' in server['SRSSettings'] and server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True):
@@ -416,6 +431,54 @@ class Agent(commands.Cog):
             else:
                 await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
 
+    @commands.command(description='Shows weather information of a specific airport')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def weather(self, ctx, airport):
+        server = await utils.get_server(self, ctx)
+        if (server is not None):
+            if (server['status'] not in ['Stopped', 'Shutdown']):
+                if (server['server_name'] in self.mission_stats):
+                    found = False
+                    for airbase in self.mission_stats[server['server_name']]['airbases']:
+                        if (airport.casefold() in airbase['name'].casefold()):
+                            found = True
+                            data = await self.sendtoDCSSync(server, {"command": "getWeatherInfo", "channel": ctx.message.id, "lat": airbase['lat'], "lng": airbase['lng'], "alt": airbase['alt']})
+                            embed = discord.Embed(title='Weather Report for\n_{}_'.format(
+                                airbase['name']), color=discord.Color.blue())
+                            d, m, s, f = utils.DDtoDMS(airbase['lat'])
+                            lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
+                            d, m, s, f = utils.DDtoDMS(airbase['lng'])
+                            lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
+                            embed.add_field(name='Position', value=f'{lat} {lng}', inline=False)
+                            embed.add_field(name='Altitude', value='{} ft'.format(int(airbase['alt'])), inline=False)
+                            if ('preset' in data['clouds']):
+                                thickness = data['clouds']['preset']['layers'][0]['altitudeMax'] - \
+                                    data['clouds']['preset']['layers'][0]['altitudeMin']
+                            else:
+                                thickness = data['clouds']['thickness']
+                            embed.add_field(name='Clouds', value='Base: {} ft / Thickness: {} ft'.format(
+                                data['clouds']['base'], thickness), inline=False)
+                            embed.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']), inline=False)
+                            embed.add_field(name='QFE', value='{} hPa / {:.2f} inHg / {} mmHg'.format(
+                                int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])), inline=False)
+                            embed.add_field(name='Wind', value='\n'.join(data['wind']), inline=False)
+                            embed.add_field(name='Turbulence', value=data['turbulence'][0], inline=False)
+                            if ('preset' in data['clouds']):
+                                preset_id = int(data['clouds']['preset']['readableName'][:2])
+                                file = discord.File(os.path.expandvars(
+                                    self.bot.config['DCS']['DCS_INSTALLATION']) + '\\Bazar\\Effects\\Clouds\\Thumbnails\\cloud_{}.png'.format(preset_id))
+                                embed.set_image(url='attachment://cloud_{}.png'.format(preset_id))
+                                await ctx.send(file=file, embed=embed)
+                            else:
+                                await ctx.send(embed=embed)
+                    if (not found):
+                        await ctx.send(f'Airport "{airport}" could not be found.')
+                else:
+                    await ctx.send('You need to load DCSServerBot.lua in your mission.')
+            else:
+                await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
+
     @commands.command(description='List the current players on this server', hidden=True)
     @utils.has_role('DCS Admin')
     @commands.guild_only()
@@ -506,7 +569,7 @@ class Agent(commands.Cog):
                 server['status'] = 'Loading'
             else:
                 await ctx.send('DCS-Server "{}" is already started.'.format(server['server_name']))
-            if (('START_SRS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'START_SRS') is True)):
+            if (('AUTOSTART_SRS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'AUTOSTART_SRS') is True)):
                 if (not utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT'])):
                     await ctx.send('SRS-Server "{}" starting up ...'.format(server['server_name']))
                     self.start_srs(installation)
@@ -529,7 +592,7 @@ class Agent(commands.Cog):
                     server['status'] = 'Shutdown'
             else:
                 await ctx.send('DCS-Server {} is already shut down.'.format(server['server_name']))
-            if (('START_SRS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'START_SRS') is True)):
+            if (('AUTOSTART_SRS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'AUTOSTART_SRS') is True)):
                 if (utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT'])):
                     if (await utils.yn_question(self, ctx, 'Are you sure to shut down the SRS-server "{}"?'.format(server['server_name'])) is True):
                         p = utils.findProcess('SR-Server.exe', installation)
@@ -845,6 +908,12 @@ class Agent(commands.Cog):
                 else:
                     return await self.get_channel(data, 'chat_channel' if (data['channel'] == '-1') else None).send(embed=embed)
 
+            async def callback(data):
+                server = self.bot.DCSServers[data['server_name']]
+                if (data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown']):
+                    data['command'] = data['subcommand']
+                    self.sendtoDCS(server, data)
+
             async def registerDCSServer(data):
                 self.bot.log.info('Registering DCS-Server ' + data['server_name'])
                 # check for protocol incompatibilities
@@ -871,16 +940,18 @@ class Agent(commands.Cog):
                     finally:
                         self.bot.pool.putconn(conn)
                     # Store server configuration
-                    self.bot.DCSServers[data['server_name']]['dcs_version'] = data['dcs_version']
-                    self.bot.DCSServers[data['server_name']]['statistics'] = data['statistics']
-                    self.bot.DCSServers[data['server_name']]['serverSettings'] = data['serverSettings']
-                    self.bot.DCSServers[data['server_name']]['serverSettings']['external_ip'] = self.external_ip
-                    self.bot.DCSServers[data['server_name']]['options'] = data['options']
+                    server = self.bot.DCSServers[data['server_name']]
+                    server['dcs_version'] = data['dcs_version']
+                    server['statistics'] = data['statistics']
+                    server['serverSettings'] = data['serverSettings']
+                    server['serverSettings']['external_ip'] = self.external_ip
+                    server['options'] = data['options']
                     if ('SRSSettings' in data):
-                        self.bot.DCSServers[data['server_name']]['SRSSettings'] = data['SRSSettings']
+                        server['SRSSettings'] = data['SRSSettings']
                     if ('lotAtcSettings' in data):
-                        self.bot.DCSServers[data['server_name']]['lotAtcSettings'] = data['lotAtcSettings']
+                        server['lotAtcSettings'] = data['lotAtcSettings']
                     self.updateBans(data)
+                    self.sendtoDCS(server, {"command": "getRunningMission", "channel": server['status_channel']})
                 else:
                     self.bot.log.error(
                         'Configuration mismatch. Please check settings in DCSServerBotConfig.lua on server {}!'.format(data['server_name']))
@@ -943,6 +1014,9 @@ class Agent(commands.Cog):
                     return data
 
             async def listMizFiles(data):
+                return data
+
+            async def getWeatherInfo(data):
                 return data
 
             async def onMissionLoadBegin(data):

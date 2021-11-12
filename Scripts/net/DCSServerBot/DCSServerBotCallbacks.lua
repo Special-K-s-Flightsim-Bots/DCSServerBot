@@ -13,6 +13,10 @@ local JSON = require("JSON")
 
 local dcsbotgui = {}
 
+function trim(s)
+  return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
+end
+
 function dcsbotgui.onMissionLoadBegin()
 	dcsbot.SlotsData['coalitions'] = nil
 	msg = {}
@@ -36,6 +40,7 @@ function dcsbotgui.onMissionLoadEnd()
 	msg.num_players = 1
 	msg.start_time = DCS.getCurrentMission().mission.start_time
 	msg.date = DCS.getCurrentMission().mission.date
+	msg.weather = DCS.getCurrentMission().mission.weather
 	if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
 		msg.num_slots_blue = table.getn(dcsbot.updateSlots()['slots']['blue'])
 	end
@@ -93,6 +98,8 @@ function dcsbotgui.onSimulationFrame()
 				dcsbot.listMizFiles(json)
 			elseif (json.command == 'shutdown') then
 				dcsbot.shutdown(json)
+			elseif (json.command == 'getWeatherInfo') then
+				dcsbot.getWeatherInfo(json)
 			end
 		end
 	until err
@@ -174,7 +181,7 @@ end
 
 function dcsbotgui.onPlayerTryConnect(addr, name, ucid, playerID)
 	-- we don't accept empty player IDs
-	if playerID == nil or playerID == '' then
+	if playerID == nil or trim(playerID) == '' then
 		return false
 	end
 	return not dcsbot.isBanned(ucid)

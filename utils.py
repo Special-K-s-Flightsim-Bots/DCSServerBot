@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import discord
+import math
 import os
 import psutil
 import re
@@ -162,3 +163,10 @@ def findProcess(proc, installation):
                 if (installation in p.info['cmdline'][1]):
                     return p
     return None
+
+
+def DDtoDMS(dd):
+    frac, degrees = math.modf(dd)
+    frac, minutes = math.modf(frac * 60)
+    frac, seconds = math.modf(frac * 60)
+    return degrees, minutes, seconds, frac
