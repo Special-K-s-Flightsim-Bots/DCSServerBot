@@ -11,6 +11,7 @@ The following commands are supported:
 |.servers||all|DCS|Lists all registered DCS servers and their status (same as .mission but for all). Servers will auto-register on startup.|
 |.mission||status-/admin-channel|DCS Admin|Information about the active mission. Persistent display in status-channel.|
 |.briefing/.brief||status-/chat-/admin-channel|DCS|Shows the description / briefing of the running mission.|
+|.weather|Airport Name|all|DCS|Weather information for a specific airport in this mission.|
 |.players||status-/admin-channel|DCS Admin|Lists the players currently active on the server. Persistent display in status-channel.|
 |.list||admin-channel|DCS Admin|Lists all missions with IDs available on this server (same as WebGUI).|
 |.add|[miz-file]|admin-channel|DCS Admin|Adds a specific mission to the list of missions, that has to be in Saved Games/DCS[.OpenBeta]/Missions. If no miz file is provided, a list of all available files in the servers Missions directory will be provided.|

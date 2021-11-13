@@ -1,11 +1,14 @@
 import asyncio
 import aiohttp
 import discord
-import functools
+import math
 import os
+import psutil
 import re
+import socket
 import xmltodict
 from configparser import ConfigParser
+from contextlib import closing, suppress
 from discord.ext import commands
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
@@ -17,6 +20,7 @@ PATCHNOTES_URL = 'https://www.digitalcombatsimulator.com/en/news/changelog/rss/'
 
 config = ConfigParser()
 config.read('config/dcsserverbot.ini')
+
 
 def findDCSInstallations(server_name=None):
     installations = []
@@ -97,6 +101,7 @@ async def wait_for_single_reaction(self, ctx, message):
         for task in tasks:
             task.cancel()
 
+
 async def yn_question(self, ctx, question, msg=None):
     yn_embed = discord.Embed(title=question, color=discord.Color.red())
     if (msg is not None):
@@ -121,13 +126,14 @@ async def get_server(self, ctx):
             break
     return server
 
+
 def has_role(item: str):
     def predicate(ctx):
         if ctx.guild is None:
             raise commands.errors.NoPrivateMessage()
 
         if ('ROLES' not in config or item not in config['ROLES']):
-            valid_roles = [ item ]
+            valid_roles = [item]
         else:
             valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
         for role in ctx.author.roles:
@@ -136,3 +142,31 @@ def has_role(item: str):
         raise commands.errors.MissingRole(item)
 
     return commands.check(predicate)
+
+
+def isOpen(ip, port):
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.settimeout(3)
+        return (s.connect_ex((ip, int(port))) == 0)
+
+
+async def get_external_ip():
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://api.ipify.org') as resp:
+            return await resp.text()
+
+
+def findProcess(proc, installation):
+    for p in psutil.process_iter(['name', 'cmdline']):
+        if (p.info['name'] == proc):
+            with suppress(Exception):
+                if (installation in p.info['cmdline'][1]):
+                    return p
+    return None
+
+
+def DDtoDMS(dd):
+    frac, degrees = math.modf(dd)
+    frac, minutes = math.modf(frac * 60)
+    frac, seconds = math.modf(frac * 60)
+    return degrees, minutes, seconds, frac

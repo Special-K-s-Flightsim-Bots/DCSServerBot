@@ -7,6 +7,7 @@ from cogs.agent import Agent
 from contextlib import closing
 from discord.ext import commands
 
+
 class Master(Agent):
 
     def __init__(self, bot):

@@ -52,6 +52,30 @@ function dcsbot.updateEmbed(id, title, description, img, fields, footer, channel
 	dcsbot.sendBotTable(msg, channel)
 end
 
+function dcsbot.callback(msg, channel)
+	local newmsg = msg
+	newmsg.subcommand = msg.command
+	newmsg.command = 'callback'
+	dcsbot.sendBotTable(msg, channel)
+end
+
+function dcsbot.startMission(id)
+	local msg = {}
+	msg.command = 'startMission'
+	msg.id = id
+	dcsbot.callback(msg)
+end
+
+function dcsbot.shutdown()
+	DCS.exitProcess()
+end
+
+function dcsbot.restartMission()
+	local msg = {}
+	msg.command = 'restartMission'
+	dcsbot.callback(msg)
+end
+
 dcsbot.eventHandler = {}
 function dcsbot.eventHandler:onEvent(event)
 	if event then
@@ -154,7 +178,7 @@ function dcsbot.enableMissionStats()
 		local a = {
 			['name'] = airbase:getName(),
 			['lat'] = lat,
-			['long'] = lon,
+			['lng'] = lon,
 			['alt'] = alt
 		}
 		table.insert(msg.airbases, a)

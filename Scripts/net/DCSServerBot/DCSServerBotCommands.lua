@@ -10,6 +10,7 @@
 local Tools = require("tools")
 local TableUtils = require("TableUtils")
 local U = require("me_utilities")
+local UC = require("utils_common")
 
 dcsbot = dcsbot or {}
 
@@ -41,11 +42,9 @@ end
 
 function mergeGuiSettings(new_settings)
     local settings = loadSettingsRaw()
-
     for k, v in pairs(new_settings) do
         settings[k] = v
     end
-
     return settings
 end
 
@@ -225,6 +224,7 @@ function dcsbot.getRunningMission(json)
 	msg.num_players = table.getn(net.get_player_list())
 	msg.start_time = DCS.getCurrentMission().mission.start_time
 	msg.date = DCS.getCurrentMission().mission.date
+  msg.weather = DCS.getCurrentMission().mission.weather
 	msg.pause = DCS.getPause()
 	if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
 		msg.num_slots_blue = table.getn(dcsbot.updateSlots()['slots']['blue'])
@@ -352,4 +352,52 @@ function dcsbot.listMizFiles(json)
 		end
 	end
 	dcsbot.sendBotTable(msg, json.channel)
+end
+
+function dcsbot.getWeatherInfo(json)
+  msg = {}
+  msg.command = 'getWeatherInfo'
+  local position = {
+    x = json.lat,
+    y = json.alt,
+    z = json.lng,
+  }
+
+  local wind = Weather.getGroundWindAtPoint({position = position})
+  local temp, pressure = Weather.getTemperatureAndPressureAtPoint({position = position})
+  local weather = DCS.getCurrentMission().mission.weather
+  local clouds = weather.clouds
+  if clouds.preset ~= nil then
+    local presets = nil
+    local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
+
+    local env = {
+      type = _G.type,
+      next = _G.next,
+      setmetatable = _G.setmetatable,
+      getmetatable = _G.getmetatable,
+      _ = _,
+    }
+    setfenv(func, env)
+    func()
+    local preset = env.clouds and env.clouds.presets and env.clouds.presets[clouds.preset]
+    if preset ~= nil then
+      msg.clouds = {}
+      msg.clouds.base = clouds.base
+      msg.clouds.preset = preset
+    end
+  else
+    msg.clouds = clouds
+  end
+
+  msg.temp = temp
+  msg.pressureHPA = pressure/100
+  msg.pressureMM = pressure * 0.007500637554192
+  msg.pressureIN = pressure * 0.000295300586467
+  msg.fogThickness = weather.fog.thickness
+  msg.fogVisibility = weather.fog.visibility
+  msg.dustDensity = weather.dust_density
+  msg.turbulence = UC.composeTurbulenceString(weather)
+  msg.wind = UC.composeWindString(weather, position)
+  dcsbot.sendBotTable(msg, json.channel)
 end
