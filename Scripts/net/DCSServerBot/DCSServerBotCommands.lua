@@ -224,7 +224,31 @@ function dcsbot.getRunningMission(json)
 	msg.num_players = table.getn(net.get_player_list())
 	msg.start_time = DCS.getCurrentMission().mission.start_time
 	msg.date = DCS.getCurrentMission().mission.date
-  msg.weather = DCS.getCurrentMission().mission.weather
+  local weather = DCS.getCurrentMission().mission.weather
+  msg.weather = weather
+  local clouds = weather.clouds
+  if clouds.preset ~= nil then
+    local presets = nil
+    local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
+
+    local env = {
+      type = _G.type,
+      next = _G.next,
+      setmetatable = _G.setmetatable,
+      getmetatable = _G.getmetatable,
+      _ = _,
+    }
+    setfenv(func, env)
+    func()
+    local preset = env.clouds and env.clouds.presets and env.clouds.presets[clouds.preset]
+    if preset ~= nil then
+      msg.weather.clouds = {}
+      msg.weather.clouds.base = clouds.base
+      msg.weather.clouds.preset = preset
+    end
+  else
+    msg.weather.clouds = clouds
+  end
 	msg.pause = DCS.getPause()
 	if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
 		msg.num_slots_blue = table.getn(dcsbot.updateSlots()['slots']['blue'])
@@ -363,7 +387,6 @@ function dcsbot.getWeatherInfo(json)
     z = json.lng,
   }
 
-  local wind = Weather.getGroundWindAtPoint({position = position})
   local temp, pressure = Weather.getTemperatureAndPressureAtPoint({position = position})
   local weather = DCS.getCurrentMission().mission.weather
   local clouds = weather.clouds
