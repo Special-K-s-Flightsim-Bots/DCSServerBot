@@ -69,6 +69,7 @@ function dcsbot.sendBotMessage(msg, channel)
 end
 
 function dcsbot.registerDCSServer(json)
+  log.write('DCSServerBot', log.DEBUG, '> registerDCSServer()')
 	-- load the servers configuration (SRS, et al)
 	local f = io.open(lfs.writedir() .. 'Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua', 'r')
 	if f then
@@ -117,12 +118,14 @@ function dcsbot.registerDCSServer(json)
 	if (lotatc_inst ~= nil) then
 		msg.lotAtcSettings = lotatc_inst.options
 	end
+  log.write('DCSServerBot', log.DEBUG, '- Sending registration information to Host.')
 	if (json ~= nil) then
 		dcsbot.sendBotTable(msg, json.channel)
 	else
 		dcsbot.sendBotTable(msg)
 	end
 	dcsbot.registered = true
+  log.write('DCSServerBot', log.DEBUG, '< registerDCSServer()')
 end
 
 function dcsbot.sendChatMessage(json)
