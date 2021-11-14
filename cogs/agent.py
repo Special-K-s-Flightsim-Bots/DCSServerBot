@@ -326,17 +326,23 @@ class Agent(commands.Cog):
         embed.add_field(name='▬' * 25, value='_ _', inline=False)
         if ('weather' in mission):
             weather = mission['weather']
-            if (weather['atmosphere_type'] == 0):
-                embed.add_field(name='Preset', value=string.capwords(weather['clouds']['preset']).replace('.', '\n'))
+            if ('preset' in weather['clouds']):
+                embed.add_field(name='Preset', value=weather['clouds']['preset']['readableNameShort'])
             else:
                 embed.add_field(name='Weather', value='Dynamic')
             embed.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
             embed.add_field(name='QNH', value='{:.2f} inHg'.format(weather['qnh'] * 0.0393701))
-            embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {} ft\nDensity:\u2002\u2002 {}/10\nThickness: {} ft'.format(
-                weather['clouds']['base'], weather['clouds']['density'], weather['clouds']['thickness']))
-            embed.add_field(name='Wind', value='at Ground: {}° / {} m/s\nat 2000 ft: {}° / {} m/s\nat 8000 ft: {}° / {} m/s'.format(
+            embed.add_field(name='Wind', value='\u2002Ground: {}° / {} m/s\n\u20026600 ft: {}° / {} m/s\n26000 ft: {}° / {} m/s'.format(
                 int(weather['wind']['atGround']['dir']), int(weather['wind']['atGround']['speed']), int(weather['wind']['at2000']['dir']), int(weather['wind']['at2000']['speed']), int(weather['wind']['at8000']['dir']), int(weather['wind']['at8000']['speed'])))
-            embed.add_field(name='Visibility', value=str(weather['visibility']['distance']) + ' ft')
+            if ('preset' in weather['clouds']):
+                embed.add_field(name='Cloudbase', value=f'{weather["clouds"]["base"]} ft')
+            else:
+                embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {} ft\nDensity:\u2002\u2002 {}/10\nThickness: {} ft'.format(
+                    weather['clouds']['base'], weather['clouds']['density'], weather['clouds']['thickness']))
+            visibility = weather['visibility']['distance']
+            if (weather['enable_fog'] is True):
+                visibility = weather['fog']['visibility'] * 3.28084
+            embed.add_field(name='Visibility', value=f'{visibility} ft')
             embed.add_field(name='▬' * 25, value='_ _', inline=False)
         if ('SRSSettings' in server):
             plugins.append('SRS')
