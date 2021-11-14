@@ -1454,12 +1454,13 @@ class Agent(commands.Cog):
                 dt = json.loads(s.request[0].strip())
                 # ignore messages not containing server names
                 if ('server_name' not in dt):
-                    self.bot.log.warn('Message without server_name retrieved: {}'.format(dt))
+                    self.bot.log.warn('Message without server_name received: {}'.format(dt))
                     return
                 # ignore any DCS events before the server is fully registered
-                if (self.bot.DCSServers[dt['server_name']]['status'] == 'Unknown' and dt['command'].startswith('on')):
+                server_name = dt['server_name']
+                if (server_name in self.bot.DCSServers and self.bot.DCSServers[server_name]['status'] == 'Unknown' and dt['command'].startswith('on')):
                     return
-                self.bot.log.info('{}->HOST: {}'.format(dt['server_name'], json.dumps(dt)))
+                self.bot.log.info('{}->HOST: {}'.format(server_name, json.dumps(dt)))
                 try:
                     command = dt['command']
                     future = asyncio.run_coroutine_threadsafe(getattr(UDPListener, command)(dt), self.loop)
