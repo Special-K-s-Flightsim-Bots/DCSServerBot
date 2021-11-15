@@ -41,7 +41,7 @@ function dcsbotgui.onMissionLoadEnd()
 	msg.start_time = DCS.getCurrentMission().mission.start_time
 	msg.date = DCS.getCurrentMission().mission.date
 	msg.weather = DCS.getCurrentMission().mission.weather
-  local clouds = weather.clouds
+  local clouds = msg.weather.clouds
   if clouds.preset ~= nil then
     local presets = nil
     local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
