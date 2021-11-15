@@ -560,7 +560,7 @@ class Agent(commands.Cog):
     def start_srs(self, installation):
         self.bot.log.info('Launching SRS server with: "{}\\SR-Server.exe" -cfg="{}"'.format(
             os.path.expandvars(self.bot.config['DCS']['SRS_INSTALLATION']), os.path.expandvars(self.bot.config[installation]['SRS_CONFIG'])))
-        return subprocess.Popen(['SR-Server.exe', '-cfg="{}"'.format(os.path.expandvars(self.bot.config[installation]['SRS_CONFIG']))], executable=os.path.expandvars(self.bot.config['DCS']['SRS_INSTALLATION']) + '\\SR-Server.exe')
+        return subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.bot.config[installation]['SRS_CONFIG']))], executable=os.path.expandvars(self.bot.config['DCS']['SRS_INSTALLATION']) + '\\SR-Server.exe')
 
     @commands.command(description='Starts a DCS Server')
     @utils.has_role('DCS Admin')
