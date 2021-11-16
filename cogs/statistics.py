@@ -574,7 +574,8 @@ class Statistics(commands.Cog):
                 SQL_HIGHSCORE[key] += ' AND m.server_name = \'{}\' '.format(server)
             if (period):
                 SQL_HIGHSCORE[key] += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
-            SQL_HIGHSCORE[key] += ' AND s.hop_off IS NOT NULL GROUP BY p.discord_id HAVING {} > 0 ORDER BY 2 DESC LIMIT 3'.format(SQL_PARTS[key])
+            SQL_HIGHSCORE[key] += ' AND s.hop_off IS NOT NULL GROUP BY p.discord_id HAVING {} > 0 ORDER BY 2 DESC LIMIT 3'.format(
+                SQL_PARTS[key])
 
         conn = self.bot.pool.getconn()
         try:
@@ -678,7 +679,7 @@ class Statistics(commands.Cog):
     @utils.has_role('Admin')
     @commands.guild_only()
     async def serverstats(self, ctx, period=None, server=None):
-        SQL_USER_BASE = 'SELECT COUNT(DISTINCT ucid) AS dcs_users, COUNT(DISTINCT discord_id)-1 AS discord_users FROM players WHERE ban = false'
+        SQL_USER_BASE = 'SELECT COUNT(DISTINCT p.ucid) AS dcs_users, COUNT(DISTINCT p.discord_id) AS discord_users FROM players p, missions m, statistics s WHERE m.id = s.mission_id and s.player_ucid = p.ucid'
         SQL_SERVER_USAGE = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 60) AS avg FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND s.hop_off IS NOT NULL'
         SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS total, ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS avg FROM missions'
         SQL_TOP5_MISSIONS_USAGE = 'SELECT m.mission_name, COUNT(distinct s.player_ucid) AS players FROM missions m, statistics s WHERE s.mission_id = m.id'
@@ -688,12 +689,14 @@ class Statistics(commands.Cog):
         embed = discord.Embed(color=discord.Color.blue())
         embed.title = 'Server Statistics'
         if (server):
+            SQL_USER_BASE += ' AND m.server_name = \'{}\' '.format(server)
             SQL_SERVER_USAGE += ' AND m.server_name = \'{}\' '.format(server)
             SQL_TOP3_MISSION_UPTIMES += ' WHERE server_name = \'{}\' '.format(server)
             SQL_TOP5_MISSIONS_USAGE += ' AND m.server_name = \'{}\' '.format(server)
             SQL_LAST_14DAYS += ' AND m.server_name = \'{}\' '.format(server)
             SQL_MAIN_TIMES += ' AND m.server_name = \'{}\' '.format(server)
         if (period):
+            SQL_USER_BASE += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_SERVER_USAGE += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_TOP3_MISSION_UPTIMES += ' WHERE date(mission_start) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_TOP5_MISSIONS_USAGE += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
