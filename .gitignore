@@ -5,3 +5,4 @@ __pycache__/
 *.png
 *.ini
 Scripts/net/DCSServerBot/DCSServerBotConfig.lua
+*.csv
