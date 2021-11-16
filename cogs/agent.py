@@ -11,7 +11,6 @@ import psycopg2.extras
 import re
 import socket
 import socketserver
-import string
 import subprocess
 import utils
 from concurrent.futures import ThreadPoolExecutor
@@ -472,14 +471,7 @@ class Agent(commands.Cog):
                                 int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])), inline=False)
                             embed.add_field(name='Wind', value='\n'.join(data['wind']), inline=False)
                             embed.add_field(name='Turbulence', value=data['turbulence'][0], inline=False)
-                            if ('preset' in data['clouds']):
-                                preset_id = int(data['clouds']['preset']['readableName'][:2])
-                                file = discord.File(os.path.expandvars(
-                                    self.bot.config['DCS']['DCS_INSTALLATION']) + '\\Bazar\\Effects\\Clouds\\Thumbnails\\cloud_{}.png'.format(preset_id))
-                                embed.set_image(url='attachment://cloud_{}.png'.format(preset_id))
-                                await ctx.send(file=file, embed=embed)
-                            else:
-                                await ctx.send(embed=embed)
+                            await ctx.send(embed=embed)
                     if (not found):
                         await ctx.send(f'Airport "{airport}" could not be found.')
                 else:
