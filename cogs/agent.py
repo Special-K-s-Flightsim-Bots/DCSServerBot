@@ -380,14 +380,16 @@ class Agent(commands.Cog):
                 if (len(value) == 0):
                     value = 'enabled'
             embed.add_field(name=name, value=value)
-        footer = 'Server is running DCS {}\n'.format(server['dcs_version'])
+        footer = '- Server is running DCS {}\n'.format(server['dcs_version'])
         if (len(plugins) > 0):
-            footer += 'The IP address of '
+            footer += '- The IP address of '
             if (len(plugins) == 1):
                 footer += plugins[0]
             else:
                 footer += ', '.join(plugins[0:len(plugins) - 1]) + ' and ' + plugins[len(plugins) - 1]
-            footer += ' is the same as the server.'
+            footer += ' is the same as the server.\n'
+        if (server['statistics'] is True):
+            footer += '- Statistis are enabled for this server.'
         embed.set_footer(text=footer)
         return embed
 
