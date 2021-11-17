@@ -438,49 +438,53 @@ class Agent(commands.Cog):
             else:
                 await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
 
-    @commands.command(description='Shows weather information of a specific airport')
+    @commands.command(description='Shows information of a specific airport', aliases=['airfield', 'ap'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def weather(self, ctx, airport):
-        server = await utils.get_server(self, ctx)
-        if (server is not None):
-            if (server['status'] not in ['Stopped', 'Shutdown']):
-                if (server['server_name'] in self.mission_stats):
-                    found = False
-                    for airbase in self.mission_stats[server['server_name']]['airbases']:
-                        if (airport.casefold() in airbase['name'].casefold()):
-                            found = True
-                            data = await self.sendtoDCSSync(server, {"command": "getWeatherInfo", "channel": ctx.message.id, "lat": airbase['lat'], "lng": airbase['lng'], "alt": airbase['alt']})
-                            embed = discord.Embed(title='Weather Report for\n_{}_'.format(
-                                airbase['name']), color=discord.Color.blue())
-                            d, m, s, f = utils.DDtoDMS(airbase['lat'])
-                            lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
-                            d, m, s, f = utils.DDtoDMS(airbase['lng'])
-                            lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
-                            embed.add_field(name='Position', value=f'{lat} {lng}', inline=False)
-                            embed.add_field(name='Altitude', value='{} ft'.format(int(airbase['alt'])), inline=False)
-                            if ('clouds' in data):
-                                if ('preset' in data['clouds']):
-                                    thickness = data['clouds']['preset']['layers'][0]['altitudeMax'] - \
-                                        data['clouds']['preset']['layers'][0]['altitudeMin']
-                                else:
-                                    thickness = data['clouds']['thickness']
-                                embed.add_field(name='Clouds', value='Base: {} ft / Thickness: {} ft'.format(
-                                    data['clouds']['base'], thickness), inline=False)
+    async def airport(self, ctx, name):
+        for server_name, server in self.bot.DCSServers.items():
+            if (server['status'] in ['Running', 'Paused']):
+                for airbase in server['airbases']:
+                    if ((name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code'])):
+                        data = await self.sendtoDCSSync(server, {"command": "getWeatherInfo", "channel": ctx.message.id, "lat": airbase['lat'], "lng": airbase['lng'], "alt": airbase['alt']})
+                        embed = discord.Embed(
+                            title=f'{server_name}\nReport for "{airbase["name"]}"', color=discord.Color.blue())
+                        d, m, s, f = utils.DDtoDMS(airbase['lat'])
+                        lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
+                        d, m, s, f = utils.DDtoDMS(airbase['lng'])
+                        lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
+                        embed.add_field(name='Code', value=airbase['code'])
+                        embed.add_field(name='Position', value=f'{lat}\n{lng}')
+                        embed.add_field(name='Altitude', value='{} ft'.format(int(airbase['alt'])))
+                        embed.add_field(name='▬' * 30, value='_ _', inline=False)
+                        embed.add_field(name='Tower Frequency', value='\n'.join(
+                            '{:.3f} MHz'.format(x/1000000) for x in airbase['frequencyList']))
+                        embed.add_field(name='Runways', value='\n'.join(airbase['runwayList']))
+                        embed.add_field(name='Heading', value='{}°\n{}°'.format(
+                            (airbase['rwy_heading'] + 180) % 360, airbase['rwy_heading']))
+                        embed.add_field(name='▬' * 30, value='_ _', inline=False)
+                        embed.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']))
+                        embed.add_field(name='QFE', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
+                            int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])))
+                        embed.add_field(name='Wind', value='\n'.join(data['wind']))
+                        embed.add_field(name='Turbulence', value=data['turbulence'][0])
+                        if ('clouds' in data):
+                            if ('preset' in data['clouds']):
+                                thickness = data['clouds']['preset']['layers'][0]['altitudeMax'] - \
+                                    data['clouds']['preset']['layers'][0]['altitudeMin']
                             else:
-                                embed.add_field(name='Clouds', value='n/a')
-                            embed.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']), inline=False)
-                            embed.add_field(name='QFE', value='{} hPa / {:.2f} inHg / {} mmHg'.format(
-                                int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])), inline=False)
-                            embed.add_field(name='Wind', value='\n'.join(data['wind']), inline=False)
-                            embed.add_field(name='Turbulence', value=data['turbulence'][0], inline=False)
-                            await ctx.send(embed=embed)
-                    if (not found):
-                        await ctx.send(f'Airport "{airport}" could not be found.')
-                else:
-                    await ctx.send('You need to load DCSServerBot.lua in your mission.')
-            else:
-                await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
+                                thickness = data['clouds']['thickness']
+                            embed.add_field(name='Clouds', value='Base: {} ft\nThickness: {} ft'.format(
+                                data['clouds']['base'], thickness))
+                        else:
+                            embed.add_field(name='Clouds', value='n/a')
+                        weather = data['weather']
+                        visibility = weather['visibility']['distance']
+                        if (weather['enable_fog'] is True):
+                            visibility = weather['fog']['visibility'] * 3.28084
+                        embed.add_field(name='Visibility', value=f'{visibility} ft')
+                        await ctx.send(embed=embed)
+                        break
 
     @commands.command(description='List the current players on this server', hidden=True)
     @utils.has_role('DCS Admin')
@@ -949,6 +953,7 @@ class Agent(commands.Cog):
                     server['serverSettings'] = data['serverSettings']
                     server['serverSettings']['external_ip'] = self.external_ip
                     server['options'] = data['options']
+                    server['airbases'] = data['airbases']
                     if ('SRSSettings' in data):
                         server['SRSSettings'] = data['SRSSettings']
                     if ('lotAtcSettings' in data):
@@ -1027,7 +1032,9 @@ class Agent(commands.Cog):
                 await UDPListener.getRunningMission(data)
 
             async def onMissionLoadEnd(data):
-                self.bot.DCSServers[data['server_name']]['status'] = 'Paused'
+                server = self.bot.DCSServers[data['server_name']]
+                server['status'] = 'Paused'
+                server['airbases'] = data['airbases']
                 if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
                     SQL_CLOSE_STATISTICS = 'UPDATE statistics SET hop_off = NOW() WHERE mission_id IN (SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL) AND hop_off IS NULL'
                     SQL_CLOSE_MISSIONS = 'UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL'
@@ -1457,7 +1464,7 @@ class Agent(commands.Cog):
                 server_name = dt['server_name']
                 self.bot.log.info('{}->HOST: {}'.format(server_name, json.dumps(dt)))
                 if (server_name in self.bot.DCSServers and self.bot.DCSServers[server_name]['status'] == 'Unknown' and
-                        (dt['command'] not in ['registerDCSServer', 'onMissionLoadBegin', 'onMissionLoadEnd'])):
+                        (dt['command'] not in ['registerDCSServer', 'onMissionLoadBegin', 'onMissionLoadEnd', 'getRunningMission'])):
                     self.bot.log.debug('Message discarded due to server startup.')
                     return
                 try:

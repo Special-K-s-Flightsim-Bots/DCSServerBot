@@ -7,10 +7,13 @@
 -- they might do what you need already and even more than
 -- what my little code does here.
 ---------------------------------------------------------
-local Tools = require("tools")
-local TableUtils = require("TableUtils")
-local U = require("me_utilities")
-local UC = require("utils_common")
+local base = _G
+
+local Tools     = base.require("tools")
+local TableUtils= base.require("TableUtils")
+local Terrain   = base.require('terrain')
+local U         = base.require("me_utilities")
+local UC        = base.require("utils_common")
 
 dcsbot = dcsbot or {}
 
@@ -21,7 +24,6 @@ dcsbot.banList = {}
 
 local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
 loadfile(lfs.writedir() .. 'Config\\serverSettings.lua')()
-loadfile(lfs.writedir() .. 'Config\\options.lua')()
 
 package.path  = package.path..";.\\LuaSocket\\?.lua;"
 package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
@@ -113,12 +115,57 @@ function dcsbot.registerDCSServer(json)
 		msg.statistics = true
 	end
 	msg.serverSettings = loadSettingsRaw()
-	msg.options = options
+	msg.options = DCS.getUserOptions()
 	msg.SRSSettings = SRSAuto
 	if (lotatc_inst ~= nil) then
 		msg.lotAtcSettings = lotatc_inst.options
 	end
-  log.write('DCSServerBot', log.DEBUG, '- Sending registration information to Host.')
+  msg.airbases = {}
+  local airdromes = Terrain.GetTerrainConfig("Airdromes")
+  if (airdromes ~= nil) then
+    for airdromeID, airdrome in pairs(airdromes) do
+      if (airdrome.reference_point) and (airdrome.abandoned ~= true)  then
+        local airbase = {}
+        airbase.code = airdrome.code
+        if airdrome.display_name then
+          airbase.name = airdrome.display_name
+        else
+          airbase.name = airdrome.names['en']
+        end
+        airbase.id = airdrome.id
+        airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
+        airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
+        local frequencyList = {}
+        if airdrome.frequency then
+          frequencyList	= airdrome.frequency
+        else
+          if airdrome.radio then
+            for k, radioId in pairs(airdrome.radio) do
+              local frequencies = DCS.getATCradiosData(radioId)
+              if frequencies then
+                for kk,vv in pairs(frequencies) do
+                  table.insert(frequencyList, vv)
+                end
+              end
+            end
+          end
+        end
+        airbase.frequencyList = frequencyList
+        airbase.runwayList = {}
+        if (airdrome.runwayName ~= nil) then
+          for r, runwayName in pairs(airdrome.runwayName) do
+            table.insert(airbase.runwayList, runwayName)
+          end
+        end
+        heading = UC.toDegrees(Terrain.getRunwayHeading(airdrome.roadnet))
+        if (heading < 0) then
+          heading = 360 + heading
+        end
+        airbase.rwy_heading = heading
+        table.insert(msg.airbases, airbase)
+      end
+    end
+  end
 	if (json ~= nil) then
 		dcsbot.sendBotTable(msg, json.channel)
 	else
@@ -420,9 +467,7 @@ function dcsbot.getWeatherInfo(json)
   msg.pressureHPA = pressure/100
   msg.pressureMM = pressure * 0.007500637554192
   msg.pressureIN = pressure * 0.000295300586467
-  msg.fogThickness = weather.fog.thickness
-  msg.fogVisibility = weather.fog.visibility
-  msg.dustDensity = weather.dust_density
+  msg.weather = weather
   msg.turbulence = UC.composeTurbulenceString(weather)
   msg.wind = UC.composeWindString(weather, position)
   dcsbot.sendBotTable(msg, json.channel)

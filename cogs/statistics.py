@@ -681,7 +681,7 @@ class Statistics(commands.Cog):
     async def serverstats(self, ctx, period=None, server=None):
         SQL_USER_BASE = 'SELECT COUNT(DISTINCT p.ucid) AS dcs_users, COUNT(DISTINCT p.discord_id) AS discord_users FROM players p, missions m, statistics s WHERE m.id = s.mission_id and s.player_ucid = p.ucid'
         SQL_SERVER_USAGE = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 60) AS avg FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND s.hop_off IS NOT NULL'
-        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS total, ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS avg FROM missions'
+        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS total, ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS avg FROM missions WHERE 1 = 1'
         SQL_TOP5_MISSIONS_USAGE = 'SELECT m.mission_name, COUNT(distinct s.player_ucid) AS players FROM missions m, statistics s WHERE s.mission_id = m.id'
         SQL_LAST_14DAYS = 'SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(DATE(NOW()) - INTERVAL \'2 weeks\', DATE(NOW()), INTERVAL \'1 day\') d WHERE d.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off) AND s.mission_id = m.id'
         SQL_MAIN_TIMES = 'SELECT to_char(s.hop_on, \'ID\') as weekday, to_char(h.time, \'HH24\') AS hour, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(TIMESTAMP \'01.01.1970 00:00:00\', TIMESTAMP \'01.01.1970 23:00:00\', INTERVAL \'1 hour\') h WHERE date_part(\'hour\', h.time) BETWEEN date_part(\'hour\', s.hop_on) AND date_part(\'hour\', s.hop_off) AND s.mission_id = m.id'
@@ -691,14 +691,14 @@ class Statistics(commands.Cog):
         if (server):
             SQL_USER_BASE += ' AND m.server_name = \'{}\' '.format(server)
             SQL_SERVER_USAGE += ' AND m.server_name = \'{}\' '.format(server)
-            SQL_TOP3_MISSION_UPTIMES += ' WHERE server_name = \'{}\' '.format(server)
+            SQL_TOP3_MISSION_UPTIMES += ' AND server_name = \'{}\' '.format(server)
             SQL_TOP5_MISSIONS_USAGE += ' AND m.server_name = \'{}\' '.format(server)
             SQL_LAST_14DAYS += ' AND m.server_name = \'{}\' '.format(server)
             SQL_MAIN_TIMES += ' AND m.server_name = \'{}\' '.format(server)
         if (period):
             SQL_USER_BASE += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_SERVER_USAGE += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
-            SQL_TOP3_MISSION_UPTIMES += ' WHERE date(mission_start) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
+            SQL_TOP3_MISSION_UPTIMES += ' AND date(mission_start) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_TOP5_MISSIONS_USAGE += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_MAIN_TIMES += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             embed.title = string.capwords(period if period != 'day' else 'dai') + 'ly ' + embed.title
