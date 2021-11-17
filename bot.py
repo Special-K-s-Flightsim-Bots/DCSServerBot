@@ -217,7 +217,7 @@ if (config.getboolean('BOT', 'MASTER') is True):
 for installation in utils.findDCSInstallations():
     if (installation not in config):
         continue
-    bot.log.warning('Adding DCS installation: {}'.format(installation))
+    bot.log.warning('Configure DCS installation: {}'.format(installation))
     dcs_path = os.path.expandvars(config[installation]['DCS_HOME'] + '\\Scripts')
     assert path.exists(dcs_path), 'Can\'t find DCS installation directory. Exiting.'
     ignore = None

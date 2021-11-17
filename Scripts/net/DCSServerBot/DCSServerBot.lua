@@ -172,17 +172,6 @@ function dcsbot.enableMissionStats()
 	dcsbot.eventHandler = world.addEventHandler(dcsbot.eventHandler)
 	local msg = {}
 	msg.command = 'enableMissionStats'
-	msg.airbases = {}
-	for id, airbase in pairs(world.getAirbases()) do
-		lat, lon, alt = coord.LOtoLL(airbase:getPoint())
-		local a = {
-			['name'] = airbase:getName(),
-			['lat'] = lat,
-			['lng'] = lon,
-			['alt'] = alt
-		}
-		table.insert(msg.airbases, a)
-	end
 	msg.coalitions = {}
 	msg.coalitions['Blue'] = {}
 	msg.coalitions['Red'] = {}
