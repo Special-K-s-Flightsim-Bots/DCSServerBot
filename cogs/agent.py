@@ -459,13 +459,16 @@ class Agent(commands.Cog):
                             lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
                             embed.add_field(name='Position', value=f'{lat} {lng}', inline=False)
                             embed.add_field(name='Altitude', value='{} ft'.format(int(airbase['alt'])), inline=False)
-                            if ('preset' in data['clouds']):
-                                thickness = data['clouds']['preset']['layers'][0]['altitudeMax'] - \
-                                    data['clouds']['preset']['layers'][0]['altitudeMin']
+                            if ('clouds' in data):
+                                if ('preset' in data['clouds']):
+                                    thickness = data['clouds']['preset']['layers'][0]['altitudeMax'] - \
+                                        data['clouds']['preset']['layers'][0]['altitudeMin']
+                                else:
+                                    thickness = data['clouds']['thickness']
+                                embed.add_field(name='Clouds', value='Base: {} ft / Thickness: {} ft'.format(
+                                    data['clouds']['base'], thickness), inline=False)
                             else:
-                                thickness = data['clouds']['thickness']
-                            embed.add_field(name='Clouds', value='Base: {} ft / Thickness: {} ft'.format(
-                                data['clouds']['base'], thickness), inline=False)
+                                embed.add_field(name='Clouds', value='n/a')
                             embed.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']), inline=False)
                             embed.add_field(name='QFE', value='{} hPa / {:.2f} inHg / {} mmHg'.format(
                                 int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])), inline=False)
@@ -1452,9 +1455,11 @@ class Agent(commands.Cog):
                     return
                 # ignore any DCS events before the server is fully registered
                 server_name = dt['server_name']
-                if (server_name in self.bot.DCSServers and self.bot.DCSServers[server_name]['status'] == 'Unknown' and dt['command'].startswith('on')):
-                    return
                 self.bot.log.info('{}->HOST: {}'.format(server_name, json.dumps(dt)))
+                if (server_name in self.bot.DCSServers and self.bot.DCSServers[server_name]['status'] == 'Unknown' and
+                        (dt['command'] not in ['registerDCSServer', 'onMissionLoadBegin', 'onMissionLoadEnd'])):
+                    self.bot.log.debug('Message discarded due to server startup.')
+                    return
                 try:
                     command = dt['command']
                     future = asyncio.run_coroutine_threadsafe(getattr(UDPListener, command)(dt), self.loop)
