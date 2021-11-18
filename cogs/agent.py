@@ -1,7 +1,9 @@
 # agent.py
 import asyncio
+import const
 import datetime
 import discord
+import itertools
 import json
 import os
 import pandas as pd
@@ -330,18 +332,20 @@ class Agent(commands.Cog):
             else:
                 embed.add_field(name='Weather', value='Dynamic')
             embed.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
-            embed.add_field(name='QNH', value='{:.2f} inHg'.format(weather['qnh'] * 0.0393701))
+            embed.add_field(name='QNH', value='{:.2f} inHg'.format(weather['qnh'] * const.MMHG_IN_INHG))
             embed.add_field(name='Wind', value='\u2002Ground: {}° / {} m/s\n\u20026600 ft: {}° / {} m/s\n26000 ft: {}° / {} m/s'.format(
-                int(weather['wind']['atGround']['dir']), int(weather['wind']['atGround']['speed']), int(weather['wind']['at2000']['dir']), int(weather['wind']['at2000']['speed']), int(weather['wind']['at8000']['dir']), int(weather['wind']['at8000']['speed'])))
+                (weather['wind']['atGround']['dir'] + 180) % 360, int(weather['wind']['atGround']['speed']),
+                (weather['wind']['at2000']['dir'] + 180) % 360, int(weather['wind']['at2000']['speed']),
+                (weather['wind']['at8000']['dir'] + 180) % 360, int(weather['wind']['at8000']['speed'])))
             if ('preset' in weather['clouds']):
-                embed.add_field(name='Cloudbase', value=f'{weather["clouds"]["base"]} ft')
+                embed.add_field(name='Cloudbase', value=f'{int(weather["clouds"]["base"] * const.METER_IN_FEET):,} ft')
             else:
-                embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {} ft\nDensity:\u2002\u2002 {}/10\nThickness: {} ft'.format(
-                    weather['clouds']['base'], weather['clouds']['density'], weather['clouds']['thickness']))
+                embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nDensity:\u2002\u2002 {}/10\nThickness: {:,} ft'.format(
+                    int(weather['clouds']['base'] * const.METER_IN_FEET), weather['clouds']['density'], int(weather['clouds']['thickness'] * const.METER_IN_FEET)))
             visibility = weather['visibility']['distance']
             if (weather['enable_fog'] is True):
-                visibility = weather['fog']['visibility'] * 3.28084
-            embed.add_field(name='Visibility', value=f'{visibility} ft')
+                visibility = weather['fog']['visibility'] * const.METER_IN_FEET
+            embed.add_field(name='Visibility', value=f'{int(visibility):,} ft')
             embed.add_field(name='▬' * 25, value='_ _', inline=False)
         if ('SRSSettings' in server):
             plugins.append('SRS')
@@ -438,10 +442,10 @@ class Agent(commands.Cog):
             else:
                 await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
 
-    @commands.command(description='Shows information of a specific airport', aliases=['airfield', 'ap'])
+    @commands.command(description='Shows information of a specific airport', aliases=['weather', 'airport', 'airfield', 'ap'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def airport(self, ctx, *args):
+    async def atis(self, ctx, *args):
         name = ' '.join(args)
         for server_name, server in self.bot.DCSServers.items():
             if (server['status'] in ['Running', 'Paused']):
@@ -456,34 +460,37 @@ class Agent(commands.Cog):
                         lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
                         embed.add_field(name='Code', value=airbase['code'])
                         embed.add_field(name='Position', value=f'{lat}\n{lng}')
-                        embed.add_field(name='Altitude', value='{} ft'.format(int(airbase['alt'])))
+                        embed.add_field(name='Altitude', value='{} ft'.format(
+                            int(airbase['alt'] * const.METER_IN_FEET)))
                         embed.add_field(name='▬' * 30, value='_ _', inline=False)
-                        embed.add_field(name='Tower Frequency', value='\n'.join(
+                        embed.add_field(name='Tower Frequencies', value='\n'.join(
                             '{:.3f} MHz'.format(x/1000000) for x in airbase['frequencyList']))
                         embed.add_field(name='Runways', value='\n'.join(airbase['runwayList']))
                         embed.add_field(name='Heading', value='{}°\n{}°'.format(
                             (airbase['rwy_heading'] + 180) % 360, airbase['rwy_heading']))
                         embed.add_field(name='▬' * 30, value='_ _', inline=False)
+                        weather = data['weather']
+                        embed.add_field(name='Active Runways', value='\n'.join(utils.getActiveRunways(
+                            airbase['runwayList'], weather['wind']['atGround'])))
+                        embed.add_field(name='Surface Wind', value='{}° @ {} kts'.format((weather['wind']['atGround']['dir'] + 180) % 360, int(
+                            weather['wind']['atGround']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5)))
+                        visibility = weather['visibility']['distance']
+                        if (weather['enable_fog'] is True):
+                            visibility = weather['fog']['visibility']
+                        embed.add_field(name='Visibility', value='{:,} m'.format(
+                            int(visibility)) if visibility < 10000 else '10 km (+)')
+                        if ('clouds' in weather):
+                            if ('preset' in weather['clouds']):
+                                readableName = weather['clouds']['preset']['readableName']
+                                metar = readableName[readableName.find('METAR:') + 6:]
+                                embed.add_field(name='Cloud Cover',
+                                                value=re.sub(' ', lambda m, c=itertools.count(): m.group() if not next(c) % 2 else '\n', metar))
+                            else:
+                                embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nThickness: {:,} ft'.format(
+                                    int(weather['clouds']['base'] * const.METER_IN_FEET + 0.5), int(weather['clouds']['thickness'] * const.METER_IN_FEET + 0.5)))
                         embed.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']))
                         embed.add_field(name='QFE', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
                             int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])))
-                        embed.add_field(name='Wind', value='\n'.join(data['wind']))
-                        embed.add_field(name='Turbulence', value=data['turbulence'][0])
-                        if ('clouds' in data):
-                            if ('preset' in data['clouds']):
-                                thickness = data['clouds']['preset']['layers'][0]['altitudeMax'] - \
-                                    data['clouds']['preset']['layers'][0]['altitudeMin']
-                            else:
-                                thickness = data['clouds']['thickness']
-                            embed.add_field(name='Clouds', value='Base: {} ft\nThickness: {} ft'.format(
-                                data['clouds']['base'], thickness))
-                        else:
-                            embed.add_field(name='Clouds', value='n/a')
-                        weather = data['weather']
-                        visibility = weather['visibility']['distance']
-                        if (weather['enable_fog'] is True):
-                            visibility = weather['fog']['visibility'] * 3.28084
-                        embed.add_field(name='Visibility', value=f'{visibility} ft')
                         await ctx.send(embed=embed)
                         break
 
