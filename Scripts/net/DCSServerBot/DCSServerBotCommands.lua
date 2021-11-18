@@ -64,7 +64,7 @@ function dcsbot.sendBotTable(tbl, channel)
 end
 
 function dcsbot.sendBotMessage(msg, channel)
-	messageTable = {}
+	local messageTable = {}
 	messageTable.command = 'sendMessage'
 	messageTable.message = msg
 	dcsbot.sendBotTable(messageTable, channel)
@@ -99,7 +99,7 @@ function dcsbot.registerDCSServer(json)
 			f:close()
 		end
 	end
-	msg = {}
+	local msg = {}
 	msg.command = 'registerDCSServer'
 	msg.hook_version = dcsbot.VERSION
 	msg.dcs_version = Export.LoGetVersionInfo().ProductVersion[1] .. '.' .. Export.LoGetVersionInfo().ProductVersion[2] .. '.' .. Export.LoGetVersionInfo().ProductVersion[3] .. '.' .. Export.LoGetVersionInfo().ProductVersion[4]
@@ -176,7 +176,7 @@ function dcsbot.registerDCSServer(json)
 end
 
 function dcsbot.sendChatMessage(json)
-	message = json.message
+	local message = json.message
 	if (json.from) then
 		message = json.from .. ': ' .. message
 	end
@@ -266,7 +266,7 @@ function dcsbot.GetMulticrewAllParameters(PlayerId)
 end
 
 function dcsbot.getRunningMission(json)
-	msg = {}
+	local msg = {}
 	msg.command = 'getRunningMission'
 	msg.current_mission = DCS.getMissionName()
   msg.current_map = DCS.getCurrentMission().mission.theatre
@@ -310,7 +310,7 @@ function dcsbot.getRunningMission(json)
 end
 
 function dcsbot.getMissionDetails(json)
-	msg = {}
+	local msg = {}
 	msg.command = 'getMissionDetails'
 	msg.current_mission = DCS.getMissionName()
 	msg.mission_description = DCS.getMissionDescription()
@@ -318,7 +318,7 @@ function dcsbot.getMissionDetails(json)
 end
 
 function dcsbot.getCurrentPlayers(json)
-	msg = {}
+	local msg = {}
 	msg.command = 'getCurrentPlayers'
 	plist = net.get_player_list()
 	if (table.getn(plist) > 0) then
@@ -334,7 +334,7 @@ function dcsbot.getCurrentPlayers(json)
 end
 
 function dcsbot.listMissions(json)
-	msg = net.missionlist_get()
+	local msg = net.missionlist_get()
 	msg.command = 'listMissions'
 	dcsbot.sendBotTable(msg, json.channel)
 end
@@ -417,7 +417,7 @@ function dcsbot.getCategory(id)
 end
 
 function dcsbot.listMizFiles(json)
-	msg = {}
+	local msg = {}
 	msg.command = 'listMizFiles'
 	msg.missions = {}
 	for file in lfs.dir(lfs.writedir() .. 'Missions') do
@@ -429,40 +429,15 @@ function dcsbot.listMizFiles(json)
 end
 
 function dcsbot.getWeatherInfo(json)
-  msg = {}
+  local msg = {}
   msg.command = 'getWeatherInfo'
   local position = {
     x = json.lat,
     y = json.alt,
     z = json.lng,
   }
-
   local temp, pressure = Weather.getTemperatureAndPressureAtPoint({position = position})
   local weather = DCS.getCurrentMission().mission.weather
-  local clouds = weather.clouds
-  if clouds.preset ~= nil then
-    local presets = nil
-    local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
-
-    local env = {
-      type = _G.type,
-      next = _G.next,
-      setmetatable = _G.setmetatable,
-      getmetatable = _G.getmetatable,
-      _ = _,
-    }
-    setfenv(func, env)
-    func()
-    local preset = env.clouds and env.clouds.presets and env.clouds.presets[clouds.preset]
-    if preset ~= nil then
-      msg.clouds = {}
-      msg.clouds.base = clouds.base
-      msg.clouds.preset = preset
-    end
-  else
-    msg.clouds = clouds
-  end
-
   msg.temp = temp
   msg.pressureHPA = pressure/100
   msg.pressureMM = pressure * 0.007500637554192

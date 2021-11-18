@@ -24,7 +24,7 @@ end
 function dcsbotgui.onMissionLoadBegin()
   log.write('DCSServerBot', log.DEBUG, '> onMissionLoadBegin()')
 	dcsbot.SlotsData['coalitions'] = nil
-	msg = {}
+	local msg = {}
 	msg.command = 'onMissionLoadBegin'
 	msg.current_mission = DCS.getMissionName()
 	msg.current_map = DCS.getCurrentMission().mission.theatre
@@ -39,7 +39,7 @@ end
 
 function dcsbotgui.onMissionLoadEnd()
   log.write('DCSServerBot', log.DEBUG, '> onMissionLoadEnd()')
-	msg = {}
+	local msg = {}
 	msg.command = 'onMissionLoadEnd'
 	msg.current_mission = DCS.getMissionName()
   msg.current_map = DCS.getCurrentMission().mission.theatre
@@ -181,7 +181,7 @@ function dcsbotgui.onSimulationFrame()
 end
 
 function dcsbotgui.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
-	msg = {}
+	local msg = {}
 	msg.command = 'onGameEvent'
 	msg.eventName = eventName
 	msg.arg1 = arg1
@@ -204,7 +204,7 @@ function dcsbotgui.onPlayerConnect(id)
 	if (dcsbot.registered == false) then
 		dcsbot.registerDCSServer()
 	end
-	msg = {}
+	local msg = {}
 	msg.command = 'onPlayerConnect'
 	msg.id = id
 	msg.name = net.get_player_info(id, 'name')
@@ -216,7 +216,7 @@ function dcsbotgui.onPlayerStart(id)
 	if (dcsbot.registered == false) then
 		dcsbot.registerDCSServer()
 	end
-	msg = {}
+	local msg = {}
 	msg.command = 'onPlayerStart'
 	msg.id = id
 	msg.ucid = net.get_player_info(id, 'ucid')
@@ -225,6 +225,7 @@ function dcsbotgui.onPlayerStart(id)
 end
 
 function dcsbotgui.onPlayerStop(id)
+  local msg = {}
 	msg.command = 'onPlayerStop'
 	msg.id = id
 	msg.ucid = net.get_player_info(id, 'ucid')
@@ -233,7 +234,7 @@ function dcsbotgui.onPlayerStop(id)
 end
 
 function dcsbotgui.onPlayerChangeSlot(id)
-	msg = {}
+	local msg = {}
 	msg.command = 'onPlayerChangeSlot'
 	msg.id = id
 	msg.ucid = net.get_player_info(id, 'ucid')
@@ -246,7 +247,7 @@ function dcsbotgui.onPlayerChangeSlot(id)
 end
 
 function dcsbotgui.onChatMessage(message, from)
-	msg = {}
+	local msg = {}
 	msg.command = 'onChatMessage'
 	msg.message = message
 	msg.from_id = net.get_player_info(from, 'id')
@@ -264,7 +265,7 @@ end
 
 function dcsbotgui.onSimulationStart()
   log.write('DCSServerBot', log.DEBUG, '> onSimulationStart()')
-	msg = {}
+	local msg = {}
 	msg.command = 'onSimulationStart'
 	dcsbot.sendBotTable(msg)
   log.write('DCSServerBot', log.DEBUG, '< onSimulationStart()')
@@ -272,7 +273,7 @@ end
 
 function dcsbotgui.onSimulationStop()
   log.write('DCSServerBot', log.DEBUG, '> onSimulationStop()')
-	msg = {}
+	local msg = {}
 	msg.command = 'onSimulationStop'
 	dcsbot.sendBotTable(msg)
 	-- re-register the DCS server after a new start (as parameters might have changed)
@@ -281,13 +282,13 @@ function dcsbotgui.onSimulationStop()
 end
 
 function dcsbotgui.onSimulationPause()
-	msg = {}
+	local msg = {}
 	msg.command = 'onSimulationPause'
 	dcsbot.sendBotTable(msg)
 end
 
 function dcsbotgui.onSimulationResume()
-	msg = {}
+	local msg = {}
 	msg.command = 'onSimulationResume'
 	dcsbot.sendBotTable(msg)
 end

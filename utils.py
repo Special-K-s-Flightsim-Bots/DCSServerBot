@@ -1,3 +1,4 @@
+# utils.py
 import asyncio
 import aiohttp
 import discord
@@ -170,3 +171,14 @@ def DDtoDMS(dd):
     frac, minutes = math.modf(frac * 60)
     frac, seconds = math.modf(frac * 60)
     return degrees, minutes, seconds, frac
+
+
+def getActiveRunways(runways, wind):
+    retval = []
+    for runway in runways:
+        heading = int(runway[:2]) * 10
+        winddir = (wind['dir'] + 180) % 360
+        delta = abs(heading - winddir)
+        if (delta <= 90):
+            retval.append(runway)
+    return retval
