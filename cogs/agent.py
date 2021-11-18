@@ -441,7 +441,8 @@ class Agent(commands.Cog):
     @commands.command(description='Shows information of a specific airport', aliases=['airfield', 'ap'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def airport(self, ctx, name):
+    async def airport(self, ctx, *args):
+        name = ' '.join(args)
         for server_name, server in self.bot.DCSServers.items():
             if (server['status'] in ['Running', 'Paused']):
                 for airbase in server['airbases']:
