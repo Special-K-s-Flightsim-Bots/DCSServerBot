@@ -178,7 +178,9 @@ def getActiveRunways(runways, wind):
     for runway in runways:
         heading = int(runway[:2]) * 10
         winddir = (wind['dir'] + 180) % 360
-        delta = abs(heading - winddir)
-        if (delta <= 90):
+        diff = abs((winddir - heading + 180 + 360) % 360 - 180)
+        if (diff <= 90):
             retval.append(runway)
+    if (len(retval) == 0):
+        retval = ['n/a']
     return retval

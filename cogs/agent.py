@@ -333,7 +333,7 @@ class Agent(commands.Cog):
             weather = mission['weather']
             embed.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
             embed.add_field(name='QNH', value='{:.2f} inHg'.format(weather['qnh'] * const.MMHG_IN_INHG))
-            embed.add_field(name='Wind', value='\u2002Ground: {}° / {} m/s\n\u20026600 ft: {}° / {} m/s\n26000 ft: {}° / {} m/s'.format(
+            embed.add_field(name='Wind', value='\u2002Ground: {}° / {} kts\n\u20026600 ft: {}° / {} kts\n26000 ft: {}° / {} kts'.format(
                 int(weather['wind']['atGround']['dir'] + 180) % 360, int(weather['wind']['atGround']['speed']),
                 int(weather['wind']['at2000']['dir'] + 180) % 360, int(weather['wind']['at2000']['speed']),
                 int(weather['wind']['at8000']['dir'] + 180) % 360, int(weather['wind']['at8000']['speed'])))
@@ -476,8 +476,8 @@ class Agent(commands.Cog):
                         weather = data['weather']
                         embed.add_field(name='Active Runways', value='\n'.join(utils.getActiveRunways(
                             airbase['runwayList'], weather['wind']['atGround'])))
-                        embed.add_field(name='Surface Wind', value='{}° @ {} kts'.format((weather['wind']['atGround']['dir'] + 180) % 360, int(
-                            weather['wind']['atGround']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5)))
+                        embed.add_field(name='Surface Wind', value='{}° @ {} kts'.format(int(weather['wind']['atGround']['dir'] + 180) % 360, int(
+                            weather['wind']['atGround']['speed'])))
                         visibility = weather['visibility']['distance']
                         if (weather['enable_fog'] is True):
                             visibility = weather['fog']['visibility']
