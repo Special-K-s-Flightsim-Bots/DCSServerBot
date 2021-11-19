@@ -326,22 +326,26 @@ class Agent(commands.Cog):
                         value='🔹 {}  |  {} 🔸'.format(mission['num_slots_blue'] if 'num_slots_blue' in mission else '-', mission['num_slots_red'] if 'num_slots_red' in mission else '-'))
         embed.add_field(name='▬' * 25, value='_ _', inline=False)
         if ('weather' in mission):
-            weather = mission['weather']
-            if ('preset' in weather['clouds']):
-                embed.add_field(name='Preset', value=weather['clouds']['preset']['readableNameShort'])
+            if ('clouds' in mission and 'preset' in mission['clouds']):
+                embed.add_field(name='Preset', value=mission['clouds']['preset']['readableNameShort'])
             else:
                 embed.add_field(name='Weather', value='Dynamic')
+            weather = mission['weather']
             embed.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
             embed.add_field(name='QNH', value='{:.2f} inHg'.format(weather['qnh'] * const.MMHG_IN_INHG))
             embed.add_field(name='Wind', value='\u2002Ground: {}° / {} m/s\n\u20026600 ft: {}° / {} m/s\n26000 ft: {}° / {} m/s'.format(
-                (weather['wind']['atGround']['dir'] + 180) % 360, int(weather['wind']['atGround']['speed']),
-                (weather['wind']['at2000']['dir'] + 180) % 360, int(weather['wind']['at2000']['speed']),
-                (weather['wind']['at8000']['dir'] + 180) % 360, int(weather['wind']['at8000']['speed'])))
-            if ('preset' in weather['clouds']):
-                embed.add_field(name='Cloudbase', value=f'{int(weather["clouds"]["base"] * const.METER_IN_FEET):,} ft')
+                int(weather['wind']['atGround']['dir'] + 180) % 360, int(weather['wind']['atGround']['speed']),
+                int(weather['wind']['at2000']['dir'] + 180) % 360, int(weather['wind']['at2000']['speed']),
+                int(weather['wind']['at8000']['dir'] + 180) % 360, int(weather['wind']['at8000']['speed'])))
+            if ('clouds' in mission):
+                if ('preset' in mission['clouds']):
+                    embed.add_field(name='Cloudbase',
+                                    value=f'{int(mission["clouds"]["base"] * const.METER_IN_FEET):,} ft')
+                else:
+                    embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nDensity:\u2002\u2002 {}/10\nThickness: {:,} ft'.format(
+                        int(mission['clouds']['base'] * const.METER_IN_FEET), mission['clouds']['density'], int(mission['clouds']['thickness'] * const.METER_IN_FEET)))
             else:
-                embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nDensity:\u2002\u2002 {}/10\nThickness: {:,} ft'.format(
-                    int(weather['clouds']['base'] * const.METER_IN_FEET), weather['clouds']['density'], int(weather['clouds']['thickness'] * const.METER_IN_FEET)))
+                embed.add_field(name='Clouds', value='n/a')
             visibility = weather['visibility']['distance']
             if (weather['enable_fog'] is True):
                 visibility = weather['fog']['visibility'] * const.METER_IN_FEET
@@ -479,15 +483,17 @@ class Agent(commands.Cog):
                             visibility = weather['fog']['visibility']
                         embed.add_field(name='Visibility', value='{:,} m'.format(
                             int(visibility)) if visibility < 10000 else '10 km (+)')
-                        if ('clouds' in weather):
-                            if ('preset' in weather['clouds']):
-                                readableName = weather['clouds']['preset']['readableName']
+                        if ('clouds' in data):
+                            if ('preset' in data['clouds']):
+                                readableName = data['clouds']['preset']['readableName']
                                 metar = readableName[readableName.find('METAR:') + 6:]
                                 embed.add_field(name='Cloud Cover',
                                                 value=re.sub(' ', lambda m, c=itertools.count(): m.group() if not next(c) % 2 else '\n', metar))
                             else:
                                 embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nThickness: {:,} ft'.format(
-                                    int(weather['clouds']['base'] * const.METER_IN_FEET + 0.5), int(weather['clouds']['thickness'] * const.METER_IN_FEET + 0.5)))
+                                    int(data['clouds']['base'] * const.METER_IN_FEET + 0.5), int(data['clouds']['thickness'] * const.METER_IN_FEET + 0.5)))
+                        else:
+                            embed.add_field(name='Clouds', value='n/a')
                         embed.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']))
                         embed.add_field(name='QFE', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
                             int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])))
@@ -900,7 +906,11 @@ class Agent(commands.Cog):
 
             def get_player(self, server_name, id):
                 df = self.player_data[server_name]
-                return df[df['id'] == id].to_dict('records')[0]
+                row = df[df['id'] == id]
+                if (not row.empty):
+                    return df[df['id'] == id].to_dict('records')[0]
+                else:
+                    return None
 
             async def sendMessage(data):
                 return await self.get_channel(data, 'chat_channel' if (data['channel'] == '-1') else None).send(data['message'])
@@ -1144,9 +1154,7 @@ class Agent(commands.Cog):
                 if ('side' in data):
                     SQL_CLOSE_STATISTICS = 'UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL'
                     SQL_INSERT_STATISTICS = 'INSERT INTO statistics (mission_id, player_ucid, slot) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING'
-                    player = None
-                    with suppress(Exception):
-                        player = UDPListener.get_player(self, data['server_name'], data['id'])
+                    player = UDPListener.get_player(self, data['server_name'], data['id'])
                     if (data['side'] != self.SIDE_SPECTATOR):
                         if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
                             conn = self.bot.pool.getconn()
