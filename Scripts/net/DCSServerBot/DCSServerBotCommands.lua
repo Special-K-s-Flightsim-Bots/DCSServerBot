@@ -292,12 +292,12 @@ function dcsbot.getRunningMission(json)
     func()
     local preset = env.clouds and env.clouds.presets and env.clouds.presets[clouds.preset]
     if preset ~= nil then
-      msg.weather.clouds = {}
-      msg.weather.clouds.base = clouds.base
-      msg.weather.clouds.preset = preset
+      msg.clouds = {}
+      msg.clouds.base = clouds.base
+      msg.clouds.preset = preset
     end
   else
-    msg.weather.clouds = clouds
+    msg.clouds = clouds
   end
 	msg.pause = DCS.getPause()
 	if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
@@ -443,6 +443,29 @@ function dcsbot.getWeatherInfo(json)
   msg.pressureMM = pressure * 0.007500637554192
   msg.pressureIN = pressure * 0.000295300586467
   msg.weather = weather
+  local clouds = msg.weather.clouds
+  if clouds.preset ~= nil then
+    local presets = nil
+    local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
+
+    local env = {
+      type = _G.type,
+      next = _G.next,
+      setmetatable = _G.setmetatable,
+      getmetatable = _G.getmetatable,
+      _ = _,
+    }
+    setfenv(func, env)
+    func()
+    local preset = env.clouds and env.clouds.presets and env.clouds.presets[clouds.preset]
+    if preset ~= nil then
+      msg.clouds = {}
+      msg.clouds.base = clouds.base
+      msg.clouds.preset = preset
+    end
+  else
+    msg.clouds = clouds
+  end
   msg.turbulence = UC.composeTurbulenceString(weather)
   msg.wind = UC.composeWindString(weather, position)
   dcsbot.sendBotTable(msg, json.channel)

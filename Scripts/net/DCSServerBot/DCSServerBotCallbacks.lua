@@ -64,12 +64,12 @@ function dcsbotgui.onMissionLoadEnd()
     func()
     local preset = env.clouds and env.clouds.presets and env.clouds.presets[clouds.preset]
     if preset ~= nil then
-      msg.weather.clouds = {}
-      msg.weather.clouds.base = clouds.base
-      msg.weather.clouds.preset = preset
+      msg.clouds = {}
+      msg.clouds.base = clouds.base
+      msg.clouds.preset = preset
     end
   else
-    msg.weather.clouds = clouds
+    msg.clouds = clouds
   end
   msg.airbases = {}
   for airdromeID, airdrome in pairs(Terrain.GetTerrainConfig("Airdromes")) do
