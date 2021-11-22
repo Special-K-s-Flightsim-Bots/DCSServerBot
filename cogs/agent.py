@@ -237,9 +237,20 @@ class Agent(commands.Cog):
             self.bot.pool.putconn(conn)
         return id
 
-    def updatePlayerList(self, data):
-        server = self.bot.DCSServers[data['server_name']]
-        self.sendtoDCS(server, {"command": "getCurrentPlayers", "channel": data['channel']})
+    # Display the list of active players
+    async def displayPlayerList(self, data):
+        players = self.player_data[data['server_name']]
+        embed = discord.Embed(title='Active Players', color=discord.Color.blue())
+        names = units = sides = '' if (len(players[players['active'] == True]) > 0) else '_ _'
+        for idx, player in players[players['active'] == True].iterrows():
+            side = player['side']
+            names += player['name'] + '\n'
+            units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
+            sides += self.PLAYER_SIDES[side] + '\n'
+        embed.add_field(name='Name', value=names)
+        embed.add_field(name='Unit', value=units)
+        embed.add_field(name='Side', value=sides)
+        await self.setEmbed(data, 'players_embed', embed)
 
     def updateMission(self, data):
         server = self.bot.DCSServers[data['server_name']]
@@ -577,7 +588,7 @@ class Agent(commands.Cog):
             os.path.expandvars(self.bot.config['DCS']['SRS_INSTALLATION']), os.path.expandvars(self.bot.config[installation]['SRS_CONFIG'])))
         return subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.bot.config[installation]['SRS_CONFIG']))], executable=os.path.expandvars(self.bot.config['DCS']['SRS_INSTALLATION']) + '\\SR-Server.exe')
 
-    @commands.command(description='Starts a DCS Server')
+    @commands.command(description='Starts a DCS/DCS-SRS server')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def startup(self, ctx):
@@ -585,19 +596,20 @@ class Agent(commands.Cog):
         if (server is not None):
             installation = utils.findDCSInstallations(server['server_name'])[0]
             if (server['status'] in ['Stopped', 'Shutdown']):
-                await ctx.send('DCS-Server "{}" starting up ...'.format(server['server_name']))
+                await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
                 self.start_dcs(installation)
                 server['status'] = 'Loading'
             else:
-                await ctx.send('DCS-Server "{}" is already started.'.format(server['server_name']))
-            if (('AUTOSTART_SRS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'AUTOSTART_SRS') is True)):
+                await ctx.send('DCS server "{}" is already started.'.format(server['server_name']))
+            if ('SRS_CONFIG' in self.bot.config[installation]):
                 if (not utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT'])):
-                    await ctx.send('SRS-Server "{}" starting up ...'.format(server['server_name']))
-                    self.start_srs(installation)
+                    if (await utils.yn_question(self, ctx, 'Do you want to start the DCS-SRS server "{}"?'.format(server['server_name'])) is True):
+                        await ctx.send('DCS-SRS server "{}" starting up ...'.format(server['server_name']))
+                        self.start_srs(installation)
                 else:
-                    await ctx.send('SRS-Server "{}" is already started.'.format(server['server_name']))
+                    await ctx.send('DCS-SRS server "{}" is already started.'.format(server['server_name']))
 
-    @commands.command(description='Shutdown a DCS Server')
+    @commands.command(description='Shutdown a DCS/DCS-SRS server')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def shutdown(self, ctx):
@@ -607,23 +619,23 @@ class Agent(commands.Cog):
             if (server['status'] in ['Unknown', 'Loading']):
                 await ctx.send('Server is currently starting up. Please wait and try again.')
             elif (server['status'] not in ['Stopped', 'Shutdown']):
-                if (await utils.yn_question(self, ctx, 'Are you sure to shut down the DCS-server "{}"?'.format(server['server_name'])) is True):
-                    await ctx.send('Shutting down DCS-server "{}" ...'.format(server['server_name']))
+                if (await utils.yn_question(self, ctx, 'Do you want to shut down the DCS server "{}"?'.format(server['server_name'])) is True):
+                    await ctx.send('Shutting down DCS server "{}" ...'.format(server['server_name']))
                     self.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                     server['status'] = 'Shutdown'
             else:
-                await ctx.send('DCS-Server {} is already shut down.'.format(server['server_name']))
-            if (('AUTOSTART_SRS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'AUTOSTART_SRS') is True)):
+                await ctx.send('DCS server {} is already shut down.'.format(server['server_name']))
+            if ('SRS_CONFIG' in self.bot.config[installation]):
                 if (utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT'])):
-                    if (await utils.yn_question(self, ctx, 'Are you sure to shut down the SRS-server "{}"?'.format(server['server_name'])) is True):
+                    if (await utils.yn_question(self, ctx, 'Do you want to shut down the DCS-SRS server "{}"?'.format(server['server_name'])) is True):
                         p = utils.findProcess('SR-Server.exe', installation)
                         if (p):
-                            await ctx.send('Shutting down SRS-server "{}" ...'.format(server['server_name']))
+                            await ctx.send('Shutting down DCS-SRS server "{}" ...'.format(server['server_name']))
                             p.kill()
                         else:
-                            await ctx.send('Shutdown of SRS-server "{}" failed.'.format(server['server_name']))
+                            await ctx.send('Shutdown of DCS-SRS server "{}" failed.'.format(server['server_name']))
                 else:
-                    await ctx.send('SRS-Server {} is already shut down.'.format(server['server_name']))
+                    await ctx.send('DCS-SRS server {} is already shut down.'.format(server['server_name']))
 
     @commands.command(description='Update a DCS Installation')
     @utils.has_role('DCS Admin')
@@ -904,6 +916,7 @@ class Agent(commands.Cog):
 
         class UDPListener(socketserver.BaseRequestHandler):
 
+            # Return a player from the internal list
             def get_player(self, server_name, id):
                 df = self.player_data[server_name]
                 row = df[df['id'] == id]
@@ -911,6 +924,32 @@ class Agent(commands.Cog):
                     return df[df['id'] == id].to_dict('records')[0]
                 else:
                     return None
+
+            # Add or update a player from the internal list.
+            def updatePlayer(self, data):
+                # Player 1 is always inactive
+                if (data['id'] == 1):
+                    data['active'] = False
+                new_df = pd.DataFrame([data], columns=['id', 'name', 'active', 'side', 'slot',
+                                      'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type'])
+                new_df.set_index('id')
+                if (data['server_name'] not in self.player_data):
+                    self.player_data[data['server_name']] = new_df
+                else:
+                    df = self.player_data[data['server_name']]
+                    if (len(df[df['id'] == data['id']]) == 1):
+                        df.loc[df['id'] == data['id']] = new_df
+                    else:
+                        df = df.append(new_df)
+                    self.player_data[data['server_name']] = df
+
+            # We don't remove players for now, we just invalidate them
+            # due to the fact that DCS still sends kill events or changeSlot events
+            # when the user has already left the server.
+            def removePlayer(self, data):
+                df = self.player_data[data['server_name']]
+                df.loc[df['id'] == data['arg1'], 'active'] = False
+                self.player_data[data['server_name']] = df
 
             async def sendMessage(data):
                 return await self.get_channel(data, 'chat_channel' if (data['channel'] == '-1') else None).send(data['message'])
@@ -1000,20 +1039,11 @@ class Agent(commands.Cog):
 
             async def getCurrentPlayers(data):
                 if (int(data['channel']) != 0):
-                    self.player_data[data['server_name']] = pd.DataFrame.from_dict(data['players'])
-                    embed = discord.Embed(title='Active Players', color=discord.Color.blue())
-                    names = units = sides = '' if (len(data['players']) > 1) else '_ _'
-                    for player in data['players']:
-                        side = player['side']
-                        if(player['id'] == 1):
-                            continue
-                        names += player['name'] + '\n'
-                        units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
-                        sides += self.PLAYER_SIDES[side] + '\n'
-                    embed.add_field(name='Name', value=names)
-                    embed.add_field(name='Unit', value=units)
-                    embed.add_field(name='Side', value=sides)
-                    return await self.setEmbed(data, 'players_embed', embed)
+                    if (data['server_name'] not in self.player_data):
+                        self.player_data[data['server_name']] = pd.DataFrame(data['players'], columns=[
+                                                                             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type'])
+                        self.player_data[data['server_name']].set_index('id')
+                    await self.displayPlayerList(data)
                 else:
                     return data
 
@@ -1047,7 +1077,10 @@ class Agent(commands.Cog):
 
             async def onMissionLoadBegin(data):
                 self.bot.DCSServers[data['server_name']]['status'] = 'Loading'
+                self.player_data[data['server_name']] = pd.DataFrame(
+                    columns=['id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type'])
                 await UDPListener.getRunningMission(data)
+                await self.displayPlayerList(data)
 
             async def onMissionLoadEnd(data):
                 server = self.bot.DCSServers[data['server_name']]
@@ -1071,7 +1104,6 @@ class Agent(commands.Cog):
                     finally:
                         self.bot.pool.putconn(conn)
                 await UDPListener.getRunningMission(data)
-                self.updatePlayerList(data)
                 return None
 
             async def onSimulationStart(data):
@@ -1084,8 +1116,6 @@ class Agent(commands.Cog):
                 if (self.bot.DCSServers[data['server_name']]['status'] != 'Shutdown'):
                     self.bot.DCSServers[data['server_name']]['status'] = 'Stopped'
                 await UDPListener.getRunningMission(data)
-                data['players'] = []
-                await UDPListener.getCurrentPlayers(data)
                 if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
                     conn = self.bot.pool.getconn()
                     try:
@@ -1144,11 +1174,13 @@ class Agent(commands.Cog):
                         self.sendtoDCS(server, {"command": "sendChatMessage", "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(
                             name, data['server_name']), "to": data['id']})
                     self.updateMission(data)
-                    self.updatePlayerList(data)
-                    return None
+                    UDPListener.updatePlayer(self, data)
+                    await self.displayPlayerList(data)
+                return None
 
             async def onPlayerStop(data):
-                return None
+                UDPListener.removePlayer(self, data)
+                await self.displayPlayerList(data)
 
             async def onPlayerChangeSlot(data):
                 if ('side' in data):
@@ -1180,8 +1212,8 @@ class Agent(commands.Cog):
                         if (chat_channel is not None):
                             await chat_channel.send('{} player {} returned to Spectators'.format(
                                 self.PLAYER_SIDES[player['side']], data['name']))
-                    self.updateMission(data)
-                    self.updatePlayerList(data)
+                    UDPListener.updatePlayer(self, data)
+                    await self.displayPlayerList(data)
                 return None
 
             async def onGameEvent(data):
@@ -1215,7 +1247,8 @@ class Agent(commands.Cog):
                                     await chat_channel.send('{} player {} disconnected'.format(
                                         self.PLAYER_SIDES[player['side']], player['name']))
                             self.updateMission(data)
-                            self.updatePlayerList(data)
+                            UDPListener.removePlayer(self, data)
+                            await self.displayPlayerList(data)
                     elif (data['eventName'] == 'friendly_fire'):
                         player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
                         if (data['arg3'] != -1):

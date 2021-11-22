@@ -32,6 +32,12 @@ class Statistics(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         plt.switch_backend('agg')
+        # Make sure we only get back floats, not Decimal
+        DEC2FLOAT = psycopg2.extensions.new_type(
+            psycopg2.extensions.DECIMAL.values,
+            'DEC2FLOAT',
+            lambda value, curs: float(value) if value is not None else None)
+        psycopg2.extensions.register_type(DEC2FLOAT)
         self.servers = []
         conn = self.bot.pool.getconn()
         try:
@@ -54,6 +60,22 @@ class Statistics(commands.Cog):
                 cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (member.id, ucid))
                 conn.commit()
                 await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+            conn.rollback()
+        finally:
+            self.bot.pool.putconn(conn)
+
+    @commands.command(description='Unlinks a member', usage='<member>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def unlink(self, ctx, member: discord.Member):
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s', (member.id))
+                conn.commit()
+                await ctx.send('Member {} unlinked.'.format(member.display_name))
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
             conn.rollback()
