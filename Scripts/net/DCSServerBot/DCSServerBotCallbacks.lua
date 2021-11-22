@@ -221,6 +221,13 @@ function dcsbotgui.onPlayerStart(id)
 	msg.id = id
 	msg.ucid = net.get_player_info(id, 'ucid')
 	msg.name = net.get_player_info(id, 'name')
+  msg.side = 0
+  -- server user is never active
+  if (msg.id == 1) then
+    msg.active = false
+  else
+    msg.active = true
+  end
 	dcsbot.sendBotTable(msg)
 end
 
@@ -230,6 +237,7 @@ function dcsbotgui.onPlayerStop(id)
 	msg.id = id
 	msg.ucid = net.get_player_info(id, 'ucid')
 	msg.name = net.get_player_info(id, 'name')
+  msg.active = false
 	dcsbot.sendBotTable(msg)
 end
 
@@ -243,6 +251,7 @@ function dcsbotgui.onPlayerChangeSlot(id)
 	msg.unit_type, msg.slot, msg.sub_slot = dcsbot.GetMulticrewAllParameters(id)
 	msg.unit_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_NAME)
 	msg.unit_callsign = DCS.getUnitProperty(msg.slot, DCS.UNIT_CALLSIGN)
+  msg.active = true
 	dcsbot.sendBotTable(msg)
 end
 

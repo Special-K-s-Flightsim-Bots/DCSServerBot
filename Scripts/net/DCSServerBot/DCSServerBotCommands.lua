@@ -328,6 +328,12 @@ function dcsbot.getCurrentPlayers(json)
 			msg.players[i].unit_type, msg.players[i].slot, msg.players[i].sub_slot = dcsbot.GetMulticrewAllParameters(plist[i])
 			msg.players[i].unit_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_NAME)
 			msg.players[i].unit_callsign = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_CALLSIGN)
+      -- server user is never active
+      if (msg.players[i].id == 1) then
+        msg.players[i].active = false
+      else
+        msg.players[i].active = true
+      end
 		end
 		dcsbot.sendBotTable(msg, json.channel)
 	end

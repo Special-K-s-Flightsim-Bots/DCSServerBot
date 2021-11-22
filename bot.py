@@ -86,7 +86,7 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
                     bot.log.warning('Remote repo has changed. Updating myself...')
                     diff = repo.head.commit.diff(new_hash)
                     for d in diff:
-                        if (d.b_path == 'bot.py'):
+                        if (d.b_path in ['bot.py', 'utils.py']):
                             restart = True
                         elif (d.b_path == 'requirements.txt'):
                             modules = True

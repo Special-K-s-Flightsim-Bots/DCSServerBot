@@ -1,6 +1,6 @@
 discord.py>=1.5.0
 pandas
-matplotlib==3.4.3
+matplotlib
 psycopg2-binary
 GitPython
 xmltodict
