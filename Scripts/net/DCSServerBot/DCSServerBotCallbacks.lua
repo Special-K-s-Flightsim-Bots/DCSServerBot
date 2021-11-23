@@ -111,7 +111,6 @@ function dcsbotgui.onMissionLoadEnd()
         heading = 360 + heading
       end
       airbase.rwy_heading = heading
-      log.write('DCSServerBot', log.DEBUG, '### Hier 3')
       table.insert(msg.airbases, airbase)
     end
   end

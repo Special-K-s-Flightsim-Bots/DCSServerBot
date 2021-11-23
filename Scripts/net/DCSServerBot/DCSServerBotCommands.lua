@@ -17,7 +17,6 @@ local UC        = base.require("utils_common")
 
 dcsbot = dcsbot or {}
 
-dcsbot.VERSION = '1.2'
 dcsbot.registered = false
 dcsbot.SlotsData = {}
 dcsbot.banList = {}
@@ -101,7 +100,7 @@ function dcsbot.registerDCSServer(json)
 	end
 	local msg = {}
 	msg.command = 'registerDCSServer'
-	msg.hook_version = dcsbot.VERSION
+	msg.hook_version = dcsbot.config.VERSION
 	msg.dcs_version = Export.LoGetVersionInfo().ProductVersion[1] .. '.' .. Export.LoGetVersionInfo().ProductVersion[2] .. '.' .. Export.LoGetVersionInfo().ProductVersion[3] .. '.' .. Export.LoGetVersionInfo().ProductVersion[4]
   msg.host = dcsbot.config.DCS_HOST
 	msg.port = dcsbot.config.DCS_PORT

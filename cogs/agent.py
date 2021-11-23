@@ -948,7 +948,14 @@ class Agent(commands.Cog):
             # when the user has already left the server.
             def removePlayer(self, data):
                 df = self.player_data[data['server_name']]
-                df.loc[df['id'] == data['arg1'], 'active'] = False
+                if (data['command'] == 'onPlayerStop'):
+                    id = data['id']
+                elif (data['command'] == 'onGameEvent'):
+                    id = data['arg1']
+                else:
+                    self.bot.log.warning('removePlayer() received unknown event: ' + str(data))
+                    return
+                df.loc[df['id'] == id, 'active'] = False
                 self.player_data[data['server_name']] = df
 
             async def sendMessage(data):
