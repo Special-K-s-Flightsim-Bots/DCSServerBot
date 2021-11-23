@@ -228,7 +228,7 @@ for installation in utils.findDCSInstallations():
         bot.log.info('Installing Hook ...')
     shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
     with open(r'.\Scripts\net\DCSServerBot\DCSServerBotConfig.lua.tmpl', 'r') as template:
-        with open(dcs_path + r'\net\DCSServerBot\DCSServerBotConfig2.lua', 'w') as outfile:
+        with open(dcs_path + r'\net\DCSServerBot\DCSServerBotConfig.lua', 'w') as outfile:
             for line in template.readlines():
                 s = line.find('{')
                 e = line.find('}')
