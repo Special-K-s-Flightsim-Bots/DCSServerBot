@@ -151,8 +151,8 @@ async def on_command_error(ctx, error):
 async def on_message(message):
     for key, value in bot.DCSServers.items():
         if (value["chat_channel"] == message.channel.id):
-            if (message.content.startswith(config['BOT']['COMMAND_PREFIX']) is False):
-                message.content = config['BOT']['COMMAND_PREFIX'] + 'chat ' + message.content
+            if (message.content.startswith(bot.config['BOT']['COMMAND_PREFIX']) is False):
+                message.content = bot.config['BOT']['COMMAND_PREFIX'] + 'chat ' + message.content
     await bot.process_commands(message)
 
 
@@ -221,12 +221,27 @@ for installation in utils.findDCSInstallations():
     dcs_path = os.path.expandvars(config[installation]['DCS_HOME'] + '\\Scripts')
     assert path.exists(dcs_path), 'Can\'t find DCS installation directory. Exiting.'
     ignore = None
-    if (path.exists(dcs_path + '\\net\\DCSServerBot')):
+    if (path.exists(dcs_path + r'\net\DCSServerBot')):
         bot.log.info('Updating Hook ...')
-        ignore = shutil.ignore_patterns('DCSServerBotConfig.lua')
+        ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
     else:
         bot.log.info('Installing Hook ...')
     shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
+    with open(r'.\Scripts\net\DCSServerBot\DCSServerBotConfig.lua.tmpl', 'r') as template:
+        with open(dcs_path + r'\net\DCSServerBot\DCSServerBotConfig2.lua', 'w') as outfile:
+            for line in template.readlines():
+                s = line.find('{')
+                e = line.find('}')
+                if (s != -1 and e != -1 and (e-s) > 1):
+                    param = line[s+1:e].split('.')
+                    if (len(param) == 2):
+                        if (param[0] == 'BOT' and param[1] == 'HOST' and config[param[0]][param[1]] == '0.0.0.0'):
+                            line = line.replace('{' + '.'.join(param) + '}', '127.0.0.1')
+                        else:
+                            line = line.replace('{' + '.'.join(param) + '}', config[param[0]][param[1]])
+                    elif (len(param) == 1):
+                        line = line.replace('{' + '.'.join(param) + '}', config[installation][param[0]])
+                outfile.write(line)
     bot.log.info('Hook installed into {}.'.format(installation))
 
 # TODO change sanitizeModules

@@ -1,6 +1,6 @@
 # Documentation
 DCSServerBot lets you interact between Discord and DCS.
-The bot has to be installed on the same machine that runs DCS or at least in the same network.
+The bot has to be installed on the same machine that runs DCS or at least in the same network. AUTOSTART_DCS will only work, if the bot runs on the very same machine, though.
 The following two main features are supported:
 
 ## DCS Server Remote Control
@@ -63,7 +63,10 @@ Press "Copy" on the generated URL, paste it into the browser of your choice, sel
 For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
 
 ### Bot Configuration
-The bot configuration is held in config/dcsserverbot.ini. The following parameters can be used to configure the bot:
+The bot configuration is held in **config/dcsserverbot.ini**. See **dcsserverbot.ini.sample** for an example.
+The following parameters can be used to configure the bot:
+
+a) __BOT Section__
 |Parameter|Description|
 | ------------ | ------------ |
 |OWNER|The Discord ID of the Bot's owner (that's you!). If you don't know your ID, go to your Discord profile, make sure "Developer Mode" is enabled under "Advanced", go to "My Account", press the "..." besides your profile picture and select "Copy ID"|
@@ -75,30 +78,50 @@ The bot configuration is held in config/dcsserverbot.ini. The following paramete
 |MASTER|If true, start the bot in master-mode which enables specific commands that are only allowed **once** on your server. If only one bot is running, then there is only a master.\nIf you have to use more than one bot, for multiple DCS servers that are spanned over several locations, you have to install one agent at every location. All DCS servers of that specific location will then automatically register with that specific bot and can only be controlled by that bot.|
 |AUTOUPDATE|If true, the bot autoupdates itself with the latest release on startup.|
 |AUTOBAN|If true, members leaving the discord will be automatically banned.|
+
+b) __ROLES Section__
+|Parameter|Description|
+| ------------ | ------------ |
 |Admin|The name of the admin role in you Discord.|
 |DCS Admin|The name of the role you'd like to give admin rights on your DCS servers (_Moderator_ for instance).|
-|DCS|The role of users being able to see their statistics and mission information (usually the general user role in you Discord).|
+|DCS|The role of users being able to see their statistics and mission information (usually the general user role in your Discord).|
+
+c) __FILTER Section__
+|Parameter|Description|
+| ------------ | ------------ |
 |SERVER_FILTER|Filter to shorten server names (if needed)|
 |MISSION_FILTER|Filter to shorten mission names (if needed)|
-|DCS_HOME|The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.|
+
+d) __DCS Section__
+|Parameter|Description|
+| ------------ | ------------ |
 |DCS_INSTALLATION|The installation directory of DCS World.|
+|SRS_INSTALLATION|The installation directory of DCS-SRS (optional).|
 |GREETING_MESSAGE_MEMBERS|A greeting message, that people will receive in DCS, if they get recognized by the bot as a member of your discord.|
 |GREETING_MESSAGE_UNKNOWN|A greeting message, that people will receive in DCS, if they or not recognized as a member of your discord.|
+|..SERVER_USER|The username to display as user no. 1 in the server (Observer)|
+
+e) __Server Specific Sections (e. g. [DCS.openbeta_server])__
+|Parameter|Description|
+| ------------ | ------------ |
+|DCS_HOST|The IP of the machine, DCS is running onto. If you are an agent to a master in the same network but not on your machine, this has to be the internal IP of the DCS server.|
+|DCS_PORT|Must be a unique value > 1024 of a port that is not in use on your system. Must be unique for every DCS server instance configured. **__Don't expose that port to the outside world!__**|
+|DCS_HOME|The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.|
+|SRS_CONFIG|The configuration file to use for the dedicated DCS-SRS server (optional).|
+|SRS_HOST|The IP-address the DCS-SRS server is listening on (optional, default: 127.0.0.1).|
+|SRS_PORT|The port the DCS-SRS server uses (optiona, default: 5002).|
+|AUTOSTART_DCS|If true, the corresponding DCS server will be started automatically at bot start.|
+|AUTOSTART_SRS|If true, the corresponding DCS-SRS server will be started automatically at bot start (optional).|
+|STATISTICS|If false, no statistics will be generated for this server. Default is true.|
+|CHAT_CHANNEL|The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.|
+|STATUS_CHANNEL|The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.|
+|ADMIN_CHANNEL|The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.|
 
 ### DCS/Hook Configuration
 The DCS World integration is done via a Hook. This is being installed automatically.
 You need to configure the Hook upfront in Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 |Parameter|Description|
 | ------------ | ------------ |
-|..BOT_HOST|Must be the same as HOST in the Bot configuration.|
-|..BOT_PORT|Must be the same as PORT in the Bot configuration (default 10081).|
-|..STATISTICS|If false, no statistics will be generated for this server. Default is true.|
-|..SERVER_USER|The username to display as user no. 1 in the server (Observer)|
-|..DCS_HOST|The IP of the machine, DCS is running onto. If you are an agent to a master in the same network but not on your machine, this has to be the internal IP of the DCS server.|
-|..DCS_PORT|Must be a unique value > 1024 of a port that is not in use on your system. Must be unique for every DCS server instance configured. **__Don't expose that port to the outside world!__**|
-|..CHAT_CHANNEL|The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.|
-|..STATUS_CHANNEL|The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.|
-|..ADMIN_CHANNEL|The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.|
 
 ### Sanitization
 The DCSServerBot uses lua functions that are santitized by default. To enable them, you have to change the following lines in DCS_INSTALLATION\\Scripts\\MissionScripting.lua:

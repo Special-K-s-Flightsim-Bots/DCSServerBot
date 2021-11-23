@@ -41,3 +41,7 @@ DCS_HOME = %%USERPROFILE%%\\Saved Games\\DCS.OpenBeta
 AUTOSTART_DCS = true
 ; AUTOSTART_SRS = true
 STATISTICS = true
+; These channels have to be replaces with the dedicated discord channel IDs (see README)
+CHAT_CHANNEL = 123456789012345678
+STATUS_CHANNEL = 123456789012345678
+ADMIN_CHANNEL = 123456789012345678
