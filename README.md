@@ -1,10 +1,10 @@
 # Documentation
 DCSServerBot lets you interact between Discord and DCS.
-The bot has to be installed on the same machine that runs DCS or at least in the same network. AUTOSTART_DCS will only work, if the bot runs on the very same machine, though.
+The bot has to be installed on the same machine that runs DCS or at least in the same network (_AUTOSTART_DCS will only work, if the bot runs on the very same machine, though_).
 The following two main features are supported:
 
 ## DCS Server Remote Control
-Control registered DCS servers via Discord commands.
+Control registered DCS servers and their missions via Discord commands.
 The following commands are supported:
 |Command|Parameter|Channel|Role|Description|
 | ------------ | ------------ | ------------ | ------------ | ------------ |
@@ -37,10 +37,11 @@ Gather statistics data from users and display them in a user-friendly way in you
 The following commands are supported:
 |Command|Parameter|Role|Description|
 | ------------ | ------------ | ------------ | ------------ |
-|.link|@member or ucid|DCS Admin|Sometimes users can't be linked automatically. That is a manual workaround.|
 |.statistics/.stats|[@member]|DCS|Display your own statistics or that of a specific member.|
 |.highscore/.hs|[day] / [week] / [month]|DCS|Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)|
 |.serverstats|[week] / [month]|Admin|Displays server statistics, like usual playtimes, most frequented servers and missions|
+|.link|@member ucid|DCS Admin|Sometimes users can't be linked automatically. That is a manual workaround.|
+|.unlink|@member|DCS Admin|Unlink a user from a ucid, if the automatic linking didn't work.|
 
 ## Installation
 First of all, download the latest release version and extract it somewhere on your server, where it has write access.
