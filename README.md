@@ -74,8 +74,8 @@ a) __BOT Section__
 |DATABASE_URL|URL to the PostgreSQL database used to store our data.|
 |COMMAND_PREFIX|The prefix to be used. Default is '.'|
 |HOST|IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.|
-|PORT|UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose that port to the outside world!__**|
-|MASTER|If true, start the bot in master-mode which enables specific commands that are only allowed **once** on your server. If only one bot is running, then there is only a master.\nIf you have to use more than one bot, for multiple DCS servers that are spanned over several locations, you have to install one agent at every location. All DCS servers of that specific location will then automatically register with that specific bot and can only be controlled by that bot.|
+|PORT|UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose this port to the outside world!__**|
+|MASTER|If true, start the bot in master-mode (default for one-bot-installations). If only one bot is running, then there is only a master.\nIf you have to use more than one bot installation, for multiple DCS servers that are spanned over several locations, you have to install one agent (MASTER = false) at every other location. All DCS servers of that location will then automatically register with that agent.|
 |AUTOUPDATE|If true, the bot autoupdates itself with the latest release on startup.|
 |AUTOBAN|If true, members leaving the discord will be automatically banned.|
 
@@ -98,8 +98,8 @@ d) __DCS Section__
 |DCS_INSTALLATION|The installation directory of DCS World.|
 |SRS_INSTALLATION|The installation directory of DCS-SRS (optional).|
 |GREETING_MESSAGE_MEMBERS|A greeting message, that people will receive in DCS, if they get recognized by the bot as a member of your discord.|
-|GREETING_MESSAGE_UNKNOWN|A greeting message, that people will receive in DCS, if they or not recognized as a member of your discord.|
-|..SERVER_USER|The username to display as user no. 1 in the server (Observer)|
+|GREETING_MESSAGE_UNKNOWN|A greeting message, that people will receive in DCS, if they are not recognized as a member of your discord.|
+|SERVER_USER|The username to display as user no. 1 in the server (Observer)|
 
 e) __Server Specific Sections (e. g. [DCS.openbeta_server])__
 |Parameter|Description|
@@ -119,9 +119,6 @@ e) __Server Specific Sections (e. g. [DCS.openbeta_server])__
 
 ### DCS/Hook Configuration
 The DCS World integration is done via a Hook. This is being installed automatically.
-You need to configure the Hook upfront in Scripts/net/DCSServerBot/DCSServerBotConfig.lua
-|Parameter|Description|
-| ------------ | ------------ |
 
 ### Sanitization
 The DCSServerBot uses lua functions that are santitized by default. To enable them, you have to change the following lines in DCS_INSTALLATION\\Scripts\\MissionScripting.lua:
@@ -139,7 +136,7 @@ If you run more than one instance of DCS, don't forget to change SlmodMissionScr
 
 ### Discord Configuration
 The bot uses the following **internal** roles to apply specific permissions to commands.
-You can change the role names to the ones being used in your discord. That has to be done in the ini configuration file.
+You can change the role names to the ones being used in your discord. That has to be done in the dcsserverbot.ini configuration file.
 |Role|Description|
 | ------------ | ------------ |
 |DCS|People with this role are allowed to chat, check their statistics and gather information about running missions and players.|
@@ -150,7 +147,7 @@ You can change the role names to the ones being used in your discord. That has t
 _One of the concepts of this bot it to bind people to your discord._
 
 The bot automatically bans / unbans people from the configured DCS servers, as soon as they leave / join the configured Discord guild.
-If you don't like that feature, set AUTOBAN = false in dcsserverbot.ini.
+If you don't like that feature, set _AUTOBAN = false_ in dcsserverbot.ini.
 Besides that, people that have no pilot ID (empty), will not get into the server. That is not configurable, it's a general rule (and a good one in my eyes).
 
 ## How to do the more complex stuff?
@@ -165,32 +162,34 @@ To add subsequent servers, just follow the steps above and you're good unless th
 
 ### Setup Multiple Servers on Multiple Host at the Same Location
 To communicate with DCSServerBot over the network, you need to change two configurations.
-By default, DCSServerBot is configured to be bound to the loopback interface (127.0.0.1) not allowing any external connection to the system. This can be changed in dcsserverbot.ini by using the LAN IP address of the Windows server running DCSServerBot instead. All DCS servers then have to be configured to use that IP address, too. This can be done by changing BOT_HOST in the dedicated DCSServerBotConfig.lua files of the DCS servers to the very same LAN IP address of the Windows server running the DCSSServerBot.
+By default, DCSServerBot is configured to be bound to the loopback interface (127.0.0.1) not allowing any external connection to the system. This can be changed in dcsserverbot.ini by using the LAN IP address of the Windows server running DCSServerBot instead.
 
 ### Setup Multiple Servers on Multiple Host at Different Locations
-DCSServerBot is able to run in multiple locations, worldwide. In every location, one instance of DCSServerBot is needed to be installed in the local network containing the DCS servers.
-Only one single instance of the bot is to be configured as a master. This instance has to be up 24/7. Currently, DCSServerBot does not support handing over the master to other bot instances.
-To configure a server as a master, you have to set MASTER to true (default) in the dcsserverbot.ini configuration file. Every other instance of the bot has to be set as an agent (MASTER = false).
-The master and all agents are collecting statistics of the DCS servers they control, but only the master runs the statistics module to display them in Discord. To be able to write the statistics to the **central** database, all servers need access. You can either host that database at the location where the master runs and enable all other agents to access that instance (keep security like SSL encryption in mind) or you use a cloud database, available on services like Amazon, Heroku, etc.
+DCSServerBot is able to run in multiple locations, worldwide. In every location, one instance of DCSServerBot is needed to be installed in the local network containing the DCS server(s).
+Only one single instance of the bot (worldwide) is to be configured as a master. This instance has to be up 24/7 to use the statistics or ban commands. Currently, DCSServerBot does not support handing over the master to other bot instances, if the one and only master goes down.
+To configure a server as a master, you have to set _MASTER = true_ (default) in the dcsserverbot.ini configuration file. Every other instance of the bot has to be set as an agent (_MASTER = false_).
+The master and all agents are collecting statistics of the DCS servers they control, but only the master runs the statistics module to display them in Discord. To be able to write the statistics to the **central** database, all servers need access to the database. You can either host that database at the location where the master runs and enable all other agents to access that instance (keep security like SSL encryption in mind) or you use a cloud database, available on services like Amazon, Heroku, etc.
 
 ### Moving a Server from one Location to Another
 When running multiple servers over different locations it might be necessary to move a server from one location to another. As all servers are registered with their local bots, some steps are needed to move a server over.
 1) Stop the server in the **old** location from where it should be moved.
 2) Goto the ADMIN_CHANNEL of that server and type ```.unregister```
-3) Configure a server at the **new** location with the very same name and make sure the the correct channels are configured in DCSServerBotConfig.lua of that server.
-4) Start the server at the **new** location.
+3) Remove the entries of that server from the dcsserverbot.ini at the **old** location.
+4) Configure a server at the **new** location with the very same name and make sure the the correct channels are configured in dcsserverbot.ini of that server.
+5) Start the server at the **new** location.
 
 ### How to talk to the Bot from inside Missions
 If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a mission start trigger:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
 ```
-After that, you can send chat messages to the bot using
+After that, you can for instance send chat messages to the bot using
 ```lua
   dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear, default is the configured chat channel
 ```
+inside a trigger or anywhere else where scripting is allowed.
 
-Embeds can be sent using code similar to that snipplet:
+Embeds can be sent using code similar to this snipplet:
 ```lua
   title = 'Special K successfully landed at Kutaisi!'
   description = 'The unbelievable and unimaginable event happend. Special K succeeded at his 110th try to successfully land at Kutaisi, belly down.'
@@ -203,7 +202,7 @@ Embeds can be sent using code similar to that snipplet:
   footer = 'Just kidding, they forgot to put their gear down!'
   dcsbot.sendEmbed(title, description, img, fields, footer)
 ```
-They will be posted in the chat channel by default, too, if not specified otherwise (adding the channel id as a last parameter of the sendEmbed() call, see sendBotMessage() above).
+They will be posted in the chat channel by default, if not specified otherwise (adding the channel id as a last parameter of the sendEmbed() call, see sendBotMessage() above).
 
 If you like to use a single embed, maybe in the status channel, and update it instead, you can do that, too:
 ```lua
@@ -216,7 +215,7 @@ If you like to use a single embed, maybe in the status channel, and update it in
   img = 'http://3.bp.blogspot.com/-2u16gMPPgMQ/T1wfXR-bn9I/AAAAAAAAFrQ/yBKrNa9Q88U/s1600/chuck-norris-in-war-middle-east-funny-pinoy-jokes-2012.jpg'
   dcsbot.updateEmbed('myEmbed', title, description, img)
 ```
-If no embed is there, the updateEmbed() call will generate it for you.
+If no embed named "myEmbed" is there already, the updateEmbed() call will generate it for you, otherwise it will be replaced with this one.
 
 ### How to enable Mission Statistics
 The bot is capable of capturing some easy mission statistics, that'll give an overview about the current situation (red vs blue) and how well they played.
