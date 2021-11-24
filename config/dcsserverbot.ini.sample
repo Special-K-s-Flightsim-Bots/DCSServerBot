@@ -9,6 +9,7 @@ PORT = 10081
 MASTER = true
 AUTOUPDATE = true
 AUTOBAN = true
+LOGLEVEL = DEBUG
 
 [ROLES]
 Admin = Admin

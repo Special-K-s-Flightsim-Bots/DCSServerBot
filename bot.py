@@ -20,6 +20,14 @@ from psycopg2 import pool
 config = ConfigParser()
 config.read('config/dcsserverbot.ini')
 
+LOGLEVEL = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR,
+    'CRITICAL': logging.CRITICAL
+}
+
 # git repository
 GIT_REPO_URL = 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git'
 
@@ -49,17 +57,20 @@ bot = commands.Bot(command_prefix=get_prefix,
 
 # Allow COGs to access configuration
 bot.config = config
-bot.version = '1.3'
+bot.version = bot.config['BOT']['VERSION'] = '2.3.0'
 
 # Initialize the logger
 bot.log = logging.getLogger(name='dcsserverbot')
 bot.log.setLevel(logging.DEBUG)
 fh = RotatingFileHandler('dcsserverbot.log', maxBytes=10*1024*2024, backupCount=2)
-fh.setLevel(logging.INFO)
+if ('LOGLEVEL' in config['BOT']):
+    fh.setLevel(LOGLEVEL[bot.config['BOT']['LOGLEVEL']])
+else:
+    fh.setLevel(logging.DEBUG)
 fh.setFormatter(logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
 fh.doRollover()
 ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
+ch.setLevel(logging.INFO)
 bot.log.addHandler(fh)
 bot.log.addHandler(ch)
 
@@ -88,7 +99,7 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
                         elif (d.b_path == 'requirements.txt'):
                             modules = True
                     repo.remote().pull(repo.active_branch)
-                    bot.log.warning('Updated to latest version.')
+                    bot.log.info('Updated to latest version.')
                     if (modules is True):
                         bot.log.warning('requirements.txt has changed. Installing missing modules...')
                         subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
@@ -98,7 +109,7 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
                 else:
                     bot.log.info('No update found.')
         except git.exc.InvalidGitRepositoryError:
-            bot.log.warning('Linking bot to remote repository for auto update...')
+            bot.log.info('Linking bot to remote repository for auto update...')
             repo = git.Repo.init()
             origin = repo.create_remote('origin', url=GIT_REPO_URL)
             origin.fetch()
@@ -111,7 +122,7 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
                             'Scripts/net/DCSServerBot/DCSServerBotConfig.lua')
             os.remove('config/dcsserverbot.old')
             os.remove('Scripts/net/DCSServerBot/DCSServerBotConfig.old')
-            bot.log.warning('Repository is linked. Restart needed.')
+            bot.log.info('Repository is linked. Restart needed.')
             exit(-1)
 
     except ImportError:
@@ -122,7 +133,7 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
 @bot.event
 async def on_ready():
     bot.log.debug(f'Logged in as {bot.user.name} - {bot.user.id}')
-    bot.log.warning('DCSServerBot started, accepting commands.')
+    bot.log.info('DCSServerBot started, accepting commands.')
     bot.remove_command('help')
     for cog in COGS:
         bot.load_extension(cog)
@@ -186,23 +197,23 @@ if (config.getboolean('BOT', 'MASTER') is True):
                     elif (cnt == 1):
                         bot.db_version = 'v1.0'
                     while (path.exists(UPDATES_SQL.format(bot.db_version))):
-                        bot.log.warning('Upgrading Database version {} ...'.format(bot.db_version))
+                        bot.log.info('Upgrading Database version {} ...'.format(bot.db_version))
                         with open(UPDATES_SQL.format(bot.db_version)) as tables_sql:
                             for query in tables_sql.readlines():
                                 bot.log.debug(query.rstrip())
                                 cursor.execute(query.rstrip())
                         cursor.execute('SELECT version FROM version')
                         bot.db_version = cursor.fetchone()[0]
-                        bot.log.warning('Database upgraded to version {}.'.format(bot.db_version))
+                        bot.log.info('Database upgraded to version {}.'.format(bot.db_version))
             # no, create one
             if (bot.db_version is None):
-                bot.log.warning('Initializing Database ...')
+                bot.log.debug('Initializing Database ...')
                 with closing(conn.cursor()) as cursor:
                     with open(TABLES_SQL) as tables_sql:
                         for query in tables_sql.readlines():
                             bot.log.debug(query.rstrip())
                             cursor.execute(query.rstrip())
-                bot.log.warning('Database initialized.')
+                bot.log.debug('Database initialized.')
             conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
         conn.rollback()
@@ -212,19 +223,19 @@ if (config.getboolean('BOT', 'MASTER') is True):
         bot.pool.putconn(conn)
 
 # Installing Hook
-bot.log.warning(f'DCSServerBot v{bot.version} starting up ...')
+bot.log.info(f'DCSServerBot v{bot.version} starting up ...')
 for installation in utils.findDCSInstallations():
     if (installation not in config):
         continue
-    bot.log.warning('- Configure DCS installation: {}'.format(installation))
+    bot.log.info('- Configure DCS installation: {}'.format(installation))
     dcs_path = os.path.expandvars(config[installation]['DCS_HOME'] + '\\Scripts')
     assert path.exists(dcs_path), 'Can\'t find DCS installation directory. Exiting.'
     ignore = None
     if (path.exists(dcs_path + r'\net\DCSServerBot')):
-        bot.log.info('Updating Hook ...')
+        bot.log.debug('Updating Hook ...')
         ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
     else:
-        bot.log.info('Installing Hook ...')
+        bot.log.debug('Installing Hook ...')
     shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
     try:
         with open(r'.\Scripts\net\DCSServerBot\DCSServerBotConfig.lua.tmpl', 'r') as template:
@@ -245,9 +256,9 @@ for installation in utils.findDCSInstallations():
     except (KeyError) as k:
         bot.log.error(f'! Your dcsserverbot.ini contains errors. You must set a value for {k}. See README for help.')
         exit(-1)
-    bot.log.info('Hook installed into {}.'.format(installation))
+    bot.log.debug('Hook installed into {}.'.format(installation))
 
 # TODO change sanitizeModules
-bot.log.warning('- Starting {}-Node on {}'.format('Master' if config.getboolean(
+bot.log.info('- Starting {}-Node on {}'.format('Master' if config.getboolean(
     'BOT', 'MASTER') is True else 'Agent', platform.node()))
 bot.run(config['BOT']['TOKEN'], bot=True, reconnect=True)

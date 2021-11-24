@@ -79,6 +79,7 @@ a) __BOT Section__
 |MASTER|If true, start the bot in master-mode (default for one-bot-installations). If only one bot is running, then there is only a master.\nIf you have to use more than one bot installation, for multiple DCS servers that are spanned over several locations, you have to install one agent (MASTER = false) at every other location. All DCS servers of that location will then automatically register with that agent.|
 |AUTOUPDATE|If true, the bot autoupdates itself with the latest release on startup.|
 |AUTOBAN|If true, members leaving the discord will be automatically banned.|
+|LOGLEVEL|The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).|
 
 b) __ROLES Section__
 |Parameter|Description|

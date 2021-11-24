@@ -120,7 +120,7 @@ class Agent(commands.Cog):
                     'SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name IN (SELECT server_name FROM servers WHERE agent_host = %s)', (platform.node(), ))
                 for row in cursor.fetchall():
                     self.bot.DCSServers[row['server_name']]['embeds'][row['embed_name']] = row['embed']
-            self.bot.log.info('{} server(s) read from database.'.format(len(self.bot.DCSServers)))
+            self.bot.log.debug('{} server(s) read from database.'.format(len(self.bot.DCSServers)))
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         finally:
@@ -175,7 +175,7 @@ class Agent(commands.Cog):
             if (type(value) == int):
                 message[key] = str(value)
         msg = json.dumps(message)
-        self.bot.log.info('HOST->{}: {}'.format(server['server_name'], msg))
+        self.bot.log.debug('HOST->{}: {}'.format(server['server_name'], msg))
         DCSSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         DCSSocket.sendto(msg.encode('utf-8'), (server['host'], server['port']))
 
@@ -579,12 +579,12 @@ class Agent(commands.Cog):
             await ctx.send('Loading mission ' + id + ' ...')
 
     def start_dcs(self, installation):
-        self.bot.log.info('Launching DCS instance with: "{}\\bin\\dcs.exe" --server --norender -w {}'.format(
+        self.bot.log.debug('Launching DCS instance with: "{}\\bin\\dcs.exe" --server --norender -w {}'.format(
             os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']), installation))
         return subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', installation], executable=os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs.exe')
 
     def start_srs(self, installation):
-        self.bot.log.info('Launching SRS server with: "{}\\SR-Server.exe" -cfg="{}"'.format(
+        self.bot.log.debug('Launching SRS server with: "{}\\SR-Server.exe" -cfg="{}"'.format(
             os.path.expandvars(self.bot.config['DCS']['SRS_INSTALLATION']), os.path.expandvars(self.bot.config[installation]['SRS_CONFIG'])))
         return subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.bot.config[installation]['SRS_CONFIG']))], executable=os.path.expandvars(self.bot.config['DCS']['SRS_INSTALLATION']) + '\\SR-Server.exe')
 
@@ -986,7 +986,7 @@ class Agent(commands.Cog):
                     self.sendtoDCS(server, data)
 
             async def registerDCSServer(data):
-                self.bot.log.info('Registering DCS-Server ' + data['server_name'])
+                self.bot.log.debug('Registering DCS-Server ' + data['server_name'])
                 # check for protocol incompatibilities
                 if (data['hook_version'] != self.bot.version):
                     self.bot.log.error(
@@ -1373,7 +1373,7 @@ class Agent(commands.Cog):
                                     finally:
                                         self.bot.pool.putconn(conn)
                     else:
-                        self.bot.log.info('Unhandled event: ' + data['eventName'])
+                        self.bot.log.debug('Unhandled event: ' + data['eventName'])
                 finally:
                     self.lock.release()
                 return None
@@ -1514,11 +1514,11 @@ class Agent(commands.Cog):
                 dt = json.loads(s.request[0].strip())
                 # ignore messages not containing server names
                 if ('server_name' not in dt):
-                    self.bot.log.warn('Message without server_name received: {}'.format(dt))
+                    self.bot.log.warning('Message without server_name received: {}'.format(dt))
                     return
                 # ignore any DCS events before the server is fully registered
                 server_name = dt['server_name']
-                self.bot.log.info('{}->HOST: {}'.format(server_name, json.dumps(dt)))
+                self.bot.log.debug('{}->HOST: {}'.format(server_name, json.dumps(dt)))
                 if (server_name in self.bot.DCSServers and self.bot.DCSServers[server_name]['status'] == 'Unknown' and
                         (dt['command'] not in ['registerDCSServer', 'onMissionLoadBegin', 'onMissionLoadEnd', 'getRunningMission'])):
                     self.bot.log.debug('Message discarded due to server startup.')
@@ -1546,7 +1546,7 @@ class Agent(commands.Cog):
                                     del listeners[idx]
                 except (AttributeError) as error:
                     self.bot.log.exception(error)
-                    self.bot.log.info('Method ' + dt['command'] + '() not implemented.')
+                    self.bot.log.warning('Method ' + dt['command'] + '() not implemented.')
 
         class MyThreadingUDPServer(socketserver.ThreadingUDPServer):
             def __init__(self, server_address, RequestHandlerClass):
@@ -1561,7 +1561,7 @@ class Agent(commands.Cog):
             port = int(self.bot.config['BOT']['PORT'])
             self.server = MyThreadingUDPServer((host, port), UDPListener)
             self.loop.run_in_executor(self.executor, self.server.serve_forever)
-            self.bot.log.info('UDP listener started on interface {} port {} accepting commands.'.format(host, port))
+            self.bot.log.debug('UDP listener started on interface {} port {} accepting commands.'.format(host, port))
         finally:
             self.lock.release()
 
