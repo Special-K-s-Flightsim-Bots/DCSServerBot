@@ -57,7 +57,7 @@ bot = commands.Bot(command_prefix=get_prefix,
 
 # Allow COGs to access configuration
 bot.config = config
-bot.version = bot.config['BOT']['VERSION'] = '2.3.0'
+bot.version = bot.config['BOT']['VERSION'] = '2.4.0'
 
 # Initialize the logger
 bot.log = logging.getLogger(name='dcsserverbot')

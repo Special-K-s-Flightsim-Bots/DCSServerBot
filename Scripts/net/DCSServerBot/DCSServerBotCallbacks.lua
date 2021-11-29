@@ -142,6 +142,8 @@ function dcsbotgui.onSimulationFrame()
 			--assert(loadstring(json.command .. '(json)'))()
 			if (json.command == 'sendChatMessage') then
 				dcsbot.sendChatMessage(json)
+      elseif (json.command == 'sendPopupMessage') then
+        dcsbot.sendPopupMessage(json)
 			elseif (json.command == 'registerDCSServer') then
 				dcsbot.registerDCSServer(json)
 			elseif (json.command == 'getRunningMission') then
@@ -154,6 +156,8 @@ function dcsbotgui.onSimulationFrame()
 				dcsbot.listMissions(json)
 			elseif (json.command == 'startMission') then
 				dcsbot.startMission(json)
+      elseif (json.command == 'startNextMission') then
+				dcsbot.startNextMission(json)
 			elseif (json.command == 'restartMission') then
 				dcsbot.restartMission(json)
 			elseif (json.command == 'addMission') then

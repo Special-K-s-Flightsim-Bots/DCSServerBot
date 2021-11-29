@@ -11,6 +11,7 @@ import platform
 import psycopg2
 import psycopg2.extras
 import re
+import sched
 import socket
 import socketserver
 import subprocess
@@ -126,7 +127,8 @@ class Agent(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
         self.loop = asyncio.get_event_loop()
-        self.executor = ThreadPoolExecutor(max_workers=1)
+        num_workers = len(self.bot.DCSServers) + 1
+        self.executor = ThreadPoolExecutor(max_workers=num_workers)
         self.loop.create_task(self.handleUDPRequests())
         self.loop.create_task(self.init())
 
@@ -168,6 +170,27 @@ class Agent(commands.Cog):
             self.lock.release()
         self.update_mission_status.start()
         self.update_bot_status.start()
+
+    def register_restart(self, server):
+        installation = server['installation']
+        if ('RESTART_TIME' in self.bot.config[installation]):
+            admin = self.bot.config['DCS']['SERVER_USER'] if 'SERVER_USER' in self.bot.config['DCS'] else 'Admin'
+            restart_in_seconds = int(self.bot.config[installation]['RESTART_TIME']) * 60
+            restart_warn_times = [int(x) for x in self.bot.config[installation]['RESTART_WARN_TIMES'].split(
+                ',')] if 'RESTART_WARN_TIMES' in self.bot.config[installation] else []
+            restart_method = self.bot.config[installation]['RESTART_METHOD'] if 'RESTART_METHOD' in self.bot.config[installation] else 'restart'
+            s = sched.scheduler()
+            for warn_time in restart_warn_times:
+                s.enter(restart_in_seconds - warn_time, 1, self.sendtoDCS, kwargs={'server': server, 'message': {
+                        'command': 'sendPopupMessage', 'message': '!!! Server will restart in {} seconds !!!'.format(warn_time), 'from': admin, 'to': 'all'}})
+            if (restart_method == 'restart'):
+                s.enter(restart_in_seconds, 1, self.sendtoDCS, kwargs={
+                        'server': server, 'message': {"command": "restartMission"}})
+            elif (restart_method == 'rotate'):
+                s.enter(restart_in_seconds, 1, self.sendtoDCS, kwargs={
+                        'server': server, 'message': {"command": "startNextMission"}})
+            server['restartScheduler'] = s
+            self.loop.run_in_executor(self.executor, s.run)
 
     def sendtoDCS(self, server, message):
         # As Lua does not support large numbers, convert them to strings
@@ -432,6 +455,15 @@ class Agent(commands.Cog):
             self.sendtoDCS(server, {"command": "sendChatMessage", "channel": ctx.channel.id, "message": ' '.join(args),
                                     "from": ctx.message.author.display_name})
 
+    @commands.command(description='Send a popup message to a running DCS instance', usage='<all|blue|red> <message>', hidden=True)
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def popup(self, ctx, to, *args):
+        server = await utils.get_server(self, ctx)
+        if (server is not None):
+            self.sendtoDCS(server, {"command": "sendPopupMessage", "channel": ctx.channel.id, "message": ' '.join(args),
+                                    "from": ctx.message.author.display_name, "to": to.lower()})
+
     @commands.command(description='Shows the active DCS mission', hidden=True)
     @utils.has_role('DCS Admin')
     @commands.guild_only()
@@ -538,7 +570,10 @@ class Agent(commands.Cog):
                     if (args[0].isnumeric()):
                         delay = int(args[0])
                         i += 1
-                message = '!!! Server is RESTARTING in {} seconds.'.format(delay)
+                if (delay > 0):
+                    message = '!!! Server will be restarted in {} seconds !!!'.format(delay)
+                else:
+                    message = '!!! Server will be restarted NOW !!!'
                 # have we got a message to present to the users?
                 if (len(args) > i):
                     message += ' Reason: {}'.format(' '.join(args[i:]))
@@ -546,8 +581,8 @@ class Agent(commands.Cog):
                 if ((int(server['status_channel']) == ctx.channel.id)):
                     await ctx.message.delete()
                 msg = await ctx.send('Restarting mission in {} seconds (warning users before)...'.format(delay))
-                self.sendtoDCS(server, {"command": "sendChatMessage", "channel": ctx.channel.id,
-                                        "message": message, "from": ctx.message.author.display_name})
+                self.sendtoDCS(server, {"command": "sendPopupMessage", "channel": ctx.channel.id, "message": message,
+                                        "from": ctx.message.author.display_name, "to": "all"})
                 await asyncio.sleep(delay)
                 await msg.delete()
                 self.sendtoDCS(server, {"command": "restartMission", "channel": ctx.channel.id})
@@ -594,7 +629,7 @@ class Agent(commands.Cog):
     async def startup(self, ctx):
         server = await utils.get_server(self, ctx)
         if (server is not None):
-            installation = utils.findDCSInstallations(server['server_name'])[0]
+            installation = server['installation']
             if (server['status'] in ['Stopped', 'Shutdown']):
                 await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
                 self.start_dcs(installation)
@@ -615,7 +650,7 @@ class Agent(commands.Cog):
     async def shutdown(self, ctx):
         server = await utils.get_server(self, ctx)
         if (server is not None):
-            installation = utils.findDCSInstallations(server['server_name'])[0]
+            installation = server['installation']
             if (server['status'] in ['Unknown', 'Loading']):
                 await ctx.send('Server is currently starting up. Please wait and try again.')
             elif (server['status'] not in ['Stopped', 'Shutdown']):
@@ -1012,6 +1047,7 @@ class Agent(commands.Cog):
                         self.bot.pool.putconn(conn)
                     # Store server configuration
                     server = self.bot.DCSServers[data['server_name']]
+                    server['installation'] = utils.findDCSInstallations(data['server_name'])[0]
                     server['dcs_version'] = data['dcs_version']
                     server['statistics'] = data['statistics']
                     server['serverSettings'] = data['serverSettings']
@@ -1027,6 +1063,10 @@ class Agent(commands.Cog):
                 else:
                     self.bot.log.error(
                         'Configuration mismatch. Please check settings in DCSServerBotConfig.lua on server {}!'.format(data['server_name']))
+
+            async def registerMissionHook(data):
+                self.bot.log.debug('Active Mission is using the DCSServerBot Mission Hook.')
+                self.bot.DCSServers[data['server_name']]['MissionHook'] = True
 
             async def getServerSettings(data):
                 return data
@@ -1110,6 +1150,7 @@ class Agent(commands.Cog):
                         conn.rollback()
                     finally:
                         self.bot.pool.putconn(conn)
+                self.register_restart(server)
                 await UDPListener.getRunningMission(data)
                 return None
 
@@ -1120,10 +1161,11 @@ class Agent(commands.Cog):
                 data['num_players'] = 0
                 data['current_map'] = '-'
                 data['mission_time'] = 0
-                if (self.bot.DCSServers[data['server_name']]['status'] != 'Shutdown'):
-                    self.bot.DCSServers[data['server_name']]['status'] = 'Stopped'
+                server = self.bot.DCSServers[data['server_name']]
+                if (server['status'] != 'Shutdown'):
+                    server['status'] = 'Stopped'
                 await UDPListener.getRunningMission(data)
-                if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
+                if (server['statistics'] is True):
                     conn = self.bot.pool.getconn()
                     try:
                         mission_id = self.getCurrentMissionID(data['server_name'])
@@ -1138,6 +1180,12 @@ class Agent(commands.Cog):
                         conn.rollback()
                     finally:
                         self.bot.pool.putconn(conn)
+                # stop all restart events
+                if ('restartScheduler' in server):
+                    s = server['restartScheduler']
+                    for event in s.queue:
+                        s.cancel(event)
+                    del server['restartScheduler']
 
             async def onSimulationPause(data):
                 self.bot.DCSServers[data['server_name']]['status'] = 'Paused'
@@ -1455,10 +1503,10 @@ class Agent(commands.Cog):
                             elif (initiator['type'] == 'STATIC'):
                                 stats['coalitions'][coalition]['statics'].append(unit_name)
                             update = True
-                    elif (data['eventName'] == 'kill' and 'initiator' in data):
+                    elif (data['eventName'] == 'kill' and 'initiator' in data and len(data['initiator']) > 0):
                         killer = data['initiator']
                         victim = data['target']
-                        if (killer is not None and len(killer) > 0):
+                        if (killer is not None and len(killer) > 0 and len(victim) > 0):
                             coalition = self.COALITION[killer['coalition']]
                             category = self.UNIT_CATEGORY[victim['category']]
                             if (victim['type'] == 'UNIT'):
@@ -1469,11 +1517,13 @@ class Agent(commands.Cog):
                                 else:
                                     stats['coalitions'][coalition]['kills'][category] += 1
                             elif (victim['type'] == 'STATIC'):
+                                if ('kills' not in stats['coalitions'][coalition]):
+                                    stats['coalitions'][coalition]['kills'] = {}
                                 if ('Static' not in stats['coalitions'][coalition]['kills']):
                                     stats['coalitions'][coalition]['kills']['Static'] = 1
                                 else:
                                     stats['coalitions'][coalition]['kills']['Static'] += 1
-                    elif (data['eventName'] in ['lost', 'dismiss'] and 'initiator' in data):
+                    elif (data['eventName'] in ['lost', 'dismiss'] and 'initiator' in data and len(data['initiator']) > 0):
                         initiator = data['initiator']
                         category = self.UNIT_CATEGORY[initiator['category']]
                         coalition = self.COALITION[initiator['coalition']]

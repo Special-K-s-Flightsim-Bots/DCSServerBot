@@ -22,18 +22,18 @@ local GROUP_CATEGORY = {
 	[Group.Category.SHIP] = 'Ships'
 }
 
-function dcsbot.sendBotTable(tbl, channel)
-	tbl.server_name = cfg.name
-	tbl.channel = channel or "-1"
-	local tbl_json_txt = JSON:encode(tbl)
-	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, dcsbot.config.BOT_HOST, dcsbot.config.BOT_PORT))
-end
-
 function dcsbot.sendBotMessage(msg, channel)
 	local messageTable = {}
 	messageTable.command = 'sendMessage'
 	messageTable.message = msg
 	dcsbot.sendBotTable(messageTable, channel)
+end
+
+function dcsbot.sendBotTable(tbl, channel)
+	tbl.server_name = cfg.name
+	tbl.channel = channel or "-1"
+	local tbl_json_txt = JSON:encode(tbl)
+	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, dcsbot.config.BOT_HOST, dcsbot.config.BOT_PORT))
 end
 
 function dcsbot.sendEmbed(title, description, img, fields, footer, channel)
@@ -71,10 +71,12 @@ function dcsbot.shutdown()
 end
 
 function dcsbot.restartMission()
-	local msg = {}
+	net.load_mission(DCS.getMissionFilename())
+end
+--[[	local msg = {}
 	msg.command = 'restartMission'
 	dcsbot.callback(msg)
-end
+end ]]--
 
 dcsbot.eventHandler = {}
 function dcsbot.eventHandler:onEvent(event)
@@ -225,3 +227,14 @@ function dcsbot.disableUserStats()
 	msg.command = 'disableUserStats'
 	dcsbot.sendBotTable(msg, channel)
 end
+
+function dcsbot.warnRestart()
+	net.dostring_in('mission', 'a_out_text_delay("!!! Attention !!!\nMission will restart in 5 minutes.", 30)')
+	timer.scheduleFunction(net.load_mission, DCS.getMissionFilename(), timer.getTime() + 300)
+end
+
+-- MISSION HOOK REGISTRATION
+env.info('DCSServerBot - Mission Hook installed.')
+local msg = {}
+msg.command = 'registerMissionHook'
+dcsbot.sendBotTable(msg)

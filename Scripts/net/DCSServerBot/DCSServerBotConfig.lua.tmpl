@@ -11,17 +11,14 @@ dcsbot = dcsbot or {}
 dcsbot.config = dcsbot.config or {}
 
 dcsbot.config.VERSION = '{BOT.VERSION}'
---[[ START OF USER CONFIGURATION ]]--
--- general values
+-- General Values
 dcsbot.config.BOT_HOST = '{BOT.HOST}'
 dcsbot.config.BOT_PORT = {BOT.PORT}
 dcsbot.config.SERVER_USER = '{DCS.SERVER_USER}'
--- server specific values
-dcsbot.config.STATISTICS = {STATISTICS}           -- false = disable statistics
+-- Instance Values
 dcsbot.config.DCS_HOST = '{DCS_HOST}'
--- when running multiple instances, these values have to be changed to unique values
 dcsbot.config.DCS_PORT = {DCS_PORT}
+dcsbot.config.STATISTICS = {STATISTICS}           -- false = disable statistics
 dcsbot.config.CHAT_CHANNEL = '{CHAT_CHANNEL}'   -- Ingame chat will be replicated here
 dcsbot.config.STATUS_CHANNEL = '{STATUS_CHANNEL}'   -- a persistent server and players status will be presented here
 dcsbot.config.ADMIN_CHANNEL = '{ADMIN_CHANNEL}'   -- admin commands can be fired here
---[[ END OF USER CONFIGURATION ]]--

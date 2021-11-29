@@ -62,13 +62,6 @@ function dcsbot.sendBotTable(tbl, channel)
 	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, dcsbot.config.BOT_HOST, dcsbot.config.BOT_PORT))
 end
 
-function dcsbot.sendBotMessage(msg, channel)
-	local messageTable = {}
-	messageTable.command = 'sendMessage'
-	messageTable.message = msg
-	dcsbot.sendBotTable(messageTable, channel)
-end
-
 function dcsbot.registerDCSServer(json)
   log.write('DCSServerBot', log.DEBUG, '> registerDCSServer()')
 	-- load the servers configuration (SRS, et al)
@@ -174,6 +167,18 @@ function dcsbot.registerDCSServer(json)
   log.write('DCSServerBot', log.DEBUG, '< registerDCSServer()')
 end
 
+function dcsbot.basicSerialize(s)
+	if s == nil then
+		return "\"\""
+	else
+		if ((type(s) == 'number') or (type(s) == 'boolean') or (type(s) == 'function') or (type(s) == 'table') or (type(s) == 'userdata') ) then
+			return tostring(s)
+		elseif type(s) == 'string' then
+			return string.format('%q', s)
+		end
+  end
+end
+
 function dcsbot.sendChatMessage(json)
 	local message = json.message
 	if (json.from) then
@@ -186,11 +191,27 @@ function dcsbot.sendChatMessage(json)
 	end
 end
 
+function dcsbot.sendPopupMessage(json)
+  local message = json.message
+	if (json.from) then
+		message = json.from .. ': ' .. message
+	end
+  time = json.time or 10
+  to = json.to or 'all'
+  if to == 'all' then
+    net.dostring_in('mission', 'a_out_text_delay(' .. dcsbot.basicSerialize(message) .. ', ' .. tostring(time) .. ')')
+  elseif to == 'red' then
+    net.dostring_in('mission', 'a_out_text_delay_s(\'red\', ' .. dcsbot.basicSerialize(message) .. ', ' .. tostring(time) .. ')')
+  elseif to == 'blue' then
+    net.dostring_in('mission', 'a_out_text_delay_s(\'blue\', ' .. dcsbot.basicSerialize(message) .. ', ' .. tostring(time) .. ')')
+  end
+end
+
 -- from perun
 function dcsbot.updateSlots()
 	if dcsbot.SlotsData['coalitions'] == nil then
-		dcsbot.SlotsData['coalitions']=DCS.getAvailableCoalitions()
-		dcsbot.SlotsData['slots']={}
+		dcsbot.SlotsData['coalitions'] = DCS.getAvailableCoalitions()
+		dcsbot.SlotsData['slots'] = {}
 
 		-- Build up slot table
 		for _j, _i in pairs(dcsbot.SlotsData['coalitions']) do
@@ -270,6 +291,7 @@ function dcsbot.getRunningMission(json)
 	msg.current_mission = DCS.getMissionName()
   msg.current_map = DCS.getCurrentMission().mission.theatre
 	msg.mission_time = DCS.getModelTime()
+  msg.real_time = DCS.getRealTime()
 	msg.num_players = table.getn(net.get_player_list())
 	msg.start_time = DCS.getCurrentMission().mission.start_time
 	msg.date = DCS.getCurrentMission().mission.date
@@ -345,12 +367,27 @@ function dcsbot.listMissions(json)
 end
 
 function dcsbot.startMission(json)
-	local result = net.missionlist_run(json.id)
-	local mission_list = net.missionlist_get()
-	saveSettings({
-			missionList=mission_list["missionList"],
-			listStartIndex=mission_list["listStartIndex"]
-	})
+	if (net.missionlist_run(json.id) == true) then
+  	local mission_list = net.missionlist_get()
+  	saveSettings({
+  			missionList=mission_list["missionList"],
+  			listStartIndex=mission_list["listStartIndex"]
+  	})
+  end
+end
+
+function dcsbot.startNextMission(json)
+  local result = net.load_next_mission()
+  if (result == false) then
+    result = net.missionlist_run(1)
+  end
+  if (result == true) then
+  	local mission_list = net.missionlist_get()
+  	saveSettings({
+  			missionList=mission_list["missionList"],
+  			listStartIndex=mission_list["listStartIndex"]
+  	})
+  end
 end
 
 function dcsbot.shutdown(json)

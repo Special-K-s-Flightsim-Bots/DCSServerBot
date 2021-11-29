@@ -21,6 +21,7 @@ The following commands are supported:
 |.pause||admin-channel|DCS Admin|Pauses the current running mission.|
 |.unpause||admin-channel|DCS Admin|Resumes the current running mission.|
 |.chat|message|chat-/admin-channel|DCS|Send a message to the DCS ingame-chat.|
+|.popup|red/blue/all message|Send a popup into the active mission (timeout 10 seconds).|
 |.ban|@member or ucid|all|DCS Admin|Bans a specific player either by their Discord ID or UCID.|
 |.unban|@member or ucid|all|DCS Admin|Unbans a specific player either by their Discord ID or UCID.|
 |.bans||all|DCS Admin|Lists the current bans.|
