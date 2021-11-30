@@ -99,7 +99,7 @@ class Master(Agent):
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         if (self.bot.config.getboolean('BOT', 'AUTOBAN') is True):
-            self.bot.log.info(
+            self.bot.log.debug(
                 'Member {} has left guild {} - ban them on DCS servers and delete their stats.'.format(member.display_name, member.guild.name))
             conn = self.bot.pool.getconn()
             try:
@@ -117,7 +117,7 @@ class Master(Agent):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         if (self.bot.config.getboolean('BOT', 'AUTOBAN') is True):
-            self.bot.log.info(
+            self.bot.log.debug(
                 'Member {} has joined guild {} - remove possible bans from DCS servers.'.format(member.display_name, member.guild.name))
             conn = self.bot.pool.getconn()
             try:
