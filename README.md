@@ -120,6 +120,17 @@ e) __Server Specific Sections (e. g. [DCS.openbeta_server])__
 |STATUS_CHANNEL|The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.|
 |ADMIN_CHANNEL|The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.|
 
+f) __Automated Restarts__
+This has to be added to each Server Specific Section (see dcsserverbot.ini.sample), to allow automated mission restarts or rotations.
+Only one out of RESTART_MISSION_TIME or RESTART_LOCAL_TIMES is allowed.
+|Parameter|Description|
+| ------------ | ------------ |
+|RESTART_METHOD|One of **restart** or **rotate**. restart will restart the current mission, rotate will take the next mission out of the mission list.|
+|RESTART_MISSION_TIME|Time in minutes (according to the mission time passed) when the mission has to be restarted.|
+|RESTART_LOCAL_TIMES|List of times in the format HH24:MM, when the mission should be restated or rotated (see RESTART_METHOD).|
+|RESTART_WARN_TIMES|List of seconds, when a warning should be issued.|
+|RESTART_WARN_TEXT|A customizable message that will be sent to the users when a restart is pending.|
+
 ### DCS/Hook Configuration
 The DCS World integration is done via a Hook. This is being installed automatically.
 

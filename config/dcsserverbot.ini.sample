@@ -46,9 +46,14 @@ STATISTICS = true
 CHAT_CHANNEL = 123456789012345678
 STATUS_CHANNEL = 123456789012345678
 ADMIN_CHANNEL = 123456789012345678
-; Restart time in minutes (optional)
-RESTART_TIME = 5
+; ---------------------- Automated Restart ---------------------------
+; Restart methods, "restart" = same mission, "rotate" = next mission
+; RESTART_METHOD = rotate
+; Time in minutes (according to the mission time) when the mission should be restarted / rotated
+; RESTART_MISSION_TIME = 240
+; Time (in local time), when the mission should be restarted / rotated
+; RESTART_LOCAL_TIMES = 00:00, 04:00, 08:00, 12:00, 16:00, 20:00
 ; Issue warnings, N seconds before the restart takes place
-RESTART_WARN_TIMES = 300, 120, 30
-; Restart method (rotate or restart)
-RESTART_METHOD = restart
+; RESTART_WARN_TIMES = 300, 60, 30
+; Message to be sent ({} = time in seconds)
+; RESTART_WARN_TEXT = !!! Server will restart in {} seconds !!!

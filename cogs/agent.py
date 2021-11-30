@@ -1,7 +1,6 @@
 # agent.py
 import asyncio
 import const
-import datetime
 import discord
 import itertools
 import json
@@ -18,7 +17,7 @@ import subprocess
 import utils
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
-from datetime import timedelta
+from datetime import timedelta, datetime
 from discord.ext import commands, tasks
 
 
@@ -171,26 +170,27 @@ class Agent(commands.Cog):
         self.update_mission_status.start()
         self.update_bot_status.start()
 
-    def register_restart(self, server):
+    def do_scheduled_restart(self, server, method, restart_in_seconds=0):
+        self.bot.log.debug('Scheduling restart for server {} in {} seconds.'.format(
+            server['server_name'], restart_in_seconds))
         installation = server['installation']
-        if ('RESTART_TIME' in self.bot.config[installation]):
-            admin = self.bot.config['DCS']['SERVER_USER'] if 'SERVER_USER' in self.bot.config['DCS'] else 'Admin'
-            restart_in_seconds = int(self.bot.config[installation]['RESTART_TIME']) * 60
-            restart_warn_times = [int(x) for x in self.bot.config[installation]['RESTART_WARN_TIMES'].split(
-                ',')] if 'RESTART_WARN_TIMES' in self.bot.config[installation] else []
-            restart_method = self.bot.config[installation]['RESTART_METHOD'] if 'RESTART_METHOD' in self.bot.config[installation] else 'restart'
-            s = sched.scheduler()
-            for warn_time in restart_warn_times:
-                s.enter(restart_in_seconds - warn_time, 1, self.sendtoDCS, kwargs={'server': server, 'message': {
-                        'command': 'sendPopupMessage', 'message': '!!! Server will restart in {} seconds !!!'.format(warn_time), 'from': admin, 'to': 'all'}})
-            if (restart_method == 'restart'):
-                s.enter(restart_in_seconds, 1, self.sendtoDCS, kwargs={
-                        'server': server, 'message': {"command": "restartMission"}})
-            elif (restart_method == 'rotate'):
-                s.enter(restart_in_seconds, 1, self.sendtoDCS, kwargs={
-                        'server': server, 'message': {"command": "startNextMission"}})
-            server['restartScheduler'] = s
-            self.loop.run_in_executor(self.executor, s.run)
+        restart_warn_times = [int(x) for x in self.bot.config[installation]['RESTART_WARN_TIMES'].split(
+            ',')] if 'RESTART_WARN_TIMES' in self.bot.config[installation] else []
+        if (len(restart_warn_times) > 0):
+            if (restart_in_seconds < max(restart_warn_times)):
+                restart_in_seconds = max(restart_warn_times)
+        s = sched.scheduler()
+        for warn_time in restart_warn_times:
+            s.enter(restart_in_seconds - warn_time, 1, self.sendtoDCS, kwargs={'server': server, 'message': {
+                    'command': 'sendPopupMessage', 'message': self.bot.config[installation]['RESTART_WARN_TEXT'].format(warn_time), 'to': 'all'}})
+        if (method == 'restart'):
+            s.enter(restart_in_seconds, 1, self.sendtoDCS, kwargs={
+                    'server': server, 'message': {"command": "restartMission"}})
+        elif (method == 'rotate'):
+            s.enter(restart_in_seconds, 1, self.sendtoDCS, kwargs={
+                    'server': server, 'message': {"command": "startNextMission"}})
+        server['restartScheduler'] = s
+        self.loop.run_in_executor(self.executor, s.run)
 
     def sendtoDCS(self, server, message):
         # As Lua does not support large numbers, convert them to strings
@@ -346,10 +346,10 @@ class Agent(commands.Cog):
         embed.add_field(name='Runtime', value=str(timedelta(seconds=uptime)))
         if ('start_time' in mission):
             if (mission['date']['Year'] >= 1970):
-                date = datetime.datetime(mission['date']['Year'], mission['date']['Month'],
-                                         mission['date']['Day'], 0, 0).timestamp()
+                date = datetime(mission['date']['Year'], mission['date']['Month'],
+                                mission['date']['Day'], 0, 0).timestamp()
                 real_time = date + mission['start_time'] + uptime
-                value = str(datetime.datetime.fromtimestamp(real_time))
+                value = str(datetime.fromtimestamp(real_time))
             else:
                 value = '{}-{:02d}-{:02d} {}'.format(mission['date']['Year'], mission['date']['Month'],
                                                      mission['date']['Day'], timedelta(seconds=mission['start_time'] + uptime))
@@ -931,7 +931,7 @@ class Agent(commands.Cog):
             else:
                 await ctx.send('Server "{}" is stopped or shut down. Please start the server first before unpausing.'.format(server['server_name']))
 
-    @tasks.loop(minutes=10.0)
+    @tasks.loop(minutes=5.0)
     async def update_mission_status(self):
         for server_name, server in self.bot.DCSServers.items():
             if (server['status'] not in ['Loading', 'Stopped', 'Shutdown']):
@@ -1073,9 +1073,33 @@ class Agent(commands.Cog):
 
             async def getRunningMission(data):
                 if (int(data['channel']) != 0):
+                    server = self.bot.DCSServers[data['server_name']]
                     if ('pause' in data):
-                        self.bot.DCSServers[data['server_name']
-                                            ]['status'] = 'Paused' if data['pause'] is True else 'Running'
+                        server['status'] = 'Paused' if data['pause'] is True else 'Running'
+                    # check if we have to restart the mission
+                    installation = server['installation']
+                    if ('restartScheduler' not in server):
+                        # check if a restart should be executed relative to mission start
+                        if (('RESTART_MISSION_TIME' in self.bot.config[installation]) and
+                                (data['mission_time'] > int(self.bot.config[installation]['RESTART_MISSION_TIME']) * 60)):
+                            self.do_scheduled_restart(server, self.bot.config[installation]['RESTART_METHOD'])
+                        elif ('RESTART_LOCAL_TIMES' in self.bot.config[installation]):
+                            now = datetime.now()
+                            times = []
+                            for t in self.bot.config[installation]['RESTART_LOCAL_TIMES'].split(','):
+                                d = datetime.strptime(t.strip(), '%H:%M')
+                                check = now.replace(hour=d.hour, minute=d.minute)
+                                if (check.time() > now.time()):
+                                    times.insert(0, check)
+                                    break
+                                else:
+                                    times.append(check + timedelta(days=1))
+                            if (len(times)):
+                                self.do_scheduled_restart(
+                                    server, self.bot.config[installation]['RESTART_METHOD'], (times[0] - now).total_seconds())
+                            else:
+                                self.bot.log.warning(
+                                    f'Configuration mismatch! RESTART_LOCAL_TIMES not set correctly for server {server["server_name"]}.')
                     embed = self.format_mission_embed(data)
                     if (embed):
                         return await self.setEmbed(data, 'mission_embed', embed)
@@ -1088,7 +1112,7 @@ class Agent(commands.Cog):
                 if (int(data['channel']) != 0):
                     if (data['server_name'] not in self.player_data):
                         self.player_data[data['server_name']] = pd.DataFrame(data['players'], columns=[
-                                                                             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type'])
+                            'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type'])
                         self.player_data[data['server_name']].set_index('id')
                     await self.displayPlayerList(data)
                 else:
@@ -1150,7 +1174,6 @@ class Agent(commands.Cog):
                         conn.rollback()
                     finally:
                         self.bot.pool.putconn(conn)
-                self.register_restart(server)
                 await UDPListener.getRunningMission(data)
                 return None
 

@@ -71,12 +71,9 @@ function dcsbot.shutdown()
 end
 
 function dcsbot.restartMission()
-	net.load_mission(DCS.getMissionFilename())
-end
---[[	local msg = {}
 	msg.command = 'restartMission'
 	dcsbot.callback(msg)
-end ]]--
+end
 
 dcsbot.eventHandler = {}
 function dcsbot.eventHandler:onEvent(event)
