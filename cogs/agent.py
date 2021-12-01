@@ -103,7 +103,6 @@ class Agent(commands.Cog):
         self.embeds = {}
         self.mission_stats = {}
         self.player_data = {}
-        self.banList = []
         self.listeners = {}
         self.lock = asyncio.Lock()
         conn = self.bot.pool.getconn()
@@ -280,11 +279,12 @@ class Agent(commands.Cog):
         self.sendtoDCS(server, {"command": "getRunningMission", "channel": data['channel']})
 
     def updateBans(self, data=None):
+        banList = []
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT ucid, discord_id FROM players WHERE ban = true')
-                self.banList = [dict(row) for row in cursor.fetchall()]
+                cursor.execute('SELECT ucid FROM bans')
+                banList = [dict(row) for row in cursor.fetchall()]
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         finally:
@@ -294,7 +294,7 @@ class Agent(commands.Cog):
         else:
             servers = self.bot.DCSServers.values()
         for server in servers:
-            for ban in self.banList:
+            for ban in banList:
                 self.sendtoDCS(server, {"command": "ban", "ucid": ban['ucid'], "channel": server['status_channel']})
 
     async def setEmbed(self, data, embed_name, embed):
@@ -783,10 +783,27 @@ class Agent(commands.Cog):
             else:
                 await ctx.send('There is no file in the Missions directory of server {}.'.format(server['server_name']))
 
+    @commands.command(description='Kick a user by ucid', usage='ucid>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def kick(self, ctx, name, *args):
+        server = await utils.get_server(self, ctx)
+        if (server is not None):
+            if (len(args) > 0):
+                reason = ' '.join(args)
+            else:
+                reason = 'n/a'
+            self.sendtoDCS(server, {"command": "kick", "name": name, "reason": reason, "channel": ctx.channel.id})
+            await ctx.send(f'User "{name}" kicked.')
+
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def ban(self, ctx, user):
+    async def ban(self, ctx, user, *args):
+        if (len(args) > 0):
+            reason = ' '.join(args)
+        else:
+            reason = 'n/a'
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -800,7 +817,8 @@ class Agent(commands.Cog):
                     ucids = [user]
                 for ucid in ucids:
                     for server in self.bot.DCSServers.values():
-                        self.sendtoDCS(server, {"command": "ban", "ucid": ucid, "channel": ctx.channel.id})
+                        self.sendtoDCS(server, {"command": "ban", "ucid": ucid,
+                                       "reason": reason, "channel": ctx.channel.id})
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         finally:

@@ -412,8 +412,19 @@ function dcsbot.deleteMission(json)
 	dcsbot.listMissions(json)
 end
 
+function dcsbot.kick(json)
+  plist = net.get_player_list()
+	for i = 1, table.getn(plist) do
+    if ((json.ucid and net.get_player_info(plist[i], 'ucid') == json.ucid) or (json.name and net.get_player_info(plist[i], 'name') == json.name)) then
+      net.kick(plist[i], json.reason)
+      break
+    end
+	end
+end
+
 function dcsbot.ban(json)
 	dcsbot.banList[json.ucid] = true
+  dcsbot.kick(json)
 end
 
 function dcsbot.unban(json)

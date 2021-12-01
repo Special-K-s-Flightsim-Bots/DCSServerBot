@@ -17,14 +17,15 @@ The following commands are supported:
 |.add|[miz-file]|admin-channel|DCS Admin|Adds a specific mission to the list of missions, that has to be in Saved Games/DCS[.OpenBeta]/Missions. If no miz file is provided, a list of all available files in the servers Missions directory will be provided.|
 |.delete|ID|admin-channel|DCS Admin|Deletes the mission with this ID from the list of missions.|
 |.start / .load|ID|admin-channel|DCS Admin|Starts a specific mission by ID.|
-|.restart|[time in secs] [message]|admin-channel|DCS Admin|Restarts the current mission after [time] seconds. A message will be sent into the ingame chat of that server.|
+|.restart|[time in secs] [message]|admin-channel|DCS Admin|Restarts the current mission after [time] seconds. A message will be sent as a popup to that server.|
 |.pause||admin-channel|DCS Admin|Pauses the current running mission.|
 |.unpause||admin-channel|DCS Admin|Resumes the current running mission.|
 |.chat|message|chat-/admin-channel|DCS|Send a message to the DCS ingame-chat.|
 |.popup|red/blue/all message|Send a popup into the active mission (timeout 10 seconds).|
-|.ban|@member or ucid|all|DCS Admin|Bans a specific player either by their Discord ID or UCID.|
-|.unban|@member or ucid|all|DCS Admin|Unbans a specific player either by their Discord ID or UCID.|
-|.bans||all|DCS Admin|Lists the current bans.|
+|.kick|name [reason]|admin-channel|DCS Admin|Kicks the user with the in-game name "name" from the DCS server. The "reason" will be provided to the user.|
+|.ban|@member/ucid [reason]|all|DCS Admin|Bans a specific player either by their Discord ID or UCID.|
+|.unban|@member/ucid|all|DCS Admin|Unbans a specific player either by their Discord ID or UCID.|
+|.bans||all|DCS Admin|Lists the current active bans.|
 |.unregister||all|Admin|Unregisters the current server from this agent. Needed, if the very same server is going to be started on another machine connected to another agent.|
 |.rename|newname|admin-channel|Admin|Renames a DCS server. Server has to be shut down for the command to work.|
 |.password||admin-channel|DCS Admin|Changes the password of a DCS server.|

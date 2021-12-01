@@ -16,7 +16,11 @@ class Master(Agent):
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def ban(self, ctx, user):
+    async def ban(self, ctx, user, *args):
+        if (len(args) > 0):
+            reason = ' '.join(args)
+        else:
+            reason = 'n/a'
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -29,9 +33,10 @@ class Master(Agent):
                     # ban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    cursor.execute('UPDATE players SET ban = true WHERE ucid = %s', (ucid, ))
+                    cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
+                                   (ucid, ctx.message.author.display_name, reason))
                 conn.commit()
-                await super().ban(self, ctx, user)
+                await super().ban(self, ctx, user, *args)
             await ctx.send('Player {} banned.'.format(user))
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
@@ -55,7 +60,7 @@ class Master(Agent):
                     # unban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    cursor.execute('UPDATE players SET ban = false WHERE ucid = %s', (ucid, ))
+                    cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
                 conn.commit()
                 await super().unban(self, ctx, user)
             await ctx.send('Player {} unbanned.'.format(user))
@@ -72,11 +77,12 @@ class Master(Agent):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT ucid, discord_id FROM players WHERE ban = true')
+                cursor.execute(
+                    'SELECT p.ucid, p.discord_id, b.banned_by, b.reason FROM players p, bans b WHERE p.ucid = b.ucid')
                 rows = list(cursor.fetchall())
                 if (rows is not None and len(rows) > 0):
                     embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
-                    ucids = discord_ids = discord_names = ''
+                    ucids = discord_names = banned_by = ''
                     for ban in rows:
                         if (ban['discord_id'] != -1):
                             user = await self.bot.fetch_user(ban['discord_id'])
@@ -84,10 +90,10 @@ class Master(Agent):
                             user = None
                         discord_names += (user.name if user else '<unknown>') + '\n'
                         ucids += ban['ucid'] + '\n'
-                        discord_ids += str(ban['discord_id']) + '\n'
-                    embed.add_field(name='Name', value=discord_names)
+                        banned_by += ban['banned_by'] + '\n'
                     embed.add_field(name='UCID', value=ucids)
-                    embed.add_field(name='Discord ID', value=discord_ids)
+                    embed.add_field(name='Name', value=discord_names)
+                    embed.add_field(name='Banned by', value=banned_by)
                     await ctx.send(embed=embed)
                 else:
                     await ctx.send('No players are banned at the moment.')
@@ -104,7 +110,8 @@ class Master(Agent):
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET ban = true WHERE discord_id = %s', (member.id, ))
+                    cursor.execute(
+                        'INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM players WHERE discord_id = %s', (member.id, ))
                     cursor.execute(
                         'DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE discord_id = %s)', (member.id, ))
                     conn.commit()
@@ -122,7 +129,8 @@ class Master(Agent):
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET ban = false WHERE discord_id = %s', (member.id, ))
+                    cursor.execute(
+                        'DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE discord_id = %s)', (member.id, ))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
