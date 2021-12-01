@@ -1133,6 +1133,22 @@ class Agent(commands.Cog):
                             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type'])
                         self.player_data[data['server_name']].set_index('id')
                     await self.displayPlayerList(data)
+                    # Close statistics for players that are no longer active
+                    players = self.player_data[data['server_name']]
+                    ucids = ', '.join(['"' + x + '"' for x in players[players['active'] == True]['ucid']])
+                    if (len(players) > 0):
+                        conn = self.bot.pool.getconn()
+                        try:
+                            with closing(conn.cursor()) as cursor:
+                                cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE player_ucid NOT IN (%s) AND mission_id = %s',
+                                               (ucids, self.getCurrentMissionID(data['server_name'])))
+                                conn.commit()
+                        except (Exception, psycopg2.DatabaseError) as error:
+                            self.bot.log.exception(error)
+                            conn.rollback()
+                        finally:
+                            self.bot.pool.putconn(conn)
+
                 else:
                     return data
 
@@ -1178,7 +1194,7 @@ class Agent(commands.Cog):
                 if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
                     SQL_CLOSE_STATISTICS = 'UPDATE statistics SET hop_off = NOW() WHERE mission_id IN (SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL) AND hop_off IS NULL'
                     SQL_CLOSE_MISSIONS = 'UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL'
-                    SQL_START_MISSION = 'INSERT INTO missions (server_name, mission_name, mission_theatre) VALUES(%s, %s, %s)'
+                    SQL_START_MISSION = 'INSERT INTO missions (server_name, mission_name, mission_theatre) VALUES (%s, %s, %s)'
                     conn = self.bot.pool.getconn()
                     try:
                         with closing(conn.cursor()) as cursor:
@@ -1244,7 +1260,7 @@ class Agent(commands.Cog):
 
             async def onPlayerStart(data):
                 if (data['id'] != 1):
-                    SQL_PLAYERS = 'INSERT INTO players (ucid, discord_id) VALUES(%s, %s) ON CONFLICT (ucid) DO UPDATE SET discord_id = %s WHERE players.discord_id = -1'
+                    SQL_PLAYERS = 'INSERT INTO players (ucid, discord_id) VALUES (%s, %s) ON CONFLICT (ucid) DO UPDATE SET discord_id = %s WHERE players.discord_id = -1'
                     discord_user = self.find_discord_user(data)
                     discord_id = discord_user.id if (discord_user) else -1
                     if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
@@ -1283,20 +1299,21 @@ class Agent(commands.Cog):
                     SQL_CLOSE_STATISTICS = 'UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL'
                     SQL_INSERT_STATISTICS = 'INSERT INTO statistics (mission_id, player_ucid, slot) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING'
                     player = UDPListener.get_player(self, data['server_name'], data['id'])
-                    if (data['side'] != self.SIDE_SPECTATOR):
-                        if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
-                            conn = self.bot.pool.getconn()
-                            try:
-                                mission_id = self.getCurrentMissionID(data['server_name'])
-                                with closing(conn.cursor()) as cursor:
-                                    cursor.execute(SQL_CLOSE_STATISTICS, (mission_id, data['ucid']))
+                    if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
+                        conn = self.bot.pool.getconn()
+                        try:
+                            mission_id = self.getCurrentMissionID(data['server_name'])
+                            with closing(conn.cursor()) as cursor:
+                                cursor.execute(SQL_CLOSE_STATISTICS, (mission_id, data['ucid']))
+                                if (data['side'] != self.SIDE_SPECTATOR):
                                     cursor.execute(SQL_INSERT_STATISTICS, (mission_id, data['ucid'], data['unit_type']))
-                                    conn.commit()
-                            except (Exception, psycopg2.DatabaseError) as error:
-                                self.bot.log.exception(error)
-                                conn.rollback()
-                            finally:
-                                self.bot.pool.putconn(conn)
+                                conn.commit()
+                        except (Exception, psycopg2.DatabaseError) as error:
+                            self.bot.log.exception(error)
+                            conn.rollback()
+                        finally:
+                            self.bot.pool.putconn(conn)
+                    if (data['side'] != self.SIDE_SPECTATOR):
                         if (player is not None):
                             chat_channel = self.get_channel(data, 'chat_channel')
                             if (chat_channel is not None):

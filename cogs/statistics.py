@@ -410,6 +410,20 @@ class Statistics(commands.Cog):
         try:
             if (member is None):
                 member = ctx.message.author
+            # Check if there are statistics available for this user at all
+            conn = self.bot.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(
+                        'SELECT COUNT(s.*) FROM statistics s, players p WHERE s.player_ucid = p.ucid AND p.discord_id = %s', (member.id, ))
+                    if (cursor.fetchone()[0] == 0):
+                        await ctx.send(f'There are no statistics available for user "{member.display_name}"')
+                        return
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.bot.log.exception(error)
+            finally:
+                self.bot.pool.putconn(conn)
+
             plt.style.use('dark_background')
             plt.rcParams['axes.facecolor'] = '2C2F33'
             figure = plt.figure(figsize=(20, 20))
