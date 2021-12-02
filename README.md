@@ -39,9 +39,9 @@ Gather statistics data from users and display them in a user-friendly way in you
 The following commands are supported:
 |Command|Parameter|Role|Description|
 | ------------ | ------------ | ------------ | ------------ |
-|.statistics/.stats|[@member]|DCS|Display your own statistics or that of a specific member.|
-|.highscore/.hs|[day] / [week] / [month]|DCS|Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)|
-|.serverstats|[week] / [month]|Admin|Displays server statistics, like usual playtimes, most frequented servers and missions|
+|.statistics/.stats|[@member] [day/week/month]|DCS|Display your own statistics or that of a specific member.|
+|.highscore/.hs|[day/week/month]|DCS|Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)|
+|.serverstats|[day/week/month]|Admin|Displays server statistics, like usual playtimes, most frequented servers and missions|
 |.link|@member ucid|DCS Admin|Sometimes users can't be linked automatically. That is a manual workaround.|
 |.unlink|@member|DCS Admin|Unlink a user from a ucid, if the automatic linking didn't work.|
 

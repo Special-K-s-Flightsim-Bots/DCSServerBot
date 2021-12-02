@@ -18,6 +18,7 @@ from os import path
 from psycopg2 import pool
 
 config = ConfigParser()
+config.read('config/default.ini')
 config.read('config/dcsserverbot.ini')
 
 LOGLEVEL = {

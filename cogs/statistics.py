@@ -9,6 +9,7 @@ import os
 import psycopg2
 import psycopg2.extras
 import re
+import typing
 import utils
 from contextlib import closing, suppress
 from datetime import timedelta
@@ -82,11 +83,13 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_playtime_planes(self, member, axis, server):
+    def draw_playtime_planes(self, member, axis, server, period):
         SQL_PLAYTIME = 'SELECT s.slot, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, ' \
             'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.hop_off IS NOT NULL AND s.mission_id = m.id '
-        if (server is not None):
+        if (server):
             SQL_PLAYTIME += 'AND m.server_name = \'{}\' '.format(server)
+        if (period):
+            SQL_PLAYTIME += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
         SQL_PLAYTIME += 'GROUP BY s.slot ORDER BY 2'
 
         conn = self.bot.pool.getconn()
@@ -117,11 +120,13 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_server_time(self, member, axis, server):
+    def draw_server_time(self, member, axis, server, period):
         SQL_STATISTICS = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime '\
             'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND m.id = s.mission_id AND s.hop_off IS NOT NULL '
-        if (server is not None):
+        if (server):
             SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
+        if (period):
+            SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
         SQL_STATISTICS += 'GROUP BY trim(m.server_name)'
 
         conn = self.bot.pool.getconn()
@@ -151,11 +156,13 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_map_time(self, member, axis, server):
+    def draw_map_time(self, member, axis, server, period):
         SQL_STATISTICS = 'SELECT m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime '\
             'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND m.id = s.mission_id AND s.hop_off IS NOT NULL '
-        if (server is not None):
+        if (server):
             SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
+        if (period):
+            SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
         SQL_STATISTICS += 'GROUP BY m.mission_theatre'
 
         conn = self.bot.pool.getconn()
@@ -188,7 +195,7 @@ class Statistics(commands.Cog):
         SQL_STATISTICS = 'SELECT TO_CHAR(s.hop_on, \'MM/DD\') as day, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, NOW()) - s.hop_on)))) AS playtime ' \
             'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.hop_on > (DATE(NOW()) - integer \'7\') ' \
             'AND s.mission_id = m.id '
-        if (server is not None):
+        if (server):
             SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
         SQL_STATISTICS += 'GROUP BY day'
 
@@ -215,13 +222,15 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_flight_performance(self, member, axis, server):
+    def draw_flight_performance(self, member, axis, server, period):
         SQL_STATISTICS = 'SELECT SUM(ejections) as ejections, SUM(crashes) as crashes, ' \
             'SUM(takeoffs) as takeoffs, SUM(landings) as landings FROM statistics s, ' \
             'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s' \
             'AND s.mission_id = m.id '
-        if (server is not None):
+        if (server):
             SQL_STATISTICS += 'AND m.server_name = \'{}\''.format(server)
+        if (period):
+            SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
 
         conn = self.bot.pool.getconn()
         try:
@@ -253,11 +262,13 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_kill_performance(self, member, axis, server):
+    def draw_kill_performance(self, member, axis, server, period):
         SQL_STATISTICS = 'SELECT COALESCE(SUM(kills), 0) as kills, COALESCE(SUM(deaths), 0) as deaths, COALESCE(SUM(teamkills), 0) as teamkills FROM statistics s, ' \
             'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.mission_id = m.id '
-        if (server is not None):
+        if (server):
             SQL_STATISTICS += 'AND m.server_name = \'{}\''.format(server)
+        if (period):
+            SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
 
         retval = []
         conn = self.bot.pool.getconn()
@@ -308,12 +319,14 @@ class Statistics(commands.Cog):
             self.bot.pool.putconn(conn)
         return retval
 
-    def draw_kill_types(self, member, axis, server):
+    def draw_kill_types(self, member, axis, server, period):
         SQL_STATISTICS = 'SELECT 0 AS self, COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(kills_helicopters), 0) helicopters, COALESCE(SUM(kills_ships), 0) as ships, ' \
             'COALESCE(SUM(kills_sams), 0) as air_defence, COALESCE(SUM(kills_ground), 0) as ground FROM statistics s, ' \
             'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.mission_id = m.id '
-        if (server is not None):
+        if (server):
             SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
+        if (period):
+            SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
 
         retval = False
         conn = self.bot.pool.getconn()
@@ -354,13 +367,15 @@ class Statistics(commands.Cog):
             self.bot.pool.putconn(conn)
         return retval
 
-    def draw_death_types(self, member, axis, legend, server):
+    def draw_death_types(self, member, axis, legend, server, period):
         SQL_STATISTICS = 'SELECT SUM(deaths - deaths_planes - deaths_helicopters - deaths_ships - deaths_sams - deaths_ground) AS self,' \
             'SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, SUM(deaths_ships) as ships, ' \
             'SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground FROM statistics s, ' \
             'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.mission_id = m.id '
-        if (server is not None):
+        if (server):
             SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
+        if (period):
+            SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
 
         retval = False
         conn = self.bot.pool.getconn()
@@ -406,10 +421,14 @@ class Statistics(commands.Cog):
     @commands.command(description='Shows player statistics', usage='[member]', aliases=['stats'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def statistics(self, ctx, member: discord.Member = None, server=None):
+#    async def statistics(self, ctx, member: discord.Member = None, server=None):
+    async def statistics(self, ctx, member: typing.Optional[discord.Member], period: typing.Optional[str], server=None):
         try:
             if (member is None):
                 member = ctx.message.author
+            if (period and period not in ['day', 'week', 'month']):
+                await ctx.send('Period must be one of day/week/month!')
+                return
             # Check if there are statistics available for this user at all
             conn = self.bot.pool.getconn()
             try:
@@ -429,21 +448,21 @@ class Statistics(commands.Cog):
             figure = plt.figure(figsize=(20, 20))
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
                 executor.submit(self.draw_playtime_planes, member=member,
-                                axis=plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure), server=server)
+                                axis=plt.subplot2grid((3, 3), (0, 0), colspan=2, fig=figure), server=server, period=period)
                 executor.submit(self.draw_recent, member=member, axis=plt.subplot2grid(
                     (3, 3), (0, 2), colspan=1, fig=figure), server=server)
                 executor.submit(self.draw_server_time, member=member,
-                                axis=plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure), server=server)
+                                axis=plt.subplot2grid((3, 3), (1, 0), colspan=1, fig=figure), server=server, period=period)
                 executor.submit(self.draw_map_time, member=member,
-                                axis=plt.subplot2grid((3, 3), (1, 1), colspan=1, fig=figure), server=server)
+                                axis=plt.subplot2grid((3, 3), (1, 1), colspan=1, fig=figure), server=server, period=period)
                 executor.submit(self.draw_flight_performance, member=member,
-                                axis=plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure), server=server)
+                                axis=plt.subplot2grid((3, 3), (1, 2), colspan=1, fig=figure), server=server, period=period)
             ax1 = plt.subplot2grid((3, 3), (2, 0), colspan=1, fig=figure)
             ax2 = plt.subplot2grid((3, 3), (2, 1), colspan=1, fig=figure)
             ax3 = plt.subplot2grid((3, 3), (2, 2), colspan=1, fig=figure)
-            retval = self.draw_kill_performance(member, ax2, server)
+            retval = self.draw_kill_performance(member, ax2, server, period)
             i = 0
-            if (('kills' in retval) and (self.draw_kill_types(member, ax3, server) is True)):
+            if (('kills' in retval) and (self.draw_kill_types(member, ax3, server, period) is True)):
                 # use ConnectionPatch to draw lines between the two plots
                 # get the wedge data
                 theta1, theta2 = ax2.patches[i].theta1, ax2.patches[i].theta2
@@ -472,7 +491,7 @@ class Statistics(commands.Cog):
                 i += 1
             else:
                 ax3.set_visible(False)
-            if (('deaths' in retval) and (self.draw_death_types(member, ax1, (i == 0), server) is True)):
+            if (('deaths' in retval) and (self.draw_death_types(member, ax1, (i == 0), server, period) is True)):
                 # use ConnectionPatch to draw lines between the two plots
                 # get the wedge data
                 theta1, theta2 = ax2.patches[i].theta1, ax2.patches[i].theta2
@@ -543,9 +562,9 @@ class Statistics(commands.Cog):
                             prev = self.servers[i - 1]
 
                     if (react.emoji == '◀️'):
-                        await self.statistics(ctx, member, prev)
+                        await self.statistics(ctx, period, prev)
                     elif (react.emoji == '▶️'):
-                        await self.statistics(ctx, member, next)
+                        await self.statistics(ctx, period, next)
             except asyncio.TimeoutError:
                 embed.set_footer(text='Click on the image to zoom in.')
                 await message.edit(embed=embed)
@@ -553,14 +572,14 @@ class Statistics(commands.Cog):
         except (Exception) as error:
             self.bot.log.exception(error)
 
-    def draw_highscore_playtime(self, ctx, axis, period, server):
+    def draw_highscore_playtime(self, ctx, axis, period, server, limit):
         SQL_HIGHSCORE_PLAYTIME = 'SELECT p.discord_id, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime '\
             'FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND s.hop_off IS NOT NULL AND p.discord_id <> -1 AND s.mission_id = m.id'
         if (server):
             SQL_HIGHSCORE_PLAYTIME += ' AND m.server_name = \'{}\' '.format(server)
         if (period):
             SQL_HIGHSCORE_PLAYTIME += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
-        SQL_HIGHSCORE_PLAYTIME += ' GROUP BY p.discord_id ORDER BY 2 DESC LIMIT 3'
+        SQL_HIGHSCORE_PLAYTIME += f' GROUP BY p.discord_id ORDER BY 2 DESC LIMIT {limit}'
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -584,7 +603,7 @@ class Statistics(commands.Cog):
         finally:
             self.bot.pool.putconn(conn)
 
-    def draw_highscore_kills(self, ctx, figure, period, server):
+    def draw_highscore_kills(self, ctx, figure, period, server, limit):
         SQL_PARTS = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',
@@ -610,8 +629,8 @@ class Statistics(commands.Cog):
                 SQL_HIGHSCORE[key] += ' AND m.server_name = \'{}\' '.format(server)
             if (period):
                 SQL_HIGHSCORE[key] += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
-            SQL_HIGHSCORE[key] += ' AND s.hop_off IS NOT NULL GROUP BY p.discord_id HAVING {} > 0 ORDER BY 2 DESC LIMIT 3'.format(
-                SQL_PARTS[key])
+            SQL_HIGHSCORE[key] += ' AND s.hop_off IS NOT NULL GROUP BY p.discord_id HAVING {} > 0 ORDER BY 2 DESC LIMIT {}'.format(
+                SQL_PARTS[key], limit)
 
         conn = self.bot.pool.getconn()
         try:
@@ -624,7 +643,7 @@ class Statistics(commands.Cog):
                     axis = plt.subplot2grid((4, 2), (1+int(j/2), j % 2), colspan=1, fig=figure)
                     labels = []
                     values = []
-                    for i in range(0, 3):
+                    for i in range(0, len(result)):
                         if (len(result) > i):
                             member = ctx.message.guild.get_member(result[i][0])
                             name = member.display_name if (member is not None) else str(result[i][0])
@@ -653,12 +672,14 @@ class Statistics(commands.Cog):
             plt.style.use('dark_background')
             plt.rcParams['axes.facecolor'] = '2C2F33'
             figure = plt.figure(figsize=(15, 20))
+            limit = self.bot.config['STATISTICS']['NUM_HIGHSCORE']
             with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
                 executor.submit(self.draw_highscore_playtime, ctx=ctx, axis=plt.subplot2grid(
-                    (4, 2), (0, 0), colspan=2, fig=figure), period=period, server=server)
-                executor.submit(self.draw_highscore_kills, ctx=ctx, figure=figure, period=period, server=server)
+                    (4, 2), (0, 0), colspan=2, fig=figure), period=period, server=server, limit=limit)
+                executor.submit(self.draw_highscore_kills, ctx=ctx, figure=figure,
+                                period=period, server=server, limit=limit)
             plt.subplots_adjust(hspace=0.5, wspace=0.5)
-            title = 'Highscores'
+            title = f'Highscores (TOP {limit})'
             if (period):
                 title += ' of the ' + string.capwords(period)
             if (server is not None):
@@ -717,17 +738,20 @@ class Statistics(commands.Cog):
     async def serverstats(self, ctx, period=None, server=None):
         SQL_USER_BASE = 'SELECT COUNT(DISTINCT p.ucid) AS dcs_users, COUNT(DISTINCT p.discord_id) AS discord_users FROM players p, missions m, statistics s WHERE m.id = s.mission_id and s.player_ucid = p.ucid'
         SQL_SERVER_USAGE = 'SELECT trim(m.server_name) as server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 60) AS avg FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND s.hop_off IS NOT NULL'
-        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS total, ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS avg FROM missions WHERE 1 = 1'
+        SQL_TOP3_MISSION_UPTIMES = 'SELECT mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS total, ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(mission_end, NOW()) - mission_start))) / 3600) AS avg FROM missions m WHERE 1 = 1'
         SQL_TOP5_MISSIONS_USAGE = 'SELECT m.mission_name, COUNT(distinct s.player_ucid) AS players FROM missions m, statistics s WHERE s.mission_id = m.id'
         SQL_LAST_14DAYS = 'SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(DATE(NOW()) - INTERVAL \'2 weeks\', DATE(NOW()), INTERVAL \'1 day\') d WHERE d.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off) AND s.mission_id = m.id'
         SQL_MAIN_TIMES = 'SELECT to_char(s.hop_on, \'ID\') as weekday, to_char(h.time, \'HH24\') AS hour, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(TIMESTAMP \'01.01.1970 00:00:00\', TIMESTAMP \'01.01.1970 23:00:00\', INTERVAL \'1 hour\') h WHERE date_part(\'hour\', h.time) BETWEEN date_part(\'hour\', s.hop_on) AND date_part(\'hour\', s.hop_off) AND s.mission_id = m.id'
 
+        if (period and period not in ['day', 'week', 'month']):
+            await ctx.send('Period must be one of day/week/month!')
+            return
         embed = discord.Embed(color=discord.Color.blue())
         embed.title = 'Server Statistics'
         if (server):
             SQL_USER_BASE += ' AND m.server_name = \'{}\' '.format(server)
             SQL_SERVER_USAGE += ' AND m.server_name = \'{}\' '.format(server)
-            SQL_TOP3_MISSION_UPTIMES += ' AND server_name = \'{}\' '.format(server)
+            SQL_TOP3_MISSION_UPTIMES += ' AND m.server_name = \'{}\' '.format(server)
             SQL_TOP5_MISSIONS_USAGE += ' AND m.server_name = \'{}\' '.format(server)
             SQL_LAST_14DAYS += ' AND m.server_name = \'{}\' '.format(server)
             SQL_MAIN_TIMES += ' AND m.server_name = \'{}\' '.format(server)
@@ -741,7 +765,7 @@ class Statistics(commands.Cog):
         else:
             embed.title = 'Overall ' + embed.title
         SQL_SERVER_USAGE += ' GROUP BY trim(m.server_name)'
-        SQL_TOP3_MISSION_UPTIMES += ' GROUP BY mission_name ORDER BY 2 DESC LIMIT 3'
+        SQL_TOP3_MISSION_UPTIMES += ' GROUP BY m.mission_name ORDER BY 2 DESC LIMIT 3'
         SQL_TOP5_MISSIONS_USAGE += ' GROUP BY m.mission_name ORDER BY 2 DESC LIMIT 5'
         SQL_LAST_14DAYS += ' GROUP BY d.date'
         SQL_MAIN_TIMES += ' GROUP BY 1, 2'
