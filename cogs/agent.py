@@ -629,7 +629,7 @@ class Agent(commands.Cog):
     async def startup(self, ctx):
         server = await utils.get_server(self, ctx)
         if (server is not None):
-            installation = server['installation']
+            installation = utils.findDCSInstallations(server['server_name'])[0]
             if (server['status'] in ['Stopped', 'Shutdown']):
                 await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
                 self.start_dcs(installation)
