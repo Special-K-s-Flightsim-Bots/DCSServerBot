@@ -26,10 +26,10 @@ config.read('config/dcsserverbot.ini')
 def findDCSInstallations(server_name=None):
     installations = []
     for dirname in os.listdir(SAVED_GAMES):
-        if (os.path.isdir(os.path.join(SAVED_GAMES, dirname))):
+        if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):
             serverSettings = os.path.join(SAVED_GAMES, dirname, 'Config\\serverSettings.lua')
-            if (os.path.exists(serverSettings)):
-                if (server_name):
+            if os.path.exists(serverSettings):
+                if server_name:
                     with open(serverSettings, encoding='utf8') as f:
                         if '["name"] = "{}"'.format(server_name) in f.read():
                             installations.append(dirname)
@@ -40,7 +40,7 @@ def findDCSInstallations(server_name=None):
 
 def changeServerSettings(server_name, name, value):
     assert name in ['listStartIndex', 'password', 'name', 'maxPlayers'], 'Value can\'t be changed.'
-    if (isinstance(value, str)):
+    if isinstance(value, str):
         value = '"' + value + '"'
     installation = findDCSInstallations(server_name)[0]
     serverSettings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.lua')
@@ -62,16 +62,16 @@ def changeServerSettings(server_name, name, value):
 
 def getInstalledVersion(path):
     branch = version = None
-    with open(os.path.join(os.path.expandvars(path), 'autoupdate.cfg'), encoding='utf8') as config:
-        lines = config.readlines()
+    with open(os.path.join(os.path.expandvars(path), 'autoupdate.cfg'), encoding='utf8') as cfg:
+        lines = cfg.readlines()
     for line in lines:
-        if ('"branch"' in line):
+        if '"branch"' in line:
             match = REGEXP['branch'].search(line)
-            if (match):
+            if match:
                 branch = match.group('branch')
-        elif ('"version"' in line):
+        elif '"version"' in line:
             match = REGEXP['version'].search(line)
-            if (match):
+            if match:
                 version = match.group('version')
     return branch, version
 
@@ -81,7 +81,7 @@ async def getLatestVersion(branch):
         async with session.get(PATCHNOTES_URL) as response:
             xpars = xmltodict.parse(await response.text())
             for item in xpars['rss']['channel']['item']:
-                if (branch in item['link']):
+                if branch in item['link']:
                     return item['link'].split('/')[-2]
 
 
@@ -93,7 +93,7 @@ async def wait_for_single_reaction(self, ctx, message):
              self.bot.wait_for('reaction_remove', check=check_press)]
     try:
         done, tasks = await asyncio.wait(tasks, timeout=300, return_when=asyncio.FIRST_COMPLETED)
-        if (len(done) > 0):
+        if len(done) > 0:
             react, _ = done.pop().result()
             return react
         else:
@@ -105,24 +105,22 @@ async def wait_for_single_reaction(self, ctx, message):
 
 async def yn_question(self, ctx, question, msg=None):
     yn_embed = discord.Embed(title=question, color=discord.Color.red())
-    if (msg is not None):
+    if msg is not None:
         yn_embed.add_field(name=msg, value='_ _')
     yn_msg = await ctx.send(embed=yn_embed)
     await yn_msg.add_reaction('🇾')
     await yn_msg.add_reaction('🇳')
     react = await wait_for_single_reaction(self, ctx, yn_msg)
     await yn_msg.delete()
-    return (react.emoji == '🇾')
+    return react.emoji == '🇾'
 
 
 async def get_server(self, ctx):
     server = None
     for key, item in self.bot.DCSServers.items():
-        if (item['status'] == 'Unknown'):
+        if item['status'] == 'Unknown':
             continue
-        if ((int(item['status_channel']) == ctx.channel.id) or
-            (int(item['chat_channel']) == ctx.channel.id) or
-                (int(item['admin_channel']) == ctx.channel.id)):
+        if (int(item['status_channel']) == ctx.channel.id) or (int(item['chat_channel']) == ctx.channel.id) or (int(item['admin_channel']) == ctx.channel.id):
             server = item
             break
     return server
@@ -133,7 +131,7 @@ def has_role(item: str):
         if ctx.guild is None:
             raise commands.errors.NoPrivateMessage()
 
-        if ('ROLES' not in config or item not in config['ROLES']):
+        if 'ROLES' not in config or item not in config['ROLES']:
             valid_roles = [item]
         else:
             valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
@@ -148,7 +146,7 @@ def has_role(item: str):
 def isOpen(ip, port):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.settimeout(3)
-        return (s.connect_ex((ip, int(port))) == 0)
+        return s.connect_ex((ip, int(port))) == 0
 
 
 async def get_external_ip():
@@ -159,9 +157,9 @@ async def get_external_ip():
 
 def findProcess(proc, installation):
     for p in psutil.process_iter(['name', 'cmdline']):
-        if (p.info['name'] == proc):
+        if p.info['name'] == proc:
             with suppress(Exception):
-                if (installation in p.info['cmdline'][1]):
+                if installation in p.info['cmdline'][1]:
                     return p
     return None
 
@@ -179,8 +177,8 @@ def getActiveRunways(runways, wind):
         heading = int(runway[:2]) * 10
         winddir = (wind['dir'] + 180) % 360
         diff = abs((winddir - heading + 180 + 360) % 360 - 180)
-        if (diff <= 90):
+        if diff <= 90:
             retval.append(runway)
-    if (len(retval) == 0):
+    if len(retval) == 0:
         retval = ['n/a']
     return retval

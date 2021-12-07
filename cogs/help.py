@@ -16,9 +16,9 @@ class Help(commands.Cog):
         # Get a list of all cogs
         cogs = [c for c in self.bot.cogs.keys()]
 
-        if (cog == 'all'):
+        if cog == 'all':
             for cog in cogs:
-                if (cog.lower() != 'help'):
+                if cog.lower() != 'help':
                     help_embed.add_field(name='**' + cog + '**',
                                          value=f'```{ctx.prefix}help {cog.lower()}```', inline=True)
             pass
@@ -27,21 +27,21 @@ class Help(commands.Cog):
             lower_cogs = [c.lower() for c in cogs]
             # If the cog actually exists.
             if cog.lower() in lower_cogs:
-                commands = ''
+                cmds = ''
                 descriptions = ''
                 # Get a list of all commands in the specified cog
                 commands_list = self.bot.get_cog(cogs[lower_cogs.index(cog.lower())]).get_commands()
                 for command in commands_list:
-                    if (command.hidden is False):
-                        commands += f'{ctx.prefix}{command.name}'
+                    if command.hidden is False:
+                        cmds += f'{ctx.prefix}{command.name}'
                         # Also add aliases, if there are any
                         if len(command.aliases) > 0:
-                            commands += f' / {" / ".join(command.aliases)}'
-                        if (command.usage is not None):
-                            commands += ' ' + command.usage
-                        commands += '\n'
+                            cmds += f' / {" / ".join(command.aliases)}'
+                        if command.usage is not None:
+                            cmds += ' ' + command.usage
+                        cmds += '\n'
                         descriptions += f'{command.description}\n'
-                help_embed.add_field(name='Command', value=commands)
+                help_embed.add_field(name='Command', value=cmds)
                 help_embed.add_field(name='Description', value=descriptions)
             else:
                 # Ignore unknown command, as it might have been for other bots

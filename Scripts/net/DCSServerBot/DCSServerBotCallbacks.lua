@@ -164,6 +164,8 @@ function dcsbotgui.onSimulationFrame()
 				dcsbot.addMission(json)
 			elseif (json.command == 'deleteMission') then
 				dcsbot.deleteMission(json)
+      elseif (json.command == 'kick') then
+				dcsbot.kick(json)
 			elseif (json.command == 'ban') then
 				dcsbot.ban(json)
 			elseif (json.command == 'unban') then

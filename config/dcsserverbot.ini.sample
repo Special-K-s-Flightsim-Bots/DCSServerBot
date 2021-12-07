@@ -1,4 +1,11 @@
-; dcsserverbot.ini
+; dcsserverbot.ini.sample
+
+; ============================================================
+; THIS FILE CONTAINS A SAMPLE CONFIGURATION FOR DCSSERVERBOT.
+; COPY THIS FILE TO dcsserverbot.ini AND CHANGE THE VALUES
+; IN THERE TO FIT YOUR NEEDS.
+; ============================================================
+
 [BOT]
 OWNER = <tbd>
 TOKEN = <tbd>
@@ -21,6 +28,10 @@ DCS = DCS
 SERVER_FILTER = ^My Servers
 ; EXAMPLE: remove all in brackets from the mission name
 MISSION_FILTER = \(.*\)
+
+[STATISTICS]
+; Number of players to be displayed in the highscore
+NUM_HIGHSCORE = 3
 
 [DCS]
 DCS_INSTALLATION = %%ProgramFiles%%\\Eagle Dynamics\\DCS World OpenBeta

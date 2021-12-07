@@ -3,8 +3,8 @@ __pycache__/
 *.db
 *.log*
 *.png
-*.ini
+config/dcsserverbot.ini
 Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 *.csv
-/.idea/
 /venv/
+/.idea/
