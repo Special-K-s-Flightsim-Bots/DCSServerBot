@@ -92,7 +92,7 @@ async def wait_for_single_reaction(self, ctx, message):
     tasks = [self.bot.wait_for('reaction_add', check=check_press),
              self.bot.wait_for('reaction_remove', check=check_press)]
     try:
-        done, tasks = await asyncio.wait(tasks, timeout=300, return_when=asyncio.FIRST_COMPLETED)
+        done, tasks = await asyncio.wait(tasks, timeout=120, return_when=asyncio.FIRST_COMPLETED)
         if len(done) > 0:
             react, _ = done.pop().result()
             return react
