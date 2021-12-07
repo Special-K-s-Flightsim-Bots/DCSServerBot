@@ -532,7 +532,7 @@ class Statistics(commands.Cog):
             else:
                 title += '\n_- Overall -_'
             embed = discord.Embed(title=title, color=discord.Color.blue())
-            filename = '{}.png'.format(member.id)
+            filename = f'{ctx.message.id}.png'
             figure.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
             plt.close(figure)
             file = discord.File(filename)
@@ -694,7 +694,7 @@ class Statistics(commands.Cog):
             else:
                 title += '\n_- Overall -_'
             embed = discord.Embed(title=title, color=discord.Color.blue())
-            filename = 'highscore.png'
+            filename = f'{ctx.message.id}.png'
             figure.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
             plt.close(figure)
             file = discord.File(filename)
@@ -739,10 +739,7 @@ class Statistics(commands.Cog):
         except Exception as error:
             self.bot.log.exception(error)
 
-    @commands.command(description='Shows servers statistics', usage='[period]')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def serverstats(self, ctx, period=None, server=None):
+    def draw_server_stats(self, period, server):
         SQL_USER_BASE = 'SELECT COUNT(DISTINCT p.ucid) AS dcs_users, COUNT(DISTINCT p.discord_id) AS discord_users ' \
                         'FROM players p, missions m, statistics s WHERE m.id = s.mission_id and s.player_ucid = p.ucid '
         SQL_SERVER_USAGE = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')) AS server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, COUNT(DISTINCT s.player_ucid) AS players FROM missions m, statistics s WHERE m.id = s.mission_id AND s.hop_off IS NOT NULL "
@@ -763,9 +760,6 @@ class Statistics(commands.Cog):
                          'h WHERE date_part(\'hour\', h.time) BETWEEN date_part(\'hour\', s.hop_on) AND date_part(' \
                          '\'hour\', s.hop_off) AND s.mission_id = m.id '
 
-        if period and period not in ['day', 'week', 'month']:
-            await ctx.send('Period must be one of day/week/month!')
-            return
         embed = discord.Embed(color=discord.Color.blue())
         embed.title = 'Server Statistics'
         if server:
@@ -878,52 +872,62 @@ class Statistics(commands.Cog):
                 # axis.invert_yaxis()
                 axis.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: self.WEEKDAYS[int(np.clip(x, 0, 6))]))
                 plt.subplots_adjust(hspace=0.5, wspace=0.0)
-                filename = 'serverstats.png'
-                figure.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
-                plt.close(figure)
-                file = discord.File(filename)
-                embed.set_image(url='attachment://' + filename)
                 footer = 'Click on the image to zoom in.'
                 if len(self.servers) > 1:
                     footer += '\nPress ◀️ or ▶️ to cycle through per-server statistics.'
                 embed.set_footer(text=footer)
-                message = None
-                try:
-                    with suppress(Exception):
-                        message = await ctx.send(file=file, embed=embed)
-                    os.remove(filename)
-                    if message and (len(self.servers) > 1):
-                        await message.add_reaction('◀️')
-                        await message.add_reaction('▶️')
-                        react = await utils.wait_for_single_reaction(self, ctx, message)
-                        await message.delete()
-                        if server is None:
-                            prev = self.servers[-1]
-                            nxt = self.servers[0]
-                        else:
-                            i = 0
-                            prev = nxt = None
-                            for s in self.servers:
-                                if s == server:
-                                    break
-                                i += 1
-                            if i < len(self.servers) - 1:
-                                nxt = self.servers[i + 1]
-                            if i > 0:
-                                prev = self.servers[i - 1]
-
-                        if react.emoji == '◀️':
-                            await self.serverstats(ctx, period, prev)
-                        elif react.emoji == '▶️':
-                            await self.serverstats(ctx, period, nxt)
-                except asyncio.TimeoutError:
-                    embed.set_footer(text='Click on the image to zoom in.')
-                    await message.edit(embed=embed)
-                    await message.clear_reactions()
+                return embed, figure
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         finally:
             self.bot.pool.putconn(conn)
+
+    @commands.command(description='Shows servers statistics', usage='[period]')
+    @utils.has_role('Admin')
+    @commands.guild_only()
+    async def serverstats(self, ctx, period=None, server=None):
+        if period and period not in ['day', 'week', 'month']:
+            await ctx.send('Period must be one of day/week/month!')
+            return
+        embed, figure = self.draw_server_stats(period, server)
+        filename = f'{ctx.message.id}.png'
+        figure.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
+        plt.close(figure)
+        file = discord.File(filename)
+        embed.set_image(url='attachment://' + filename)
+        message = None
+        try:
+            with suppress(Exception):
+                message = await ctx.send(file=file, embed=embed)
+            os.remove(filename)
+            if message and (len(self.servers) > 1):
+                await message.add_reaction('◀️')
+                await message.add_reaction('▶️')
+                react = await utils.wait_for_single_reaction(self, ctx, message)
+                await message.delete()
+                if server is None:
+                    prev = self.servers[-1]
+                    nxt = self.servers[0]
+                else:
+                    i = 0
+                    prev = nxt = None
+                    for s in self.servers:
+                        if s == server:
+                            break
+                        i += 1
+                    if i < len(self.servers) - 1:
+                        nxt = self.servers[i + 1]
+                    if i > 0:
+                        prev = self.servers[i - 1]
+
+                if react.emoji == '◀️':
+                    await self.serverstats(ctx, period, prev)
+                elif react.emoji == '▶️':
+                    await self.serverstats(ctx, period, nxt)
+        except asyncio.TimeoutError:
+            embed.set_footer(text='Click on the image to zoom in.')
+            await message.edit(embed=embed)
+            await message.clear_reactions()
 
 
 def setup(bot):
