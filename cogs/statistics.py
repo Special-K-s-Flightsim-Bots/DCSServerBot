@@ -816,7 +816,7 @@ class Statistics(commands.Cog):
                     players += '{:.0f}\n'.format(row['players'])
                 if len(servers) > 0:
                     if not server:
-                        embed.add_field(name='TOP Server', value=servers)
+                        embed.add_field(name='Server', value=servers)
                     embed.add_field(name='Playtime (h)', value=playtimes)
                     embed.add_field(name='Unique Players', value=players)
                     if server:
