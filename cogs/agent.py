@@ -607,17 +607,6 @@ class Agent(commands.Cog):
                 await asyncio.sleep(5)
                 await msg.delete()
 
-    @commands.command(description='Lists the current configured missions')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def list(self, ctx):
-        server = await utils.get_server(self, ctx)
-        if server:
-            with suppress(asyncio.TimeoutError):
-                embed = await self.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
-                return await ctx.send(embed=embed)
-            return await ctx.send('Server ' + server['server_name'] + ' is not running.')
-
     @commands.command(description='Starts a mission by ID', usage='<ID>', aliases=['load'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
@@ -625,7 +614,7 @@ class Agent(commands.Cog):
         server = await utils.get_server(self, ctx)
         if server:
             self.sendtoDCS(server, {"command": "startMission", "id": id, "channel": ctx.channel.id})
-            await ctx.send('Loading mission ' + id + ' ...')
+            await ctx.send(f'Loading mission {id} ...')
 
     def start_dcs(self, installation):
         self.bot.log.debug('Launching DCS instance with: "{}\\bin\\dcs.exe" --server --norender -w {}'.format(
@@ -733,14 +722,48 @@ class Agent(commands.Cog):
             else:
                 await ctx.send('Server "{}" has to be shut down to change the password.'.format(server['server_name']))
 
-    @commands.command(description='Deletes a mission from the list', usage='<ID>', aliases=['del'])
+    @staticmethod
+    def format_mission_list(data, marker):
+        embed = discord.Embed(title='Mission List', color=discord.Color.blue())
+        ids = active = missions = ''
+        for i in range(0, len(data)):
+            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+            active += 'Yes\n' if marker == (i + 1) else '_ _\n'
+            mission = data[i]
+            missions += mission[(mission.rfind('\\') + 1):] + '\n'
+        embed.add_field(name='ID', value=ids)
+        embed.add_field(name='Active', value=active)
+        embed.add_field(name='Mission', value=missions)
+        embed.set_footer(text='Press a number to load the selected mission.')
+        return embed
+
+    @commands.command(description='Lists the current configured missions')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def delete(self, ctx, id):
+    async def list(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            self.sendtoDCS(server, {"command": "deleteMission", "id": id, "channel": ctx.channel.id})
-            await ctx.send('Mission {} deleted.'.format(id))
+            try:
+                data = await self.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
+                missions = data['missionList']
+                n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'])
+                if n >= 0:
+                    await self.start(ctx, n + 1)
+            except asyncio.TimeoutError:
+                return await ctx.send('Server ' + server['server_name'] + ' is not running.')
+
+    @staticmethod
+    def format_file_list(data, marker):
+        embed = discord.Embed(title='Available Missions', color=discord.Color.blue())
+        ids = missions = ''
+        for i in range(0, len(data)):
+            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+            missions += data[i] + '\n'
+        embed.add_field(name='ID', value=ids)
+        embed.add_field(name='Mission', value=missions)
+        embed.add_field(name='_ _', value='_ _')
+        embed.set_footer(text='Press a number to add the selected mission to the list.')
+        return embed
 
     @commands.command(description='Adds a mission to the list', usage='<path>')
     @utils.has_role('DCS Admin')
@@ -749,53 +772,33 @@ class Agent(commands.Cog):
         server = await utils.get_server(self, ctx)
         file = None
         if server:
-            if len(path) == 0:
-                j = 0
-                message = None
-                data = await self.sendtoDCSSync(server, {"command": "listMizFiles", "channel": ctx.channel.id})
-                files = data['missions']
-                try:
-                    while len(files) > 0:
-                        embed = discord.Embed(title='Available Missions', color=discord.Color.blue())
-                        ids = missions = ''
-                        max_i = (len(files) % 5) if (len(files) - j * 5) < 5 else 5
-                        for i in range(0, max_i):
-                            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-                            missions += files[i+j*5] + '\n'
-                        embed.add_field(name='ID', value=ids)
-                        embed.add_field(name='Mission', value=missions)
-                        embed.add_field(name='_ _', value='_ _')
-                        embed.set_footer(text='Press a number to add the selected mission to the list.')
-                        message = await ctx.send(embed=embed)
-                        if j > 0:
-                            await message.add_reaction('◀️')
-                        for i in range(1, max_i + 1):
-                            await message.add_reaction(chr(0x30 + i) + '\u20E3')
-                        await message.add_reaction('⏹️')
-                        if ((j + 1) * 5) < len(files):
-                            await message.add_reaction('▶️')
-                        react = await utils.wait_for_single_reaction(self, ctx, message)
-                        await message.delete()
-                        if react.emoji == '◀️':
-                            j -= 1
-                            message = None
-                        elif react.emoji == '▶️':
-                            j += 1
-                            message = None
-                        if react.emoji == '⏹️':
-                            return
-                        elif (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x36):
-                            file = files[(ord(react.emoji[0]) - 0x31) + j * 5]
-                            break
-                except asyncio.TimeoutError:
-                    await message.delete()
-            else:
-                file = ' '.join(path)
-            if file is not None:
-                self.sendtoDCS(server, {"command": "addMission", "path": file, "channel": ctx.channel.id})
-                await ctx.send('Mission {} added.'.format(file))
-            else:
-                await ctx.send('There is no file in the Missions directory of server {}.'.format(server['server_name']))
+            try:
+                if len(path) == 0:
+                    data = await self.sendtoDCSSync(server, {"command": "listMizFiles", "channel": ctx.channel.id})
+                    files = data['missions']
+                    n = await utils.selection_list(self, ctx, files, self.format_file_list)
+                    if n >= 0:
+                        file = files[n]
+                    else:
+                        return
+                else:
+                    file = ' '.join(path)
+                if file is not None:
+                    self.sendtoDCS(server, {"command": "addMission", "path": file, "channel": ctx.channel.id})
+                    await ctx.send('Mission {} added.'.format(file))
+                else:
+                    await ctx.send('There is no file in the Missions directory of server {}.'.format(server['server_name']))
+            except asyncio.TimeoutError:
+                return await ctx.send('Server ' + server['server_name'] + ' is not running.')
+
+    @commands.command(description='Deletes a mission from the list', usage='<ID>', aliases=['del'])
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def delete(self, ctx, id):
+        server = await utils.get_server(self, ctx)
+        if server:
+            self.sendtoDCS(server, {"command": "deleteMission", "id": id, "channel": ctx.channel.id})
+            await ctx.send('Mission {} deleted.'.format(id))
 
     @commands.command(description='Kick a user by ucid', usage='ucid>')
     @utils.has_role('DCS Admin')
@@ -1166,18 +1169,7 @@ class Agent(commands.Cog):
                     return data
 
             async def listMissions(data):
-                embed = discord.Embed(title='Mission List', color=discord.Color.blue())
-                ids = active = missions = ''
-                if len(data['missionList']) > 0:
-                    for i in range(0, len(data['missionList'])):
-                        ids += (chr(0x31 + i) + '\u20E3' + '\n')
-                        active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
-                        mission = data['missionList'][i]
-                        missions += mission[(mission.rfind('\\') + 1):] + '\n'
-                    embed.add_field(name='ID', value=ids)
-                    embed.add_field(name='Active', value=active)
-                    embed.add_field(name='Mission', value=missions)
-                return embed
+                return data
 
             async def getMissionDetails(data):
                 if int(data['channel']) != 0:

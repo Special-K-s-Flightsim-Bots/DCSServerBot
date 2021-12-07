@@ -103,6 +103,37 @@ async def wait_for_single_reaction(self, ctx, message):
             task.cancel()
 
 
+async def selection_list(self, ctx, data, embed_formatter, num = 5, marker = -1):
+    try:
+        j = 0
+        message = None
+        while len(data) > 0:
+            max_i = (len(data) % num) if (len(data) - j * num) < num else num
+            embed = embed_formatter(data[j * num:j * num + max_i], (marker - j * num) if marker in range(j * num, j * num + max_i) else 0)
+            message = await ctx.send(embed=embed)
+            if j > 0:
+                await message.add_reaction('◀️')
+            for i in range(1, max_i + 1):
+                await message.add_reaction(chr(0x30 + i) + '\u20E3')
+            await message.add_reaction('⏹️')
+            if ((j + 1) * num) < len(data):
+                await message.add_reaction('▶️')
+            react = await wait_for_single_reaction(self, ctx, message)
+            await message.delete()
+            if react.emoji == '◀️':
+                j -= 1
+                message = None
+            elif react.emoji == '▶️':
+                j += 1
+                message = None
+            if react.emoji == '⏹️':
+                return -1
+            elif (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x39):
+                return (ord(react.emoji[0]) - 0x31) + j * num
+    except asyncio.TimeoutError:
+        await message.delete()
+
+
 async def yn_question(self, ctx, question, msg=None):
     yn_embed = discord.Embed(title=question, color=discord.Color.red())
     if msg is not None:

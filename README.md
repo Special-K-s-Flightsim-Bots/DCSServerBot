@@ -15,7 +15,7 @@ The following commands are supported:
 |.players||status-/admin-channel|DCS Admin|Lists the players currently active on the server. Persistent display in status-channel.|
 |.list||admin-channel|DCS Admin|Lists all missions with IDs available on this server (same as WebGUI).|
 |.add|[miz-file]|admin-channel|DCS Admin|Adds a specific mission to the list of missions, that has to be in Saved Games/DCS[.OpenBeta]/Missions. If no miz file is provided, a list of all available files in the servers Missions directory will be provided.|
-|.delete|ID|admin-channel|DCS Admin|Deletes the mission with this ID from the list of missions.|
+|.delete/.del|ID|admin-channel|DCS Admin|Deletes the mission with this ID from the list of missions.|
 |.start / .load|ID|admin-channel|DCS Admin|Starts a specific mission by ID.|
 |.restart|[time in secs] [message]|admin-channel|DCS Admin|Restarts the current mission after [time] seconds. A message will be sent as a popup to that server.|
 |.pause||admin-channel|DCS Admin|Pauses the current running mission.|
