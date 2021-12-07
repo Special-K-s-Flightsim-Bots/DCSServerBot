@@ -6,3 +6,5 @@ __pycache__/
 config/dcsserverbot.ini
 Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 *.csv
+/venv/
+/.idea/
