@@ -745,15 +745,12 @@ class Statistics(commands.Cog):
     async def serverstats(self, ctx, period=None, server=None):
         SQL_USER_BASE = 'SELECT COUNT(DISTINCT p.ucid) AS dcs_users, COUNT(DISTINCT p.discord_id) AS discord_users ' \
                         'FROM players p, missions m, statistics s WHERE m.id = s.mission_id and s.player_ucid = p.ucid '
-        SQL_SERVER_USAGE = f"SELECT regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', " \
-                           f"'g') AS server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS " \
-                           f"playtime, COUNT(DISTINCT s.player_ucid) AS players FROM missions m, statistics s WHERE " \
-                           f"m.id = s.mission_id AND s.hop_off IS NOT NULL "
+        SQL_SERVER_USAGE = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')) AS server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, COUNT(DISTINCT s.player_ucid) AS players FROM missions m, statistics s WHERE m.id = s.mission_id AND s.hop_off IS NOT NULL "
         SQL_TOP_MISSIONS_OUTER_LEFT = 'SELECT server_name, mission_name, playtime FROM (SELECT server_name, ' \
                                       'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
                                       'playtime DESC) AS rn FROM ( '
+        SQL_TOP_MISSIONS_INNER = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')) AS server_name, trim(regexp_replace(m.mission_name, '{self.bot.config['FILTER']['MISSION_FILTER']}', ' ', 'g')) AS mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime FROM missions m, statistics s WHERE m.id = s.mission_id AND s.hop_off IS NOT NULL"
         SQL_TOP_MISSIONS_OUTER_RIGHT = ') AS x) AS y WHERE rn {} ORDER BY 3 DESC'
-        SQL_TOP_MISSIONS_INNER = f"SELECT regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g') AS server_name, trim(regexp_replace(m.mission_name, '{self.bot.config['FILTER']['MISSION_FILTER']}', ' ', 'g')) AS mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime FROM missions m, statistics s WHERE m.id = s.mission_id "
         SQL_TOP_MODULES = 'SELECT s.slot, COUNT(s.slot) AS num_usage, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - ' \
                           's.hop_on))) / 3600) AS playtime, COUNT(DISTINCT s.player_ucid) AS players FROM missions m, ' \
                           'statistics s WHERE m.id = s.mission_id '
@@ -781,7 +778,7 @@ class Statistics(commands.Cog):
         if period:
             SQL_USER_BASE += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_SERVER_USAGE += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
-            SQL_TOP_MISSIONS_INNER += ' AND date(m.mission_start) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
+            SQL_TOP_MISSIONS_INNER += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_TOP_MODULES += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             SQL_MAIN_TIMES += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
             embed.title = string.capwords(period if period != 'day' else 'dai') + 'ly ' + embed.title
@@ -826,7 +823,7 @@ class Statistics(commands.Cog):
                 cursor.execute(SQL_TOP_MISSIONS_OUTER_LEFT + SQL_TOP_MISSIONS_INNER + SQL_TOP_MISSIONS_OUTER_RIGHT.format('= 1' if not server else '<= 3'))
                 for row in cursor.fetchall():
                     servers += row['server_name'] + '\n'
-                    missions += row['mission_name'] + '\n'
+                    missions += row['mission_name'][:20] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
                 if len(servers) > 0:
                     if not server:
