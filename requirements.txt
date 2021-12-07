@@ -1,5 +1,6 @@
-discord.py>=1.5.0
+discord.py>=1.7.3
 pandas
+numpy
 matplotlib
 psycopg2-binary
 GitPython

@@ -14,6 +14,7 @@ import sched
 import socket
 import socketserver
 import subprocess
+import typing
 import utils
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
@@ -99,12 +100,14 @@ class Agent(commands.Cog):
     }
 
     def __init__(self, bot):
+        self.server = None
         self.bot = bot
         self.embeds = {}
         self.mission_stats = {}
         self.player_data = {}
         self.listeners = {}
         self.lock = asyncio.Lock()
+        self.external_ip = None
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -133,17 +136,18 @@ class Agent(commands.Cog):
     def cog_unload(self):
         self.update_bot_status.cancel()
         self.update_mission_status.cancel()
-        self.server.shutdown()
-        self.server.server_close()
+        if self.server:
+            self.server.shutdown()
+            self.server.server_close()
         self.executor.shutdown(wait=True)
 
     async def init(self):
         await self.lock.acquire()
         try:
-            # TODO: move that to the lua code
             self.external_ip = await utils.get_external_ip()
             for server_name, server in self.bot.DCSServers.items():
                 installation = utils.findDCSInstallations(server['server_name'])[0]
+                server['installation'] = installation
                 channel = await self.bot.fetch_channel(server['status_channel'])
                 self.embeds[server_name] = {}
                 for embed_name, embed_id in server['embeds'].items():
@@ -155,14 +159,14 @@ class Agent(commands.Cog):
                     # preload players list
                     await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
                 except asyncio.TimeoutError:
-                    if (('AUTOSTART_DCS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'AUTOSTART_DCS') is True)):
+                    if ('AUTOSTART_DCS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'AUTOSTART_DCS') is True):
                         self.start_dcs(installation)
                         server['status'] = 'Loading'
                     else:
                         server['status'] = 'Shutdown'
                 finally:
-                    if (('AUTOSTART_SRS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'AUTOSTART_SRS') is True)):
-                        if (not utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT'])):
+                    if ('AUTOSTART_SRS' in self.bot.config[installation]) and (self.bot.config.getboolean(installation, 'AUTOSTART_SRS') is True):
+                        if not utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT']):
                             self.start_srs(installation)
         finally:
             self.lock.release()
@@ -175,17 +179,27 @@ class Agent(commands.Cog):
         installation = server['installation']
         restart_warn_times = [int(x) for x in self.bot.config[installation]['RESTART_WARN_TIMES'].split(
             ',')] if 'RESTART_WARN_TIMES' in self.bot.config[installation] else []
-        if (len(restart_warn_times) > 0):
-            if (restart_in_seconds < max(restart_warn_times)):
+        if len(restart_warn_times) > 0:
+            if restart_in_seconds < max(restart_warn_times):
                 restart_in_seconds = max(restart_warn_times)
         s = sched.scheduler()
         for warn_time in restart_warn_times:
-            s.enter(restart_in_seconds - warn_time, 1, self.sendtoDCS, kwargs={'server': server, 'message': {
-                    'command': 'sendPopupMessage', 'message': self.bot.config[installation]['RESTART_WARN_TEXT'].format(warn_time), 'to': 'all'}})
-        if (method == 'restart'):
+            s.enter(restart_in_seconds - warn_time, 1, self.sendtoDCS, kwargs={
+                'server': server,
+                'message': {
+                    'command': 'sendPopupMessage',
+                    'message': self.bot.config[installation]['RESTART_WARN_TEXT'].format(warn_time),
+                    'to': 'all'
+                }
+            })
+        if method == 'restart':
             s.enter(restart_in_seconds, 1, self.sendtoDCS, kwargs={
-                    'server': server, 'message': {"command": "restartMission"}})
-        elif (method == 'rotate'):
+                'server': server,
+                'message': {
+                    "command": "restartMission"
+                }
+            })
+        elif method == 'rotate':
             s.enter(restart_in_seconds, 1, self.sendtoDCS, kwargs={
                     'server': server, 'message': {"command": "startNextMission"}})
         server['restartScheduler'] = s
@@ -194,12 +208,12 @@ class Agent(commands.Cog):
     def sendtoDCS(self, server, message):
         # As Lua does not support large numbers, convert them to strings
         for key, value in message.items():
-            if (type(value) == int):
+            if type(value) == int:
                 message[key] = str(value)
         msg = json.dumps(message)
         self.bot.log.debug('HOST->{}: {}'.format(server['server_name'], msg))
-        DCSSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        DCSSocket.sendto(msg.encode('utf-8'), (server['host'], server['port']))
+        dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        dcs_socket.sendto(msg.encode('utf-8'), (server['host'], server['port']))
 
     def sendtoDCSSync(self, server, message, timeout=5):
         self.sendtoDCS(server, message)
@@ -213,7 +227,7 @@ class Agent(commands.Cog):
         return asyncio.wait_for(future, timeout)
 
     def get_channel(self, data, type='status_channel'):
-        if (int(data['channel']) == -1):
+        if int(data['channel']) == -1:
             return self.bot.get_channel(int(self.bot.DCSServers[data['server_name']][type]))
         else:
             return self.bot.get_channel(int(data['channel']))
@@ -226,7 +240,7 @@ class Agent(commands.Cog):
             with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1', (data['ucid'], ))
                 result = cursor.fetchone()
-                if (result is not None):
+                if result is not None:
                     discord_id = result[0]
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -234,9 +248,9 @@ class Agent(commands.Cog):
             self.bot.pool.putconn(conn)
         dcs_name = data['name']
         for member in self.bot.get_all_members():
-            if ((discord_id != -1) and (member.id == discord_id)):
+            if (discord_id != -1) and (member.id == discord_id):
                 return member
-            if (member.nick):
+            if member.nick:
                 if (dcs_name.lower() in member.nick.lower()) or (member.nick.lower() in dcs_name.lower()):
                     return member
             if (dcs_name.lower() in member.name.lower()) or (member.name.lower() in dcs_name.lower()):
@@ -251,7 +265,7 @@ class Agent(commands.Cog):
             with closing(conn.cursor()) as cursor:
                 cursor.execute(
                     'SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name, ))
-                if (cursor.rowcount > 0):
+                if cursor.rowcount > 0:
                     id = cursor.fetchone()[0]
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -289,7 +303,7 @@ class Agent(commands.Cog):
             self.bot.log.exception(error)
         finally:
             self.bot.pool.putconn(conn)
-        if (data is not None):
+        if data is not None:
             servers = [self.bot.DCSServers[data['server_name']]]
         else:
             servers = self.bot.DCSServers.values()
@@ -301,13 +315,13 @@ class Agent(commands.Cog):
         server_name = data['server_name']
         message = self.embeds[server_name][embed_name] if (
             server_name in self.embeds and embed_name in self.embeds[server_name]) else None
-        if (message is not None):
+        if message:
             try:
                 await message.edit(embed=embed)
             except discord.errors.NotFound:
                 message = None
-        if (message is None):
-            if (server_name not in self.embeds):
+        if not message:
+            if server_name not in self.embeds:
                 self.embeds[server_name] = {}
             message = await self.get_channel(data).send(embed=embed)
             self.embeds[server_name][embed_name] = message
@@ -325,7 +339,7 @@ class Agent(commands.Cog):
 
     def format_mission_embed(self, mission):
         server = self.bot.DCSServers[mission['server_name']]
-        if ('serverSettings' not in server):
+        if 'serverSettings' not in server:
             self.bot.log.error('Can\'t format mission embed due to incomplete server data.')
             return None
         plugins = []
@@ -338,14 +352,14 @@ class Agent(commands.Cog):
         embed.add_field(name='Map', value=mission['current_map'])
         embed.add_field(name='Server-IP / Port', value=server['serverSettings']
                         ['external_ip'] + ':' + str(server['serverSettings']['port']))
-        if (len(server['serverSettings']['password']) > 0):
+        if len(server['serverSettings']['password']) > 0:
             embed.add_field(name='Password', value=server['serverSettings']['password'])
         else:
             embed.add_field(name='Password', value='_ _')
         uptime = int(mission['mission_time'])
         embed.add_field(name='Runtime', value=str(timedelta(seconds=uptime)))
-        if ('start_time' in mission):
-            if (mission['date']['Year'] >= 1970):
+        if 'start_time' in mission:
+            if mission['date']['Year'] >= 1970:
                 date = datetime(mission['date']['Year'], mission['date']['Month'],
                                 mission['date']['Day'], 0, 0).timestamp()
                 real_time = date + mission['start_time'] + uptime
@@ -359,8 +373,8 @@ class Agent(commands.Cog):
         embed.add_field(name='Avail. Slots',
                         value='🔹 {}  |  {} 🔸'.format(mission['num_slots_blue'] if 'num_slots_blue' in mission else '-', mission['num_slots_red'] if 'num_slots_red' in mission else '-'))
         embed.add_field(name='▬' * 25, value='_ _', inline=False)
-        if ('weather' in mission):
-            if ('clouds' in mission and 'preset' in mission['clouds']):
+        if 'weather' in mission:
+            if 'clouds' in mission and 'preset' in mission['clouds']:
                 embed.add_field(name='Preset', value=mission['clouds']['preset']['readableNameShort'])
             else:
                 embed.add_field(name='Weather', value='Dynamic')
@@ -371,8 +385,8 @@ class Agent(commands.Cog):
                 int(weather['wind']['atGround']['dir'] + 180) % 360, int(weather['wind']['atGround']['speed']),
                 int(weather['wind']['at2000']['dir'] + 180) % 360, int(weather['wind']['at2000']['speed']),
                 int(weather['wind']['at8000']['dir'] + 180) % 360, int(weather['wind']['at8000']['speed'])))
-            if ('clouds' in mission):
-                if ('preset' in mission['clouds']):
+            if 'clouds' in mission:
+                if 'preset' in mission['clouds']:
                     embed.add_field(name='Cloudbase',
                                     value=f'{int(mission["clouds"]["base"] * const.METER_IN_FEET):,} ft')
                 else:
@@ -381,55 +395,55 @@ class Agent(commands.Cog):
             else:
                 embed.add_field(name='Clouds', value='n/a')
             visibility = weather['visibility']['distance']
-            if (weather['enable_fog'] is True):
+            if weather['enable_fog'] is True:
                 visibility = weather['fog']['visibility'] * const.METER_IN_FEET
             embed.add_field(name='Visibility', value=f'{int(visibility):,} ft')
             embed.add_field(name='▬' * 25, value='_ _', inline=False)
-        if ('SRSSettings' in server):
+        if 'SRSSettings' in server:
             plugins.append('SRS')
-            if ('EXTERNAL_AWACS_MODE' in server['SRSSettings'] and server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True):
+            if 'EXTERNAL_AWACS_MODE' in server['SRSSettings'] and server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True:
                 value = '🔹 Pass: {}\n🔸 Pass: {}'.format(
                     server['SRSSettings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'], server['SRSSettings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'])
             else:
                 value = '_ _'
             embed.add_field(name='SRS [{}]'.format(
                 server['SRSSettings']['SERVER_SRS_PORT']), value=value)
-        if ('lotAtcSettings' in server):
+        if 'lotAtcSettings' in server:
             plugins.append('LotAtc')
             embed.add_field(name='LotAtc [{}]'.format(server['lotAtcSettings']['port']), value='🔹 Pass: {}\n🔸 Pass: {}'.format(
                 server['lotAtcSettings']['blue_password'], server['lotAtcSettings']['red_password']))
-        if ('Tacview' in server['options']['plugins']):
+        if 'Tacview' in server['options']['plugins']:
             name = 'Tacview'
-            if (('tacviewModuleEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewModuleEnabled'] is False) or ('tacviewFlightDataRecordingEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewFlightDataRecordingEnabled'] is False)):
+            if ('tacviewModuleEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewModuleEnabled'] is False) or ('tacviewFlightDataRecordingEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewFlightDataRecordingEnabled'] is False):
                 value = 'disabled'
             else:
                 plugins.append('Tacview')
                 value = ''
                 tacview = server['options']['plugins']['Tacview']
-                if ('tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled'] is True):
+                if 'tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled'] is True:
                     name += ' RT'
-                    if ('tacviewRealTimeTelemetryPassword' in tacview and len(tacview['tacviewRealTimeTelemetryPassword']) > 0):
+                    if 'tacviewRealTimeTelemetryPassword' in tacview and len(tacview['tacviewRealTimeTelemetryPassword']) > 0:
                         value += 'Password: {}\n'.format(tacview['tacviewRealTimeTelemetryPassword'])
-                elif ('tacviewHostTelemetryPassword' in tacview and len(tacview['tacviewHostTelemetryPassword']) > 0):
+                elif 'tacviewHostTelemetryPassword' in tacview and len(tacview['tacviewHostTelemetryPassword']) > 0:
                     value += 'Password: "{}"\n'.format(tacview['tacviewHostTelemetryPassword'])
-                if ('tacviewRealTimeTelemetryPort' in tacview and len(tacview['tacviewRealTimeTelemetryPort']) > 0):
+                if 'tacviewRealTimeTelemetryPort' in tacview and len(tacview['tacviewRealTimeTelemetryPort']) > 0:
                     name += ' [{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
-                if ('tacviewRemoteControlEnabled' in tacview and tacview['tacviewRemoteControlEnabled'] is True):
+                if 'tacviewRemoteControlEnabled' in tacview and tacview['tacviewRemoteControlEnabled'] is True:
                     value += '**Remote Ctrl [{}]**\n'.format(tacview['tacviewRemoteControlPort'])
-                    if ('tacviewRemoteControlPassword' in tacview and len(tacview['tacviewRemoteControlPassword']) > 0):
+                    if 'tacviewRemoteControlPassword' in tacview and len(tacview['tacviewRemoteControlPassword']) > 0:
                         value += 'Password: {}'.format(tacview['tacviewRemoteControlPassword'])
-                if (len(value) == 0):
+                if len(value) == 0:
                     value = 'enabled'
             embed.add_field(name=name, value=value)
         footer = '- Server is running DCS {}\n'.format(server['dcs_version'])
-        if (len(plugins) > 0):
+        if len(plugins) > 0:
             footer += '- The IP address of '
-            if (len(plugins) == 1):
+            if len(plugins) == 1:
                 footer += plugins[0]
             else:
                 footer += ', '.join(plugins[0:len(plugins) - 1]) + ' and ' + plugins[len(plugins) - 1]
             footer += ' is the same as the server.\n'
-        if (server['statistics'] is True):
+        if server['statistics'] is True:
             footer += '- Statistis are enabled for this server.'
         embed.set_footer(text=footer)
         return embed
@@ -438,9 +452,9 @@ class Agent(commands.Cog):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def servers(self, ctx):
-        if (len(self.bot.DCSServers) > 0):
+        if len(self.bot.DCSServers) > 0:
             for server_name, server in self.bot.DCSServers.items():
-                if (server['status'] in ['Running', 'Paused']):
+                if server['status'] in ['Running', 'Paused']:
                     mission = await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
                     await ctx.send(embed=self.format_mission_embed(mission))
         else:
@@ -451,7 +465,7 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def chat(self, ctx, *args):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
+        if server:
             self.sendtoDCS(server, {"command": "sendChatMessage", "channel": ctx.channel.id, "message": ' '.join(args),
                                     "from": ctx.message.author.display_name})
 
@@ -460,17 +474,23 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def popup(self, ctx, to, *args):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
-            self.sendtoDCS(server, {"command": "sendPopupMessage", "channel": ctx.channel.id, "message": ' '.join(args),
-                                    "from": ctx.message.author.display_name, "to": to.lower()})
+        if server:
+            if to not in ['all', 'red', 'blue']:
+                await ctx.send(f"Usage: {self.bot.config['BOT']['COMMAND_PREFIX']}popup all|red|blue <message>")
+            elif server['status'] == 'Running':
+                self.sendtoDCS(server, {"command": "sendPopupMessage", "channel": ctx.channel.id, "message": ' '.join(args),
+                                        "from": ctx.message.author.display_name, "to": to.lower()})
+                await ctx.send('Message sent.')
+            else:
+                await ctx.send(f"Mission is {server['status'].lower()}, message discarded.")
 
     @commands.command(description='Shows the active DCS mission', hidden=True)
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def mission(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
-            if (int(server['status_channel']) != ctx.channel.id):
+        if server:
+            if int(server['status_channel']) != ctx.channel.id:
                 mission = await self.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
                 await ctx.send(embed=self.format_mission_embed(mission))
             else:
@@ -482,8 +502,8 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def briefing(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
-            if (server['status'] not in ['Stopped', 'Shutdown']):
+        if server:
+            if server['status'] not in ['Stopped', 'Shutdown']:
                 embed = await self.sendtoDCSSync(server, {"command": "getMissionDetails", "channel": ctx.message.id})
                 await ctx.send(embed=embed)
             else:
@@ -495,9 +515,9 @@ class Agent(commands.Cog):
     async def atis(self, ctx, *args):
         name = ' '.join(args)
         for server_name, server in self.bot.DCSServers.items():
-            if (server['status'] in ['Running', 'Paused']):
+            if server['status'] in ['Running', 'Paused']:
                 for airbase in server['airbases']:
-                    if ((name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code'])):
+                    if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
                         data = await self.sendtoDCSSync(server, {"command": "getWeatherInfo", "channel": ctx.message.id, "lat": airbase['lat'], "lng": airbase['lng'], "alt": airbase['alt']})
                         embed = discord.Embed(
                             title=f'{server_name}\nReport for "{airbase["name"]}"', color=discord.Color.blue())
@@ -522,14 +542,14 @@ class Agent(commands.Cog):
                         embed.add_field(name='Surface Wind', value='{}° @ {} kts'.format(int(weather['wind']['atGround']['dir'] + 180) % 360, int(
                             weather['wind']['atGround']['speed'])))
                         visibility = weather['visibility']['distance']
-                        if (weather['enable_fog'] is True):
+                        if weather['enable_fog'] is True:
                             visibility = weather['fog']['visibility']
                         embed.add_field(name='Visibility', value='{:,} m'.format(
                             int(visibility)) if visibility < 10000 else '10 km (+)')
-                        if ('clouds' in data):
-                            if ('preset' in data['clouds']):
-                                readableName = data['clouds']['preset']['readableName']
-                                metar = readableName[readableName.find('METAR:') + 6:]
+                        if 'clouds' in data:
+                            if 'preset' in data['clouds']:
+                                readable_name = data['clouds']['preset']['readableName']
+                                metar = readable_name[readable_name.find('METAR:') + 6:]
                                 embed.add_field(name='Cloud Cover',
                                                 value=re.sub(' ', lambda m, c=itertools.count(): m.group() if not next(c) % 2 else '\n', metar))
                             else:
@@ -548,8 +568,8 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def players(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
-            if (int(server['status_channel']) != ctx.channel.id):
+        if server:
+            if int(server['status_channel']) != ctx.channel.id:
                 await ctx.send('This command can only be used in the status channel.')
             else:
                 await ctx.message.delete()
@@ -558,38 +578,32 @@ class Agent(commands.Cog):
     @commands.command(description='Restarts the current active mission', usage='[delay] [message]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def restart(self, ctx, *args):
+    async def restart(self, ctx, delay: typing.Optional[int] = 120, *args):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
-            delay = 120
+        if server:
             msg = None
-            if (server['status'] not in ['Stopped', 'Shutdown']):
-                i = 0
-                if (len(args)):
-                    # check for delay parameter
-                    if (args[0].isnumeric()):
-                        delay = int(args[0])
-                        i += 1
-                if (delay > 0):
-                    message = '!!! Server will be restarted in {} seconds !!!'.format(delay)
-                else:
-                    message = '!!! Server will be restarted NOW !!!'
-                # have we got a message to present to the users?
-                if (len(args) > i):
-                    message += ' Reason: {}'.format(' '.join(args[i:]))
+            if server['status'] not in ['Stopped', 'Shutdown']:
+                if server['status'] == 'Running':
+                    if delay > 0:
+                        message = '!!! Server will be restarted in {} seconds !!!'.format(delay)
+                    else:
+                        message = '!!! Server will be restarted NOW !!!'
+                    # have we got a message to present to the users?
+                    if len(args):
+                        message += ' Reason: {}'.format(' '.join(args))
 
-                if ((int(server['status_channel']) == ctx.channel.id)):
-                    await ctx.message.delete()
-                msg = await ctx.send('Restarting mission in {} seconds (warning users before)...'.format(delay))
-                self.sendtoDCS(server, {"command": "sendPopupMessage", "channel": ctx.channel.id, "message": message,
-                                        "from": ctx.message.author.display_name, "to": "all"})
-                await asyncio.sleep(delay)
+                    if int(server['status_channel']) == ctx.channel.id:
+                        await ctx.message.delete()
+                    msg = await ctx.send('Restarting mission in {} seconds (warning users before)...'.format(delay))
+                    self.sendtoDCS(server, {"command": "sendPopupMessage", "channel": ctx.channel.id, "message": message,
+                                            "from": ctx.message.author.display_name, "to": "all"})
+                    await asyncio.sleep(delay)
                 await msg.delete()
                 self.sendtoDCS(server, {"command": "restartMission", "channel": ctx.channel.id})
                 msg = await ctx.send('Restart command sent. Mission will restart now.')
             else:
                 msg = await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
-            if ((msg is not None) and (int(server['status_channel']) == ctx.channel.id)):
+            if (msg is not None) and (int(server['status_channel']) == ctx.channel.id):
                 await asyncio.sleep(5)
                 await msg.delete()
 
@@ -598,7 +612,7 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def list(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
+        if server:
             with suppress(asyncio.TimeoutError):
                 embed = await self.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                 return await ctx.send(embed=embed)
@@ -609,7 +623,7 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def start(self, ctx, id):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
+        if server:
             self.sendtoDCS(server, {"command": "startMission", "id": id, "channel": ctx.channel.id})
             await ctx.send('Loading mission ' + id + ' ...')
 
@@ -628,17 +642,17 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def startup(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
+        if server:
             installation = server['installation']
-            if (server['status'] in ['Stopped', 'Shutdown']):
+            if server['status'] in ['Stopped', 'Shutdown']:
                 await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
                 self.start_dcs(installation)
                 server['status'] = 'Loading'
             else:
                 await ctx.send('DCS server "{}" is already started.'.format(server['server_name']))
-            if ('SRS_CONFIG' in self.bot.config[installation]):
-                if (not utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT'])):
-                    if (await utils.yn_question(self, ctx, 'Do you want to start the DCS-SRS server "{}"?'.format(server['server_name'])) is True):
+            if 'SRS_CONFIG' in self.bot.config[installation]:
+                if not utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT']):
+                    if await utils.yn_question(self, ctx, 'Do you want to start the DCS-SRS server "{}"?'.format(server['server_name'])) is True:
                         await ctx.send('DCS-SRS server "{}" starting up ...'.format(server['server_name']))
                         self.start_srs(installation)
                 else:
@@ -649,22 +663,22 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def shutdown(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
+        if server:
             installation = server['installation']
-            if (server['status'] in ['Unknown', 'Loading']):
+            if server['status'] in ['Unknown', 'Loading']:
                 await ctx.send('Server is currently starting up. Please wait and try again.')
-            elif (server['status'] not in ['Stopped', 'Shutdown']):
-                if (await utils.yn_question(self, ctx, 'Do you want to shut down the DCS server "{}"?'.format(server['server_name'])) is True):
+            elif server['status'] not in ['Stopped', 'Shutdown']:
+                if await utils.yn_question(self, ctx, 'Do you want to shut down the DCS server "{}"?'.format(server['server_name'])) is True:
                     await ctx.send('Shutting down DCS server "{}" ...'.format(server['server_name']))
                     self.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                     server['status'] = 'Shutdown'
             else:
                 await ctx.send('DCS server {} is already shut down.'.format(server['server_name']))
-            if ('SRS_CONFIG' in self.bot.config[installation]):
-                if (utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT'])):
-                    if (await utils.yn_question(self, ctx, 'Do you want to shut down the DCS-SRS server "{}"?'.format(server['server_name'])) is True):
+            if 'SRS_CONFIG' in self.bot.config[installation]:
+                if utils.isOpen(self.bot.config[installation]['SRS_HOST'], self.bot.config[installation]['SRS_PORT']):
+                    if await utils.yn_question(self, ctx, 'Do you want to shut down the DCS-SRS server "{}"?'.format(server['server_name'])) is True:
                         p = utils.findProcess('SR-Server.exe', installation)
-                        if (p):
+                        if p:
                             await ctx.send('Shutting down DCS-SRS server "{}" ...'.format(server['server_name']))
                             p.kill()
                         else:
@@ -677,26 +691,26 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def update(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
+        if server:
             # check versions
             branch, old_version = utils.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
             new_version = await utils.getLatestVersion(branch)
-            if (old_version == new_version):
+            if old_version == new_version:
                 await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
             else:
                 servers = []
                 for key, item in self.bot.DCSServers.items():
-                    if (item['status'] not in ['Stopped', 'Shutdown']):
+                    if item['status'] not in ['Stopped', 'Shutdown']:
                         servers.append(item)
-                if (len(servers)):
-                    if (await utils.yn_question(self, ctx, 'Would you like me to stop the running servers and run the update?') is True):
+                if len(servers):
+                    if await utils.yn_question(self, ctx, 'Would you like me to stop the running servers and run the update?') is True:
                         for server in servers:
                             self.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                             await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
                             server['status'] = 'Shutdown'
                     else:
                         return
-                if (await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?'.format(old_version, new_version)) is True):
+                if await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?'.format(old_version, new_version)) is True:
                     self.bot.log.info('Updating DCS to the latest version.')
                     subprocess.Popen(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
                         self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
@@ -707,8 +721,8 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def password(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
-            if (server['status'] == 'Shutdown'):
+        if server:
+            if server['status'] == 'Shutdown':
                 msg = await ctx.send('Please enter the new password: ')
                 response = await self.bot.wait_for('message', timeout=300.0)
                 password = response.content
@@ -719,12 +733,12 @@ class Agent(commands.Cog):
             else:
                 await ctx.send('Server "{}" has to be shut down to change the password.'.format(server['server_name']))
 
-    @commands.command(description='Deletes a mission from the list', usage='<ID>')
+    @commands.command(description='Deletes a mission from the list', usage='<ID>', aliases=['del'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def delete(self, ctx, id):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
+        if server:
             self.sendtoDCS(server, {"command": "deleteMission", "id": id, "channel": ctx.channel.id})
             await ctx.send('Mission {} deleted.'.format(id))
 
@@ -734,14 +748,14 @@ class Agent(commands.Cog):
     async def add(self, ctx, *path):
         server = await utils.get_server(self, ctx)
         file = None
-        if (server is not None):
-            if (len(path) == 0):
+        if server:
+            if len(path) == 0:
                 j = 0
                 message = None
                 data = await self.sendtoDCSSync(server, {"command": "listMizFiles", "channel": ctx.channel.id})
                 files = data['missions']
                 try:
-                    while (len(files) > 0):
+                    while len(files) > 0:
                         embed = discord.Embed(title='Available Missions', color=discord.Color.blue())
                         ids = missions = ''
                         max_i = (len(files) % 5) if (len(files) - j * 5) < 5 else 5
@@ -753,31 +767,31 @@ class Agent(commands.Cog):
                         embed.add_field(name='_ _', value='_ _')
                         embed.set_footer(text='Press a number to add the selected mission to the list.')
                         message = await ctx.send(embed=embed)
-                        if (j > 0):
+                        if j > 0:
                             await message.add_reaction('◀️')
                         for i in range(1, max_i + 1):
                             await message.add_reaction(chr(0x30 + i) + '\u20E3')
                         await message.add_reaction('⏹️')
-                        if (((j + 1) * 5) < len(files)):
+                        if ((j + 1) * 5) < len(files):
                             await message.add_reaction('▶️')
                         react = await utils.wait_for_single_reaction(self, ctx, message)
                         await message.delete()
-                        if (react.emoji == '◀️'):
+                        if react.emoji == '◀️':
                             j -= 1
                             message = None
-                        elif (react.emoji == '▶️'):
+                        elif react.emoji == '▶️':
                             j += 1
                             message = None
-                        if (react.emoji == '⏹️'):
+                        if react.emoji == '⏹️':
                             return
-                        elif ((len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x36)):
+                        elif (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x36):
                             file = files[(ord(react.emoji[0]) - 0x31) + j * 5]
                             break
                 except asyncio.TimeoutError:
                     await message.delete()
             else:
                 file = ' '.join(path)
-            if (file is not None):
+            if file is not None:
                 self.sendtoDCS(server, {"command": "addMission", "path": file, "channel": ctx.channel.id})
                 await ctx.send('Mission {} added.'.format(file))
             else:
@@ -788,8 +802,8 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def kick(self, ctx, name, *args):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
-            if (len(args) > 0):
+        if server:
+            if len(args) > 0:
                 reason = ' '.join(args)
             else:
                 reason = 'n/a'
@@ -800,14 +814,14 @@ class Agent(commands.Cog):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user, *args):
-        if (len(args) > 0):
+        if len(args) > 0:
             reason = ' '.join(args)
         else:
             reason = 'n/a'
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if (user.startswith('<')):
+                if user.startswith('<'):
                     discord_id = user.replace('<@!', '').replace('>', '')
                     # a player can have multiple ucids
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
@@ -831,7 +845,7 @@ class Agent(commands.Cog):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if (user.startswith('<')):
+                if user.startswith('<'):
                     discord_id = user.replace('<@!', '').replace('>', '')
                     # a player can have multiple ucids
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
@@ -852,10 +866,10 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def unregister(self, ctx, node=platform.node()):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
+        if server:
             server_name = server['server_name']
-            if (server['status'] in ['Stopped', 'Shutdown']):
-                if (await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True):
+            if server['status'] in ['Stopped', 'Shutdown']:
+                if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True:
                     self.embeds.pop(server_name)
                     await ctx.send('Server {} unregistered.'.format(server_name))
                 else:
@@ -868,13 +882,13 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def rename(self, ctx, *args):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
+        if server:
             oldname = server['server_name']
             newname = ' '.join(args)
-            if (server['status'] in ['Stopped', 'Shutdown']):
+            if server['status'] in ['Stopped', 'Shutdown']:
                 conn = self.bot.pool.getconn()
                 try:
-                    if (await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" to "{}"?'.format(oldname, newname)) is True):
+                    if await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" to "{}"?'.format(oldname, newname)) is True:
                         with closing(conn.cursor()) as cursor:
                             cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
                                            (newname, oldname))
@@ -901,12 +915,12 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def reset(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
+        if server:
             server_name = server['server_name']
-            if (server['status'] in ['Stopped', 'Shutdown']):
+            if server['status'] in ['Stopped', 'Shutdown']:
                 conn = self.bot.pool.getconn()
                 try:
-                    if (await utils.yn_question(self, ctx, 'I\'m going to **DELETE ALL STATISTICS**\nof server "{}".\n\nAre you sure?'.format(server_name)) is True):
+                    if await utils.yn_question(self, ctx, 'I\'m going to **DELETE ALL STATISTICS**\nof server "{}".\n\nAre you sure?'.format(server_name)) is True:
                         with closing(conn.cursor()) as cursor:
                             cursor.execute(
                                 'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE server_name = %s)', (server_name, ))
@@ -926,8 +940,8 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def pause(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
-            if (server['status'] == 'Running'):
+        if server:
+            if server['status'] == 'Running':
                 self.sendtoDCS(server, {"command": "pause", "channel": ctx.channel.id})
                 await ctx.send('Server "{}" paused.'.format(server['server_name']))
             else:
@@ -938,13 +952,13 @@ class Agent(commands.Cog):
     @commands.guild_only()
     async def unpause(self, ctx):
         server = await utils.get_server(self, ctx)
-        if (server is not None):
-            if (server['status'] == 'Paused'):
+        if server:
+            if server['status'] == 'Paused':
                 self.sendtoDCS(server, {"command": "unpause", "channel": ctx.channel.id})
                 await ctx.send('Server "{}" unpaused.'.format(server['server_name']))
-            elif (server['status'] == 'Running'):
+            elif server['status'] == 'Running':
                 await ctx.send('Server "{}" is already running.'.format(server['server_name']))
-            elif (server['status'] == 'Loading'):
+            elif server['status'] == 'Loading':
                 await ctx.send('Server "{}" is still loading... please wait a bit and try again.'.format(server['server_name']))
             else:
                 await ctx.send('Server "{}" is stopped or shut down. Please start the server first before unpausing.'.format(server['server_name']))
@@ -952,14 +966,14 @@ class Agent(commands.Cog):
     @tasks.loop(minutes=5.0)
     async def update_mission_status(self):
         for server_name, server in self.bot.DCSServers.items():
-            if (server['status'] not in ['Loading', 'Stopped', 'Shutdown']):
+            if server['status'] not in ['Loading', 'Stopped', 'Shutdown']:
                 self.sendtoDCS(server, {"command": "getRunningMission",
                                         "channel": server['status_channel']})
 
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
         for server_name, server in self.bot.DCSServers.items():
-            if (server['status'] in ['Loading', 'Stopped', 'Running', 'Paused']):
+            if server['status'] in ['Loading', 'Stopped', 'Running', 'Paused']:
                 await self.bot.change_presence(activity=discord.Game(self.STATUS_EMOJI[server['status']] + ' ' +
                                                                      re.sub(self.bot.config['FILTER']['SERVER_FILTER'],
                                                                             '', server_name).strip()))
@@ -973,7 +987,7 @@ class Agent(commands.Cog):
             def get_player(self, server_name, id):
                 df = self.player_data[server_name]
                 row = df[df['id'] == id]
-                if (not row.empty):
+                if not row.empty:
                     return df[df['id'] == id].to_dict('records')[0]
                 else:
                     return None
@@ -981,16 +995,16 @@ class Agent(commands.Cog):
             # Add or update a player from the internal list.
             def updatePlayer(self, data):
                 # Player 1 is always inactive
-                if (data['id'] == 1):
+                if data['id'] == 1:
                     data['active'] = False
                 new_df = pd.DataFrame([data], columns=['id', 'name', 'active', 'side', 'slot',
                                       'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type'])
                 new_df.set_index('id')
-                if (data['server_name'] not in self.player_data):
+                if data['server_name'] not in self.player_data:
                     self.player_data[data['server_name']] = new_df
                 else:
                     df = self.player_data[data['server_name']]
-                    if (len(df[df['id'] == data['id']]) == 1):
+                    if len(df[df['id'] == data['id']]) == 1:
                         df.loc[df['id'] == data['id']] = new_df
                     else:
                         df = df.append(new_df)
@@ -1001,9 +1015,9 @@ class Agent(commands.Cog):
             # when the user has already left the server.
             def removePlayer(self, data):
                 df = self.player_data[data['server_name']]
-                if (data['command'] == 'onPlayerStop'):
+                if data['command'] == 'onPlayerStop':
                     id = data['id']
-                elif (data['command'] == 'onGameEvent'):
+                elif data['command'] == 'onGameEvent':
                     id = data['arg1']
                 else:
                     self.bot.log.warning('removePlayer() received unknown event: ' + str(data))
@@ -1016,36 +1030,36 @@ class Agent(commands.Cog):
 
             async def sendEmbed(data):
                 embed = discord.Embed(color=discord.Color.blue())
-                if ('title' in data and len(data['title']) > 0):
+                if 'title' in data and len(data['title']) > 0:
                     embed.title = data['title']
-                if ('description' in data and len(data['description']) > 0):
+                if 'description' in data and len(data['description']) > 0:
                     embed.description = data['description']
-                if ('img' in data and len(data['img']) > 0):
+                if 'img' in data and len(data['img']) > 0:
                     embed.set_image(url=data['img'])
-                if ('footer' in data and len(data['footer']) > 0):
+                if 'footer' in data and len(data['footer']) > 0:
                     embed.set_footer(text=data['footer'])
-                if ('fields' in data):
+                if 'fields' in data:
                     for name, value in data['fields'].items():
                         embed.add_field(name=name, value=value)
-                if ('id' in data and len(data['id']) > 0):
+                if 'id' in data and len(data['id']) > 0:
                     return await self.setEmbed(data, data['id'], embed)
                 else:
                     return await self.get_channel(data, 'chat_channel' if (data['channel'] == '-1') else None).send(embed=embed)
 
             async def callback(data):
                 server = self.bot.DCSServers[data['server_name']]
-                if (data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown']):
+                if data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown']:
                     data['command'] = data['subcommand']
                     self.sendtoDCS(server, data)
 
             async def registerDCSServer(data):
                 self.bot.log.debug('Registering DCS-Server ' + data['server_name'])
                 # check for protocol incompatibilities
-                if (data['hook_version'] != self.bot.version):
+                if data['hook_version'] != self.bot.version:
                     self.bot.log.error(
                         'Server {} has wrong Hook version installed. Please update lua files and restart server. Registration ignored.'.format(data['server_name']))
                     return
-                if (data['status_channel'].isnumeric() is True):
+                if data['status_channel'].isnumeric() is True:
                     SQL_INSERT = 'INSERT INTO servers (server_name, agent_host, host, port, chat_channel, status_channel, admin_channel) VALUES(%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, chat_channel=%s, status_channel=%s, admin_channel=%s'
                     SQL_SELECT = 'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, \'Unknown\' as status FROM servers WHERE server_name = %s'
                     conn = self.bot.pool.getconn()
@@ -1072,9 +1086,9 @@ class Agent(commands.Cog):
                     server['serverSettings']['external_ip'] = self.external_ip
                     server['options'] = data['options']
                     server['airbases'] = data['airbases']
-                    if ('SRSSettings' in data):
+                    if 'SRSSettings' in data:
                         server['SRSSettings'] = data['SRSSettings']
-                    if ('lotAtcSettings' in data):
+                    if 'lotAtcSettings' in data:
                         server['lotAtcSettings'] = data['lotAtcSettings']
                     self.updateBans(data)
                     self.sendtoDCS(server, {"command": "getRunningMission", "channel": server['status_channel']})
@@ -1090,36 +1104,35 @@ class Agent(commands.Cog):
                 return data
 
             async def getRunningMission(data):
-                if (int(data['channel']) != 0):
+                if int(data['channel']) != 0:
                     server = self.bot.DCSServers[data['server_name']]
-                    if ('pause' in data):
+                    if 'pause' in data:
                         server['status'] = 'Paused' if data['pause'] is True else 'Running'
                     # check if we have to restart the mission
                     installation = server['installation']
-                    if ('restartScheduler' not in server):
+                    if 'restartScheduler' not in server:
                         # check if a restart should be executed relative to mission start
-                        if (('RESTART_MISSION_TIME' in self.bot.config[installation]) and
-                                (data['mission_time'] > int(self.bot.config[installation]['RESTART_MISSION_TIME']) * 60)):
+                        if ('RESTART_MISSION_TIME' in self.bot.config[installation]) and (data['mission_time'] > int(self.bot.config[installation]['RESTART_MISSION_TIME']) * 60):
                             self.do_scheduled_restart(server, self.bot.config[installation]['RESTART_METHOD'])
-                        elif ('RESTART_LOCAL_TIMES' in self.bot.config[installation]):
+                        elif 'RESTART_LOCAL_TIMES' in self.bot.config[installation]:
                             now = datetime.now()
                             times = []
                             for t in self.bot.config[installation]['RESTART_LOCAL_TIMES'].split(','):
                                 d = datetime.strptime(t.strip(), '%H:%M')
                                 check = now.replace(hour=d.hour, minute=d.minute)
-                                if (check.time() > now.time()):
+                                if check.time() > now.time():
                                     times.insert(0, check)
                                     break
                                 else:
                                     times.append(check + timedelta(days=1))
-                            if (len(times)):
+                            if len(times):
                                 self.do_scheduled_restart(
                                     server, self.bot.config[installation]['RESTART_METHOD'], (times[0] - now).total_seconds())
                             else:
                                 self.bot.log.warning(
                                     f'Configuration mismatch! RESTART_LOCAL_TIMES not set correctly for server {server["server_name"]}.')
                     embed = self.format_mission_embed(data)
-                    if (embed):
+                    if embed:
                         return await self.setEmbed(data, 'mission_embed', embed)
                     else:
                         return None
@@ -1127,8 +1140,8 @@ class Agent(commands.Cog):
                     return data
 
             async def getCurrentPlayers(data):
-                if (int(data['channel']) != 0):
-                    if (data['server_name'] not in self.player_data):
+                if int(data['channel']) != 0:
+                    if data['server_name'] not in self.player_data:
                         self.player_data[data['server_name']] = pd.DataFrame(data['players'], columns=[
                             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type'])
                         self.player_data[data['server_name']].set_index('id')
@@ -1136,7 +1149,7 @@ class Agent(commands.Cog):
                     # Close statistics for players that are no longer active
                     players = self.player_data[data['server_name']]
                     ucids = ', '.join(['"' + x + '"' for x in players[players['active'] == True]['ucid']])
-                    if (len(players) > 0):
+                    if len(players) > 0:
                         conn = self.bot.pool.getconn()
                         try:
                             with closing(conn.cursor()) as cursor:
@@ -1155,7 +1168,7 @@ class Agent(commands.Cog):
             async def listMissions(data):
                 embed = discord.Embed(title='Mission List', color=discord.Color.blue())
                 ids = active = missions = ''
-                if (len(data['missionList']) > 0):
+                if len(data['missionList']) > 0:
                     for i in range(0, len(data['missionList'])):
                         ids += (chr(0x31 + i) + '\u20E3' + '\n')
                         active += ('Yes\n' if data['listStartIndex'] == (i + 1) else '_ _\n')
@@ -1167,7 +1180,7 @@ class Agent(commands.Cog):
                 return embed
 
             async def getMissionDetails(data):
-                if (int(data['channel']) != 0):
+                if int(data['channel']) != 0:
                     embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
                     embed.description = data['mission_description'][:2048]
                     return embed
@@ -1191,7 +1204,7 @@ class Agent(commands.Cog):
                 server = self.bot.DCSServers[data['server_name']]
                 server['status'] = 'Paused'
                 server['airbases'] = data['airbases']
-                if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
+                if self.bot.DCSServers[data['server_name']]['statistics'] is True:
                     SQL_CLOSE_STATISTICS = 'UPDATE statistics SET hop_off = NOW() WHERE mission_id IN (SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL) AND hop_off IS NULL'
                     SQL_CLOSE_MISSIONS = 'UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL'
                     SQL_START_MISSION = 'INSERT INTO missions (server_name, mission_name, mission_theatre) VALUES (%s, %s, %s)'
@@ -1219,10 +1232,10 @@ class Agent(commands.Cog):
                 data['current_map'] = '-'
                 data['mission_time'] = 0
                 server = self.bot.DCSServers[data['server_name']]
-                if (server['status'] != 'Shutdown'):
+                if server['status'] != 'Shutdown':
                     server['status'] = 'Stopped'
                 await UDPListener.getRunningMission(data)
-                if (server['statistics'] is True):
+                if server['statistics'] is True:
                     conn = self.bot.pool.getconn()
                     try:
                         mission_id = self.getCurrentMissionID(data['server_name'])
@@ -1238,7 +1251,7 @@ class Agent(commands.Cog):
                     finally:
                         self.bot.pool.putconn(conn)
                 # stop all restart events
-                if ('restartScheduler' in server):
+                if 'restartScheduler' in server:
                     s = server['restartScheduler']
                     for event in s.queue:
                         s.cancel(event)
@@ -1253,17 +1266,17 @@ class Agent(commands.Cog):
                 self.updateMission(data)
 
             async def onPlayerConnect(data):
-                if (data['id'] != 1):
+                if data['id'] != 1:
                     chat_channel = self.get_channel(data, 'chat_channel')
-                    if (chat_channel is not None):
+                    if chat_channel is not None:
                         await chat_channel.send('{} connected to server'.format(data['name']))
 
             async def onPlayerStart(data):
-                if (data['id'] != 1):
+                if data['id'] != 1:
                     SQL_PLAYERS = 'INSERT INTO players (ucid, discord_id) VALUES (%s, %s) ON CONFLICT (ucid) DO UPDATE SET discord_id = %s WHERE players.discord_id = -1'
                     discord_user = self.find_discord_user(data)
-                    discord_id = discord_user.id if (discord_user) else -1
-                    if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
+                    discord_id = discord_user.id if discord_user else -1
+                    if self.bot.DCSServers[data['server_name']]['statistics'] is True:
                         conn = self.bot.pool.getconn()
                         try:
                             with closing(conn.cursor()) as cursor:
@@ -1275,14 +1288,14 @@ class Agent(commands.Cog):
                         finally:
                             self.bot.pool.putconn(conn)
                     server = self.bot.DCSServers[data['server_name']]
-                    if (discord_user is None):
+                    if discord_user is None:
                         self.sendtoDCS(server, {"command": "sendChatMessage", "message": self.bot.config['DCS']['GREETING_MESSAGE_UNKNOWN'].format(
                             data['name']), "to": data['id']})
                         # only warn for unknown users if it is a non-public server
-                        if (len(self.bot.DCSServers[data['server_name']]['serverSettings']['password']) > 0):
+                        if len(self.bot.DCSServers[data['server_name']]['serverSettings']['password']) > 0:
                             await self.get_channel(data, 'admin_channel').send('Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
                     else:
-                        name = discord_user.nick if (discord_user.nick) else discord_user.name
+                        name = discord_user.nick if discord_user.nick else discord_user.name
                         self.sendtoDCS(server, {"command": "sendChatMessage", "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(
                             name, data['server_name']), "to": data['id']})
                     self.updateMission(data)
@@ -1295,17 +1308,17 @@ class Agent(commands.Cog):
                 await self.displayPlayerList(data)
 
             async def onPlayerChangeSlot(data):
-                if ('side' in data):
+                if 'side' in data:
                     SQL_CLOSE_STATISTICS = 'UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL'
                     SQL_INSERT_STATISTICS = 'INSERT INTO statistics (mission_id, player_ucid, slot) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING'
                     player = UDPListener.get_player(self, data['server_name'], data['id'])
-                    if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
+                    if self.bot.DCSServers[data['server_name']]['statistics'] is True:
                         conn = self.bot.pool.getconn()
                         try:
                             mission_id = self.getCurrentMissionID(data['server_name'])
                             with closing(conn.cursor()) as cursor:
                                 cursor.execute(SQL_CLOSE_STATISTICS, (mission_id, data['ucid']))
-                                if (data['side'] != self.SIDE_SPECTATOR):
+                                if data['side'] != self.SIDE_SPECTATOR:
                                     cursor.execute(SQL_INSERT_STATISTICS, (mission_id, data['ucid'], data['unit_type']))
                                 conn.commit()
                         except (Exception, psycopg2.DatabaseError) as error:
@@ -1313,16 +1326,16 @@ class Agent(commands.Cog):
                             conn.rollback()
                         finally:
                             self.bot.pool.putconn(conn)
-                    if (data['side'] != self.SIDE_SPECTATOR):
-                        if (player is not None):
+                    if data['side'] != self.SIDE_SPECTATOR:
+                        if player is not None:
                             chat_channel = self.get_channel(data, 'chat_channel')
-                            if (chat_channel is not None):
+                            if chat_channel is not None:
                                 await chat_channel.send('{} player {} occupied {} {}'.format(
                                     self.PLAYER_SIDES[player['side'] if player['side'] != 0 else 3], data['name'],
                                     self.PLAYER_SIDES[data['side']], data['unit_type']))
-                    elif (player is not None):
+                    elif player is not None:
                         chat_channel = self.get_channel(data, 'chat_channel')
-                        if (chat_channel is not None):
+                        if chat_channel is not None:
                             await chat_channel.send('{} player {} returned to Spectators'.format(
                                 self.PLAYER_SIDES[player['side']], data['name']))
                     UDPListener.updatePlayer(self, data)
@@ -1333,14 +1346,14 @@ class Agent(commands.Cog):
                 # make sure we don't accept game events before the bot is not set up correctly
                 await self.lock.acquire()
                 try:
-                    if (data['eventName'] == 'mission_end'):
+                    if data['eventName'] == 'mission_end':
                         None
-                    elif (data['eventName'] in ['connect', 'change_slot']):  # these events are handled differently
+                    elif data['eventName'] in ['connect', 'change_slot']:  # these events are handled differently
                         return None
-                    elif (data['eventName'] == 'disconnect'):
-                        if (data['arg1'] != 1):
+                    elif data['eventName'] == 'disconnect':
+                        if data['arg1'] != 1:
                             player = UDPListener.get_player(self, data['server_name'], data['arg1'])
-                            if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
+                            if self.bot.DCSServers[data['server_name']]['statistics'] is True:
                                 conn = self.bot.pool.getconn()
                                 try:
                                     with closing(conn.cursor()) as cursor:
@@ -1353,8 +1366,8 @@ class Agent(commands.Cog):
                                 finally:
                                     self.bot.pool.putconn(conn)
                             chat_channel = self.get_channel(data, 'chat_channel')
-                            if (chat_channel is not None):
-                                if (player['side'] == self.SIDE_SPECTATOR):
+                            if chat_channel is not None:
+                                if player['side'] == self.SIDE_SPECTATOR:
                                     await chat_channel.send('Player {} disconnected'.format(player['name']))
                                 else:
                                     await chat_channel.send('{} player {} disconnected'.format(
@@ -1362,82 +1375,82 @@ class Agent(commands.Cog):
                             self.updateMission(data)
                             UDPListener.removePlayer(self, data)
                             await self.displayPlayerList(data)
-                    elif (data['eventName'] == 'friendly_fire'):
+                    elif data['eventName'] == 'friendly_fire':
                         player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
-                        if (data['arg3'] != -1):
+                        if data['arg3'] != -1:
                             player2 = UDPListener.get_player(self, data['server_name'], data['arg3'])
                         else:
                             player2 = None
                         chat_channel = self.get_channel(data, 'chat_channel')
-                        if (chat_channel is not None):
+                        if chat_channel is not None:
                             await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                                 self.PLAYER_SIDES[player1['side']], 'player ' + player1['name'],
                                 ('player ' + player2['name']) if player2 is not None else 'AI',
                                 data['arg2'] if (len(data['arg2']) > 0) else 'Cannon'))
-                    elif (data['eventName'] == 'kill'):
-                        if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
+                    elif data['eventName'] == 'kill':
+                        if self.bot.DCSServers[data['server_name']]['statistics'] is True:
                             conn = self.bot.pool.getconn()
                             try:
                                 with closing(conn.cursor()) as cursor:
                                     # Player is not an AI
-                                    if (data['arg1'] != -1):
-                                        if (data['arg4'] != -1):
-                                            if (data['arg1'] == data['arg4']):  # self kill
+                                    if data['arg1'] != -1:
+                                        if data['arg4'] != -1:
+                                            if data['arg1'] == data['arg4']:  # self kill
                                                 kill_type = 'self_kill'
-                                            elif (data['arg3'] == data['arg6']):  # teamkills
+                                            elif data['arg3'] == data['arg6']:  # teamkills
                                                 kill_type = 'teamkill'
-                                            elif (data['victimCategory'] in ['Planes', 'Helicopters']):  # pvp
+                                            elif data['victimCategory'] in ['Planes', 'Helicopters']:  # pvp
                                                 kill_type = 'pvp'
-                                        elif (data['victimCategory'] == 'Planes'):
+                                        elif data['victimCategory'] == 'Planes':
                                             kill_type = 'kill_planes'
-                                        elif (data['victimCategory'] == 'Helicopters'):
+                                        elif data['victimCategory'] == 'Helicopters':
                                             kill_type = 'kill_helicopters'
-                                        elif (data['victimCategory'] == 'Ships'):
+                                        elif data['victimCategory'] == 'Ships':
                                             kill_type = 'kill_ships'
-                                        elif (data['victimCategory'] == 'Air Defence'):
+                                        elif data['victimCategory'] == 'Air Defence':
                                             kill_type = 'kill_sams'
-                                        elif (data['victimCategory'] in ['Unarmed', 'Armor', 'Infantry' 'Fortification', 'Artillery', 'MissilesSS']):
+                                        elif data['victimCategory'] in ['Unarmed', 'Armor', 'Infantry' 'Fortification', 'Artillery', 'MissilesSS']:
                                             kill_type = 'kill_ground'
                                         else:
                                             kill_type = 'kill_other'  # Static objects
                                         # Update database
                                         player1 = UDPListener.get_player(self, data['server_name'], data['arg1'])
-                                        if (kill_type in self.SQL_EVENT_UPDATES.keys()):
+                                        if kill_type in self.SQL_EVENT_UPDATES.keys():
                                             cursor.execute(self.SQL_EVENT_UPDATES[kill_type],
                                                            (self.getCurrentMissionID(data['server_name']), player1['ucid']))
                                     else:
                                         player1 = None
 
                                     # Victim is not an AI
-                                    if (data['arg4'] != -1):
-                                        if (data['arg1'] != -1):
-                                            if (data['arg1'] == data['arg4']):  # self kill
+                                    if data['arg4'] != -1:
+                                        if data['arg1'] != -1:
+                                            if data['arg1'] == data['arg4']:  # self kill
                                                 death_type = 'self_kill'
-                                            elif (data['arg3'] == data['arg6']):  # killed by team member - no death counted
+                                            elif data['arg3'] == data['arg6']:  # killed by team member - no death counted
                                                 death_type = 'teamdeath'
-                                            elif (data['killerCategory'] in ['Planes', 'Helicopters']):  # pvp
+                                            elif data['killerCategory'] in ['Planes', 'Helicopters']:  # pvp
                                                 death_type = 'deaths_pvp'
-                                        elif (data['killerCategory'] == 'Planes'):
+                                        elif data['killerCategory'] == 'Planes':
                                             death_type = 'deaths_planes'
-                                        elif (data['killerCategory'] == 'Helicopters'):
+                                        elif data['killerCategory'] == 'Helicopters':
                                             death_type = 'deaths_helicopters'
-                                        elif (data['killerCategory'] == 'Ships'):
+                                        elif data['killerCategory'] == 'Ships':
                                             death_type = 'deaths_ships'
-                                        elif (data['killerCategory'] == 'Air Defence'):
+                                        elif data['killerCategory'] == 'Air Defence':
                                             death_type = 'deaths_sams'
-                                        elif (data['killerCategory'] in ['Armor', 'Infantry' 'Fortification', 'Artillery', 'MissilesSS']):
+                                        elif data['killerCategory'] in ['Armor', 'Infantry' 'Fortification', 'Artillery', 'MissilesSS']:
                                             death_type = 'deaths_ground'
                                         else:
                                             death_type = 'other'
                                         player2 = UDPListener.get_player(self, data['server_name'], data['arg4'])
-                                        if (death_type in self.SQL_EVENT_UPDATES.keys()):
+                                        if death_type in self.SQL_EVENT_UPDATES.keys():
                                             cursor.execute(self.SQL_EVENT_UPDATES[death_type],
                                                            (self.getCurrentMissionID(data['server_name']), player2['ucid']))
                                     else:
                                         player2 = None
                                     conn.commit()
                                     chat_channel = self.get_channel(data, 'chat_channel')
-                                    if (chat_channel is not None):
+                                    if chat_channel is not None:
                                         await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                                             self.PLAYER_SIDES[data['arg3']],
                                             ('player ' + player1['name']) if player1 is not None else 'AI',
@@ -1445,28 +1458,28 @@ class Agent(commands.Cog):
                                             ('player ' + player2['name']) if player2 is not None else 'AI',
                                             data['arg5'], data['arg7']))
                                     # report teamkills from unknown players to admins
-                                    if ((player1 is not None) and (kill_type == 'teamkill')):
+                                    if (player1 is not None) and (kill_type == 'teamkill'):
                                         discord_user = self.find_discord_user(player1)
-                                        if (discord_user is None):
+                                        if discord_user is None:
                                             await self.get_channel(data, 'admin_channel').send('Unknown player {} (ucid={}) is killing team members. Please investigate.'.format(player1['name'], player1['ucid']))
                             except (Exception, psycopg2.DatabaseError) as error:
                                 self.bot.log.exception(error)
                                 conn.rollback()
                             finally:
                                 self.bot.pool.putconn(conn)
-                    elif (data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']):
-                        if (data['arg1'] != -1):
+                    elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
+                        if data['arg1'] != -1:
                             player = UDPListener.get_player(self, data['server_name'], data['arg1'])
                             chat_channel = self.get_channel(data, 'chat_channel')
-                            if (chat_channel is not None):
-                                if (data['eventName'] in ['takeoff', 'landing']):
+                            if chat_channel is not None:
+                                if data['eventName'] in ['takeoff', 'landing']:
                                     await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                                         self.PLAYER_SIDES[player['side']], player['name'], data['arg3']))
                                 else:
                                     await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                                         self.PLAYER_SIDES[player['side']], player['name']))
-                            if (data['eventName'] in self.SQL_EVENT_UPDATES.keys()):
-                                if (self.bot.DCSServers[data['server_name']]['statistics'] is True):
+                            if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
+                                if self.bot.DCSServers[data['server_name']]['statistics'] is True:
                                     conn = self.bot.pool.getconn()
                                     try:
                                         with closing(conn.cursor()) as cursor:
@@ -1486,13 +1499,13 @@ class Agent(commands.Cog):
 
             async def onChatMessage(data):
                 chat_channel = self.get_channel(data, 'chat_channel')
-                if (chat_channel is not None):
-                    if ('from_id' in data and data['from_id'] != 1 and len(data['message']) > 0):
+                if chat_channel is not None:
+                    if 'from_id' in data and data['from_id'] != 1 and len(data['message']) > 0:
                         return await chat_channel.send(data['from_name'] + ': ' + data['message'])
                 return None
 
             async def displayMissionStats(data):
-                if (data['server_name'] in self.mission_stats):
+                if data['server_name'] in self.mission_stats:
                     stats = self.mission_stats[data['server_name']]
                     embed = discord.Embed(title='Mission Statistics', color=discord.Color.blue())
                     embed.add_field(name='▬▬▬▬▬▬ Current Situation ▬▬▬▬▬▬', value='_ _', inline=False)
@@ -1513,7 +1526,7 @@ class Agent(commands.Cog):
                         value = ''
                         coalition_data = stats['coalitions'][coalition]
                         value += '{}\n'.format(coalition_data['captures'] if ('captures' in coalition_data) else 0)
-                        if ('kills' in coalition_data):
+                        if 'kills' in coalition_data:
                             for unit_type in ['Airplanes', 'Helicopters', 'Ground Units', 'Ships', 'Static']:
                                 value += '{}\n'.format(coalition_data['kills'][unit_type]
                                                        if unit_type in coalition_data['kills'] else 0)
@@ -1544,76 +1557,76 @@ class Agent(commands.Cog):
                     self.bot.pool.putconn(conn)
 
             async def onMissionEvent(data):
-                if (data['server_name'] in self.mission_stats):
+                if data['server_name'] in self.mission_stats:
                     stats = self.mission_stats[data['server_name']]
                     update = False
-                    if (data['eventName'] == 'birth'):
+                    if data['eventName'] == 'birth':
                         initiator = data['initiator']
-                        if (initiator is not None and len(initiator) > 0):
+                        if initiator is not None and len(initiator) > 0:
                             category = self.UNIT_CATEGORY[initiator['category']]
                             coalition = self.COALITION[initiator['coalition']]
                             unit_name = initiator['unit_name']
-                            if (initiator['type'] == 'UNIT'):
-                                if (category not in stats['coalitions'][coalition]['units']):
+                            if initiator['type'] == 'UNIT':
+                                if category not in stats['coalitions'][coalition]['units']:
                                     stats['coalitions'][coalition]['units'][category] = []
-                                if (unit_name not in stats['coalitions'][coalition]['units'][category]):
+                                if unit_name not in stats['coalitions'][coalition]['units'][category]:
                                     stats['coalitions'][coalition]['units'][category].append(unit_name)
-                            elif (initiator['type'] == 'STATIC'):
+                            elif initiator['type'] == 'STATIC':
                                 stats['coalitions'][coalition]['statics'].append(unit_name)
                             update = True
-                    elif (data['eventName'] == 'kill' and 'initiator' in data and len(data['initiator']) > 0):
+                    elif data['eventName'] == 'kill' and 'initiator' in data and len(data['initiator']) > 0:
                         killer = data['initiator']
                         victim = data['target']
-                        if (killer is not None and len(killer) > 0 and len(victim) > 0):
+                        if killer is not None and len(killer) > 0 and len(victim) > 0:
                             coalition = self.COALITION[killer['coalition']]
                             category = self.UNIT_CATEGORY[victim['category']]
-                            if (victim['type'] == 'UNIT'):
-                                if ('kills' not in stats['coalitions'][coalition]):
+                            if victim['type'] == 'UNIT':
+                                if 'kills' not in stats['coalitions'][coalition]:
                                     stats['coalitions'][coalition]['kills'] = {}
-                                if (category not in stats['coalitions'][coalition]['kills']):
+                                if category not in stats['coalitions'][coalition]['kills']:
                                     stats['coalitions'][coalition]['kills'][category] = 1
                                 else:
                                     stats['coalitions'][coalition]['kills'][category] += 1
-                            elif (victim['type'] == 'STATIC'):
-                                if ('kills' not in stats['coalitions'][coalition]):
+                            elif victim['type'] == 'STATIC':
+                                if 'kills' not in stats['coalitions'][coalition]:
                                     stats['coalitions'][coalition]['kills'] = {}
-                                if ('Static' not in stats['coalitions'][coalition]['kills']):
+                                if 'Static' not in stats['coalitions'][coalition]['kills']:
                                     stats['coalitions'][coalition]['kills']['Static'] = 1
                                 else:
                                     stats['coalitions'][coalition]['kills']['Static'] += 1
-                    elif (data['eventName'] in ['lost', 'dismiss'] and 'initiator' in data and len(data['initiator']) > 0):
+                    elif data['eventName'] in ['lost', 'dismiss'] and 'initiator' in data and len(data['initiator']) > 0:
                         initiator = data['initiator']
                         category = self.UNIT_CATEGORY[initiator['category']]
                         coalition = self.COALITION[initiator['coalition']]
                         unit_name = initiator['unit_name']
-                        if (initiator['type'] == 'UNIT'):
-                            if (unit_name in stats['coalitions'][coalition]['units'][category]):
+                        if initiator['type'] == 'UNIT':
+                            if unit_name in stats['coalitions'][coalition]['units'][category]:
                                 stats['coalitions'][coalition]['units'][category].remove(unit_name)
-                        elif (initiator['type'] == 'STATIC'):
-                            if (unit_name in stats['coalitions'][coalition]['statics']):
+                        elif initiator['type'] == 'STATIC':
+                            if unit_name in stats['coalitions'][coalition]['statics']:
                                 stats['coalitions'][coalition]['statics'].remove(unit_name)
                         update = True
-                    elif (data['eventName'] == 'BaseCaptured'):
+                    elif data['eventName'] == 'BaseCaptured':
                         win_coalition = self.COALITION[data['initiator']['coalition']]
                         lose_coalition = self.COALITION[(data['initiator']['coalition'] % 2) + 1]
                         name = data['place']['name']
                         # workaround for DCS BaseCapture-bug
-                        if (name in stats['coalitions'][win_coalition]['airbases']):
+                        if name in stats['coalitions'][win_coalition]['airbases']:
                             return None
                         stats['coalitions'][win_coalition]['airbases'].append(name)
-                        if ('captures' not in stats['coalitions'][win_coalition]):
+                        if 'captures' not in stats['coalitions'][win_coalition]:
                             stats['coalitions'][win_coalition]['captures'] = 1
                         else:
                             stats['coalitions'][win_coalition]['captures'] += 1
                         message = '{} coalition has captured {}'.format(win_coalition.upper(), name)
-                        if (name in stats['coalitions'][lose_coalition]['airbases']):
+                        if name in stats['coalitions'][lose_coalition]['airbases']:
                             stats['coalitions'][lose_coalition]['airbases'].remove(name)
                             message += ' from {} coalition'.format(lose_coalition.upper())
                         update = True
                         chat_channel = self.get_channel(data, 'chat_channel')
-                        if (chat_channel is not None):
+                        if chat_channel is not None:
                             await chat_channel.send(message)
-                    if (update):
+                    if update:
                         return await UDPListener.displayMissionStats(data)
                     else:
                         return None
@@ -1621,7 +1634,7 @@ class Agent(commands.Cog):
             def handle(s):
                 dt = json.loads(s.request[0].strip())
                 # ignore messages not containing server names
-                if ('server_name' not in dt):
+                if 'server_name' not in dt:
                     self.bot.log.warning('Message without server_name received: {}'.format(dt))
                     return
                 # ignore any DCS events before the server is fully registered
@@ -1635,15 +1648,15 @@ class Agent(commands.Cog):
                     command = dt['command']
                     future = asyncio.run_coroutine_threadsafe(getattr(UDPListener, command)(dt), self.loop)
                     result = future.result()
-                    if (command.startswith('on') is False):
+                    if command.startswith('on') is False:
                         listeners = self.listeners.get(command)
-                        if (listeners):
+                        if listeners:
                             removed = []
                             for i, (future, token) in enumerate(listeners):
                                 if future.cancelled():
                                     removed.append(i)
                                     continue
-                                if (token == dt['channel']):
+                                if token == dt['channel']:
                                     # set result with call_soon_threadsafe as we are in a different thread
                                     self.loop.call_soon_threadsafe(future.set_result, result)
                                     removed.append(i)
@@ -1652,7 +1665,7 @@ class Agent(commands.Cog):
                             else:
                                 for idx in reversed(removed):
                                     del listeners[idx]
-                except (AttributeError) as error:
+                except AttributeError as error:
                     self.bot.log.exception(error)
                     self.bot.log.warning('Method ' + dt['command'] + '() not implemented.')
 

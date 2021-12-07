@@ -4,7 +4,6 @@ import discord
 import logging
 import os
 import platform
-import psycopg2
 import psycopg2.extras
 import shutil
 import subprocess
@@ -16,6 +15,8 @@ from discord.ext import commands
 from logging.handlers import RotatingFileHandler
 from os import path
 from psycopg2 import pool
+
+BOT_VERSION = '2.4.1'
 
 config = ConfigParser()
 config.read('config/default.ini')
@@ -58,13 +59,13 @@ bot = commands.Bot(command_prefix=get_prefix,
 
 # Allow COGs to access configuration
 bot.config = config
-bot.version = bot.config['BOT']['VERSION'] = '2.4.0'
+bot.version = bot.config['BOT']['VERSION'] = BOT_VERSION
 
 # Initialize the logger
 bot.log = logging.getLogger(name='dcsserverbot')
 bot.log.setLevel(logging.DEBUG)
 fh = RotatingFileHandler('dcsserverbot.log', maxBytes=10*1024*2024, backupCount=2)
-if ('LOGLEVEL' in config['BOT']):
+if 'LOGLEVEL' in config['BOT']:
     fh.setLevel(LOGLEVEL[bot.config['BOT']['LOGLEVEL']])
 else:
     fh.setLevel(logging.DEBUG)
@@ -79,7 +80,7 @@ bot.log.addHandler(ch)
 bot.DCSServers = {}
 
 # Autoupdate
-if (config.getboolean('BOT', 'AUTOUPDATE') is True):
+if config.getboolean('BOT', 'AUTOUPDATE') is True:
     try:
         import git
 
@@ -90,21 +91,21 @@ if (config.getboolean('BOT', 'AUTOUPDATE') is True):
                 origin = repo.remotes.origin
                 origin.fetch()
                 new_hash = origin.refs[repo.active_branch.name].object.hexsha
-                if (new_hash != current_hash):
+                if new_hash != current_hash:
                     restart = modules = False
                     bot.log.warning('Remote repo has changed. Updating myself...')
                     diff = repo.head.commit.diff(new_hash)
                     for d in diff:
-                        if (d.b_path in ['bot.py', 'utils.py']):
+                        if d.b_path in ['bot.py', 'utils.py']:
                             restart = True
-                        elif (d.b_path == 'requirements.txt'):
+                        elif d.b_path == 'requirements.txt':
                             modules = True
                     repo.remote().pull(repo.active_branch)
                     bot.log.info('Updated to latest version.')
-                    if (modules is True):
+                    if modules is True:
                         bot.log.warning('requirements.txt has changed. Installing missing modules...')
                         subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
-                    if (restart is True):
+                    if restart is True:
                         bot.log.warning('bot.py has changed.\nRestart needed => exiting.')
                         exit(-1)
                 else:
@@ -142,26 +143,26 @@ async def on_ready():
 
 
 @bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.NoPrivateMessage):
+async def on_command_error(ctx, err):
+    if isinstance(err, commands.NoPrivateMessage):
         await ctx.send('This command can\'t be used in a DM.')
-    elif isinstance(error, commands.MissingRequiredArgument):
+    elif isinstance(err, commands.MissingRequiredArgument):
         await ctx.send('Parameter missing. Try !help')
-    elif isinstance(error, commands.CommandNotFound):
+    elif isinstance(err, commands.CommandNotFound):
         pass
-    elif isinstance(error, commands.errors.CheckFailure):
+    elif isinstance(err, commands.errors.CheckFailure):
         await ctx.send('You don\'t have the rights to use that command.')
-    elif isinstance(error, asyncio.TimeoutError):
+    elif isinstance(err, asyncio.TimeoutError):
         await ctx.send('A timeout occured. Is the DCS server running?')
     else:
-        await ctx.send(str(error))
+        await ctx.send(str(err))
 
 
 @bot.event
 async def on_message(message):
     for key, value in bot.DCSServers.items():
-        if (value["chat_channel"] == message.channel.id):
-            if (message.content.startswith(bot.config['BOT']['COMMAND_PREFIX']) is False):
+        if value["chat_channel"] == message.channel.id:
+            if message.content.startswith(bot.config['BOT']['COMMAND_PREFIX']) is False:
                 message.content = bot.config['BOT']['COMMAND_PREFIX'] + 'chat ' + message.content
     await bot.process_commands(message)
 
@@ -169,19 +170,19 @@ async def on_message(message):
 @bot.command(description='Reloads a COG', usage='<node> [cog]')
 @commands.is_owner()
 async def reload(ctx, node=platform.node(), cog=None):
-    if (node == platform.node()):
+    if node == platform.node():
         bot.config.read('config/dcsserverbot.ini')
         for c in COGS:
-            if ((cog is None) or (c == cog)):
+            if (cog is None) or (c == cog):
                 bot.reload_extension(c)
-        if (cog is None):
+        if cog is None:
             await ctx.send('All COGs reloaded.')
         else:
             await ctx.send('COG {} reloaded.'.format(cog))
 
 # Creating connection pool
 bot.pool = pool.ThreadedConnectionPool(POOL_MIN, POOL_MAX, config['BOT']['DATABASE_URL'], sslmode='allow')
-if (config.getboolean('BOT', 'MASTER') is True):
+if config.getboolean('BOT', 'MASTER') is True:
     # Initialize the database
     conn = bot.pool.getconn()
     try:
@@ -191,13 +192,13 @@ if (config.getboolean('BOT', 'MASTER') is True):
             with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename in (\'servers\', \'version\')')
                 cnt = cursor.fetchone()[0]
-                if (cnt > 0):
-                    if (cnt == 2):
+                if cnt > 0:
+                    if cnt == 2:
                         cursor.execute('SELECT version FROM version')
                         bot.db_version = cursor.fetchone()[0]
-                    elif (cnt == 1):
+                    elif cnt == 1:
                         bot.db_version = 'v1.0'
-                    while (path.exists(UPDATES_SQL.format(bot.db_version))):
+                    while path.exists(UPDATES_SQL.format(bot.db_version)):
                         bot.log.info('Upgrading Database version {} ...'.format(bot.db_version))
                         with open(UPDATES_SQL.format(bot.db_version)) as tables_sql:
                             for query in tables_sql.readlines():
@@ -207,7 +208,7 @@ if (config.getboolean('BOT', 'MASTER') is True):
                         bot.db_version = cursor.fetchone()[0]
                         bot.log.info('Database upgraded to version {}.'.format(bot.db_version))
             # no, create one
-            if (bot.db_version is None):
+            if bot.db_version is None:
                 bot.log.debug('Initializing Database ...')
                 with closing(conn.cursor()) as cursor:
                     with open(TABLES_SQL) as tables_sql:
@@ -226,13 +227,13 @@ if (config.getboolean('BOT', 'MASTER') is True):
 # Installing Hook
 bot.log.info(f'DCSServerBot v{bot.version} starting up ...')
 for installation in utils.findDCSInstallations():
-    if (installation not in config):
+    if installation not in config:
         continue
     bot.log.info('- Configure DCS installation: {}'.format(installation))
     dcs_path = os.path.expandvars(config[installation]['DCS_HOME'] + '\\Scripts')
     assert path.exists(dcs_path), 'Can\'t find DCS installation directory. Exiting.'
     ignore = None
-    if (path.exists(dcs_path + r'\net\DCSServerBot')):
+    if path.exists(dcs_path + r'\net\DCSServerBot'):
         bot.log.debug('Updating Hook ...')
         ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
     else:
@@ -244,17 +245,17 @@ for installation in utils.findDCSInstallations():
                 for line in template.readlines():
                     s = line.find('{')
                     e = line.find('}')
-                    if (s != -1 and e != -1 and (e-s) > 1):
+                    if s != -1 and e != -1 and (e - s) > 1:
                         param = line[s+1:e].split('.')
-                        if (len(param) == 2):
-                            if (param[0] == 'BOT' and param[1] == 'HOST' and config[param[0]][param[1]] == '0.0.0.0'):
+                        if len(param) == 2:
+                            if param[0] == 'BOT' and param[1] == 'HOST' and config[param[0]][param[1]] == '0.0.0.0':
                                 line = line.replace('{' + '.'.join(param) + '}', '127.0.0.1')
                             else:
                                 line = line.replace('{' + '.'.join(param) + '}', config[param[0]][param[1]])
-                        elif (len(param) == 1):
+                        elif len(param) == 1:
                             line = line.replace('{' + '.'.join(param) + '}', config[installation][param[0]])
                     outfile.write(line)
-    except (KeyError) as k:
+    except KeyError as k:
         bot.log.error(f'! Your dcsserverbot.ini contains errors. You must set a value for {k}. See README for help.')
         exit(-1)
     bot.log.debug('Hook installed into {}.'.format(installation))

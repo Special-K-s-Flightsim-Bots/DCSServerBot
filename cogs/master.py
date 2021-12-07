@@ -17,14 +17,14 @@ class Master(Agent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user, *args):
-        if (len(args) > 0):
+        if len(args) > 0:
             reason = ' '.join(args)
         else:
             reason = 'n/a'
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if (user.startswith('<')):
+                if user.startswith('<'):
                     discord_id = user.replace('<@!', '').replace('>', '')
                     # a player can have multiple ucids
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
@@ -51,7 +51,7 @@ class Master(Agent):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if (user.startswith('<')):
+                if user.startswith('<'):
                     discord_id = user.replace('<@!', '').replace('>', '')
                     # a player can have multiple ucids
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
@@ -80,11 +80,11 @@ class Master(Agent):
                 cursor.execute(
                     'SELECT p.ucid, p.discord_id, b.banned_by, b.reason FROM players p, bans b WHERE p.ucid = b.ucid')
                 rows = list(cursor.fetchall())
-                if (rows is not None and len(rows) > 0):
+                if rows is not None and len(rows) > 0:
                     embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
                     ucids = discord_names = banned_by = ''
                     for ban in rows:
-                        if (ban['discord_id'] != -1):
+                        if ban['discord_id'] != -1:
                             user = await self.bot.fetch_user(ban['discord_id'])
                         else:
                             user = None
@@ -104,16 +104,15 @@ class Master(Agent):
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        if (self.bot.config.getboolean('BOT', 'AUTOBAN') is True):
-            self.bot.log.debug(
-                'Member {} has left guild {} - ban them on DCS servers and delete their stats.'.format(member.display_name, member.guild.name))
+        if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
+            self.bot.log.debug('Member {} has left guild {} - ban them on DCS servers and delete their stats.'.format(member.display_name, member.guild.name))
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute(
-                        'INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM players WHERE discord_id = %s', (member.id, ))
-                    cursor.execute(
-                        'DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE discord_id = %s)', (member.id, ))
+                    cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
+                                   'players WHERE discord_id = %s', (member.id, ))
+                    cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
+                                   'discord_id = %s)', (member.id, ))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
@@ -123,7 +122,7 @@ class Master(Agent):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        if (self.bot.config.getboolean('BOT', 'AUTOBAN') is True):
+        if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
             self.bot.log.debug(
                 'Member {} has joined guild {} - remove possible bans from DCS servers.'.format(member.display_name, member.guild.name))
             conn = self.bot.pool.getconn()
