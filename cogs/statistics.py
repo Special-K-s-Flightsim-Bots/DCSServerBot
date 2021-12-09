@@ -594,7 +594,7 @@ class Statistics(commands.Cog):
                 cursor.execute(SQL_HIGHSCORE_PLAYTIME)
                 for row in cursor.fetchall():
                     member = ctx.message.guild.get_member(row[0])
-                    name = member.display_name if (member is not None) else str(row[0])
+                    name = member.display_name if member else 'Unknown'
                     labels.insert(0, name)
                     values.insert(0, row[1] / 3600)
                 axis.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], height=0.75)
@@ -653,7 +653,7 @@ class Statistics(commands.Cog):
                     for i in range(0, len(result)):
                         if len(result) > i:
                             member = ctx.message.guild.get_member(result[i][0])
-                            name = member.display_name if (member is not None) else str(result[i][0])
+                            name = member.display_name if member else 'Unkown'
                             labels.insert(0, name)
                             values.insert(0, result[i][1])
                     axis.barh(labels, values, color=COLORS, label=typ, height=0.75)

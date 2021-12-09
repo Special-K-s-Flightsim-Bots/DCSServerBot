@@ -224,8 +224,34 @@ if config.getboolean('BOT', 'MASTER') is True:
     finally:
         bot.pool.putconn(conn)
 
-# Installing Hook
 bot.log.info(f'DCSServerBot v{bot.version} starting up ...')
+# Sanitizing MissionScripting.lua
+filename = os.path.expandvars(config['DCS']['DCS_INSTALLATION']) + r'\Scripts\MissionScripting.lua'
+try:
+    with open(filename, 'r') as infile:
+        orig = infile.readlines()
+    output = []
+    dirty = False
+    for line in orig:
+        if ("sanitizeModule('io')" in line or "sanitizeModule('lfs')" in line) and not line.lstrip().startswith('--'):
+            line = line.replace('sanitizeModule', '--sanitizeModule')
+            dirty = True
+        elif 'require = nil' in line and not line.lstrip().startswith('--'):
+            line = line.replace('require', '--require')
+            dirty = True
+        output.append(line)
+    if dirty:
+        bot.log.info('- Sanitizing MissionScripting')
+        backup = filename.replace('.lua', '.bak')
+        # backup original file
+        shutil.copyfile(filename, backup)
+        with open(filename, 'w') as outfile:
+            outfile.writelines(output)
+except (OSError, IOError) as e:
+    print(e)
+    bot.log.error(f"Can't access {filename}. Make sure, {config['DCS']['DCS_INSTALLATION']} is writable.")
+    exit(-1)
+# Installing Hook
 for installation in utils.findDCSInstallations():
     if installation not in config:
         continue
@@ -260,7 +286,6 @@ for installation in utils.findDCSInstallations():
         exit(-1)
     bot.log.debug('Hook installed into {}.'.format(installation))
 
-# TODO change sanitizeModules
 bot.log.info('- Starting {}-Node on {}'.format('Master' if config.getboolean(
     'BOT', 'MASTER') is True else 'Agent', platform.node()))
 bot.run(config['BOT']['TOKEN'], bot=True, reconnect=True)
