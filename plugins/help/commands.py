@@ -1,11 +1,9 @@
 import discord
 from discord.ext import commands
+from core import Plugin
 
 
-class Help(commands.Cog):
-
-    def __init__(self, bot):
-        self.bot = bot
+class Help(Plugin):
 
     @commands.command(name='help',
                       description='The help command!',
@@ -46,9 +44,4 @@ class Help(commands.Cog):
             else:
                 # Ignore unknown command, as it might have been for other bots
                 return
-        help_embed.set_footer(text='Support Discord: https://discord.gg/zjRateN')
         await ctx.send(embed=help_embed)
-
-
-def setup(bot):
-    bot.add_cog(Help(bot))

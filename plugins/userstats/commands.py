@@ -1,4 +1,4 @@
-# statistics.py
+# agent.py
 import asyncio
 import concurrent
 import discord
@@ -8,9 +8,8 @@ import string
 import os
 import psycopg2
 import psycopg2.extras
-import re
 import typing
-import utils
+from core import utils, Plugin
 from contextlib import closing, suppress
 from datetime import timedelta
 from discord.ext import commands
@@ -18,7 +17,11 @@ from matplotlib.patches import ConnectionPatch
 from matplotlib.ticker import FuncFormatter
 
 
-class Statistics(commands.Cog):
+class AgentUserStatistics(Plugin):
+    pass
+
+
+class MasterUserStatistics(AgentUserStatistics):
 
     WEEKDAYS = {
         0: 'Mon',
@@ -30,8 +33,8 @@ class Statistics(commands.Cog):
         6: 'Sun'
     }
 
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self, bot, listener):
+        super().__init__(bot, listener)
         plt.switch_backend('agg')
         # Make sure we only get back floats, not Decimal
         dec2float = psycopg2.extensions.new_type(
@@ -40,48 +43,74 @@ class Statistics(commands.Cog):
             lambda value, curs: float(value) if value is not None else None)
         psycopg2.extensions.register_type(dec2float)
         self.servers = []
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT DISTINCT server_name FROM missions')
                 for row in cursor.fetchall():
                     self.servers.append(row[0])
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
 
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def link(self, ctx, member: discord.Member, ucid):
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (member.id, ucid))
                 conn.commit()
                 await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
             conn.rollback()
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
 
     @commands.command(description='Unlinks a member', usage='<member>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unlink(self, ctx, member: discord.Member):
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s', (member.id, ))
                 conn.commit()
                 await ctx.send('Member {} unlinked.'.format(member.display_name))
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
             conn.rollback()
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
+
+    @commands.command(description='Resets the statistics of a specific server')
+    @utils.has_role('Admin')
+    @commands.guild_only()
+    async def reset(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            server_name = server['server_name']
+            if server['status'] in ['Stopped', 'Shutdown']:
+                conn = self.pool.getconn()
+                try:
+                    if await utils.yn_question(self, ctx, 'I\'m going to **DELETE ALL STATISTICS**\nof server "{}".\n\nAre you sure?'.format(server_name)) is True:
+                        with closing(conn.cursor()) as cursor:
+                            cursor.execute(
+                                'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE '
+                                'server_name = %s)', (server_name, ))
+                            cursor.execute('DELETE FROM missions WHERE server_name = %s', (server_name, ))
+                            conn.commit()
+                        await ctx.send('Statistics for server "{}" have been wiped.'.format(server_name))
+                except (Exception, psycopg2.DatabaseError) as error:
+                    self.log.exception(error)
+                    conn.rollback()
+                finally:
+                    self.pool.putconn(conn)
+            else:
+                await ctx.send('Please stop server "{}" before deleteing the statistics!'.format(server_name))
 
     def draw_playtime_planes(self, member, axis, server, period):
         SQL_PLAYTIME = 'SELECT s.slot, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM ' \
@@ -93,7 +122,7 @@ class Statistics(commands.Cog):
             SQL_PLAYTIME += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
         SQL_PLAYTIME += 'GROUP BY s.slot ORDER BY 2'
 
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(SQL_PLAYTIME, (member.id, ))
@@ -115,9 +144,9 @@ class Statistics(commands.Cog):
                     axis.set_xticks([])
                     axis.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
 
     def draw_server_time(self, member, axis, server, period):
         SQL_STATISTICS = f"SELECT regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g') AS server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND m.id = s.mission_id AND s.hop_off IS NOT NULL "
@@ -127,7 +156,7 @@ class Statistics(commands.Cog):
             SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
         SQL_STATISTICS += 'GROUP BY 1'
 
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(SQL_STATISTICS, (member.id, ))
@@ -149,9 +178,9 @@ class Statistics(commands.Cog):
                 else:
                     axis.set_visible(False)
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
 
     def draw_map_time(self, member, axis, server, period):
         SQL_STATISTICS = 'SELECT m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS ' \
@@ -163,7 +192,7 @@ class Statistics(commands.Cog):
             SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
         SQL_STATISTICS += 'GROUP BY m.mission_theatre'
 
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(SQL_STATISTICS, (member.id, ))
@@ -185,9 +214,9 @@ class Statistics(commands.Cog):
                 else:
                     axis.set_visible(False)
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
 
     def draw_recent(self, member, axis, server):
         SQL_STATISTICS = 'SELECT TO_CHAR(s.hop_on, \'MM/DD\') as day, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(' \
@@ -198,7 +227,7 @@ class Statistics(commands.Cog):
             SQL_STATISTICS += 'AND m.server_name = \'{}\' '.format(server)
         SQL_STATISTICS += 'GROUP BY day'
 
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 labels = []
@@ -217,9 +246,9 @@ class Statistics(commands.Cog):
                     axis.set_xticks([])
                     axis.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
 
     def draw_flight_performance(self, member, axis, server, period):
         SQL_STATISTICS = 'SELECT SUM(ejections) as ejections, SUM(crashes) as crashes, ' \
@@ -231,7 +260,7 @@ class Statistics(commands.Cog):
         if period:
             SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
 
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(SQL_STATISTICS, (member.id, ))
@@ -257,9 +286,9 @@ class Statistics(commands.Cog):
                 else:
                     axis.set_visible(False)
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
 
     def draw_kill_performance(self, member, axis, server, period):
         SQL_STATISTICS = 'SELECT COALESCE(SUM(kills), 0) as kills, COALESCE(SUM(deaths), 0) as deaths, COALESCE(SUM(' \
@@ -271,7 +300,7 @@ class Statistics(commands.Cog):
             SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
 
         retval = []
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(SQL_STATISTICS, (member.id, ))
@@ -316,9 +345,9 @@ class Statistics(commands.Cog):
                 else:
                     axis.set_visible(False)
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
         return retval
 
     def draw_kill_types(self, member, axis, server, period):
@@ -333,7 +362,7 @@ class Statistics(commands.Cog):
             SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
 
         retval = False
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(SQL_STATISTICS, (member.id, ))
@@ -366,9 +395,9 @@ class Statistics(commands.Cog):
                         # Chart was drawn, return True
                         retval = True
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
         return retval
 
     def draw_death_types(self, member, axis, legend, server, period):
@@ -383,7 +412,7 @@ class Statistics(commands.Cog):
             SQL_STATISTICS += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
 
         retval = False
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(SQL_STATISTICS, (member.id, ))
@@ -418,9 +447,9 @@ class Statistics(commands.Cog):
                         # Chart was drawn, return True
                         retval = True
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
         return retval
 
     @commands.command(description='Shows player statistics', usage='[member]', aliases=['stats'])
@@ -435,7 +464,7 @@ class Statistics(commands.Cog):
                 await ctx.send('Period must be one of day/week/month!')
                 return
             # Check if there are statistics available for this user at all
-            conn = self.bot.pool.getconn()
+            conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
                     cursor.execute('SELECT COUNT(s.*) FROM statistics s, players p WHERE s.player_ucid = p.ucid AND '
@@ -444,9 +473,9 @@ class Statistics(commands.Cog):
                         await ctx.send(f'There are no statistics available for user "{member.display_name}"')
                         return
             except (Exception, psycopg2.DatabaseError) as error:
-                self.bot.log.exception(error)
+                self.log.exception(error)
             finally:
-                self.bot.pool.putconn(conn)
+                self.pool.putconn(conn)
 
             plt.style.use('dark_background')
             plt.rcParams['axes.facecolor'] = '2C2F33'
@@ -575,7 +604,7 @@ class Statistics(commands.Cog):
                 await message.edit(embed=embed)
                 await message.clear_reactions()
         except Exception as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
 
     def draw_highscore_playtime(self, ctx, axis, period, server, limit):
         SQL_HIGHSCORE_PLAYTIME = 'SELECT p.discord_id, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS ' \
@@ -586,7 +615,7 @@ class Statistics(commands.Cog):
         if period:
             SQL_HIGHSCORE_PLAYTIME += ' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {}\')'.format(period)
         SQL_HIGHSCORE_PLAYTIME += f' GROUP BY p.discord_id ORDER BY 2 DESC LIMIT {limit}'
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 labels = []
@@ -605,9 +634,9 @@ class Statistics(commands.Cog):
                     axis.set_yticks([])
                     axis.text(0, 0, 'No data available.', ha='center', va='center', size=15)
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
 
     def draw_highscore_kills(self, ctx, figure, period, server, limit):
         SQL_PARTS = {
@@ -639,7 +668,7 @@ class Statistics(commands.Cog):
             SQL_HIGHSCORE[key] += ' AND s.hop_off IS NOT NULL GROUP BY p.discord_id HAVING {} > 0 ORDER BY 2 DESC ' \
                                   'LIMIT {}'.format(SQL_PARTS[key], limit)
 
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 keys = list(SQL_PARTS.keys())
@@ -664,9 +693,9 @@ class Statistics(commands.Cog):
                         axis.set_yticks([])
                         axis.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
 
     @commands.command(description='Shows actual highscores', usage='[period]', aliases=['hs'])
     @utils.has_role('DCS')
@@ -679,7 +708,7 @@ class Statistics(commands.Cog):
             plt.style.use('dark_background')
             plt.rcParams['axes.facecolor'] = '2C2F33'
             figure = plt.figure(figsize=(15, 20))
-            limit = self.bot.config['STATISTICS']['NUM_HIGHSCORE']
+            limit = self.config['STATISTICS']['NUM_HIGHSCORE']
             with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
                 executor.submit(self.draw_highscore_playtime, ctx=ctx, axis=plt.subplot2grid(
                     (4, 2), (0, 0), colspan=2, fig=figure), period=period, server=server, limit=limit)
@@ -737,7 +766,7 @@ class Statistics(commands.Cog):
                 await message.edit(embed=embed)
                 await message.clear_reactions()
         except Exception as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
 
     def draw_server_stats(self, period, server):
         SQL_USER_BASE = 'SELECT COUNT(DISTINCT p.ucid) AS dcs_users, COUNT(DISTINCT p.discord_id) AS discord_users ' \
@@ -787,7 +816,7 @@ class Statistics(commands.Cog):
         if server:
             embed.title += '\n_{}_'.format(server)
 
-        conn = self.bot.pool.getconn()
+        conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(SQL_USER_BASE)
@@ -878,9 +907,9 @@ class Statistics(commands.Cog):
                 embed.set_footer(text=footer)
                 return embed, figure
         except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
+            self.log.exception(error)
         finally:
-            self.bot.pool.putconn(conn)
+            self.pool.putconn(conn)
 
     @commands.command(description='Shows servers statistics', usage='[period]')
     @utils.has_role('Admin')
@@ -928,7 +957,3 @@ class Statistics(commands.Cog):
             embed.set_footer(text='Click on the image to zoom in.')
             await message.edit(embed=embed)
             await message.clear_reactions()
-
-
-def setup(bot):
-    bot.add_cog(Statistics(bot))
