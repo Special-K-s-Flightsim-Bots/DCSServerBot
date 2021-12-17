@@ -1,5 +1,4 @@
 # run.py
-
 import discord
 import logging
 import os
@@ -9,10 +8,9 @@ import psycopg2.extras
 import shutil
 import subprocess
 import sys
-from core import utils
+from core import utils, DCSServerBot
 from configparser import ConfigParser
 from contextlib import closing, suppress
-from core.bot import DCSServerBot
 from discord.ext import commands
 from logging.handlers import RotatingFileHandler
 from os import path
@@ -66,7 +64,7 @@ class Main:
         log.addHandler(fh)
         ch = logging.StreamHandler()
         # TODO: Change back to INFO
-        ch.setLevel(logging.DEBUG)
+        ch.setLevel(logging.INFO)
         log.addHandler(ch)
         return log
 
@@ -226,7 +224,7 @@ class Main:
         @self.bot.command(description='Upgrades the bot')
         @commands.is_owner()
         async def upgrade(ctx):
-            self.upgrade()
+            await self.upgrade()
 
     async def upgrade(self):
         try:
