@@ -108,19 +108,20 @@ class UserStatisticsEventListener(EventListener):
                                'hop_off IS NULL '
         SQL_INSERT_STATISTICS = 'INSERT INTO statistics (mission_id, player_ucid, slot) VALUES (%s, %s, ' \
                                 '%s) ON CONFLICT DO NOTHING '
-        conn = self.pool.getconn()
-        try:
-            mission_id = self.getCurrentMissionID(data['server_name'])
-            with closing(conn.cursor()) as cursor:
-                cursor.execute(SQL_CLOSE_STATISTICS, (mission_id, data['ucid']))
-                if data['side'] != const.SIDE_SPECTATOR:
-                    cursor.execute(SQL_INSERT_STATISTICS, (mission_id, data['ucid'], data['unit_type']))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        if 'side' in data:
+            conn = self.pool.getconn()
+            try:
+                mission_id = self.getCurrentMissionID(data['server_name'])
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(SQL_CLOSE_STATISTICS, (mission_id, data['ucid']))
+                    if data['side'] != const.SIDE_SPECTATOR:
+                        cursor.execute(SQL_INSERT_STATISTICS, (mission_id, data['ucid'], data['unit_type']))
+                    conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+                conn.rollback()
+            finally:
+                self.pool.putconn(conn)
 
     async def getCurrentPlayers(self, data):
         # Close statistics for players that are no longer active
