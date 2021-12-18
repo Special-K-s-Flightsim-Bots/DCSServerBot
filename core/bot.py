@@ -76,9 +76,9 @@ class DCSServerBot(commands.Bot):
                     self.embeds[server_name][embed_name] = await channel.fetch_message(embed_id)
             try:
                 # check for any registration updates (channels, etc)
-                await self.sendtoDCSSync(server, {"command": "registerDCSServer", "channel": -1})
+                await self.sendtoDCSSync(server, {"command": "registerDCSServer"})
                 # preload players list
-                await self.sendtoDCSSync(server, {"command": "getCurrentPlayers", "channel": server['status_channel']})
+                await self.sendtoDCSSync(server, {"command": "getCurrentPlayers"})
             except asyncio.TimeoutError:
                 if ('AUTOSTART_DCS' in self.config[installation]) and (
                         self.config.getboolean(installation, 'AUTOSTART_DCS') is True):
@@ -162,14 +162,16 @@ class DCSServerBot(commands.Bot):
         dcs_socket.sendto(msg.encode('utf-8'), (server['host'], server['port']))
 
     def sendtoDCSSync(self, server, message, timeout=5):
-        self.sendtoDCS(server, message)
         future = self.loop.create_future()
+        token = 'sync-' + str(id(future))
+        message['channel'] = token
+        self.sendtoDCS(server, message)
         try:
             listeners = self.listeners[message['command']]
         except KeyError:
             listeners = []
             self.listeners[message['command']] = listeners
-        listeners.append((future, str(message['channel'])))
+        listeners.append((future, token))
         return asyncio.wait_for(future, timeout)
 
     def get_bot_channel(self, data, type='status_channel'):
@@ -237,22 +239,21 @@ class DCSServerBot(commands.Bot):
                             results.append(result)
                     except BaseException as ex:
                         self.log.exception(ex)
-                if len(results) > 0:
-                    listeners = self.listeners.get(command)
-                    if listeners:
-                        removed = []
-                        for i, (f, token) in enumerate(listeners):
-                            if f.cancelled():
-                                removed.append(i)
-                                continue
-                            if token == dt['channel']:
-                                self.loop.call_soon_threadsafe(f.set_result, results[0])
-                                removed.append(i)
-                        if len(removed) == len(listeners):
-                            self.listeners.pop(command)
-                        else:
-                            for idx in reversed(removed):
-                                del listeners[idx]
+                listeners = self.listeners.get(command)
+                if listeners:
+                    removed = []
+                    for i, (f, token) in enumerate(listeners):
+                        if f.cancelled():
+                            removed.append(i)
+                            continue
+                        if token == dt['channel']:
+                            self.loop.call_soon_threadsafe(f.set_result, results[0] if len(results) > 0 else None)
+                            removed.append(i)
+                    if len(removed) == len(listeners):
+                        self.listeners.pop(command)
+                    else:
+                        for idx in reversed(removed):
+                            del listeners[idx]
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address, request_handler):
