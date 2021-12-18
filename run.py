@@ -224,9 +224,9 @@ class Main:
         @self.bot.command(description='Upgrades the bot')
         @commands.is_owner()
         async def upgrade(ctx):
-            await self.upgrade()
+            self.upgrade()
 
-    async def upgrade(self):
+    def upgrade(self):
         try:
             import git
 
