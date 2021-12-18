@@ -1,43 +1,57 @@
 # Documentation
-DCSServerBot lets you interact between Discord and DCS.
-The bot has to be installed on the same machine that runs DCS or at least in the same network (_AUTOSTART_DCS will only work, if the bot runs on the very same machine, though_).
-The following two main features are supported:
+Welcome to DCSServerBot, a comprehensive solution that lets you administrate your DCS instances via Discord, has built in per-server and per-user statistics and much more!
 
-## DCS Server Remote Control
-Control registered DCS servers and their missions via Discord commands.
-The following commands are supported:
+This documentation will show you the main features (enhancements come regularly), how to install and configure the bot and some more sophisticated stuff at the bottom, 
+if you for instance run multiple servers maybe even over multiple locations. 
+
+So, first let's see, what it can do for you!
+
+---
+## Plugins
+DCSServerBot has a modular architecture with plugins that support specific Discord commands or allow events from a connected DCS server to be processed.
+Which plugins you wan't to add is configured during the installation (see below).
+
+__Attention:__ Some plugins require another plugin to be available (Userstats needs Mission for instance).
+
+### Plugin "Admin"
+This plugin supports administrative commands that are needed to operate a DCS server remotely.
 
 | Command                      | Parameter                | Channel                     | Role      | Description                                                                                                                                                                                                           |
 |------------------------------|--------------------------|-----------------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | .servers                     |                          | all                         | DCS       | Lists all registered DCS servers and their status (same as .mission but for all). Servers will auto-register on startup.                                                                                              |
-| .mission                     |                          | status-/admin-channel       | DCS Admin | Information about the active mission. Persistent display in status-channel.                                                                                                                                           |
-| .briefing/.brief             |                          | status-/chat-/admin-channel | DCS       | Shows the description / briefing of the running mission.                                                                                                                                                              |
-| .atis/.airport/.airfield/.ap | Airport Name             | all                         | DCS       | Information about a specific airport in this mission (incl. weather).                                                                                                                                                 |
-| .players                     |                          | status-/admin-channel       | DCS Admin | Lists the players currently active on the server. Persistent display in status-channel.                                                                                                                               |
-| .list                        |                          | admin-channel               | DCS Admin | Lists all missions with IDs available on this server (same as WebGUI).                                                                                                                                                |
-| .add                         | [miz-file]               | admin-channel               | DCS Admin | Adds a specific mission to the list of missions, that has to be in Saved Games/DCS[.OpenBeta]/Missions. If no miz file is provided, a list of all available files in the servers Missions directory will be provided. |
-| .delete/.del                 | ID                       | admin-channel               | DCS Admin | Deletes the mission with this ID from the list of missions.                                                                                                                                                           |
-| .start / .load               | ID                       | admin-channel               | DCS Admin | Starts a specific mission by ID.                                                                                                                                                                                      |
-| .restart                     | [time in secs] [message] | admin-channel               | DCS Admin | Restarts the current mission after [time] seconds. A message will be sent as a popup to that server.                                                                                                                  |
-| .pause                       |                          | admin-channel               | DCS Admin | Pauses the current running mission.                                                                                                                                                                                   |
-| .unpause                     |                          | admin-channel               | DCS Admin | Resumes the current running mission.                                                                                                                                                                                  |
-| .chat                        | message                  | chat-/admin-channel         | DCS       | Send a message to the DCS in-game-chat.                                                                                                                                                                               |
-| .popup                       | red/blue/all message     | admin-channel               | DCS Admin | Send a popup to the dedicated coalition in game.                                                                                                                                                                      |
+| .startup                     |                          | admin-channel               | DCS Admin | Starts a dedicated DCS server instance (has to be registered, so it has to be started once outside of Discord).                                                                                                       |
+| .shutdown                    |                          | admin-channel               | DCS Admin | Shuts the dedicated DCS server down.                                                                                                                                                                                  |
+| .update                      |                          | admin-channel               | DCS Admin | Updates DCS World to the latest available version.                                                                                                                                                                    |
+| .password                    |                          | admin-channel               | DCS Admin | Changes the password of a DCS server.                                                                                                                                                                                 |
 | .kick                        | name [reason]            | admin-channel               | DCS Admin | Kicks the user with the in-game name "name" from the DCS server. The "reason" will be provided to the user.                                                                                                           |
 | .ban                         | @member/ucid [reason]    | all                         | DCS Admin | Bans a specific player either by their Discord ID or UCID.                                                                                                                                                            |
 | .unban                       | @member/ucid             | all                         | DCS Admin | Unbans a specific player either by their Discord ID or UCID.                                                                                                                                                          |
 | .bans                        |                          | all                         | DCS Admin | Lists the current active bans.                                                                                                                                                                                        |
-| .unregister                  |                          | all                         | Admin     | Unregisters the current server from this agent. Needed, if the very same server is going to be started on another machine connected to another agent.                                                                 |
 | .rename                      | newname                  | admin-channel               | Admin     | Renames a DCS server. Server has to be shut down for the command to work.                                                                                                                                             |
-| .password                    |                          | admin-channel               | DCS Admin | Changes the password of a DCS server.                                                                                                                                                                                 |
-| .reset                       |                          | admin-channel               | Admin     | Resets the statistics of that specific server.                                                                                                                                                                        |
-| .startup                     |                          | admin-channel               | DCS Admin | Starts a dedicated DCS server instance (has to be registered, so it has to be started once outside of Discord).                                                                                                       |
-| .shutdown                    |                          | admin-channel               | DCS Admin | Shuts the dedicated DCS server down.                                                                                                                                                                                  |
-| .update                      |                          | admin-channel               | DCS Admin | Updates DCS World to the latest available version.                                                                                                                                                                    |
+| .unregister                  |                          | all                         | Admin     | Unregisters the current server from this agent. Needed, if the very same server is going to be started on another machine connected to another agent.                                                                 |
 
-## User Statistics
-Gather statistics data from users and display them in a user-friendly way in your Discord.
-The following commands are supported:
+### Plugin "Mission"
+The mission plugin adds commands for amending the mission list, scheduled restarts, persistent mission- and player-embeds to be displayed in your status channels and ATIS like information for the missions' airports. 
+
+| Command                      | Parameter                | Channel                     | Role      | Description                                                                                                                                                                                                           |
+|------------------------------|--------------------------|-----------------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| .mission                     |                          | status-/admin-channel       | DCS Admin | Information about the active mission. Persistent display in status-channel.                                                                                                                                           |
+| .players                     |                          | status-/admin-channel       | DCS Admin | Lists the players currently active on the server. Persistent display in status-channel.                                                                                                                               |
+| .list                        |                          | admin-channel               | DCS Admin | Lists all missions with IDs available on this server (same as WebGUI).                                                                                                                                                |
+| .add                         | [miz-file]               | admin-channel               | DCS Admin | Adds a specific mission to the list of missions, that has to be in Saved Games/DCS[.OpenBeta]/Missions. If no miz file is provided, a list of all available files in the servers Missions directory will be provided. |
+| .delete / .del               | ID                       | admin-channel               | DCS Admin | Deletes the mission with this ID from the list of missions.                                                                                                                                                           |
+| .start / .load               | ID                       | admin-channel               | DCS Admin | Starts a specific mission by ID.                                                                                                                                                                                      |
+| .restart                     | [time in secs] [message] | admin-channel               | DCS Admin | Restarts the current mission after [time] seconds. A message will be sent as a popup to that server.                                                                                                                  |
+| .pause                       |                          | admin-channel               | DCS Admin | Pauses the current running mission.                                                                                                                                                                                   |
+| .unpause                     |                          | admin-channel               | DCS Admin | Resumes the current running mission.                                                                                                                                                                                  |
+| .briefing/.brief             |                          | status-/chat-/admin-channel | DCS       | Shows the description / briefing of the running mission.                                                                                                                                                              |
+| .atis/.airport/.airfield/.ap | Airport Name             | all                         | DCS       | Information about a specific airport in this mission (incl. weather).                                                                                                                                                 |
+| .chat                        | message                  | chat-/admin-channel         | DCS       | Send a message to the DCS in-game-chat.                                                                                                                                                                               |
+| .popup                       | red/blue/all message     | admin-channel               | DCS Admin | Send a popup to the dedicated coalition in game.                                                                                                                                                                      |
+
+### Plugin "Userstats"
+DCSServerBot comes with a built in, database driven statistics system. It allows either users to show their own achievements like k/d-ratio, flighttimes per module, server or map, etc.
+For server owners, it allows you to see which of your servers and missions are being used most, at which time and from which kind of users (Discord members vs. public players).
 
 | Command            | Parameter                  | Role      | Description                                                                                        |
 |--------------------|----------------------------|-----------|----------------------------------------------------------------------------------------------------|
@@ -47,6 +61,23 @@ The following commands are supported:
 | .link              | @member ucid               | DCS Admin | Sometimes users can't be linked automatically. That is a manual workaround.                        |
 | .unlink            | @member                    | DCS Admin | Unlink a user from a ucid, if the automatic linking didn't work.                                   |
 
+User statistics can be enabled or disabled in the server configuration (see below).
+Sometimes you don't want your mission to generate per-user statistics, but you don't want to configure your server to disable them forever?
+Well, then - just disable them from inside your mission:
+```lua
+  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
+  dcsbot.disableUserStats()
+```
+Userstats needs the Mission plugin to be loaded.
+
+### Plugin "Missionstats"
+This plugin does not (yet) come with commands. When enabled, it will generate a persistent mission statistics embed to be displayed in the status channels. 
+To enable the mission statistics, you need to put the following inside a mission start trigger of your mission:
+```lua
+  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
+  dcsbot.enableMissionStats()
+```
+---
 ## Installation
 First download the latest release version and extract it somewhere on your server, where it has write access.
 Make sure that this directory can only be seen by yourself and is not exposed to anybody outside via www etc.
@@ -69,6 +100,8 @@ For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings"
 
 ### Bot Configuration
 The bot configuration is held in **config/dcsserverbot.ini**. See **dcsserverbot.ini.sample** for an example.
+For some configurations, default values may apply. They are kept in config/default.ini. **Don't change this file**, just overwrite the settings, if you want to have them differently.
+
 The following parameters can be used to configure the bot:
 
 a) __BOT Section__
@@ -82,6 +115,7 @@ a) __BOT Section__
 | HOST           | IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.                                                                                                                                                                                                                                                                                            |
 | PORT           | UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose this port to the outside world!__**                                                                                                                                                                                                                                                                                           |
 | MASTER         | If true, start the bot in master-mode (default for one-bot-installations). If only one bot is running, then there is only a master.\nIf you have to use more than one bot installation, for multiple DCS servers that are spanned over several locations, you have to install one agent (MASTER = false) at every other location. All DCS servers of that location will then automatically register with that agent. |
+| PLUGINS        | List of plugins to be loaded.                                                                                                                                                                                                                                                                                                                                                                                        |
 | AUTOUPDATE     | If true, the bot autoupdates itself with the latest release on startup.                                                                                                                                                                                                                                                                                                                                              |
 | AUTOBAN        | If true, members leaving the discord will be automatically banned.                                                                                                                                                                                                                                                                                                                                                   |
 | LOGLEVEL       | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).                                                                                                                                                                                                                                                                                                                       |
@@ -141,7 +175,7 @@ Only one out of RESTART_MISSION_TIME or RESTART_LOCAL_TIMES is allowed.
 | RESTART_WARN_TEXT    | A customizable message that will be sent to the users when a restart is pending.                                                       |
 
 ### DCS/Hook Configuration
-The DCS World integration is done via a Hook. This is being installed automatically.
+The DCS World integration is done via a Hook. They are being installed automatically into your configured DCS servers.
 
 ### Sanitization
 DCSServerBot sanitizes your MissionScripting environment. That means, it changes entries in {DCS_INSTALLATION}\Scripts\MissionScripting.lua.
@@ -174,19 +208,23 @@ The bot automatically bans / unbans people from the configured DCS servers, as s
 If you don't like that feature, set _AUTOBAN = false_ in dcsserverbot.ini.
 Besides that, people that have no pilot ID (empty), will not get into the server. That is not configurable, it's a general rule (and a good one in my eyes).
 
+---
 ## How to do the more complex stuff?
 DCSServerBot can be used to run a whole worldwide distributed set of DCS servers and therefore supports the largest communities.
 The installation and maintenance of such a use-case is a bit more complex than a single server installation.
 
 ### Setup Multiple Servers on a Single Host
-DCSServerBot is able to contact DCS servers at the same machine or over the local network. So it is sufficient to configure a single DCSServerBot per location.
-To run multiple DCS servers under control of DCSServerBot you just have to make sure that you configure different communication ports. This can be done with the parameter DCS_PORT in DCSServerBotConfig.lua. The default is 6666, you can just increase that for every server (6667, 6668, ...).
-Unfortunately, the files in Scripts/Hook and Scripts/net are only copied to the first instance atm. That said, you need to copy these files over by hand to the 2nd instance and change the configuration accordingly. Don't forget to configure different Discord channels (CHAT_CHANNEL, STATUS_CHANNEL and ADMIN_CHANNEL) for the secondary server, too.
-To add subsequent servers, just follow the steps above, and you're good, unless they are on a different Windows server.
+DCSServerBot is able to contact DCS servers at the same machine or over the local network.
 
-### Setup Multiple Servers on Multiple Host at the Same Location
+To run multiple DCS servers under control of DCSServerBot you just have to make sure that you configure different communication ports. This can be done with the parameter DCS_PORT in DCSServerBotConfig.lua. The default is 6666, you can just increase that for every server (6667, 6668, ...).
+Don't forget to configure different Discord channels (CHAT_CHANNEL, STATUS_CHANNEL and ADMIN_CHANNEL) for every server, too.
+To add subsequent servers, just follow the steps above, and you're good, unless they are on a different Windows server (see below).
+
+### Setup Multiple Servers on Multiple Host at the Same Location (_no longer recommended_)
 To communicate with DCSServerBot over the network, you need to change two configurations.
 By default, DCSServerBot is configured to be bound to the loopback interface (127.0.0.1) not allowing any external connection to the system. This can be changed in dcsserverbot.ini by using the LAN IP address of the Windows server running DCSServerBot instead.
+
+__Attention:__ .startup and .shutdown commands will only work without issues, if the DCS servers are on the same machine as the bot. So you might consider not using this method anymore but install a single bot instance on every server that you use in your network. Just configure them as agents (_MASTER = false_) and you are good.
 
 ### Setup Multiple Servers on Multiple Host at Different Locations
 DCSServerBot is able to run in multiple locations, worldwide. In every location, one instance of DCSServerBot is needed to be installed in the local network containing the DCS server(s).
@@ -241,26 +279,19 @@ If you like to use a single embed, maybe in the status channel, and update it in
 ```
 If no embed named "myEmbed" is there already, the updateEmbed() call will generate it for you, otherwise it will be replaced with this one.
 
-### How to enable Mission Statistics
-The bot is capable of capturing some easy mission statistics, that'll give an overview about the current situation (red vs blue) and how well they played.
-To enable the mission statistics, you need to put the following inside a mission start trigger:
-```lua
-  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
-  dcsbot.enableMissionStats()
-```
-
-### How to disable User Statistics from inside Missions
-Sometimes you don't want your mission to generate per-user statistics, but you don't want to configure your server to disable them forever?
-Well, then - just disable them from inside your mission:
-```lua
-  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
-  dcsbot.disableUserStats()
-```
-
+---
 ## TODO
 Things to be added in the future:
 * user-friendly installation
+* more plugins!
 
+---
+## Support
+If you need support, jump into my [Support Discord](https://discord.gg/zjRateN).
+
+If you like what I do and you want to support me, you can do that via my [Patreon Page](https://www.patreon.com/DCS_SpecialK).
+
+---
 ## Credits
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this solution.
 I gave my best to mark parts in the code to show where I copied some ideas or even code from you guys. Hope that is ok.

@@ -31,7 +31,7 @@ class Mission(Plugin):
                 "from": ctx.message.author.display_name
             })
 
-    @commands.command(description='Send a popup message to a running DCS instance', usage='<all|blue|red> <message>')
+    @commands.command(description='Sends a popup to a coalition', usage='<coalition> <message>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def popup(self, ctx, to, *args):

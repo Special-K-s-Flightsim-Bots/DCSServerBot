@@ -1,4 +1,5 @@
 import discord
+import string
 from discord.ext import commands
 from core import Plugin
 
@@ -7,38 +8,40 @@ class Help(Plugin):
 
     @commands.command(name='help',
                       description='The help command!',
-                      usage='<cog>')
-    async def help(self, ctx, cog='all'):
-        help_embed = discord.Embed(title="DCSServerBot Commands", color=discord.Color.blue())
-        # help_embed.set_thumbnail(url=self.bot.user.avatar_url)
-        # Get a list of all cogs
-        cogs = [c for c in self.bot.cogs.keys()]
+                      usage='<plugin>')
+    async def help(self, ctx, plugin='all'):
 
-        if cog == 'all':
-            for cog in cogs:
-                if cog.lower() != 'help':
-                    help_embed.add_field(name='**' + cog + '**',
-                                         value=f'```{ctx.prefix}help {cog.lower()}```', inline=True)
+        help_embed = discord.Embed(color=discord.Color.blue())
+        if plugin == 'all':
+            help_embed.title = 'DCSServerBot Plugins'
+            for p in self.bot.plugins:
+                if p.lower() != 'help':
+                    help_embed.add_field(name='**' + string.capwords(p) + '**',
+                                         value=f'```{ctx.prefix}help {p.lower()}```', inline=True)
             pass
         else:
-            # If the cog was specified
-            lower_cogs = [c.lower() for c in cogs]
-            # If the cog actually exists.
-            if cog.lower() in lower_cogs:
+            help_embed.title = f'{string.capwords(plugin)} Commands'
+            if plugin in self.bot.plugins:
                 cmds = ''
                 descriptions = ''
-                # Get a list of all commands in the specified cog
-                commands_list = self.bot.get_cog(cogs[lower_cogs.index(cog.lower())]).get_commands()
-                for command in commands_list:
-                    if command.hidden is False:
-                        cmds += f'{ctx.prefix}{command.name}'
-                        # Also add aliases, if there are any
-                        if len(command.aliases) > 0:
-                            cmds += f' / {" / ".join(command.aliases)}'
-                        if command.usage is not None:
-                            cmds += ' ' + command.usage
-                        cmds += '\n'
-                        descriptions += f'{command.description}\n'
+                # Get a list of all commands for the specified plugin
+                for cog in self.bot.cogs.values():
+                    if f'.{plugin}.' in type(cog).__module__:
+                        commands_list = self.bot.get_cog(type(cog).__name__).get_commands()
+                        for command in commands_list:
+                            if command.hidden is False:
+                                cmds += f'{ctx.prefix}{command.name}'
+                                # Also add aliases, if there are any
+                                if len(command.aliases) > 0:
+                                    cmds += f' / {" / ".join(command.aliases)}'
+                                if command.usage is not None:
+                                    cmds += ' ' + command.usage
+                                cmds += '\n'
+                                descriptions += f'{command.description}\n'
+                if len(cmds) == 0:
+                    cmds = 'No commands.'
+                if len(descriptions) == 0:
+                    descriptions = '_ _'
                 help_embed.add_field(name='Command', value=cmds)
                 help_embed.add_field(name='Description', value=descriptions)
             else:

@@ -452,10 +452,9 @@ class MasterUserStatistics(AgentUserStatistics):
             self.pool.putconn(conn)
         return retval
 
-    @commands.command(description='Shows player statistics', usage='[member]', aliases=['stats'])
+    @commands.command(description='Shows player statistics', usage='[member] [period]', aliases=['stats'])
     @utils.has_role('DCS')
     @commands.guild_only()
-#    async def statistics(self, ctx, member: discord.Member = None, server=None):
     async def statistics(self, ctx, member: typing.Optional[discord.Member], period: typing.Optional[str], server=None):
         try:
             if member is None:
