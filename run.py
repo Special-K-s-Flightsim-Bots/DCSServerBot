@@ -233,28 +233,28 @@ class Main:
 
             try:
                 with closing(git.Repo('.')) as repo:
-                    self.log.debug('Checking for updates...')
+                    self.log.debug('- Checking for updates...')
                     current_hash = repo.head.commit.hexsha
                     origin = repo.remotes.origin
                     origin.fetch()
                     new_hash = origin.refs[repo.active_branch.name].object.hexsha
                     if new_hash != current_hash:
                         modules = False
-                        self.log.info('Remote repo has changed.')
-                        self.log.info('Updating myself...')
+                        self.log.info('  => Remote repo has changed.')
+                        self.log.info('  => Updating myself...')
                         diff = repo.head.commit.diff(new_hash)
                         for d in diff:
                             if d.b_path == 'requirements.txt':
                                 modules = True
                         repo.remote().pull(repo.active_branch)
-                        self.log.info('Updated to latest version.')
+                        self.log.info('- DCSServerBot updated to latest version.')
                         if modules is True:
-                            self.log.warning('requirements.txt has changed. Installing missing modules...')
+                            self.log.warning('- requirements.txt has changed. Installing missing modules...')
                             subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
-                        self.log.warning('Restart needed => exiting.')
+                        self.log.warning('- Restart needed => exiting.')
                         exit(-1)
                     else:
-                        self.log.debug('No upgrade found for DCSServerBot.')
+                        self.log.debug('- No upgrade found for DCSServerBot.')
             except git.exc.InvalidGitRepositoryError:
                 self.log.error('No git repository found. Aborting. Please run the installer again.')
         except ImportError:
