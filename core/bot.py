@@ -1,4 +1,5 @@
 import asyncio
+import string
 import discord
 import json
 import platform
@@ -116,26 +117,28 @@ class DCSServerBot(commands.Bot):
         self.external_ip = await utils.get_external_ip()
         self.read_servers()
         self.remove_command('help')
+        self.log.info('- Loading Plugins ...')
         for plugin in self.plugins:
-            self.load_plugin(plugin)
+            self.load_plugin(plugin.lower())
+            self.log.info(f'  => {string.capwords(plugin)} loaded.')
+        self.log.info('- Registering DCS servers ...')
         await self.init_servers()
         self.log.info('DCSServerBot started, accepting commands.')
         return
 
-    async def on_command_error(self, ctx, error):
-        self.log.error(error)
-        if isinstance(error, commands.NoPrivateMessage):
-            await ctx.send('This command can\'t be used in a DM.')
-        elif isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send('Parameter missing. Try !help')
-        elif isinstance(error, commands.CommandNotFound):
+    async def on_command_error(self, ctx, err):
+        if isinstance(err, commands.CommandNotFound):
             pass
-        elif isinstance(error, commands.errors.CheckFailure):
+        elif isinstance(err, commands.NoPrivateMessage):
+            await ctx.send('This command can\'t be used in a DM.')
+        elif isinstance(err, commands.MissingRequiredArgument):
+            await ctx.send('Parameter missing. Try !help')
+        elif isinstance(err, commands.errors.CheckFailure):
             await ctx.send('You don\'t have the rights to use that command.')
-        elif isinstance(error, asyncio.TimeoutError):
+        elif isinstance(err, asyncio.TimeoutError):
             await ctx.send('A timeout occured. Is the DCS server running?')
         else:
-            await ctx.send(str(error))
+            await ctx.send(str(err))
 
     async def on_message(self, message):
         for key, value in self.DCSServers.items():

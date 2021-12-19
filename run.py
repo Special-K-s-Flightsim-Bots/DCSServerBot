@@ -153,18 +153,19 @@ class Main:
             raise e
 
     def install_hooks(self):
+        self.log.info('- Configure DCS installations ...')
         for installation in utils.findDCSInstallations():
             if installation not in self.config:
                 continue
-            self.log.info('- Configure DCS installation: {}'.format(installation))
+            self.log.info(f'  => {installation}')
             dcs_path = os.path.expandvars(self.config[installation]['DCS_HOME'] + '\\Scripts')
             assert path.exists(dcs_path), 'Can\'t find DCS installation directory. Exiting.'
             ignore = None
             if path.exists(dcs_path + r'\net\DCSServerBot'):
-                self.log.debug('- Updating Hook ...')
+                self.log.debug('  - Updating Hook ...')
                 ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
             else:
-                self.log.debug('- Installing Hook ...')
+                self.log.debug('  - Installing Hook ...')
             shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
             try:
                 with open(r'.\Scripts\net\DCSServerBot\DCSServerBotConfig.lua.tmpl', 'r') as template:
@@ -186,7 +187,7 @@ class Main:
                 self.log.error(
                     f'! Your dcsserverbot.ini contains errors. You must set a value for {k}. See README for help.')
                 raise k
-            self.log.debug('- Hook installed into {}.'.format(installation))
+            self.log.debug('  - Hook installed into {}.'.format(installation))
 
     def init_bot(self):
         def get_prefix(client, message):
@@ -238,23 +239,20 @@ class Main:
                     origin.fetch()
                     new_hash = origin.refs[repo.active_branch.name].object.hexsha
                     if new_hash != current_hash:
-                        restart = modules = False
+                        modules = False
                         self.log.info('Remote repo has changed.')
                         self.log.info('Updating myself...')
                         diff = repo.head.commit.diff(new_hash)
                         for d in diff:
-                            if d.b_path in ['run.py', 'bot.py', 'const.py', 'listener.py', 'utils.py']:
-                                restart = True
-                            elif d.b_path == 'requirements.txt':
+                            if d.b_path == 'requirements.txt':
                                 modules = True
                         repo.remote().pull(repo.active_branch)
                         self.log.info('Updated to latest version.')
                         if modules is True:
                             self.log.warning('requirements.txt has changed. Installing missing modules...')
                             subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
-                        if restart is True:
-                            self.log.warning('run.py has changed.\nRestart needed => exiting.')
-                            exit(-1)
+                        self.log.warning('Restart needed => exiting.')
+                        exit(-1)
                     else:
                         self.log.debug('No upgrade found for DCSServerBot.')
             except git.exc.InvalidGitRepositoryError:

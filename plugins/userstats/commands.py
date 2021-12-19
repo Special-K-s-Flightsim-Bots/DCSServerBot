@@ -595,9 +595,9 @@ class MasterUserStatistics(AgentUserStatistics):
                             prev = self.servers[i - 1]
 
                     if react.emoji == '◀️':
-                        await self.statistics(ctx, period, prev)
+                        await self.statistics(ctx, member, period, prev)
                     elif react.emoji == '▶️':
-                        await self.statistics(ctx, period, nxt)
+                        await self.statistics(ctx, member, period, nxt)
             except asyncio.TimeoutError:
                 embed.set_footer(text='Click on the image to zoom in.')
                 await message.edit(embed=embed)

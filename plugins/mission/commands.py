@@ -188,31 +188,29 @@ class Mission(Plugin):
                 await asyncio.sleep(5)
                 await msg.delete()
 
-    @commands.command(description='Starts a mission by ID', usage='<ID>', aliases=['load'])
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def start(self, ctx, id):
-        server = await utils.get_server(self, ctx)
-        if server:
-            self.bot.sendtoDCS(server, {"command": "startMission", "id": id, "channel": ctx.channel.id})
-            await ctx.send(f'Loading mission {id}.')
-
     @staticmethod
     def format_mission_list(data, marker):
         embed = discord.Embed(title='Mission List', color=discord.Color.blue())
-        ids = active = missions = ''
+        ids = missions = ''
         for i in range(0, len(data)):
-            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            active += 'Yes\n' if marker == (i + 1) else '_ _\n'
             mission = data[i]
-            missions += mission[(mission.rfind('\\') + 1):] + '\n'
+            mission = mission[(mission.rfind('\\') + 1):-4]
+            if marker == (i + 1):
+                ids += '🔄\n'
+                missions += f'**{mission}**\n'
+            else:
+                ids += (chr(0x31 + i) + '\u20E3' + '\n')
+                missions += f'{mission}\n'
         embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Active', value=active)
         embed.add_field(name='Mission', value=missions)
-        embed.set_footer(text='Press a number to load the selected mission.')
+        embed.add_field(name='_ _', value='_ _')
+        if marker > -1:
+            embed.set_footer(text='Press a number to load a new mission or 🔄 to reload the current one.')
+        else:
+            embed.set_footer(text='Press a number to delete this mission.')
         return embed
 
-    @commands.command(description='Lists the current configured missions')
+    @commands.command(description='Lists the current configured missions', aliases=['load', 'start'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def list(self, ctx):
@@ -223,7 +221,10 @@ class Mission(Plugin):
                 missions = data['missionList']
                 n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'])
                 if n >= 0:
-                    await self.start(ctx, n + 1)
+                    mission = missions[n]
+                    mission = mission[(mission.rfind('\\') + 1):-4]
+                    self.bot.sendtoDCS(server, {"command": "startMission", "id": n + 1, "channel": ctx.channel.id})
+                    await ctx.send(f'Loading mission "{mission}" ...')
             else:
                 return await ctx.send('Server ' + server['server_name'] + ' is not running.')
 
@@ -233,14 +234,14 @@ class Mission(Plugin):
         ids = missions = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            missions += data[i] + '\n'
+            missions += data[i][:-4] + '\n'
         embed.add_field(name='ID', value=ids)
         embed.add_field(name='Mission', value=missions)
         embed.add_field(name='_ _', value='_ _')
         embed.set_footer(text='Press a number to add the selected mission to the list.')
         return embed
 
-    @commands.command(description='Adds a mission to the list', usage='<path>')
+    @commands.command(description='Adds a mission to the list', usage='[path]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def add(self, ctx, *path):
@@ -248,8 +249,11 @@ class Mission(Plugin):
         if server:
             if server['status'] in ['Running', 'Paused']:
                 if len(path) == 0:
+                    data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
+                    installed = [mission[(mission.rfind('\\') + 1):] for mission in data['missionList']]
                     data = await self.bot.sendtoDCSSync(server, {"command": "listMizFiles", "channel": ctx.channel.id})
-                    files = data['missions']
+                    available = data['missions']
+                    files = list(set(available) - set(installed))
                     n = await utils.selection_list(self, ctx, files, self.format_file_list)
                     if n >= 0:
                         file = files[n]
@@ -259,20 +263,29 @@ class Mission(Plugin):
                     file = ' '.join(path)
                 if file is not None:
                     self.bot.sendtoDCS(server, {"command": "addMission", "path": file, "channel": ctx.channel.id})
-                    await ctx.send('Mission {} added.'.format(file))
+                    await ctx.send(f'Mission "{file[:-4]}" added.')
                 else:
                     await ctx.send('There is no file in the Missions directory of server {}.'.format(server['server_name']))
             else:
                 return await ctx.send('Server ' + server['server_name'] + ' is not running.')
 
-    @commands.command(description='Deletes a mission from the list', usage='<ID>', aliases=['del'])
+    @commands.command(description='Deletes a mission from the list', aliases=['del'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def delete(self, ctx, id):
+    async def delete(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            self.bot.sendtoDCS(server, {"command": "deleteMission", "id": id, "channel": ctx.channel.id})
-            await ctx.send('Mission {} deleted.'.format(id))
+            if server['status'] in ['Running', 'Paused']:
+                data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
+                missions = data['missionList']
+                n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5)
+                if n >= 0:
+                    mission = missions[n]
+                    mission = mission[(mission.rfind('\\') + 1):-4]
+                    self.bot.sendtoDCS(server, {"command": "deleteMission", "id": n + 1, "channel": ctx.channel.id})
+                    await ctx.send(f'Mission "{mission}" deleted.')
+            else:
+                return await ctx.send('Server ' + server['server_name'] + ' is not running.')
 
     @commands.command(description='Pauses the current running mission')
     @utils.has_role('DCS Admin')

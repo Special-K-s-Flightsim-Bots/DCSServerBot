@@ -11,7 +11,7 @@ class AdminEventListener(EventListener):
         super().__init__(bot)
 
     async def registerDCSServer(self, data):
-        self.log.debug('Registering DCS-Server ' + data['server_name'])
+        self.log.debug('  => Registering DCS-Server ' + data['server_name'])
         # check for protocol incompatibilities
         if data['hook_version'] != self.bot.version:
             self.log.error(
@@ -50,6 +50,7 @@ class AdminEventListener(EventListener):
             if 'lotAtcSettings' in data:
                 server['lotAtcSettings'] = data['lotAtcSettings']
             self.updateBans(data)
+            self.log.info('  => ' + data['server_name'] + ' registered.')
         else:
             self.log.error(
                 'Configuration mismatch. Please check channel settings in dcsserverbot.ini for server {}!'.format(

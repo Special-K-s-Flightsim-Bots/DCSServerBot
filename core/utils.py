@@ -112,12 +112,15 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1):
         j = 0
         while len(data) > 0:
             max_i = (len(data) % num) if (len(data) - j * num) < num else num
-            embed = embed_formatter(data[j * num:j * num + max_i], (marker - j * num) if marker in range(j * num, j * num + max_i) else 0)
+            embed = embed_formatter(data[j * num:j * num + max_i], (marker - j * num) if marker in range(j * num, j * num + max_i + 1) else 0)
             message = await ctx.send(embed=embed)
             if j > 0:
                 await message.add_reaction('◀️')
             for i in range(1, max_i + 1):
-                await message.add_reaction(chr(0x30 + i) + '\u20E3')
+                if (j * num + i) != marker:
+                    await message.add_reaction(chr(0x30 + i) + '\u20E3')
+                else:
+                    await message.add_reaction('🔄')
             await message.add_reaction('⏹️')
             if ((j + 1) * num) < len(data):
                 await message.add_reaction('▶️')
@@ -129,13 +132,16 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1):
             elif react.emoji == '▶️':
                 j += 1
                 message = None
-            if react.emoji == '⏹️':
+            elif react.emoji == '⏹️':
                 return -1
+            elif react.emoji == '🔄':
+                return marker - j * num - 1
             elif (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x39):
                 return (ord(react.emoji[0]) - 0x31) + j * num
     except asyncio.TimeoutError:
         if message:
             await message.delete()
+            return -1
 
 
 async def yn_question(self, ctx, question, msg=None):
