@@ -7,9 +7,6 @@ from contextlib import closing
 
 class AdminEventListener(EventListener):
 
-    def __init__(self, bot: DCSServerBot):
-        super().__init__(bot)
-
     async def registerDCSServer(self, data):
         self.log.debug('  => Registering DCS-Server ' + data['server_name'])
         # check for protocol incompatibilities

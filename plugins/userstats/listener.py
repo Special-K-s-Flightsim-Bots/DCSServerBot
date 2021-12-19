@@ -160,6 +160,9 @@ class UserStatisticsEventListener(EventListener):
             self.pool.putconn(conn)
 
     async def onGameEvent(self, data):
+        # ignore game events until the server is not initialized correctly
+        if data['server_name'] not in self.bot.player_data:
+            pass
         if data['eventName'] == 'disconnect':
             if data['arg1'] != 1:
                 player = self.get_player(data['server_name'], data['arg1'])

@@ -343,6 +343,9 @@ class MissionEventListener(EventListener):
         return None
 
     async def onGameEvent(self, data):
+        # ignore game events until the server is not initialized correctly
+        if data['server_name'] not in self.bot.player_data:
+            pass
         if data['eventName'] == 'mission_end':
             pass
         elif data['eventName'] in ['connect', 'change_slot']:  # these events are handled differently
