@@ -16,12 +16,9 @@ class Plugin(commands.Cog):
         self.log.debug(f'- Plugin {type(self).__name__} initialized.')
 
     def cog_unload(self):
-        self.__unload__()
-        self.log.debug(f'- Plugin {type(self).__name__} unloaded.')
-
-    def __unload__(self):
         if self.listener:
             self.bot.unregister_eventListener(self.listener)
+        self.log.debug(f'- Plugin {type(self).__name__} unloaded.')
 
 
 class PluginRequiredError(Exception):

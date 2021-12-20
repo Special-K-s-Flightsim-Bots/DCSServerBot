@@ -47,7 +47,6 @@ class AdminEventListener(EventListener):
             if 'lotAtcSettings' in data:
                 server['lotAtcSettings'] = data['lotAtcSettings']
             self.updateBans(data)
-            self.log.info('  => ' + data['server_name'] + ' registered.')
         else:
             self.log.error(
                 'Configuration mismatch. Please check channel settings in dcsserverbot.ini for server {}!'.format(

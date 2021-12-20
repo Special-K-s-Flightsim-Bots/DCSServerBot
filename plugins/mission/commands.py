@@ -4,8 +4,9 @@ import discord
 import itertools
 import re
 import typing
-from core import utils, const, Plugin
+from core import utils, const, DCSServerBot, Plugin
 from discord.ext import commands, tasks
+from .listener import MissionEventListener
 
 
 class Mission(Plugin):
@@ -14,9 +15,9 @@ class Mission(Plugin):
         super().__init__(bot, listener)
         self.update_mission_status.start()
 
-    def __unload__(self):
+    def cog_unload(self):
         self.update_mission_status.cancel()
-        super().__unload__()
+        super().cog_unload(self)
 
     @commands.command(description='Send a chat message to a running DCS instance', usage='<message>', hidden=True)
     @utils.has_role('DCS')
@@ -323,3 +324,7 @@ class Mission(Plugin):
                     "command": "getRunningMission",
                     "channel": server['status_channel']
                 })
+
+
+def setup(bot: DCSServerBot):
+    bot.add_cog(Mission(bot, MissionEventListener(bot)))
