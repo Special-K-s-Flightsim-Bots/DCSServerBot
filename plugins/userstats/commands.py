@@ -8,13 +8,13 @@ import string
 import os
 import psycopg2
 import psycopg2.extras
-import typing
 from core import utils, DCSServerBot, Plugin, PluginRequiredError
 from contextlib import closing, suppress
 from datetime import timedelta
 from discord.ext import commands
 from matplotlib.patches import ConnectionPatch
 from matplotlib.ticker import FuncFormatter
+from typing import Optional, Union
 from .listener import UserStatisticsEventListener
 
 
@@ -456,7 +456,7 @@ class MasterUserStatistics(AgentUserStatistics):
     @commands.command(description='Shows player statistics', usage='[member] [period]', aliases=['stats'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def statistics(self, ctx, member: typing.Optional[discord.Member], period: typing.Optional[str], server=None):
+    async def statistics(self, ctx, member: Optional[discord.Member], period: Optional[str], server=None):
         try:
             if member is None:
                 member = ctx.message.author
@@ -957,6 +957,52 @@ class MasterUserStatistics(AgentUserStatistics):
             embed.set_footer(text='Click on the image to zoom in.')
             await message.edit(embed=embed)
             await message.clear_reactions()
+
+    @commands.command(description='Shows information about a specific player', usage='<@member / ucid>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def player(self, ctx, member: Union[discord.Member, str]):
+        sql = 'SELECT p.discord_id, p.ucid, p.last_seen, COALESCE(p.name, \'?\') AS NAME, COALESCE(ROUND(SUM(EXTRACT(' \
+              'EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS playtime FROM players p LEFT OUTER JOIN statistics ' \
+              's ON (s.player_ucid = p.ucid) WHERE p.discord_id = '
+        if isinstance(member, str):
+            sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR p.ucid = '{member}'"
+        else:
+            sql += f"'{member.id}'"
+        sql += ' GROUP BY p.ucid, p.discord_id, p.name, p.last_seen'
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute(sql)
+                rows = list(cursor.fetchall())
+                if rows is not None and len(rows) > 0:
+                    embed = discord.Embed(title='User Information', color=discord.Color.blue())
+                    embed.description = f'Information about '
+                    if rows[0]['discord_id'] != -1:
+                        member = ctx.guild.get_member(rows[0]['discord_id'])
+                    if isinstance(member, discord.Member):
+                        embed.description += f'member **{member.display_name}**:'
+                        embed.add_field(name='Discord ID:', value=member.id)
+                    else:
+                        embed.description += f'a non-member user:'
+                    if rows[0]['last_seen']:
+                        embed.add_field(name='Last seen:', value=rows[0]['last_seen'].strftime("%m/%d/%Y, %H:%M:%S"))
+                    embed.add_field(name='▬' * 30, value='_ _', inline=False)
+                    ucids = names = playtimes = ''
+                    for line in rows:
+                        ucids += line['ucid'] + '\n'
+                        names += line['name'] + '\n'
+                        playtimes += '{:.0f}\n'.format(line['playtime'])
+                    embed.add_field(name='UCID', value=ucids)
+                    embed.add_field(name='DCS Name', value=names)
+                    embed.add_field(name='Playtime (h)', value=playtimes)
+                    await ctx.send(embed=embed)
+                else:
+                    await ctx.send(f'No data found for user "{member if isinstance(member, str) else member.display_name}".')
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+        finally:
+            self.bot.pool.putconn(conn)
 
 
 def setup(bot: DCSServerBot):
