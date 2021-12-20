@@ -9,12 +9,13 @@ import os
 import psycopg2
 import psycopg2.extras
 import typing
-from core import utils, Plugin
+from core import utils, DCSServerBot, Plugin, PluginRequiredError
 from contextlib import closing, suppress
 from datetime import timedelta
 from discord.ext import commands
 from matplotlib.patches import ConnectionPatch
 from matplotlib.ticker import FuncFormatter
+from .listener import UserStatisticsEventListener
 
 
 class AgentUserStatistics(Plugin):
@@ -956,3 +957,13 @@ class MasterUserStatistics(AgentUserStatistics):
             embed.set_footer(text='Click on the image to zoom in.')
             await message.edit(embed=embed)
             await message.clear_reactions()
+
+
+def setup(bot: DCSServerBot):
+    if 'mission' not in bot.plugins:
+        raise PluginRequiredError('mission')
+    listener = UserStatisticsEventListener(bot)
+    if bot.config.getboolean('BOT', 'MASTER') is True:
+        bot.add_cog(MasterUserStatistics(bot, listener))
+    else:
+        bot.add_cog(AgentUserStatistics(bot, listener))

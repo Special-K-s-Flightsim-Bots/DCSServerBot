@@ -8,8 +8,9 @@ import psycopg2.extras
 import re
 import subprocess
 from contextlib import closing
-from core import utils, Plugin
+from core import utils, DCSServerBot, Plugin
 from discord.ext import commands, tasks
+from .listener import AdminEventListener
 
 
 class Agent(Plugin):
@@ -25,9 +26,9 @@ class Agent(Plugin):
         super().__init__(bot, listener)
         self.update_bot_status.start()
 
-    def __unload__(self):
-        super().__unload__()
+    def cog_unload(self):
         self.update_bot_status.cancel()
+        super().cog_unload(self)
 
     @commands.command(description='Lists the registered DCS servers')
     @utils.has_role('DCS')
@@ -150,7 +151,7 @@ class Agent(Plugin):
             self.bot.sendtoDCS(server, {"command": "kick", "name": name, "reason": reason, "channel": ctx.channel.id})
             await ctx.send(f'User "{name}" kicked.')
 
-    @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
+    @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user, *args):
@@ -349,7 +350,7 @@ class Master(Agent):
         finally:
             self.bot.pool.putconn(conn)
 
-    @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid>')
+    @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user, *args):
@@ -372,7 +373,7 @@ class Master(Agent):
                     cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
                                    (ucid, ctx.message.author.display_name, reason))
                 conn.commit()
-                await super().ban(ctx, user, *args)
+                await super().ban(self, ctx, user, *args)
             await ctx.send('Player {} banned.'.format(user))
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
@@ -413,8 +414,8 @@ class Master(Agent):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(
-                    'SELECT p.ucid, p.discord_id, b.banned_by, b.reason FROM players p, bans b WHERE p.ucid = b.ucid')
+                cursor.execute('SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, b.banned_by, b.reason FROM '
+                               'bans b LEFT OUTER JOIN players p on b.ucid = p.ucid')
                 rows = list(cursor.fetchall())
                 if rows is not None and len(rows) > 0:
                     embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
@@ -472,3 +473,11 @@ class Master(Agent):
             finally:
                 self.bot.pool.putconn(conn)
             self.listener.updateBans()
+
+
+def setup(bot: DCSServerBot):
+    listener = AdminEventListener(bot)
+    if bot.config.getboolean('BOT', 'MASTER') is True:
+        bot.add_cog(Master(bot, listener))
+    else:
+        bot.add_cog(Agent(bot, listener))

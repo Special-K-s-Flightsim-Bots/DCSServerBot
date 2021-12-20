@@ -1,7 +1,7 @@
 import discord
 import string
 from discord.ext import commands
-from core import Plugin
+from core import DCSServerBot, Plugin
 
 
 class Help(Plugin):
@@ -48,3 +48,9 @@ class Help(Plugin):
                 # Ignore unknown command, as it might have been for other bots
                 return
         await ctx.send(embed=help_embed)
+
+
+def setup(bot: DCSServerBot):
+    # help is only available on the master
+    if bot.config.getboolean('BOT', 'MASTER') is True:
+        bot.add_cog(Help(bot))

@@ -389,7 +389,8 @@ class MissionEventListener(EventListener):
                     ('player ' + player2['name']) if player2 is not None else 'AI',
                     data['arg5'], data['arg7']))
             # report teamkills from unknown players to admins
-            if (player1 is not None) and (data['arg3'] == data['arg6']):
+            # TODO: move that to the punishment plugin
+            if (player1 is not None) and (data['arg3'] == data['arg6']) and (data['arg1'] != data['arg4']):
                 discord_user = self.find_discord_user(player1)
                 if discord_user is None:
                     await self.bot.get_bot_channel(data, 'admin_channel').send(

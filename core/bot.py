@@ -47,17 +47,15 @@ class DCSServerBot(commands.Bot):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(
-                    'SELECT server_name, host, port, chat_channel, status_channel, admin_channel, \'Unknown\' as status FROM servers WHERE agent_host = %s',
-                    (platform.node(),))
+                cursor.execute('SELECT server_name, host, port, chat_channel, status_channel, admin_channel, '
+                               '\'Unknown\' as status FROM servers WHERE agent_host = %s', (platform.node(),))
                 for row in cursor.fetchall():
                     self.DCSServers[row['server_name']] = dict(row)
                     self.DCSServers[row['server_name']]['embeds'] = {}
                     # Initialize statistics with true unless we get other information from the server
                     self.DCSServers[row['server_name']]['statistics'] = True
-                cursor.execute(
-                    'SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name IN (SELECT server_name FROM servers WHERE agent_host = %s)',
-                    (platform.node(),))
+                cursor.execute('SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name IN ('
+                               'SELECT server_name FROM servers WHERE agent_host = %s)', (platform.node(),))
                 for row in cursor.fetchall():
                     self.DCSServers[row['server_name']]['embeds'][row['embed_name']] = row['embed']
         except (Exception, psycopg2.DatabaseError) as error:
@@ -67,6 +65,7 @@ class DCSServerBot(commands.Bot):
         self.log.debug('{} server(s) read from database.'.format(len(self.DCSServers)))
 
     async def init_servers(self):
+        self.log.info('- Searching for DCS servers ...')
         for server_name, server in self.DCSServers.items():
             installation = utils.findDCSInstallations(server_name)[0]
             server['installation'] = installation
@@ -80,9 +79,11 @@ class DCSServerBot(commands.Bot):
                 await self.sendtoDCSSync(server, {"command": "registerDCSServer"})
                 # preload players list
                 await self.sendtoDCSSync(server, {"command": "getCurrentPlayers"})
+                self.log.info(f'  => Running DCS server "{server_name}" registered.')
             except asyncio.TimeoutError:
                 if ('AUTOSTART_DCS' in self.config[installation]) and (
                         self.config.getboolean(installation, 'AUTOSTART_DCS') is True):
+                    self.log.info(f'  => Starting DCS server "{server_name}" ...')
                     utils.start_dcs(self, installation)
                     server['status'] = 'Loading'
                 else:
@@ -91,19 +92,20 @@ class DCSServerBot(commands.Bot):
                 if ('AUTOSTART_SRS' in self.config[installation]) and (
                         self.config.getboolean(installation, 'AUTOSTART_SRS') is True):
                     if not utils.isOpen(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT']):
+                        self.log.info(f'  => Starting DCS-SRS server "{server_name}" ...')
                         utils.start_srs(self, installation)
 
     def load_plugin(self, plugin):
         try:
-            self.load_extension(f'plugins.{plugin}.init')
+            self.load_extension(f'plugins.{plugin}.commands')
         except commands.ExtensionNotFound:
-            self.log.error(f'- No init.py found for plugin "{plugin}"')
+            self.log.error(f'- No commands.py found for plugin "{plugin}"')
         except commands.ExtensionFailed as ex:
             self.log.error(f'- Error during initialisation of plugin "{plugin}": {ex.original if ex.original else ex}')
 
     def unload_plugin(self, plugin):
         try:
-            self.unload_extension(f'plugins.{plugin}.init')
+            self.unload_extension(f'plugins.{plugin}.commands')
         except commands.ExtensionNotFound:
             self.log.debug(f'- No init.py found for plugin "{plugin}!"')
             pass
@@ -121,7 +123,6 @@ class DCSServerBot(commands.Bot):
         for plugin in self.plugins:
             self.load_plugin(plugin.lower())
             self.log.info(f'  => {string.capwords(plugin)} loaded.')
-        self.log.info('- Registering DCS servers ...')
         await self.init_servers()
         self.log.info('DCSServerBot started, accepting commands.')
         return
