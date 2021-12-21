@@ -8,13 +8,13 @@ import string
 import os
 import psycopg2
 import psycopg2.extras
-import typing
 from core import utils, DCSServerBot, Plugin, PluginRequiredError
 from contextlib import closing, suppress
-from datetime import timedelta
+from datetime import datetime, timedelta
 from discord.ext import commands
 from matplotlib.patches import ConnectionPatch
 from matplotlib.ticker import FuncFormatter
+from typing import Optional, Union
 from .listener import UserStatisticsEventListener
 
 
@@ -456,7 +456,7 @@ class MasterUserStatistics(AgentUserStatistics):
     @commands.command(description='Shows player statistics', usage='[member] [period]', aliases=['stats'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def statistics(self, ctx, member: typing.Optional[discord.Member], period: typing.Optional[str], server=None):
+    async def statistics(self, ctx, member: Optional[discord.Member], period: Optional[str], server=None):
         try:
             if member is None:
                 member = ctx.message.author
@@ -957,6 +957,134 @@ class MasterUserStatistics(AgentUserStatistics):
             embed.set_footer(text='Click on the image to zoom in.')
             await message.edit(embed=embed)
             await message.clear_reactions()
+
+    # Return a player from the internal list
+    # TODO: change player data handling!
+    def get_player(self, server_name, ucid):
+        players = self.bot.player_data[server_name]
+        row = players[(players['active'] == True) & (players['ucid'] == ucid)]
+        if not row.empty:
+            return row.to_dict('records')[0]
+        else:
+            return None
+
+    @commands.command(description='Shows information about a specific player', usage='<@member / ucid>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def info(self, ctx, member: Union[discord.Member, str]):
+        sql = 'SELECT p.discord_id, p.ucid, p.last_seen, COALESCE(p.name, \'?\') AS NAME, ' \
+              'COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS playtime, ' \
+              'CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned ' \
+              'FROM players p ' \
+              'LEFT OUTER JOIN statistics s ON (s.player_ucid = p.ucid) ' \
+              'LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) ' \
+              'WHERE p.discord_id = '
+        if isinstance(member, str):
+            sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR p.ucid = '{member}'"
+        else:
+            sql += f"'{member.id}'"
+        sql += ' GROUP BY p.ucid, b.ucid'
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute(sql)
+                rows = list(cursor.fetchall())
+                if rows is not None and len(rows) > 0:
+                    embed = discord.Embed(title='User Information', color=discord.Color.blue())
+                    embed.description = f'Information about '
+                    if rows[0]['discord_id'] != -1:
+                        member = ctx.guild.get_member(rows[0]['discord_id'])
+                    if isinstance(member, discord.Member):
+                        embed.description += f'member **{member.display_name}**:'
+                        embed.add_field(name='Discord ID:', value=member.id)
+                    else:
+                        embed.description += 'a non-member user:'
+                    last_seen = datetime(1970, 1, 1)
+                    banned = False
+                    for row in rows:
+                        if row['last_seen'] and row['last_seen'] > last_seen:
+                            last_seen = row['last_seen']
+                        if row['banned'] == 1:
+                            banned = True
+                    if last_seen != datetime(1970, 1, 1):
+                        embed.add_field(name='Last seen:', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
+                    if banned:
+                        embed.add_field(name='Status', value='Banned')
+                    embed.add_field(name='▬' * 32, value='_ _', inline=False)
+                    ucids = []
+                    names = []
+                    playtimes = []
+                    for row in rows:
+                        ucids.append(row['ucid'])
+                        names.append(row['name'])
+                        playtimes.append('{:.0f}'.format(row['playtime']))
+                    embed.add_field(name='UCID', value='\n'.join(ucids))
+                    embed.add_field(name='DCS Name', value='\n'.join(names))
+                    embed.add_field(name='Playtime (h)', value='\n'.join(playtimes))
+                    embed.add_field(name='▬' * 32, value='_ _', inline=False)
+                    servers = []
+                    dcs_names = []
+                    for server_name in self.bot.DCSServers.keys():
+                        if server_name in self.bot.player_data:
+                            for i in range(0, len(ucids)):
+                                if self.get_player(server_name, ucids[i]) is not None:
+                                    servers.append(server_name)
+                                    dcs_names.append(names[i])
+                                    break
+                    if len(servers):
+                        embed.add_field(name='Active on Server', value='\n'.join(servers))
+                        embed.add_field(name='DCS Name', value='\n'.join(dcs_names))
+                        embed.add_field(name='_ _', value='_ _')
+                        embed.add_field(name='▬' * 32, value='_ _', inline=False)
+                    footer = '🔀 to unlink this user\n' if isinstance(member, discord.Member) else ''
+                    footer += '⏏️ to kick this user from the current servers\n' if len(servers) > 0 else ''
+                    footer += '✅ to unban this user' if banned else '⛔ to ban this user (DCS only)'
+                    embed.set_footer(text=footer)
+                    message = await ctx.send(embed=embed)
+                    if isinstance(member, discord.Member):
+                        await message.add_reaction('🔀')
+                    if len(servers) > 0:
+                        await message.add_reaction('⏏️')
+                    await message.add_reaction('✅' if banned else '⛔')
+                    react = await utils.wait_for_single_reaction(self, ctx, message)
+                    if react.emoji == '🔀':
+                        await self.unlink(ctx, member)
+                    elif react.emoji == '⏏️':
+                        for server in self.bot.DCSServers.values():
+                            for ucid in ucids:
+                                self.bot.sendtoDCS(server, {"command": "kick", "ucid": ucid, "reason": "Kicked by admin."})
+                        await ctx.send('User has been kicked.')
+                    elif react.emoji == '⛔':
+                        for ucid in ucids:
+                            cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
+                                           (ucid, ctx.message.author.display_name, 'n/a'))
+                            for server in self.bot.DCSServers.values():
+                                self.bot.sendtoDCS(server, {
+                                    "command": "ban",
+                                    "ucid": ucid,
+                                    "reason": "Banned by admin."
+                                })
+                        conn.commit()
+                        await ctx.send('User has been banned.')
+                    elif react.emoji == '✅':
+                        for ucid in ucids:
+                            cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
+                            for server in self.bot.DCSServers.values():
+                                self.bot.sendtoDCS(server, {
+                                    "command": "unban",
+                                    "ucid": ucid
+                                })
+                        conn.commit()
+                        await ctx.send('User has been unbanned.')
+                    await message.delete()
+                else:
+                    await ctx.send(f'No data found for user "{member if isinstance(member, str) else member.display_name}".')
+        except asyncio.TimeoutError:
+            pass
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+        finally:
+            self.bot.pool.putconn(conn)
 
 
 def setup(bot: DCSServerBot):

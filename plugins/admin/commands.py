@@ -10,6 +10,7 @@ import subprocess
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin
 from discord.ext import commands, tasks
+from typing import Union
 from .listener import AdminEventListener
 
 
@@ -148,7 +149,7 @@ class Agent(Plugin):
                 reason = ' '.join(args)
             else:
                 reason = 'n/a'
-            self.bot.sendtoDCS(server, {"command": "kick", "name": name, "reason": reason, "channel": ctx.channel.id})
+            self.bot.sendtoDCS(server, {"command": "kick", "name": name, "reason": reason})
             await ctx.send(f'User "{name}" kicked.')
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
@@ -175,8 +176,7 @@ class Agent(Plugin):
                         self.bot.sendtoDCS(server, {
                             "command": "ban",
                             "ucid": ucid,
-                            "reason": reason,
-                            "channel": ctx.channel.id
+                            "reason": reason
                         })
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -200,7 +200,7 @@ class Agent(Plugin):
                     ucids = [user]
                 for ucid in ucids:
                     for server in self.bot.DCSServers.values():
-                        self.bot.sendtoDCS(server, {"command": "unban", "ucid": ucid, "channel": ctx.channel.id})
+                        self.bot.sendtoDCS(server, {"command": "unban", "ucid": ucid})
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
@@ -353,7 +353,7 @@ class Master(Agent):
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def ban(self, ctx, user, *args):
+    async def ban(self, ctx, user: Union[discord.Member, str], *args):
         if len(args) > 0:
             reason = ' '.join(args)
         else:

@@ -283,13 +283,16 @@ class MissionEventListener(EventListener):
 
     async def onPlayerStart(self, data):
         if data['id'] != 1:
-            SQL_PLAYERS = 'INSERT INTO players (ucid, discord_id) VALUES (%s, %s) ON CONFLICT (ucid) DO UPDATE SET discord_id = %s WHERE players.discord_id = -1'
+            SQL_PLAYERS = 'INSERT INTO players (ucid, discord_id) VALUES (%s, %s) ON CONFLICT (ucid) DO UPDATE SET ' \
+                          'discord_id = %s WHERE players.discord_id = -1 '
+            SQL_PLAYER_NAME = 'UPDATE players SET name = %s, last_seen = NOW() WHERE ucid = %s'
             discord_user = self.find_discord_user(data)
             discord_id = discord_user.id if discord_user else -1
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
                     cursor.execute(SQL_PLAYERS, (data['ucid'], discord_id, discord_id))
+                    cursor.execute(SQL_PLAYER_NAME, (data['name'], data['ucid']))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
