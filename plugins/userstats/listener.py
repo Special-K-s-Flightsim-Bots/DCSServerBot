@@ -131,9 +131,8 @@ class UserStatisticsEventListener(EventListener):
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute(
-                        'UPDATE statistics SET hop_off = NOW() WHERE player_ucid NOT IN (%s) AND mission_id = %s',
-                        (ucids, self.getCurrentMissionID(data['server_name'])))
+                    cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE player_ucid NOT IN (%s) AND '
+                                   'mission_id = %s AND hop_off IS NULL', (ucids, self.getCurrentMissionID(data['server_name'])))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)

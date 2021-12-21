@@ -270,11 +270,21 @@ function dcsbotgui.onChatMessage(message, from)
 end
 
 function dcsbotgui.onPlayerTryConnect(addr, name, ucid, playerID)
+	local msg = {}
 	-- we don't accept empty player IDs
-	if playerID == nil or trim(playerID) == '' then
+	if name == nil or trim(name) == '' then
+        msg.command = 'sendMessage'
+        msg.message = 'User with empty user name (ucid=' .. ucid .. ') rejected.'
+    	dcsbot.sendBotTable(msg, dcsbot.config.ADMIN_CHANNEL)
 		return false
 	end
-	return not dcsbot.isBanned(ucid)
+	if dcsbot.isBanned(ucid) then
+        msg.command = 'sendMessage'
+        msg.message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
+    	dcsbot.sendBotTable(msg, dcsbot.config.ADMIN_CHANNEL)
+	    return false
+	end
+	return true
 end
 
 function dcsbotgui.onSimulationStart()

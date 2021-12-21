@@ -59,6 +59,7 @@ For server owners, it allows you to see which of your servers and missions are b
 | .serverstats       | [day/week/month]           | Admin     | Displays server statistics, like usual playtime, most frequented servers and missions             |
 | .link              | @member ucid               | DCS Admin | Sometimes users can't be linked automatically. That is a manual workaround.                       |
 | .unlink            | @member                    | DCS Admin | Unlink a user from a ucid, if the automatic linking didn't work.                                  |
+ | .info              | @member / ucid             | DCS Admin | Displays information about that user and let you (un)ban, kick or unlink them.                    |  
 | .reset             |                            | Admin     | Attention: Resets the statistics for this server.                                                 |
 
 User statistics can be enabled or disabled in the server configuration (see below).

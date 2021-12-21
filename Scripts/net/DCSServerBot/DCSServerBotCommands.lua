@@ -63,7 +63,7 @@ function dcsbot.sendBotTable(tbl, channel)
 end
 
 function dcsbot.registerDCSServer(json)
-  log.write('DCSServerBot', log.DEBUG, '> registerDCSServer()')
+    log.write('DCSServerBot', log.DEBUG, '> registerDCSServer()')
 	-- load the servers configuration (SRS, et al)
 	local f = io.open(lfs.writedir() .. 'Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua', 'r')
 	if f then
@@ -95,7 +95,7 @@ function dcsbot.registerDCSServer(json)
 	msg.command = 'registerDCSServer'
 	msg.hook_version = dcsbot.config.VERSION
 	msg.dcs_version = Export.LoGetVersionInfo().ProductVersion[1] .. '.' .. Export.LoGetVersionInfo().ProductVersion[2] .. '.' .. Export.LoGetVersionInfo().ProductVersion[3] .. '.' .. Export.LoGetVersionInfo().ProductVersion[4]
-  msg.host = dcsbot.config.DCS_HOST
+    msg.host = dcsbot.config.DCS_HOST
 	msg.port = dcsbot.config.DCS_PORT
 	msg.chat_channel = dcsbot.config.CHAT_CHANNEL
 	msg.status_channel = dcsbot.config.STATUS_CHANNEL
@@ -415,16 +415,16 @@ end
 function dcsbot.kick(json)
   plist = net.get_player_list()
 	for i = 1, table.getn(plist) do
-    if ((json.ucid and net.get_player_info(plist[i], 'ucid') == json.ucid) or (json.name and net.get_player_info(plist[i], 'name') == json.name)) then
-      net.kick(plist[i], json.reason)
-      break
-    end
+        if ((json.ucid and net.get_player_info(plist[i], 'ucid') == json.ucid) or (json.name and net.get_player_info(plist[i], 'name') == json.name)) then
+            net.kick(plist[i], json.reason)
+            break
+        end
 	end
 end
 
 function dcsbot.ban(json)
-	dcsbot.banList[json.ucid] = true
-  dcsbot.kick(json)
+    dcsbot.banList[json.ucid] = true
+    dcsbot.kick(json)
 end
 
 function dcsbot.unban(json)

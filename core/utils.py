@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from configparser import ConfigParser
 from contextlib import closing, suppress
 from discord.ext import commands
+from typing import Union
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
 REGEXP = {
@@ -156,15 +157,17 @@ async def yn_question(self, ctx, question, msg=None):
     return react.emoji == '🇾'
 
 
-async def get_server(self, ctx):
-    server = None
-    for key, item in self.bot.DCSServers.items():
-        if item['status'] == 'Unknown':
-            continue
-        if (int(item['status_channel']) == ctx.channel.id) or (int(item['chat_channel']) == ctx.channel.id) or (int(item['admin_channel']) == ctx.channel.id):
-            server = item
-            break
-    return server
+async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]):
+    for server_name, server in self.bot.DCSServers.items():
+        if isinstance(ctx, discord.ext.commands.context.Context):
+            if server['status'] == 'Unknown':
+                continue
+            if (int(server['status_channel']) == ctx.channel.id) or (int(server['chat_channel']) == ctx.channel.id) or (int(server['admin_channel']) == ctx.channel.id):
+                return server
+        else:
+            if server_name == ctx:
+                return server
+    return None
 
 
 def has_role(item: str):
