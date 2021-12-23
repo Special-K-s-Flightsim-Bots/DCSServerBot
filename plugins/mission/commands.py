@@ -180,7 +180,7 @@ class Mission(Plugin):
                         "from": ctx.message.author.display_name, "to": "all"
                     })
                     await asyncio.sleep(delay)
-                await msg.delete()
+                    await msg.delete()
                 self.bot.sendtoDCS(server, {"command": "restartMission", "channel": ctx.channel.id})
                 msg = await ctx.send('Restart command sent. Mission will restart now.')
             else:
