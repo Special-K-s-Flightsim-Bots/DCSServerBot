@@ -5,19 +5,19 @@ from discord.ext import commands
 
 class Plugin(commands.Cog):
 
-    def __init__(self, bot: DCSServerBot, listener: EventListener = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: EventListener = None):
         self.bot = bot
         self.log = bot.log
         self.config = bot.config
         self.pool = bot.pool
-        self.listener = listener
-        if self.listener:
-            self.bot.register_eventListener(self.listener)
+        self.eventlistener = eventlistener
+        if self.eventlistener:
+            self.bot.register_eventListener(self.eventlistener)
         self.log.debug(f'- Plugin {type(self).__name__} initialized.')
 
     def cog_unload(self):
-        if self.listener:
-            self.bot.unregister_eventListener(self.listener)
+        if self.eventlistener:
+            self.bot.unregister_eventListener(self.eventlistener)
         self.log.debug(f'- Plugin {type(self).__name__} unloaded.')
 
 

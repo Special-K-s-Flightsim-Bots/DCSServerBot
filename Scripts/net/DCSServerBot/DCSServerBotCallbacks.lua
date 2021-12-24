@@ -214,6 +214,13 @@ function dcsbotgui.onPlayerConnect(id)
 	msg.id = id
 	msg.name = net.get_player_info(id, 'name')
 	msg.ucid = net.get_player_info(id, 'ucid')
+    msg.side = 0
+    -- server user is never active
+    if (msg.id == 1) then
+        msg.active = false
+    else
+        msg.active = true
+    end
 	dcsbot.sendBotTable(msg)
 end
 
@@ -226,13 +233,13 @@ function dcsbotgui.onPlayerStart(id)
 	msg.id = id
 	msg.ucid = net.get_player_info(id, 'ucid')
 	msg.name = net.get_player_info(id, 'name')
-  msg.side = 0
-  -- server user is never active
-  if (msg.id == 1) then
-    msg.active = false
-  else
-    msg.active = true
-  end
+    msg.side = 0
+    -- server user is never active
+    if (msg.id == 1) then
+        msg.active = false
+    else
+        msg.active = true
+    end
 	dcsbot.sendBotTable(msg)
 end
 
