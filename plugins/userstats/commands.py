@@ -1148,7 +1148,10 @@ class MasterUserStatistics(AgentUserStatistics):
                     cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL', (member.id, ))
                     for row in cursor.fetchall():
                         matched_member = utils.match_user(self, dict(row), True)
-                        if matched_member.id != member.id:
+                        if not matched_member:
+                            suspicious.append(
+                                {"name": row['name'], "ucid": row['ucid'], "mismatch": member})
+                        elif matched_member.id != member.id:
                             suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member, "match": matched_member})
                 if len(suspicious):
                     embed.add_field(name='▬' * 32, value='These members might be mislinked:', inline=False)
@@ -1187,7 +1190,7 @@ class MasterUserStatistics(AgentUserStatistics):
                         await ctx.send('All unlinked players are linked.')
                     if react.emoji == '🔀' or react.emoji == '✅':
                         for mismatch in suspicious:
-                            cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (mismatch['match'].id, mismatch['ucid']))
+                            cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (mismatch['match'].id if 'match' in mismatch else -1, mismatch['ucid']))
                         await self.bot.audit(
                             f"User {ctx.message.author.display_name} linked user {mismatch['match'].display_name} to ucid {mismatch['ucid']}.")
                         await ctx.send('All incorrectly linked members have been relinked.')
