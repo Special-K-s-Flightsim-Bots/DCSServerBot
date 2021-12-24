@@ -60,6 +60,7 @@ For server owners, it allows you to see which of your servers and missions are b
 | .link              | @member ucid               | DCS Admin | Sometimes users can't be linked automatically. That is a manual workaround.                       |
 | .unlink            | @member                    | DCS Admin | Unlink a user from a ucid, if the automatic linking didn't work.                                  |
  | .info              | @member / ucid             | DCS Admin | Displays information about that user and let you (un)ban, kick or unlink them.                    |  
+ | .linkcheck         |                            | DCS Admin | Checks all member : ucid links and let them be fixed.                                             |
 | .reset             |                            | Admin     | Attention: Resets the statistics for this server.                                                 |
 
 User statistics can be enabled or disabled in the server configuration (see below).
@@ -95,7 +96,7 @@ Create a "New Application", add a Bot, select Bot from the left menu, give it a 
 Now your Token is in your clipboard. Paste it in dcsserverbot.ini in your config-directory.
 Both "Privileged Gateway Intents" have to be enabled on that page.
 To add the bot to your Discord guild, go to OAuth2, select "bot" in the OAuth2 URL Generator, select the following permissions:
-_Send Messages, Manage Messages, Embed Links, Attach Files, Read Message History, Add Reactions_
+_Manage Channels, Send Messages, Manage Messages, Embed Links, Attach Files, Read Message History, Add Reactions_
 Press "Copy" on the generated URL, paste it into the browser of your choice, select the guild the bot has to be added to - and you're done!
 For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
 
@@ -120,6 +121,7 @@ a) __BOT Section__
 | AUTOUPDATE     | If true, the bot autoupdates itself with the latest release on startup.                                                                                                                                                                                                                                                                                                                                              |
 | AUTOBAN        | If true, members leaving the discord will be automatically banned.                                                                                                                                                                                                                                                                                                                                                   |
 | LOGLEVEL       | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).                                                                                                                                                                                                                                                                                                                       |
+| AUDIT_CHANNEL  | (Optional) The ID of an audit channel where audit events will be logged into. For security reasons, it is recommended that no users can delete messages in this channel.                                                                                                                                                                                                                                             |
 
 b) __ROLES Section__
 
@@ -201,6 +203,10 @@ You can change the role names to the ones being used in your discord. That has t
 | DCS       | People with this role are allowed to chat, check their statistics and gather information about running missions and players.                        |
 | DCS Admin | People with this role are allowed to restart missions, managing the mission list, ban and unban people.                                             |
 | Admin     | People with this role are allowed to manage the server, start it up, shut it down, update it, change the password and gather the server statistics. |
+
+### Running of the Bot
+To start the bot, you can either use the packaged _run.cmd_ command or _python run.py_.
+If using _AUTOUPDATE = TRUE_ it is recommended to start the bot in a loop as it will close itself after an update has taken place.
 
 ### **!!! ATTENTION !!!**
 _One of the concepts of this bot it to bind people to your discord._

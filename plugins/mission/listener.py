@@ -2,6 +2,7 @@
 import discord
 import pandas as pd
 import psycopg2
+import re
 import sched
 from core import const, utils, DCSServerBot, EventListener
 from contextlib import closing
@@ -32,31 +33,6 @@ class MissionEventListener(EventListener):
         super().__init__(bot)
         self.bot.player_data = {}
         self.executor = bot.executor
-
-    def find_discord_user(self, data):
-        # check if we have the user already
-        discord_id = -1
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1', (data['ucid'], ))
-                result = cursor.fetchone()
-                if result is not None:
-                    discord_id = result[0]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-        dcs_name = data['name']
-        for member in self.bot.get_all_members():
-            if (discord_id != -1) and (member.id == discord_id):
-                return member
-            if member.nick:
-                if (dcs_name.lower() in member.nick.lower()) or (member.nick.lower() in dcs_name.lower()):
-                    return member
-            if (dcs_name.lower() in member.name.lower()) or (member.name.lower() in dcs_name.lower()):
-                return member
-        return None
 
     # Return a player from the internal list
     # TODO: change player data handling!
@@ -159,9 +135,10 @@ class MissionEventListener(EventListener):
     # Display the list of active players
     async def displayPlayerList(self, data):
         players = self.bot.player_data[data['server_name']]
+        players = players[players['active'] == True]
         embed = discord.Embed(title='Active Players', color=discord.Color.blue())
-        names = units = sides = '' if (len(players[players['active'] == True]) > 0) else '_ _'
-        for idx, player in players[players['active'] == True].iterrows():
+        names = units = sides = '' if (len(players) > 0) else '_ _'
+        for idx, player in players.iterrows():
             side = player['side']
             names += player['name'] + '\n'
             units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
@@ -170,6 +147,24 @@ class MissionEventListener(EventListener):
         embed.add_field(name='Unit', value=units)
         embed.add_field(name='Side', value=sides)
         await self.bot.setEmbed(data, 'players_embed', embed)
+        channel = self.bot.get_bot_channel(data, 'status_channel')
+        # name changes of the status channel will only happen with the correct permission
+        if channel.permissions_for(self.bot.guilds[0].get_member(self.bot.user.id)).manage_channels:
+            name = channel.name
+            # if the server owner leaves, the server is shut down
+            if ('id' in data) and (data['id'] == 1):
+                if name.find('［') == -1:
+                    name = name + '［-］'
+                else:
+                    name = re.sub('［.*］', f'［-］', name)
+            else:
+                current = len(players) + 1
+                max = self.bot.DCSServers[data['server_name']]['serverSettings']['maxPlayers']
+                if name.find('［') == -1:
+                    name = name + f'［{current}／{max}］'
+                else:
+                    name = re.sub('［.*］', f'［{current}／{max}］', name)
+            await channel.edit(name=name)
 
     def updateMission(self, data):
         server = self.bot.DCSServers[data['server_name']]
@@ -280,13 +275,14 @@ class MissionEventListener(EventListener):
             chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
             if chat_channel is not None:
                 await chat_channel.send('{} connected to server'.format(data['name']))
+            self.updatePlayer(data)
 
     async def onPlayerStart(self, data):
         if data['id'] != 1:
             SQL_PLAYERS = 'INSERT INTO players (ucid, discord_id) VALUES (%s, %s) ON CONFLICT (ucid) DO UPDATE SET ' \
                           'discord_id = %s WHERE players.discord_id = -1 '
             SQL_PLAYER_NAME = 'UPDATE players SET name = %s, last_seen = NOW() WHERE ucid = %s'
-            discord_user = self.find_discord_user(data)
+            discord_user = utils.match_user(self, data)
             discord_id = discord_user.id if discord_user else -1
             conn = self.pool.getconn()
             try:
@@ -318,7 +314,6 @@ class MissionEventListener(EventListener):
                     "to": data['id']
                 })
             self.updateMission(data)
-            self.updatePlayer(data)
             await self.displayPlayerList(data)
         return None
 
@@ -358,7 +353,7 @@ class MissionEventListener(EventListener):
                 player = self.get_player(data['server_name'], data['arg1'])
                 chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
                 if chat_channel is not None:
-                    if player['side'] == const.SIDE_SPECTATOR:
+                    if ('side' not in player) or (player['side'] == const.SIDE_SPECTATOR):
                         await chat_channel.send('Player {} disconnected'.format(player['name']))
                     else:
                         await chat_channel.send('{} player {} disconnected'.format(
@@ -394,7 +389,7 @@ class MissionEventListener(EventListener):
             # report teamkills from unknown players to admins
             # TODO: move that to the punishment plugin
             if (player1 is not None) and (data['arg3'] == data['arg6']) and (data['arg1'] != data['arg4']):
-                discord_user = self.find_discord_user(player1)
+                discord_user = utils.match_user(self, player1)
                 if discord_user is None:
                     await self.bot.get_bot_channel(data, 'admin_channel').send(
                         'Unknown player {} (ucid={}) is killing team members. Please investigate.'.format(

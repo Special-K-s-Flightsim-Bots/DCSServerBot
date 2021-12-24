@@ -29,6 +29,8 @@ class DCSServerBot(commands.Bot):
         self.log = kwargs['log']
         self.config = kwargs['config']
         self.plugins = [p.strip() for p in self.config['BOT']['PLUGINS'].split(',')]
+        self.audit_channel = None
+        self.player_data = None
         self.executor = ThreadPoolExecutor(max_workers=10)
         self.loop.create_task(self.start_udp_listener())
 
@@ -91,7 +93,7 @@ class DCSServerBot(commands.Bot):
             finally:
                 if ('AUTOSTART_SRS' in self.config[installation]) and (
                         self.config.getboolean(installation, 'AUTOSTART_SRS') is True):
-                    if not utils.isOpen(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT']):
+                    if utils.isOpen(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT']) is False:
                         self.log.info(f'  => Starting DCS-SRS server "{server_name}" ...')
                         utils.start_srs(self, installation)
 
@@ -115,16 +117,19 @@ class DCSServerBot(commands.Bot):
         self.load_plugin(plugin)
 
     async def on_ready(self):
-        self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
-        self.external_ip = await utils.get_external_ip()
-        self.read_servers()
-        self.remove_command('help')
-        self.log.info('- Loading Plugins ...')
-        for plugin in self.plugins:
-            self.load_plugin(plugin.lower())
-            self.log.info(f'  => {string.capwords(plugin)} loaded.')
-        await self.init_servers()
-        self.log.info('DCSServerBot started, accepting commands.')
+        if not self.external_ip:
+            self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
+            self.external_ip = await utils.get_external_ip()
+            self.read_servers()
+            self.remove_command('help')
+            self.log.info('- Loading Plugins ...')
+            for plugin in self.plugins:
+                self.load_plugin(plugin.lower())
+                self.log.info(f'  => {string.capwords(plugin)} loaded.')
+            await self.init_servers()
+            self.log.info('DCSServerBot started, accepting commands.')
+        else:
+            self.log.info('Discord connection reestablished.')
         return
 
     async def on_command_error(self, ctx, err):
@@ -154,6 +159,13 @@ class DCSServerBot(commands.Bot):
         else:
             for plugin in self.plugins:
                 self.reload_plugin(plugin)
+
+    async def audit(self, message, *, embed=None):
+        if not self.audit_channel:
+            if 'AUDIT_CHANNEL' in self.config['BOT']:
+                self.audit_channel = self.guilds[0].get_channel(int(self.config['BOT']['AUDIT_CHANNEL']))
+        if self.audit_channel:
+            await self.audit_channel.send(message, embed=embed)
 
     def sendtoDCS(self, server, message):
         # As Lua does not support large numbers, convert them to strings

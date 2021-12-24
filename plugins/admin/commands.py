@@ -54,6 +54,8 @@ class Agent(Plugin):
                 await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
                 utils.start_dcs(self, installation)
                 server['status'] = 'Loading'
+                await self.bot.audit(
+                    f"User {ctx.message.author.display_name} started DCS server \"{server['server_name']}\".")
             else:
                 await ctx.send('DCS server "{}" is already started.'.format(server['server_name']))
             if 'SRS_CONFIG' in self.config[installation]:
@@ -61,6 +63,8 @@ class Agent(Plugin):
                     if await utils.yn_question(self, ctx, 'Do you want to start the DCS-SRS server "{}"?'.format(server['server_name'])) is True:
                         await ctx.send('DCS-SRS server "{}" starting up ...'.format(server['server_name']))
                         utils.start_srs(self, installation)
+                        await self.bot.audit(
+                            f"User {ctx.message.author.display_name} started DCS-SRS server \"{server['server_name']}\".")
                 else:
                     await ctx.send('DCS-SRS server "{}" is already started.'.format(server['server_name']))
 
@@ -78,6 +82,8 @@ class Agent(Plugin):
                     await ctx.send('Shutting down DCS server "{}" ...'.format(server['server_name']))
                     self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                     server['status'] = 'Shutdown'
+                    await self.bot.audit(
+                        f"User {ctx.message.author.display_name} shut DCS server \"{server['server_name']}\" down.")
             else:
                 await ctx.send('DCS server {} is already shut down.'.format(server['server_name']))
             if 'SRS_CONFIG' in self.config[installation]:
@@ -87,6 +93,8 @@ class Agent(Plugin):
                         if p:
                             await ctx.send('Shutting down DCS-SRS server "{}" ...'.format(server['server_name']))
                             p.kill()
+                            await self.bot.audit(
+                                f"User {ctx.message.author.display_name} shut DCS-SRS server \"{server['server_name']}\" down.")
                         else:
                             await ctx.send('Shutdown of DCS-SRS server "{}" failed.'.format(server['server_name']))
                 else:
@@ -104,6 +112,8 @@ class Agent(Plugin):
             if old_version == new_version:
                 await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
             else:
+                await self.bot.audit(
+                    f"User {ctx.message.author.display_name} started an update of all DCS servers on node {platform.node()}.")
                 servers = []
                 for key, item in self.bot.DCSServers.items():
                     if item['status'] not in ['Stopped', 'Shutdown']:
@@ -136,6 +146,8 @@ class Agent(Plugin):
                 await response.delete()
                 utils.changeServerSettings(server['server_name'], 'password', password)
                 await ctx.send('Password has been changed.')
+                await self.bot.audit(
+                    f"User {ctx.message.author.display_name} changed the password of server \"{server['server_name']}\".")
             else:
                 await ctx.send('Server "{}" has to be shut down to change the password.'.format(server['server_name']))
 
@@ -151,11 +163,13 @@ class Agent(Plugin):
                 reason = 'n/a'
             self.bot.sendtoDCS(server, {"command": "kick", "name": name, "reason": reason})
             await ctx.send(f'User "{name}" kicked.')
+            await self.bot.audit(f'User {ctx.message.author.display_name} kicked player {name}' +
+                                 f' with reason "{reason}".' if reason != 'n/a' else '.')
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def ban(self, ctx, user, *args):
+    async def ban(self, ctx, user: Union[discord.Member, str], *args):
         if len(args) > 0:
             reason = ' '.join(args)
         else:
@@ -163,10 +177,9 @@ class Agent(Plugin):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if user.startswith('<'):
-                    discord_id = user.replace('<@!', '').replace('>', '')
+                if isinstance(user, discord.Member):
                     # a player can have multiple ucids
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
+                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
                     ucids = [row[0] for row in cursor.fetchall()]
                 else:
                     # ban a specific ucid only
@@ -186,14 +199,13 @@ class Agent(Plugin):
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def unban(self, ctx, user):
+    async def unban(self, ctx, user: Union[discord.Member, str]):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if user.startswith('<'):
-                    discord_id = user.replace('<@!', '').replace('>', '')
+                if isinstance(user, discord.Member):
                     # a player can have multiple ucids
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
+                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
                     ucids = [row[0] for row in cursor.fetchall()]
                 else:
                     # unban a specific ucid only
@@ -217,6 +229,8 @@ class Agent(Plugin):
                 if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True:
                     self.bot.embeds.pop(server_name)
                     await ctx.send('Server {} unregistered.'.format(server_name))
+                    await self.bot.audit(
+                        f"User {ctx.message.author.display_name} unregistered DCS server \"{server['server_name']}\".")
                 else:
                     await ctx.send('Aborted.')
             else:
@@ -247,6 +261,8 @@ class Agent(Plugin):
                         self.bot.embeds[newname] = self.bot.embeds[oldname]
                         self.bot.embeds.pop(oldname)
                         await ctx.send('Server has been renamed.')
+                        await self.bot.audit(
+                            f'User {ctx.message.author.display_name} renamed DCS server "{oldname}" to "{newname}".')
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.log.exception(error)
                     conn.rollback()
@@ -344,6 +360,7 @@ class Master(Agent):
                 cursor.execute('DROP TABLE temp_missions')
                 cursor.execute('DROP TABLE temp_statistics')
                 conn.commit()
+                await self.bot.audit(f'User {ctx.message.author.display_name} pruned the database.')
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.bot.log.exception(error)
@@ -361,10 +378,9 @@ class Master(Agent):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if user.startswith('<'):
-                    discord_id = user.replace('<@!', '').replace('>', '')
+                if isinstance(user, discord.Member):
                     # a player can have multiple ucids
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
+                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
                     ucids = [row[0] for row in cursor.fetchall()]
                 else:
                     # ban a specific ucid only
@@ -375,6 +391,9 @@ class Master(Agent):
                 conn.commit()
                 await super().ban(self, ctx, user, *args)
             await ctx.send('Player {} banned.'.format(user))
+            await self.bot.audit(f'User {ctx.message.author.display_name} banned ' +
+                                 (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}') +
+                                 (f' with reason "{reason}"' if reason != 'n/a' else ''))
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.bot.log.exception(error)
@@ -384,14 +403,13 @@ class Master(Agent):
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def unban(self, ctx, user):
+    async def unban(self, ctx, user: Union[discord.Member, str]):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if user.startswith('<'):
-                    discord_id = user.replace('<@!', '').replace('>', '')
+                if isinstance(user, discord.Member):
                     # a player can have multiple ucids
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
+                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
                     ucids = [row[0] for row in cursor.fetchall()]
                 else:
                     # unban a specific ucid only
@@ -401,6 +419,8 @@ class Master(Agent):
                 conn.commit()
                 await super().unban(self, ctx, user)
             await ctx.send('Player {} unbanned.'.format(user))
+            await self.bot.audit(f'User {ctx.message.author.display_name} unbanned ' +
+                                 (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}'))
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.bot.log.exception(error)
@@ -459,20 +479,29 @@ class Master(Agent):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
-            self.bot.log.debug('Member {} has joined guild {} - remove possible bans from DCS servers.'.format(member.display_name, member.guild.name))
-            conn = self.bot.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                # try to match new users with existing but unmatched DCS users
+                ucid = utils.match_user(self, member)
+                if ucid:
+                    cursor.execute(
+                        'UPDATE players SET discord_id = %s WHERE ucid = %s AND discord_id = -1', (member.id, ucid))
+                    await self.bot.audit(f"New member {member.display_name} could be matched to ucid {ucid}.")
+                else:
+                    await self.bot.audit(f"New member {member.display_name} could not be matched to a DCS user.")
+                # auto-unban them if they were auto-banned
+                if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
+                    self.bot.log.debug('Member {} has joined guild {} - remove possible bans from DCS servers.'.format(member.display_name, member.guild.name))
                     cursor.execute(
                         'DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE discord_id = %s)', (member.id, ))
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.bot.log.exception(error)
-                conn.rollback()
-            finally:
-                self.bot.pool.putconn(conn)
-            self.listener.updateBans()
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+            conn.rollback()
+        finally:
+            self.bot.pool.putconn(conn)
+        self.eventlistener.updateBans()
 
 
 def setup(bot: DCSServerBot):

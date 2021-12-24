@@ -56,7 +56,7 @@ function dcsbot.callback(msg, channel)
 	local newmsg = msg
 	newmsg.subcommand = msg.command
 	newmsg.command = 'callback'
-	dcsbot.sendBotTable(msg, channel)
+	dcsbot.sendBotTable(newmsg, channel)
 end
 
 function dcsbot.startMission(id)
@@ -223,11 +223,6 @@ function dcsbot.disableUserStats()
 	local msg = {}
 	msg.command = 'disableUserStats'
 	dcsbot.sendBotTable(msg, channel)
-end
-
-function dcsbot.warnRestart()
-	net.dostring_in('mission', 'a_out_text_delay("!!! Attention !!!\nMission will restart in 5 minutes.", 30)')
-	timer.scheduleFunction(net.load_mission, DCS.getMissionFilename(), timer.getTime() + 300)
 end
 
 -- MISSION HOOK REGISTRATION

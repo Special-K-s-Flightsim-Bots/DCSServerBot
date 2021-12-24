@@ -17,6 +17,8 @@ MASTER = true
 AUTOUPDATE = true
 AUTOBAN = true
 LOGLEVEL = DEBUG
+; Optional, audit channel for special events
+AUDIT_CHANNEL = 123456789012345678
 
 [ROLES]
 Admin = Admin

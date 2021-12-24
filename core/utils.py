@@ -8,6 +8,7 @@ import psutil
 import re
 import socket
 import subprocess
+import psycopg2
 import xmltodict
 from core import const
 from datetime import datetime, timedelta
@@ -87,6 +88,76 @@ async def getLatestVersion(branch):
             for item in xpars['rss']['channel']['item']:
                 if branch in item['link']:
                     return item['link'].split('/')[-2]
+
+
+def match(name1, name2):
+    if name1 == name2:
+        return len(name1)
+    # remove any tags
+    n1 = re.sub('^[\[\<\(=].*[=\)\>\]]', '', name1).strip()
+    if len(n1) == 0:
+        n1 = name1
+    n2 = re.sub('^[\[\<\(=].*[=\)\>\]]', '', name2).strip()
+    if len(n1) == 0:
+        n2 = name2
+    if n1 in n2:
+        return len(n1)
+    elif n2 in n1:
+        return len(n2)
+    # remove any special characters
+    n1 = re.sub('[^a-zA-Z0-9 ]', '', n1).lower()
+    n2 = re.sub('[^a-zA-Z0-9 ]', '', n2).lower()
+    if n1 in n2:
+        return len(n1)
+    elif n2 in n1:
+        return len(n2)
+    else:
+        return 0
+
+
+def match_user(self, data: Union[dict, discord.Member], rematch=False):
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            # try to match a DCS user with a Discord member
+            if isinstance(data, dict):
+                if not rematch:
+                    sql = 'SELECT discord_id FROM players WHERE ucid = %s AND discord_id != -1'
+                    cursor.execute(sql, (data['ucid'], ))
+                    result = cursor.fetchone()
+                    if result and result[0] != -1:
+                        return self.bot.guilds[0].get_member(result[0])
+                # we could not find the user, so try to match them
+                dcs_name = data['name']
+                max_weight = 0
+                best_fit = None
+                for member in self.bot.get_all_members():
+                    if member.nick:
+                        weight = max(match(dcs_name, member.nick), match(dcs_name, member.name))
+                    else:
+                        weight = match(dcs_name, member.name)
+                    if weight > max_weight:
+                        max_weight = weight
+                        best_fit = member
+                return best_fit
+            # try to match a Discord member with a DCS user that played on the servers
+            else:
+                max_weight = 0
+                best_fit = None
+                sql = 'SELECT ucid, name from players'
+                if rematch is False:
+                    sql += ' WHERE discord_id = -1'
+                cursor.execute(sql)
+                for row in cursor.fetchall():
+                    weight = max(match(data.nick, row['name']), match(data.name, row['name']))
+                    if weight > max_weight:
+                        max_weight = weight
+                        best_fit = row['ucid']
+                return best_fit
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
 
 
 async def wait_for_single_reaction(self, ctx, message):

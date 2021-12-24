@@ -65,6 +65,7 @@ class MasterUserStatistics(AgentUserStatistics):
                 cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (member.id, ucid))
                 conn.commit()
                 await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
+                await self.bot.audit(f'User {ctx.message.author.display_name} linked member {member.display_name} to ucid {ucid}.')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()
@@ -81,6 +82,7 @@ class MasterUserStatistics(AgentUserStatistics):
                 cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s', (member.id, ))
                 conn.commit()
                 await ctx.send('Member {} unlinked.'.format(member.display_name))
+                await self.bot.audit(f'User {ctx.message.author.display_name} unlinked member {member.display_name}.')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()
@@ -105,6 +107,8 @@ class MasterUserStatistics(AgentUserStatistics):
                             cursor.execute('DELETE FROM missions WHERE server_name = %s', (server_name, ))
                             conn.commit()
                         await ctx.send('Statistics for server "{}" have been wiped.'.format(server_name))
+                        await self.bot.audit(
+                            f'User {ctx.message.author.display_name} reset the statistics for server "{server_name}".')
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.log.exception(error)
                     conn.rollback()
@@ -1014,10 +1018,22 @@ class MasterUserStatistics(AgentUserStatistics):
                     ucids = []
                     names = []
                     playtimes = []
+                    match = True
+                    mismatched_members = []
                     for row in rows:
                         ucids.append(row['ucid'])
                         names.append(row['name'])
                         playtimes.append('{:.0f}'.format(row['playtime']))
+                        # check if the match should be updated
+                        matched_member = utils.match_user(self, dict(row), True)
+                        if matched_member:
+                            if isinstance(member, discord.Member):
+                                if member.id != matched_member.id:
+                                    mismatched_members.append({"ucid": row['ucid'], "member": matched_member})
+                                    match = False
+                            else:
+                                mismatched_members.append({"ucid": row['ucid'], "member": matched_member})
+                                match = False
                     embed.add_field(name='UCID', value='\n'.join(ucids))
                     embed.add_field(name='DCS Name', value='\n'.join(names))
                     embed.add_field(name='Playtime (h)', value='\n'.join(playtimes))
@@ -1036,24 +1052,36 @@ class MasterUserStatistics(AgentUserStatistics):
                         embed.add_field(name='DCS Name', value='\n'.join(dcs_names))
                         embed.add_field(name='_ _', value='_ _')
                         embed.add_field(name='▬' * 32, value='_ _', inline=False)
-                    footer = '🔀 to unlink this user\n' if isinstance(member, discord.Member) else ''
-                    footer += '⏏️ to kick this user from the current servers\n' if len(servers) > 0 else ''
-                    footer += '✅ to unban this user' if banned else '⛔ to ban this user (DCS only)'
+                    footer = '🔀 unlink all ucids from this user\n' if isinstance(member, discord.Member) else ''
+                    footer += f'🔄 relink ucid(s) to the correct user\n' if not match else ''
+                    footer += '⏏️ kick this user from the current servers\n' if len(servers) > 0 else ''
+                    footer += '✅ unban this user' if banned else '⛔ to ban this user (DCS only)'
                     embed.set_footer(text=footer)
                     message = await ctx.send(embed=embed)
                     if isinstance(member, discord.Member):
                         await message.add_reaction('🔀')
+                    if not match:
+                        await message.add_reaction('🔄')
                     if len(servers) > 0:
                         await message.add_reaction('⏏️')
                     await message.add_reaction('✅' if banned else '⛔')
                     react = await utils.wait_for_single_reaction(self, ctx, message)
                     if react.emoji == '🔀':
                         await self.unlink(ctx, member)
+                        await self.bot.audit(f'User {ctx.message.author.display_name} has unlinked ' +
+                                             (f' all ucids from user {member.display_name}.' if isinstance(member, discord.Member) else f' ucid {member} from its member.'))
+                    elif react.emoji == '🔄':
+                        for match in mismatched_members:
+                            cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (match['member'].id, match['ucid']))
+                            await self.bot.audit(f"User {ctx.message.author.display_name} has relinked ucid {match['ucid']} to user {match['member'].display_name}")
+                        await ctx.send('ucids have been relinked.')
                     elif react.emoji == '⏏️':
                         for server in self.bot.DCSServers.values():
                             for ucid in ucids:
                                 self.bot.sendtoDCS(server, {"command": "kick", "ucid": ucid, "reason": "Kicked by admin."})
                         await ctx.send('User has been kicked.')
+                        await self.bot.audit(f'User {ctx.message.author.display_name} has kicked ' +
+                                             (f' user {member.display_name}.' if isinstance(member, discord.Member) else f' ucid {member}'))
                     elif react.emoji == '⛔':
                         for ucid in ucids:
                             cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
@@ -1064,8 +1092,9 @@ class MasterUserStatistics(AgentUserStatistics):
                                     "ucid": ucid,
                                     "reason": "Banned by admin."
                                 })
-                        conn.commit()
                         await ctx.send('User has been banned.')
+                        await self.bot.audit(f'User {ctx.message.author.display_name} has banned ' +
+                                             (f' user {member.display_name}.' if isinstance(member, discord.Member) else f' ucid {member}'))
                     elif react.emoji == '✅':
                         for ucid in ucids:
                             cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
@@ -1074,11 +1103,96 @@ class MasterUserStatistics(AgentUserStatistics):
                                     "command": "unban",
                                     "ucid": ucid
                                 })
-                        conn.commit()
                         await ctx.send('User has been unbanned.')
+                        await self.bot.audit(f'User {ctx.message.author.display_name} has unbanned ' +
+                                             (f' user {member.display_name}.' if isinstance(member, discord.Member) else f' ucid {member}'))
                     await message.delete()
+                    conn.commit()
                 else:
                     await ctx.send(f'No data found for user "{member if isinstance(member, str) else member.display_name}".')
+        except asyncio.TimeoutError:
+            pass
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+        finally:
+            self.bot.pool.putconn(conn)
+
+    @commands.command(description='Checks the matching links of all members / ucids and displays potential violations')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def linkcheck(self, ctx):
+        embed = discord.Embed(title='Link Violations', color=discord.Color.blue())
+        embed.description = 'Displays possible link violations for users.'
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                # check all unmatched players
+                unmatched = []
+                cursor.execute('SELECT ucid, name FROM players WHERE discord_id = -1 AND name IS NOT NULL')
+                for row in cursor.fetchall():
+                    matched_member = utils.match_user(self, dict(row), True)
+                    if matched_member:
+                        unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
+                if len(unmatched):
+                    embed.add_field(name='▬' * 32, value='These players could be linked:', inline=False)
+                    left = right = ''
+                    for match in unmatched:
+                        left += f"{match['name']}({match['ucid']})\n"
+                        right += f"{match['match'].display_name}\n"
+                    embed.add_field(name='DCS Player', value=left)
+                    embed.add_field(name='_ _', value='=>\n' * len(unmatched))
+                    embed.add_field(name='Member', value=right)
+                # check all matched members
+                suspicious = []
+                for member in self.bot.get_all_members():
+                    cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL', (member.id, ))
+                    for row in cursor.fetchall():
+                        matched_member = utils.match_user(self, dict(row), True)
+                        if matched_member.id != member.id:
+                            suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member, "match": matched_member})
+                if len(suspicious):
+                    embed.add_field(name='▬' * 32, value='These members might be mislinked:', inline=False)
+                    left = right = ''
+                    for mismatch in suspicious:
+                        left += f"{mismatch['name']}({mismatch['ucid']})\n"
+                        right += f"{mismatch['mismatch'].display_name}\n"
+                    embed.add_field(name='DCS Player', value=left)
+                    embed.add_field(name='_ _', value='\u2260\n' * len(suspicious))
+                    embed.add_field(name='Member', value=right)
+                else:
+                    embed.add_field(name='All members are linked correctly.', value='_ _', inline=False)
+                footer = ''
+                if len(unmatched) > 0:
+                    footer += '🔄 link all unlinked players\n'
+                if len(suspicious) > 0:
+                    footer += '🔀 relink all mislinked members\n'
+                if len(unmatched) > 0 and len(suspicious) > 0:
+                    footer += '✅ all of the above'
+                if len(footer):
+                    embed.set_footer(text=footer)
+                message = await ctx.send(embed=embed)
+                if len(unmatched) > 0 or len(suspicious) > 0:
+                    if len(unmatched) > 0:
+                        await message.add_reaction('🔄')
+                    if len(suspicious) > 0:
+                        await message.add_reaction('🔀')
+                    if len(unmatched) > 0 and len(suspicious) > 0:
+                        await message.add_reaction('✅')
+                    react = await utils.wait_for_single_reaction(self, ctx, message)
+                    if react.emoji == '🔄' or react.emoji == '✅':
+                        for match in unmatched:
+                            cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (match['match'].id, match['ucid']))
+                            await self.bot.audit(
+                                f"User {ctx.message.author.display_name} linked user {match['match'].display_name} to ucid {match['ucid']}.")
+                        await ctx.send('All unlinked players are linked.')
+                    if react.emoji == '🔀' or react.emoji == '✅':
+                        for mismatch in suspicious:
+                            cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (mismatch['match'].id, mismatch['ucid']))
+                        await self.bot.audit(
+                            f"User {ctx.message.author.display_name} linked user {mismatch['match'].display_name} to ucid {mismatch['ucid']}.")
+                        await ctx.send('All incorrectly linked members have been relinked.')
+                    conn.commit()
+                    await message.delete()
         except asyncio.TimeoutError:
             pass
         except (Exception, psycopg2.DatabaseError) as error:

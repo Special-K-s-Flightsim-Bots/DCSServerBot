@@ -137,8 +137,12 @@ class Main:
                         '--'):
                     line = line.replace('sanitizeModule', '--sanitizeModule')
                     dirty = True
+                # old sanitization (pre 2.7.9)
                 elif 'require = nil' in line and not line.lstrip().startswith('--'):
                     line = line.replace('require', '--require')
+                # new sanitization (2.7.9 and above)
+                elif ("_G['require'] = nil" in line or "_G['package'] = nil" in line) and not line.lstrip().startswith('--'):
+                    line = line.replace('_G', '--_G')
                     dirty = True
                 output.append(line)
             if dirty:
