@@ -134,10 +134,7 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False):
                 max_weight = 0
                 best_fit = None
                 for member in self.bot.get_all_members():
-                    if member.nick:
-                        weight = max(match(dcs_name, member.nick), match(dcs_name, member.name))
-                    else:
-                        weight = match(dcs_name, member.name)
+                    weight = match(dcs_name, member.display_name)
                     if weight > max_weight:
                         max_weight = weight
                         best_fit = member
