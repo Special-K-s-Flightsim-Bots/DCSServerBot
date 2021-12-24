@@ -147,7 +147,7 @@ class MissionEventListener(EventListener):
         embed.add_field(name='Unit', value=units)
         embed.add_field(name='Side', value=sides)
         await self.bot.setEmbed(data, 'players_embed', embed)
-        channel = self.bot.get_bot_channel(data, 'status_channel')
+        channel = self.bot.get_channel(int(self.DCSServers[data['server_name']]['status_channel']))
         # name changes of the status channel will only happen with the correct permission
         if channel.permissions_for(self.bot.guilds[0].get_member(self.bot.user.id)).manage_channels:
             name = channel.name
