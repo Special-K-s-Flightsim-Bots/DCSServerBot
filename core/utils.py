@@ -98,7 +98,7 @@ def match(name1, name2):
     if len(n1) == 0:
         n1 = name1
     n2 = re.sub('^[\[\<\(=].*[=\)\>\]]', '', name2).strip()
-    if len(n1) == 0:
+    if len(n2) == 0:
         n2 = name2
     if n1 in n2:
         return len(n1)
@@ -107,6 +107,8 @@ def match(name1, name2):
     # remove any special characters
     n1 = re.sub('[^a-zA-Z0-9 ]', '', n1).lower()
     n2 = re.sub('[^a-zA-Z0-9 ]', '', n2).lower()
+    if (len(n1) == 0) or (len(n2) == 0):
+        return 0
     if n1 in n2:
         return len(n1)
     elif n2 in n1:
