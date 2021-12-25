@@ -100,21 +100,38 @@ def match(name1, name2):
     n2 = re.sub('^[\[\<\(=].*[=\)\>\]]', '', name2).strip()
     if len(n2) == 0:
         n2 = name2
-    if n1 in n2:
+    # if the names are too short, return
+    if (len(n1) < 3 or len(n2) < 3) and (n1 != n2):
+        return 0
+    elif n1 in n2:
         return len(n1)
     elif n2 in n1:
         return len(n2)
     # remove any special characters
-    n1 = re.sub('[^a-zA-Z0-9 ]', '', n1).lower()
-    n2 = re.sub('[^a-zA-Z0-9 ]', '', n2).lower()
+    n1 = re.sub('[^a-zA-Z0-9 ]', '', n1).strip().lower()
+    n2 = re.sub('[^a-zA-Z0-9 ]', '', n2).strip().lower()
     if (len(n1) == 0) or (len(n2) == 0):
         return 0
-    if n1 in n2:
+    # if the names are too short, return
+    if len(n1) < 3 or len(n2) < 3:
+        return 0
+    elif n1 in n2:
         return len(n1)
     elif n2 in n1:
         return len(n2)
-    else:
+    # remove any numbers
+    n1 = re.sub('[0-9 ]', '', n1).strip()
+    n2 = re.sub('[0-9 ]', '', n2).strip()
+    if (len(n1) == 0) or (len(n2) == 0):
         return 0
+    # if the names are too short, return
+    if (len(n1) < 3 or len(n2) < 3) and (n1 != n2):
+        return 0
+    elif n1 in n2:
+        return len(n1)
+    elif n2 in n1:
+        return len(n2)
+    return 0
 
 
 def match_user(self, data: Union[dict, discord.Member], rematch=False):
@@ -134,7 +151,10 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False):
                 max_weight = 0
                 best_fit = None
                 for member in self.bot.get_all_members():
-                    weight = match(dcs_name, member.display_name)
+                    if member.nick:
+                        weight = max(match(dcs_name, member.nick), match(dcs_name, member.name))
+                    else:
+                        weight = match(dcs_name, member.name)
                     if weight > max_weight:
                         max_weight = weight
                         best_fit = member
