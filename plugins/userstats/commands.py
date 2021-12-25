@@ -75,14 +75,20 @@ class MasterUserStatistics(AgentUserStatistics):
     @commands.command(description='Unlinks a member', usage='<member>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def unlink(self, ctx, member: discord.Member):
+    async def unlink(self, ctx, member: Union[discord.Member, str]):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s', (member.id, ))
+                if isinstance(member, discord.Member):
+                    cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s', (member.id, ))
+                    await ctx.send('Member {} unlinked.'.format(member.display_name))
+                    await self.bot.audit(
+                        f'User {ctx.message.author.display_name} unlinked member {member.display_name}.')
+                else:
+                    cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (member, ))
+                    await ctx.send('ucid {} unlinked.'.format(member))
+                    await self.bot.audit(f'User {ctx.message.author.display_name} unlinked ucid {member}.')
                 conn.commit()
-                await ctx.send('Member {} unlinked.'.format(member.display_name))
-                await self.bot.audit(f'User {ctx.message.author.display_name} unlinked member {member.display_name}.')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()
@@ -1111,7 +1117,7 @@ class MasterUserStatistics(AgentUserStatistics):
                 else:
                     await ctx.send(f'No data found for user "{member if isinstance(member, str) else member.display_name}".')
         except asyncio.TimeoutError:
-            pass
+            await message.clear_reactions()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         finally:
@@ -1126,6 +1132,12 @@ class MasterUserStatistics(AgentUserStatistics):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute('SELECT a.total, b.filled FROM (SELECT COUNT(*) AS total FROM players) a,  (SELECT '
+                               'COUNT(*) AS filled FROM players WHERE name IS NOT NULL) b')
+                row = cursor.fetchone()
+                embed.add_field(name='Discord Members', value=str(len(self.bot.guilds[0].members)))
+                embed.add_field(name='DCS Players', value=row[0])
+                embed.add_field(name='.. with names', value=row[1])
                 # check all unmatched players
                 unmatched = []
                 cursor.execute('SELECT ucid, name FROM players WHERE discord_id = -1 AND name IS NOT NULL')
@@ -1163,7 +1175,7 @@ class MasterUserStatistics(AgentUserStatistics):
                     embed.add_field(name='_ _', value='\u2260\n' * len(suspicious))
                     embed.add_field(name='Member', value=right)
                 else:
-                    embed.add_field(name='All members are linked correctly.', value='_ _', inline=False)
+                    embed.add_field(name='All members that have DCS names are linked correctly.', value='_ _', inline=False)
                 footer = ''
                 if len(unmatched) > 0:
                     footer += '🔄 link all unlinked players\n'
@@ -1197,7 +1209,7 @@ class MasterUserStatistics(AgentUserStatistics):
                     conn.commit()
                     await message.delete()
         except asyncio.TimeoutError:
-            pass
+            await message.clear_reactions()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         finally:
