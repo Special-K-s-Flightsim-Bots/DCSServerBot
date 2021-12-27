@@ -33,6 +33,7 @@ class MissionEventListener(EventListener):
         super().__init__(bot)
         self.bot.player_data = {}
         self.executor = bot.executor
+        self.restart_pending = False
 
     # Return a player from the internal list
     # TODO: change player data handling!
@@ -186,6 +187,7 @@ class MissionEventListener(EventListener):
             return
         server = self.bot.DCSServers[data['server_name']]
         server['airbases'] = data['airbases']
+        self.restart_pending = False
         self.bot.sendtoDCS(server, {"command": "getRunningMission", "channel": server['status_channel']})
 
     async def getRunningMission(self, data):
@@ -198,7 +200,14 @@ class MissionEventListener(EventListener):
             # check if a restart should be executed relative to mission start
             if ('RESTART_MISSION_TIME' in self.config[installation]) and (
                     data['mission_time'] > int(self.config[installation]['RESTART_MISSION_TIME']) * 60):
-                self.do_scheduled_restart(server, self.config[installation]['RESTART_METHOD'])
+                if 'RESTART_OPTIONS' in self.config[installation]:
+                    options = [x.upper().strip() for x in self.config[installation]['RESTART_OPTIONS'].split(',')]
+                    if 'NOT_POPULATED' in options and len(self.bot.player_data[data['server_name']]) > 0:
+                        self.log.debug(f"Scheduled restart of server \"{data['server_name']}\""
+                                       f" postponed due to server population.")
+                        self.restart_pending = True
+                if not self.restart_pending:
+                    self.do_scheduled_restart(server, self.config[installation]['RESTART_METHOD'])
             elif 'RESTART_LOCAL_TIMES' in self.config[installation]:
                 now = datetime.now()
                 times = []
@@ -318,8 +327,10 @@ class MissionEventListener(EventListener):
         return None
 
     async def onPlayerStop(self, data):
-        self.removePlayer(data)
-        await self.displayPlayerList(data)
+        # ignore events that might have been sent in unclear bot states
+        if data['server_name'] in self.bot.player_data:
+            self.removePlayer(data)
+            await self.displayPlayerList(data)
 
     async def onPlayerChangeSlot(self, data):
         if 'side' in data:
@@ -341,8 +352,9 @@ class MissionEventListener(EventListener):
         return None
 
     async def onGameEvent(self, data):
+        server_name = data['server_name']
         # ignore game events until the server is not initialized correctly
-        if data['server_name'] not in self.bot.player_data:
+        if server_name not in self.bot.player_data:
             pass
         if data['eventName'] == 'mission_end':
             pass
@@ -350,9 +362,9 @@ class MissionEventListener(EventListener):
             return None
         elif data['eventName'] == 'disconnect':
             if data['arg1'] != 1:
-                player = self.get_player(data['server_name'], data['arg1'])
+                player = self.get_player(server_name, data['arg1'])
                 chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
-                if chat_channel is not None:
+                if chat_channel:
                     if ('side' not in player) or (player['side'] == const.SIDE_SPECTATOR):
                         await chat_channel.send('Player {} disconnected'.format(player['name']))
                     else:
@@ -361,10 +373,15 @@ class MissionEventListener(EventListener):
                 self.updateMission(data)
                 self.removePlayer(data)
                 await self.displayPlayerList(data)
+                # if no player is in the server anymore and we have a pending restart, restart the server
+                if len(self.bot.player_data[server_name]) == 0 and self.restart_pending:
+                    server = self.bot.DCSServers[server_name]
+                    self.do_scheduled_restart(server, self.config[server['installation']]['RESTART_METHOD'])
+                    self.restart_pending = False
         elif data['eventName'] == 'friendly_fire':
-            player1 = self.get_player(data['server_name'], data['arg1'])
+            player1 = self.get_player(server_name, data['arg1'])
             if data['arg3'] != -1:
-                player2 = self.get_player(data['server_name'], data['arg3'])
+                player2 = self.get_player(server_name, data['arg3'])
             else:
                 player2 = None
             chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
@@ -375,8 +392,8 @@ class MissionEventListener(EventListener):
                     data['arg2'] if (len(data['arg2']) > 0) else 'Cannon'))
         elif data['eventName'] == 'kill':
             # Player is not an AI
-            player1 = self.get_player(data['server_name'], data['arg1']) if data['arg1'] != -1 else None
-            player2 = self.get_player(data['server_name'], data['arg4']) if data['arg4'] != -1 else None
+            player1 = self.get_player(server_name, data['arg1']) if data['arg1'] != -1 else None
+            player2 = self.get_player(server_name, data['arg4']) if data['arg4'] != -1 else None
 
             chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
             if chat_channel is not None:
@@ -396,7 +413,7 @@ class MissionEventListener(EventListener):
                             player1['name'], player1['ucid']))
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
             if data['arg1'] != -1:
-                player = self.get_player(data['server_name'], data['arg1'])
+                player = self.get_player(server_name, data['arg1'])
                 chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
                 if chat_channel is not None:
                     if data['eventName'] in ['takeoff', 'landing']:

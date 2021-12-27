@@ -13,6 +13,14 @@ Which plugins you wan't to add is configured during the installation (see below)
 
 __Attention:__ Some plugins require another plugin to be available (Userstats needs Mission for instance).
 
+### General Administrative Commands
+These commands can be used to administrate the bot itself.
+
+| Command  | Parameter | Channel | Role   | Description                                                   |
+|----------|-----------|---------|--------|---------------------------------------------------------------|
+| .reload  | [Plugin]  | all     | Owner  | Reloads one or all plugin(s) and the configuration from disk. |
+| .upgrade |           | all     | Owner  | Upgrades the bot to the latest available version.             |
+
 ### Plugin "Admin"
 This plugin supports administrative commands that are needed to operate a DCS server remotely.
 
@@ -176,6 +184,14 @@ Only one out of RESTART_MISSION_TIME or RESTART_LOCAL_TIMES is allowed.
 | RESTART_LOCAL_TIMES  | List of times in the format HH24:MM, when the mission should be restated or rotated (see RESTART_METHOD).                              |
 | RESTART_WARN_TIMES   | List of seconds, when a warning should be issued.                                                                                      |
 | RESTART_WARN_TEXT    | A customizable message that will be sent to the users when a restart is pending.                                                       |
+| RESTART_OPTIONS      | Options that can be applied to the restart method.                                                                                     |
+
+The following RESTART_OPTIONS are supported atm:
+
+| Option         | Description                                                                                                      |
+|----------------|------------------------------------------------------------------------------------------------------------------|
+| NOT_POPULATED  | When used with RESTART_MISSION_TIME, the mission will only be restarted, if no player is in at the restart time. |
+
 
 ### DCS/Hook Configuration
 The DCS World integration is done via a Hook. They are being installed automatically into your configured DCS servers.

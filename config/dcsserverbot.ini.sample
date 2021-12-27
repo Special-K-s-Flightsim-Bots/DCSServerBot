@@ -70,3 +70,5 @@ ADMIN_CHANNEL = 123456789012345678
 ; RESTART_WARN_TIMES = 300, 60, 30
 ; Message to be sent ({} = time in seconds)
 ; RESTART_WARN_TEXT = !!! Server will restart in {} seconds !!!
+; Servers won't be restarted if populated
+; RESTART_OPTIONS = NOT_POPULATED

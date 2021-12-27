@@ -229,7 +229,21 @@ class Main:
         @self.bot.command(description='Upgrades the bot')
         @commands.is_owner()
         async def upgrade(ctx):
-            self.upgrade()
+            if await utils.yn_question(self, ctx,
+                                       'The bot will be upgraded to the latest version.\nAre you sure?') is True:
+                running = False
+                for server_name, server in self.bot.DCSServers:
+                    if server['status'] in ['Running', 'Paused']:
+                        running = True
+                if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
+                                                                  'servers.\nWould you like to shut them down now ('
+                                                                  'Y/N)?') is True:
+                    for server_name, server in self.bot.DCSServers:
+                        self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
+                        server['status'] = 'Shutdown'
+                await ctx.send('Bot upgrade started...\nThe bot will restart itself (and any servers that are '
+                               'configured for autostart) when finished.')
+                self.upgrade()
 
     def upgrade(self):
         try:
