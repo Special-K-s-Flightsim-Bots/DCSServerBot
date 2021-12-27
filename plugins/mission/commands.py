@@ -190,14 +190,14 @@ class Mission(Plugin):
                 await msg.delete()
 
     @staticmethod
-    def format_mission_list(data, marker):
+    def format_mission_list(data, marker, marker_emoji):
         embed = discord.Embed(title='Mission List', color=discord.Color.blue())
         ids = missions = ''
         for i in range(0, len(data)):
             mission = data[i]
             mission = mission[(mission.rfind('\\') + 1):-4]
             if marker == (i + 1):
-                ids += '🔄\n'
+                ids += marker_emoji + '\n'
                 missions += f'**{mission}**\n'
             else:
                 ids += (chr(0x31 + i) + '\u20E3' + '\n')
@@ -220,7 +220,7 @@ class Mission(Plugin):
             if server['status'] in ['Running', 'Paused']:
                 data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                 missions = data['missionList']
-                n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'])
+                n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '🔄')
                 if n >= 0:
                     mission = missions[n]
                     mission = mission[(mission.rfind('\\') + 1):-4]
@@ -230,7 +230,7 @@ class Mission(Plugin):
                 return await ctx.send('Server ' + server['server_name'] + ' is not running.')
 
     @staticmethod
-    def format_file_list(data, marker):
+    def format_file_list(data, marker, marker_emoji):
         embed = discord.Embed(title='Available Missions', color=discord.Color.blue())
         ids = missions = ''
         for i in range(0, len(data)):
@@ -279,8 +279,10 @@ class Mission(Plugin):
             if server['status'] in ['Running', 'Paused']:
                 data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                 missions = data['missionList']
-                n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5)
-                if n >= 0:
+                n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '❌')
+                if n == (data['listStartIndex'] - 1):
+                    await ctx.send('The running mission can\'t be deleted.')
+                elif n >= 0:
                     mission = missions[n]
                     mission = mission[(mission.rfind('\\') + 1):-4]
                     self.bot.sendtoDCS(server, {"command": "deleteMission", "id": n + 1, "channel": ctx.channel.id})

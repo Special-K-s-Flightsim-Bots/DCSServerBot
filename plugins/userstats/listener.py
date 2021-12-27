@@ -31,7 +31,7 @@ class UserStatisticsEventListener(EventListener):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        self.statistics = {}
+        self.statistics = set()
 
     async def processEvent(self, data: dict[str, Union[str, int]]) -> None:
         if (data['command'] == 'registerDCSServer') or \
@@ -66,7 +66,8 @@ class UserStatisticsEventListener(EventListener):
         return id
 
     async def registerDCSServer(self, data):
-        self.statistics[data['server_name']] = data['statistics']
+        if data['statistics']:
+            self.statistics.add(data['server_name'])
 
     async def onMissionLoadEnd(self, data):
         SQL_CLOSE_STATISTICS = 'UPDATE statistics SET hop_off = NOW() WHERE mission_id IN (SELECT id FROM missions ' \
@@ -143,8 +144,7 @@ class UserStatisticsEventListener(EventListener):
     async def disableUserStats(self, data):
         SQL_DELETE_STATISTICS = 'DELETE FROM statistics WHERE mission_id = %s'
         SQL_DELETE_MISSION = 'DELETE FROM missions WHERE id = %s'
-        if data['server_name'] in self.statistics:
-            del self.statistics[data['server_name']]
+        self.statistics.discard(data['server_name'])
         conn = self.pool.getconn()
         try:
             mission_id = self.getCurrentMissionID(data['server_name'])

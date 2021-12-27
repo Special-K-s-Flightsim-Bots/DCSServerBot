@@ -13,6 +13,14 @@ Which plugins you wan't to add is configured during the installation (see below)
 
 __Attention:__ Some plugins require another plugin to be available (Userstats needs Mission for instance).
 
+### General Administrative Commands
+These commands can be used to administrate the bot itself.
+
+| Command  | Parameter | Channel | Role   | Description                                                   |
+|----------|-----------|---------|--------|---------------------------------------------------------------|
+| .reload  | [Plugin]  | all     | Owner  | Reloads one or all plugin(s) and the configuration from disk. |
+| .upgrade |           | all     | Owner  | Upgrades the bot to the latest available version.             |
+
 ### Plugin "Admin"
 This plugin supports administrative commands that are needed to operate a DCS server remotely.
 
