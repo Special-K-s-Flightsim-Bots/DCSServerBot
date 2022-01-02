@@ -33,7 +33,6 @@ class MissionEventListener(EventListener):
         super().__init__(bot)
         self.bot.player_data = {}
         self.executor = bot.executor
-        self.restart_pending = False
 
     # Return a player from the internal list
     # TODO: change player data handling!
@@ -160,11 +159,11 @@ class MissionEventListener(EventListener):
                     name = re.sub('［.*］', f'［-］', name)
             else:
                 current = len(players) + 1
-                max = self.bot.DCSServers[data['server_name']]['serverSettings']['maxPlayers']
+                max_players = self.bot.DCSServers[data['server_name']]['serverSettings']['maxPlayers']
                 if name.find('［') == -1:
-                    name = name + f'［{current}／{max}］'
+                    name = name + f'［{current}／{max_players}］'
                 else:
-                    name = re.sub('［.*］', f'［{current}／{max}］', name)
+                    name = re.sub('［.*］', f'［{current}／{max_players}］', name)
             await channel.edit(name=name)
 
     def updateMission(self, data):
@@ -187,26 +186,28 @@ class MissionEventListener(EventListener):
             return
         server = self.bot.DCSServers[data['server_name']]
         server['airbases'] = data['airbases']
-        self.restart_pending = False
+        server['restart_pending'] = False
         self.bot.sendtoDCS(server, {"command": "getRunningMission", "channel": server['status_channel']})
 
     async def getRunningMission(self, data):
-        server = self.bot.DCSServers[data['server_name']]
+        server_name = data['server_name']
+        server = self.bot.DCSServers[server_name]
         if 'pause' in data:
             server['status'] = 'Paused' if data['pause'] is True else 'Running'
         # check if we have to restart the mission
         installation = server['installation']
-        if 'restartScheduler' not in server:
+        if 'restartScheduler' not in server and not server['restart_pending']:
             # check if a restart should be executed relative to mission start
             if ('RESTART_MISSION_TIME' in self.config[installation]) and (
                     data['mission_time'] > int(self.config[installation]['RESTART_MISSION_TIME']) * 60):
                 if 'RESTART_OPTIONS' in self.config[installation]:
                     options = [x.upper().strip() for x in self.config[installation]['RESTART_OPTIONS'].split(',')]
-                    if 'NOT_POPULATED' in options and len(self.bot.player_data[data['server_name']]) > 0:
-                        self.log.debug(f"Scheduled restart of server \"{data['server_name']}\""
+                    players = self.bot.player_data[server_name]
+                    if 'NOT_POPULATED' in options and len(players[players['active'] == True]) > 0:
+                        self.log.debug(f"Scheduled restart of server \"{server_name}\""
                                        f" postponed due to server population.")
-                        self.restart_pending = True
-                if not self.restart_pending:
+                        server['restart_pending'] = True
+                if not server['restart_pending']:
                     self.do_scheduled_restart(server, self.config[installation]['RESTART_METHOD'])
             elif 'RESTART_LOCAL_TIMES' in self.config[installation]:
                 now = datetime.now()
@@ -221,10 +222,10 @@ class MissionEventListener(EventListener):
                         times.append(check + timedelta(days=1))
                 if len(times):
                     self.do_scheduled_restart(
-                        server, self.config[installation]['RESTART_METHOD'], (times[0] - now).total_seconds())
+                        server, self.config[installation]['RESTART_METHOD'], int((times[0] - now).total_seconds()))
                 else:
                     self.log.warning(
-                        f'Configuration mismatch! RESTART_LOCAL_TIMES not set correctly for server {server["server_name"]}.')
+                        f'Configuration mismatch! RESTART_LOCAL_TIMES not set correctly for server {server_name}.')
         embed = utils.format_mission_embed(self, data)
         if embed:
             return await self.bot.setEmbed(data, 'mission_embed', embed)
@@ -322,6 +323,7 @@ class MissionEventListener(EventListener):
                     "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(name, data['server_name']),
                     "to": data['id']
                 })
+            self.updatePlayer(data)
             self.updateMission(data)
             await self.displayPlayerList(data)
         return None
@@ -370,14 +372,14 @@ class MissionEventListener(EventListener):
                     else:
                         await chat_channel.send('{} player {} disconnected'.format(
                             const.PLAYER_SIDES[player['side']], player['name']))
-                self.updateMission(data)
                 self.removePlayer(data)
-                await self.displayPlayerList(data)
+                self.updateMission(data)
                 # if no player is in the server anymore and we have a pending restart, restart the server
-                if len(self.bot.player_data[server_name]) == 0 and self.restart_pending:
+                players = self.bot.player_data[data['server_name']]
+                if len(players[players['active'] == True]) == 0 and self.bot.DCSServers[server_name]['restart_pending']:
                     server = self.bot.DCSServers[server_name]
-                    self.do_scheduled_restart(server, self.config[server['installation']]['RESTART_METHOD'])
-                    self.restart_pending = False
+                    self.bot.sendtoDCS(server, {"command": "restartMission", "channel": "-1"})
+                await self.displayPlayerList(data)
         elif data['eventName'] == 'friendly_fire':
             player1 = self.get_player(server_name, data['arg1'])
             if data['arg3'] != -1:

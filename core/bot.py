@@ -5,6 +5,7 @@ import json
 import platform
 import psycopg2
 import socket
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
 from core import utils
@@ -85,7 +86,7 @@ class DCSServerBot(commands.Bot):
             except asyncio.TimeoutError:
                 if ('AUTOSTART_DCS' in self.config[installation]) and (
                         self.config.getboolean(installation, 'AUTOSTART_DCS') is True):
-                    self.log.info(f'  => Starting DCS server "{server_name}" ...')
+                    self.log.info(f'  => Launching DCS server "{server_name}" ...')
                     utils.start_dcs(self, installation)
                     server['status'] = 'Loading'
                 else:
@@ -94,7 +95,7 @@ class DCSServerBot(commands.Bot):
                 if ('AUTOSTART_SRS' in self.config[installation]) and (
                         self.config.getboolean(installation, 'AUTOSTART_SRS') is True):
                     if utils.isOpen(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT']) is False:
-                        self.log.info(f'  => Starting DCS-SRS server "{server_name}" ...')
+                        self.log.info(f'  => Launching DCS-SRS server "{server_name}" ...')
                         utils.start_srs(self, installation)
 
     def load_plugin(self, plugin):
@@ -179,7 +180,7 @@ class DCSServerBot(commands.Bot):
 
     def sendtoDCSSync(self, server, message, timeout=5):
         future = self.loop.create_future()
-        token = 'sync-' + str(id(future))
+        token = 'sync-' + str(uuid.uuid4())
         message['channel'] = token
         self.sendtoDCS(server, message)
         try:
