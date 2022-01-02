@@ -163,7 +163,8 @@ class Main:
                 continue
             self.log.info(f'  => {installation}')
             dcs_path = os.path.expandvars(self.config[installation]['DCS_HOME'] + '\\Scripts')
-            assert path.exists(dcs_path), 'Can\'t find DCS installation directory. Exiting.'
+            if not path.exists(dcs_path):
+                os.mkdir(dcs_path)
             ignore = None
             if path.exists(dcs_path + r'\net\DCSServerBot'):
                 self.log.debug('  - Updating Hook ...')
