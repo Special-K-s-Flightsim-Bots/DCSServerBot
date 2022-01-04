@@ -183,17 +183,12 @@ class DCSServerBot(commands.Bot):
         token = 'sync-' + str(uuid.uuid4())
         message['channel'] = token
         self.sendtoDCS(server, message)
-        try:
-            listeners = self.listeners[message['command']]
-        except KeyError:
-            listeners = []
-            self.listeners[message['command']] = listeners
-        listeners.append((future, token))
+        self.listeners[token] = future
         return asyncio.wait_for(future, timeout)
 
-    def get_bot_channel(self, data, type='status_channel'):
+    def get_bot_channel(self, data, channel_type='status_channel'):
         if int(data['channel']) == -1:
-            return self.get_channel(int(self.DCSServers[data['server_name']][type]))
+            return self.get_channel(int(self.DCSServers[data['server_name']][channel_type]))
         else:
             return self.get_channel(int(data['channel']))
 
@@ -256,21 +251,11 @@ class DCSServerBot(commands.Bot):
                             results.append(result)
                     except BaseException as ex:
                         self.log.exception(ex)
-                listeners = self.listeners.get(command)
-                if listeners:
-                    removed = []
-                    for i, (f, token) in enumerate(listeners):
-                        if f.cancelled():
-                            removed.append(i)
-                            continue
-                        if token == dt['channel']:
-                            self.loop.call_soon_threadsafe(f.set_result, results[0] if len(results) > 0 else None)
-                            removed.append(i)
-                    if len(removed) == len(listeners):
-                        self.listeners.pop(command)
-                    else:
-                        for idx in reversed(removed):
-                            del listeners[idx]
+                if dt['channel'].startswith('sync') and dt['channel'] in self.listeners:
+                    f = self.listeners[dt['channel']]
+                    if not f.cancelled():
+                        f.get_loop().call_soon_threadsafe(f.set_result, results[0] if len(results) > 0 else None)
+                    del self.listeners[dt['channel']]
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address, request_handler):
