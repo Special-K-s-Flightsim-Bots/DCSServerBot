@@ -11,8 +11,8 @@ from .listener import MissionEventListener
 
 class Mission(Plugin):
 
-    def __init__(self, bot, listener):
-        super().__init__(bot, listener)
+    def __init__(self, plugin, bot, listener):
+        super().__init__(plugin, bot, listener)
         self.update_mission_status.start()
 
     def cog_unload(self):
@@ -329,4 +329,4 @@ class Mission(Plugin):
 
 
 def setup(bot: DCSServerBot):
-    bot.add_cog(Mission(bot, MissionEventListener(bot)))
+    bot.add_cog(Mission('mission', bot, MissionEventListener(bot)))

@@ -7,4 +7,4 @@ class MissionStatistics(Plugin):
 
 
 def setup(bot: DCSServerBot):
-    bot.add_cog(MissionStatistics(bot, MissionStatisticsEventListener(bot)))
+    bot.add_cog(MissionStatistics('missionstats', bot, MissionStatisticsEventListener(bot)))

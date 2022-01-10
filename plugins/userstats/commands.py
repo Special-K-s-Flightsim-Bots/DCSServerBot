@@ -34,8 +34,8 @@ class MasterUserStatistics(AgentUserStatistics):
         6: 'Sun'
     }
 
-    def __init__(self, bot, listener):
-        super().__init__(bot, listener)
+    def __init__(self, plugin, bot, listener):
+        super().__init__(plugin, bot, listener)
         plt.switch_backend('agg')
         # Make sure we only get back floats, not Decimal
         dec2float = psycopg2.extensions.new_type(
@@ -1221,6 +1221,6 @@ def setup(bot: DCSServerBot):
         raise PluginRequiredError('mission')
     listener = UserStatisticsEventListener(bot)
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(MasterUserStatistics(bot, listener))
+        bot.add_cog(MasterUserStatistics('userstats', bot, listener))
     else:
-        bot.add_cog(AgentUserStatistics(bot, listener))
+        bot.add_cog(AgentUserStatistics('userstats', bot, listener))
