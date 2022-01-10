@@ -393,9 +393,10 @@ def format_mission_embed(self, mission):
         embed.add_field(name='▬' * 25, value='_ _', inline=False)
     if 'SRSSettings' in server:
         plugins.append('SRS')
-        if 'EXTERNAL_AWACS_MODE' in server['SRSSettings'] and server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True:
+        if 'EXTERNAL_AWACS_MODE' in server['SRSSettings'] and 'EXTERNAL_AWACS_MODE_BLUE_PASSWORD' in server['SRSSettings'] and 'EXTERNAL_AWACS_MODE_RED_PASSWORD' in server['SRSSettings'] and server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True:
             value = '🔹 Pass: {}\n🔸 Pass: {}'.format(
-                server['SRSSettings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'], server['SRSSettings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'])
+                server['SRSSettings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'],
+                server['SRSSettings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'])
         else:
             value = '_ _'
         embed.add_field(name='SRS [{}]'.format(

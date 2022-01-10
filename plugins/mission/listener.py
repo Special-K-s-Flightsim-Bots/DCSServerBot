@@ -112,7 +112,9 @@ class MissionEventListener(EventListener):
         self.loop.run_in_executor(self.executor, s.run)
 
     async def sendMessage(self, data):
-        return await self.bot.get_bot_channel(data, 'chat_channel' if (data['channel'] == '-1') else None).send(data['message'])
+        channel = self.bot.get_bot_channel(data, 'chat_channel' if (data['channel'] == '-1') else None)
+        if channel:
+            await channel.send(data['message'])
 
     async def sendEmbed(self, data):
         embed = discord.Embed(color=discord.Color.blue())
