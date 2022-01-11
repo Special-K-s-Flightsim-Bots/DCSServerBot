@@ -23,8 +23,8 @@ class Agent(Plugin):
         'Stopped': '⏹️'
     }
 
-    def __init__(self, bot, listener):
-        super().__init__(bot, listener)
+    def __init__(self, plugin, bot, listener):
+        super().__init__(plugin, bot, listener)
         self.update_bot_status.start()
 
     def cog_unload(self):
@@ -507,6 +507,6 @@ class Master(Agent):
 def setup(bot: DCSServerBot):
     listener = AdminEventListener(bot)
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(Master(bot, listener))
+        bot.add_cog(Master('admin', bot, listener))
     else:
-        bot.add_cog(Agent(bot, listener))
+        bot.add_cog(Agent('admin', bot, listener))

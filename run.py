@@ -17,7 +17,7 @@ from os import path
 from psycopg2 import pool
 
 # Set the bot's version (not externally configurable)
-BOT_VERSION = '2.5.2'
+BOT_VERSION = '2.5.3'
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -84,37 +84,33 @@ class Main:
         if self.config.getboolean('BOT', 'MASTER') is True:
             conn = db_pool.getconn()
             try:
-                # check if there is a database already
-                db_version = None
                 with suppress(Exception):
                     with closing(conn.cursor()) as cursor:
+                        # check if there is an old database already
                         cursor.execute(
-                            'SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename in (\'servers\', \'version\')')
-                        cnt = cursor.fetchone()[0]
-                        if cnt > 0:
-                            if cnt == 2:
-                                cursor.execute('SELECT version FROM version')
-                                db_version = cursor.fetchone()[0]
-                            elif cnt == 1:
-                                db_version = 'v1.0'
-                            while path.exists(UPDATES_SQL.format(db_version)):
-                                self.log.info('Upgrading Database version {} ...'.format(db_version))
+                            "SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename = 'version'")
+                        while cursor.fetchone()[0] == 1:
+                            cursor.execute('SELECT version FROM version')
+                            db_version = cursor.fetchone()[0]
+                            if path.exists(UPDATES_SQL.format(db_version)):
+                                self.log.info('Updating Database version {} ...'.format(db_version))
                                 with open(UPDATES_SQL.format(db_version)) as tables_sql:
                                     for query in tables_sql.readlines():
                                         self.log.debug(query.rstrip())
                                         cursor.execute(query.rstrip())
-                                cursor.execute('SELECT version FROM version')
-                                db_version = cursor.fetchone()[0]
-                                self.log.info('Database upgraded to version {}.'.format(db_version))
-                    # no, create one
-                    if db_version is None:
-                        self.log.info('Initializing Database ...')
-                        with closing(conn.cursor()) as cursor:
+                                self.log.info('Database updated.'.format(db_version))
+                            cursor.execute(
+                                "SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename = 'version'")
+                        # check if the new database is already setup
+                        cursor.execute(
+                            "SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename = 'plugins'")
+                        if cursor.fetchone()[0] == 0:
+                            self.log.info('Initializing Database ...')
                             with open(TABLES_SQL) as tables_sql:
                                 for query in tables_sql.readlines():
                                     self.log.debug(query.rstrip())
                                     cursor.execute(query.rstrip())
-                        self.log.info('Database initialized.')
+                            self.log.info('Database initialized.')
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
