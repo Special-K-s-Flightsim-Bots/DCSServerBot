@@ -3,12 +3,16 @@
 -- This code can be loaded inside of DCS missions to
 -- allow the communication with DCSServerBot.
 -----------------------------------------------------
+local base  	= _G
 
 -- load the configuration
 dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBotConfig.lua')
+local config = require('DCSServerBotConfig')
 loadfile(lfs.writedir() .. 'Config/serverSettings.lua')()
 
 local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
+
+dcsbot = dcsbot or {}
 
 package.path  = package.path..";.\\LuaSocket\\?.lua;"
 package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
@@ -33,7 +37,7 @@ function dcsbot.sendBotTable(tbl, channel)
 	tbl.server_name = cfg.name
 	tbl.channel = channel or "-1"
 	local tbl_json_txt = JSON:encode(tbl)
-	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, dcsbot.config.BOT_HOST, dcsbot.config.BOT_PORT))
+	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, config.BOT_HOST, config.BOT_PORT))
 end
 
 function dcsbot.sendEmbed(title, description, img, fields, footer, channel)
@@ -71,6 +75,7 @@ function dcsbot.shutdown()
 end
 
 function dcsbot.restartMission()
+	local msg = {}
 	msg.command = 'restartMission'
 	dcsbot.callback(msg)
 end
@@ -225,8 +230,10 @@ function dcsbot.disableUserStats()
 	dcsbot.sendBotTable(msg, channel)
 end
 
--- MISSION HOOK REGISTRATION
-env.info('DCSServerBot - Mission Hook installed.')
-local msg = {}
-msg.command = 'registerMissionHook'
-dcsbot.sendBotTable(msg)
+do
+	-- MISSION HOOK REGISTRATION
+	env.info('DCSServerBot - Mission Hook installed.')
+	local msg = {}
+	msg.command = 'registerMissionHook'
+	dcsbot.sendBotTable(msg)
+end

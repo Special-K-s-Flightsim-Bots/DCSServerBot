@@ -297,7 +297,7 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             if server['status'] == 'Running':
-                self.bot.sendtoDCS(server, {"command": "pause", "channel": ctx.channel.id})
+                self.bot.sendtoDCS(server, {"command": "pauseMission", "channel": ctx.channel.id})
                 await ctx.send('Server "{}" paused.'.format(server['server_name']))
             else:
                 await ctx.send('Server "{}" is not running.'.format(server['server_name']))
@@ -309,7 +309,7 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             if server['status'] == 'Paused':
-                self.bot.sendtoDCS(server, {"command": "unpause", "channel": ctx.channel.id})
+                self.bot.sendtoDCS(server, {"command": "unpauseMission", "channel": ctx.channel.id})
                 await ctx.send('Server "{}" unpaused.'.format(server['server_name']))
             elif server['status'] == 'Running':
                 await ctx.send('Server "{}" is already running.'.format(server['server_name']))

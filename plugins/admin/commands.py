@@ -164,7 +164,7 @@ class Agent(Plugin):
             self.bot.sendtoDCS(server, {"command": "kick", "name": name, "reason": reason})
             await ctx.send(f'User "{name}" kicked.')
             await self.bot.audit(f'User {ctx.message.author.display_name} kicked player {name}' +
-                                 f' with reason "{reason}".' if reason != 'n/a' else '.')
+                                 (f' with reason "{reason}".' if reason != 'n/a' else '.'))
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
     @utils.has_role('DCS Admin')

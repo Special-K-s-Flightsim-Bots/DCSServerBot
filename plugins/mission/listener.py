@@ -11,14 +11,6 @@ from datetime import timedelta, datetime
 
 class MissionEventListener(EventListener):
 
-    STATUS_IMG = {
-        'Loading': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
-        'Paused': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
-        'Running': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe3e40f0b6156700004f/traffic-light-green.jpg',
-        'Stopped': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg',
-        'Shutdown': 'https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg'
-    }
-
     EVENT_TEXTS = {
         'takeoff': '{} player {} took off from {}.',
         'landing': '{} player {} landed at {}.',
@@ -192,6 +184,8 @@ class MissionEventListener(EventListener):
         self.bot.sendtoDCS(server, {"command": "getRunningMission", "channel": server['status_channel']})
 
     async def getRunningMission(self, data):
+        if data['channel'].startswith('sync'):
+            return data
         server_name = data['server_name']
         server = self.bot.DCSServers[server_name]
         if 'pause' in data:
@@ -257,6 +251,7 @@ class MissionEventListener(EventListener):
     async def onMissionLoadEnd(self, data):
         server = self.bot.DCSServers[data['server_name']]
         server['status'] = 'Paused'
+        server['airbases'] = data['airbases']
         return await self.getRunningMission(data)
 
     async def onSimulationStop(self, data):
@@ -427,7 +422,7 @@ class MissionEventListener(EventListener):
                         await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                             const.PLAYER_SIDES[player['side']], player['name']))
         else:
-            self.log.debug('Unhandled event: ' + data['eventName'])
+            self.log.debug(f"MissionEventListener: Unhandled event: {data['eventName']}")
         return None
 
     async def onChatMessage(self, data):

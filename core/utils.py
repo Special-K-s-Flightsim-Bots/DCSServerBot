@@ -341,7 +341,7 @@ def format_mission_embed(self, mission):
                                                         ('"' + mission['current_mission'] + '"') if server['status'] in ['Running', 'Paused'] else ('_' + server['status'] + '_')),
                           color=discord.Color.blue())
 
-    embed.set_thumbnail(url=self.STATUS_IMG[server['status']])
+    embed.set_thumbnail(url=const.STATUS_IMG[server['status']])
     embed.add_field(name='Map', value=mission['current_map'])
     embed.add_field(name='Server-IP / Port', value=self.bot.external_ip + ':' + str(server['serverSettings']['port']))
     if len(server['serverSettings']['password']) > 0:

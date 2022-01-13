@@ -63,9 +63,6 @@ class MissionStatisticsEventListener(EventListener):
         self.log.debug('Active Mission is using the DCSServerBot Mission Hook.')
         self.bot.DCSServers[data['server_name']]['MissionHook'] = True
 
-    async def onMissionLoadEnd(self, data):
-        self.bot.DCSServers[data['server_name']]['airbases'] = data['airbases']
-
     async def onMissionEvent(self, data):
         if data['server_name'] in self.mission_stats:
             stats = self.mission_stats[data['server_name']]

@@ -1,11 +1,13 @@
 import psycopg2
 import psycopg2.extras
 import string
+from core import utils
 from contextlib import closing
+from discord.ext import commands
 from os import path
+from shutil import ignore_patterns, copytree
 from .bot import DCSServerBot
 from .listener import EventListener
-from discord.ext import commands
 
 
 class Plugin(commands.Cog):
@@ -29,6 +31,16 @@ class Plugin(commands.Cog):
         self.log.debug(f'- Plugin {type(self).__name__} unloaded.')
 
     def install(self):
+        self.init_db()
+        ignore = ignore_patterns('*.sql', '*.py', '__*__')
+        for server_name in self.bot.DCSServers.keys():
+            installation = utils.findDCSInstallations(server_name)[0]
+            source_path = f'./plugins/{self.plugin}/'
+            target_path = path.expandvars(self.config[installation]['DCS_HOME'] + f'\\Scripts\\net\\DCSServerBot\\{self.plugin}\\')
+            copytree(source_path, target_path, dirs_exist_ok=True, ignore=ignore)
+            self.log.debug(f'  => Luas installed into server {server_name}')
+
+    def init_db(self):
         tables_file = f'./plugins/{self.plugin}/tables.sql'
         if path.exists(tables_file):
             conn = self.pool.getconn()
@@ -59,7 +71,6 @@ class Plugin(commands.Cog):
                 self.log.exception(error)
             finally:
                 self.pool.putconn(conn)
-
 
 class PluginRequiredError(Exception):
 

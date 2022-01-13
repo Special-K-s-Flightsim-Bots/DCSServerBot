@@ -257,5 +257,5 @@ class UserStatisticsEventListener(EventListener):
                     finally:
                         self.pool.putconn(conn)
         else:
-            self.log.debug('Unhandled event: ' + data['eventName'])
+            self.log.debug(f"UserStatisticsEventListener: Unhandled event: {data['eventName']}")
         return None

@@ -17,7 +17,7 @@ from os import path
 from psycopg2 import pool
 
 # Set the bot's version (not externally configurable)
-BOT_VERSION = '2.5.3'
+BOT_VERSION = '2.5.4'
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -64,7 +64,7 @@ class Main:
         log.addHandler(fh)
         ch = logging.StreamHandler()
         # TODO: Change back to INFO
-        ch.setLevel(logging.INFO)
+        ch.setLevel(logging.DEBUG)
         log.addHandler(ch)
         return log
 
@@ -164,12 +164,13 @@ class Main:
             ignore = None
             if path.exists(dcs_path + r'\net\DCSServerBot'):
                 self.log.debug('  - Updating Hook ...')
+                shutil.rmtree(dcs_path + r'\net\DCSServerBot')
                 ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
             else:
                 self.log.debug('  - Installing Hook ...')
             shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
             try:
-                with open(r'.\Scripts\net\DCSServerBot\DCSServerBotConfig.lua.tmpl', 'r') as template:
+                with open(r'Scripts/net/DCSServerBot/DCSServerBotConfig.lua.tmpl', 'r') as template:
                     with open(dcs_path + r'\net\DCSServerBot\DCSServerBotConfig.lua', 'w') as outfile:
                         for line in template.readlines():
                             s = line.find('{')
