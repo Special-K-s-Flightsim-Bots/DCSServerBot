@@ -224,15 +224,24 @@ function dcsbot.enableMissionStats()
 	env.info('Mission Statistics enabled.')
 end
 
+function dcsbot.disableMissionStats()
+	dcsbot.eventHandler = world.removeEventHandler(dcsbot.eventHandler)
+	env.info('Mission Statistics disabled.')
+end
+
 function dcsbot.disableUserStats()
 	local msg = {}
 	msg.command = 'disableUserStats'
 	dcsbot.sendBotTable(msg, channel)
+	env.info('User Statistics disabled.')
 end
 
 do
 	-- MISSION HOOK REGISTRATION
 	env.info('DCSServerBot - Mission Hook installed.')
+	if config.MISSION_STATISTICS then
+		dcsbot.enableMissionStats()
+	end
 	local msg = {}
 	msg.command = 'registerMissionHook'
 	dcsbot.sendBotTable(msg)

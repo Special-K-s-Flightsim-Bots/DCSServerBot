@@ -14,6 +14,7 @@ module('DCSServerBotUtils')
 local loadfile 		= base.loadfile
 local net			= base.net
 local package		= base.package
+local pairs			= base.pairs
 local require		= base.require
 local string 		= base.string
 local tonumber		= base.tonumber

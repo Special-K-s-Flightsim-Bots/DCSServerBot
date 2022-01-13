@@ -9,6 +9,7 @@ local utils 	= base.require("DCSServerBotUtils")
 local config	= base.require("DCSServerBotConfig")
 
 function dcsbot.sample(json)
+    log.write('DCSServerBot', log.DEBUG, 'Sample: sample()')
     local msg = {}
     msg.command = 'sample'
     msg.message = json.message

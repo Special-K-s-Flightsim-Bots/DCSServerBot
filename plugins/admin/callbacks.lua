@@ -15,6 +15,7 @@ end
 local admin = admin or {}
 
 function admin.onPlayerTryConnect(addr, name, ucid, playerID)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerTryConnect()')
 	local msg = {}
 	-- we don't accept empty player IDs
 	if name == nil or trim(name) == '' then
@@ -33,21 +34,21 @@ function admin.onPlayerTryConnect(addr, name, ucid, playerID)
 end
 
 function admin.onPlayerConnect(id)
-    log.write('DCSServerBot', log.DEBUG, 'onPlayerConnect()')
+    log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerConnect()')
 	if (dcsbot.registered == false) then
 		dcsbot.registerDCSServer()
 	end
 end
 
 function admin.onPlayerStart(id)
-    log.write('DCSServerBot', log.DEBUG, 'onPlayerStart()')
+    log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerStart()')
 	if (dcsbot.registered == false) then
 		dcsbot.registerDCSServer()
 	end
 end
 
 function admin.onSimulationStop()
-    log.write('DCSServerBot', log.DEBUG, 'onSimulationStop()')
+    log.write('DCSServerBot', log.DEBUG, 'Admin: onSimulationStop()')
     -- re-register the DCS server after a new start (as parameters might have changed)
     dcsbot.registered = false
 end

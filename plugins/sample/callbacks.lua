@@ -7,6 +7,7 @@ local sample = {}
 -- Overwrite any Hook unction in here that you want to handle.
 -- Make sure that sending a message back to the bot has to be unique!
 function sample.onChatMessage(message, from)
+    log.write('DCSServerBot', log.DEBUG, 'Sample: onChatMessage()')
 	local msg = {}
 	msg.command = 'sample'
 	msg.message = message

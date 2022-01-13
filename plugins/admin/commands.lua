@@ -11,7 +11,7 @@ dcsbot.registered = false
 dcsbot.banList = {}
 
 function dcsbot.registerDCSServer(json)
-    log.write('DCSServerBot', log.DEBUG, '> registerDCSServer()')
+    log.write('DCSServerBot', log.DEBUG, 'Admin: registerDCSServer()')
 	-- load the servers configuration (SRS, et al)
 	local f = io.open(lfs.writedir() .. 'Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua', 'r')
 	if f then
@@ -112,29 +112,32 @@ function dcsbot.registerDCSServer(json)
         utils.sendBotTable(msg)
     end
     dcsbot.registered = true
-    log.write('DCSServerBot', log.DEBUG, '< registerDCSServer()')
 end
 
 function dcsbot.shutdown(json)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: shutdown()')
 	DCS.exitProcess()
 end
 
 function dcsbot.kick(json)
-  plist = net.get_player_list()
-	for i = 1, table.getn(plist) do
+    log.write('DCSServerBot', log.DEBUG, 'Admin: kick()')
+    plist = net.get_player_list()
+    for i = 1, table.getn(plist) do
         if ((json.ucid and net.get_player_info(plist[i], 'ucid') == json.ucid) or (json.name and net.get_player_info(plist[i], 'name') == json.name)) then
             net.kick(plist[i], json.reason)
             break
         end
-	end
+    end
 end
 
 function dcsbot.ban(json)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: ban()')
     dcsbot.banList[json.ucid] = true
     dcsbot.kick(json)
 end
 
 function dcsbot.unban(json)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: unban()')
 	dcsbot.banList[json.ucid] = nil
 end
 

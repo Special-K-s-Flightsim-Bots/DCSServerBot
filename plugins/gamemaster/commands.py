@@ -1,48 +1,63 @@
 from core import DCSServerBot, Plugin, utils
 from discord.ext import commands
-from .listener import SampleEventListener
+from .listener import GameMasterEventListener
 
 
-class Sample(Plugin):
-    """
-    A class where all your discord commands should go.
+class GameMaster(Plugin):
 
-    If you need a specific initialization, make sure that you call super().__init__() after it, to
-    assure a proper initialization of the plugin.
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        for key, value in self.bot.DCSServers.items():
+            if value["chat_channel"] == message.channel.id:
+                if message.content.startswith(self.config['BOT']['COMMAND_PREFIX']) is False:
+                    message.content = self.config['BOT']['COMMAND_PREFIX'] + 'chat ' + message.content
+                    await self.bot.process_commands(message)
 
-    Attributes
-    ----------
-    plugin : str
-        The name of this plugin. Must match the directory it is stored in.
-    bot: DCSServerBot
-        The discord bot instance.
-    listener : EventListener
-        A listener class to receive events from DCS.
-
-    Methods
-    -------
-    sample(ctx, text)
-        Send the text to DCS, which will return the same text again (echo).
-    """
-
-    def __init__(self, plugin, bot, listener):
-        super().__init__(plugin, bot, listener)
-        # Do whatever is needed to initialize your plugin.
-        # You usually don't need to implement this function
-
-    @commands.command(description='This is a sample command.')
+    @commands.command(description='Send a chat message to a running DCS instance', usage='<message>', hidden=True)
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def sample(self, ctx, text):
-        # the server to run the command on will be determined from the channel where you called the command in
+    async def chat(self, ctx, *args):
         server = await utils.get_server(self, ctx)
-        # Calls can be done async (default) or synchronous, which means we will wait for a response from DCS
-        data = self.bot.sendtoDCSSync(server, {
-            "command": "sample",        # command name
-            "channel": ctx.channel.id   # the channel where the response should go to
-        })
-        await ctx.send(data['text'])
+        if server and server['status'] == 'Running':
+            self.bot.sendtoDCS(server, {
+                "command": "sendChatMessage",
+                "channel": ctx.channel.id,
+                "message": ' '.join(args),
+                "from": ctx.message.author.display_name
+            })
+
+    @commands.command(description='Sends a popup to a coalition', usage='<coalition> <message>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def popup(self, ctx, to, *args):
+        server = await utils.get_server(self, ctx)
+        if server:
+            if to not in ['all', 'red', 'blue']:
+                await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}popup all|red|blue <message>")
+            elif server['status'] == 'Running':
+                self.bot.sendtoDCS(server, {
+                    "command": "sendPopupMessage",
+                    "channel": ctx.channel.id,
+                    "message": ' '.join(args),
+                    "from": ctx.message.author.display_name, "to": to.lower()
+                })
+                await ctx.send('Message sent.')
+            else:
+                await ctx.send(f"Mission is {server['status'].lower()}, message discarded.")
+
+    @commands.command(description='Send a chat message to a running DCS instance', usage='<message>', hidden=True)
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def flag(self, ctx, flag, value=None):
+        server = await utils.get_server(self, ctx)
+        if server and server['status'] == 'Running':
+            self.bot.sendtoDCS(server, {
+                "command": "setFlag",
+                "channel": ctx.channel.id,
+                "flag": flag,
+                "value": value
+            })
 
 
 def setup(bot: DCSServerBot):
-    bot.add_cog(Sample('sample', bot, SampleEventListener(bot)))
+    bot.add_cog(GameMaster('gamemaster', bot, GameMasterEventListener(bot)))

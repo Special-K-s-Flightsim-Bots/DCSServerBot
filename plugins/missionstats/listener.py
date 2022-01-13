@@ -59,10 +59,6 @@ class MissionStatisticsEventListener(EventListener):
                 embed.add_field(name=coalition, value=value)
             return await self.bot.setEmbed(data, 'stats_embed', embed)
 
-    async def registerMissionHook(self, data):
-        self.log.debug('Active Mission is using the DCSServerBot Mission Hook.')
-        self.bot.DCSServers[data['server_name']]['MissionHook'] = True
-
     async def onMissionEvent(self, data):
         if data['server_name'] in self.mission_stats:
             stats = self.mission_stats[data['server_name']]

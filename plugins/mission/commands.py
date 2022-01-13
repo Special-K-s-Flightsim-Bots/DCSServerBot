@@ -19,38 +19,6 @@ class Mission(Plugin):
         self.update_mission_status.cancel()
         super().cog_unload(self)
 
-    @commands.command(description='Send a chat message to a running DCS instance', usage='<message>', hidden=True)
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def chat(self, ctx, *args):
-        server = await utils.get_server(self, ctx)
-        if server:
-            self.bot.sendtoDCS(server, {
-                "command": "sendChatMessage",
-                "channel": ctx.channel.id,
-                "message": ' '.join(args),
-                "from": ctx.message.author.display_name
-            })
-
-    @commands.command(description='Sends a popup to a coalition', usage='<coalition> <message>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def popup(self, ctx, to, *args):
-        server = await utils.get_server(self, ctx)
-        if server:
-            if to not in ['all', 'red', 'blue']:
-                await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}popup all|red|blue <message>")
-            elif server['status'] == 'Running':
-                self.bot.sendtoDCS(server, {
-                    "command": "sendPopupMessage",
-                    "channel": ctx.channel.id,
-                    "message": ' '.join(args),
-                    "from": ctx.message.author.display_name, "to": to.lower()
-                })
-                await ctx.send('Message sent.')
-            else:
-                await ctx.send(f"Mission is {server['status'].lower()}, message discarded.")
-
     @commands.command(description='Shows the active DCS mission', hidden=True)
     @utils.has_role('DCS Admin')
     @commands.guild_only()

@@ -9,7 +9,7 @@ local config	= base.require("DCSServerBotConfig")
 local mission = mission or {}
 
 function mission.onMissionLoadBegin()
-    log.write('mission', log.DEBUG, 'onMissionLoadBegin()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadBegin()')
 	dcsbot.SlotsData['coalitions'] = nil
 	local msg = {}
 	msg.command = 'onMissionLoadBegin'
@@ -24,7 +24,7 @@ function mission.onMissionLoadBegin()
 end
 
 function mission.onMissionLoadEnd()
-    log.write('mission', log.DEBUG, 'onMissionLoadEnd()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadEnd()')
     local msg = {}
     msg.command = 'onMissionLoadEnd'
     msg.current_mission = DCS.getMissionName()
@@ -110,7 +110,7 @@ function mission.onMissionLoadEnd()
 end
 
 function mission.onPlayerConnect(id)
-    log.write('mission', log.DEBUG, 'onPlayerConnect()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerConnect()')
 	local msg = {}
 	msg.command = 'onPlayerConnect'
 	msg.id = id
@@ -127,7 +127,7 @@ function mission.onPlayerConnect(id)
 end
 
 function mission.onPlayerStart(id)
-    log.write('mission', log.DEBUG, 'onPlayerStart()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerStart()')
 	local msg = {}
 	msg.command = 'onPlayerStart'
 	msg.id = id
@@ -144,7 +144,7 @@ function mission.onPlayerStart(id)
 end
 
 function mission.onPlayerStop(id)
-    log.write('mission', log.DEBUG, 'onPlayerStop()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerStop()')
     local msg = {}
     msg.command = 'onPlayerStop'
     msg.id = id
@@ -155,7 +155,7 @@ function mission.onPlayerStop(id)
 end
 
 function mission.onPlayerChangeSlot(id)
-    log.write('mission', log.DEBUG, 'onPlayerChangeSlot()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerChangeSlot()')
     local msg = {}
     msg.command = 'onPlayerChangeSlot'
     msg.id = id
@@ -170,35 +170,35 @@ function mission.onPlayerChangeSlot(id)
 end
 
 function mission.onSimulationStart()
-    log.write('mission', log.DEBUG, 'onSimulationStart()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationStart()')
     local msg = {}
     msg.command = 'onSimulationStart'
     utils.sendBotTable(msg)
 end
 
 function mission.onSimulationStop()
-    log.write('mission', log.DEBUG, 'onSimulationStop()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationStop()')
     local msg = {}
     msg.command = 'onSimulationStop'
     utils.sendBotTable(msg)
 end
 
 function mission.onSimulationPause()
-    log.write('mission', log.DEBUG, 'onSimulationPause()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationPause()')
 	local msg = {}
 	msg.command = 'onSimulationPause'
 	utils.sendBotTable(msg)
 end
 
 function mission.onSimulationResume()
-    log.write('mission', log.DEBUG, 'onSimulationResume()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationResume()')
 	local msg = {}
 	msg.command = 'onSimulationResume'
 	utils.sendBotTable(msg)
 end
 
 function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
-    log.write('mission', log.DEBUG, 'onGameEvent()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent()')
 	local msg = {}
 	msg.command = 'onGameEvent'
 	msg.eventName = eventName
@@ -219,7 +219,7 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
 end
 
 function mission.onChatMessage(message, from)
-    log.write('mission', log.DEBUG, 'onChatMessage()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onChatMessage()')
 	local msg = {}
 	msg.command = 'onChatMessage'
 	msg.message = message

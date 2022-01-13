@@ -147,13 +147,6 @@ class DCSServerBot(commands.Bot):
         else:
             await ctx.send(str(err))
 
-    async def on_message(self, message):
-        for key, value in self.DCSServers.items():
-            if value["chat_channel"] == message.channel.id:
-                if message.content.startswith(self.config['BOT']['COMMAND_PREFIX']) is False:
-                    message.content = self.config['BOT']['COMMAND_PREFIX'] + 'chat ' + message.content
-        await self.process_commands(message)
-
     def reload(self, plugin=None):
         if plugin:
             self.reload_plugin(plugin)
