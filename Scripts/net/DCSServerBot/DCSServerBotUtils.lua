@@ -23,6 +23,7 @@ local DCS			= base.DCS
 local lfs			= require('lfs')
 local TableUtils 	= require('TableUtils')
 local Tools     	= require('tools')
+local U 			= require('me_utilities')
 local config		= require('DCSServerBotConfig')
 
 local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()

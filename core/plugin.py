@@ -72,6 +72,7 @@ class Plugin(commands.Cog):
             finally:
                 self.pool.putconn(conn)
 
+
 class PluginRequiredError(Exception):
 
     def __init__(self, plugin):

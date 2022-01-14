@@ -27,6 +27,10 @@ class MissionStatisticsEventListener(EventListener):
         self.mission_stats[data['server_name']] = data
         return await self.displayMissionStats(data)
 
+    async def disableMissionStats(self, data):
+        server = self.bot.DCSServers[data['server_name']]
+        self.bot.sendtoDCS(server, {"command": "disableMissionStats"})
+
     async def displayMissionStats(self, data):
         if data['server_name'] in self.mission_stats:
             stats = self.mission_stats[data['server_name']]
