@@ -2,6 +2,7 @@
 import asyncio
 import aiohttp
 import discord
+import importlib
 import math
 import os
 import psutil
@@ -338,7 +339,7 @@ def format_mission_embed(self, mission):
     plugins = []
     embed = discord.Embed(title='{} [{}/{}]\n{}'.format(mission['server_name'],
                                                         mission['num_players'], server['serverSettings']['maxPlayers'],
-                                                        ('"' + mission['current_mission'] + '"') if server['status'] in ['Running', 'Paused'] else ('_' + server['status'] + '_')),
+                                                        ('"' + mission['current_mission'] + '"') if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED] else ('_' + server['status'] + '_')),
                           color=discord.Color.blue())
 
     embed.set_thumbnail(url=const.STATUS_IMG[server['status']])
@@ -442,3 +443,11 @@ def format_mission_embed(self, mission):
             footer += '- User statistics are enabled for this server.'
     embed.set_footer(text=footer)
     return embed
+
+
+def str_to_class(name):
+    try:
+        module_name, class_name = name.rsplit('.', 1)
+        return getattr(importlib.import_module(module_name), class_name)
+    except AttributeError:
+        return None
