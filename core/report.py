@@ -13,7 +13,9 @@ from abc import abstractmethod, ABC
 from contextlib import closing, suppress
 from core import utils, DCSServerBot
 from dataclasses import dataclass
+from discord.ext.commands import Context
 from matplotlib.figure import Figure
+from os import path
 from typing import Any, List, Optional, Tuple
 
 
@@ -90,7 +92,6 @@ class GraphElement(ReportElement):
                  colspan: Optional[int] = 1, rowspan: Optional[int] = 1):
         super().__init__(env)
         self.axes = plt.subplot2grid((rows, cols), (row, col), colspan=colspan, rowspan=rowspan, fig=self.env.figure)
-        self.log.debug(f"New axes: ({rows}, {cols})({row}, {col}) for class {type(self).__name__}")
 
     @abstractmethod
     def render(self, **kwargs):
@@ -105,7 +106,6 @@ class MultiGraphElement(ReportElement):
             colspan = params[i]['colspan'] if 'colspan' in params[i] else 1
             rowspan = params[i]['rowspan'] if 'rowspan' in params[i] else 1
             self.axes.append(plt.subplot2grid((rows, cols), (params[i]['row'], params[i]['col']), colspan=colspan, rowspan=rowspan, fig=self.env.figure))
-            self.log.debug(f"New axes: ({rows}, {cols})({params[i]['row']}, {params[i]['col']}) for class {type(self).__name__}")
 
     @abstractmethod
     def render(self, **kwargs):
@@ -156,11 +156,19 @@ class Graph(ReportElement):
 
 class Report:
 
-    def __init__(self, bot, filename):
+    def __init__(self, bot: DCSServerBot, plugin: str, filename: str):
         self.bot = bot
         self.log = bot.log
         self.pool = bot.pool
         self.env = ReportEnv(bot)
+        default = f'./plugins/{plugin}/reports/{filename}'
+        overwrite = f'./reports/{plugin}/{filename}'
+        if not path.exists(default):
+            raise FileNotFoundError(default)
+        if path.exists(overwrite) and (path.getctime(overwrite) > path.getctime(default)):
+            filename = overwrite
+        else:
+            filename = default
         with open(filename) as file:
             self.report_def = json.load(file)
 
@@ -263,8 +271,8 @@ class PaginationReport(Report):
     class NoPaginationInformation(Exception):
         pass
 
-    def __init__(self, bot, ctx, filename):
-        super().__init__(bot, filename)
+    def __init__(self, bot: DCSServerBot, ctx: Context, plugin: str, filename: str):
+        super().__init__(bot, plugin, filename)
         self.ctx = ctx
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
@@ -301,7 +309,7 @@ class PaginationReport(Report):
                     if env.filename:
                         os.remove(env.filename)
                 except ValueNotInRange as ex:
-                    await self.ctx.send(ex)
+                    await self.ctx.send(str(ex))
                 except Exception as ex:
                     self.log.exception(ex)
                     await self.ctx.send('An error occurred. Please contact your Admin.')

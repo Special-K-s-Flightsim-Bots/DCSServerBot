@@ -1,3 +1,5 @@
+import os
+
 import psycopg2
 import psycopg2.extras
 import string
@@ -5,7 +7,7 @@ from core import utils
 from contextlib import closing
 from discord.ext import commands
 from os import path
-from shutil import ignore_patterns, copytree
+from shutil import copytree, copy2
 from .bot import DCSServerBot
 from .listener import EventListener
 
@@ -43,7 +45,13 @@ class Plugin(commands.Cog):
         source_path = f'./plugins/{self.plugin}/reports'
         if path.exists(source_path):
             target_path = f'./reports/{self.plugin}'
-            copytree(source_path, target_path, dirs_exist_ok=True)
+            if not path.exists(target_path):
+                os.makedirs(target_path)
+            for file in os.listdir(source_path):
+                if not path.exists(os.path.join(target_path, file)):
+                    copy2(os.path.join(source_path, file), target_path)
+                else:
+                    self.log.debug(f'  - skipping already existing report {file}')
             self.log.debug(f'  => Reports installed.')
 
     def init_db(self):
