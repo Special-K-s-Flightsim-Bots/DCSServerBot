@@ -8,7 +8,7 @@ import psycopg2.extras
 import re
 import subprocess
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin
+from core import const, utils, DCSServerBot, Plugin
 from discord.ext import commands, tasks
 from typing import Union
 from .listener import AdminEventListener
@@ -17,10 +17,10 @@ from .listener import AdminEventListener
 class Agent(Plugin):
 
     STATUS_EMOJI = {
-        'Loading': '🔄',
-        'Paused': '⏸️',
-        'Running': '▶️',
-        'Stopped': '⏹️'
+        const.STATUS_LOADING: '🔄',
+        const.STATUS_PAUSED: '⏸️',
+        const.STATUS_RUNNING: '▶️',
+        const.STATUS_STOPPED: '⏹️'
     }
 
     def __init__(self, plugin, bot, listener):
@@ -37,7 +37,7 @@ class Agent(Plugin):
     async def servers(self, ctx):
         if len(self.bot.DCSServers) > 0:
             for server_name, server in self.bot.DCSServers.items():
-                if server['status'] in ['Running', 'Paused']:
+                if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
                     mission = await self.bot.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
                     await ctx.send(embed=utils.format_mission_embed(self, mission))
         else:
@@ -50,10 +50,10 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             installation = server['installation']
-            if server['status'] in ['Stopped', 'Shutdown']:
+            if server['status'] in [const.STATUS_STOPPED, const.STATUS_SHUTDOWN]:
                 await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
                 utils.start_dcs(self, installation)
-                server['status'] = 'Loading'
+                server['status'] = const.STATUS_LOADING
                 await self.bot.audit(
                     f"User {ctx.message.author.display_name} started DCS server \"{server['server_name']}\".")
             else:
@@ -75,13 +75,13 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             installation = server['installation']
-            if server['status'] in ['Unknown', 'Loading']:
+            if server['status'] in [const.STATUS_UNKNOWN, const.STATUS_LOADING]:
                 await ctx.send('Server is currently starting up. Please wait and try again.')
             elif server['status'] not in ['Stopped', 'Shutdown']:
                 if await utils.yn_question(self, ctx, 'Do you want to shut down the DCS server "{}"?'.format(server['server_name'])) is True:
                     await ctx.send('Shutting down DCS server "{}" ...'.format(server['server_name']))
                     self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
-                    server['status'] = 'Shutdown'
+                    server['status'] = const.STATUS_SHUTDOWN
                     await self.bot.audit(
                         f"User {ctx.message.author.display_name} shut DCS server \"{server['server_name']}\" down.")
             else:
@@ -116,14 +116,14 @@ class Agent(Plugin):
                     f"User {ctx.message.author.display_name} started an update of all DCS servers on node {platform.node()}.")
                 servers = []
                 for key, item in self.bot.DCSServers.items():
-                    if item['status'] not in ['Stopped', 'Shutdown']:
+                    if item['status'] not in [const.STATUS_STOPPED, const.STATUS_SHUTDOWN]:
                         servers.append(item)
                 if len(servers):
                     if await utils.yn_question(self, ctx, 'Would you like me to stop the running servers and run the update?') is True:
                         for server in servers:
                             self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                             await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
-                            server['status'] = 'Shutdown'
+                            server['status'] = const.STATUS_SHUTDOWN
                     else:
                         return
                 if await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?'.format(old_version, new_version)) is True:
@@ -138,7 +138,7 @@ class Agent(Plugin):
     async def password(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] == 'Shutdown':
+            if server['status'] == const.STATUS_SHUTDOWN:
                 msg = await ctx.send('Please enter the new password: ')
                 response = await self.bot.wait_for('message', timeout=300.0)
                 password = response.content
@@ -225,7 +225,7 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             server_name = server['server_name']
-            if server['status'] in ['Stopped', 'Shutdown']:
+            if server['status'] in [const.STATUS_STOPPED, const.STATUS_SHUTDOWN]:
                 if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True:
                     self.bot.embeds.pop(server_name)
                     await ctx.send('Server {} unregistered.'.format(server_name))
@@ -244,7 +244,7 @@ class Agent(Plugin):
         if server:
             oldname = server['server_name']
             newname = ' '.join(args)
-            if server['status'] in ['Stopped', 'Shutdown']:
+            if server['status'] in [const.STATUS_STOPPED, const.STATUS_SHUTDOWN]:
                 conn = self.pool.getconn()
                 try:
                     if await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" to "{}"?'.format(oldname, newname)) is True:
@@ -274,7 +274,7 @@ class Agent(Plugin):
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
         for server_name, server in self.bot.DCSServers.items():
-            if server['status'] in ['Loading', 'Stopped', 'Running', 'Paused']:
+            if server['status'] in [const.STATUS_LOADING, const.STATUS_STOPPED, const.STATUS_RUNNING, const.STATUS_PAUSED]:
                 await self.bot.change_presence(activity=discord.Game(self.STATUS_EMOJI[server['status']] + ' ' +
                                                                      re.sub(self.config['FILTER']['SERVER_FILTER'],
                                                                             '', server_name).strip()))

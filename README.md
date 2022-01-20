@@ -213,8 +213,9 @@ do
 	sanitizeModule('os')
 	--sanitizeModule('io')
 	--sanitizeModule('lfs')
-	--require = nil
-	loadlib = nil
+	--_G['require'] = nil
+	_G['loadlib'] = nil
+	--_G['package'] = nil
 end
 ```
 
@@ -272,15 +273,18 @@ When running multiple servers over different locations it might be necessary to 
 5) Start the server at the **new** location.
 
 ### How to talk to the Bot from inside Missions
-If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a mission start trigger:
+If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a trigger:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
 ```
+_Don't use a Mission Start trigger, as this might clash with other plugins loading stuff into the mission._ 
 After that, you can for instance send chat messages to the bot using
 ```lua
   dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear, default is the configured chat channel
 ```
 inside a trigger or anywhere else where scripting is allowed.
+
+**Attention!** Channel always has to be a string, encapsulated with '', **not** a number.
 
 Embeds can be sent using code similar to this snippet:
 ```lua

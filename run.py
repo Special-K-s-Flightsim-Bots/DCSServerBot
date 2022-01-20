@@ -118,6 +118,12 @@ class Main:
                 raise error
             finally:
                 db_pool.putconn(conn)
+        # Make sure we only get back floats, not Decimal
+        dec2float = psycopg2.extensions.new_type(
+            psycopg2.extensions.DECIMAL.values,
+            'DEC2FLOAT',
+            lambda value, curs: float(value) if value is not None else None)
+        psycopg2.extensions.register_type(dec2float)
         return db_pool
 
     def sanitize(self):

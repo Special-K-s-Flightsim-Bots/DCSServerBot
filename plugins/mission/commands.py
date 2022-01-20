@@ -26,7 +26,7 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             if int(server['status_channel']) != ctx.channel.id:
-                if server['status'] in ['Running', 'Paused']:
+                if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
                     mission = await self.bot.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
                     await ctx.send(embed=utils.format_mission_embed(self, mission))
                 else:
@@ -41,7 +41,7 @@ class Mission(Plugin):
     async def briefing(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] in ['Running', 'Paused']:
+            if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
                 data = await self.bot.sendtoDCSSync(server, {"command": "getMissionDetails", "channel": ctx.message.id})
                 embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
                 embed.description = data['mission_description'][:2048]
@@ -55,7 +55,7 @@ class Mission(Plugin):
     async def atis(self, ctx, *args):
         name = ' '.join(args)
         for server_name, server in self.bot.DCSServers.items():
-            if server['status'] in ['Running', 'Paused']:
+            if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
                 for airbase in server['airbases']:
                     if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
                         data = await self.bot.sendtoDCSSync(server, {
@@ -128,8 +128,8 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             msg = None
-            if server['status'] not in ['Stopped', 'Shutdown']:
-                if server['status'] == 'Running':
+            if server['status'] not in [const.STATUS_STOPPED, const.STATUS_SHUTDOWN]:
+                if server['status'] == const.STATUS_RUNNING:
                     if delay > 0:
                         message = '!!! Server will be restarted in {} seconds !!!'.format(delay)
                     else:
@@ -185,7 +185,7 @@ class Mission(Plugin):
     async def list(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] in ['Running', 'Paused']:
+            if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
                 data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                 missions = data['missionList']
                 n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '🔄')
@@ -216,7 +216,7 @@ class Mission(Plugin):
     async def add(self, ctx, *path):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] in ['Running', 'Paused']:
+            if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
                 if len(path) == 0:
                     data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                     installed = [mission[(mission.rfind('\\') + 1):] for mission in data['missionList']]
@@ -244,7 +244,7 @@ class Mission(Plugin):
     async def delete(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] in ['Running', 'Paused']:
+            if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
                 data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                 missions = data['missionList']
                 n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '❌')
@@ -276,12 +276,12 @@ class Mission(Plugin):
     async def unpause(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] == 'Paused':
+            if server['status'] == const.STATUS_PAUSED:
                 self.bot.sendtoDCS(server, {"command": "unpauseMission", "channel": ctx.channel.id})
                 await ctx.send('Server "{}" unpaused.'.format(server['server_name']))
-            elif server['status'] == 'Running':
+            elif server['status'] == const.STATUS_RUNNING:
                 await ctx.send('Server "{}" is already running.'.format(server['server_name']))
-            elif server['status'] == 'Loading':
+            elif server['status'] == const.STATUS_LOADING:
                 await ctx.send('Server "{}" is still loading... please wait a bit and try again.'.format(server['server_name']))
             else:
                 await ctx.send('Server "{}" is stopped or shut down. Please start the server first before unpausing.'.format(server['server_name']))
@@ -289,7 +289,7 @@ class Mission(Plugin):
     @tasks.loop(minutes=5.0)
     async def update_mission_status(self):
         for server_name, server in self.bot.DCSServers.items():
-            if server['status'] == 'Running':
+            if server['status'] == const.STATUS_RUNNING:
                 self.bot.sendtoDCS(server, {
                     "command": "getRunningMission",
                     "channel": server['status_channel']

@@ -9,35 +9,34 @@ local base  	= _G
 dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBotConfig.lua')
 local config = require('DCSServerBotConfig')
 loadfile(lfs.writedir() .. 'Config/serverSettings.lua')()
-
-local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
-
-dcsbot = dcsbot or {}
-
 package.path  = package.path..";.\\LuaSocket\\?.lua;"
 package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
 local socket = require("socket")
-dcsbot.UDPSendSocket = socket.udp()
 
-function dcsbot.sendBotMessage(msg, channel)
+local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
+
+dcsbot = base.dcsbot or {}
+dcsbot.UDPSendSocket = dcsbot.UDPSendSocket or socket.udp()
+
+dcsbot.sendBotMessage = dcsbot.sendBotMessage or function (msg, channel)
 	local messageTable = {}
 	messageTable.command = 'sendMessage'
 	messageTable.message = msg
 	dcsbot.sendBotTable(messageTable, channel)
 end
 
-function dcsbot.sendBotTable(tbl, channel)
+dcsbot.sendBotTable = dcsbot.sendBotTable or function (tbl, channel)
 	tbl.server_name = cfg.name
 	tbl.channel = channel or "-1"
 	local tbl_json_txt = JSON:encode(tbl)
 	socket.try(dcsbot.UDPSendSocket:sendto(tbl_json_txt, config.BOT_HOST, config.BOT_PORT))
 end
 
-function dcsbot.sendEmbed(title, description, img, fields, footer, channel)
+dcsbot.sendEmbed = dcsbot.sendEmbed or function(title, description, img, fields, footer, channel)
 	dcsbot.updateEmbed(nil, title, description, img, fields, footer, channel)
 end
 
-function dcsbot.updateEmbed(id, title, description, img, fields, footer, channel)
+dcsbot.updateEmbed = dcsbot.updateEmbed or function (id, title, description, img, fields, footer, channel)
 	local msg = {}
 	msg.command = 'sendEmbed'
 	msg.id = id
@@ -49,38 +48,31 @@ function dcsbot.updateEmbed(id, title, description, img, fields, footer, channel
 	dcsbot.sendBotTable(msg, channel)
 end
 
-function dcsbot.callback(msg, channel)
+dcsbot.callback = dcsbot.callback or function (msg, channel)
 	local newmsg = msg
 	newmsg.subcommand = msg.command
 	newmsg.command = 'callback'
 	dcsbot.sendBotTable(newmsg, channel)
 end
 
-function dcsbot.startMission(id)
+dcsbot.startMission = dcsbot.startMission or function (id)
 	local msg = {}
 	msg.command = 'startMission'
 	msg.id = id
 	dcsbot.callback(msg)
 end
 
-function dcsbot.shutdown()
+dcsbot.shutdown = dcsbot.shutdown or function ()
 	DCS.exitProcess()
 end
 
-function dcsbot.restartMission()
+dcsbot.restartMission = dcsbot.restartMission or function ()
 	local msg = {}
 	msg.command = 'restartMission'
 	dcsbot.callback(msg)
 end
 
-function dcsbot.disableMissionStats()
-	local msg = {}
-	msg.command = 'disableMissionStats'
-	dcsbot.sendBotTable(msg, channel)
-	env.info('Mission Statistics disabled.')
-end
-
-function dcsbot.disableUserStats()
+dcsbot.disableUserStats = dcsbot.disableUserStats or function ()
 	local msg = {}
 	msg.command = 'disableUserStats'
 	dcsbot.sendBotTable(msg, channel)
@@ -88,9 +80,12 @@ function dcsbot.disableUserStats()
 end
 
 do
-	-- MISSION HOOK REGISTRATION
-	env.info('DCSServerBot - Mission Hook installed.')
-	local msg = {}
-	msg.command = 'registerMissionHook'
-	dcsbot.sendBotTable(msg)
+	if not base.mission_hook then
+		-- MISSION HOOK REGISTRATION
+		base.mission_hook = true
+		local msg = {}
+		msg.command = 'registerMissionHook'
+		dcsbot.sendBotTable(msg)
+		env.info('DCSServerBot - Mission Hook installed.')
+	end
 end

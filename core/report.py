@@ -24,7 +24,7 @@ class UnknownReportElement(Exception):
 
 class UnknownGraphElement(Exception):
     def __init__(self, classname: str):
-        super().__init__(f'The class {classname} is not a FigureElement.')
+        super().__init__(f'The class {classname} is not a GraphElement or MultiGraphElement.')
 
 
 class ClassNotFound(Exception):
@@ -81,14 +81,31 @@ class Image(EmbedElement):
 
 
 class Ruler(EmbedElement):
-    def render(self, ruler_length: int = 25):
+    def render(self, ruler_length: Optional[int] = 25):
         self.add_field(name='▬' * ruler_length, value='_ _', inline=False)
 
 
 class GraphElement(ReportElement):
-    def __init__(self, env: ReportEnv, rows, cols, row, col, colspan=1, rowspan=1):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int,
+                 colspan: Optional[int] = 1, rowspan: Optional[int] = 1):
         super().__init__(env)
         self.axes = plt.subplot2grid((rows, cols), (row, col), colspan=colspan, rowspan=rowspan, fig=self.env.figure)
+        self.log.debug(f"New axes: ({rows}, {cols})({row}, {col}) for class {type(self).__name__}")
+
+    @abstractmethod
+    def render(self, **kwargs):
+        pass
+
+
+class MultiGraphElement(ReportElement):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, params: List[dict]):
+        super().__init__(env)
+        self.axes = []
+        for i in range(0, len(params)):
+            colspan = params[i]['colspan'] if 'colspan' in params[i] else 1
+            rowspan = params[i]['rowspan'] if 'rowspan' in params[i] else 1
+            self.axes.append(plt.subplot2grid((rows, cols), (params[i]['row'], params[i]['col']), colspan=colspan, rowspan=rowspan, fig=self.env.figure))
+            self.log.debug(f"New axes: ({rows}, {cols})({params[i]['row']}, {params[i]['col']}) for class {type(self).__name__}")
 
     @abstractmethod
     def render(self, **kwargs):
@@ -120,7 +137,7 @@ class Graph(ReportElement):
                     class_args = {name: value for name, value in element_args.items() if name in signature}
                     # instantiate the class
                     element_class = element_class(self.env, rows, cols, **class_args)
-                    if isinstance(element_class, GraphElement):
+                    if isinstance(element_class, GraphElement) or isinstance(element_class, MultiGraphElement):
                         # remove parameters, that are not in the render methods signature
                         signature = inspect.signature(element_class.render).parameters.keys()
                         render_args = {name: value for name, value in element_args.items() if name in signature}
@@ -181,10 +198,13 @@ class Report:
         return new_args
 
     @staticmethod
-    def parse_params(kwargs: dict, params: dict):
+    def parse_params(kwargs: dict, params: Tuple[dict, List]):
         new_args = kwargs.copy()
-        for key, value in params.items():
-            new_args[key] = value
+        if isinstance(params, dict):
+            for key, value in params.items():
+                new_args[key] = value
+        else:
+            new_args['params'] = params
         return new_args
 
     def render(self, *args, **kwargs) -> ReportEnv:
@@ -251,6 +271,7 @@ class PaginationReport(Report):
 
     def read_param(self, param: dict) -> Tuple[str, List]:
         name = param['name']
+        values = None
         if 'sql' in param:
             conn = self.pool.getconn()
             try:
