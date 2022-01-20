@@ -16,21 +16,21 @@ class UserStatistics(Plugin):
     async def statistics(self, ctx, member: Optional[discord.Member], period: Optional[str], server_name: Optional[str]):
         if member is None:
             member = ctx.message.author
-        report = PaginationReport(self.bot, ctx, 'reports/userstats.json')
+        report = PaginationReport(self.bot, ctx, 'reports/userstats/userstats.json')
         await report.display(member=member, period=period, server_name=server_name)
 
     @commands.command(description='Shows actual highscores', usage='[period]', aliases=['hs'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def highscore(self, ctx, period: Optional[str], server_name: Optional[str]):
-        report = PaginationReport(self.bot, ctx, 'reports/highscore.json')
+        report = PaginationReport(self.bot, ctx, 'reports/userstats/highscore.json')
         await report.display(period=period, server_name=server_name)
 
     @commands.command(description='Shows servers statistics', usage='[period]')
     @utils.has_role('Admin')
     @commands.guild_only()
     async def serverstats(self, ctx, period: Optional[str], server_name: Optional[str]):
-        report = PaginationReport(self.bot, ctx, 'reports/serverstats.json')
+        report = PaginationReport(self.bot, ctx, 'reports/userstats/serverstats.json')
         await report.display(period=period, server_name=server_name)
 
     # Return a player from the internal list

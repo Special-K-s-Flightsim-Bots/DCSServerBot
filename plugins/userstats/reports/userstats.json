@@ -1,0 +1,64 @@
+{
+  "color": "blue",
+  "title": "Statistics for {member.display_name}",
+  "description": "_{server_name}_",
+  "input":
+  [
+    {
+      "name": "period",
+      "range": ["", "day", "month", "week", "year"]
+    }
+  ],
+  "pagination":
+  {
+    "param":
+    {
+      "name": "server_name",
+      "sql": "SELECT DISTINCT server_name FROM missions"
+    }
+  },
+  "elements":
+  [
+    {
+      "type": "Graph",
+      "params":
+      {
+        "width": 20,
+        "height": 20,
+        "rows": 3,
+        "cols": 3,
+        "elements":
+         [
+            {
+              "class": "plugins.userstats.userstats.PlaytimesPerPlane",
+              "params": { "row": 0, "col": 0, "colspan": 2 }
+            },
+            {
+              "class": "plugins.userstats.userstats.RecentActivities",
+              "params": { "row": 0, "col": 2 }
+            },
+            {
+              "class": "plugins.userstats.userstats.PlaytimesPerServer",
+              "params": { "row": 1, "col": 0 }
+            },
+            {
+              "class": "plugins.userstats.userstats.PlaytimesPerMap",
+              "params": { "row": 1, "col": 1  }
+            },
+            {
+              "class": "plugins.userstats.userstats.FlightPerformance",
+              "params": { "row": 1, "col": 2 }
+            },
+            {
+              "class": "plugins.userstats.userstats.KDRatio",
+              "params": [
+                { "row": 2, "col": 0 },
+                { "row": 2, "col": 1 },
+                { "row": 2, "col": 2 }
+              ]
+            }
+         ]
+      }
+    }
+  ]
+}

@@ -32,16 +32,22 @@ class Plugin(commands.Cog):
 
     def install(self):
         self.init_db()
-        ignore = ignore_patterns('*.sql', '*.py', '__*__')
         for server_name in self.bot.DCSServers.keys():
             installation = utils.findDCSInstallations(server_name)[0]
-            source_path = f'./plugins/{self.plugin}/'
-            target_path = path.expandvars(self.config[installation]['DCS_HOME'] + f'\\Scripts\\net\\DCSServerBot\\{self.plugin}\\')
-            copytree(source_path, target_path, dirs_exist_ok=True, ignore=ignore)
-            self.log.debug(f'  => Luas installed into server {server_name}')
+            source_path = f'./plugins/{self.plugin}/lua'
+            if path.exists(source_path):
+                target_path = path.expandvars(self.config[installation]['DCS_HOME'] + f'\\Scripts\\net\\DCSServerBot\\{self.plugin}\\')
+                copytree(source_path, target_path, dirs_exist_ok=True)
+                self.log.debug(f'  => Luas installed into server {server_name}')
+        # install reports
+        source_path = f'./plugins/{self.plugin}/reports'
+        if path.exists(source_path):
+            target_path = f'./reports/{self.plugin}'
+            copytree(source_path, target_path, dirs_exist_ok=True)
+            self.log.debug(f'  => Reports installed.')
 
     def init_db(self):
-        tables_file = f'./plugins/{self.plugin}/tables.sql'
+        tables_file = f'./plugins/{self.plugin}/db/tables.sql'
         if path.exists(tables_file):
             conn = self.pool.getconn()
             try:
@@ -50,7 +56,7 @@ class Plugin(commands.Cog):
                     row = cursor.fetchone()
                     if row:
                         self.plugin_version = row[0]
-                        updates_file = f'./plugins/{self.plugin}/update_{self.plugin_version}.sql'
+                        updates_file = f'./plugins/{self.plugin}/db/update_{self.plugin_version}.sql'
                         while path.exists(updates_file):
                             with open(updates_file) as updates_sql:
                                 for query in updates_sql.readlines():
@@ -59,7 +65,7 @@ class Plugin(commands.Cog):
                             cursor.execute('SELECT version FROM plugins WHERE plugin = %s', (self.plugin,))
                             self.plugin_version = cursor.fetchone()[0]
                             self.log.info(f'  => {string.capwords(self.plugin)} updated to version {self.plugin_version}.')
-                            updates_file = f'./plugins/{self.plugin}/update_{self.plugin_version}.sql'
+                            updates_file = f'./plugins/{self.plugin}/db/update_{self.plugin_version}.sql'
                     else:
                         with open(tables_file) as tables_sql:
                             for query in tables_sql.readlines():
