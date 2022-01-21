@@ -32,6 +32,7 @@ class UserStatisticsEventListener(EventListener):
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
         self.statistics = set()
+        self.mission_ids = dict()
 
     async def processEvent(self, data: dict[str, Union[str, int]]) -> None:
         if (data['command'] == 'registerDCSServer') or \
@@ -42,45 +43,49 @@ class UserStatisticsEventListener(EventListener):
 
     # Return a player from the internal list
     # TODO: change player data handling!
-    def get_player(self, server_name, id):
+    def get_player(self, server_name, player_id):
         df = self.bot.player_data[server_name]
-        row = df[df['id'] == id]
+        row = df[df['id'] == player_id]
         if not row.empty:
-            return df[df['id'] == id].to_dict('records')[0]
+            return df[df['id'] == player_id].to_dict('records')[0]
         else:
             return None
 
-    def getCurrentMissionID(self, server_name):
-        id = -1
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute(
-                    'SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name,))
-                if cursor.rowcount > 0:
-                    id = cursor.fetchone()[0]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-        return id
-
     async def registerDCSServer(self, data):
         if data['statistics']:
-            self.statistics.add(data['server_name'])
+            server_name = data['server_name']
+            self.statistics.add(server_name)
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(
+                        'SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name,))
+                    if cursor.rowcount > 0:
+                        self.mission_ids[server_name] = cursor.fetchone()[0]
+                    else:
+                        self.log.exception('No mission ID found! Statistics disabled.')
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+            finally:
+                self.pool.putconn(conn)
 
     async def onMissionLoadEnd(self, data):
         SQL_CLOSE_STATISTICS = 'UPDATE statistics SET hop_off = NOW() WHERE mission_id IN (SELECT id FROM missions ' \
                                'WHERE server_name = %s AND mission_end IS NULL) AND hop_off IS NULL '
         SQL_CLOSE_MISSIONS = 'UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL'
         SQL_START_MISSION = 'INSERT INTO missions (server_name, mission_name, mission_theatre) VALUES (%s, %s, %s)'
+        SQL_SELECT_MISSIOM_ID = 'SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL'
         conn = self.pool.getconn()
         try:
+            server_name = data['server_name']
             with closing(conn.cursor()) as cursor:
-                cursor.execute(SQL_CLOSE_STATISTICS, (data['server_name'],))
-                cursor.execute(SQL_CLOSE_MISSIONS, (data['server_name'],))
-                cursor.execute(SQL_START_MISSION, (data['server_name'],
+                cursor.execute(SQL_CLOSE_STATISTICS, (server_name,))
+                cursor.execute(SQL_CLOSE_MISSIONS, (server_name,))
+                cursor.execute(SQL_START_MISSION, (server_name,
                                                    data['current_mission'], data['current_map']))
+                cursor.execute(SQL_SELECT_MISSIOM_ID, (server_name,))
+                if cursor.rowcount > 0:
+                    self.mission_ids[server_name] = cursor.fetchone()[0]
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -91,7 +96,7 @@ class UserStatisticsEventListener(EventListener):
     async def onSimulationStop(self, data):
         conn = self.pool.getconn()
         try:
-            mission_id = self.getCurrentMissionID(data['server_name'])
+            mission_id = self.mission_ids[data['server_name']]
             with closing(conn.cursor()) as cursor:
                 cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND hop_off IS NULL',
                                (mission_id,))
@@ -112,7 +117,7 @@ class UserStatisticsEventListener(EventListener):
         if 'side' in data:
             conn = self.pool.getconn()
             try:
-                mission_id = self.getCurrentMissionID(data['server_name'])
+                mission_id = self.mission_ids[data['server_name']]
                 with closing(conn.cursor()) as cursor:
                     cursor.execute(SQL_CLOSE_STATISTICS, (mission_id, data['ucid']))
                     if data['side'] != const.SIDE_SPECTATOR:
@@ -133,7 +138,7 @@ class UserStatisticsEventListener(EventListener):
             try:
                 with closing(conn.cursor()) as cursor:
                     cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE player_ucid NOT IN (%s) AND '
-                                   'mission_id = %s AND hop_off IS NULL', (ucids, self.getCurrentMissionID(data['server_name'])))
+                                   'mission_id = %s AND hop_off IS NULL', (ucids, self.mission_ids[data['server_name']]))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
@@ -147,7 +152,7 @@ class UserStatisticsEventListener(EventListener):
         self.statistics.discard(data['server_name'])
         conn = self.pool.getconn()
         try:
-            mission_id = self.getCurrentMissionID(data['server_name'])
+            mission_id = self.mission_ids[data['server_name']]
             with closing(conn.cursor()) as cursor:
                 cursor.execute(SQL_DELETE_MISSION, (mission_id,))
                 cursor.execute(SQL_DELETE_STATISTICS, (mission_id,))
@@ -169,7 +174,7 @@ class UserStatisticsEventListener(EventListener):
                 try:
                     with closing(conn.cursor()) as cursor:
                         cursor.execute('UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = '
-                                       '%s AND hop_off IS NULL', (self.getCurrentMissionID(data['server_name']),
+                                       '%s AND hop_off IS NULL', (self.mission_ids[data['server_name']],
                                                                   player['ucid']))
                         conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
@@ -207,7 +212,7 @@ class UserStatisticsEventListener(EventListener):
                         player1 = self.get_player(data['server_name'], data['arg1'])
                         if kill_type in self.SQL_EVENT_UPDATES.keys():
                             cursor.execute(self.SQL_EVENT_UPDATES[kill_type],
-                                           (self.getCurrentMissionID(data['server_name']), player1['ucid']))
+                                           (self.mission_ids[data['server_name']], player1['ucid']))
 
                     # Victim is not an AI
                     if data['arg4'] != -1:
@@ -234,7 +239,7 @@ class UserStatisticsEventListener(EventListener):
                         player2 = self.get_player(data['server_name'], data['arg4'])
                         if death_type in self.SQL_EVENT_UPDATES.keys():
                             cursor.execute(self.SQL_EVENT_UPDATES[death_type],
-                                           (self.getCurrentMissionID(data['server_name']), player2['ucid']))
+                                           (self.mission_ids[data['server_name']], player2['ucid']))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
@@ -249,7 +254,7 @@ class UserStatisticsEventListener(EventListener):
                     try:
                         with closing(conn.cursor()) as cursor:
                             cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
-                                           (self.getCurrentMissionID(data['server_name']), player['ucid']))
+                                           (self.mission_ids[data['server_name']], player['ucid']))
                             conn.commit()
                     except (Exception, psycopg2.DatabaseError) as error:
                         self.log.exception(error)
