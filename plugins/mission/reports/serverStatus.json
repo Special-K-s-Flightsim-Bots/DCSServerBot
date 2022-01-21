@@ -1,0 +1,30 @@
+{
+  "color": "blue",
+  "elements":
+  [
+    "Ruler",
+    {
+      "class": "plugins.mission.status.Init"
+    },
+    {
+      "class": "plugins.mission.status.ServerInfo",
+      "params": { "show_password":  true }
+    },
+    "Ruler",
+    {
+      "class": "plugins.mission.status.WeatherInfo"
+    },
+    {
+      "class": "plugins.mission.status.PluginsInfo",
+      "params": [
+        {"plugin": "SRS" },
+        {"plugin": "LotAtc" },
+        {"plugin":  "Tacview", "show_passwords":  false }
+      ]
+    },
+    "Ruler",
+    {
+      "class": "plugins.mission.status.Footer"
+    }
+  ]
+}

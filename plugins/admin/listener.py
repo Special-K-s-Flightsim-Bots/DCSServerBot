@@ -1,7 +1,7 @@
 # listener.py
 import platform
 import psycopg2
-from core import utils, DCSServerBot, EventListener
+from core import utils, EventListener
 from contextlib import closing
 
 

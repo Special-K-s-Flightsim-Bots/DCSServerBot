@@ -9,6 +9,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, suppress
 from core import utils
+from core.const import Status
 from discord.ext import commands
 from .listener import EventListener
 from socketserver import BaseRequestHandler, ThreadingUDPServer
@@ -88,9 +89,9 @@ class DCSServerBot(commands.Bot):
                         self.config.getboolean(installation, 'AUTOSTART_DCS') is True):
                     self.log.info(f'  => Launching DCS server "{server_name}" ...')
                     utils.start_dcs(self, installation)
-                    server['status'] = 'Loading'
+                    server['status'] = Status.LOADING
                 else:
-                    server['status'] = 'Shutdown'
+                    server['status'] = Status.SHUTDOWN
             finally:
                 if ('AUTOSTART_SRS' in self.config[installation]) and (
                         self.config.getboolean(installation, 'AUTOSTART_SRS') is True):
@@ -104,6 +105,7 @@ class DCSServerBot(commands.Bot):
         except commands.ExtensionNotFound:
             self.log.error(f'- No commands.py found for plugin "{plugin}"')
         except commands.ExtensionFailed as ex:
+            self.log.exception(ex)
             self.log.error(f'- Error during initialisation of plugin "{plugin}": {ex.original if ex.original else ex}')
 
     def unload_plugin(self, plugin):

@@ -43,6 +43,74 @@ class UserStatistics(Plugin):
         else:
             return None
 
+    @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def link(self, ctx, member: discord.Member, ucid):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (member.id, ucid))
+                conn.commit()
+                await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
+                await self.bot.audit(f'User {ctx.message.author.display_name} linked member {member.display_name} to ucid {ucid}.')
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+
+    @commands.command(description='Unlinks a member', usage='<member> / <ucid>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def unlink(self, ctx, member: Union[discord.Member, str]):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                if isinstance(member, discord.Member):
+                    cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s', (member.id, ))
+                    await ctx.send('Member {} unlinked.'.format(member.display_name))
+                    await self.bot.audit(
+                        f'User {ctx.message.author.display_name} unlinked member {member.display_name}.')
+                else:
+                    cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (member, ))
+                    await ctx.send('ucid {} unlinked.'.format(member))
+                    await self.bot.audit(f'User {ctx.message.author.display_name} unlinked ucid {member}.')
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+
+    @commands.command(description='Resets the statistics of a specific server')
+    @utils.has_role('Admin')
+    @commands.guild_only()
+    async def reset(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            server_name = server['server_name']
+            if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
+                conn = self.pool.getconn()
+                try:
+                    if await utils.yn_question(self, ctx, 'I\'m going to **DELETE ALL STATISTICS**\nof server "{}".\n\nAre you sure?'.format(server_name)) is True:
+                        with closing(conn.cursor()) as cursor:
+                            cursor.execute(
+                                'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE '
+                                'server_name = %s)', (server_name, ))
+                            cursor.execute('DELETE FROM missions WHERE server_name = %s', (server_name, ))
+                            conn.commit()
+                        await ctx.send('Statistics for server "{}" have been wiped.'.format(server_name))
+                        await self.bot.audit(
+                            f'User {ctx.message.author.display_name} reset the statistics for server "{server_name}".')
+                except (Exception, psycopg2.DatabaseError) as error:
+                    self.log.exception(error)
+                    conn.rollback()
+                finally:
+                    self.pool.putconn(conn)
+            else:
+                await ctx.send('Please stop server "{}" before deleteing the statistics!'.format(server_name))
+
     @commands.command(description='Shows information about a specific player', usage='<@member / ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
@@ -285,6 +353,6 @@ def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(UserStatistics('userstats', bot, UserStatisticsEventListener(bot)))
+        bot.add_cog(UserStatistics(bot, UserStatisticsEventListener(bot)))
     else:
-        bot.add_cog(Plugin('userstats', bot, UserStatisticsEventListener(bot)))
+        bot.add_cog(Plugin(bot, UserStatisticsEventListener(bot)))

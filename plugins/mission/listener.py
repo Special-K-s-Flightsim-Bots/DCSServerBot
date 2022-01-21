@@ -4,7 +4,8 @@ import pandas as pd
 import psycopg2
 import re
 import sched
-from core import const, utils, DCSServerBot, EventListener
+from core import const, utils, DCSServerBot, EventListener, Report
+from core.const import Status
 from contextlib import closing
 from datetime import timedelta, datetime
 
@@ -189,7 +190,7 @@ class MissionEventListener(EventListener):
         server_name = data['server_name']
         server = self.bot.DCSServers[server_name]
         if 'pause' in data:
-            server['status'] = 'Paused' if data['pause'] is True else 'Running'
+            server['status'] = Status.PAUSED if data['pause'] is True else Status.RUNNING
         # check if we have to restart the mission
         installation = server['installation']
         if 'restartScheduler' not in server and not server['restart_pending']:
@@ -222,9 +223,10 @@ class MissionEventListener(EventListener):
                 else:
                     self.log.warning(
                         f'Configuration mismatch! RESTART_LOCAL_TIMES not set correctly for server {server_name}.')
-        embed = utils.format_mission_embed(self, data)
-        if embed:
-            return await self.bot.setEmbed(data, 'mission_embed', embed)
+        report = Report(self.bot, self.plugin, 'serverStatus.json')
+        env = report.render(server=server, mission=data)
+        if env.embed:
+            return await self.bot.setEmbed(data, 'mission_embed', env.embed)
         else:
             return None
 
@@ -242,7 +244,7 @@ class MissionEventListener(EventListener):
         return data
 
     async def onMissionLoadBegin(self, data):
-        self.bot.DCSServers[data['server_name']]['status'] = 'Loading'
+        self.bot.DCSServers[data['server_name']]['status'] = Status.LOADING
         self.bot.player_data[data['server_name']] = pd.DataFrame(
             columns=['id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type'])
         await self.getRunningMission(data)
@@ -250,7 +252,7 @@ class MissionEventListener(EventListener):
 
     async def onMissionLoadEnd(self, data):
         server = self.bot.DCSServers[data['server_name']]
-        server['status'] = 'Paused'
+        server['status'] = Status.PAUSED
         server['airbases'] = data['airbases']
         return await self.getRunningMission(data)
 
@@ -259,8 +261,8 @@ class MissionEventListener(EventListener):
         data['current_map'] = '-'
         data['mission_time'] = 0
         server = self.bot.DCSServers[data['server_name']]
-        if server['status'] != 'Shutdown':
-            server['status'] = 'Stopped'
+        if server['status'] != Status.SHUTDOWN:
+            server['status'] = Status.STOPPED
         await self.getRunningMission(data)
         # stop all restart events
         if 'restartScheduler' in server:
@@ -270,11 +272,11 @@ class MissionEventListener(EventListener):
             del server['restartScheduler']
 
     async def onSimulationPause(self, data):
-        self.bot.DCSServers[data['server_name']]['status'] = 'Paused'
+        self.bot.DCSServers[data['server_name']]['status'] = Status.PAUSED
         self.updateMission(data)
 
     async def onSimulationResume(self, data):
-        self.bot.DCSServers[data['server_name']]['status'] = 'Running'
+        self.bot.DCSServers[data['server_name']]['status'] = Status.RUNNING
         self.updateMission(data)
 
     async def onPlayerConnect(self, data):

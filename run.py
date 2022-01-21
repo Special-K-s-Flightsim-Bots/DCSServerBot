@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 from core import utils, DCSServerBot
+from core.const import Status
 from configparser import ConfigParser
 from contextlib import closing, suppress
 from discord.ext import commands
@@ -63,8 +64,7 @@ class Main:
         fh.doRollover()
         log.addHandler(fh)
         ch = logging.StreamHandler()
-        # TODO: Change back to INFO
-        ch.setLevel(logging.DEBUG)
+        ch.setLevel(logging.INFO)
         log.addHandler(ch)
         return log
 
@@ -237,14 +237,14 @@ class Main:
                                        'The bot will be upgraded to the latest version.\nAre you sure?') is True:
                 running = False
                 for server_name, server in self.bot.DCSServers:
-                    if server['status'] in ['Running', 'Paused']:
+                    if server['status'] in [Status.RUNNING, Status.PAUSED]:
                         running = True
                 if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
                                                                   'servers.\nWould you like to shut them down now ('
                                                                   'Y/N)?') is True:
                     for server_name, server in self.bot.DCSServers:
                         self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
-                        server['status'] = 'Shutdown'
+                        server['status'] = Status.SHUTDOWN
                 await ctx.send('Bot upgrade started...\nThe bot will restart itself (and any servers that are '
                                'configured for autostart) when finished.')
                 self.upgrade()

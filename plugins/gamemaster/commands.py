@@ -1,4 +1,5 @@
 from core import DCSServerBot, Plugin, utils
+from core.const Status
 from discord.ext import commands
 from .listener import GameMasterEventListener
 
@@ -18,7 +19,7 @@ class GameMaster(Plugin):
     @commands.guild_only()
     async def chat(self, ctx, *args):
         server = await utils.get_server(self, ctx)
-        if server and server['status'] == 'Running':
+        if server and server['status'] == Status.RUNNING:
             self.bot.sendtoDCS(server, {
                 "command": "sendChatMessage",
                 "channel": ctx.channel.id,
@@ -34,7 +35,7 @@ class GameMaster(Plugin):
         if server:
             if to not in ['all', 'red', 'blue']:
                 await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}popup all|red|blue <message>")
-            elif server['status'] == 'Running':
+            elif server['status'] == Status.RUNNING:
                 self.bot.sendtoDCS(server, {
                     "command": "sendPopupMessage",
                     "channel": ctx.channel.id,
@@ -50,7 +51,7 @@ class GameMaster(Plugin):
     @commands.guild_only()
     async def flag(self, ctx, flag, value=None):
         server = await utils.get_server(self, ctx)
-        if server and server['status'] == 'Running':
+        if server and server['status'] == Status.RUNNING:
             self.bot.sendtoDCS(server, {
                 "command": "setFlag",
                 "channel": ctx.channel.id,
@@ -60,4 +61,4 @@ class GameMaster(Plugin):
 
 
 def setup(bot: DCSServerBot):
-    bot.add_cog(GameMaster('gamemaster', bot, GameMasterEventListener(bot)))
+    bot.add_cog(GameMaster(bot, GameMasterEventListener(bot)))

@@ -4,15 +4,16 @@ import discord
 import itertools
 import re
 import typing
-from core import utils, const, DCSServerBot, Plugin
+from core import utils, const, DCSServerBot, Plugin, Report
+from core.const import Status
 from discord.ext import commands, tasks
 from .listener import MissionEventListener
 
 
 class Mission(Plugin):
 
-    def __init__(self, plugin, bot, listener):
-        super().__init__(plugin, bot, listener)
+    def __init__(self, bot, listener):
+        super().__init__(bot, listener)
         self.update_mission_status.start()
 
     def cog_unload(self):
@@ -26,9 +27,11 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             if int(server['status_channel']) != ctx.channel.id:
-                if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
+                if server['status'] in [Status.RUNNING, Status.PAUSED]:
                     mission = await self.bot.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
-                    await ctx.send(embed=utils.format_mission_embed(self, mission))
+                    report = Report(self.bot, self.plugin, 'serverStatus.json')
+                    env = report.render(server=server, mission=mission)
+                    await ctx.send(embed=env.embed)
                 else:
                     return await ctx.send('Server ' + server['server_name'] + ' is not running.')
             else:
@@ -41,7 +44,7 @@ class Mission(Plugin):
     async def briefing(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
+            if server['status'] in [Status.RUNNING, Status.PAUSED]:
                 data = await self.bot.sendtoDCSSync(server, {"command": "getMissionDetails", "channel": ctx.message.id})
                 embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
                 embed.description = data['mission_description'][:2048]
@@ -55,7 +58,7 @@ class Mission(Plugin):
     async def atis(self, ctx, *args):
         name = ' '.join(args)
         for server_name, server in self.bot.DCSServers.items():
-            if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
+            if server['status'] in [Status.RUNNING, Status.PAUSED]:
                 for airbase in server['airbases']:
                     if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
                         data = await self.bot.sendtoDCSSync(server, {
@@ -128,8 +131,8 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             msg = None
-            if server['status'] not in [const.STATUS_STOPPED, const.STATUS_SHUTDOWN]:
-                if server['status'] == const.STATUS_RUNNING:
+            if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
+                if server['status'] == Status.RUNNING:
                     if delay > 0:
                         message = '!!! Server will be restarted in {} seconds !!!'.format(delay)
                     else:
@@ -185,7 +188,7 @@ class Mission(Plugin):
     async def list(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
+            if server['status'] in [Status.RUNNING, Status.PAUSED]:
                 data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                 missions = data['missionList']
                 n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '🔄')
@@ -216,7 +219,7 @@ class Mission(Plugin):
     async def add(self, ctx, *path):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
+            if server['status'] in [Status.RUNNING, Status.PAUSED]:
                 if len(path) == 0:
                     data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                     installed = [mission[(mission.rfind('\\') + 1):] for mission in data['missionList']]
@@ -244,7 +247,7 @@ class Mission(Plugin):
     async def delete(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] in [const.STATUS_RUNNING, const.STATUS_PAUSED]:
+            if server['status'] in [Status.RUNNING, Status.PAUSED]:
                 data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                 missions = data['missionList']
                 n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '❌')
@@ -264,7 +267,7 @@ class Mission(Plugin):
     async def pause(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] == 'Running':
+            if server['status'] == Status.RUNNING:
                 self.bot.sendtoDCS(server, {"command": "pauseMission", "channel": ctx.channel.id})
                 await ctx.send('Server "{}" paused.'.format(server['server_name']))
             else:
@@ -276,12 +279,12 @@ class Mission(Plugin):
     async def unpause(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] == const.STATUS_PAUSED:
+            if server['status'] == Status.PAUSED:
                 self.bot.sendtoDCS(server, {"command": "unpauseMission", "channel": ctx.channel.id})
                 await ctx.send('Server "{}" unpaused.'.format(server['server_name']))
-            elif server['status'] == const.STATUS_RUNNING:
+            elif server['status'] == Status.RUNNING:
                 await ctx.send('Server "{}" is already running.'.format(server['server_name']))
-            elif server['status'] == const.STATUS_LOADING:
+            elif server['status'] == Status.LOADING:
                 await ctx.send('Server "{}" is still loading... please wait a bit and try again.'.format(server['server_name']))
             else:
                 await ctx.send('Server "{}" is stopped or shut down. Please start the server first before unpausing.'.format(server['server_name']))
@@ -289,7 +292,7 @@ class Mission(Plugin):
     @tasks.loop(minutes=5.0)
     async def update_mission_status(self):
         for server_name, server in self.bot.DCSServers.items():
-            if server['status'] == const.STATUS_RUNNING:
+            if server['status'] == Status.RUNNING:
                 self.bot.sendtoDCS(server, {
                     "command": "getRunningMission",
                     "channel": server['status_channel']
@@ -297,4 +300,4 @@ class Mission(Plugin):
 
 
 def setup(bot: DCSServerBot):
-    bot.add_cog(Mission('mission', bot, MissionEventListener(bot)))
+    bot.add_cog(Mission(bot, MissionEventListener(bot)))

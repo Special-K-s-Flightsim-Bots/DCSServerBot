@@ -14,8 +14,8 @@ from .listener import EventListener
 
 class Plugin(commands.Cog):
 
-    def __init__(self, plugin: str, bot: DCSServerBot, eventlistener: EventListener = None):
-        self.plugin = plugin
+    def __init__(self, bot: DCSServerBot, eventlistener: EventListener = None):
+        self.plugin = type(self).__module__.split('.')[-2]
         self.plugin_version = None
         self.bot = bot
         self.log = bot.log
@@ -34,13 +34,14 @@ class Plugin(commands.Cog):
 
     def install(self):
         self.init_db()
-        for server_name in self.bot.DCSServers.keys():
-            installation = utils.findDCSInstallations(server_name)[0]
+        for installation in utils.findDCSInstallations():
+            if installation not in self.config:
+                continue
             source_path = f'./plugins/{self.plugin}/lua'
             if path.exists(source_path):
                 target_path = path.expandvars(self.config[installation]['DCS_HOME'] + f'\\Scripts\\net\\DCSServerBot\\{self.plugin}\\')
                 copytree(source_path, target_path, dirs_exist_ok=True)
-                self.log.debug(f'  => Luas installed into server {server_name}')
+                self.log.debug(f'  => Luas installed into {installation}')
         # install reports
         source_path = f'./plugins/{self.plugin}/reports'
         if path.exists(source_path):

@@ -6,6 +6,7 @@ import json
 import matplotlib.pyplot as plt
 import os
 import psycopg2
+import re
 import string
 import sys
 import uuid
@@ -182,6 +183,17 @@ class Report:
                     else:
                         raise KeyError
                 return super().format_field(value, spec)
+
+            def get_value(self, key, args, kwargs):
+                if isinstance(key, int):
+                    return args[key]
+                else:
+                    return kwargs[key]
+
+            def get_field(self, field_name, args, kwargs):
+                obj = self.get_value(field_name, args, kwargs)
+                return obj, field_name
+
         try:
             string_ = NoneFormatter().format(string_, **kwargs)
         except KeyError:
@@ -258,7 +270,10 @@ class Report:
                     # remove parameters, that are not in the render classes signature
                     signature = inspect.signature(element_class.render).parameters.keys()
                     render_args = {name: value for name, value in element_args.items() if name in signature}
-                    element_class.render(**render_args)
+                    try:
+                        element_class.render(**render_args)
+                    except Exception as ex:
+                        self.log.exception(ex)
                 else:
                     raise UnknownReportElement(element['class'])
             else:

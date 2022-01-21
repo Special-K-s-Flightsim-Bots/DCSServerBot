@@ -6,6 +6,7 @@ from typing import List, Union
 class EventListener:
 
     def __init__(self, bot):
+        self.plugin = type(self).__module__.split('.')[-2]
         self.bot = bot
         self.log = bot.log
         self.pool = bot.pool

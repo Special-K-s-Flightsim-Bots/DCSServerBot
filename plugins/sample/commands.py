@@ -25,8 +25,8 @@ class Sample(Plugin):
         Send the text to DCS, which will return the same text again (echo).
     """
 
-    def __init__(self, plugin, bot, listener):
-        super().__init__(plugin, bot, listener)
+    def __init__(self, bot, listener):
+        super().__init__(bot, listener)
         # Do whatever is needed to initialize your plugin.
         # You usually don't need to implement this function
 
@@ -46,4 +46,4 @@ class Sample(Plugin):
 
 
 def setup(bot: DCSServerBot):
-    bot.add_cog(Sample('sample', bot, SampleEventListener(bot)))
+    bot.add_cog(Sample(bot, SampleEventListener(bot)))
