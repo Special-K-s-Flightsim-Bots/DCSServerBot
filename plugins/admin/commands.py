@@ -41,7 +41,7 @@ class Agent(Plugin):
                 if server['status'] in [Status.RUNNING, Status.PAUSED]:
                     mission = await self.bot.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
                     report = Report(self.bot, 'mission', 'serverStatus.json')
-                    env = report.render(server=server, mission=mission)
+                    env = await report.render(server=server, mission=mission)
                     await ctx.send(embed=env.embed)
         else:
             await ctx.send('No server running on host {}'.format(platform.node()))

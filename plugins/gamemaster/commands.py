@@ -1,5 +1,5 @@
 from core import DCSServerBot, Plugin, utils
-from core.const Status
+from core.const import Status
 from discord.ext import commands
 from .listener import GameMasterEventListener
 

@@ -4,7 +4,7 @@ import pandas as pd
 import psycopg2
 import re
 import sched
-from core import const, utils, DCSServerBot, EventListener, Report
+from core import const, utils, DCSServerBot, EventListener, PersistentReport
 from core.const import Status
 from contextlib import closing
 from datetime import timedelta, datetime
@@ -223,12 +223,8 @@ class MissionEventListener(EventListener):
                 else:
                     self.log.warning(
                         f'Configuration mismatch! RESTART_LOCAL_TIMES not set correctly for server {server_name}.')
-        report = Report(self.bot, self.plugin, 'serverStatus.json')
-        env = report.render(server=server, mission=data)
-        if env.embed:
-            return await self.bot.setEmbed(data, 'mission_embed', env.embed)
-        else:
-            return None
+        report = PersistentReport(self.bot, self.plugin, 'serverStatus.json', data, 'mission_embed')
+        return await report.render(server=server, mission=data)
 
     async def getCurrentPlayers(self, data):
         if data['server_name'] not in self.bot.player_data:

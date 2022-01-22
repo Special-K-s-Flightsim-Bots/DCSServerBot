@@ -18,7 +18,7 @@ class Mission(Plugin):
 
     def cog_unload(self):
         self.update_mission_status.cancel()
-        super().cog_unload(self)
+        super().cog_unload()
 
     @commands.command(description='Shows the active DCS mission', hidden=True)
     @utils.has_role('DCS Admin')
@@ -30,7 +30,7 @@ class Mission(Plugin):
                 if server['status'] in [Status.RUNNING, Status.PAUSED]:
                     mission = await self.bot.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
                     report = Report(self.bot, self.plugin, 'serverStatus.json')
-                    env = report.render(server=server, mission=mission)
+                    env = await report.render(server=server, mission=mission)
                     await ctx.send(embed=env.embed)
                 else:
                     return await ctx.send('Server ' + server['server_name'] + ' is not running.')

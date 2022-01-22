@@ -62,8 +62,6 @@ class UserStatisticsEventListener(EventListener):
                         'SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name,))
                     if cursor.rowcount > 0:
                         self.mission_ids[server_name] = cursor.fetchone()[0]
-                    else:
-                        self.log.exception('No mission ID found! Statistics disabled.')
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
             finally:

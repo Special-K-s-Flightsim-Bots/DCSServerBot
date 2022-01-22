@@ -227,7 +227,7 @@ class Report:
             new_args['params'] = params
         return new_args
 
-    def render(self, *args, **kwargs) -> ReportEnv:
+    async def render(self, *args, **kwargs) -> ReportEnv:
         # parse report parameters
         if 'input' in self.report_def:
             self.env.params = self.parse_input(kwargs, self.report_def['input'])
@@ -309,14 +309,15 @@ class PaginationReport(Report):
             values = param['values']
         return name, values
 
-    async def display(self, *args, **kwargs):
+    async def render(self, *args, **kwargs) -> ReportEnv:
         name, values = self.read_param(self.report_def['pagination']['param'])
+        func = super().render
 
         async def pagination(value=None):
             try:
                 try:
                     kwargs[name] = value
-                    env = self.render(*args, **kwargs)
+                    env = await func(*args, **kwargs)
                     file = discord.File(env.filename) if env.filename else None
                     message = None
                     with suppress(Exception):
@@ -361,3 +362,18 @@ class PaginationReport(Report):
                 await message.clear_reactions()
 
         await pagination()
+        return self.env
+
+
+class PersistentReport(Report):
+
+    def __init__(self, bot: DCSServerBot, plugin: str, filename: str, server: dict, embed_name: str):
+        super().__init__(bot, plugin, filename)
+        self.server = server
+        self.embed_name = embed_name
+
+    async def render(self, *args, **kwargs) -> ReportEnv:
+        env = await super().render(*args, **kwargs)
+        file = discord.File(filename=env.filename) if env.filename else None
+        await self.bot.setEmbed(self.server, self.embed_name, env.embed, file)
+        return env

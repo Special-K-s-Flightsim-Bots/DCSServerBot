@@ -13,6 +13,7 @@ from core.const import Status
 from discord.ext import commands
 from .listener import EventListener
 from socketserver import BaseRequestHandler, ThreadingUDPServer
+from typing import Callable, Optional, Tuple
 
 
 class DCSServerBot(commands.Bot):
@@ -99,7 +100,7 @@ class DCSServerBot(commands.Bot):
                         self.log.info(f'  => Launching DCS-SRS server "{server_name}" ...')
                         utils.start_srs(self, installation)
 
-    def load_plugin(self, plugin):
+    def load_plugin(self, plugin: str):
         try:
             self.load_extension(f'plugins.{plugin}.commands')
         except commands.ExtensionNotFound:
@@ -108,14 +109,14 @@ class DCSServerBot(commands.Bot):
             self.log.exception(ex)
             self.log.error(f'- Error during initialisation of plugin "{plugin}": {ex.original if ex.original else ex}')
 
-    def unload_plugin(self, plugin):
+    def unload_plugin(self, plugin: str):
         try:
             self.unload_extension(f'plugins.{plugin}.commands')
         except commands.ExtensionNotFound:
             self.log.debug(f'- No init.py found for plugin "{plugin}!"')
             pass
 
-    def reload_plugin(self, plugin):
+    def reload_plugin(self, plugin: str):
         self.unload_plugin(plugin)
         self.load_plugin(plugin)
 
@@ -135,7 +136,7 @@ class DCSServerBot(commands.Bot):
             self.log.info('Discord connection reestablished.')
         return
 
-    async def on_command_error(self, ctx, err):
+    async def on_command_error(self, ctx: discord.ext.commands.Context, err: Exception):
         if isinstance(err, commands.CommandNotFound):
             pass
         elif isinstance(err, commands.NoPrivateMessage):
@@ -149,21 +150,21 @@ class DCSServerBot(commands.Bot):
         else:
             await ctx.send(str(err))
 
-    def reload(self, plugin=None):
+    def reload(self, plugin: Optional[str]):
         if plugin:
             self.reload_plugin(plugin)
         else:
             for plugin in self.plugins:
                 self.reload_plugin(plugin)
 
-    async def audit(self, message, *, embed=None):
+    async def audit(self, message, *, embed: Optional[discord.Embed]):
         if not self.audit_channel:
             if 'AUDIT_CHANNEL' in self.config['BOT']:
                 self.audit_channel = self.guilds[0].get_channel(int(self.config['BOT']['AUDIT_CHANNEL']))
         if self.audit_channel:
             await self.audit_channel.send(message, embed=embed)
 
-    def sendtoDCS(self, server, message):
+    def sendtoDCS(self, server: dict, message: dict):
         # As Lua does not support large numbers, convert them to strings
         for key, value in message.items():
             if type(value) == int:
@@ -173,7 +174,7 @@ class DCSServerBot(commands.Bot):
         dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         dcs_socket.sendto(msg.encode('utf-8'), (server['host'], server['port']))
 
-    def sendtoDCSSync(self, server, message, timeout=5):
+    def sendtoDCSSync(self, server: dict, message: dict, timeout: Optional[int] = 5):
         future = self.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
         message['channel'] = token
@@ -181,25 +182,25 @@ class DCSServerBot(commands.Bot):
         self.listeners[token] = future
         return asyncio.wait_for(future, timeout)
 
-    def get_bot_channel(self, data, channel_type='status_channel'):
+    def get_bot_channel(self, data: dict, channel_type: Optional[str] = 'status_channel'):
         if int(data['channel']) == -1:
             return self.get_channel(int(self.DCSServers[data['server_name']][channel_type]))
         else:
             return self.get_channel(int(data['channel']))
 
-    async def setEmbed(self, data, embed_name, embed):
-        server_name = data['server_name']
+    async def setEmbed(self, server: dict, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None):
+        server_name = server['server_name']
         message = self.embeds[server_name][embed_name] if (
             server_name in self.embeds and embed_name in self.embeds[server_name]) else None
         if message:
             try:
-                await message.edit(embed=embed)
+                await message.edit(embed=embed, file=file)
             except discord.errors.NotFound:
                 message = None
         if not message:
             if server_name not in self.embeds:
                 self.embeds[server_name] = {}
-            message = await self.get_bot_channel(data).send(embed=embed)
+            message = await self.get_bot_channel(server).send(embed=embed, file=file)
             self.embeds[server_name][embed_name] = message
             conn = self.pool.getconn()
             try:
@@ -253,7 +254,7 @@ class DCSServerBot(commands.Bot):
                     del self.listeners[dt['channel']]
 
         class MyThreadingUDPServer(ThreadingUDPServer):
-            def __init__(self, server_address, request_handler):
+            def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
                 # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                 self.allow_reuse_address = True
                 self.max_packet_size = 65504
