@@ -8,7 +8,7 @@
     },
     {
       "class": "plugins.mission.status.ServerInfo",
-      "params": { "show_password":  true }
+      "params": { "show_password":  false }
     },
     "Ruler",
     {
@@ -19,7 +19,7 @@
       "params": [
         {"plugin": "SRS" },
         {"plugin": "LotAtc" },
-        {"plugin":  "Tacview", "show_passwords":  false }
+        {"plugin":  "Tacview", "show_password":  false }
       ]
     },
     "Ruler",

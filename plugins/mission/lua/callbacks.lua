@@ -211,8 +211,6 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
 	msg.arg7 = arg7
 	if (msg.eventName == 'kill') then
 		msg.victimCategory = utils.getCategory(arg5)
-	end
-	if (msg.eventName == 'kill') then
 		msg.killerCategory = utils.getCategory(arg2)
 	end
 	utils.sendBotTable(msg)

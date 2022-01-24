@@ -1,7 +1,7 @@
 from core import const, report
 from core.const import Status
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Optional
 
 
 class Init(report.EmbedElement):
@@ -13,17 +13,19 @@ class Init(report.EmbedElement):
             self.embed.description = f"Mission: \"{mission['current_mission']}\""
         else:
             self.embed.description = f"_{server['status'].value}_"
-        #self.embed.set_thumbnail(url=const.STATUS_IMG[server['status']])
 
 
 class ServerInfo(report.EmbedElement):
 
-    def render(self, server: dict, mission: dict):
+    def render(self, server: dict, mission: dict, show_password: Optional[bool] = True):
         self.add_field(name='Map', value=mission['current_map'])
         self.add_field(name='Server-IP / Port',
                        value=self.bot.external_ip + ':' + str(server['serverSettings']['port']))
         if len(server['serverSettings']['password']) > 0:
-            self.add_field(name='Password', value=server['serverSettings']['password'])
+            if show_password:
+                self.add_field(name='Password', value=server['serverSettings']['password'])
+            else:
+                self.add_field(name='Password', value='********')
         else:
             self.add_field(name='Password', value='_ _')
         uptime = int(mission['mission_time'])
@@ -121,21 +123,21 @@ class PluginsInfo(report.EmbedElement):
                     server['options']['plugins']['Tacview']['tacviewFlightDataRecordingEnabled'] is False):
                 value = 'disabled'
             else:
-                show_passwords = param['show_passwords'] if 'show_passwords' in param else True
+                show_password = param['show_password'] if 'show_password' in param else True
                 value = ''
                 tacview = server['options']['plugins']['Tacview']
                 if 'tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled'] is True:
                     name += ' RT'
-                    if show_passwords and 'tacviewRealTimeTelemetryPassword' in tacview and len(
+                    if show_password and 'tacviewRealTimeTelemetryPassword' in tacview and len(
                             tacview['tacviewRealTimeTelemetryPassword']) > 0:
                         value += 'Password: {}\n'.format(tacview['tacviewRealTimeTelemetryPassword'])
-                elif show_passwords and 'tacviewHostTelemetryPassword' in tacview and len(tacview['tacviewHostTelemetryPassword']) > 0:
+                elif show_password and 'tacviewHostTelemetryPassword' in tacview and len(tacview['tacviewHostTelemetryPassword']) > 0:
                     value += 'Password: "{}"\n'.format(tacview['tacviewHostTelemetryPassword'])
                 if 'tacviewRealTimeTelemetryPort' in tacview and len(tacview['tacviewRealTimeTelemetryPort']) > 0:
                     name += ' [{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
                 if 'tacviewRemoteControlEnabled' in tacview and tacview['tacviewRemoteControlEnabled'] is True:
                     value += '**Remote Ctrl [{}]**\n'.format(tacview['tacviewRemoteControlPort'])
-                    if show_passwords and 'tacviewRemoteControlPassword' in tacview and len(tacview['tacviewRemoteControlPassword']) > 0:
+                    if show_password and 'tacviewRemoteControlPassword' in tacview and len(tacview['tacviewRemoteControlPassword']) > 0:
                         value += 'Password: {}'.format(tacview['tacviewRemoteControlPassword'])
                 if len(value) == 0:
                     value = 'enabled'

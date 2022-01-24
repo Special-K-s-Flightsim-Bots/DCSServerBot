@@ -1,5 +1,9 @@
 # listener.py
+from contextlib import closing
+
 import discord
+import psycopg2
+
 from core import DCSServerBot, EventListener
 
 
@@ -21,7 +25,23 @@ class MissionStatisticsEventListener(EventListener):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        self.mission_stats = {}
+        self.mission_stats = dict()
+        self.mission_ids = dict()
+
+    async def registerDCSServer(self, data):
+        if data['statistics']:
+            server_name = data['server_name']
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(
+                        'SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name,))
+                    if cursor.rowcount > 0:
+                        self.mission_ids[server_name] = cursor.fetchone()[0]
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+            finally:
+                self.pool.putconn(conn)
 
     async def enableMissionStats(self, data):
         self.mission_stats[data['server_name']] = data
@@ -63,7 +83,57 @@ class MissionStatisticsEventListener(EventListener):
                 embed.add_field(name=coalition, value=value)
             return await self.bot.setEmbed(data, 'stats_embed', embed)
 
+    # TODO: this code has to run after the new mission id has been created!
+    async def onMissionLoadEnd(self, data):
+        conn = self.pool.getconn()
+        try:
+            server_name = data['server_name']
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name,))
+                if cursor.rowcount > 0:
+                    self.mission_ids[server_name] = cursor.fetchone()[0]
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
     async def onMissionEvent(self, data):
+        # TODO: make this configurable
+        conn = self.pool.getconn()
+        try:
+            server_name = data['server_name']
+            with closing(conn.cursor()) as cursor:
+                def get_value(values: dict, index1, index2):
+                    if index1 not in values:
+                        return None
+                    if index2 not in values[index1]:
+                        return None
+                    return values[index1][index2]
+
+                dataset = {
+                    'mission_id': self.mission_ids[server_name],
+                    'event': data['eventName'],
+                    'init_id': get_value(data, 'initiator', 'unit_name'),
+                    'init_side': get_value(data, 'initiator', 'coalition'),
+                    'init_type': get_value(data, 'initiator', 'unit_type'),
+                    'init_cat': get_value(data, 'initiator', 'category'),
+                    'target_id': get_value(data, 'target', 'unit_name'),
+                    'target_side': get_value(data, 'target', 'coalition'),
+                    'target_type': get_value(data, 'target', 'unit_type'),
+                    'target_cat': get_value(data, 'target', 'category'),
+                    'weapon': get_value(data, 'weapon', 'name')
+                }
+                cursor.execute('INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, '
+                               'target_id, target_side, target_type, target_cat, weapon) VALUES (%(mission_id)s, '
+                               '%(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, %(target_id)s, '
+                               '%(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s)', dataset)
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+
         if data['server_name'] in self.mission_stats:
             stats = self.mission_stats[data['server_name']]
             update = False
@@ -113,7 +183,7 @@ class MissionStatisticsEventListener(EventListener):
                     if unit_name in stats['coalitions'][coalition]['statics']:
                         stats['coalitions'][coalition]['statics'].remove(unit_name)
                 update = True
-            elif data['eventName'] == 'BaseCaptured':
+            elif data['eventName'] == 'capture':
                 win_coalition = self.COALITION[data['initiator']['coalition']]
                 lose_coalition = self.COALITION[(data['initiator']['coalition'] % 2) + 1]
                 name = data['place']['name']

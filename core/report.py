@@ -166,7 +166,7 @@ class Report:
         overwrite = f'./reports/{plugin}/{filename}'
         if not path.exists(default):
             raise FileNotFoundError(default)
-        if path.exists(overwrite) and (path.getctime(overwrite) > path.getctime(default)):
+        if path.exists(overwrite):
             filename = overwrite
         else:
             filename = default
