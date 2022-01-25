@@ -8,5 +8,5 @@
 -- what my little code does here.
 ---------------------------------------------------------
 dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBotConfig.lua')
-dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBotCommands.lua')
-dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBotCallbacks.lua')
+dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBotUtils.lua')
+dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBotMain.lua')

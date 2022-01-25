@@ -43,9 +43,9 @@ GREETING_MESSAGE_UNKNOWN = {}, please join our discord at ...<tbd>...
 SERVER_USER = Admin
 
 ; Only needed if your installation is not named DCS (stable installation).
-; If this is the case, just add DCS_HOME and the other parameters to the
+; If you use stable, just add DCS_HOME and the other parameters to the
 ; DCS-category above.
-[DCS.openbeta]
+[DCS.OpenBeta]
 DCS_HOST = 127.0.0.1
 DCS_PORT = 6666
 DCS_HOME = %%USERPROFILE%%\\Saved Games\\DCS.OpenBeta
@@ -55,7 +55,8 @@ DCS_HOME = %%USERPROFILE%%\\Saved Games\\DCS.OpenBeta
 AUTOSTART_DCS = true
 ; AUTOSTART_SRS = true
 STATISTICS = true
-; These channels have to be replaces with the dedicated discord channel IDs (see README)
+MISSION_STATISTICS = true
+; These channels have to be replaced with the dedicated discord channel IDs (see README)
 CHAT_CHANNEL = 123456789012345678
 STATUS_CHANNEL = 123456789012345678
 ADMIN_CHANNEL = 123456789012345678

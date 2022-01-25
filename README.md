@@ -82,11 +82,15 @@ Userstats needs the Mission plugin to be loaded.
 
 ### Plugin "Missionstats"
 This plugin does not (yet) come with commands. When enabled, it will generate a persistent mission statistics embed to be displayed in the status channels. 
-To enable the mission statistics, you need to put the following inside a mission start trigger of your mission:
+If enabled, the DCSServerBot.lua and mission.lua will automatically be loaded into any mission running on that specific server.
+To disable mission statistics for a specific mission, you can use the following piece of code somewhere in your mission (not in a on-startup trigger, but shortly after).
 ```lua
-  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
-  dcsbot.enableMissionStats()
+  dcsbot.disableMissionStats()
 ```
+
+### In case you want to write your own plugin ...
+There is a sample in the plugins/samples subdirectory, that will guide you through the steps. If you want your plugin to be added to the distribution, just contact me via the contact details below.
+
 ---
 ## Installation
 First download the latest release version and extract it somewhere on your server, where it has write access.
@@ -103,7 +107,7 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 Create a "New Application", add a Bot, select Bot from the left menu, give it a nice name and icon, press "Copy" below "Click to Reveal Token".
 Now your Token is in your clipboard. Paste it in dcsserverbot.ini in your config-directory.
 Both "Privileged Gateway Intents" have to be enabled on that page.
-To add the bot to your Discord guild, go to OAuth2, select "bot" in the OAuth2 URL Generator, select the following permissions:
+To add the bot to your Discord guild, select "OAuth2" from the menu, then "URL Generator", select the "bot" checkbox, and then select the following permissions:
 _Manage Channels, Send Messages, Manage Messages, Embed Links, Attach Files, Read Message History, Add Reactions_
 Press "Copy" on the generated URL, paste it into the browser of your choice, select the guild the bot has to be added to - and you're done!
 For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
@@ -156,22 +160,26 @@ d) __DCS Section__
 | GREETING_MESSAGE_UNKNOWN | A greeting message, that people will receive in DCS, if they are not recognized as a member of your discord.        |
 | SERVER_USER              | The username to display as user no. 1 in the server (Observer)                                                      |
 
-e) __Server Specific Sections (e.g. [DCS.openbeta_server])__
+e) __Server Specific Sections__
 
-| Parameter      | Description                                                                                                                                                                              |
-|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| DCS_HOST       | The IP of the machine, DCS is running onto. If you are an agent to a master in the same network but not on your machine, this has to be the internal IP of the DCS server.               |
-| DCS_PORT       | Must be a unique value > 1024 of a port that is not in use on your system. Must be unique for every DCS server instance configured. **__Don't expose that port to the outside world!__** |
-| DCS_HOME       | The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.                                      |
-| SRS_CONFIG     | The configuration file to use for the dedicated DCS-SRS server (optional).                                                                                                               |
-| SRS_HOST       | The IP-address the DCS-SRS server is listening on (optional, default: 127.0.0.1).                                                                                                        |
-| SRS_PORT       | The port the DCS-SRS server uses (optional, default: 5002).                                                                                                                              |
-| AUTOSTART_DCS  | If true, the corresponding DCS server will be started automatically at bot start.                                                                                                        |
-| AUTOSTART_SRS  | If true, the corresponding DCS-SRS server will be started automatically at bot start (optional).                                                                                         |
-| STATISTICS     | If false, no statistics will be generated for this server. Default is true.                                                                                                              |
-| CHAT_CHANNEL   | The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.         |
-| STATUS_CHANNEL | The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                    |
-| ADMIN_CHANNEL  | The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                    |
+This section has to be named **exactly** like your Saved Games\<instance> directory. Usual names are DCS.OpenBeta or DCS.openbeta_server.
+If your directory is named DCS instead (stable version), just add these fields to the DCS category above.
+
+| Parameter          | Description                                                                                                                                                                                 |
+|--------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| DCS_HOST           | The internal (!) IP of the machine, DCS is running onto. If the DCS server is running on the same machine as the bot (default), this should be 127.0.0.1.                                   |
+| DCS_PORT           | Must be a unique value > 1024 of an unused port in your system. This is **NOT** the DCS tcp/udp port (10308), that is used by DCS but a unique different one. Keep the default, if unsure.  |
+| DCS_HOME           | The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.                                         |
+| SRS_CONFIG         | The configuration file to use for the dedicated DCS-SRS server (optional).                                                                                                                  |
+| SRS_HOST           | The IP-address the DCS-SRS server is listening on (optional, default: 127.0.0.1).                                                                                                           |
+| SRS_PORT           | The port the DCS-SRS server uses (optional, default: 5002).                                                                                                                                 |
+| AUTOSTART_DCS      | If true, the corresponding DCS server will be started automatically at bot start.                                                                                                           |
+| AUTOSTART_SRS      | If true, the corresponding DCS-SRS server will be started automatically at bot start (optional).                                                                                            |
+| STATISTICS         | If false, no statistics will be generated for this server. Default is true.                                                                                                                 |
+| MISSION_STATISTICS | If true, mission statistics will be generated for all missions loaded in this server.                                                                                                       | 
+| CHAT_CHANNEL       | The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.            |
+| STATUS_CHANNEL     | The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                       |
+| ADMIN_CHANNEL      | The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                       |
 
 f) __Automated Restarts__
 This has to be added to each Server Specific Section (see dcsserverbot.ini.sample), to allow automated mission restarts or rotations.
@@ -199,14 +207,16 @@ The DCS World integration is done via a Hook. They are being installed automatic
 ### Sanitization
 DCSServerBot sanitizes your MissionScripting environment. That means, it changes entries in {DCS_INSTALLATION}\Scripts\MissionScripting.lua.
 If you use any other method of sanitization, DCSServerBot checks, if additional sanitizations are needed and conducts them.
+**To be able to do so, you must change the permissions on the DCS-installation directory. Give the User group write permissions for instance.**
 Your MissionScripting.lua will look like this afterwards:
 ```lua
 do
 	sanitizeModule('os')
 	--sanitizeModule('io')
 	--sanitizeModule('lfs')
-	--require = nil
-	loadlib = nil
+	--_G['require'] = nil
+	_G['loadlib'] = nil
+	--_G['package'] = nil
 end
 ```
 
@@ -222,7 +232,7 @@ You can change the role names to the ones being used in your discord. That has t
 
 ### Running of the Bot
 To start the bot, you can either use the packaged _run.cmd_ command or _python run.py_.
-If using _AUTOUPDATE = TRUE_ it is recommended to start the bot in a loop as it will close itself after an update has taken place.
+If using _AUTOUPDATE = true_ it is recommended to start the bot in a loop as it will close itself after an update has taken place.
 
 ### **!!! ATTENTION !!!**
 _One of the concepts of this bot it to bind people to your discord._
@@ -264,15 +274,18 @@ When running multiple servers over different locations it might be necessary to 
 5) Start the server at the **new** location.
 
 ### How to talk to the Bot from inside Missions
-If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a mission start trigger:
+If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a trigger:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
 ```
+_Don't use a Mission Start trigger, as this might clash with other plugins loading stuff into the mission._ 
 After that, you can for instance send chat messages to the bot using
 ```lua
   dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear, default is the configured chat channel
 ```
 inside a trigger or anywhere else where scripting is allowed.
+
+**Attention!** Channel always has to be a string, encapsulated with '', **not** a number.
 
 Embeds can be sent using code similar to this snippet:
 ```lua
@@ -309,8 +322,8 @@ Things to be added in the future:
 * more plugins!
 
 ---
-## Support
-If you need support, jump into my [Support Discord](https://discord.gg/zjRateN).
+## Contact / Support
+If you need support, if you want to chat with me or other users or if you like to contribute, jump into my [Support Discord](https://discord.gg/zjRateN).
 
 If you like what I do and you want to support me, you can do that via my [Patreon Page](https://www.patreon.com/DCS_SpecialK).
 

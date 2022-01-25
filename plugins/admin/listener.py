@@ -1,13 +1,18 @@
 # listener.py
 import platform
 import psycopg2
-from core import utils, DCSServerBot, EventListener
+from core import utils, EventListener
 from contextlib import closing
 
 
 class AdminEventListener(EventListener):
 
     async def registerDCSServer(self, data):
+        installations = utils.findDCSInstallations(data['server_name'])
+        if not installations:
+            self.log.error(f"Server {data['server_name']} not found in dcsserverbot.ini. Please add a "
+                           f"configuration for it!")
+            return
         self.log.debug('  => Registering DCS-Server ' + data['server_name'])
         # check for protocol incompatibilities
         if data['hook_version'] != self.bot.version:
@@ -38,7 +43,7 @@ class AdminEventListener(EventListener):
             finally:
                 self.pool.putconn(conn)
             # Store server configuration
-            server['installation'] = utils.findDCSInstallations(data['server_name'])[0]
+            server['installation'] = installations[0]
             server['dcs_version'] = data['dcs_version']
             server['serverSettings'] = data['serverSettings']
             server['options'] = data['options']

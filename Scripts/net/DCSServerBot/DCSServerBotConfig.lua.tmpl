@@ -7,18 +7,18 @@
 -- !!! PLEASE DON'T CHANGE THIS FILE DIRECTLY BUT      !!!
 -- !!! CHANGE THE ACCORDING VALUES IN dcsserverbot.ini !!!
 ----------------------------------------------------------
-dcsbot = dcsbot or {}
-dcsbot.config = dcsbot.config or {}
+module('DCSServerBotConfig')
 
-dcsbot.config.VERSION = '{BOT.VERSION}'
+VERSION = '{BOT.VERSION}'
 -- General Values
-dcsbot.config.BOT_HOST = '{BOT.HOST}'
-dcsbot.config.BOT_PORT = {BOT.PORT}
-dcsbot.config.SERVER_USER = '{DCS.SERVER_USER}'
+BOT_HOST = '{BOT.HOST}'
+BOT_PORT = {BOT.PORT}
+SERVER_USER = '{DCS.SERVER_USER}'
 -- Instance Values
-dcsbot.config.DCS_HOST = '{DCS_HOST}'
-dcsbot.config.DCS_PORT = {DCS_PORT}
-dcsbot.config.STATISTICS = {STATISTICS}           -- false = disable statistics
-dcsbot.config.CHAT_CHANNEL = '{CHAT_CHANNEL}'   -- Ingame chat will be replicated here
-dcsbot.config.STATUS_CHANNEL = '{STATUS_CHANNEL}'   -- a persistent server and players status will be presented here
-dcsbot.config.ADMIN_CHANNEL = '{ADMIN_CHANNEL}'   -- admin commands can be fired here
+DCS_HOST = '{DCS_HOST}'
+DCS_PORT = {DCS_PORT}
+STATISTICS = {STATISTICS}           -- true = enable user statistics
+MISSION_STATISTICS = {MISSION_STATISTICS} -- true = enable mission statistics
+CHAT_CHANNEL = '{CHAT_CHANNEL}'   -- Ingame chat will be replicated here
+STATUS_CHANNEL = '{STATUS_CHANNEL}'   -- a persistent server and players status will be presented here
+ADMIN_CHANNEL = '{ADMIN_CHANNEL}'   -- admin commands can be fired here

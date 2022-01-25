@@ -2,6 +2,7 @@
 import asyncio
 import aiohttp
 import discord
+import importlib
 import math
 import os
 import psutil
@@ -10,8 +11,7 @@ import socket
 import subprocess
 import psycopg2
 import xmltodict
-from core import const
-from datetime import datetime, timedelta
+from core.const import Status
 from configparser import ConfigParser
 from contextlib import closing, suppress
 from discord.ext import commands
@@ -94,10 +94,10 @@ def match(name1, name2):
     if name1 == name2:
         return len(name1)
     # remove any tags
-    n1 = re.sub('^[\[\<\(=].*[=\)\>\]]', '', name1).strip()
+    n1 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name1).strip()
     if len(n1) == 0:
         n1 = name1
-    n2 = re.sub('^[\[\<\(=].*[=\)\>\]]', '', name2).strip()
+    n2 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name2).strip()
     if len(n2) == 0:
         n2 = name2
     # if the names are too short, return
@@ -250,7 +250,7 @@ async def yn_question(self, ctx, question, msg=None):
 async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]):
     for server_name, server in self.bot.DCSServers.items():
         if isinstance(ctx, discord.ext.commands.context.Context):
-            if server['status'] == 'Unknown':
+            if server['status'] == Status.UNKNOWN:
                 continue
             if (int(server['status_channel']) == ctx.channel.id) or (int(server['chat_channel']) == ctx.channel.id) or (int(server['admin_channel']) == ctx.channel.id):
                 return server
@@ -330,109 +330,24 @@ def start_srs(self, installation):
     return subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.config[installation]['SRS_CONFIG']))], executable=os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']) + '\\SR-Server.exe')
 
 
-def format_mission_embed(self, mission):
-    server = self.bot.DCSServers[mission['server_name']]
-    if 'serverSettings' not in server:
-        self.bot.log.error('Can\'t format mission embed due to incomplete server data.')
+def str_to_class(name):
+    try:
+        module_name, class_name = name.rsplit('.', 1)
+        return getattr(importlib.import_module(module_name), class_name)
+    except AttributeError:
         return None
-    plugins = []
-    embed = discord.Embed(title='{} [{}/{}]\n{}'.format(mission['server_name'],
-                                                        mission['num_players'], server['serverSettings']['maxPlayers'],
-                                                        ('"' + mission['current_mission'] + '"') if server['status'] in ['Running', 'Paused'] else ('_' + server['status'] + '_')),
-                          color=discord.Color.blue())
 
-    embed.set_thumbnail(url=self.STATUS_IMG[server['status']])
-    embed.add_field(name='Map', value=mission['current_map'])
-    embed.add_field(name='Server-IP / Port', value=self.bot.external_ip + ':' + str(server['serverSettings']['port']))
-    if len(server['serverSettings']['password']) > 0:
-        embed.add_field(name='Password', value=server['serverSettings']['password'])
+
+# Return a player from the internal list
+def get_player(self, server_name, **kwargs):
+    df = self.bot.player_data[server_name]
+    if 'id' in kwargs:
+        row = df[df['id'] == kwargs['id']]
+    elif 'name' in kwargs:
+        row = df[df['name'] == kwargs['name']]
     else:
-        embed.add_field(name='Password', value='_ _')
-    uptime = int(mission['mission_time'])
-    embed.add_field(name='Runtime', value=str(timedelta(seconds=uptime)))
-    if 'start_time' in mission:
-        if mission['date']['Year'] >= 1970:
-            date = datetime(mission['date']['Year'], mission['date']['Month'],
-                            mission['date']['Day'], 0, 0).timestamp()
-            real_time = date + mission['start_time'] + uptime
-            value = str(datetime.fromtimestamp(real_time))
-        else:
-            value = '{}-{:02d}-{:02d} {}'.format(mission['date']['Year'], mission['date']['Month'],
-                                                 mission['date']['Day'], timedelta(seconds=mission['start_time'] + uptime))
+        return None
+    if not row.empty:
+        return row.to_dict('records')[0]
     else:
-        value = '-'
-    embed.add_field(name='Date/Time in Mission', value=value)
-    embed.add_field(name='Avail. Slots',
-                    value='🔹 {}  |  {} 🔸'.format(mission['num_slots_blue'] if 'num_slots_blue' in mission else '-', mission['num_slots_red'] if 'num_slots_red' in mission else '-'))
-    embed.add_field(name='▬' * 25, value='_ _', inline=False)
-    if 'weather' in mission:
-        if 'clouds' in mission and 'preset' in mission['clouds']:
-            embed.add_field(name='Preset', value=mission['clouds']['preset']['readableNameShort'])
-        else:
-            embed.add_field(name='Weather', value='Dynamic')
-        weather = mission['weather']
-        embed.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
-        embed.add_field(name='QNH', value='{:.2f} inHg'.format(weather['qnh'] * const.MMHG_IN_INHG))
-        embed.add_field(name='Wind', value='\u2002Ground: {}° / {} kts\n\u20026600 ft: {}° / {} kts\n26000 ft: {}° / {} kts'.format(
-            int(weather['wind']['atGround']['dir'] + 180) % 360, int(weather['wind']['atGround']['speed']),
-            int(weather['wind']['at2000']['dir'] + 180) % 360, int(weather['wind']['at2000']['speed']),
-            int(weather['wind']['at8000']['dir'] + 180) % 360, int(weather['wind']['at8000']['speed'])))
-        if 'clouds' in mission:
-            if 'preset' in mission['clouds']:
-                embed.add_field(name='Cloudbase',
-                                value=f'{int(mission["clouds"]["base"] * const.METER_IN_FEET):,} ft')
-            else:
-                embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nDensity:\u2002\u2002 {}/10\nThickness: {:,} ft'.format(
-                    int(mission['clouds']['base'] * const.METER_IN_FEET), mission['clouds']['density'], int(mission['clouds']['thickness'] * const.METER_IN_FEET)))
-        else:
-            embed.add_field(name='Clouds', value='n/a')
-        visibility = weather['visibility']['distance']
-        if weather['enable_fog'] is True:
-            visibility = weather['fog']['visibility'] * const.METER_IN_FEET
-        embed.add_field(name='Visibility', value=f'{int(visibility):,} ft')
-        embed.add_field(name='▬' * 25, value='_ _', inline=False)
-    if 'SRSSettings' in server:
-        plugins.append('SRS')
-        if 'EXTERNAL_AWACS_MODE' in server['SRSSettings'] and 'EXTERNAL_AWACS_MODE_BLUE_PASSWORD' in server['SRSSettings'] and 'EXTERNAL_AWACS_MODE_RED_PASSWORD' in server['SRSSettings'] and server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True:
-            value = '🔹 Pass: {}\n🔸 Pass: {}'.format(
-                server['SRSSettings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'],
-                server['SRSSettings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'])
-        else:
-            value = '_ _'
-        embed.add_field(name='SRS [{}]'.format(
-            server['SRSSettings']['SERVER_SRS_PORT']), value=value)
-    if 'lotAtcSettings' in server:
-        plugins.append('LotAtc')
-        embed.add_field(name='LotAtc [{}]'.format(server['lotAtcSettings']['port']), value='🔹 Pass: {}\n🔸 Pass: {}'.format(
-            server['lotAtcSettings']['blue_password'], server['lotAtcSettings']['red_password']))
-    if 'Tacview' in server['options']['plugins']:
-        name = 'Tacview'
-        if ('tacviewModuleEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewModuleEnabled'] is False) or ('tacviewFlightDataRecordingEnabled' in server['options']['plugins']['Tacview'] and server['options']['plugins']['Tacview']['tacviewFlightDataRecordingEnabled'] is False):
-            value = 'disabled'
-        else:
-            plugins.append('Tacview')
-            value = ''
-            tacview = server['options']['plugins']['Tacview']
-            if 'tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled'] is True:
-                name += ' RT'
-            if 'tacviewRealTimeTelemetryPort' in tacview and len(tacview['tacviewRealTimeTelemetryPort']) > 0:
-                name += ' [{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
-            if 'tacviewRemoteControlEnabled' in tacview and tacview['tacviewRemoteControlEnabled'] is True:
-                value += '**Remote Ctrl [{}]**\n'.format(tacview['tacviewRemoteControlPort'])
-            if len(value) == 0:
-                value = 'enabled'
-        embed.add_field(name=name, value=value)
-    footer = '- Server is running DCS {}\n'.format(server['dcs_version'])
-    if len(plugins) > 0:
-        footer += '- The IP address of '
-        if len(plugins) == 1:
-            footer += plugins[0]
-        else:
-            footer += ', '.join(plugins[0:len(plugins) - 1]) + ' and ' + plugins[len(plugins) - 1]
-        footer += ' is the same as the server.\n'
-    for listener in self.bot.eventListeners:
-        if (type(listener).__name__ == 'UserStatisticsEventListener') and \
-                (mission['server_name'] in listener.statistics):
-            footer += '- User statistics are enabled for this server.'
-    embed.set_footer(text=footer)
-    return embed
+        return None

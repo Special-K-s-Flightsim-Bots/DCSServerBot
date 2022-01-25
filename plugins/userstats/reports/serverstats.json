@@ -1,0 +1,65 @@
+{
+  "color": "blue",
+  "title": "Overall Server Statistics",
+  "description": "_{server_name}_",
+  "input": [
+    {
+      "name": "period",
+      "range": ["", "day", "month", "week", "year"]
+    },
+    {
+      "name": "limit",
+      "default": 3
+    },
+    {
+      "name": "ruler_length",
+      "value": 27
+    }
+  ],
+  "pagination":
+  {
+    "param":
+    {
+      "name": "server_name",
+      "sql": "SELECT DISTINCT server_name FROM missions"
+    }
+  },
+  "elements":
+  [
+    {
+      "class": "plugins.userstats.serverstats.ServerUsage"
+    },
+    "Ruler",
+    {
+      "class": "plugins.userstats.serverstats.TopMissionPerServer",
+      "params": { "limit": 3 }
+    },
+    "Ruler",
+    {
+      "class": "plugins.userstats.serverstats.TopModulesPerServer",
+      "params": { "limit": 10 }
+    },
+    "Ruler",
+    {
+      "type": "Graph",
+      "params":
+      {
+        "width": 15,
+        "height": 10,
+        "cols": 1,
+        "rows": 2,
+        "elements":
+         [
+            {
+              "class": "plugins.userstats.serverstats.UniquePast14",
+              "params": { "col": 0, "row": 0 }
+            },
+            {
+              "class": "plugins.userstats.serverstats.UsersPerDayTime",
+              "params": { "col": 0, "row": 1 }
+            }
+         ]
+      }
+    }
+  ]
+}

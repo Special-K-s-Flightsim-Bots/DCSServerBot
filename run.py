@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 from core import utils, DCSServerBot
+from core.const import Status
 from configparser import ConfigParser
 from contextlib import closing, suppress
 from discord.ext import commands
@@ -17,7 +18,7 @@ from os import path
 from psycopg2 import pool
 
 # Set the bot's version (not externally configurable)
-BOT_VERSION = '2.5.3'
+BOT_VERSION = '2.5.4'
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -63,7 +64,6 @@ class Main:
         fh.doRollover()
         log.addHandler(fh)
         ch = logging.StreamHandler()
-        # TODO: Change back to INFO
         ch.setLevel(logging.INFO)
         log.addHandler(ch)
         return log
@@ -118,6 +118,12 @@ class Main:
                 raise error
             finally:
                 db_pool.putconn(conn)
+        # Make sure we only get back floats, not Decimal
+        dec2float = psycopg2.extensions.new_type(
+            psycopg2.extensions.DECIMAL.values,
+            'DEC2FLOAT',
+            lambda value, curs: float(value) if value is not None else None)
+        psycopg2.extensions.register_type(dec2float)
         return db_pool
 
     def sanitize(self):
@@ -164,12 +170,13 @@ class Main:
             ignore = None
             if path.exists(dcs_path + r'\net\DCSServerBot'):
                 self.log.debug('  - Updating Hook ...')
+                shutil.rmtree(dcs_path + r'\net\DCSServerBot')
                 ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
             else:
                 self.log.debug('  - Installing Hook ...')
             shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
             try:
-                with open(r'.\Scripts\net\DCSServerBot\DCSServerBotConfig.lua.tmpl', 'r') as template:
+                with open(r'Scripts/net/DCSServerBot/DCSServerBotConfig.lua.tmpl', 'r') as template:
                     with open(dcs_path + r'\net\DCSServerBot\DCSServerBotConfig.lua', 'w') as outfile:
                         for line in template.readlines():
                             s = line.find('{')
@@ -229,15 +236,15 @@ class Main:
             if await utils.yn_question(self, ctx,
                                        'The bot will be upgraded to the latest version.\nAre you sure?') is True:
                 running = False
-                for server_name, server in self.bot.DCSServers:
-                    if server['status'] in ['Running', 'Paused']:
+                for server_name, server in self.bot.DCSServers.items():
+                    if server['status'] in [Status.RUNNING, Status.PAUSED]:
                         running = True
                 if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
                                                                   'servers.\nWould you like to shut them down now ('
                                                                   'Y/N)?') is True:
-                    for server_name, server in self.bot.DCSServers:
+                    for server_name, server in self.bot.DCSServers.items():
                         self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
-                        server['status'] = 'Shutdown'
+                        server['status'] = Status.SHUTDOWN
                 await ctx.send('Bot upgrade started...\nThe bot will restart itself (and any servers that are '
                                'configured for autostart) when finished.')
                 self.upgrade()
@@ -279,6 +286,6 @@ class Main:
 if __name__ == "__main__":
     try:
         Main().run()
-    except BaseException as e:
-        print(e)
+    except Exception as e:
+        print(e.__repr__())
         exit(-1)

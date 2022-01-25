@@ -8,7 +8,8 @@ import psycopg2.extras
 import re
 import subprocess
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin
+from core import utils, DCSServerBot, Plugin, Report
+from core.const import Status
 from discord.ext import commands, tasks
 from typing import Union
 from .listener import AdminEventListener
@@ -17,19 +18,19 @@ from .listener import AdminEventListener
 class Agent(Plugin):
 
     STATUS_EMOJI = {
-        'Loading': '🔄',
-        'Paused': '⏸️',
-        'Running': '▶️',
-        'Stopped': '⏹️'
+        Status.LOADING: '🔄',
+        Status.PAUSED: '⏸️',
+        Status.RUNNING: '▶️',
+        Status.STOPPED: '⏹️'
     }
 
-    def __init__(self, plugin, bot, listener):
-        super().__init__(plugin, bot, listener)
+    def __init__(self, bot, listener):
+        super().__init__(bot, listener)
         self.update_bot_status.start()
 
     def cog_unload(self):
         self.update_bot_status.cancel()
-        super().cog_unload(self)
+        super().cog_unload()
 
     @commands.command(description='Lists the registered DCS servers')
     @utils.has_role('DCS')
@@ -37,9 +38,11 @@ class Agent(Plugin):
     async def servers(self, ctx):
         if len(self.bot.DCSServers) > 0:
             for server_name, server in self.bot.DCSServers.items():
-                if server['status'] in ['Running', 'Paused']:
+                if server['status'] in [Status.RUNNING, Status.PAUSED]:
                     mission = await self.bot.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
-                    await ctx.send(embed=utils.format_mission_embed(self, mission))
+                    report = Report(self.bot, 'mission', 'serverStatus.json')
+                    env = await report.render(server=server, mission=mission)
+                    await ctx.send(embed=env.embed)
         else:
             await ctx.send('No server running on host {}'.format(platform.node()))
 
@@ -50,10 +53,10 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             installation = server['installation']
-            if server['status'] in ['Stopped', 'Shutdown']:
+            if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
                 await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
                 utils.start_dcs(self, installation)
-                server['status'] = 'Loading'
+                server['status'] = Status.LOADING
                 await self.bot.audit(
                     f"User {ctx.message.author.display_name} started DCS server \"{server['server_name']}\".")
             else:
@@ -75,13 +78,13 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             installation = server['installation']
-            if server['status'] in ['Unknown', 'Loading']:
+            if server['status'] in [Status.UNKNOWN, Status.LOADING]:
                 await ctx.send('Server is currently starting up. Please wait and try again.')
-            elif server['status'] not in ['Stopped', 'Shutdown']:
+            elif server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
                 if await utils.yn_question(self, ctx, 'Do you want to shut down the DCS server "{}"?'.format(server['server_name'])) is True:
                     await ctx.send('Shutting down DCS server "{}" ...'.format(server['server_name']))
                     self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
-                    server['status'] = 'Shutdown'
+                    server['status'] = Status.SHUTDOWN
                     await self.bot.audit(
                         f"User {ctx.message.author.display_name} shut DCS server \"{server['server_name']}\" down.")
             else:
@@ -116,14 +119,14 @@ class Agent(Plugin):
                     f"User {ctx.message.author.display_name} started an update of all DCS servers on node {platform.node()}.")
                 servers = []
                 for key, item in self.bot.DCSServers.items():
-                    if item['status'] not in ['Stopped', 'Shutdown']:
+                    if item['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
                         servers.append(item)
                 if len(servers):
                     if await utils.yn_question(self, ctx, 'Would you like me to stop the running servers and run the update?') is True:
                         for server in servers:
                             self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                             await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
-                            server['status'] = 'Shutdown'
+                            server['status'] = Status.SHUTDOWN
                     else:
                         return
                 if await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?'.format(old_version, new_version)) is True:
@@ -138,7 +141,7 @@ class Agent(Plugin):
     async def password(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] == 'Shutdown':
+            if server['status'] == Status.SHUTDOWN:
                 msg = await ctx.send('Please enter the new password: ')
                 response = await self.bot.wait_for('message', timeout=300.0)
                 password = response.content
@@ -164,7 +167,7 @@ class Agent(Plugin):
             self.bot.sendtoDCS(server, {"command": "kick", "name": name, "reason": reason})
             await ctx.send(f'User "{name}" kicked.')
             await self.bot.audit(f'User {ctx.message.author.display_name} kicked player {name}' +
-                                 f' with reason "{reason}".' if reason != 'n/a' else '.')
+                                 (f' with reason "{reason}".' if reason != 'n/a' else '.'))
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
     @utils.has_role('DCS Admin')
@@ -225,7 +228,7 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             server_name = server['server_name']
-            if server['status'] in ['Stopped', 'Shutdown']:
+            if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
                 if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True:
                     self.bot.embeds.pop(server_name)
                     await ctx.send('Server {} unregistered.'.format(server_name))
@@ -244,7 +247,7 @@ class Agent(Plugin):
         if server:
             oldname = server['server_name']
             newname = ' '.join(args)
-            if server['status'] in ['Stopped', 'Shutdown']:
+            if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
                 conn = self.pool.getconn()
                 try:
                     if await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" to "{}"?'.format(oldname, newname)) is True:
@@ -274,7 +277,7 @@ class Agent(Plugin):
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
         for server_name, server in self.bot.DCSServers.items():
-            if server['status'] in ['Loading', 'Stopped', 'Running', 'Paused']:
+            if server['status'] in [Status.LOADING, Status.STOPPED, Status.RUNNING, Status.PAUSED]:
                 await self.bot.change_presence(activity=discord.Game(self.STATUS_EMOJI[server['status']] + ' ' +
                                                                      re.sub(self.config['FILTER']['SERVER_FILTER'],
                                                                             '', server_name).strip()))
@@ -507,6 +510,6 @@ class Master(Agent):
 def setup(bot: DCSServerBot):
     listener = AdminEventListener(bot)
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(Master('admin', bot, listener))
+        bot.add_cog(Master(bot, listener))
     else:
-        bot.add_cog(Agent('admin', bot, listener))
+        bot.add_cog(Agent(bot, listener))

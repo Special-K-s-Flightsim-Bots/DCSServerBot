@@ -8,3 +8,5 @@ Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 *.csv
 /venv/
 /.idea/
+/test/
+/reports/
