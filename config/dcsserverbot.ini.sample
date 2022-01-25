@@ -31,10 +31,6 @@ SERVER_FILTER = ^My Servers
 ; EXAMPLE: remove all in brackets from the mission name
 MISSION_FILTER = \(.*\)
 
-[STATISTICS]
-; Number of players to be displayed in the highscore
-NUM_HIGHSCORE = 3
-
 [DCS]
 DCS_INSTALLATION = %%ProgramFiles%%\\Eagle Dynamics\\DCS World OpenBeta
 ; SRS_INSTALLATION = %%ProgramFiles%%\\DCS-SimpleRadio-Standalone
