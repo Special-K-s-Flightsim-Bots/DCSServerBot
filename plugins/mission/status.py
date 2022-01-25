@@ -13,6 +13,7 @@ class Init(report.EmbedElement):
             self.embed.description = f"Mission: \"{mission['current_mission']}\""
         else:
             self.embed.description = f"_{server['status'].value}_"
+        self.embed.set_footer(text='')
 
 
 class ServerInfo(report.EmbedElement):

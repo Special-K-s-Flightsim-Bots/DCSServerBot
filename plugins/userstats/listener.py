@@ -201,7 +201,7 @@ class UserStatisticsEventListener(EventListener):
                             kill_type = 'kill_ships'
                         elif data['victimCategory'] == 'Air Defence':
                             kill_type = 'kill_sams'
-                        elif data['victimCategory'] in ['Unarmed', 'Armor', 'Infantry' 'Fortification', 'Artillery',
+                        elif data['victimCategory'] in ['Unarmed', 'Armor', 'Infantry', 'Fortification', 'Artillery',
                                                         'MissilesSS']:
                             kill_type = 'kill_ground'
                         else:
@@ -210,6 +210,8 @@ class UserStatisticsEventListener(EventListener):
                         if kill_type in self.SQL_EVENT_UPDATES.keys():
                             cursor.execute(self.SQL_EVENT_UPDATES[kill_type],
                                            (self.mission_ids[data['server_name']], player1['ucid']))
+                        else:
+                            self.log.debug(f'No SQL for kill_type {kill_type} found!.')
 
                     # Victim is not an AI
                     if data['arg4'] != -1:
@@ -237,6 +239,8 @@ class UserStatisticsEventListener(EventListener):
                         if death_type in self.SQL_EVENT_UPDATES.keys():
                             cursor.execute(self.SQL_EVENT_UPDATES[death_type],
                                            (self.mission_ids[data['server_name']], player2['ucid']))
+                        else:
+                            self.log.debug(f'No SQL for death_type {death_type} found!.')
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)

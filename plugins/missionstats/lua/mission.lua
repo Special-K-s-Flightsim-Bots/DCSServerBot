@@ -161,7 +161,7 @@ function dcsbot.eventHandler:onEvent(event)
 					msg.target.category = msg.target.unit:getDesc().category
 				end
 			elseif category == Object.Category.SCENERY then
-				msg.target_type = 'SCENERY'
+				msg.target.type = 'SCENERY'
 				msg.target.unit = event.target
 				msg.target.unit_name = msg.target.unit:getName()
 				msg.target.unit_type = msg.target.unit:getTypeName()

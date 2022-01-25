@@ -286,6 +286,6 @@ class Main:
 if __name__ == "__main__":
     try:
         Main().run()
-    except BaseException as e:
-        print(e)
+    except Exception as e:
+        print(e.__repr__())
         exit(-1)

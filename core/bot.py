@@ -237,6 +237,9 @@ class DCSServerBot(commands.Bot):
                 self.log.debug('{}->HOST: {}'.format(dt['server_name'], json.dumps(dt)))
                 futures = []
                 command = dt['command']
+                if command != 'registerDCSServer' and dt['server_name'] not in self.DCSServers:
+                    self.log.warning('Message for unregistered server retrieved, ignoring.')
+                    return
                 for listener in self.eventListeners:
                     futures.append(asyncio.run_coroutine_threadsafe(listener.processEvent(dt), self.loop))
                 results = []
