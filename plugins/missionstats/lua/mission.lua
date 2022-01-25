@@ -15,7 +15,6 @@ function dcsbot.eventHandler:onEvent(event)
 	if event then
 		local msg = {}
 		msg.command = 'onMissionEvent'
-		env.info('### Event: ' .. JSON:encode(event))
 		msg.id = event.id
 		if event.id == world.event.S_EVENT_SHOT then
 			msg.eventName = 'S_EVENT_SHOT'
@@ -29,8 +28,6 @@ function dcsbot.eventHandler:onEvent(event)
 			msg.eventName = 'S_EVENT_CRASH'
 		elseif event.id == world.event.S_EVENT_EJECTION then
 			msg.eventName = 'S_EVENT_EJECTION'
-		elseif event.id == world.event.S_EVENT_REFUELING then
-			msg.eventName = 'S_EVENT_REFUELING'
 		elseif event.id == world.event.S_EVENT_DEAD then
 			msg.eventName = 'S_EVENT_DEAD'
 		elseif event.id == world.event.S_EVENT_PILOT_DEAD then
@@ -51,10 +48,12 @@ function dcsbot.eventHandler:onEvent(event)
 			msg.eventName = 'S_EVENT_ENGINE_STARTUP'
 		elseif event.id == world.event.S_EVENT_ENGINE_SHUTDOWN then
 			msg.eventName = 'S_EVENT_ENGINE_SHUTDOWN'
-		elseif event.id == world.event.S_EVENT_PLAYER_ENTER_UNIT then
-			msg.eventName = 'S_EVENT_PLAYER_ENTER_UNIT'
 		elseif event.id == world.event.S_EVENT_PLAYER_LEAVE_UNIT then
 			msg.eventName = 'S_EVENT_PLAYER_LEAVE_UNIT'
+		elseif event.id == world.event.S_EVENT_SHOOTING_START then
+			msg.eventName = 'S_EVENT_SHOOTING_START'
+		elseif event.id == world.event.S_EVENT_SHOOTING_END then
+			msg.eventName = 'S_EVENT_SHOOTING_END'
 		elseif event.id == world.event.S_EVENT_KILL then
 			msg.eventName = 'S_EVENT_KILL'
 		elseif event.id == world.event.S_EVENT_UNIT_LOST then
@@ -87,7 +86,7 @@ function dcsbot.eventHandler:onEvent(event)
 					msg.initiator.group_name = msg.initiator.group:getName()
 				end
 				msg.initiator.unit_id = msg.initiator.unit:getID()
-				msg.initiator.player_name = msg.initiator.unit:getPlayerName()
+				msg.initiator.name = msg.initiator.unit:getPlayerName()
 				msg.initiator.coalition = msg.initiator.unit:getCoalition()
 				msg.initiator.unit_type = msg.initiator.unit:getTypeName()
 				msg.initiator.category = msg.initiator.unit:getDesc().category
@@ -174,9 +173,15 @@ function dcsbot.eventHandler:onEvent(event)
 			msg.place.id = event.place.id_
 			msg.place.name = event.place:getName()
 		end
-		if event.weapon then
+		if event.weapon_name then
+			msg.weapon = {}
+			msg.weapon.name = event.weapon_name
+		elseif event.weapon then
 			msg.weapon = {}
 			msg.weapon.name = event.weapon:getTypeName() or 'Bullet'
+		end
+		if event.comment then
+			msg.comment = event.comment
 		end
 		dcsbot.sendBotTable(msg)
 	end

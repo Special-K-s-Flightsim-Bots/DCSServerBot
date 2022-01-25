@@ -206,7 +206,6 @@ class UserStatisticsEventListener(EventListener):
                             kill_type = 'kill_ground'
                         else:
                             kill_type = 'kill_other'  # Static objects
-                        # TODO Update database
                         player1 = self.get_player(data['server_name'], data['arg1'])
                         if kill_type in self.SQL_EVENT_UPDATES.keys():
                             cursor.execute(self.SQL_EVENT_UPDATES[kill_type],

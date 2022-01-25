@@ -1,10 +1,8 @@
 # listener.py
-from contextlib import closing
-
 import discord
 import psycopg2
-
-from core import DCSServerBot, EventListener
+from contextlib import closing
+from core import utils, DCSServerBot, EventListener
 
 
 class MissionStatisticsEventListener(EventListener):
@@ -15,6 +13,7 @@ class MissionStatisticsEventListener(EventListener):
     }
 
     UNIT_CATEGORY = {
+        None: None,
         0: 'Airplanes',
         1: 'Helicopters',
         2: 'Ground Units',
@@ -110,24 +109,32 @@ class MissionStatisticsEventListener(EventListener):
                         return None
                     return values[index1][index2]
 
-                dataset = {
-                    'mission_id': self.mission_ids[server_name],
-                    'event': data['eventName'],
-                    'init_id': get_value(data, 'initiator', 'unit_name'),
-                    'init_side': get_value(data, 'initiator', 'coalition'),
-                    'init_type': get_value(data, 'initiator', 'unit_type'),
-                    'init_cat': get_value(data, 'initiator', 'category'),
-                    'target_id': get_value(data, 'target', 'unit_name'),
-                    'target_side': get_value(data, 'target', 'coalition'),
-                    'target_type': get_value(data, 'target', 'unit_type'),
-                    'target_cat': get_value(data, 'target', 'category'),
-                    'weapon': get_value(data, 'weapon', 'name')
-                }
-                cursor.execute('INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, '
-                               'target_id, target_side, target_type, target_cat, weapon) VALUES (%(mission_id)s, '
-                               '%(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, %(target_id)s, '
-                               '%(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s)', dataset)
-                conn.commit()
+                player = get_value(data, 'initiator', 'name')
+                init_player = utils.get_player(self, data['server_name'], name=player) if player else None
+                player = get_value(data, 'target', 'name')
+                target_player = utils.get_player(self, data['server_name'], name=player) if player else None
+                if init_player or target_player:
+                    dataset = {
+                        'mission_id': self.mission_ids[server_name],
+                        'event': data['eventName'],
+                        'init_id': init_player['ucid'] if init_player else -1,
+                        'init_side': get_value(data, 'initiator', 'coalition'),
+                        'init_type': get_value(data, 'initiator', 'unit_type'),
+                        'init_cat': self.UNIT_CATEGORY[get_value(data, 'initiator', 'category')],
+                        'target_id': target_player['ucid'] if target_player else -1,
+                        'target_side': get_value(data, 'target', 'coalition'),
+                        'target_type': get_value(data, 'target', 'unit_type'),
+                        'target_cat': self.UNIT_CATEGORY[get_value(data, 'target', 'category')],
+                        'weapon': get_value(data, 'weapon', 'name'),
+                        'place': get_value(data, 'place', 'name'),
+                        'comment': data['comment'] if 'comment' in data else ''
+                    }
+                    cursor.execute('INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, '
+                                   'init_cat, target_id, target_side, target_type, target_cat, weapon, '
+                                   'place, comment) VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, '
+                                   '%(init_type)s, %(init_cat)s, %(target_id)s, %(target_side)s, %(target_type)s, '
+                                   '%(target_cat)s, %(weapon)s, %(place)s, %(comment)s)', dataset)
+                    conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()
@@ -137,7 +144,7 @@ class MissionStatisticsEventListener(EventListener):
         if data['server_name'] in self.mission_stats:
             stats = self.mission_stats[data['server_name']]
             update = False
-            if data['eventName'] == 'birth':
+            if data['eventName'] == 'S_EVENT_BIRTH':
                 initiator = data['initiator']
                 if initiator is not None and len(initiator) > 0:
                     category = self.UNIT_CATEGORY[initiator['category']]
@@ -151,7 +158,7 @@ class MissionStatisticsEventListener(EventListener):
                     elif initiator['type'] == 'STATIC':
                         stats['coalitions'][coalition]['statics'].append(unit_name)
                     update = True
-            elif data['eventName'] == 'kill' and 'initiator' in data and len(data['initiator']) > 0:
+            elif data['eventName'] == 'S_EVENT_KILL' and 'initiator' in data and len(data['initiator']) > 0:
                 killer = data['initiator']
                 victim = data['target']
                 if killer is not None and len(killer) > 0 and len(victim) > 0:
@@ -171,7 +178,7 @@ class MissionStatisticsEventListener(EventListener):
                             stats['coalitions'][coalition]['kills']['Static'] = 1
                         else:
                             stats['coalitions'][coalition]['kills']['Static'] += 1
-            elif data['eventName'] in ['lost', 'dismiss'] and 'initiator' in data and len(data['initiator']) > 0:
+            elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT'] and 'initiator' in data and len(data['initiator']) > 0:
                 initiator = data['initiator']
                 category = self.UNIT_CATEGORY[initiator['category']]
                 coalition = self.COALITION[initiator['coalition']]
@@ -183,12 +190,13 @@ class MissionStatisticsEventListener(EventListener):
                     if unit_name in stats['coalitions'][coalition]['statics']:
                         stats['coalitions'][coalition]['statics'].remove(unit_name)
                 update = True
-            elif data['eventName'] == 'capture':
+            elif data['eventName'] == 'S_EVENT_BASE_CAPTURED':
                 win_coalition = self.COALITION[data['initiator']['coalition']]
                 lose_coalition = self.COALITION[(data['initiator']['coalition'] % 2) + 1]
                 name = data['place']['name']
-                # workaround for DCS BaseCapture-bug
-                if name in stats['coalitions'][win_coalition]['airbases']:
+                # workaround for DCS base capture bug:
+                if name in stats['coalitions'][win_coalition]['airbases'] or \
+                        name not in stats['coalitions'][lose_coalition]['airbases']:
                     return None
                 stats['coalitions'][win_coalition]['airbases'].append(name)
                 if 'captures' not in stats['coalitions'][win_coalition]:

@@ -157,7 +157,7 @@ class DCSServerBot(commands.Bot):
             for plugin in self.plugins:
                 self.reload_plugin(plugin)
 
-    async def audit(self, message, *, embed: Optional[discord.Embed]):
+    async def audit(self, message, *, embed: Optional[discord.Embed] = None):
         if not self.audit_channel:
             if 'AUDIT_CHANNEL' in self.config['BOT']:
                 self.audit_channel = self.guilds[0].get_channel(int(self.config['BOT']['AUDIT_CHANNEL']))

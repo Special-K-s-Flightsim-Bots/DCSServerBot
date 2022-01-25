@@ -13,8 +13,7 @@ package.path  = package.path..";.\\LuaSocket\\?.lua;"
 package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
 local socket = require("socket")
 
--- TODO: put it back to local
-JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
+local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
 
 dcsbot = base.dcsbot or {}
 dcsbot.UDPSendSocket = dcsbot.UDPSendSocket or socket.udp()

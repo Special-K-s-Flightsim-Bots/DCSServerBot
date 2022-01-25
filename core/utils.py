@@ -336,3 +336,18 @@ def str_to_class(name):
         return getattr(importlib.import_module(module_name), class_name)
     except AttributeError:
         return None
+
+
+# Return a player from the internal list
+def get_player(self, server_name, **kwargs):
+    df = self.bot.player_data[server_name]
+    if 'id' in kwargs:
+        row = df[df['id'] == kwargs['id']]
+    elif 'name' in kwargs:
+        row = df[df['name'] == kwargs['name']]
+    else:
+        return None
+    if not row.empty:
+        return row.to_dict('records')[0]
+    else:
+        return None

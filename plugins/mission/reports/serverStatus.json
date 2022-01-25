@@ -8,7 +8,7 @@
     },
     {
       "class": "plugins.mission.status.ServerInfo",
-      "params": { "show_password":  false }
+      "params": { "show_password":  true }
     },
     "Ruler",
     {

@@ -232,7 +232,7 @@ You can change the role names to the ones being used in your discord. That has t
 
 ### Running of the Bot
 To start the bot, you can either use the packaged _run.cmd_ command or _python run.py_.
-If using _AUTOUPDATE = TRUE_ it is recommended to start the bot in a loop as it will close itself after an update has taken place.
+If using _AUTOUPDATE = true_ it is recommended to start the bot in a loop as it will close itself after an update has taken place.
 
 ### **!!! ATTENTION !!!**
 _One of the concepts of this bot it to bind people to your discord._
