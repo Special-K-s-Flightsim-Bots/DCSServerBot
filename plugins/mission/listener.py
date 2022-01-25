@@ -50,7 +50,15 @@ class MissionEventListener(EventListener):
         else:
             df = self.bot.player_data[data['server_name']]
             if len(df[df['id'] == data['id']]) == 1:
-                df.loc[df['id'] == data['id']] = new_df
+                if data['command'] == 'onPlayerChangeSlot':
+                    df.loc[df['id'] == data['id'], ['active', 'side', 'slot', 'sub_slot', 'unit_callsign', 'unit_name',
+                                                    'unit_type']] = [data['active'], data['side'], data['slot'],
+                                                                     data['sub_slot'], data['unit_callsign'],
+                                                                     data['unit_name'], data['unit_type']]
+                elif data['command'] in ['onPlayerConnect', 'onPlayerStart']:
+                    df.loc[df['id'] == data['id'], ['name', 'active', 'side', 'slot', 'sub_slot', 'ucid',
+                                                    'unit_callsign', 'unit_name', 'unit_type']] = \
+                        [data['name'], data['active'], data['side'], '', 0, data['ucid'], '', '', '']
             else:
                 df = df.append(new_df)
             self.bot.player_data[data['server_name']] = df
