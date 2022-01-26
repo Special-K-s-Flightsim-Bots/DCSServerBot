@@ -85,7 +85,6 @@ function dcsbot.eventHandler:onEvent(event)
 				if msg.initiator.group and msg.initiator.group:isExist() then
 					msg.initiator.group_name = msg.initiator.group:getName()
 				end
-				msg.initiator.unit_id = msg.initiator.unit:getID()
 				msg.initiator.name = msg.initiator.unit:getPlayerName()
 				msg.initiator.coalition = msg.initiator.unit:getCoalition()
 				msg.initiator.unit_type = msg.initiator.unit:getTypeName()
@@ -95,14 +94,12 @@ function dcsbot.eventHandler:onEvent(event)
 				-- ejected pilot, unit will not be counted as dead but only lost
 				if event.id == world.event.S_EVENT_LANDING_AFTER_EJECTION then
 					msg.initiator.unit = event.initiator
-					msg.initiator.unit_id = event.id_
 					msg.initiator.unit_name = string.format("Ejected Pilot ID %s", tostring(event.initiator.id_))
 					msg.initiator.coalition = 0
 					msg.initiator.unit_type = 'Ejected Pilot'
 					msg.initiator.category = 0
 				else
 					msg.initiator.unit = event.initiator
-					msg.initiator.unit_id = msg.initiator.unit:getID()
 					msg.initiator.unit_name = msg.initiator.unit:getName()
 					msg.initiator.coalition = msg.initiator.unit:getCoalition()
 					msg.initiator.unit_type = msg.initiator.unit:getTypeName()
@@ -111,23 +108,22 @@ function dcsbot.eventHandler:onEvent(event)
 			elseif category == Object.Category.CARGO then
 				msg.initiator.type = 'CARGO'
 				msg.initiator.unit = event.initiator
-				msg.initiator.unit_id = msg.initiator.unit:getID()
 				msg.initiator.unit_name = msg.initiator.unit:getName()
 				msg.initiator.coalition = msg.initiator.unit:getCoalition()
 				msg.initiator.unit_type = msg.initiator.unit:getTypeName()
 				msg.initiator.category = msg.initiator.unit:getDesc().category
 			elseif category == Object.Category.SCENERY  then
-				msg.initiator.type = 'CARGO'
+				msg.initiator.type = 'SCENERY'
 				msg.initiator.unit = event.initiator
-				msg.initiator.unit_id = msg.initiator.unit:getID()
-				msg.initiator.unit_name = msg.initiator.unit:getName()
-				msg.initiator.coalition = msg.initiator.unit:getCoalition()
-				msg.initiator.unit_type = msg.initiator.unit:getTypeName()
-				msg.initiator.category = msg.initiator.unit:getDesc().category
+				if event.initiator.unit then
+					msg.initiator.unit_name = msg.initiator.unit:getName()
+					msg.initiator.coalition = msg.initiator.unit:getCoalition()
+					msg.initiator.unit_type = msg.initiator.unit:getTypeName()
+					msg.initiator.category = msg.initiator.unit:getDesc().category
+				end
 			elseif category == Object.Category.BASE then
 				msg.initiator.type = 'BASE'
 				msg.initiator.unit = event.initiator
-				msg.initiator.unit_id = msg.initiator.unit:getID()
 				msg.initiator.unit_name = msg.initiator.unit:getName()
 				msg.initiator.coalition = msg.initiator.unit:getCoalition()
 				msg.initiator.unit_type = msg.initiator.unit:getTypeName()
@@ -140,7 +136,6 @@ function dcsbot.eventHandler:onEvent(event)
 			if category == Object.Category.UNIT then
 				msg.target.type = 'UNIT'
 				msg.target.unit = event.target
-				msg.target.unit_id = msg.target.unit:getID()
 				msg.target.unit_name = msg.target.unit:getName()
 				msg.target.group = msg.target.unit:getGroup()
 				if msg.target.group and msg.target.group:isExist() then
@@ -153,8 +148,7 @@ function dcsbot.eventHandler:onEvent(event)
 			elseif category == Object.Category.STATIC then
 				msg.target.type = 'STATIC'
 				msg.target.unit = event.target
-				if event.id ~= world.event.S_EVENT_DISCARD_CHAIR_AFTER_EJECTION then
-					msg.target.unit_id = msg.target.unit:getID()
+				if event.id ~= world.event.S_EVENT_DISCARD_CHAIR_AFTER_EJECTION and event.initiator.unit then
 					msg.target.unit_name = msg.target.unit:getName()
 					msg.target.coalition = msg.target.unit:getCoalition()
 					msg.target.unit_type = msg.target.unit:getTypeName()

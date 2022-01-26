@@ -1,4 +1,6 @@
 # run.py
+import asyncio
+
 import discord
 import logging
 import os
@@ -42,8 +44,9 @@ class Main:
         self.config = self.read_config()
         self.log = self.init_logger()
         self.log.info(f'DCSServerBot v{BOT_VERSION} starting up ...')
-        if self.config.getboolean('BOT', 'AUTOUPDATE'):
-            self.upgrade()
+        if self.config.getboolean('BOT', 'AUTOUPDATE') and self.upgrade():
+            self.log.warning('- Restart needed => exiting.')
+            exit(-1)
         self.pool = self.init_db()
         self.sanitize()
         self.install_hooks()
@@ -233,23 +236,29 @@ class Main:
         @self.bot.command(description='Upgrades the bot')
         @commands.is_owner()
         async def upgrade(ctx):
-            if await utils.yn_question(self, ctx,
-                                       'The bot will be upgraded to the latest version.\nAre you sure?') is True:
-                running = False
-                for server_name, server in self.bot.DCSServers.items():
-                    if server['status'] in [Status.RUNNING, Status.PAUSED]:
-                        running = True
-                if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
-                                                                  'servers.\nWould you like to shut them down now ('
-                                                                  'Y/N)?') is True:
+            if await utils.yn_question(self, ctx, 'The bot will check and upgrade to the latest version, '
+                                                  'if available.\nAre you sure?') is True:
+                await ctx.send('Checking for a bot upgrade ...')
+                if self.upgrade():
+                    await ctx.send('The bot has upgraded itself.')
+                    running = False
                     for server_name, server in self.bot.DCSServers.items():
-                        self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
-                        server['status'] = Status.SHUTDOWN
-                await ctx.send('Bot upgrade started...\nThe bot will restart itself (and any servers that are '
-                               'configured for autostart) when finished.')
-                self.upgrade()
+                        if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                            running = True
+                    if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
+                                                                      'servers.\nWould you like to shut them down now ('
+                                                                      'Y/N)?') is True:
+                        for server_name, server in self.bot.DCSServers.items():
+                            self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
+                            server['status'] = Status.SHUTDOWN
+                        await asyncio.sleep(5)
+                    await ctx.send('The bot is now restarting itself.\nAll servers with AUTOSTART_DCS=true will be '
+                                   'launched on bot start.')
+                    exit(-1)
+                else:
+                    await ctx.send('No bot upgrade found.')
 
-    def upgrade(self):
+    def upgrade(self) -> bool:
         try:
             import git
 
@@ -273,14 +282,14 @@ class Main:
                         if modules is True:
                             self.log.warning('- requirements.txt has changed. Installing missing modules...')
                             subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
-                        self.log.warning('- Restart needed => exiting.')
-                        exit(-1)
+                        return True
                     else:
                         self.log.debug('- No upgrade found for DCSServerBot.')
             except git.exc.InvalidGitRepositoryError:
                 self.log.error('No git repository found. Aborting. Please run the installer again.')
         except ImportError:
             self.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
+        return False
 
 
 if __name__ == "__main__":

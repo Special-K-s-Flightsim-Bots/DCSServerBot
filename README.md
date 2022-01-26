@@ -81,7 +81,7 @@ Well, then - just disable them from inside your mission:
 Userstats needs the Mission plugin to be loaded.
 
 ### Plugin "Missionstats"
-This plugin does not (yet) come with commands. When enabled, it will generate a persistent mission statistics embed to be displayed in the status channels. 
+This plugin does not (yet) come with commands. When enabled, it will generate a persistent mission statistics embed to be displayed in the status channels and detailed statistics from the ingame event system. 
 If enabled, the DCSServerBot.lua and mission.lua will automatically be loaded into any mission running on that specific server.
 To disable mission statistics for a specific mission, you can use the following piece of code somewhere in your mission (not in a on-startup trigger, but shortly after).
 ```lua
@@ -143,12 +143,13 @@ b) __ROLES Section__
 | DCS Admin  | The name of the role you'd like to give admin rights on your DCS servers (_Moderator_ for instance).                          |
 | DCS        | The role of users being able to see their statistics and mission information (usually the general user role in your Discord). |
 
-c) __FILTER Section__
+c) __FILTER Section__ (Optional)
 
-| Parameter      | Description                                 |
-|----------------|---------------------------------------------|
-| SERVER_FILTER  | Filter to shorten server names (if needed)  |
-| MISSION_FILTER | Filter to shorten mission names (if needed) |
+| Parameter      | Description                                                                                                                                                                                                                       |
+|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| TAG_FILTER     | Many groups have their own tag, that might make it difficult for the bot to match usernames. The usual tags like [Tag], =Tag= or similar ones, are supported already. If you see matching issues, you might want to try this one. |
+| SERVER_FILTER  | Filter to shorten server names (if needed)                                                                                                                                                                                        |
+| MISSION_FILTER | Filter to shorten mission names (if needed)                                                                                                                                                                                       |
 
 d) __DCS Section__
 
