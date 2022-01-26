@@ -139,6 +139,7 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False):
     try:
         with closing(conn.cursor()) as cursor:
             # try to match a DCS user with a Discord member
+            tag_filter = self.config['FILTER']['TAG_FILTER'] if 'TAG_FILTER' in self.config['FILTER'] else None
             if isinstance(data, dict):
                 if not rematch:
                     sql = 'SELECT discord_id FROM players WHERE ucid = %s AND discord_id != -1'
@@ -147,14 +148,16 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False):
                     if result and result[0] != -1:
                         return self.bot.guilds[0].get_member(result[0])
                 # we could not find the user, so try to match them
-                dcs_name = data['name']
+                dcs_name = re.sub(tag_filter, '', data['name']).strip() if tag_filter else data['name']
                 max_weight = 0
                 best_fit = None
                 for member in self.bot.get_all_members():
+                    name = re.sub(tag_filter, '', member.name).strip() if tag_filter else member.name
                     if member.nick:
-                        weight = max(match(dcs_name, member.nick), match(dcs_name, member.name))
+                        nickname = re.sub(tag_filter, '', member.nick).strip() if tag_filter else member.nick
+                        weight = max(match(dcs_name, nickname), match(dcs_name, name))
                     else:
-                        weight = match(dcs_name, member.name)
+                        weight = match(dcs_name, name)
                     if weight > max_weight:
                         max_weight = weight
                         best_fit = member
@@ -168,7 +171,12 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False):
                     sql += ' WHERE discord_id = -1'
                 cursor.execute(sql)
                 for row in cursor.fetchall():
-                    weight = max(match(data.nick, row['name']), match(data.name, row['name']))
+                    name = re.sub(tag_filter, '', data.name).strip() if tag_filter else data.name
+                    if data.nick:
+                        nickname = re.sub(tag_filter, '', data.nick).strip() if tag_filter else data.nick
+                        weight = max(match(nickname, row['name']), match(name, row['name']))
+                    else:
+                        weight = match(name, row['name'])
                     if weight > max_weight:
                         max_weight = weight
                         best_fit = row['ucid']

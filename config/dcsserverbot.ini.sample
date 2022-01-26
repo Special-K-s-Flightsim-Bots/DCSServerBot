@@ -26,9 +26,12 @@ DCS Admin = DCS Admin
 DCS = DCS
 
 [FILTER]
-; EXAMPLE: remove "My Servers" from the start of each server name
+; EXAMPLE: Remove "MyGroup |" as a tag from the user names before matching.
+;          The matching algorithm can tackle usual tags like [Tag], <Tag> or =Tag= already.
+TAG_FILTER = '^MyGroup |'
+; EXAMPLE: Remove "My Servers" from the start of each server name.
 SERVER_FILTER = ^My Servers
-; EXAMPLE: remove all in brackets from the mission name
+; EXAMPLE: Remove all in brackets from the mission name.
 MISSION_FILTER = \(.*\)
 
 [DCS]

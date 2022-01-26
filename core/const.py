@@ -41,14 +41,9 @@ WEEKDAYS = {
 
 
 STATUS_IMG = {
-#    Status.LOADING: 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
-#    Status.PAUSED: 'https://assets.digital.cabinet-office.gov.uk/media/559fbe48ed915d1592000048/traffic-light-amber.jpg',
-#    Status.RUNNING: 'https://assets.digital.cabinet-office.gov.uk/media/559fbe3e40f0b6156700004f/traffic-light-green.jpg',
-#    Status.STOPPED: 'https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg',
-#    Status.SHUTDOWN: 'https://assets.digital.cabinet-office.gov.uk/media/559fbe1940f0b6156700004d/traffic-light-red.jpg'
-    Status.LOADING: 'http://icongal.com/gallery/image/99380/forward_button.png',
-    Status.PAUSED: 'http://icongal.com/gallery/image/99408/stepforwardnormalblue.png',
-    Status.RUNNING: 'http://icongal.com/gallery/image/99436/stepforwardnormal.png',
-    Status.STOPPED: 'http://icongal.com/gallery/image/99345/stop_red.png',
-    Status.SHUTDOWN: 'http://icongal.com/gallery/image/99331/grey_stop_disabled.png'
+    Status.LOADING: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/loading_256.png?raw=true',
+    Status.PAUSED: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/pause_256.png?raw=true',
+    Status.RUNNING: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/play_256.png?raw=true',
+    Status.STOPPED: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
+    Status.SHUTDOWN: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true'
 }
