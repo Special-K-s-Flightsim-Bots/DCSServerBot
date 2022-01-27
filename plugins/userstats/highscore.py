@@ -49,7 +49,9 @@ class HighscoreElement(report.GraphElement):
             'Air Defence': 'SUM(s.kills_sams)',
             'Ground Targets': 'SUM(s.kills_ground)',
             'Most Efficient Killers': 'SUM(s.kills) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600)',
-            'Most Wasteful Pilots': 'SUM(s.crashes) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600)'
+            'Most Wasteful Pilots': 'SUM(s.crashes) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600)',
+            'KD-Ratio': 'CASE when sum(s.deaths) = 0 then sum(s.kills) else sum(s.kills)/sum(s.deaths) end',
+            'PvP-KD-Ratio': 'CASE when sum(s.deaths_pvp) = 0 then sum(s.pvp) else sum(s.pvp)/sum(s.deaths_pvp) end'
         }
         xlabels = {
             'Air Targets': 'kills',
@@ -57,7 +59,9 @@ class HighscoreElement(report.GraphElement):
             'Air Defence': 'kills',
             'Ground Targets': 'kills',
             'Most Efficient Killers': 'kills / h',
-            'Most Wasteful Pilots': 'airframes wasted / h'
+            'Most Wasteful Pilots': 'airframes wasted / h',
+            'KD-Ratio': 'K/D-ratio',
+            'PvP-KD-Ratio': 'K/D-ratio'
         }
         colors = ['#CD7F32', 'silver', 'gold']
         sql = f'SELECT p.discord_id, {sql_parts[kill_type]} FROM players p, statistics s, missions m WHERE ' \
