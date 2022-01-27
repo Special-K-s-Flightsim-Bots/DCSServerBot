@@ -3,6 +3,7 @@ import discord
 import psycopg2
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, PaginationReport
+from core.const import Status
 from discord.ext import commands
 from typing import Union, Optional
 from .listener import UserStatisticsEventListener
