@@ -430,6 +430,22 @@ class Master(Agent):
         finally:
             self.bot.pool.putconn(conn)
 
+    def format_bans(self, rows):
+        embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
+        ucids = names = reasons = ''
+        for ban in rows:
+            if ban['discord_id'] != -1:
+                user = self.bot.get_user(ban['discord_id'])
+            else:
+                user = None
+            names += (user.name if user else ban['name'] if ban['name'] else '<unknown>') + '\n'
+            ucids += ban['ucid'] + '\n'
+            reasons += ban['reason'] + '\n'
+        embed.add_field(name='UCID', value=ucids)
+        embed.add_field(name='Name', value=names)
+        embed.add_field(name='Reason', value=reasons)
+        return embed
+
     @commands.command(description='Shows active bans')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
@@ -437,26 +453,10 @@ class Master(Agent):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, b.banned_by, b.reason FROM '
-                               'bans b LEFT OUTER JOIN players p on b.ucid = p.ucid')
+                cursor.execute('SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, '
+                               'b.reason FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid')
                 rows = list(cursor.fetchall())
-                if rows is not None and len(rows) > 0:
-                    embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
-                    ucids = discord_names = banned_by = ''
-                    for ban in rows:
-                        if ban['discord_id'] != -1:
-                            user = await self.bot.fetch_user(ban['discord_id'])
-                        else:
-                            user = None
-                        discord_names += (user.name if user else '<unknown>') + '\n'
-                        ucids += ban['ucid'] + '\n'
-                        banned_by += ban['banned_by'] + '\n'
-                    embed.add_field(name='UCID', value=ucids)
-                    embed.add_field(name='Name', value=discord_names)
-                    embed.add_field(name='Banned by', value=banned_by)
-                    await ctx.send(embed=embed)
-                else:
-                    await ctx.send('No players are banned at the moment.')
+                await utils.pagination(self, ctx, rows, self.format_bans, 20)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         finally:

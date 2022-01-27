@@ -205,6 +205,34 @@ async def wait_for_single_reaction(self, ctx, message):
             task.cancel()
 
 
+async def pagination(self, ctx, data, embed_formatter, num=10):
+    message = None
+    try:
+        j = 0
+        while len(data) > 0:
+            max_i = (len(data) % num) if (len(data) - j * num) < num else num
+            embed = embed_formatter(data[j * num:j * num + max_i])
+            message = await ctx.send(embed=embed)
+            if j > 0:
+                await message.add_reaction('◀️')
+            await message.add_reaction('⏹️')
+            if ((j + 1) * num) < len(data):
+                await message.add_reaction('▶️')
+            react = await wait_for_single_reaction(self, ctx, message)
+            await message.delete()
+            if react.emoji == '◀️':
+                j -= 1
+                message = None
+            elif react.emoji == '▶️':
+                j += 1
+                message = None
+            elif react.emoji == '⏹️':
+                return -1
+    except asyncio.TimeoutError:
+        if message:
+            await message.delete()
+            return -1
+
 async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, marker_emoji='🔄'):
     message = None
     try:
