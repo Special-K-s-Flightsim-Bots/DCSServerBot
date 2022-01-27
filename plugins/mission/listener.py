@@ -205,15 +205,17 @@ class MissionEventListener(EventListener):
             # check if a restart should be executed relative to mission start
             if ('RESTART_MISSION_TIME' in self.config[installation]) and (
                     data['mission_time'] > int(self.config[installation]['RESTART_MISSION_TIME']) * 60):
-                if 'RESTART_OPTIONS' in self.config[installation]:
-                    options = [x.upper().strip() for x in self.config[installation]['RESTART_OPTIONS'].split(',')]
-                    players = self.bot.player_data[server_name]
-                    if 'NOT_POPULATED' in options and len(players[players['active'] == True]) > 0:
-                        self.log.debug(f"Scheduled restart of server \"{server_name}\""
-                                       f" postponed due to server population.")
-                        server['restart_pending'] = True
-                if not server['restart_pending']:
-                    self.do_scheduled_restart(server, self.config[installation]['RESTART_METHOD'])
+                # TODO: change player data handling
+                if server_name in self.bot.player_data:
+                    if 'RESTART_OPTIONS' in self.config[installation]:
+                        options = [x.upper().strip() for x in self.config[installation]['RESTART_OPTIONS'].split(',')]
+                        players = self.bot.player_data[server_name]
+                        if 'NOT_POPULATED' in options and len(players[players['active'] == True]) > 0:
+                            self.log.debug(f"Scheduled restart of server \"{server_name}\""
+                                           f" postponed due to server population.")
+                            server['restart_pending'] = True
+                    if not server['restart_pending']:
+                        self.do_scheduled_restart(server, self.config[installation]['RESTART_METHOD'])
             elif 'RESTART_LOCAL_TIMES' in self.config[installation]:
                 now = datetime.now()
                 times = []
