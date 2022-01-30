@@ -10,6 +10,16 @@ local GROUP_CATEGORY = {
 	[Group.Category.SHIP] = 'Ships'
 }
 
+-- MOOSE
+world.event.S_EVENT_NEW_CARGO = world.event.S_EVENT_MAX + 1000
+world.event.S_EVENT_DELETE_CARGO = world.event.S_EVENT_MAX + 1001
+world.event.S_EVENT_NEW_ZONE = world.event.S_EVENT_MAX + 1002
+world.event.S_EVENT_DELETE_ZONE = world.event.S_EVENT_MAX + 1003
+world.event.S_EVENT_NEW_ZONE_GOAL = world.event.S_EVENT_MAX + 1004
+world.event.S_EVENT_DELETE_ZONE_GOAL = world.event.S_EVENT_MAX + 1005
+world.event.S_EVENT_REMOVE_UNIT = world.event.S_EVENT_MAX + 1006
+world.event.S_EVENT_PLAYER_ENTER_AIRCRAFT = world.event.S_EVENT_MAX + 1007
+
 dcsbot.eventHandler = {}
 function dcsbot.eventHandler:onEvent(event)
 	if event then
@@ -70,6 +80,11 @@ function dcsbot.eventHandler:onEvent(event)
 			msg.eventName = 'S_EVENT_BDA'
 		elseif event.id == world.event.S_EVENT_MAX then
 			msg.eventName = 'S_EVENT_MAX'
+		-- MOOSE
+		elseif event.id == world.event.S_EVENT_NEW_CARGO then
+			msg.eventName = 'S_EVENT_NEW_CARGO'
+		elseif event.id == world.event.S_EVENT_DELETE_CARGO then
+			msg.eventName = 'S_EVENT_DELETE_CARGO'
 		else
 			return -- ignore other events
 		end
