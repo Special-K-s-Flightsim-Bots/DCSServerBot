@@ -5,7 +5,7 @@
   "input": [
     {
       "name": "period",
-      "range": ["", "day", "month", "week", "quarter", "year"]
+      "range": ["", "day", "month", "week", "year"]
     },
     {
       "name": "limit",
