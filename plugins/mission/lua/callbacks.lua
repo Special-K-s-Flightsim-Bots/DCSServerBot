@@ -164,6 +164,7 @@ function mission.onPlayerChangeSlot(id)
     msg.side = net.get_player_info(id, 'side')
     msg.unit_type, msg.slot, msg.sub_slot = utils.getMulticrewAllParameters(id)
     msg.unit_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_NAME)
+    msg.group_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUPNAME)
     msg.unit_callsign = DCS.getUnitProperty(msg.slot, DCS.UNIT_CALLSIGN)
     msg.active = true
     utils.sendBotTable(msg)

@@ -1,5 +1,5 @@
+import json
 import os
-
 import psycopg2
 import psycopg2.extras
 import string
@@ -7,7 +7,7 @@ from core import utils
 from contextlib import closing
 from discord.ext import commands
 from os import path
-from shutil import copytree, copy2
+from shutil import copytree
 from .bot import DCSServerBot
 from .listener import EventListener
 

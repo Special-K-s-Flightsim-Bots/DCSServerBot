@@ -6,7 +6,6 @@ import json
 import matplotlib.pyplot as plt
 import os
 import psycopg2
-import re
 import string
 import sys
 import uuid

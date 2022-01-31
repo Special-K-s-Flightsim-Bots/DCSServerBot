@@ -26,7 +26,7 @@ class DCSServerBot(commands.Bot):
         self.external_ip = None
         self.udp_server = None
         self.loop = asyncio.get_event_loop()
-        self.DCSServers = {}
+        self.globals = {}
         self.embeds = {}
         self.pool = kwargs['pool']
         self.log = kwargs['log']
@@ -55,23 +55,23 @@ class DCSServerBot(commands.Bot):
                 cursor.execute('SELECT server_name, host, port, chat_channel, status_channel, admin_channel, '
                                '\'Unknown\' as status FROM servers WHERE agent_host = %s', (platform.node(),))
                 for row in cursor.fetchall():
-                    self.DCSServers[row['server_name']] = dict(row)
-                    self.DCSServers[row['server_name']]['embeds'] = {}
+                    self.globals[row['server_name']] = dict(row)
+                    self.globals[row['server_name']]['embeds'] = {}
                     # Initialize statistics with true unless we get other information from the server
-                    self.DCSServers[row['server_name']]['statistics'] = True
+                    self.globals[row['server_name']]['statistics'] = True
                 cursor.execute('SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name IN ('
                                'SELECT server_name FROM servers WHERE agent_host = %s)', (platform.node(),))
                 for row in cursor.fetchall():
-                    self.DCSServers[row['server_name']]['embeds'][row['embed_name']] = row['embed']
+                    self.globals[row['server_name']]['embeds'][row['embed_name']] = row['embed']
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
-        self.log.debug('{} server(s) read from database.'.format(len(self.DCSServers)))
+        self.log.debug('{} server(s) read from database.'.format(len(self.globals)))
 
     async def init_servers(self):
         self.log.info('- Searching for DCS servers ...')
-        for server_name, server in self.DCSServers.items():
+        for server_name, server in self.globals.items():
             installation = utils.findDCSInstallations(server_name)[0]
             server['installation'] = installation
             channel = await self.fetch_channel(server['status_channel'])
@@ -184,7 +184,7 @@ class DCSServerBot(commands.Bot):
 
     def get_bot_channel(self, data: dict, channel_type: Optional[str] = 'status_channel'):
         if int(data['channel']) == -1:
-            return self.get_channel(int(self.DCSServers[data['server_name']][channel_type]))
+            return self.get_channel(int(self.globals[data['server_name']][channel_type]))
         else:
             return self.get_channel(int(data['channel']))
 
@@ -237,7 +237,7 @@ class DCSServerBot(commands.Bot):
                 self.log.debug('{}->HOST: {}'.format(dt['server_name'], json.dumps(dt)))
                 futures = []
                 command = dt['command']
-                if command != 'registerDCSServer' and dt['server_name'] not in self.DCSServers:
+                if command != 'registerDCSServer' and dt['server_name'] not in self.globals:
                     self.log.warning('Message for unregistered server retrieved, ignoring.')
                     return
                 for listener in self.eventListeners:

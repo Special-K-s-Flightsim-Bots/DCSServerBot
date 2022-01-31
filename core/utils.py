@@ -1,4 +1,3 @@
-# utils.py
 import asyncio
 import aiohttp
 import discord
@@ -284,7 +283,7 @@ async def yn_question(self, ctx, question, msg=None):
 
 
 async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]):
-    for server_name, server in self.bot.DCSServers.items():
+    for server_name, server in self.bot.globals.items():
         if isinstance(ctx, discord.ext.commands.context.Context):
             if server['status'] == Status.UNKNOWN:
                 continue
