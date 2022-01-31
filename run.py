@@ -20,7 +20,7 @@ from os import path
 from psycopg2 import pool
 
 # Set the bot's version (not externally configurable)
-BOT_VERSION = '2.5.4'
+BOT_VERSION = '2.5.5'
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -242,13 +242,13 @@ class Main:
                 if self.upgrade():
                     await ctx.send('The bot has upgraded itself.')
                     running = False
-                    for server_name, server in self.bot.DCSServers.items():
+                    for server_name, server in self.bot.globals.items():
                         if server['status'] in [Status.RUNNING, Status.PAUSED]:
                             running = True
                     if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
                                                                       'servers.\nWould you like to shut them down now ('
                                                                       'Y/N)?') is True:
-                        for server_name, server in self.bot.DCSServers.items():
+                        for server_name, server in self.bot.globals.items():
                             self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                             server['status'] = Status.SHUTDOWN
                         await asyncio.sleep(5)

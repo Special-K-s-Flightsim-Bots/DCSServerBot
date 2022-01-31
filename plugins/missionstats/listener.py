@@ -26,6 +26,10 @@ class MissionStatisticsEventListener(EventListener):
         super().__init__(bot)
         self.mission_stats = dict()
         self.mission_ids = dict()
+        if 'EVENT_FILTER' in self.config['FILTER']:
+            self.filter = [x.strip() for x in self.config['FILTER']['EVENT_FILTER'].split(',')]
+        else:
+            self.filter = []
 
     async def registerDCSServer(self, data):
         if data['statistics']:
@@ -47,7 +51,7 @@ class MissionStatisticsEventListener(EventListener):
         return await self.displayMissionStats(data)
 
     async def disableMissionStats(self, data):
-        server = self.bot.DCSServers[data['server_name']]
+        server = self.bot.globals[data['server_name']]
         self.bot.sendtoDCS(server, {"command": "disableMissionStats"})
 
     async def displayMissionStats(self, data):
@@ -98,48 +102,49 @@ class MissionStatisticsEventListener(EventListener):
 
     async def onMissionEvent(self, data):
         # TODO: make this configurable
-        conn = self.pool.getconn()
-        try:
-            server_name = data['server_name']
-            with closing(conn.cursor()) as cursor:
-                def get_value(values: dict, index1, index2):
-                    if index1 not in values:
-                        return None
-                    if index2 not in values[index1]:
-                        return None
-                    return values[index1][index2]
+        if data['eventName'] not in self.filter:
+            conn = self.pool.getconn()
+            try:
+                server_name = data['server_name']
+                with closing(conn.cursor()) as cursor:
+                    def get_value(values: dict, index1, index2):
+                        if index1 not in values:
+                            return None
+                        if index2 not in values[index1]:
+                            return None
+                        return values[index1][index2]
 
-                player = get_value(data, 'initiator', 'name')
-                init_player = utils.get_player(self, data['server_name'], name=player) if player else None
-                player = get_value(data, 'target', 'name')
-                target_player = utils.get_player(self, data['server_name'], name=player) if player else None
-                if init_player or target_player:
-                    dataset = {
-                        'mission_id': self.mission_ids[server_name],
-                        'event': data['eventName'],
-                        'init_id': init_player['ucid'] if init_player else -1,
-                        'init_side': get_value(data, 'initiator', 'coalition'),
-                        'init_type': get_value(data, 'initiator', 'unit_type'),
-                        'init_cat': self.UNIT_CATEGORY[get_value(data, 'initiator', 'category')],
-                        'target_id': target_player['ucid'] if target_player else -1,
-                        'target_side': get_value(data, 'target', 'coalition'),
-                        'target_type': get_value(data, 'target', 'unit_type'),
-                        'target_cat': self.UNIT_CATEGORY[get_value(data, 'target', 'category')],
-                        'weapon': get_value(data, 'weapon', 'name'),
-                        'place': get_value(data, 'place', 'name'),
-                        'comment': data['comment'] if 'comment' in data else ''
-                    }
-                    cursor.execute('INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, '
-                                   'init_cat, target_id, target_side, target_type, target_cat, weapon, '
-                                   'place, comment) VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, '
-                                   '%(init_type)s, %(init_cat)s, %(target_id)s, %(target_side)s, %(target_type)s, '
-                                   '%(target_cat)s, %(weapon)s, %(place)s, %(comment)s)', dataset)
-                    conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+                    player = get_value(data, 'initiator', 'name')
+                    init_player = utils.get_player(self, data['server_name'], name=player) if player else None
+                    player = get_value(data, 'target', 'name')
+                    target_player = utils.get_player(self, data['server_name'], name=player) if player else None
+                    if init_player or target_player:
+                        dataset = {
+                            'mission_id': self.mission_ids[server_name],
+                            'event': data['eventName'],
+                            'init_id': init_player['ucid'] if init_player else -1,
+                            'init_side': get_value(data, 'initiator', 'coalition'),
+                            'init_type': get_value(data, 'initiator', 'unit_type'),
+                            'init_cat': self.UNIT_CATEGORY[get_value(data, 'initiator', 'category')],
+                            'target_id': target_player['ucid'] if target_player else -1,
+                            'target_side': get_value(data, 'target', 'coalition'),
+                            'target_type': get_value(data, 'target', 'unit_type'),
+                            'target_cat': self.UNIT_CATEGORY[get_value(data, 'target', 'category')],
+                            'weapon': get_value(data, 'weapon', 'name'),
+                            'place': get_value(data, 'place', 'name'),
+                            'comment': data['comment'] if 'comment' in data else ''
+                        }
+                        cursor.execute('INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, '
+                                       'init_cat, target_id, target_side, target_type, target_cat, weapon, '
+                                       'place, comment) VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, '
+                                       '%(init_type)s, %(init_cat)s, %(target_id)s, %(target_side)s, %(target_type)s, '
+                                       '%(target_cat)s, %(weapon)s, %(place)s, %(comment)s)', dataset)
+                        conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+                conn.rollback()
+            finally:
+                self.pool.putconn(conn)
 
         if data['server_name'] in self.mission_stats:
             stats = self.mission_stats[data['server_name']]
@@ -152,6 +157,9 @@ class MissionStatisticsEventListener(EventListener):
                     unit_name = initiator['unit_name']
                     if initiator['type'] == 'UNIT':
                         if category not in stats['coalitions'][coalition]['units']:
+                            # lua does initialize the empty dict as an array
+                            if len(stats['coalitions'][coalition]['units']) == 0:
+                                stats['coalitions'][coalition]['units'] = {}
                             stats['coalitions'][coalition]['units'][category] = []
                         if unit_name not in stats['coalitions'][coalition]['units'][category]:
                             stats['coalitions'][coalition]['units'][category].append(unit_name)

@@ -36,8 +36,8 @@ class Agent(Plugin):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def servers(self, ctx):
-        if len(self.bot.DCSServers) > 0:
-            for server_name, server in self.bot.DCSServers.items():
+        if len(self.bot.globals) > 0:
+            for server_name, server in self.bot.globals.items():
                 if server['status'] in [Status.RUNNING, Status.PAUSED]:
                     mission = await self.bot.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
                     report = Report(self.bot, 'mission', 'serverStatus.json')
@@ -118,7 +118,7 @@ class Agent(Plugin):
                 await self.bot.audit(
                     f"User {ctx.message.author.display_name} started an update of all DCS servers on node {platform.node()}.")
                 servers = []
-                for key, item in self.bot.DCSServers.items():
+                for key, item in self.bot.globals.items():
                     if item['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
                         servers.append(item)
                 if len(servers):
@@ -188,7 +188,7 @@ class Agent(Plugin):
                     # ban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    for server in self.bot.DCSServers.values():
+                    for server in self.bot.globals.values():
                         self.bot.sendtoDCS(server, {
                             "command": "ban",
                             "ucid": ucid,
@@ -214,7 +214,7 @@ class Agent(Plugin):
                     # unban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    for server in self.bot.DCSServers.values():
+                    for server in self.bot.globals.values():
                         self.bot.sendtoDCS(server, {"command": "unban", "ucid": ucid})
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -276,7 +276,7 @@ class Agent(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
-        for server_name, server in self.bot.DCSServers.items():
+        for server_name, server in self.bot.globals.items():
             if server['status'] in [Status.LOADING, Status.STOPPED, Status.RUNNING, Status.PAUSED]:
                 await self.bot.change_presence(activity=discord.Game(self.STATUS_EMOJI[server['status']] + ' ' +
                                                                      re.sub(self.config['FILTER']['SERVER_FILTER'],

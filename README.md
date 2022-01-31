@@ -88,6 +88,50 @@ To disable mission statistics for a specific mission, you can use the following 
   dcsbot.disableMissionStats()
 ```
 
+### Plugin "Slotblocking"
+This is a simple slot blocking plugin that can be used in two different ways (for now, more to come).
+Slots can be either blocked by Discord groups (specific planes blocked for Discord Members, other ones blocked for Donators for instance) or by points that people earn by kills. So you can hop in another plane, as soon as you have killed a specific number of enemies.
+_Friendly fire or self kills are not counted._
+
+The slot blocking is configured with a file named config\slotblocking.json. You'll find a sample file in that directory:
+```json
+{
+    "restricted": [
+      {
+        "group_name": "Rookie",
+        "points": 10,
+        "costs": 10
+      },
+      {
+        "group_name": "Veteran",
+        "points": 20,
+        "costs": 10
+      },
+      {
+        "group_name": "Ace",
+        "points": 50,
+        "costs": 30
+      },
+      {
+        "unit_type": "FA-18C_hornet",
+        "discord": "Donators"
+      }
+    ]
+}
+```
+Each unit can be either defined by its "group_name" or "unit_name", which are substrings of the used names in your mission or by its "unit_type".
+The restriction can either be "points" that you gain by kills or "discord", which is then a specific Discord role (in the example "Donators").
+
+"costs" are the points you lose when you get killed in this specific aircraft and if provided.
+
+To enable the points system, you need to start a "Campaign" on the specific server. To handle campaigns, you have the following commands:
+
+| Command        | Parameter | Role      | Description                                                                                     |
+|----------------|-----------|-----------|-------------------------------------------------------------------------------------------------|
+| .campaign      | start     | DCS Admin | Starts a new campaign. All previous campaigns will be closed and their points will get deleted. |
+| .campaign      | stop      | DCS Admin | Stops the current campaign. All points for this campaign will get deleted.                      |
+| .campaign      | reset     | DCS Admin | Deletes all points for the running campaign on this server.                                     |
+
 ### In case you want to write your own plugin ...
 There is a sample in the plugins/samples subdirectory, that will guide you through the steps. If you want your plugin to be added to the distribution, just contact me via the contact details below.
 
@@ -150,6 +194,7 @@ c) __FILTER Section__ (Optional)
 | TAG_FILTER     | Many groups have their own tag, that might make it difficult for the bot to match usernames. The usual tags like [Tag], =Tag= or similar ones, are supported already. If you see matching issues, you might want to try this one. |
 | SERVER_FILTER  | Filter to shorten server names (if needed)                                                                                                                                                                                        |
 | MISSION_FILTER | Filter to shorten mission names (if needed)                                                                                                                                                                                       |
+| EVENT_FILTER   | Filter events from the missionstats plugin (optional). See [here](https://wiki.hoggitworld.com/view/DCS_singleton_world) for a complete list of events.                                                                           |
 
 d) __DCS Section__
 
