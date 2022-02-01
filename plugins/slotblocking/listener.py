@@ -1,10 +1,9 @@
 import json
-from typing import Optional
-
 import psycopg2
 from contextlib import closing
 from core import utils, EventListener, DCSServerBot
 from os import path
+from typing import Optional
 
 
 class SlotBlockingListener(EventListener):
@@ -18,13 +17,22 @@ class SlotBlockingListener(EventListener):
         else:
             self.params = None
 
-    def get_costs(self, player: dict) -> int:
-        if self.params and 'restricted' in self.params:
-            for unit in self.params['restricted']:
-                if ('unit_type' in unit and unit['unit_type'] == player['unit_type']) or ('unit_name' in unit and unit['unit_name'] in player['unit_name']) or ('group_name' in unit and unit['group_name'] in player['group_name']):
-                    if 'costs' in unit:
-                        return unit['costs']
+    def get_costs(self, server: dict, player: dict) -> int:
+        for unit in server[self.plugin]['restricted']:
+            if ('unit_type' in unit and unit['unit_type'] == player['unit_type']) or ('unit_name' in unit and unit['unit_name'] in player['unit_name']) or ('group_name' in unit and unit['group_name'] in player['group_name']):
+                if 'costs' in unit:
+                    return unit['costs']
         return 0
+
+    def get_points(self, server, data):
+        for unit in server[self.plugin]['points_per_kill']:
+            if 'category' in unit and data['victimCategory'] == unit['category']:
+                if 'type' in unit:
+                    if (unit['type'] == 'AI' and data['arg4'] == "-1") or (unit['type'] == 'Player' and data['arg4'] != "-1"):
+                        return unit['points']
+                else:
+                    return unit['points']
+        return 1
 
     # Return a player from the internal list
     # TODO: change player data handling!
@@ -59,9 +67,35 @@ class SlotBlockingListener(EventListener):
 
     async def registerDCSServer(self, data):
         server = self.bot.globals[data['server_name']]
-        filename = f'./config/{self.plugin}.json'
         if self.params:
-            self.bot.sendtoDCS(server, {'command': 'loadParams', 'plugin': self.plugin, 'params': self.params})
+            specific = default = None
+            for element in self.params['configs']:
+                if ('installation' in element and server['installation'] == element['installation']) or (
+                        'server_name' in element and server['server_name'] == element['server_name']):
+                    specific = element
+                else:
+                    default = element
+            if default and not specific:
+                server[self.plugin] = default
+            elif specific and not default:
+                server[self.plugin] = specific
+            elif default and specific:
+                merged = {}
+                if 'restricted' in default and 'restricted' not in specific:
+                    merged['restricted'] = default['restricted']
+                elif 'restricted' not in default and 'restricted' in specific:
+                    merged['restricted'] = specific['restricted']
+                elif 'restricted' in default and 'restricted' in specific:
+                    merged['restricted'] = default['restricted'] + specific['restricted']
+                if 'points_per_kill' in default and 'points_per_kill' not in specific:
+                    merged['points_per_kill'] = default['points_per_kill']
+                elif 'points_per_kill' not in default and 'points_per_kill' in specific:
+                    merged['points_per_kill'] = specific['points_per_kill']
+                elif 'points_per_kill' in default and 'points_per_kill' in specific:
+                    merged['points_per_kill'] = default['points_per_kill'] + specific['points_per_kill']
+                server[self.plugin] = merged
+            if default or specific:
+                self.bot.sendtoDCS(server, {'command': 'loadParams', 'plugin': self.plugin, 'params': server[self.plugin]})
 
     async def onPlayerStart(self, data):
         if data['id'] == 1:
@@ -113,20 +147,19 @@ class SlotBlockingListener(EventListener):
             self.pool.putconn(conn)
 
     async def onGameEvent(self, data):
+        server = self.bot.globals[data['server_name']]
         if data['eventName'] == 'kill':
             # players gain points only, if they don't kill themselves and no teamkills
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                 player = self.get_player_points(data['server_name'], data['arg1'])
-                player['points'] += 1
+                player['points'] += self.get_points(server, data)
                 self.update_user_points(data['server_name'], player)
             # players only lose points if they weren't killed as a teamkill
             if data['arg4'] != -1 and data['arg3'] != data['arg6']:
                 player = self.get_player_points(data['server_name'], data['arg4'])
-                costs = self.get_costs(player)
-                player['points'] -= costs
+                player['points'] -= self.get_costs(server, player)
                 self.update_user_points(data['server_name'], player)
         elif data['eventName'] == 'crash':
             player = self.get_player_points(data['server_name'], data['arg1'])
-            costs = self.get_costs(player)
-            player['points'] -= costs
+            player['points'] -= self.get_costs(server, player)
             self.update_user_points(data['server_name'], player)
