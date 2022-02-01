@@ -1,23 +1,29 @@
 {
-    "restricted": [
-      {
-        "group_name": "Rookie",
-        "points": 10,
-        "costs": 10
-      },
-      {
-        "group_name": "Veteran",
-        "points": 20,
-        "costs": 10
-      },
-      {
-        "group_name": "Ace",
-        "points": 50,
-        "costs": 30
-      },
-      {
-        "unit_name": "Special",
-        "discord": "Admin"
-      }
-    ]
+  "configs": [
+    {
+      "restricted": [
+        { "unit_type": "artillery_commander", "discord": "Donators" },
+        { "unit_type": "forward_observer", "discord": "Donators" },
+        { "unit_type": "instructor", "discord": "Donators" },
+        { "unit_type": "observer", "discord": "Donators" }
+      ]
+    },
+    {
+      "installation": "DCS.openbeta_server",
+      "restricted": [
+        { "group_name": "Rookie", "points": 10, "costs": 10 },
+        { "group_name": "Veteran", "points": 20, "costs": 10 },
+        { "group_name": "Ace", "points": 50, "costs": 30 }
+      ],
+      "points_per_kill": [
+        { "default": 1 },
+        { "category": "Ships", "points": 2 },
+        { "category": "Air Defence", "points": 3 },
+        { "category": "Planes", "type": "AI", "points": 3 },
+        { "category": "Helicopters", "points": 3 },
+        { "category": "Planes", "type": "Player", "points": 4 },
+        { "category": "Planes", "unit_type": "F-14B", "type": "Player", "points": 5 }
+      ]
+    }
+  ]
 }
