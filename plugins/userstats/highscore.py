@@ -21,6 +21,7 @@ class HighscorePlaytime(report.GraphElement):
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 labels = []
                 values = []
+                self.log.debug(sql)
                 cursor.execute(sql)
                 for row in cursor.fetchall():
                     member = self.bot.guilds[0].get_member(row[0])
@@ -75,6 +76,7 @@ class HighscoreElement(report.GraphElement):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                self.log.debug(sql)
                 cursor.execute(sql)
                 result = cursor.fetchall()
                 labels = []
