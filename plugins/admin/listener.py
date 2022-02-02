@@ -7,6 +7,25 @@ from contextlib import closing
 
 class AdminEventListener(EventListener):
 
+    def updateBans(self, data=None):
+        banlist = []
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute('SELECT ucid FROM bans')
+                banlist = [dict(row) for row in cursor.fetchall()]
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+        if data is not None:
+            servers = [self.bot.globals[data['server_name']]]
+        else:
+            servers = self.bot.globals.values()
+        for server in servers:
+            for ban in banlist:
+                self.bot.sendtoDCS(server, {"command": "ban", "ucid": ban['ucid'], "channel": server['status_channel']})
+
     async def registerDCSServer(self, data):
         installations = utils.findDCSInstallations(data['server_name'])
         if not installations:
@@ -56,22 +75,3 @@ class AdminEventListener(EventListener):
             self.log.error(
                 'Configuration mismatch. Please check channel settings in dcsserverbot.ini for server {}!'.format(
                     data['server_name']))
-
-    def updateBans(self, data=None):
-        banlist = []
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT ucid FROM bans')
-                banlist = [dict(row) for row in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-        if data is not None:
-            servers = [self.bot.globals[data['server_name']]]
-        else:
-            servers = self.bot.globals.values()
-        for server in servers:
-            for ban in banlist:
-                self.bot.sendtoDCS(server, {"command": "ban", "ucid": ban['ucid'], "channel": server['status_channel']})
