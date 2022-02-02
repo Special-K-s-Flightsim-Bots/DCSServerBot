@@ -17,5 +17,6 @@ function dcsbot.updateUserPoints(json)
 end
 
 function dcsbot.force_player_slot(json)
-    net.force_player_slot(json.playerID, json.sideID, json.slotID)
+    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: force_player_slot()')
+    net.force_player_slot(json.playerID, json.sideID or 0, json.slotID or '')
 end
