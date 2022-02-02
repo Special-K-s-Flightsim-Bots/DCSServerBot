@@ -175,10 +175,10 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False):
                         nickname = re.sub(tag_filter, '', data.nick).strip() if tag_filter else data.nick
                         weight = max(match(nickname, row['name']), match(name, row['name']))
                     else:
-                        weight = match(name, row['name'])
+                        weight = match(name, row[1])
                     if weight > max_weight:
                         max_weight = weight
-                        best_fit = row['ucid']
+                        best_fit = row[0]
                 return best_fit
     except (Exception, psycopg2.DatabaseError) as error:
         self.log.exception(error)

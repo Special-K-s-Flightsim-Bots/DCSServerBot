@@ -163,7 +163,7 @@ function dcsbot.eventHandler:onEvent(event)
 			elseif category == Object.Category.STATIC then
 				msg.target.type = 'STATIC'
 				msg.target.unit = event.target
-				if event.id ~= world.event.S_EVENT_DISCARD_CHAIR_AFTER_EJECTION and event.initiator.unit then
+				if event.id ~= world.event.S_EVENT_DISCARD_CHAIR_AFTER_EJECTION and event.target.unit then
 					msg.target.unit_name = msg.target.unit:getName()
 					msg.target.coalition = msg.target.unit:getCoalition()
 					msg.target.unit_type = msg.target.unit:getTypeName()
@@ -215,25 +215,33 @@ function dcsbot.enableMissionStats()
 	msg.coalitions['Blue'].units = {}
 	for i, group in pairs(coalition.getGroups(coalition.side.BLUE)) do
 		category = GROUP_CATEGORY[group:getCategory()]
-		if (msg.coalitions['Blue'].units[category] == nil) then
-			msg.coalitions['Blue'].units[category] = {}
-		end
-		for j, unit in pairs(Group.getUnits(group)) do
-			if unit:isActive() then
-				table.insert(msg.coalitions['Blue'].units[category], unit:getName())
+		if category ~= nil then
+			if (msg.coalitions['Blue'].units[category] == nil) then
+				msg.coalitions['Blue'].units[category] = {}
 			end
+			for j, unit in pairs(Group.getUnits(group)) do
+				if unit:isActive() then
+					table.insert(msg.coalitions['Blue'].units[category], unit:getName())
+				end
+			end
+		else
+			env.warning('Category not in table: ' .. group:getCategory(), false)
 		end
 	end
 	msg.coalitions['Red'].units = {}
 	for i, group in pairs(coalition.getGroups(coalition.side.RED)) do
 		category = GROUP_CATEGORY[group:getCategory()]
-		if (msg.coalitions['Red'].units[category] == nil) then
-			msg.coalitions['Red'].units[category] = {}
-		end
-		for j, unit in pairs(Group.getUnits(group)) do
-			if unit:isActive() then
-				table.insert(msg.coalitions['Red'].units[category], unit:getName())
+		if category ~= nil then
+			if (msg.coalitions['Red'].units[category] == nil) then
+				msg.coalitions['Red'].units[category] = {}
 			end
+			for j, unit in pairs(Group.getUnits(group)) do
+				if unit:isActive() then
+					table.insert(msg.coalitions['Red'].units[category], unit:getName())
+				end
+			end
+		else
+			env.warning('Category not in table: ' .. group:getCategory(), false)
 		end
 	end
 	msg.coalitions['Blue'].statics = {}
