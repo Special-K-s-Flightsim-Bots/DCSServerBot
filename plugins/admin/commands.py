@@ -107,33 +107,36 @@ class Agent(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def update(self, ctx):
-        server = await utils.get_server(self, ctx)
-        if server:
-            # check versions
-            branch, old_version = utils.getInstalledVersion(self.config['DCS']['DCS_INSTALLATION'])
-            new_version = await utils.getLatestVersion(branch)
-            if old_version == new_version:
-                await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
-            else:
+        # check versions
+        branch, old_version = utils.getInstalledVersion(self.config['DCS']['DCS_INSTALLATION'])
+        new_version = await utils.getLatestVersion(branch)
+        if old_version == new_version:
+            await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
+        else:
+            if await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?\nAll running '
+                                                  'DCS servers will be shut down!'.format(old_version,
+                                                                                          new_version)) is True:
                 await self.bot.audit(
                     f"User {ctx.message.author.display_name} started an update of all DCS servers on node {platform.node()}.")
                 servers = []
-                for key, item in self.bot.globals.items():
-                    if item['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
-                        servers.append(item)
+                for server_name, server in self.bot.globals.items():
+                    if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                        servers.append(server)
+                        self.bot.sendtoDCS(server, {"command": "shutdown"})
+                        await ctx.send(f'Shutting down DCS server "{server_name}" ...')
+                        server['status'] = Status.SHUTDOWN
+                # give the DCS servers some time to shut down.
                 if len(servers):
-                    if await utils.yn_question(self, ctx, 'Would you like me to stop the running servers and run the update?') is True:
-                        for server in servers:
-                            self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
-                            await ctx.send('Shutting down server "{}" ...'.format(server['server_name']))
-                            server['status'] = Status.SHUTDOWN
-                    else:
-                        return
-                if await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?'.format(old_version, new_version)) is True:
-                    self.log.info('Updating DCS to the latest version.')
-                    subprocess.Popen(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
-                        self.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
-                    await ctx.send('Updating DCS to the latest version ...')
+                    await asyncio.sleep(10)
+                await ctx.send('Updating DCS World ...')
+                subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
+                    self.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
+                await ctx.send(f'DCS World updated to version {new_version}')
+                if await utils.yn_question(self, ctx, 'Would you like to restart your DCS servers?') is True:
+                    for server in servers:
+                        await ctx.send(f"Starting DCS server \"{server['server_name']}\" ...")
+                        utils.start_dcs(self, server['installation'])
+                    await ctx.send('All DCS servers restarted.')
 
     @commands.command(description='Change the password of a DCS server')
     @utils.has_role('DCS Admin')
