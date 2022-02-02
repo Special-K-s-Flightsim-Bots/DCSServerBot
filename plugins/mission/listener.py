@@ -99,12 +99,21 @@ class MissionEventListener(EventListener):
                 }
             })
         if method == 'restart':
-            s.enter(restart_in_seconds, 1, self.bot.sendtoDCS, kwargs={
-                'server': server,
-                'message': {
-                    "command": "restartMission"
-                }
-            })
+            if 'RESTART_OPTIONS' in self.config[installation] and 'RESTART_SERVER' in [x.upper().strip() for x in self.config[installation]['RESTART_OPTIONS'].split(',')]:
+                s.enter(restart_in_seconds, 1, self.bot.sendtoDCS, kwargs={
+                    'server': server,
+                    'message': {
+                        "command": "shutdown"
+                    }
+                })
+                s.enter(restart_in_seconds + 10, 1, utils.start_dcs, (self, installation))
+            else:
+                s.enter(restart_in_seconds, 1, self.bot.sendtoDCS, kwargs={
+                    'server': server,
+                    'message': {
+                        "command": "restartMission"
+                    }
+                })
         elif method == 'rotate':
             s.enter(restart_in_seconds, 1, self.bot.sendtoDCS, kwargs={
                 'server': server,
@@ -276,8 +285,10 @@ class MissionEventListener(EventListener):
         # stop all restart events
         if 'restartScheduler' in server:
             s = server['restartScheduler']
-            for event in s.queue:
-                s.cancel(event)
+            # Don't pull the one and only restart event from the queue, as we want it to be executed.
+            if len(s.queue) > 0 and s.queue[0].action != utils.start_dcs:
+                for event in s.queue:
+                    s.cancel(event)
             del server['restartScheduler']
 
     async def onSimulationPause(self, data):
