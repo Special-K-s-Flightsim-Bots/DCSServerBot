@@ -17,6 +17,14 @@ class SlotBlockingListener(EventListener):
         else:
             self.params = None
 
+    def get_points(self, server: dict, player: dict) -> int:
+        if 'restricted' in server[self.plugin]:
+            for unit in server[self.plugin]['restricted']:
+                if ('unit_type' in unit and unit['unit_type'] == player['unit_type']) or ('unit_name' in unit and unit['unit_name'] in player['unit_name']) or ('group_name' in unit and unit['group_name'] in player['group_name']):
+                    if 'points' in unit:
+                        return unit['points']
+        return 0
+
     def get_costs(self, server: dict, player: dict) -> int:
         if 'restricted' in server[self.plugin]:
             for unit in server[self.plugin]['restricted']:
@@ -25,7 +33,7 @@ class SlotBlockingListener(EventListener):
                         return unit['costs']
         return 0
 
-    def get_points(self, server, data):
+    def get_points_per_kill(self, server, data):
         default = 1
         if 'points_per_kill' in server[self.plugin]:
             for unit in server[self.plugin]['points_per_kill']:
@@ -151,6 +159,14 @@ class SlotBlockingListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
+    def move_to_spectators(self, server, player):
+        self.bot.sendtoDCS(server, {
+            "command": "force_player_slot",
+            "playerID": player['id'],
+            "sideID": 0,
+            "slotID": ""
+        })
+
     async def onGameEvent(self, data):
         server = self.bot.globals[data['server_name']]
         if self.plugin in server:
@@ -158,14 +174,20 @@ class SlotBlockingListener(EventListener):
                 # players gain points only, if they don't kill themselves and no teamkills
                 if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                     player = self.get_player_points(data['server_name'], data['arg1'])
-                    player['points'] += self.get_points(server, data)
+                    player['points'] += self.get_points_per_kill(server, data)
                     self.update_user_points(data['server_name'], player)
                 # players only lose points if they weren't killed as a teamkill
                 if data['arg4'] != -1 and data['arg3'] != data['arg6']:
                     player = self.get_player_points(data['server_name'], data['arg4'])
                     player['points'] -= self.get_costs(server, player)
                     self.update_user_points(data['server_name'], player)
+                    # if the remaining points are not enough to stay in this plane, move them back to spectators
+                    if player['points'] < self.get_points(server, player):
+                        self.move_to_spectators(server, player)
             elif data['eventName'] == 'crash':
                 player = self.get_player_points(data['server_name'], data['arg1'])
                 player['points'] -= self.get_costs(server, player)
                 self.update_user_points(data['server_name'], player)
+                # if the remaining points are not enough to stay in this plane, move them back to spectators
+                if player['points'] < self.get_points(server, player):
+                    self.move_to_spectators(server, player)
