@@ -144,6 +144,7 @@ The following RESTART_OPTIONS are supported atm:
 | Option         | Description                                                                                                      |
 |----------------|------------------------------------------------------------------------------------------------------------------|
 | NOT_POPULATED  | When used with RESTART_MISSION_TIME, the mission will only be restarted, if no player is in at the restart time. |
+| RESTART_SERVER | When used with RESTART_LOCAL_TIME, the whole DCS server (dcs.exe) will be restarted, instead of the mission.     |
 
 
 ### DCS/Hook Configuration
