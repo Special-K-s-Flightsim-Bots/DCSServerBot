@@ -51,8 +51,8 @@ class HighscoreElement(report.GraphElement):
             'Ground Targets': 'SUM(s.kills_ground)',
             'Most Efficient Killers': 'SUM(s.kills) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600)',
             'Most Wasteful Pilots': 'SUM(s.crashes) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600)',
-            'KD-Ratio': 'CASE when sum(s.deaths) = 0 then sum(s.kills) else sum(s.kills)/sum(s.deaths) end',
-            'PvP-KD-Ratio': 'CASE when sum(s.deaths_pvp) = 0 then sum(s.pvp) else sum(s.pvp)/sum(s.deaths_pvp) end'
+            'KD-Ratio': 'CASE when sum(s.deaths) = 0 then sum(s.kills) else sum(s.kills::DECIMAL)/sum(s.deaths::DECIMAL) end',
+            'PvP-KD-Ratio': 'CASE when sum(s.deaths_pvp) = 0 then sum(s.pvp) else sum(s.pvp::DECIMAL)/sum(s.deaths_pvp::DECIMAL) end'
         }
         xlabels = {
             'Air Targets': 'kills',
@@ -76,7 +76,6 @@ class HighscoreElement(report.GraphElement):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                self.log.debug(sql)
                 cursor.execute(sql)
                 result = cursor.fetchall()
                 labels = []
