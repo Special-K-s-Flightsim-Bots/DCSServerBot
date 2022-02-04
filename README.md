@@ -29,6 +29,7 @@ Click the name to navigate to the documentation of this plugin.
 * [Userstats](./plugins/userstats/README.md)
 * [Missionstats](./plugins/missionstats/README.md)
 * [Slotblocking](./plugins/slotblocking/README.md)
+* [Punishment](./plugins/punishment/README.md)
 * [Gamemaster](./plugins/gamemaster/README.md)
 
 ### In case you want to write your own plugin ...
