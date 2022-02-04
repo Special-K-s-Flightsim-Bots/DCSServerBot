@@ -1,7 +1,5 @@
 # Plugin Punishment
-The DCSServerBot's auto-ban, auto-kick, auto-move-back-to-spectators module, based on the clients behaviour and the configuration described in here.
-To get the best results, you want to enable the Missionstats plugin, too. Hit-Events can only be captured, when this plugin is activated. Otherwise you can only punish teamkill events.
-
+The DCSServerBot's auto-ban, auto-kick, auto-move-back-to-spectators module, based on the players behaviour and the configuration described in here.
 The ideas of this plugin are based on [Slmod](https://github.com/mrSkortch/DCS-SLmod). Thanks to Speed for his awesome solution!
 
 ## Configuration
