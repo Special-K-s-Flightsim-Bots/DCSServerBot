@@ -181,7 +181,7 @@ class UserStatistics(Plugin):
                     embed.add_field(name='▬' * 32, value='_ _', inline=False)
                     servers = []
                     dcs_names = []
-                    for server_name in self.bot.globals.keys():
+                    for server_name in self.globals.keys():
                         if server_name in self.bot.player_data:
                             for i in range(0, len(ucids)):
                                 if self.get_player(server_name, ucids[i]) is not None:
@@ -217,7 +217,7 @@ class UserStatistics(Plugin):
                             await self.bot.audit(f"User {ctx.message.author.display_name} has relinked ucid {match['ucid']} to user {match['member'].display_name}")
                         await ctx.send('ucids have been relinked.')
                     elif react.emoji == '⏏️':
-                        for server in self.bot.globals.values():
+                        for server in self.globals.values():
                             for ucid in ucids:
                                 self.bot.sendtoDCS(server, {"command": "kick", "ucid": ucid, "reason": "Kicked by admin."})
                         await ctx.send('User has been kicked.')
@@ -227,7 +227,7 @@ class UserStatistics(Plugin):
                         for ucid in ucids:
                             cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
                                            (ucid, ctx.message.author.display_name, 'n/a'))
-                            for server in self.bot.globals.values():
+                            for server in self.globals.values():
                                 self.bot.sendtoDCS(server, {
                                     "command": "ban",
                                     "ucid": ucid,
@@ -239,7 +239,7 @@ class UserStatistics(Plugin):
                     elif react.emoji == '✅':
                         for ucid in ucids:
                             cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
-                            for server in self.bot.globals.values():
+                            for server in self.globals.values():
                                 self.bot.sendtoDCS(server, {
                                     "command": "unban",
                                     "ucid": ucid
@@ -355,6 +355,6 @@ def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(UserStatistics(bot, UserStatisticsEventListener(bot)))
+        bot.add_cog(UserStatistics(bot, UserStatisticsEventListener))
     else:
-        bot.add_cog(Plugin(bot, UserStatisticsEventListener(bot)))
+        bot.add_cog(Plugin(bot, UserStatisticsEventListener))

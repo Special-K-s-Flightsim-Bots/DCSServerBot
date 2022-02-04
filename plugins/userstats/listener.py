@@ -1,7 +1,7 @@
 # listener.py
 import psycopg2
 from contextlib import closing
-from core import const, DCSServerBot, EventListener
+from core import const, EventListener, Plugin
 from typing import Union
 
 
@@ -29,8 +29,8 @@ class UserStatisticsEventListener(EventListener):
         'deaths_ground': 'UPDATE statistics SET deaths_ground = deaths_ground + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL'
     }
 
-    def __init__(self, bot: DCSServerBot):
-        super().__init__(bot)
+    def __init__(self, plugin: Plugin):
+        super().__init__(plugin)
         self.statistics = set()
         self.mission_ids = dict()
 

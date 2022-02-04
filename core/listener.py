@@ -1,16 +1,18 @@
 # listener.py
 import asyncio
-from typing import List, Union
+from typing import List, Union, TypeVar
 
 
 class EventListener:
 
-    def __init__(self, bot):
+    def __init__(self, plugin):
         self.plugin = type(self).__module__.split('.')[-2]
-        self.bot = bot
-        self.log = bot.log
-        self.pool = bot.pool
-        self.config = bot.config
+        self.bot = plugin.bot
+        self.log = plugin.log
+        self.pool = plugin.pool
+        self.config = plugin.config
+        self.globals = plugin.globals
+        self.locals = plugin.locals
         self.registered = False
         self.loop = asyncio.get_event_loop()
 
@@ -25,3 +27,6 @@ class EventListener:
             return await getattr(self, data['command'])(data)
         else:
             return None
+
+
+TEventListener = TypeVar("TEventListener", bound=EventListener)

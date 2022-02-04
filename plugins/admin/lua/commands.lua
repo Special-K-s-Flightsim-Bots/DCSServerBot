@@ -141,6 +141,11 @@ function dcsbot.unban(json)
 	dcsbot.banList[json.ucid] = nil
 end
 
+function dcsbot.force_player_slot(json)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: force_player_slot()')
+    net.force_player_slot(json.playerID, json.sideID or 0, json.slotID or '')
+end
+
 function dcsbot.loadParams(json)
     log.write('DCSServerBot', log.DEBUG, 'Admin: loadParams()')
     dcsbot.params = dcsbot.params or {}

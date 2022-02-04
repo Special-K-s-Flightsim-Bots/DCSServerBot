@@ -2,10 +2,10 @@
   "configs": [
     {
       "restricted": [
-        { "unit_type": "artillery_commander", "discord": "Donators" },
-        { "unit_type": "forward_observer", "discord": "Donators" },
-        { "unit_type": "instructor", "discord": "Donators" },
-        { "unit_type": "observer", "discord": "Donators" }
+        { "unit_type": "artillery_commander", "discord": "Donators", "message": "This slot is reserved for Donators!" },
+        { "unit_type": "forward_observer", "discord": "Donators", "message": "This slot is reserved for Donators!" },
+        { "unit_type": "instructor", "discord": "Donators", "message": "This slot is reserved for Donators!" },
+        { "unit_type": "observer", "discord": "@everyone", "message": "This slot is reserved for members of http://invite.link!" }
       ]
     },
     {

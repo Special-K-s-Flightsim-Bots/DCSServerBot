@@ -48,7 +48,7 @@ class Main:
             self.log.warning('- Restart needed => exiting.')
             exit(-1)
         self.pool = self.init_db()
-        self.sanitize()
+        utils.sanitize(self)
         self.install_hooks()
         self.bot = self.init_bot()
         self.add_commands()
@@ -71,7 +71,8 @@ class Main:
         log.addHandler(ch)
         return log
 
-    def read_config(self):
+    @staticmethod
+    def read_config():
         config = ConfigParser()
         config.read('config/default.ini')
         config.read('config/dcsserverbot.ini')
@@ -128,38 +129,6 @@ class Main:
             lambda value, curs: float(value) if value is not None else None)
         psycopg2.extensions.register_type(dec2float)
         return db_pool
-
-    def sanitize(self):
-        # Sanitizing MissionScripting.lua
-        filename = os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\Scripts\MissionScripting.lua'
-        try:
-            with open(filename, 'r') as infile:
-                orig = infile.readlines()
-            output = []
-            dirty = False
-            for line in orig:
-                if ("sanitizeModule('io')" in line or "sanitizeModule('lfs')" in line) and not line.lstrip().startswith(
-                        '--'):
-                    line = line.replace('sanitizeModule', '--sanitizeModule')
-                    dirty = True
-                # old sanitization (pre 2.7.9)
-                elif 'require = nil' in line and not line.lstrip().startswith('--'):
-                    line = line.replace('require', '--require')
-                # new sanitization (2.7.9 and above)
-                elif ("_G['require'] = nil" in line or "_G['package'] = nil" in line) and not line.lstrip().startswith('--'):
-                    line = line.replace('_G', '--_G')
-                    dirty = True
-                output.append(line)
-            if dirty:
-                self.log.info('- Sanitizing MissionScripting')
-                backup = filename.replace('.lua', '.bak')
-                # backup original file
-                shutil.copyfile(filename, backup)
-                with open(filename, 'w') as outfile:
-                    outfile.writelines(output)
-        except (OSError, IOError) as e:
-            self.log.error(f"Can't access {filename}. Make sure, {self.config['DCS']['DCS_INSTALLATION']} is writable.")
-            raise e
 
     def install_hooks(self):
         self.log.info('- Configure DCS installations ...')

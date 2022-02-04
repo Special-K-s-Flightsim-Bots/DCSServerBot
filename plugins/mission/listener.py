@@ -4,7 +4,7 @@ import pandas as pd
 import psycopg2
 import re
 import sched
-from core import const, utils, DCSServerBot, EventListener, PersistentReport
+from core import const, utils, EventListener, PersistentReport, Plugin
 from core.const import Status
 from contextlib import closing
 from datetime import timedelta, datetime
@@ -22,10 +22,10 @@ class MissionEventListener(EventListener):
         'friendly_fire': '{} {} FRIENDLY FIRE onto {} with {}.'
     }
 
-    def __init__(self, bot: DCSServerBot):
-        super().__init__(bot)
+    def __init__(self, plugin: Plugin):
+        super().__init__(plugin)
+        # TODO: change this to globals
         self.bot.player_data = {}
-        self.executor = bot.executor
 
     # Return a player from the internal list
     # TODO: change player data handling!
@@ -120,7 +120,7 @@ class MissionEventListener(EventListener):
                 'message': {"command": "startNextMission"}
             })
         server['restartScheduler'] = s
-        self.loop.run_in_executor(self.executor, s.run)
+        self.loop.run_in_executor(self.bot.executor, s.run)
 
     async def sendMessage(self, data):
         channel = self.bot.get_bot_channel(data, 'chat_channel' if (data['channel'] == '-1') else None)
@@ -160,7 +160,7 @@ class MissionEventListener(EventListener):
         embed.add_field(name='Unit', value=units)
         embed.add_field(name='Side', value=sides)
         await self.bot.setEmbed(data, 'players_embed', embed)
-        channel = self.bot.get_channel(int(self.bot.globals[data['server_name']]['status_channel']))
+        channel = self.bot.get_channel(int(self.globals[data['server_name']]['status_channel']))
         # name changes of the status channel will only happen with the correct permission
         if channel.permissions_for(self.bot.guilds[0].get_member(self.bot.user.id)).manage_channels:
             name = channel.name
@@ -172,7 +172,7 @@ class MissionEventListener(EventListener):
                     name = re.sub('［.*］', f'［-］', name)
             else:
                 current = len(players) + 1
-                max_players = self.bot.globals[data['server_name']]['serverSettings']['maxPlayers']
+                max_players = self.globals[data['server_name']]['serverSettings']['maxPlayers']
                 if name.find('［') == -1:
                     name = name + f'［{current}／{max_players}］'
                 else:
@@ -180,11 +180,11 @@ class MissionEventListener(EventListener):
             await channel.edit(name=name)
 
     def updateMission(self, data):
-        server = self.bot.globals[data['server_name']]
+        server = self.globals[data['server_name']]
         self.bot.sendtoDCS(server, {"command": "getRunningMission", "channel": data['channel']})
 
     async def callback(self, data):
-        server = self.bot.globals[data['server_name']]
+        server = self.globals[data['server_name']]
         if data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown']:
             data['command'] = data['subcommand']
             self.bot.sendtoDCS(server, data)
@@ -197,7 +197,7 @@ class MissionEventListener(EventListener):
                 'ignored.'.format(
                     data['server_name']))
             return
-        server = self.bot.globals[data['server_name']]
+        server = self.globals[data['server_name']]
         server['airbases'] = data['airbases']
         server['restart_pending'] = False
         self.bot.sendtoDCS(server, {"command": "getRunningMission", "channel": server['status_channel']})
@@ -206,7 +206,7 @@ class MissionEventListener(EventListener):
         if data['channel'].startswith('sync'):
             return data
         server_name = data['server_name']
-        server = self.bot.globals[server_name]
+        server = self.globals[server_name]
         if 'pause' in data:
             server['status'] = Status.PAUSED if data['pause'] is True else Status.RUNNING
         # check if we have to restart the mission
@@ -261,7 +261,7 @@ class MissionEventListener(EventListener):
         return data
 
     async def onMissionLoadBegin(self, data):
-        self.bot.globals[data['server_name']]['status'] = Status.LOADING
+        self.globals[data['server_name']]['status'] = Status.LOADING
         self.bot.player_data[data['server_name']] = pd.DataFrame(
             columns=['id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name',
                      'unit_type', 'group_name'])
@@ -269,7 +269,7 @@ class MissionEventListener(EventListener):
         await self.displayPlayerList(data)
 
     async def onMissionLoadEnd(self, data):
-        server = self.bot.globals[data['server_name']]
+        server = self.globals[data['server_name']]
         server['status'] = Status.PAUSED
         server['airbases'] = data['airbases']
         return await self.getRunningMission(data)
@@ -278,7 +278,7 @@ class MissionEventListener(EventListener):
         data['num_players'] = 0
         data['current_map'] = '-'
         data['mission_time'] = 0
-        server = self.bot.globals[data['server_name']]
+        server = self.globals[data['server_name']]
         if server['status'] != Status.SHUTDOWN:
             server['status'] = Status.STOPPED
         await self.getRunningMission(data)
@@ -292,11 +292,11 @@ class MissionEventListener(EventListener):
             del server['restartScheduler']
 
     async def onSimulationPause(self, data):
-        self.bot.globals[data['server_name']]['status'] = Status.PAUSED
+        self.globals[data['server_name']]['status'] = Status.PAUSED
         self.updateMission(data)
 
     async def onSimulationResume(self, data):
-        self.bot.globals[data['server_name']]['status'] = Status.RUNNING
+        self.globals[data['server_name']]['status'] = Status.RUNNING
         self.updateMission(data)
 
     async def onPlayerConnect(self, data):
@@ -324,7 +324,7 @@ class MissionEventListener(EventListener):
                 conn.rollback()
             finally:
                 self.pool.putconn(conn)
-            server = self.bot.globals[data['server_name']]
+            server = self.globals[data['server_name']]
             if discord_user is None:
                 self.bot.sendtoDCS(server, {
                     "command": "sendChatMessage",
@@ -332,7 +332,7 @@ class MissionEventListener(EventListener):
                     "to": data['id']
                 })
                 # only warn for unknown users if it is a non-public server
-                if len(self.bot.globals[data['server_name']]['serverSettings']['password']) > 0:
+                if len(self.globals[data['server_name']]['serverSettings']['password']) > 0:
                     await self.bot.get_bot_channel(data, 'admin_channel').send(
                         'Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
             else:
@@ -395,8 +395,8 @@ class MissionEventListener(EventListener):
                 self.updateMission(data)
                 # if no player is in the server anymore and we have a pending restart, restart the server
                 players = self.bot.player_data[data['server_name']]
-                if len(players[players['active'] == True]) == 0 and self.bot.globals[server_name]['restart_pending']:
-                    server = self.bot.globals[server_name]
+                if len(players[players['active'] == True]) == 0 and self.globals[server_name]['restart_pending']:
+                    server = self.globals[server_name]
                     self.bot.sendtoDCS(server, {"command": "restartMission", "channel": "-1"})
                 await self.displayPlayerList(data)
         elif data['eventName'] == 'friendly_fire':

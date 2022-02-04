@@ -36,8 +36,8 @@ class Agent(Plugin):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def servers(self, ctx):
-        if len(self.bot.globals) > 0:
-            for server_name, server in self.bot.globals.items():
+        if len(self.globals) > 0:
+            for server_name, server in self.globals.items():
                 if server['status'] in [Status.RUNNING, Status.PAUSED]:
                     mission = await self.bot.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
                     report = Report(self.bot, 'mission', 'serverStatus.json')
@@ -119,7 +119,7 @@ class Agent(Plugin):
                 await self.bot.audit(
                     f"User {ctx.message.author.display_name} started an update of all DCS servers on node {platform.node()}.")
                 servers = []
-                for server_name, server in self.bot.globals.items():
+                for server_name, server in self.globals.items():
                     if server['status'] in [Status.RUNNING, Status.PAUSED]:
                         servers.append(server)
                         self.bot.sendtoDCS(server, {"command": "shutdown"})
@@ -131,6 +131,7 @@ class Agent(Plugin):
                 await ctx.send('Updating DCS World ...')
                 subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
                     self.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
+                utils.sanitize(self)
                 await ctx.send(f'DCS World updated to version {new_version}')
                 if await utils.yn_question(self, ctx, 'Would you like to restart your DCS servers?') is True:
                     for server in servers:
@@ -191,7 +192,7 @@ class Agent(Plugin):
                     # ban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    for server in self.bot.globals.values():
+                    for server in self.globals.values():
                         self.bot.sendtoDCS(server, {
                             "command": "ban",
                             "ucid": ucid,
@@ -217,7 +218,7 @@ class Agent(Plugin):
                     # unban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    for server in self.bot.globals.values():
+                    for server in self.globals.values():
                         self.bot.sendtoDCS(server, {"command": "unban", "ucid": ucid})
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -279,7 +280,7 @@ class Agent(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
-        for server_name, server in self.bot.globals.items():
+        for server_name, server in self.globals.items():
             if server['status'] in [Status.LOADING, Status.STOPPED, Status.RUNNING, Status.PAUSED]:
                 await self.bot.change_presence(activity=discord.Game(self.STATUS_EMOJI[server['status']] + ' ' +
                                                                      re.sub(self.config['FILTER']['SERVER_FILTER'],
@@ -511,8 +512,7 @@ class Master(Agent):
 
 
 def setup(bot: DCSServerBot):
-    listener = AdminEventListener(bot)
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(Master(bot, listener))
+        bot.add_cog(Master(bot, AdminEventListener))
     else:
-        bot.add_cog(Agent(bot, listener))
+        bot.add_cog(Agent(bot, AdminEventListener))

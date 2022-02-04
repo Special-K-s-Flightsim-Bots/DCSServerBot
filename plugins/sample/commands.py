@@ -46,4 +46,4 @@ class Sample(Plugin):
 
 
 def setup(bot: DCSServerBot):
-    bot.add_cog(Sample(bot, SampleEventListener(bot)))
+    bot.add_cog(Sample(bot, SampleEventListener))

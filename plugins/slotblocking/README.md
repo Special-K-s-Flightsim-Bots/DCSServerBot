@@ -1,8 +1,9 @@
-### Plugin "Slotblocking"
+# Plugin "Slotblocking"
 This is a simple slot blocking plugin that can be used in two different ways (for now, more to come).
 Slots can be either blocked by Discord groups (specific planes blocked for Discord Members, other ones blocked for Donators for instance) or by points that people earn by kills. So you can hop in another plane, as soon as you have killed a specific number of enemies.
 _Friendly fire or self kills are not counted._
 
+## Configuration
 The slot blocking is configured with a file named config\slotblocking.json. You'll find a sample file in that directory:
 ```json
 {

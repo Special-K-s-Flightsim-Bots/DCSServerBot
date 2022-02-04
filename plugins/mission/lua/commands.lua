@@ -265,7 +265,9 @@ function dcsbot.sendPopupMessage(json)
 	end
 	time = json.time or 10
 	to = json.to or 'all'
-	if to == 'all' then
+	if tonumber(to) then
+		net.dostring_in('mission', 'a_out_text_delay_g('.. to ..', ' .. basicSerialize(message) .. ', ' .. tostring(time) .. ')')
+	elseif to == 'all' then
 		net.dostring_in('mission', 'a_out_text_delay(' .. basicSerialize(message) .. ', ' .. tostring(time) .. ')')
 	elseif to == 'red' then
 		net.dostring_in('mission', 'a_out_text_delay_s(\'red\', ' .. basicSerialize(message) .. ', ' .. tostring(time) .. ')')

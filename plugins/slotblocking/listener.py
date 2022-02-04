@@ -8,15 +8,6 @@ from typing import Optional
 
 class SlotBlockingListener(EventListener):
 
-    def __init__(self, bot: DCSServerBot):
-        super().__init__(bot)
-        filename = f'./config/{self.plugin}.json'
-        if path.exists(filename):
-            with open(filename) as file:
-                self.params = json.load(file)
-        else:
-            self.params = None
-
     def get_points(self, server: dict, player: dict) -> int:
         if 'restricted' in server[self.plugin]:
             for unit in server[self.plugin]['restricted']:
@@ -79,10 +70,10 @@ class SlotBlockingListener(EventListener):
         return None
 
     async def registerDCSServer(self, data):
-        server = self.bot.globals[data['server_name']]
-        if self.params:
+        server = self.globals[data['server_name']]
+        if 'configs' in self.locals:
             specific = default = None
-            for element in self.params['configs']:
+            for element in self.locals['configs']:
                 if ('installation' in element and server['installation'] == element['installation']) or (
                         'server_name' in element and server['server_name'] == element['server_name']):
                     specific = element
@@ -130,7 +121,7 @@ class SlotBlockingListener(EventListener):
         points = player['points'] if player else 0
         user = utils.match_user(self, data)
         roles = [x.name for x in user.roles] if user else []
-        self.bot.sendtoDCS(self.bot.globals[data['server_name']],
+        self.bot.sendtoDCS(self.globals[data['server_name']],
                            {
                                'command': 'uploadUserInfo',
                                'id': data['id'],
@@ -146,7 +137,7 @@ class SlotBlockingListener(EventListener):
                 cursor.execute('UPDATE sb_points SET points = %s WHERE player_ucid = %s AND '
                                'campaign_id = (SELECT campaign_id FROM campaigns WHERE server_name = %s)',
                                (player['points'], player['ucid'], server_name))
-                self.bot.sendtoDCS(self.bot.globals[server_name],
+                self.bot.sendtoDCS(self.globals[server_name],
                                    {
                                        'command': 'updateUserPoints',
                                        'ucid': player['ucid'],
@@ -168,7 +159,7 @@ class SlotBlockingListener(EventListener):
         })
 
     async def onGameEvent(self, data):
-        server = self.bot.globals[data['server_name']]
+        server = self.globals[data['server_name']]
         if self.plugin in server:
             if data['eventName'] == 'kill':
                 # players gain points only, if they don't kill themselves and no teamkills
