@@ -15,8 +15,3 @@ function dcsbot.updateUserPoints(json)
     log.write('DCSServerBot', log.DEBUG, 'Slotblocking: updateUserPoints()')
     dcsbot.userInfo[json.ucid].points = tonumber(json.points)
 end
-
-function dcsbot.force_player_slot(json)
-    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: force_player_slot()')
-    net.force_player_slot(json.playerID, json.sideID or 0, json.slotID or '')
-end

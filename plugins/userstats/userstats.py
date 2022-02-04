@@ -299,15 +299,15 @@ class KDRatio(report.MultiGraphElement):
                     bottom = 0
                     width = 0.2
                     # there is something to be drawn
-                    if np.sum(values) > 0:
+                    sum = np.sum(values)
+                    if sum > 0:
                         for i in range(len(values)):
-                            height = values[i] / np.sum(values)
+                            height = values[i] / sum
                             ax.bar(xpos, height, width, bottom=bottom)
                             ypos = bottom + ax.patches[i].get_height() / 2
                             bottom += height
                             if int(values[i]) > 0:
-                                ax.text(xpos, ypos, "%d%%" %
-                                          (ax.patches[i].get_height() * 100), ha='center', color='black')
+                                ax.text(xpos, ypos, str(np.round(height * 100, 1)) + '%', ha='center', color='black')
 
                         ax.set_title('Killed by\nPlayer', color='white', fontsize=15)
                         ax.axis('off')
@@ -351,15 +351,15 @@ class KDRatio(report.MultiGraphElement):
                     bottom = 0
                     width = 0.2
                     # there is something to be drawn
-                    if np.sum(values) > 0:
+                    sum = np.sum(values)
+                    if sum > 0:
                         for i in range(len(values)):
-                            height = values[i] / np.sum(values)
+                            height = values[i] / sum
                             ax.bar(xpos, height, width, bottom=bottom)
                             ypos = bottom + ax.patches[i].get_height() / 2
                             bottom += height
                             if int(values[i]) > 0:
-                                ax.text(xpos, ypos, "%d%%" %
-                                          (ax.patches[i].get_height() * 100), ha='center', color='black')
+                                ax.text(xpos, ypos, str(np.round(height * 100, 1)) + '%', ha='center', color='black')
 
                         ax.set_title('Player\nkilled by', color='white', fontsize=15)
                         ax.axis('off')

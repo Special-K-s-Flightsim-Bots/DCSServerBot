@@ -57,7 +57,7 @@ class Mission(Plugin):
     @commands.guild_only()
     async def atis(self, ctx, *args):
         name = ' '.join(args)
-        for server_name, server in self.bot.globals.items():
+        for server_name, server in self.globals.items():
             if server['status'] in [Status.RUNNING, Status.PAUSED]:
                 for airbase in server['airbases']:
                     if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
@@ -291,7 +291,7 @@ class Mission(Plugin):
 
     @tasks.loop(minutes=5.0)
     async def update_mission_status(self):
-        for server_name, server in self.bot.globals.items():
+        for server_name, server in self.globals.items():
             if server['status'] == Status.RUNNING:
                 self.bot.sendtoDCS(server, {
                     "command": "getRunningMission",
@@ -300,4 +300,4 @@ class Mission(Plugin):
 
 
 def setup(bot: DCSServerBot):
-    bot.add_cog(Mission(bot, MissionEventListener(bot)))
+    bot.add_cog(Mission(bot, MissionEventListener))

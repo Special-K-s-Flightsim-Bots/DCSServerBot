@@ -9,4 +9,4 @@ class MissionStatistics(Plugin):
 def setup(bot: DCSServerBot):
     if 'userstats' not in bot.plugins:
         raise PluginRequiredError('userstats')
-    bot.add_cog(MissionStatistics(bot, MissionStatisticsEventListener(bot)))
+    bot.add_cog(MissionStatistics(bot, MissionStatisticsEventListener))

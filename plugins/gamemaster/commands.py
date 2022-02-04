@@ -8,7 +8,7 @@ class GameMaster(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        for key, value in self.bot.globals.items():
+        for key, value in self.globals.items():
             if value["chat_channel"] == message.channel.id:
                 if message.content.startswith(self.config['BOT']['COMMAND_PREFIX']) is False:
                     message.content = self.config['BOT']['COMMAND_PREFIX'] + 'chat ' + message.content
@@ -61,4 +61,4 @@ class GameMaster(Plugin):
 
 
 def setup(bot: DCSServerBot):
-    bot.add_cog(GameMaster(bot, GameMasterEventListener(bot)))
+    bot.add_cog(GameMaster(bot, GameMasterEventListener))

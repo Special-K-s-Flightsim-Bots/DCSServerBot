@@ -1,11 +1,12 @@
-import asyncio
 import aiohttp
+import asyncio
 import discord
 import importlib
 import math
 import os
 import psutil
 import re
+import shutil
 import socket
 import subprocess
 import psycopg2
@@ -283,7 +284,7 @@ async def yn_question(self, ctx, question, msg=None):
 
 
 async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]):
-    for server_name, server in self.bot.globals.items():
+    for server_name, server in self.globals.items():
         if isinstance(ctx, discord.ext.commands.context.Context):
             if server['status'] == Status.UNKNOWN:
                 continue
@@ -386,3 +387,37 @@ def get_player(self, server_name, **kwargs):
         return row.to_dict('records')[0]
     else:
         return None
+
+
+def sanitize(self):
+    # Sanitizing MissionScripting.lua
+    filename = os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\Scripts\MissionScripting.lua'
+    try:
+        with open(filename, 'r') as infile:
+            orig = infile.readlines()
+        output = []
+        dirty = False
+        for line in orig:
+            if ("sanitizeModule('io')" in line or "sanitizeModule('lfs')" in line) and not line.lstrip().startswith(
+                    '--'):
+                line = line.replace('sanitizeModule', '--sanitizeModule')
+                dirty = True
+            # old sanitization (pre 2.7.9)
+            elif 'require = nil' in line and not line.lstrip().startswith('--'):
+                line = line.replace('require', '--require')
+            # new sanitization (2.7.9 and above)
+            elif ("_G['require'] = nil" in line or "_G['package'] = nil" in line) and not line.lstrip().startswith('--'):
+                line = line.replace('_G', '--_G')
+                dirty = True
+            output.append(line)
+        if dirty:
+            self.log.info('- Sanitizing MissionScripting')
+            backup = filename.replace('.lua', '.bak')
+            # backup original file
+            shutil.copyfile(filename, backup)
+            with open(filename, 'w') as outfile:
+                outfile.writelines(output)
+    except (OSError, IOError) as e:
+        self.log.error(f"Can't access {filename}. Make sure, {self.config['DCS']['DCS_INSTALLATION']} is writable.")
+        raise e
+

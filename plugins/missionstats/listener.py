@@ -2,7 +2,7 @@
 import discord
 import psycopg2
 from contextlib import closing
-from core import utils, DCSServerBot, EventListener
+from core import utils, EventListener, Plugin
 
 
 class MissionStatisticsEventListener(EventListener):
@@ -22,8 +22,8 @@ class MissionStatisticsEventListener(EventListener):
         5: 'Unknown'
     }
 
-    def __init__(self, bot: DCSServerBot):
-        super().__init__(bot)
+    def __init__(self, plugin: Plugin):
+        super().__init__(plugin)
         self.mission_stats = dict()
         self.mission_ids = dict()
         if 'EVENT_FILTER' in self.config['FILTER']:
@@ -51,7 +51,7 @@ class MissionStatisticsEventListener(EventListener):
         return await self.displayMissionStats(data)
 
     async def disableMissionStats(self, data):
-        server = self.bot.globals[data['server_name']]
+        server = self.globals[data['server_name']]
         self.bot.sendtoDCS(server, {"command": "disableMissionStats"})
 
     async def displayMissionStats(self, data):

@@ -48,4 +48,4 @@ class SlotBlocking(Plugin):
 def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-    bot.add_cog(SlotBlocking(bot, SlotBlockingListener(bot)))
+    bot.add_cog(SlotBlocking(bot, SlotBlockingListener))

@@ -8,21 +8,24 @@ from contextlib import closing
 from discord.ext import commands
 from os import path
 from shutil import copytree
+from typing import Type
 from .bot import DCSServerBot
-from .listener import EventListener
+from .listener import TEventListener
 
 
 class Plugin(commands.Cog):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: EventListener = None):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         self.plugin = type(self).__module__.split('.')[-2]
         self.plugin_version = None
         self.bot = bot
         self.log = bot.log
+        self.globals = bot.globals
+        self.locals = self.read_locals()
         self.config = bot.config
         self.pool = bot.pool
+        self.eventlistener = eventlistener(self) if eventlistener else None
         self.install()
-        self.eventlistener = eventlistener
         if self.eventlistener:
             self.bot.register_eventListener(self.eventlistener)
         self.log.debug(f'- Plugin {type(self).__name__} initialized.')
@@ -80,6 +83,14 @@ class Plugin(commands.Cog):
                 self.log.exception(error)
             finally:
                 self.pool.putconn(conn)
+
+    def read_locals(self):
+        filename = f'./config/{self.plugin}.json'
+        if path.exists(filename):
+            with open(filename) as file:
+                return json.load(file)
+        else:
+            return {}
 
 
 class PluginRequiredError(Exception):

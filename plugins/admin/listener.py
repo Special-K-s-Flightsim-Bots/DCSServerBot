@@ -19,9 +19,9 @@ class AdminEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
         if data is not None:
-            servers = [self.bot.globals[data['server_name']]]
+            servers = [self.globals[data['server_name']]]
         else:
-            servers = self.bot.globals.values()
+            servers = self.globals.values()
         for server in servers:
             for ban in banlist:
                 self.bot.sendtoDCS(server, {"command": "ban", "ucid": ban['ucid'], "channel": server['status_channel']})
@@ -54,7 +54,7 @@ class AdminEventListener(EventListener):
                                                 platform.node(), data['host'], data['port'],
                                                 data['chat_channel'], data['status_channel'], data['admin_channel']))
                     cursor.execute(SQL_SELECT, (data['server_name'],))
-                    server = self.bot.globals[data['server_name']] = dict(cursor.fetchone())
+                    server = self.globals[data['server_name']] = dict(cursor.fetchone())
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
