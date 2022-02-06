@@ -209,40 +209,43 @@ class MissionEventListener(EventListener):
         server = self.globals[server_name]
         if 'pause' in data:
             server['status'] = Status.PAUSED if data['pause'] is True else Status.RUNNING
-        # check if we have to restart the mission
-        installation = server['installation']
-        if 'restartScheduler' not in server and not server['restart_pending']:
-            # check if a restart should be executed relative to mission start
-            if ('RESTART_MISSION_TIME' in self.config[installation]) and (
-                    data['mission_time'] > int(self.config[installation]['RESTART_MISSION_TIME']) * 60):
-                # TODO: change player data handling
-                if server_name in self.bot.player_data:
-                    if 'RESTART_OPTIONS' in self.config[installation]:
-                        options = [x.upper().strip() for x in self.config[installation]['RESTART_OPTIONS'].split(',')]
-                        players = self.bot.player_data[server_name]
-                        if 'NOT_POPULATED' in options and len(players[players['active'] == True]) > 0:
-                            self.log.debug(f"Scheduled restart of server \"{server_name}\""
-                                           f" postponed due to server population.")
-                            server['restart_pending'] = True
-                    if not server['restart_pending']:
-                        self.do_scheduled_restart(server, self.config[installation]['RESTART_METHOD'])
-            elif 'RESTART_LOCAL_TIMES' in self.config[installation]:
-                now = datetime.now()
-                times = []
-                for t in self.config[installation]['RESTART_LOCAL_TIMES'].split(','):
-                    d = datetime.strptime(t.strip(), '%H:%M')
-                    check = now.replace(hour=d.hour, minute=d.minute)
-                    if check.time() > now.time():
-                        times.insert(0, check)
-                        break
+        # There are very rare conditions where the installation is not set yet (onMissionLoad() being called before
+        # onPlayerStart(id=1))
+        if 'installation' in server:
+            installation = server['installation']
+            # check if we have to restart the mission
+            if 'restartScheduler' not in server and not server['restart_pending']:
+                # check if a restart should be executed relative to mission start
+                if ('RESTART_MISSION_TIME' in self.config[installation]) and (
+                        data['mission_time'] > int(self.config[installation]['RESTART_MISSION_TIME']) * 60):
+                    # TODO: change player data handling
+                    if server_name in self.bot.player_data:
+                        if 'RESTART_OPTIONS' in self.config[installation]:
+                            options = [x.upper().strip() for x in self.config[installation]['RESTART_OPTIONS'].split(',')]
+                            players = self.bot.player_data[server_name]
+                            if 'NOT_POPULATED' in options and len(players[players['active'] == True]) > 0:
+                                self.log.debug(f"Scheduled restart of server \"{server_name}\""
+                                               f" postponed due to server population.")
+                                server['restart_pending'] = True
+                        if not server['restart_pending']:
+                            self.do_scheduled_restart(server, self.config[installation]['RESTART_METHOD'])
+                elif 'RESTART_LOCAL_TIMES' in self.config[installation]:
+                    now = datetime.now()
+                    times = []
+                    for t in self.config[installation]['RESTART_LOCAL_TIMES'].split(','):
+                        d = datetime.strptime(t.strip(), '%H:%M')
+                        check = now.replace(hour=d.hour, minute=d.minute)
+                        if check.time() > now.time():
+                            times.insert(0, check)
+                            break
+                        else:
+                            times.append(check + timedelta(days=1))
+                    if len(times):
+                        self.do_scheduled_restart(
+                            server, self.config[installation]['RESTART_METHOD'], int((times[0] - now).total_seconds()))
                     else:
-                        times.append(check + timedelta(days=1))
-                if len(times):
-                    self.do_scheduled_restart(
-                        server, self.config[installation]['RESTART_METHOD'], int((times[0] - now).total_seconds()))
-                else:
-                    self.log.warning(
-                        f'Configuration mismatch! RESTART_LOCAL_TIMES not set correctly for server {server_name}.')
+                        self.log.warning(
+                            f'Configuration mismatch! RESTART_LOCAL_TIMES not set correctly for server {server_name}.')
         report = PersistentReport(self.bot, self.plugin, 'serverStatus.json', data, 'mission_embed')
         return await report.render(server=server, mission=data)
 
