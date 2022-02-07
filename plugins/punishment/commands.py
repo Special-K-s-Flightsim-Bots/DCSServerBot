@@ -31,8 +31,9 @@ class Punishment(Plugin):
             try:
                 with closing(conn.cursor()) as cursor:
                     for d in self.config:
-                        cursor.execute('UPDATE pu_events SET points = points * %s WHERE time < (NOW() - interval \'%s '
-                                       'days\')', (d['weight'], d['days']))
+                        cursor.execute('UPDATE pu_events SET points = points * %s, decay_run = %s WHERE time < (NOW() '
+                                       '- interval \'%s days\') AND decay_run < %s', (d['weight'], d['days'],
+                                                                                      d['days'], d['days']))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
