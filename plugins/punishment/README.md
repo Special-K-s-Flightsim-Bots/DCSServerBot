@@ -21,7 +21,13 @@ The punishment is configured with a file named config\punishment.json. You'll fi
         { "points": 40, "action": "move_to_spec", "delay": 10 },
         { "points": 1, "action": "warn" }
       ],
+      "exemptions": [
+        { "ucid": "abc123456abc987654" },
+        { "discord":  "Admin" },
+        { "discord":  "DCS Admin" }
+      ],
       "forgive" : 30,
+      "unban": 75,
       "flightHoursWeight": [
         { "time": 0, "weight": 1.4 },
         { "time": 3, "weight": 1 },
@@ -33,6 +39,10 @@ The punishment is configured with a file named config\punishment.json. You'll fi
         { "days": 3, "weight": 0.75 },
         { "days": 0, "weight": 1 }
       ]
+    },
+    {
+      "installation": "my-pvp-server",
+      "penalties": []
     }
   ]
 }
@@ -47,14 +57,21 @@ A delay will fire this action after <delay> seconds.
 
 A ban usually is temporary and punishment points can decay over time. After a specific number of temp bans, a user is permanently banned. 
 
+### Exemptions
+User that should not be punished. Can be either ucids or discord groups.
+
 ### Forgive
 To prevent actions to be executed against an initiator, victims can use the -forgive command inside the in-game chat.
+
+### Unban
+Auto-unban when the user reached <= this amount of points.
 
 ### Weight per Flighthours
 Weight punishment by flight hours. This will be the sum of flight hours over all servers handled by this bot.
 
 ### Decay
 Penalty points will decrease over time. This is configured here.
+Decay can only be configured once, so there is no need for a server specific configuration. All other elements can be configured for every server instance differently.
 
 ## Hot to use the penalty system inside of missions
 To use the penalty system inside of missions, you can use the commands

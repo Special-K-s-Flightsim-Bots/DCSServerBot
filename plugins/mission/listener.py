@@ -53,7 +53,7 @@ class MissionEventListener(EventListener):
             if len(df[df['id'] == data['id']]) == 1:
                 if data['command'] == 'onPlayerChangeSlot':
                     df.loc[df['id'] == data['id'], ['active', 'side', 'slot', 'sub_slot', 'unit_callsign', 'unit_name',
-                                                    'unit_type', 'group_name']] = [data['active'], data['side'],
+                                                    'unit_type', 'group_name', 'group_id']] = [data['active'], data['side'],
                                                                                    data['slot'], data['sub_slot'],
                                                                                    data['unit_callsign'], data['unit_name'],
                                                                                    data['unit_type'], data['group_name'],

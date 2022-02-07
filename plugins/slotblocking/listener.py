@@ -74,9 +74,10 @@ class SlotBlockingListener(EventListener):
         if 'configs' in self.locals:
             specific = default = None
             for element in self.locals['configs']:
-                if ('installation' in element and server['installation'] == element['installation']) or (
-                        'server_name' in element and server['server_name'] == element['server_name']):
-                    specific = element
+                if 'installation' in element or 'server_name' in element:
+                    if ('installation' in element and server['installation'] == element['installation']) or \
+                            ('server_name' in element and server['server_name'] == element['server_name']):
+                        specific = element
                 else:
                     default = element
             if default and not specific:

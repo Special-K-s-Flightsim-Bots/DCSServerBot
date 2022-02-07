@@ -23,9 +23,10 @@ class PunishmentEventListener(EventListener):
         if 'configs' in self.locals:
             specific = default = None
             for element in self.locals['configs']:
-                if ('installation' in element and server['installation'] == element['installation']) or (
-                        'server_name' in element and server['server_name'] == element['server_name']):
-                    specific = element
+                if 'installation' in element or 'server_name' in element:
+                    if ('installation' in element and server['installation'] == element['installation']) or \
+                            ('server_name' in element and server['server_name'] == element['server_name']):
+                        specific = element
                 else:
                     default = element
             if default and not specific:
@@ -119,6 +120,14 @@ class PunishmentEventListener(EventListener):
                 else:
                     target = None
                 initiator = utils.get_player(self, data['server_name'], name=data['initiator'])
+                # check if there is an exemption for this user
+                if 'exemptions' in config:
+                    user = utils.match_user(self, initiator)
+                    roles = [x.name for x in user.roles] if user else []
+                    for e in config['exemptions']:
+                        if ('ucid' in e and e['ucid'] == initiator['ucid']) or ('discord' in e and e['discord'] in roles):
+                            self.log.debug(f"User {initiator['name']} not penalized due to exemption.")
+                            return
                 hours = self.get_flight_hours(initiator)
                 if 'flightHoursWeight' in config:
                     weight = 1

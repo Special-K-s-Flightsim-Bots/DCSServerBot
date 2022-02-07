@@ -13,7 +13,12 @@
         { "points": 40, "action": "move_to_spec", "delay": 10 },
         { "points": 1, "action": "warn" }
       ],
+      "exemptions": [
+        { "discord":  "Admin" },
+        { "discord":  "DCS Admin" }
+      ],
       "forgive" : 30,
+      "unban": 75,
       "flightHoursWeight": [
         { "time": 0, "weight": 1.4 },
         { "time": 3, "weight": 1 },
