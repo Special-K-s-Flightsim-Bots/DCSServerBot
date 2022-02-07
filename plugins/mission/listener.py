@@ -43,7 +43,8 @@ class MissionEventListener(EventListener):
         if data['id'] == 1:
             data['active'] = False
         new_df = pd.DataFrame([data], columns=['id', 'name', 'active', 'side', 'slot',
-                                               'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type', 'group_name'])
+                                               'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
+                                               'group_name', 'group_id'])
         new_df.set_index('id')
         if data['server_name'] not in self.bot.player_data:
             self.bot.player_data[data['server_name']] = new_df
@@ -55,11 +56,12 @@ class MissionEventListener(EventListener):
                                                     'unit_type', 'group_name']] = [data['active'], data['side'],
                                                                                    data['slot'], data['sub_slot'],
                                                                                    data['unit_callsign'], data['unit_name'],
-                                                                                   data['unit_type'], data['group_name']]
+                                                                                   data['unit_type'], data['group_name'],
+                                                                                   data['group_id']]
                 elif data['command'] in ['onPlayerConnect', 'onPlayerStart']:
                     df.loc[df['id'] == data['id'], ['name', 'active', 'side', 'slot', 'sub_slot', 'ucid',
-                                                    'unit_callsign', 'unit_name', 'unit_type', 'group_name']] = \
-                        [data['name'], data['active'], data['side'], '', 0, data['ucid'], '', '', '', '']
+                                                    'unit_callsign', 'unit_name', 'unit_type', 'group_name', 'group_id']] = \
+                        [data['name'], data['active'], data['side'], '', 0, data['ucid'], '', '', '', '', '']
             else:
                 df = df.append(new_df)
             self.bot.player_data[data['server_name']] = df
@@ -253,7 +255,7 @@ class MissionEventListener(EventListener):
         if data['server_name'] not in self.bot.player_data:
             self.bot.player_data[data['server_name']] = pd.DataFrame(data['players'], columns=[
                 'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
-                'group_name'])
+                'group_id', 'group_name'])
             self.bot.player_data[data['server_name']].set_index('id')
         await self.displayPlayerList(data)
 
