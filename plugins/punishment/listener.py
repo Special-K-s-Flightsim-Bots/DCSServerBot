@@ -97,7 +97,7 @@ class PunishmentEventListener(EventListener):
         self.tasks[id].append(task)
 
     def clear_tasks(self, id: int):
-        if self.tasks[id]:
+        if id in self.tasks:
             del self.tasks[id]
 
     async def punish(self, data: dict):

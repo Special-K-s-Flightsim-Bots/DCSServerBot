@@ -163,7 +163,7 @@ function dcsbot.eventHandler:onEvent(event)
 			elseif category == Object.Category.STATIC then
 				msg.target.type = 'STATIC'
 				msg.target.unit = event.target
-				if event.id ~= world.event.S_EVENT_DISCARD_CHAIR_AFTER_EJECTION and event.target.unit then
+				if event.target:isExist() and event.id ~= world.event.S_EVENT_DISCARD_CHAIR_AFTER_EJECTION then
 					msg.target.unit_name = msg.target.unit:getName()
 					msg.target.coalition = msg.target.unit:getCoalition()
 					msg.target.unit_type = msg.target.unit:getTypeName()
