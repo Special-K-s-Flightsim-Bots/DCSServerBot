@@ -130,12 +130,10 @@ function dcsbot.eventHandler:onEvent(event)
 			elseif category == Object.Category.SCENERY  then
 				msg.initiator.type = 'SCENERY'
 				msg.initiator.unit = event.initiator
-				if event.initiator.unit then
-					msg.initiator.unit_name = msg.initiator.unit:getName()
-					msg.initiator.coalition = msg.initiator.unit:getCoalition()
-					msg.initiator.unit_type = msg.initiator.unit:getTypeName()
-					msg.initiator.category = msg.initiator.unit:getDesc().category
-				end
+				msg.initiator.unit_name = msg.initiator.unit:getName()
+				msg.initiator.coalition = msg.initiator.unit:getCoalition()
+				msg.initiator.unit_type = event.initiator:isExist() and msg.initiator.unit:getTypeName() or "SCENERY"
+				msg.initiator.category = msg.initiator.unit:getDesc().category
 			elseif category == Object.Category.BASE then
 				msg.initiator.type = 'BASE'
 				msg.initiator.unit = event.initiator
