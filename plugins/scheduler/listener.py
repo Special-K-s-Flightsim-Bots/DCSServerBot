@@ -73,23 +73,23 @@ class SchedulerEventListener(EventListener):
                         server['restart_pending'] = True
                     else:
                         self.do_scheduled_restart(server, server[self.plugin]['restart']['method'])
-            elif 'local_times' in server[self.plugin]['restart']:
-                now = datetime.now()
-                times = []
-                for t in server[self.plugin]['restart']['local_times']:
-                    d = datetime.strptime(t, '%H:%M')
-                    check = now.replace(hour=d.hour, minute=d.minute)
-                    if check.time() > now.time():
-                        times.insert(0, check)
-                        break
+                elif 'local_times' in server[self.plugin]['restart']:
+                    now = datetime.now()
+                    times = []
+                    for t in server[self.plugin]['restart']['local_times']:
+                        d = datetime.strptime(t, '%H:%M')
+                        check = now.replace(hour=d.hour, minute=d.minute)
+                        if check.time() > now.time():
+                            times.insert(0, check)
+                            break
+                        else:
+                            times.append(check + timedelta(days=1))
+                    if len(times):
+                        self.do_scheduled_restart(
+                            server, server[self.plugin]['restart']['method'], int((times[0] - now).total_seconds()))
                     else:
-                        times.append(check + timedelta(days=1))
-                if len(times):
-                    self.do_scheduled_restart(
-                        server, server[self.plugin]['restart']['method'], int((times[0] - now).total_seconds()))
-                else:
-                    self.log.warning(
-                        f'Configuration mismatch! local_times not set correctly for server {server_name}.')
+                        self.log.warning(
+                            f'Configuration mismatch! local_times not set correctly for server {server_name}.')
 
     async def onSimulationStop(self, data):
         server = self.globals[data['server_name']]
