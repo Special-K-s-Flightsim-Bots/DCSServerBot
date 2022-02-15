@@ -224,7 +224,9 @@ class DCSServerBot(commands.Bot):
                 self.log.debug('{}->HOST: {}'.format(dt['server_name'], json.dumps(dt)))
                 futures = []
                 command = dt['command']
-                if command != 'registerDCSServer' and dt['server_name'] not in self.globals:
+                if command != 'registerDCSServer' and \
+                        (dt['server_name'] not in self.globals or
+                         self.globals[dt['server_name']]['status'] == Status.UNKNOWN):
                     self.log.warning('Message for unregistered server retrieved, ignoring.')
                     return
                 for listener in self.eventListeners:
