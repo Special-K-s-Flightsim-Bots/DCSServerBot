@@ -1,5 +1,7 @@
-### Plugin "Admin"
+# Plugin "Admin"
 This plugin supports administrative commands that are needed to operate a DCS server remotely.
+
+## Discord Commands
 
 | Command                      | Parameter                | Channel                     | Role      | Description                                                                                                                                                                                                           |
 |------------------------------|--------------------------|-----------------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

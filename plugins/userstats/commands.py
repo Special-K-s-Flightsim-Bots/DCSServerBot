@@ -35,16 +35,6 @@ class UserStatistics(Plugin):
         report = PaginationReport(self.bot, ctx, self.plugin, 'serverstats.json')
         await report.render(period=period, server_name=server_name)
 
-    # Return a player from the internal list
-    # TODO: change player data handling!
-    def get_player(self, server_name: str, ucid: str):
-        players = self.bot.player_data[server_name]
-        row = players[(players['active'] == True) & (players['ucid'] == ucid)]
-        if not row.empty:
-            return row.to_dict('records')[0]
-        else:
-            return None
-
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
@@ -184,7 +174,7 @@ class UserStatistics(Plugin):
                     for server_name in self.globals.keys():
                         if server_name in self.bot.player_data:
                             for i in range(0, len(ucids)):
-                                if self.get_player(server_name, ucids[i]) is not None:
+                                if utils.get_player(self, server_name, ucid=ucids[i]) is not None:
                                     servers.append(server_name)
                                     dcs_names.append(names[i])
                                     break

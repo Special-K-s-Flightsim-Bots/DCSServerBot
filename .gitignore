@@ -3,6 +3,7 @@ __pycache__/
 *.db
 *.log*
 config/dcsserverbot.ini
+config/*.json
 Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 *.csv
 /venv/

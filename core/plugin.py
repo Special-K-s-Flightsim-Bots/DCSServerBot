@@ -20,10 +20,10 @@ class Plugin(commands.Cog):
         self.plugin_version = None
         self.bot = bot
         self.log = bot.log
-        self.globals = bot.globals
-        self.locals = self.read_locals()
         self.config = bot.config
         self.pool = bot.pool
+        self.globals = bot.globals
+        self.locals = self.read_locals()
         self.eventlistener = eventlistener(self) if eventlistener else None
         self.install()
         if self.eventlistener:
@@ -87,6 +87,7 @@ class Plugin(commands.Cog):
     def read_locals(self):
         filename = f'./config/{self.plugin}.json'
         if path.exists(filename):
+            self.log.debug(f'  => Reading plugin configuration from {filename} ...')
             with open(filename) as file:
                 return json.load(file)
         else:

@@ -1,2 +1,2 @@
-## Plugin System
+# Plugin System
 Detailed documentation yet to come.

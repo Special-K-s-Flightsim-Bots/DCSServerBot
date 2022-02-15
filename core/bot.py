@@ -52,10 +52,11 @@ class DCSServerBot(commands.Bot):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT server_name, host, port, chat_channel, status_channel, admin_channel, '
-                               '\'Unknown\' as status FROM servers WHERE agent_host = %s', (platform.node(),))
+                cursor.execute('SELECT server_name, host, port, chat_channel, status_channel, admin_channel FROM '
+                               'servers WHERE agent_host = %s', (platform.node(),))
                 for row in cursor.fetchall():
                     self.globals[row['server_name']] = dict(row)
+                    self.globals[row['server_name']]['status'] = Status.UNKNOWN
                     self.globals[row['server_name']]['embeds'] = {}
                     # Initialize statistics with true unless we get other information from the server
                     self.globals[row['server_name']]['statistics'] = True
@@ -80,25 +81,11 @@ class DCSServerBot(commands.Bot):
                 with suppress(Exception):
                     self.embeds[server_name][embed_name] = await channel.fetch_message(embed_id)
             try:
-                # check for any registration updates (channels, etc)
+                # check if there is a running server already
                 await self.sendtoDCSSync(server, {"command": "registerDCSServer"})
-                # preload players list
-                await self.sendtoDCSSync(server, {"command": "getCurrentPlayers"})
                 self.log.info(f'  => Running DCS server "{server_name}" registered.')
             except asyncio.TimeoutError:
-                if ('AUTOSTART_DCS' in self.config[installation]) and (
-                        self.config.getboolean(installation, 'AUTOSTART_DCS') is True):
-                    self.log.info(f'  => Launching DCS server "{server_name}" ...')
-                    utils.start_dcs(self, installation)
-                    server['status'] = Status.LOADING
-                else:
-                    server['status'] = Status.SHUTDOWN
-            finally:
-                if ('AUTOSTART_SRS' in self.config[installation]) and (
-                        self.config.getboolean(installation, 'AUTOSTART_SRS') is True):
-                    if utils.isOpen(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT']) is False:
-                        self.log.info(f'  => Launching DCS-SRS server "{server_name}" ...')
-                        utils.start_srs(self, installation)
+                server['status'] = Status.SHUTDOWN
 
     def load_plugin(self, plugin: str):
         try:
@@ -172,7 +159,7 @@ class DCSServerBot(commands.Bot):
         msg = json.dumps(message)
         self.log.debug('HOST->{}: {}'.format(server['server_name'], msg))
         dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        dcs_socket.sendto(msg.encode('utf-8'), (server['host'], server['port']))
+        dcs_socket.sendto(msg.encode('utf-8'), (server['host'], int(server['port'])))
 
     def sendtoDCSSync(self, server: dict, message: dict, timeout: Optional[int] = 5):
         future = self.loop.create_future()

@@ -1,8 +1,6 @@
-import json
 import psycopg2
 from contextlib import closing
-from core import utils, EventListener, DCSServerBot
-from os import path
+from core import utils, EventListener
 from typing import Optional
 
 
@@ -38,18 +36,8 @@ class SlotBlockingListener(EventListener):
                     default = unit['default']
         return default
 
-    # Return a player from the internal list
-    # TODO: change player data handling!
-    def get_player(self, server_name: str, player_id: int):
-        df = self.bot.player_data[server_name]
-        row = df[df['id'] == player_id]
-        if not row.empty:
-            return df[df['id'] == player_id].to_dict('records')[0]
-        else:
-            return None
-
     def get_player_points(self, server_name: str, player_id: int) -> Optional[dict]:
-        player = self.get_player(server_name, player_id)
+        player = utils.get_player(self, server_name, id=player_id)
         if player:
             if 'points' not in player:
                 conn = self.pool.getconn()
@@ -183,3 +171,34 @@ class SlotBlockingListener(EventListener):
                 # if the remaining points are not enough to stay in this plane, move them back to spectators
                 if player['points'] < self.get_points(server, player):
                     self.move_to_spectators(server, player)
+
+    def campaign(self, command, server):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                if command == 'start':
+                    cursor.execute('INSERT INTO campaigns (server_name) VALUES (%s) ON CONFLICT DO NOTHING',
+                                   (server['server_name'],))
+                elif command == 'stop' or command == 'reset':
+                    cursor.execute('DELETE FROM sb_points WHERE campaign_id = (SELECT campaign_id FROM '
+                                   'campaigns WHERE server_name = %s)', (server['server_name'],))
+                    if command == 'stop':
+                        cursor.execute('DELETE FROM campaigns WHERE server_name = %s', (server['server_name'],))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            conn.rollback()
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
+    async def startCampaign(self, data):
+        server = self.globals[data['server_name']]
+        self.campaign('start', server)
+
+    async def stopCampaign(self, data):
+        server = self.globals[data['server_name']]
+        self.campaign('stop', server)
+
+    async def resetCampaign(self, data):
+        server = self.globals[data['server_name']]
+        self.campaign('reset', server)

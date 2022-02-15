@@ -5,12 +5,12 @@ from typing import List, Optional
 
 
 class Init(report.EmbedElement):
-    def render(self, server: dict, mission: dict):
+    def render(self, server: dict, num_players: int):
         self.embed.set_author(
-            name=f"{server['server_name']} [{mission['num_players']}/{server['serverSettings']['maxPlayers']}]",
+            name=f"{server['server_name']} [{num_players}/{server['serverSettings']['maxPlayers']}]",
             icon_url=const.STATUS_IMG[server['status']])
         if server['status'] in [Status.PAUSED, Status.RUNNING]:
-            self.embed.description = f"Mission: \"{mission['current_mission']}\""
+            self.embed.description = f"Mission: \"{server['current_mission']}\""
         else:
             self.embed.description = f"_{server['status'].value}_"
         self.embed.set_footer(text='')
@@ -18,8 +18,8 @@ class Init(report.EmbedElement):
 
 class ServerInfo(report.EmbedElement):
 
-    def render(self, server: dict, mission: dict, show_password: Optional[bool] = True):
-        self.add_field(name='Map', value=mission['current_map'])
+    def render(self, server: dict, show_password: Optional[bool] = True):
+        self.add_field(name='Map', value=server['current_map'])
         self.add_field(name='Server-IP / Port',
                        value=self.bot.external_ip + ':' + str(server['serverSettings']['port']))
         if len(server['serverSettings']['password']) > 0:
@@ -29,34 +29,34 @@ class ServerInfo(report.EmbedElement):
                 self.add_field(name='Password', value='********')
         else:
             self.add_field(name='Password', value='_ _')
-        uptime = int(mission['mission_time'])
+        uptime = int(server['mission_time'])
         self.add_field(name='Runtime', value=str(timedelta(seconds=uptime)))
-        if 'start_time' in mission:
-            if mission['date']['Year'] >= 1970:
-                date = datetime(mission['date']['Year'], mission['date']['Month'],
-                                mission['date']['Day'], 0, 0).timestamp()
-                real_time = date + mission['start_time'] + uptime
+        if 'start_time' in server:
+            if server['date']['Year'] >= 1970:
+                date = datetime(server['date']['Year'], server['date']['Month'],
+                                server['date']['Day'], 0, 0).timestamp()
+                real_time = date + server['start_time'] + uptime
                 value = str(datetime.fromtimestamp(real_time))
             else:
-                value = '{}-{:02d}-{:02d} {}'.format(mission['date']['Year'], mission['date']['Month'],
-                                                     mission['date']['Day'],
-                                                     timedelta(seconds=mission['start_time'] + uptime))
+                value = '{}-{:02d}-{:02d} {}'.format(server['date']['Year'], server['date']['Month'],
+                                                     server['date']['Day'],
+                                                     timedelta(seconds=server['start_time'] + uptime))
         else:
             value = '-'
         self.add_field(name='Date/Time in Mission', value=value)
-        self.add_field(name='Avail. Slots', value='🔹 {}  |  {} 🔸'.format(mission['num_slots_blue'] if 'num_slots_blue' in mission else '-', mission['num_slots_red'] if 'num_slots_red' in mission else '-'))
+        self.add_field(name='Avail. Slots', value='🔹 {}  |  {} 🔸'.format(server['num_slots_blue'] if 'num_slots_blue' in server else '-', server['num_slots_red'] if 'num_slots_red' in server else '-'))
         self.embed.set_footer(text='- Server is running DCS {}\n'.format(server['dcs_version']))
 
 
 class WeatherInfo(report.EmbedElement):
 
-    def render(self, server: dict, mission: dict):
-        if 'weather' in mission:
-            if 'clouds' in mission and 'preset' in mission['clouds']:
-                self.add_field(name='Preset', value=mission['clouds']['preset']['readableNameShort'])
+    def render(self, server: dict):
+        if 'weather' in server:
+            if 'clouds' in server and 'preset' in server['clouds']:
+                self.add_field(name='Preset', value=server['clouds']['preset']['readableNameShort'])
             else:
                 self.add_field(name='Weather', value='Dynamic')
-            weather = mission['weather']
+            weather = server['weather']
             self.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
             self.add_field(name='QNH', value='{:.2f} inHg'.format(weather['qnh'] * const.MMHG_IN_INHG))
             self.add_field(name='Wind',
@@ -67,16 +67,16 @@ class WeatherInfo(report.EmbedElement):
                                 int(weather['wind']['at2000']['speed']),
                                 int(weather['wind']['at8000']['dir'] + 180) % 360,
                                 int(weather['wind']['at8000']['speed'])))
-            if 'clouds' in mission:
-                if 'preset' in mission['clouds']:
+            if 'clouds' in server:
+                if 'preset' in server['clouds']:
                     self.add_field(name='Cloudbase',
-                                   value=f'{int(mission["clouds"]["base"] * const.METER_IN_FEET):,} ft')
+                                   value=f'{int(server["clouds"]["base"] * const.METER_IN_FEET):,} ft')
                 else:
                     self.add_field(name='Clouds',
                                    value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nDensity:\u2002\u2002 {}/10\nThickness: {:,} ft'.format(
-                                        int(mission['clouds']['base'] * const.METER_IN_FEET),
-                                        mission['clouds']['density'],
-                                        int(mission['clouds']['thickness'] * const.METER_IN_FEET)))
+                                        int(server['clouds']['base'] * const.METER_IN_FEET),
+                                        server['clouds']['density'],
+                                        int(server['clouds']['thickness'] * const.METER_IN_FEET)))
             else:
                 self.add_field(name='Clouds', value='n/a')
             visibility = weather['visibility']['distance']
@@ -88,7 +88,7 @@ class WeatherInfo(report.EmbedElement):
 
 class PluginsInfo(report.EmbedElement):
 
-    def render_srs(self, server: dict, mission: dict, param: dict) -> bool:
+    def render_srs(self, server: dict, param: dict) -> bool:
         if 'SRSSettings' in server:
             if 'EXTERNAL_AWACS_MODE' in server['SRSSettings'] and 'EXTERNAL_AWACS_MODE_BLUE_PASSWORD' in server[
                 'SRSSettings'] and 'EXTERNAL_AWACS_MODE_RED_PASSWORD' in server['SRSSettings'] and \
@@ -105,7 +105,7 @@ class PluginsInfo(report.EmbedElement):
         else:
             return False
 
-    def render_lotatc(self, server: dict, mission: dict, param: dict) -> bool:
+    def render_lotatc(self, server: dict, param: dict) -> bool:
         if 'lotAtcSettings' in server:
             self.add_field(name='LotAtc [{}]'.format(server['lotAtcSettings']['port']),
                             value='🔹 Pass: {}\n🔸 Pass: {}'.format(
@@ -114,7 +114,7 @@ class PluginsInfo(report.EmbedElement):
         else:
             return False
 
-    def render_tacview(self, server: dict, mission: dict, param: dict) -> bool:
+    def render_tacview(self, server: dict, param: dict) -> bool:
         retval = False
         if 'Tacview' in server['options']['plugins']:
             name = 'Tacview'
@@ -146,17 +146,17 @@ class PluginsInfo(report.EmbedElement):
             self.add_field(name=name, value=value)
             return retval
 
-    def render(self, server: dict, mission: dict, params: List[dict]):
+    def render(self, server: dict, params: List[dict]):
         plugins = []
         for param in params:
             if param['plugin'] == 'SRS':
-                if self.render_srs(server, mission, param):
+                if self.render_srs(server, param):
                     plugins.append('SRS')
             elif param['plugin'] == 'LotAtc':
-                if self.render_lotatc(server, mission, param):
+                if self.render_lotatc(server, param):
                     plugins.append('LotAtc')
             elif param['plugin'] == 'Tacview':
-                if self.render_tacview(server, mission, param):
+                if self.render_tacview(server, param):
                     plugins.append('Tacview')
         if len(plugins) > 0:
             footer = '- The IP address of '
@@ -169,8 +169,8 @@ class PluginsInfo(report.EmbedElement):
 
 
 class Footer(report.EmbedElement):
-    def render(self, server: dict, mission: dict):
+    def render(self, server: dict):
         for listener in self.bot.eventListeners:
             if (type(listener).__name__ == 'UserStatisticsEventListener') and \
-                    (mission['server_name'] in listener.statistics):
+                    (server['server_name'] in listener.statistics):
                 self.embed.set_footer(text=self.embed.footer.text + '- User statistics are enabled for this server.')

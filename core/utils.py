@@ -25,6 +25,7 @@ REGEXP = {
 PATCHNOTES_URL = 'https://www.digitalcombatsimulator.com/en/news/changelog/rss/'
 
 config = ConfigParser()
+config.read('config/default.ini')
 config.read('config/dcsserverbot.ini')
 
 
@@ -233,6 +234,7 @@ async def pagination(self, ctx, data, embed_formatter, num=10):
             await message.delete()
             return -1
 
+
 async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, marker_emoji='🔄'):
     message = None
     try:
@@ -354,16 +356,34 @@ def getActiveRunways(runways, wind):
     return retval
 
 
-def start_dcs(self, installation):
+def start_dcs(self, installation: str):
     self.log.debug('Launching DCS server with: "{}\\bin\\dcs.exe" --server --norender -w {}'.format(
         os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']), installation))
     return subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', installation], executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs.exe')
 
 
-def start_srs(self, installation):
+def stop_dcs(self, server: dict):
+    self.bot.sendtoDCS(server, {"command": "shutdown"})
+    server['status'] = Status.SHUTDOWN
+
+
+def start_srs(self, installation: str):
     self.log.debug('Launching SRS server with: "{}\\SR-Server.exe" -cfg="{}"'.format(
         os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']), os.path.expandvars(self.config[installation]['SRS_CONFIG'])))
     return subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.config[installation]['SRS_CONFIG']))], executable=os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']) + '\\SR-Server.exe')
+
+
+def check_srs(self, installation: str) -> bool:
+    return isOpen(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT'])
+
+
+def stop_srs(self, installation) -> bool:
+    p = findProcess('SR-Server.exe', installation)
+    if p:
+        p.kill()
+        return True
+    else:
+        return False
 
 
 def str_to_class(name):
@@ -376,17 +396,19 @@ def str_to_class(name):
 
 # Return a player from the internal list
 def get_player(self, server_name, **kwargs):
-    df = self.bot.player_data[server_name]
-    if 'id' in kwargs:
-        row = df[df['id'] == kwargs['id']]
-    elif 'name' in kwargs:
-        row = df[df['name'] == kwargs['name']]
-    else:
-        return None
-    if not row.empty:
-        return row.to_dict('records')[0]
-    else:
-        return None
+    if server_name in self.bot.player_data:
+        df = self.bot.player_data[server_name]
+        if 'id' in kwargs:
+            row = df[df['id'] == kwargs['id']]
+        elif 'name' in kwargs:
+            row = df[df['name'] == kwargs['name']]
+        elif 'ucid' in kwargs:
+            row = df[df['ucid'] == kwargs['ucid']]
+        else:
+            return None
+        if not row.empty:
+            return row.to_dict('records')[0]
+    return None
 
 
 def sanitize(self):

@@ -22,15 +22,16 @@ These commands can be used to administrate the bot itself.
 | .upgrade |           | all     | Owner  | Upgrades the bot to the latest available version.             |
 
 ### List of supported Plugins
-Click the name to navigate to the documentation of this plugin.
-
-* [Admin](./plugins/admin/README.md)
-* [Mission](./plugins/mission/README.md)
-* [Userstats](./plugins/userstats/README.md)
-* [Missionstats](./plugins/missionstats/README.md)
-* [Slotblocking](./plugins/slotblocking/README.md)
-* [Punishment](./plugins/punishment/README.md)
-* [Gamemaster](./plugins/gamemaster/README.md)
+| Plugin       | Scope                                     | Optional | Dependent on | Documentation                              |
+|--------------|-------------------------------------------|----------|--------------|--------------------------------------------|
+| Admin        | Admin commands to manage your DCS server. | no       |              | [README](./plugins/admin/README.md)        |
+| Mission      |                                           | no       |              | [README](./plugins/mission/README.md)      |
+| Scheduler    |                                           | no       | Mission      | [README](./plugins/scheduler/README.md)    |
+| Userstats    |                                           | yes      | Mission      | [README](./plugins/userstats/README.md)    |
+| Missionstats |                                           | yes      | Userstats    | [README](./plugins/missionstats/README.md) |
+| Punishment   |                                           | yes      | Mission      | [README](./plugins/punishment/README.md)   |
+| Slotblocking |                                           | yes      | Mission      | [README](./plugins/slotblocking/README.md) |
+| Gamemaster   |                                           | yes      |              | [README](./plugins/gamemaster/README.md)   |
 
 ### In case you want to write your own plugin ...
 There is a sample in the plugins/samples subdirectory, that will guide you through the steps. If you want your plugin to be added to the distribution, just contact me via the contact details below.
@@ -111,42 +112,21 @@ e) __Server Specific Sections__
 This section has to be named **exactly** like your Saved Games\<instance> directory. Usual names are DCS.OpenBeta or DCS.openbeta_server.
 If your directory is named DCS instead (stable version), just add these fields to the DCS category above.
 
-| Parameter          | Description                                                                                                                                                                                 |
-|--------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| DCS_HOST           | The internal (!) IP of the machine, DCS is running onto. If the DCS server is running on the same machine as the bot (default), this should be 127.0.0.1.                                   |
-| DCS_PORT           | Must be a unique value > 1024 of an unused port in your system. This is **NOT** the DCS tcp/udp port (10308), that is used by DCS but a unique different one. Keep the default, if unsure.  |
-| DCS_HOME           | The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.                                         |
-| SRS_CONFIG         | The configuration file to use for the dedicated DCS-SRS server (optional).                                                                                                                  |
-| SRS_HOST           | The IP-address the DCS-SRS server is listening on (optional, default: 127.0.0.1).                                                                                                           |
-| SRS_PORT           | The port the DCS-SRS server uses (optional, default: 5002).                                                                                                                                 |
-| AUTOSTART_DCS      | If true, the corresponding DCS server will be started automatically at bot start.                                                                                                           |
-| AUTOSTART_SRS      | If true, the corresponding DCS-SRS server will be started automatically at bot start (optional).                                                                                            |
-| STATISTICS         | If false, no statistics will be generated for this server. Default is true.                                                                                                                 |
-| MISSION_STATISTICS | If true, mission statistics will be generated for all missions loaded in this server.                                                                                                       | 
-| CHAT_CHANNEL       | The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.            |
-| STATUS_CHANNEL     | The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                       |
-| ADMIN_CHANNEL      | The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                       |
-
-f) __Automated Restarts__
-This has to be added to each Server Specific Section (see dcsserverbot.ini.sample), to allow automated mission restarts or rotations.
-Only one out of RESTART_MISSION_TIME or RESTART_LOCAL_TIMES is allowed.
-
-| Parameter            | Description                                                                                                                            |
-|----------------------|----------------------------------------------------------------------------------------------------------------------------------------|
-| RESTART_METHOD       | One of **restart** or **rotate**. restart will restart the current mission, rotate will take the next mission out of the mission list. |
-| RESTART_MISSION_TIME | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                           |
-| RESTART_LOCAL_TIMES  | List of times in the format HH24:MM, when the mission should be restated or rotated (see RESTART_METHOD).                              |
-| RESTART_WARN_TIMES   | List of seconds, when a warning should be issued.                                                                                      |
-| RESTART_WARN_TEXT    | A customizable message that will be sent to the users when a restart is pending.                                                       |
-| RESTART_OPTIONS      | Options that can be applied to the restart method.                                                                                     |
-
-The following RESTART_OPTIONS are supported atm:
-
-| Option         | Description                                                                                                      |
-|----------------|------------------------------------------------------------------------------------------------------------------|
-| NOT_POPULATED  | When used with RESTART_MISSION_TIME, the mission will only be restarted, if no player is in at the restart time. |
-| RESTART_SERVER | When used with RESTART_LOCAL_TIME, the whole DCS server (dcs.exe) will be restarted, instead of the mission.     |
-
+| Parameter          | Description                                                                                                                                                                                |
+|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| DCS_HOST           | The internal (!) IP of the machine, DCS is running onto. If the DCS server is running on the same machine as the bot (default), this should be 127.0.0.1.                                  |
+| DCS_PORT           | Must be a unique value > 1024 of an unused port in your system. This is **NOT** the DCS tcp/udp port (10308), that is used by DCS but a unique different one. Keep the default, if unsure. |
+| DCS_HOME           | The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.                                        |
+| SRS_CONFIG         | The configuration file to use for the dedicated DCS-SRS server (optional).                                                                                                                 |
+| SRS_HOST           | The IP-address the DCS-SRS server is listening on (optional, default: 127.0.0.1).                                                                                                          |
+| SRS_PORT           | The port the DCS-SRS server uses (optional, default: 5002).                                                                                                                                |
+| AUTOSTART_DCS      | [Deprecated] If true, the corresponding DCS server will be started automatically at bot start.<br/>Replaced, see [Scheduler](./plugins/scheduler/README.md)                                |
+| AUTOSTART_SRS      | [Deprecated] If true, the corresponding DCS-SRS server will be started automatically at bot start (optional).<br/>Replaced, see [Scheduler](./plugins/scheduler/README.md)                 |
+| STATISTICS         | If false, no statistics will be generated for this server. Default is true (see [Userstats](./plugins/userstats/README.md)).                                                               |
+| MISSION_STATISTICS | If true, mission statistics will be generated for all missions loaded in this server (see [Missionstats](./plugins/missionstats/README.md)).                                               | 
+| CHAT_CHANNEL       | The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.           |
+| STATUS_CHANNEL     | The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
+| ADMIN_CHANNEL      | The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
 
 ### DCS/Hook Configuration
 The DCS World integration is done via a Hook. They are being installed automatically into your configured DCS servers.
@@ -225,7 +205,7 @@ If you plan to create Bot-events from inside a DCS mission, that is possible! Ju
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
 ```
-_Don't use a Mission Start trigger, as this might clash with other plugins loading stuff into the mission._ 
+_Don't use a Mission Start trigger, as this might clash with other plugins loading stuff into the mission._<br/> 
 After that, you can for instance send chat messages to the bot using
 ```lua
   dcsbot.sendBotMessage('Hello World', '12345678') -- 12345678 is the ID of the channel, the message should appear, default is the configured chat channel
@@ -277,4 +257,4 @@ If you like what I do and you want to support me, you can do that via my [Patreo
 ---
 ## Credits
 Thanks to the developers of the awesome solutions [HypeMan](https://github.com/robscallsign/HypeMan) and [perun](https://github.com/szporwolik/perun), that gave me the main ideas to this solution.
-I gave my best to mark parts in the code to show where I copied some ideas or even code from you guys. Hope that is ok.
+I gave my best to mark parts in the code to show where I copied some ideas or even code from you guys, which honestly is just a very small piece. Hope that is ok.

@@ -25,26 +25,10 @@ class MissionStatisticsEventListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         self.mission_stats = dict()
-        self.mission_ids = dict()
         if 'EVENT_FILTER' in self.config['FILTER']:
             self.filter = [x.strip() for x in self.config['FILTER']['EVENT_FILTER'].split(',')]
         else:
             self.filter = []
-
-    async def registerDCSServer(self, data):
-        if data['statistics']:
-            server_name = data['server_name']
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(
-                        'SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name,))
-                    if cursor.rowcount > 0:
-                        self.mission_ids[server_name] = cursor.fetchone()[0]
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
 
     async def enableMissionStats(self, data):
         self.mission_stats[data['server_name']] = data
@@ -86,20 +70,6 @@ class MissionStatisticsEventListener(EventListener):
                 embed.add_field(name=coalition, value=value)
             return await self.bot.setEmbed(data, 'stats_embed', embed)
 
-    # TODO: this code has to run after the new mission id has been created!
-    async def onMissionLoadEnd(self, data):
-        conn = self.pool.getconn()
-        try:
-            server_name = data['server_name']
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT id FROM missions WHERE server_name = %s AND mission_end IS NULL', (server_name,))
-                if cursor.rowcount > 0:
-                    self.mission_ids[server_name] = cursor.fetchone()[0]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-
     async def onMissionEvent(self, data):
         # TODO: make this configurable
         if data['eventName'] not in self.filter:
@@ -115,12 +85,12 @@ class MissionStatisticsEventListener(EventListener):
                         return values[index1][index2]
 
                     player = get_value(data, 'initiator', 'name')
-                    init_player = utils.get_player(self, data['server_name'], name=player) if player else None
+                    init_player = utils.get_player(self, server_name, name=player) if player else None
                     player = get_value(data, 'target', 'name')
-                    target_player = utils.get_player(self, data['server_name'], name=player) if player else None
+                    target_player = utils.get_player(self, server_name, name=player) if player else None
                     if init_player or target_player:
                         dataset = {
-                            'mission_id': self.mission_ids[server_name],
+                            'mission_id': self.globals[server_name]['mission_id'],
                             'event': data['eventName'],
                             'init_id': init_player['ucid'] if init_player else -1,
                             'init_side': get_value(data, 'initiator', 'coalition'),

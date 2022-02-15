@@ -10,13 +10,12 @@ local mission = mission or {}
 
 function mission.onMissionLoadBegin()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadBegin()')
-	dcsbot.SlotsData['coalitions'] = nil
+	--dcsbot.SlotsData['coalitions'] = nil
 	local msg = {}
 	msg.command = 'onMissionLoadBegin'
 	msg.current_mission = DCS.getMissionName()
 	msg.current_map = DCS.getCurrentMission().mission.theatre
 	msg.mission_time = 0
-	msg.num_players = 0
 	if (lotatc_inst ~= nil) then
 		msg.lotAtcSettings = lotatc_inst.options
 	end
@@ -30,7 +29,6 @@ function mission.onMissionLoadEnd()
     msg.current_mission = DCS.getMissionName()
     msg.current_map = DCS.getCurrentMission().mission.theatre
     msg.mission_time = 0
-    msg.num_players = 1
     msg.start_time = DCS.getCurrentMission().mission.start_time
     msg.date = DCS.getCurrentMission().mission.date
     msg.weather = DCS.getCurrentMission().mission.weather
@@ -100,12 +98,14 @@ function mission.onMissionLoadEnd()
             table.insert(msg.airbases, airbase)
         end
     end
+    --[[
     if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
         msg.num_slots_blue = table.getn(dcsbot.updateSlots()['slots']['blue'])
     end
     if (dcsbot.updateSlots()['slots']['red'] ~= nil) then
         msg.num_slots_red = table.getn(dcsbot.updateSlots()['slots']['red'])
     end
+    ]]--
     utils.sendBotTable(msg)
 end
 
