@@ -20,7 +20,7 @@ from os import path
 from psycopg2 import pool
 
 # Set the bot's version (not externally configurable)
-BOT_VERSION = '2.5.6'
+BOT_VERSION = '2.5.7'
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -141,11 +141,11 @@ class Main:
                 os.mkdir(dcs_path)
             ignore = None
             if path.exists(dcs_path + r'\net\DCSServerBot'):
-                self.log.debug('  - Updating Hook ...')
+                self.log.debug('  - Updating Hooks ...')
                 shutil.rmtree(dcs_path + r'\net\DCSServerBot')
                 ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
             else:
-                self.log.debug('  - Installing Hook ...')
+                self.log.debug('  - Installing Hooks ...')
             shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
             try:
                 with open(r'Scripts/net/DCSServerBot/DCSServerBotConfig.lua.tmpl', 'r') as template:
@@ -167,7 +167,7 @@ class Main:
                 self.log.error(
                     f'! Your dcsserverbot.ini contains errors. You must set a value for {k}. See README for help.')
                 raise k
-            self.log.debug('  - Hook installed into {}.'.format(installation))
+            self.log.debug('  - Hooks installed into {}.'.format(installation))
 
     def init_bot(self):
         def get_prefix(client, message):

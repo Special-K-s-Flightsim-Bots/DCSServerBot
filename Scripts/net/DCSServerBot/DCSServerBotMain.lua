@@ -54,6 +54,8 @@ local function loadPlugin(plugin)
 			else
 				print('Failed to load command script for plugin '..plugin..': '..err)
 			end
+		else
+			print('Failed to load command script for plugin '..plugin..': '..err)
 		end
 	end
 	path = lfs.writedir() .. 'Scripts/net/DCSServerBot/' .. plugin .. '/callbacks.lua'
@@ -67,6 +69,8 @@ local function loadPlugin(plugin)
 			else
 				print('Failed to load hook script for plugin '..plugin..': '..err)
 			end
+		else
+			print('Failed to load hook script for plugin '..plugin..': '..err)
 		end
 	end
 end

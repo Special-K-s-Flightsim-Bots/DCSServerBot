@@ -39,9 +39,10 @@ class Agent(Plugin):
         if len(self.globals) > 0:
             for server_name, server in self.globals.items():
                 if server['status'] in [Status.RUNNING, Status.PAUSED]:
-                    mission = await self.bot.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
+                    players = self.bot.player_data[server['server_name']]
+                    num_players = len(players[players['active'] == True]) + 1
                     report = Report(self.bot, 'mission', 'serverStatus.json')
-                    env = await report.render(server=server, mission=mission)
+                    env = await report.render(server=server, num_players=num_players)
                     await ctx.send(embed=env.embed)
         else:
             await ctx.send('No server running on host {}'.format(platform.node()))
@@ -57,6 +58,8 @@ class Agent(Plugin):
                 await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
                 utils.start_dcs(self, installation)
                 server['status'] = Status.LOADING
+                # set maintenance flag to prevent auto-stops of this server
+                server['maintenance'] = True
                 await self.bot.audit(
                     f"User {ctx.message.author.display_name} started DCS server \"{server['server_name']}\".")
             else:
@@ -81,23 +84,25 @@ class Agent(Plugin):
             if server['status'] in [Status.UNKNOWN, Status.LOADING]:
                 await ctx.send('Server is currently starting up. Please wait and try again.')
             elif server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
-                if await utils.yn_question(self, ctx, 'Do you want to shut down the DCS server "{}"?'.format(server['server_name'])) is True:
+                if await utils.yn_question(self, ctx, 'Do you want to shut down the '
+                                                      'DCS server "{}"?'.format(server['server_name'])) is True:
                     await ctx.send('Shutting down DCS server "{}" ...'.format(server['server_name']))
-                    self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
+                    utils.stop_dcs(self, server)
                     server['status'] = Status.SHUTDOWN
+                    # set maintenance flag to prevent auto-starts of this server
+                    server['maintenance'] = True
                     await self.bot.audit(
                         f"User {ctx.message.author.display_name} shut DCS server \"{server['server_name']}\" down.")
             else:
                 await ctx.send('DCS server {} is already shut down.'.format(server['server_name']))
             if 'SRS_CONFIG' in self.config[installation]:
-                if utils.isOpen(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT']):
-                    if await utils.yn_question(self, ctx, 'Do you want to shut down the DCS-SRS server "{}"?'.format(server['server_name'])) is True:
-                        p = utils.findProcess('SR-Server.exe', installation)
-                        if p:
-                            await ctx.send('Shutting down DCS-SRS server "{}" ...'.format(server['server_name']))
-                            p.kill()
-                            await self.bot.audit(
-                                f"User {ctx.message.author.display_name} shut DCS-SRS server \"{server['server_name']}\" down.")
+                if utils.check_srs(self, installation):
+                    if await utils.yn_question(self, ctx, 'Do you want to shut down the '
+                                                          'DCS-SRS server "{}"?'.format(server['server_name'])) is True:
+                        if utils.stop_srs(self, installation):
+                            await ctx.send('DCS-SRS server "{}" shutdown.'.format(server['server_name']))
+                            await self.bot.audit(f"User {ctx.message.author.display_name} shut "
+                                                 f"DCS-SRS server \"{server['server_name']}\" down.")
                         else:
                             await ctx.send('Shutdown of DCS-SRS server "{}" failed.'.format(server['server_name']))
                 else:
@@ -116,8 +121,8 @@ class Agent(Plugin):
             if await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?\nAll running '
                                                   'DCS servers will be shut down!'.format(old_version,
                                                                                           new_version)) is True:
-                await self.bot.audit(
-                    f"User {ctx.message.author.display_name} started an update of all DCS servers on node {platform.node()}.")
+                await self.bot.audit(f"User {ctx.message.author.display_name} started an update of all DCS "
+                                     f"servers on node {platform.node()}.")
                 servers = []
                 for server_name, server in self.globals.items():
                     if server['status'] in [Status.RUNNING, Status.PAUSED]:
@@ -125,6 +130,7 @@ class Agent(Plugin):
                         self.bot.sendtoDCS(server, {"command": "shutdown"})
                         await ctx.send(f'Shutting down DCS server "{server_name}" ...')
                         server['status'] = Status.SHUTDOWN
+                        server['maintenance'] = True
                 # give the DCS servers some time to shut down.
                 if len(servers):
                     await asyncio.sleep(10)
@@ -137,6 +143,8 @@ class Agent(Plugin):
                     for server in servers:
                         await ctx.send(f"Starting DCS server \"{server['server_name']}\" ...")
                         utils.start_dcs(self, server['installation'])
+                        server['status'] = Status.LOADING
+                        del server['maintenance']
                     await ctx.send('All DCS servers restarted.')
 
     @commands.command(description='Change the password of a DCS server')
@@ -153,8 +161,8 @@ class Agent(Plugin):
                 await response.delete()
                 utils.changeServerSettings(server['server_name'], 'password', password)
                 await ctx.send('Password has been changed.')
-                await self.bot.audit(
-                    f"User {ctx.message.author.display_name} changed the password of server \"{server['server_name']}\".")
+                await self.bot.audit(f"User {ctx.message.author.display_name} changed the password "
+                                     f"of server \"{server['server_name']}\".")
             else:
                 await ctx.send('Server "{}" has to be shut down to change the password.'.format(server['server_name']))
 
@@ -233,7 +241,8 @@ class Agent(Plugin):
         if server:
             server_name = server['server_name']
             if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
-                if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from node "{}"?'.format(server_name, node)) is True:
+                if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from '
+                                                      'node "{}"?'.format(server_name, node)) is True:
                     self.bot.embeds.pop(server_name)
                     await ctx.send('Server {} unregistered.'.format(server_name))
                     await self.bot.audit(
@@ -254,7 +263,8 @@ class Agent(Plugin):
             if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
                 conn = self.pool.getconn()
                 try:
-                    if await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" to "{}"?'.format(oldname, newname)) is True:
+                    if await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" '
+                                                          'to "{}"?'.format(oldname, newname)) is True:
                         with closing(conn.cursor()) as cursor:
                             cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
                                            (newname, oldname))
@@ -281,7 +291,7 @@ class Agent(Plugin):
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
         for server_name, server in self.globals.items():
-            if server['status'] in [Status.LOADING, Status.STOPPED, Status.RUNNING, Status.PAUSED]:
+            if server['status'] in self.STATUS_EMOJI.keys():
                 await self.bot.change_presence(activity=discord.Game(self.STATUS_EMOJI[server['status']] + ' ' +
                                                                      re.sub(self.config['FILTER']['SERVER_FILTER'],
                                                                             '', server_name).strip()))
@@ -468,7 +478,8 @@ class Master(Agent):
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        self.bot.log.debug('Member {} has left guild {} - ban them on DCS servers (optional) and delete their stats.'.format(member.display_name, member.guild.name))
+        self.bot.log.debug('Member {} has left guild {} - ban them on DCS servers (optional) '
+                           'and delete their stats.'.format(member.display_name, member.guild.name))
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -499,9 +510,10 @@ class Master(Agent):
                     await self.bot.audit(f"New member {member.display_name} could not be matched to a DCS user.")
                 # auto-unban them if they were auto-banned
                 if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
-                    self.bot.log.debug('Member {} has joined guild {} - remove possible bans from DCS servers.'.format(member.display_name, member.guild.name))
-                    cursor.execute(
-                        'DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE discord_id = %s)', (member.id, ))
+                    self.bot.log.debug('Member {} has joined guild {} - remove possible '
+                                       'bans from DCS servers.'.format(member.display_name, member.guild.name))
+                    cursor.execute('DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE '
+                                   'discord_id = %s)', (member.id, ))
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)

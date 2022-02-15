@@ -28,15 +28,16 @@ class Mission(Plugin):
         if server:
             if int(server['status_channel']) != ctx.channel.id:
                 if server['status'] in [Status.RUNNING, Status.PAUSED]:
-                    mission = await self.bot.sendtoDCSSync(server, {"command": "getRunningMission", "channel": 0})
+                    players = self.bot.player_data[server['server_name']]
+                    num_players = len(players[players['active'] == True]) + 1
                     report = Report(self.bot, self.plugin, 'serverStatus.json')
-                    env = await report.render(server=server, mission=mission)
+                    env = await report.render(server=server, num_players=num_players)
                     await ctx.send(embed=env.embed)
                 else:
                     return await ctx.send('Server ' + server['server_name'] + ' is not running.')
             else:
                 await ctx.message.delete()
-                self.bot.sendtoDCS(server, {"command": "getRunningMission", "channel": ctx.channel.id})
+                self.bot.sendtoDCS(server, {"command": "getMissionUpdate", "channel": ctx.channel.id})
 
     @commands.command(description='Shows briefing of the active DCS mission', aliases=['brief'])
     @utils.has_role('DCS')
@@ -112,17 +113,25 @@ class Mission(Plugin):
                         await ctx.send(embed=embed)
                         break
 
-    @commands.command(description='List the current players on this server', hidden=True)
+    @commands.command(description='List the current players on this server')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def players(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if int(server['status_channel']) != ctx.channel.id:
-                await ctx.send('This command can only be used in the status channel.')
-            else:
-                await ctx.message.delete()
-                self.bot.sendtoDCS(server, {"command": "getCurrentPlayers", "channel": ctx.channel.id})
+            players = self.bot.player_data[server['server_name']]
+            players = players[players['active'] == True]
+            embed = discord.Embed(title='Active Players', color=discord.Color.blue())
+            names = units = sides = '' if (len(players) > 0) else '_ _'
+            for idx, player in players.iterrows():
+                side = player['side']
+                names += player['name'] + '\n'
+                units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
+                sides += const.PLAYER_SIDES[side] + '\n'
+            embed.add_field(name='Name', value=names)
+            embed.add_field(name='Unit', value=units)
+            embed.add_field(name='Side', value=sides)
+            await ctx.send(embed=embed)
 
     @commands.command(description='Restarts the current active mission', usage='[delay] [message]')
     @utils.has_role('DCS Admin')
@@ -294,9 +303,13 @@ class Mission(Plugin):
         for server_name, server in self.globals.items():
             if server['status'] == Status.RUNNING:
                 self.bot.sendtoDCS(server, {
-                    "command": "getRunningMission",
+                    "command": "getMissionUpdate",
                     "channel": server['status_channel']
                 })
+
+    @update_mission_status.before_loop
+    async def before_update(self):
+        await self.bot.wait_until_ready()
 
 
 def setup(bot: DCSServerBot):

@@ -9,6 +9,36 @@ local config	= base.require("DCSServerBotConfig")
 
 dcsbot.registered = false
 dcsbot.banList = {}
+dcsbot.SlotsData = {}
+
+-- from perun
+function dcsbot.updateSlots()
+	if dcsbot.SlotsData['coalitions'] == nil then
+		dcsbot.SlotsData['coalitions'] = DCS.getAvailableCoalitions()
+		dcsbot.SlotsData['slots'] = {}
+
+		-- Build up slot table
+		for _j, _i in pairs(dcsbot.SlotsData['coalitions']) do
+			dcsbot.SlotsData['slots'][_j]=DCS.getAvailableSlots(_j)
+
+			for _sj, _si in pairs(dcsbot.SlotsData['slots'][_j]) do
+				dcsbot.SlotsData['slots'][_j][_sj]['countryName']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['onboard_num']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['groupSize']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['groupName']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['callsign']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['task']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['airdromeId']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['helipadName']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['multicrew_place']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['role']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['helipadUnitType']= nil
+				dcsbot.SlotsData['slots'][_j][_sj]['action']= nil
+			end
+		end
+	end
+	return dcsbot.SlotsData
+end
 
 function dcsbot.registerDCSServer(json)
     log.write('DCSServerBot', log.DEBUG, 'Admin: registerDCSServer()')
@@ -54,12 +84,14 @@ function dcsbot.registerDCSServer(json)
 	else
 		msg.statistics = true
 	end
+    -- settings
 	msg.serverSettings = utils.loadSettingsRaw()
 	msg.options = DCS.getUserOptions()
 	msg.SRSSettings = SRSAuto
 	if (lotatc_inst ~= nil) then
 		msg.lotAtcSettings = lotatc_inst.options
 	end
+    -- airbases
     msg.airbases = {}
     local airdromes = Terrain.GetTerrainConfig("Airdromes")
     if (airdromes ~= nil) then
@@ -106,6 +138,67 @@ function dcsbot.registerDCSServer(json)
             end
         end
     end
+    -- mission
+	msg.current_mission = DCS.getMissionName()
+  	msg.current_map = DCS.getCurrentMission().mission.theatre
+	msg.mission_time = DCS.getModelTime()
+  	msg.real_time = DCS.getRealTime()
+	msg.start_time = DCS.getCurrentMission().mission.start_time
+	msg.date = DCS.getCurrentMission().mission.date
+	msg.pause = DCS.getPause()
+    -- weather
+	local weather = DCS.getCurrentMission().mission.weather
+	msg.weather = weather
+	local clouds = weather.clouds
+	if clouds.preset ~= nil then
+		local presets = nil
+		local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
+
+		local env = {
+		  type = _G.type,
+		  next = _G.next,
+		  setmetatable = _G.setmetatable,
+		  getmetatable = _G.getmetatable,
+		  _ = _,
+		}
+		setfenv(func, env)
+		func()
+		local preset = env.clouds and env.clouds.presets and env.clouds.presets[clouds.preset]
+		if preset ~= nil then
+		  msg.clouds = {}
+		  msg.clouds.base = clouds.base
+		  msg.clouds.preset = preset
+		end
+	else
+		msg.clouds = clouds
+	end
+    -- slots
+	if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
+		msg.num_slots_blue = table.getn(dcsbot.updateSlots()['slots']['blue'])
+	end
+	if (dcsbot.updateSlots()['slots']['red'] ~= nil) then
+		msg.num_slots_red = table.getn(dcsbot.updateSlots()['slots']['red'])
+	end
+    -- players
+	plist = net.get_player_list()
+	num_players = table.getn(plist)
+	if num_players > 0 then
+		msg.players = {}
+		for i = 1, num_players do
+			msg.players[i] = net.get_player_info(plist[i])
+			msg.players[i].unit_type, msg.players[i].slot, msg.players[i].sub_slot = utils.getMulticrewAllParameters(plist[i])
+			msg.players[i].unit_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_NAME)
+			msg.players[i].group_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_GROUPNAME)
+			msg.players[i].group_id = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_GROUP_MISSION_ID)
+			msg.players[i].unit_callsign = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_CALLSIGN)
+			-- server user is never active
+			if (msg.players[i].id == 1) then
+				msg.players[i].active = false
+			else
+				msg.players[i].active = true
+			end
+		end
+	end
     if (json ~= nil) then
         utils.sendBotTable(msg, json.channel)
     else

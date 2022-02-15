@@ -16,9 +16,9 @@ The punishment is configured with a file named config\punishment.json. You'll fi
         { "event": "zone-bombing", "reason": "Bombing in a safe zone", "default": 50 }
       ],
       "punishments": [
-        { "points": 100, "action": "ban", "delay": 10 },
-        { "points": 60, "action": "kick", "delay": 10 },
-        { "points": 40, "action": "move_to_spec", "delay": 10 },
+        { "points": 100, "action": "ban" },
+        { "points": 60, "action": "kick" },
+        { "points": 40, "action": "move_to_spec" },
         { "points": 1, "action": "warn" }
       ],
       "exemptions": [
@@ -51,17 +51,19 @@ The punishment is configured with a file named config\punishment.json. You'll fi
 The number of penalty points that a player "earns", is configured here. Collisions are hits where the players aircraft is being used as a weapon.
 You can add own events that you can use from inside the mission environment (see below), like the example here with "zone-bombing".
 
+**ATTENTION:** Multiple events, that happen inbetween a minute, are calculated as a single event. This is on purpose, to avoid too many punishments when a user unintentionally dropped a CBU onto something.
+
 ### Punishments
 Each point level can trigger a specific action. When the user hits this limit by gathering penalties, the specific action is being triggered.
-A delay will fire this action after <delay> seconds.
-
-A ban usually is temporary and punishment points can decay over time. After a specific number of temp bans, a user is permanently banned. 
+Actions are triggered at least every minute. So there might be a slight delay in being a bad pilot and getting punished. That allows victims to -forgive the dedicated act.
+A ban is temporary and punishment points can decay over time (see below). 
 
 ### Exemptions
 User that should not be punished. Can be either ucids or discord groups.
 
 ### Forgive
 To prevent actions to be executed against an initiator, victims can use the -forgive command inside the in-game chat.
+This will delete the punishments to this user that are not executed already and delete the events from this specific occasion.
 
 ### Unban
 Auto-unban when the user reached <= this amount of points.
@@ -72,6 +74,12 @@ Weight punishment by flight hours. This will be the sum of flight hours over all
 ### Decay
 Penalty points will decrease over time. This is configured here.
 Decay can only be configured once, so there is no need for a server specific configuration. All other elements can be configured for every server instance differently.
+
+## Discord Commands
+
+| Command  | Parameter       | Channel | Role      | Description                                            |
+|----------|-----------------|---------|-----------|--------------------------------------------------------|
+| .forgive | <member>/<ucid> | all     | DCS Admin | Deletes all punishement points for this member / user. |
 
 ## Hot to use the penalty system inside of missions
 To use the penalty system inside of missions, you can use the commands

@@ -1,6 +1,12 @@
-### Plugin "Userstats"
+# Plugin "Userstats"
 DCSServerBot comes with a built in, database driven statistics system. It allows either users to show their own achievements like k/d-ratio, flighttimes per module, server or map, etc.
 For server owners, it allows you to see which of your servers and missions are being used most, at which time and from which kind of users (Discord members vs. public players).
+
+## Configuration
+User statistics can be enabled or disabled in the server configuration (see [e) Server Specific Sections](../../README.md)).
+Userstats needs the Mission plugin to be loaded first.
+
+## Discord Commands
 
 | Command            | Parameter                  | Role      | Description                                                                                       |
 |--------------------|----------------------------|-----------|---------------------------------------------------------------------------------------------------|
@@ -13,11 +19,10 @@ For server owners, it allows you to see which of your servers and missions are b
  | .linkcheck         |                            | DCS Admin | Checks all member : ucid links and let them be fixed.                                             |
 | .reset             |                            | Admin     | Attention: Resets the statistics for this server.                                                 |
 
-User statistics can be enabled or disabled in the server configuration (see below).
+## How to disable Userstats inside of missions
 Sometimes you don't want your mission to generate per-user statistics, but you don't want to configure your server to disable them forever?
 Well, then - just disable them from inside your mission:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
   dcsbot.disableUserStats()
 ```
-Userstats needs the Mission plugin to be loaded.

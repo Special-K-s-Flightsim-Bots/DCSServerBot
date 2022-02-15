@@ -47,3 +47,14 @@ To enable the points system, you need to start a "Campaign" on the specific serv
 | .campaign      | start     | DCS Admin | Starts a new campaign. All previous campaigns will be closed and their points will get deleted. |
 | .campaign      | stop      | DCS Admin | Stops the current campaign. All points for this campaign will get deleted.                      |
 | .campaign      | reset     | DCS Admin | Deletes all points for the running campaign on this server.                                     |
+
+## Usage inside of Missions (Scripting API)
+You can enable, disable and reset the plugin base slot blocking system (aka campaigns) inside of missions, too. 
+So if you want to use the system and for instance reset it on every mission start, you just need to put in the following
+lines in one of your triggers that fire after a mission load:
+```lua
+  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
+  dcsbot.resetCampaign() -- remove, if you want to keep the points for players
+  dcsbot.startCampaign() -- starts a new campaign (if there is not one started already)
+```
+This can for instance be used for some arena based game, which should start all over again after being restarted.

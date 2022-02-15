@@ -1,5 +1,7 @@
-### Plugin "Mission"
+# Plugin "Mission"
 The mission plugin adds commands for amending the mission list, scheduled restarts, persistent mission- and player-embeds to be displayed in your status channels and ATIS like information for the missions' airports. 
+
+## Discord Commands
 
 | Command                      | Parameter                | Channel                     | Role      | Description                                                                                                                                                                                                                                          |
 |------------------------------|--------------------------|-----------------------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
