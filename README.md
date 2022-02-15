@@ -22,16 +22,16 @@ These commands can be used to administrate the bot itself.
 | .upgrade |           | all     | Owner  | Upgrades the bot to the latest available version.             |
 
 ### List of supported Plugins
-| Plugin       | Scope                                     | Optional | Dependent on | Documentation                              |
-|--------------|-------------------------------------------|----------|--------------|--------------------------------------------|
-| Admin        | Admin commands to manage your DCS server. | no       |              | [README](./plugins/admin/README.md)        |
-| Mission      |                                           | no       |              | [README](./plugins/mission/README.md)      |
-| Scheduler    |                                           | no       | Mission      | [README](./plugins/scheduler/README.md)    |
-| Userstats    |                                           | yes      | Mission      | [README](./plugins/userstats/README.md)    |
-| Missionstats |                                           | yes      | Userstats    | [README](./plugins/missionstats/README.md) |
-| Punishment   |                                           | yes      | Mission      | [README](./plugins/punishment/README.md)   |
-| Slotblocking |                                           | yes      | Mission      | [README](./plugins/slotblocking/README.md) |
-| Gamemaster   |                                           | yes      |              | [README](./plugins/gamemaster/README.md)   |
+| Plugin       | Scope                                                               | Optional | Dependent on | Documentation                              |
+|--------------|---------------------------------------------------------------------|----------|--------------|--------------------------------------------|
+| Admin        | Admin commands to manage your DCS server.                           | no       |              | [README](./plugins/admin/README.md)        |
+| Mission      | Handling of mission, compared to the WebGUI.                        | no       |              | [README](./plugins/mission/README.md)      |
+| Scheduler    | Autostart / -stop of servers or missions.                           | no       | Mission      | [README](./plugins/scheduler/README.md)    |
+| Userstats    | Users statistics system.                                            | yes      | Mission      | [README](./plugins/userstats/README.md)    |
+| Missionstats | Detailed users statistics / mission statistics.                     | yes      | Userstats    | [README](./plugins/missionstats/README.md) |
+| Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission      | [README](./plugins/punishment/README.md)   |
+| Slotblocking | Slotblocking either based on units or a point based system.         | yes      | Mission      | [README](./plugins/slotblocking/README.md) |
+| Gamemaster   | Interaction with the running mission (inform users, set flags, etc) | yes      |              | [README](./plugins/gamemaster/README.md)   |
 
 ### In case you want to write your own plugin ...
 There is a sample in the plugins/samples subdirectory, that will guide you through the steps. If you want your plugin to be added to the distribution, just contact me via the contact details below.
