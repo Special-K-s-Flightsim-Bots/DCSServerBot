@@ -119,7 +119,8 @@ class Scheduler(Plugin):
                             self.log.info(f'  => Launching DCS server "{server_name}" by {string.capwords(self.plugin)} ...')
                             utils.start_dcs(self, installation)
                             server['status'] = Status.LOADING
-                            if 'SRS' in config['extensions'] and not utils.check_srs(self, installation):
+                            if 'extensions' in config and 'SRS' in config['extensions'] and \
+                                    not utils.check_srs(self, installation):
                                 self.log.info(f'  => Launching DCS-SRS server "{server_name}" by {string.capwords(self.plugin)} ...')
                                 utils.start_srs(self, installation)
                         # check, if the server should be stopped
@@ -127,7 +128,8 @@ class Scheduler(Plugin):
                             self.log.info(f'  => Stopping DCS server "{server_name}" by {string.capwords(self.plugin)} ...')
                             utils.stop_dcs(self, server)
                             self.bot.sendtoDCS(server, {'command': 'shutdown'})
-                            if 'SRS' in config['extensions'] and utils.check_srs(self, installation):
+                            if 'extensions' in config and 'SRS' in config['extensions'] and \
+                                    utils.check_srs(self, installation):
                                 self.log.info(f'  => Stopping DCS-SRS server "{server_name}" by {string.capwords(self.plugin)} ...')
                                 utils.stop_srs(self, installation)
                         # check, if another mission should be loaded
