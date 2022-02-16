@@ -36,9 +36,10 @@ class UserStatisticsEventListener(EventListener):
                                 'WHERE server_name = %s AND mission_end IS NULL) AND hop_off IS NULL',
         'close_mission': 'UPDATE missions SET mission_end = NOW() WHERE id = %s',
         'close_all_missions': 'UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL',
+        'check_player': 'SELECT slot FROM statistics WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'start_player': 'INSERT INTO statistics (mission_id, player_ucid, slot) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING',
         'stop_player': 'UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
-        'stop_inactive_players': 'UPDATE statistics SET hop_off = NOW() WHERE player_ucid NOT IN (%s) AND mission_id = %s AND hop_off IS NULL'
+        'all_players': 'SELECT player_ucid FROM statistics WHERE mission_id = %s AND hop_off IS NULL'
     }
 
     def __init__(self, plugin: Plugin):
@@ -88,15 +89,31 @@ class UserStatisticsEventListener(EventListener):
                         self.globals[server_name]['mission_id'] = mission_id
                         if mission_id != -1:
                             # initialize active players
+                            players = self.bot.player_data[data['server_name']]
+                            players = players[players['active'] == True]
                             ucids = []
-                            for player in data['players']:
-                                cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
-                                               (mission_id, player['ucid'], player['unit_type']))
+                            for _, player in players.iterrows():
                                 ucids.append(player['ucid'])
+                                # make sure we get slot changes that might have occurred in the meantime
+                                cursor.execute(self.SQL_MISSION_HANDLING['check_player'], (mission_id, player['ucid']))
+                                player_started = False
+                                if cursor.rowcount == 1:
+                                    # the player is there already ...
+                                    if cursor.fetchone()[0] != player['unit_type']:
+                                        # ... but with a different aircraft, so close the old session
+                                        cursor.execute(self.SQL_MISSION_HANDLING['stop_player'],
+                                                       (mission_id, player['ucid']))
+                                    else:
+                                        # session will be kept
+                                        player_started = True
+                                if not player_started and player['side'] != const.SIDE_SPECTATOR:
+                                    cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
+                                                   (mission_id, player['ucid'], player['unit_type']))
                             # close dead entries in the database (if existent)
-                            if len(ucids):
-                                cursor.execute(self.SQL_MISSION_HANDLING['stop_inactive_players'],
-                                               (', '.join(['"' + x + '"' for x in ucids]), mission_id))
+                            cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
+                            for row in cursor.fetchall():
+                                if row[0] not in ucids:
+                                    cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, row[0]))
                         conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
                     conn.rollback()

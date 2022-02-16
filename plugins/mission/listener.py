@@ -158,6 +158,7 @@ class MissionEventListener(EventListener):
             'group_id', 'group_name'])
         self.bot.player_data[data['server_name']].set_index('id')
         await self.displayMissionEmbed(data)
+        await self.displayPlayerEmbed(data)
 
     async def getMissionUpdate(self, data):
         server_name = data['server_name']
