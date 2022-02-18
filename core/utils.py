@@ -371,7 +371,7 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
     if pos != -1:
         starttime = parse_time(timeframe[:pos])
         endtime = parse_time(timeframe[pos+1:])
-        if endtime < starttime:
+        if endtime <= starttime:
             endtime += timedelta(days=1)
     else:
         starttime = endtime = parse_time(timeframe)
