@@ -14,7 +14,7 @@ class EventListener:
         self.config = plugin.config
         self.globals = plugin.globals
         self.locals = plugin.locals
-        self.loop = asyncio.get_event_loop()
+        self.loop = plugin.loop
 
     def registeredEvents(self) -> List[str]:
         return [m for m in dir(self) if m not in dir(EventListener) and not m.startswith('_')]

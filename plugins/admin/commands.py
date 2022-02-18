@@ -56,7 +56,7 @@ class Agent(Plugin):
             installation = server['installation']
             if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
                 await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
-                utils.start_dcs(self, installation)
+                utils.start_dcs(self, server)
                 server['status'] = Status.LOADING
                 # set maintenance flag to prevent auto-stops of this server
                 server['maintenance'] = True
@@ -65,10 +65,10 @@ class Agent(Plugin):
             else:
                 await ctx.send('DCS server "{}" is already started.'.format(server['server_name']))
             if 'SRS_CONFIG' in self.config[installation]:
-                if not utils.isOpen(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT']):
+                if not utils.is_open(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT']):
                     if await utils.yn_question(self, ctx, 'Do you want to start the DCS-SRS server "{}"?'.format(server['server_name'])) is True:
                         await ctx.send('DCS-SRS server "{}" starting up ...'.format(server['server_name']))
-                        utils.start_srs(self, installation)
+                        utils.start_srs(self, server)
                         await self.bot.audit(
                             f"User {ctx.message.author.display_name} started DCS-SRS server \"{server['server_name']}\".")
                 else:
@@ -96,10 +96,10 @@ class Agent(Plugin):
             else:
                 await ctx.send('DCS server {} is already shut down.'.format(server['server_name']))
             if 'SRS_CONFIG' in self.config[installation]:
-                if utils.check_srs(self, installation):
+                if utils.check_srs(self, server):
                     if await utils.yn_question(self, ctx, 'Do you want to shut down the '
                                                           'DCS-SRS server "{}"?'.format(server['server_name'])) is True:
-                        if utils.stop_srs(self, installation):
+                        if utils.stop_srs(self, server):
                             await ctx.send('DCS-SRS server "{}" shutdown.'.format(server['server_name']))
                             await self.bot.audit(f"User {ctx.message.author.display_name} shut "
                                                  f"DCS-SRS server \"{server['server_name']}\" down.")
@@ -142,7 +142,7 @@ class Agent(Plugin):
                 if await utils.yn_question(self, ctx, 'Would you like to restart your DCS servers?') is True:
                     for server in servers:
                         await ctx.send(f"Starting DCS server \"{server['server_name']}\" ...")
-                        utils.start_dcs(self, server['installation'])
+                        utils.start_dcs(self, server)
                         server['status'] = Status.LOADING
                         del server['maintenance']
                     await ctx.send('All DCS servers restarted.')

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import psycopg2
@@ -22,6 +23,7 @@ class Plugin(commands.Cog):
         self.log = bot.log
         self.config = bot.config
         self.pool = bot.pool
+        self.loop = asyncio.get_event_loop()
         self.globals = bot.globals
         self.locals = self.read_locals()
         self.eventlistener = eventlistener(self) if eventlistener else None

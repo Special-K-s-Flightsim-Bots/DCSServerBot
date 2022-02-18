@@ -9,6 +9,7 @@ MMHG_IN_INHG = 0.0393701
 class Status(Enum):
     UNKNOWN = 'Unknown'
     SHUTDOWN = 'Shutdown'
+    SHUTDOWN_PENDING = 'Shutdown Pending'
     RUNNING = 'Running'
     PAUSED = 'Paused'
     STOPPED = 'Stopped'
@@ -45,5 +46,6 @@ STATUS_IMG = {
     Status.PAUSED: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/pause_256.png?raw=true',
     Status.RUNNING: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/play_256.png?raw=true',
     Status.STOPPED: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
-    Status.SHUTDOWN: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true'
+    Status.SHUTDOWN: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true',
+    Status.SHUTDOWN_PENDING: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/stop_256.png?raw=true'
 }

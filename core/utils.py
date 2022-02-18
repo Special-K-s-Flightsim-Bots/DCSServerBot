@@ -14,6 +14,7 @@ import xmltodict
 from core.const import Status
 from configparser import ConfigParser
 from contextlib import closing, suppress
+from datetime import datetime, timedelta
 from discord.ext import commands
 from typing import Union
 
@@ -49,9 +50,9 @@ def changeServerSettings(server_name, name, value):
     if isinstance(value, str):
         value = '"' + value + '"'
     installation = findDCSInstallations(server_name)[0]
-    serverSettings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.lua')
-    tmpSettings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.tmp')
-    with open(serverSettings, encoding='utf8') as infile:
+    server_settings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.lua')
+    tmp_settings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.tmp')
+    with open(server_settings, encoding='utf8') as infile:
         inlines = infile.readlines()
     outlines = []
     for line in inlines:
@@ -60,10 +61,10 @@ def changeServerSettings(server_name, name, value):
             outlines.append(re.sub(' = ([^,]*)', ' = {}'.format(value), line))
         else:
             outlines.append(line)
-    with open(tmpSettings, 'w', encoding='utf8') as outfile:
+    with open(tmp_settings, 'w', encoding='utf8') as outfile:
         outfile.writelines(outlines)
-    os.remove(serverSettings)
-    os.rename(tmpSettings, serverSettings)
+    os.remove(server_settings)
+    os.rename(tmp_settings, server_settings)
 
 
 def getInstalledVersion(path):
@@ -270,7 +271,7 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, mar
     except asyncio.TimeoutError:
         if message:
             await message.delete()
-            return -1
+        return -1
 
 
 async def yn_question(self, ctx, question, msg=None):
@@ -280,8 +281,12 @@ async def yn_question(self, ctx, question, msg=None):
     yn_msg = await ctx.send(embed=yn_embed)
     await yn_msg.add_reaction('🇾')
     await yn_msg.add_reaction('🇳')
-    react = await wait_for_single_reaction(self, ctx, yn_msg)
-    await yn_msg.delete()
+    try:
+        react = await wait_for_single_reaction(self, ctx, yn_msg)
+    except asyncio.TimeoutError:
+        return False
+    finally:
+        await yn_msg.delete()
     return react.emoji == '🇾'
 
 
@@ -315,7 +320,7 @@ def has_role(item: str):
     return commands.check(predicate)
 
 
-def isOpen(ip, port):
+def is_open(ip, port):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.settimeout(3)
         return s.connect_ex((ip, int(port))) == 0
@@ -327,7 +332,7 @@ async def get_external_ip():
             return await resp.text()
 
 
-def findProcess(proc, installation):
+def find_process(proc, installation):
     for p in psutil.process_iter(['name', 'cmdline']):
         if p.info['name'] == proc:
             with suppress(Exception):
@@ -336,14 +341,14 @@ def findProcess(proc, installation):
     return None
 
 
-def DDtoDMS(dd):
+def dd_to_dms(dd):
     frac, degrees = math.modf(dd)
     frac, minutes = math.modf(frac * 60)
     frac, seconds = math.modf(frac * 60)
     return degrees, minutes, seconds, frac
 
 
-def getActiveRunways(runways, wind):
+def get_active_runways(runways, wind):
     retval = []
     for runway in runways:
         heading = int(runway[:2]) * 10
@@ -356,10 +361,29 @@ def getActiveRunways(runways, wind):
     return retval
 
 
-def start_dcs(self, installation: str):
+def is_in_timeframe(time: datetime, timeframe: str) -> bool:
+    def parse_time(timestr: str) -> datetime:
+        format, timestr = ('%H:%M', timestr.replace('24:', '00:')) \
+            if timestr.find(':') > -1 else ('%H', timestr.replace('24', '00'))
+        return datetime.strptime(timestr, format)
+
+    pos = timeframe.find('-')
+    if pos != -1:
+        starttime = parse_time(timeframe[:pos])
+        endtime = parse_time(timeframe[pos+1:])
+        if endtime < starttime:
+            endtime += timedelta(days=1)
+    else:
+        starttime = endtime = parse_time(timeframe)
+    checktime = time.replace(year=starttime.year, month=starttime.month, day=starttime.day, second=0, microsecond=0)
+    return starttime <= checktime <= endtime
+
+
+def start_dcs(self, server: dict):
     self.log.debug('Launching DCS server with: "{}\\bin\\dcs.exe" --server --norender -w {}'.format(
-        os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']), installation))
-    return subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', installation], executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs.exe')
+        os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']), server['installation']))
+    return subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', server['installation']],
+                            executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs.exe')
 
 
 def stop_dcs(self, server: dict):
@@ -367,18 +391,21 @@ def stop_dcs(self, server: dict):
     server['status'] = Status.SHUTDOWN
 
 
-def start_srs(self, installation: str):
+def start_srs(self, server: dict):
     self.log.debug('Launching SRS server with: "{}\\SR-Server.exe" -cfg="{}"'.format(
-        os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']), os.path.expandvars(self.config[installation]['SRS_CONFIG'])))
-    return subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.config[installation]['SRS_CONFIG']))], executable=os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']) + '\\SR-Server.exe')
+        os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']),
+        os.path.expandvars(self.config[server['installation']]['SRS_CONFIG'])))
+    return subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(
+        os.path.expandvars(self.config[server['installation']]['SRS_CONFIG']))],
+                            executable=os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']) + '\\SR-Server.exe')
 
 
-def check_srs(self, installation: str) -> bool:
-    return isOpen(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT'])
+def check_srs(self, server: dict) -> bool:
+    return is_open(self.config[server['installation']]['SRS_HOST'], self.config[server['installation']]['SRS_PORT'])
 
 
-def stop_srs(self, installation) -> bool:
-    p = findProcess('SR-Server.exe', installation)
+def stop_srs(self, server: dict) -> bool:
+    p = find_process('SR-Server.exe', server['installation'])
     if p:
         p.kill()
         return True
@@ -409,6 +436,13 @@ def get_player(self, server_name, **kwargs):
         if not row.empty:
             return row.to_dict('records')[0]
     return None
+
+
+def is_populated(self, server: dict) -> bool:
+    if server['server_name'] not in self.bot.player_data:
+        return False
+    players = self.bot.player_data[server['server_name']]
+    return len(players[players['active'] == True]) > 0
 
 
 def sanitize(self):

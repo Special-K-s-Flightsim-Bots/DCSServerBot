@@ -314,11 +314,11 @@ class PaginationReport(Report):
 
         async def pagination(value=None):
             try:
+                message = None
                 try:
                     kwargs[name] = value
                     env = await func(*args, **kwargs)
                     file = discord.File(env.filename) if env.filename else None
-                    message = None
                     with suppress(Exception):
                         message = await self.ctx.send(embed=env.embed, file=file)
                     if env.filename:
@@ -373,6 +373,6 @@ class PersistentReport(Report):
 
     async def render(self, *args, **kwargs) -> ReportEnv:
         env = await super().render(*args, **kwargs)
-        file = discord.File(filename=env.filename) if env.filename else None
+        file = discord.File(env.filename) if env.filename else None
         await self.bot.setEmbed(self.server, self.embed_name, env.embed, file)
         return env
