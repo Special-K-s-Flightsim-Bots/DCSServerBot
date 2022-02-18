@@ -51,7 +51,7 @@ class Scheduler(Plugin):
                             settings['warn']['text'] = config['RESTART_WARN_TEXT']
                 if 'AUTOSTART_DCS' in self.config[installation] and \
                         self.config.getboolean(installation, 'AUTOSTART_DCS') is True:
-                    settings['schedule'] = {"00-24": "YYYYYYY"}
+                    settings['schedule'] = {"00:00-23:59": "YYYYYYY"}
                 if 'AUTOSTART_SRS' in self.config[installation] and \
                         self.config.getboolean(installation, 'AUTOSTART_SRS') is True:
                     settings['extensions'] = ["SRS"]
