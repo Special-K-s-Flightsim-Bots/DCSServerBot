@@ -12,7 +12,7 @@
     },
     {
       "installation": "mission",
-      "schedule": {"18-21": "NNNNNNY"}
+      "schedule": {"18:00": "NNNNNNY"}
     },
     {
       "installation": "instance2",
@@ -21,14 +21,13 @@
         "method": "rotate",
         "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
         "populated": true,
-        "shutdown": true
       }
     },
     {
       "installation": "instance3",
       "schedule": {"00-12": "NNNNNNN", "12-24": "YYYYYYY"}
       "restart": {
-        "method": "rotate",
+        "method": "restart_with_shutdown",
         "mission_time": 480,
         "populated": false
       }
