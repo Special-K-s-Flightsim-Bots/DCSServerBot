@@ -71,9 +71,9 @@ class Mission(Plugin):
                         })
                         embed = discord.Embed(
                             title=f'{server_name}\nReport for "{airbase["name"]}"', color=discord.Color.blue())
-                        d, m, s, f = utils.DDtoDMS(airbase['lat'])
+                        d, m, s, f = utils.dd_to_dms(airbase['lat'])
                         lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
-                        d, m, s, f = utils.DDtoDMS(airbase['lng'])
+                        d, m, s, f = utils.dd_to_dms(airbase['lng'])
                         lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
                         embed.add_field(name='Code', value=airbase['code'])
                         embed.add_field(name='Position', value=f'{lat}\n{lng}')
@@ -87,7 +87,7 @@ class Mission(Plugin):
                             (airbase['rwy_heading'] + 180) % 360, airbase['rwy_heading']))
                         embed.add_field(name='▬' * 30, value='_ _', inline=False)
                         weather = data['weather']
-                        embed.add_field(name='Active Runways', value='\n'.join(utils.getActiveRunways(
+                        embed.add_field(name='Active Runways', value='\n'.join(utils.get_active_runways(
                             airbase['runwayList'], weather['wind']['atGround'])))
                         embed.add_field(name='Surface Wind', value='{}° @ {} kts'.format(int(weather['wind']['atGround']['dir'] + 180) % 360, int(
                             weather['wind']['atGround']['speed'])))
@@ -298,7 +298,7 @@ class Mission(Plugin):
             else:
                 await ctx.send('Server "{}" is stopped or shut down. Please start the server first before unpausing.'.format(server['server_name']))
 
-    @tasks.loop(minutes=5.0)
+    @tasks.loop(minutes=1.0)
     async def update_mission_status(self):
         for server_name, server in self.globals.items():
             if server['status'] == Status.RUNNING:
