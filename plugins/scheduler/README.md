@@ -32,7 +32,7 @@ Examples:
     {
       "installation": "instance2",
       "schedule": {
-        "00-12:30": "YYYYYYY",                -- instance2 runs Sunday all day, rest of the week between 00 and 12 hrs
+        "00-12:30": "YYYYYYY",                -- instance2 runs Sunday all day, rest of the week between 00 and 12:30 hrs
         "12:30-24": "NNNNNNY"
       },
      "populated": false,                      -- only restart the server (!) if it is not populated anymore

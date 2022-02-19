@@ -27,11 +27,12 @@ These commands can be used to administrate the bot itself.
 | Admin        | Admin commands to manage your DCS server.                           | no       |              | [README](./plugins/admin/README.md)        |
 | Mission      | Handling of mission, compared to the WebGUI.                        | no       |              | [README](./plugins/mission/README.md)      |
 | Scheduler    | Autostart / -stop of servers or missions.                           | no       | Mission      | [README](./plugins/scheduler/README.md)    |
-| Userstats    | Users statistics system.                                            | yes      | Mission      | [README](./plugins/userstats/README.md)    |
-| Missionstats | Detailed users statistics / mission statistics.                     | yes      | Userstats    | [README](./plugins/missionstats/README.md) |
+| Userstats    | Users statistics system.                                            | yes*     | Mission      | [README](./plugins/userstats/README.md)    |
+| Missionstats | Detailed users statistics / mission statistics.                     | yes*     | Userstats    | [README](./plugins/missionstats/README.md) |
 | Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission      | [README](./plugins/punishment/README.md)   |
 | Slotblocking | Slotblocking either based on units or a point based system.         | yes      | Mission      | [README](./plugins/slotblocking/README.md) |
-| Gamemaster   | Interaction with the running mission (inform users, set flags, etc) | yes      |              | [README](./plugins/gamemaster/README.md)   |
+| Gamemaster   | Interaction with the running mission (inform users, set flags, etc) | yes*     |              | [README](./plugins/gamemaster/README.md)   |
+*) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot.
 
 ### In case you want to write your own plugin ...
 There is a sample in the plugins/samples subdirectory, that will guide you through the steps. If you want your plugin to be added to the distribution, just contact me via the contact details below.
@@ -58,7 +59,8 @@ Press "Copy" on the generated URL, paste it into the browser of your choice, sel
 For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
 
 ### Bot Configuration
-The bot configuration is held in **config/dcsserverbot.ini**. See **dcsserverbot.ini.sample** for an example.
+The bot configuration is held in **config/dcsserverbot.ini**. See **dcsserverbot.ini.sample** for an example.<br/>
+If you start the bot for the first time, it will generate a basic file for you that you can amend to your needs afterwards.<br/>
 For some configurations, default values may apply. They are kept in config/default.ini. **Don't change this file**, just overwrite the settings, if you want to have them differently.
 
 The following parameters can be used to configure the bot:
@@ -74,7 +76,8 @@ a) __BOT Section__
 | HOST           | IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.                                                                                                                                                                                                                                                                                            |
 | PORT           | UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose this port to the outside world!__**                                                                                                                                                                                                                                                                                           |
 | MASTER         | If true, start the bot in master-mode (default for one-bot-installations). If only one bot is running, then there is only a master.\nIf you have to use more than one bot installation, for multiple DCS servers that are spanned over several locations, you have to install one agent (MASTER = false) at every other location. All DCS servers of that location will then automatically register with that agent. |
-| PLUGINS        | List of plugins to be loaded.                                                                                                                                                                                                                                                                                                                                                                                        |
+| PLUGINS        | List of plugins to be loaded (you usually don't want to touch this).                                                                                                                                                                                                                                                                                                                                                 |
+| OPT_PLUGINS    | List of optional plugins to be loaded. Here you can add your plugins that you want to use and that are not loaded by default.                                                                                                                                                                                                                                                                                        |
 | AUTOUPDATE     | If true, the bot autoupdates itself with the latest release on startup.                                                                                                                                                                                                                                                                                                                                              |
 | AUTOBAN        | If true, members leaving the discord will be automatically banned.                                                                                                                                                                                                                                                                                                                                                   |
 | LOGLEVEL       | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).                                                                                                                                                                                                                                                                                                                       |
@@ -102,6 +105,7 @@ d) __DCS Section__
 | Parameter                | Description                                                                                                         |
 |--------------------------|---------------------------------------------------------------------------------------------------------------------|
 | DCS_INSTALLATION         | The installation directory of DCS World.                                                                            |
+| AUTOUPDATE               | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                          |
 | SRS_INSTALLATION         | The installation directory of DCS-SRS (optional).                                                                   |
 | GREETING_MESSAGE_MEMBERS | A greeting message, that people will receive in DCS, if they get recognized by the bot as a member of your discord. |
 | GREETING_MESSAGE_UNKNOWN | A greeting message, that people will receive in DCS, if they are not recognized as a member of your discord.        |

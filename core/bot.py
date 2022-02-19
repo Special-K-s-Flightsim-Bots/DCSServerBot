@@ -31,7 +31,10 @@ class DCSServerBot(commands.Bot):
         self.pool = kwargs['pool']
         self.log = kwargs['log']
         self.config = kwargs['config']
-        self.plugins = [p.strip() for p in self.config['BOT']['PLUGINS'].split(',')]
+        plugins = self.config['BOT']['PLUGINS']
+        if 'OPT_PLUGINS' in self.config['BOT']:
+            plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
+        self.plugins = [p.strip() for p in plugins.split(',')]
         self.audit_channel = None
         self.player_data = None
         self.executor = ThreadPoolExecutor(max_workers=10)
@@ -170,7 +173,7 @@ class DCSServerBot(commands.Bot):
         return asyncio.wait_for(future, timeout)
 
     def get_bot_channel(self, data: dict, channel_type: Optional[str] = 'status_channel'):
-        if int(data['channel']) == -1:
+        if data['channel'].startswith('sync') or int(data['channel']) == -1:
             return self.get_channel(int(self.globals[data['server_name']][channel_type]))
         else:
             return self.get_channel(int(data['channel']))

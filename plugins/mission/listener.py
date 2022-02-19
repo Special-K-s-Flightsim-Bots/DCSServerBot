@@ -157,8 +157,9 @@ class MissionEventListener(EventListener):
             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
             'group_id', 'group_name'])
         self.bot.player_data[data['server_name']].set_index('id')
-        await self.displayMissionEmbed(data)
-        await self.displayPlayerEmbed(data)
+        if 'sync' in data['channel']:
+            await self.displayMissionEmbed(data)
+            await self.displayPlayerEmbed(data)
 
     async def getMissionUpdate(self, data):
         server_name = data['server_name']
@@ -176,10 +177,15 @@ class MissionEventListener(EventListener):
         return data
 
     async def onMissionLoadBegin(self, data):
-        self.globals[data['server_name']]['status'] = Status.LOADING
+        server = self.globals[data['server_name']]
+        server['status'] = Status.LOADING
+        # LotATC is initialized correctly on mission load
+        if 'lotAtcSettings' in data:
+            server['lotAtcSettings'] = data['lotAtcSettings']
         self.bot.player_data[data['server_name']] = pd.DataFrame(
             columns=['id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name',
                      'unit_type', 'group_name'])
+
         await self.displayMissionEmbed(data)
         await self.displayPlayerEmbed(data)
 

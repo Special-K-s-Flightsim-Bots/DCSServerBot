@@ -93,7 +93,7 @@ class Scheduler(Plugin):
                     server[self.plugin] = merged
             else:
                 return None
-        return server[self.plugin]
+        return server[self.plugin] if self.plugin in server else None
 
     def check_server_state(self, server: dict, config: dict) -> Status:
         if 'schedule' in config:
@@ -121,7 +121,8 @@ class Scheduler(Plugin):
         self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
         utils.start_dcs(self, server)
         server['status'] = Status.LOADING
-        self.launch_extensions(server, config)
+        if 'extensions' in config:
+            self.launch_extensions(server, config)
 
     @staticmethod
     def get_warn_times(config: dict) -> List[int]:
@@ -165,7 +166,8 @@ class Scheduler(Plugin):
                 self.log.info(
                     f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
             self.loop.call_later(restart_in, utils.stop_dcs, self, server)
-            self.loop.call_later(restart_in, self.shutdown_extensions, server, config)
+            if 'extensions' in config:
+                self.loop.call_later(restart_in, self.shutdown_extensions, server, config)
 
     def restart_mission(self, server: dict, config: dict):
         # check if the mission is still populated
@@ -204,17 +206,19 @@ class Scheduler(Plugin):
             if server['status'] == Status.UNKNOWN:
                 continue
             config = self.get_config(server)
-            target_state = self.check_server_state(server, config)
-            if server['status'] != target_state:
-                # only care about servers that are not in maintenance state
-                if 'maintenance' in server:
-                    continue
-                if target_state == Status.RUNNING:
-                    self.launch(server, config)
-                elif target_state == Status.SHUTDOWN:
-                    self.shutdown(server, config)
-            elif server['status'] in [Status.RUNNING, Status.PAUSED]:
-                self.check_mission_state(server, config)
+            # if no config is defined for this server, ignore it
+            if config:
+                target_state = self.check_server_state(server, config)
+                if server['status'] != target_state:
+                    # only care about servers that are not in maintenance state
+                    if 'maintenance' in server:
+                        continue
+                    if target_state == Status.RUNNING:
+                        self.launch(server, config)
+                    elif target_state == Status.SHUTDOWN:
+                        self.shutdown(server, config)
+                elif server['status'] in [Status.RUNNING, Status.PAUSED]:
+                    self.check_mission_state(server, config)
 
     @check_state.before_loop
     async def before_check(self):

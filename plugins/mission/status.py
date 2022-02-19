@@ -90,10 +90,11 @@ class PluginsInfo(report.EmbedElement):
 
     def render_srs(self, server: dict, param: dict) -> bool:
         if 'SRSSettings' in server:
-            if 'EXTERNAL_AWACS_MODE' in server['SRSSettings'] and 'EXTERNAL_AWACS_MODE_BLUE_PASSWORD' in server[
-                'SRSSettings'] and 'EXTERNAL_AWACS_MODE_RED_PASSWORD' in server['SRSSettings'] and \
-                    server['SRSSettings'][
-                        'EXTERNAL_AWACS_MODE'] is True:
+            show_password = param['show_password'] if 'show_password' in param else True
+            if show_password and 'EXTERNAL_AWACS_MODE' in server['SRSSettings'] and \
+                    'EXTERNAL_AWACS_MODE_BLUE_PASSWORD' in server['SRSSettings'] and \
+                    'EXTERNAL_AWACS_MODE_RED_PASSWORD' in server['SRSSettings'] and \
+                    server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True:
                 value = '🔹 Pass: {}\n🔸 Pass: {}'.format(
                     server['SRSSettings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'],
                     server['SRSSettings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'])
@@ -107,9 +108,13 @@ class PluginsInfo(report.EmbedElement):
 
     def render_lotatc(self, server: dict, param: dict) -> bool:
         if 'lotAtcSettings' in server:
-            self.add_field(name='LotAtc [{}]'.format(server['lotAtcSettings']['port']),
-                            value='🔹 Pass: {}\n🔸 Pass: {}'.format(
-                                server['lotAtcSettings']['blue_password'], server['lotAtcSettings']['red_password']))
+            show_password = param['show_password'] if 'show_password' in param else True
+            if show_password:
+                value = '🔹 Pass: {}\n🔸 Pass: {}'.format(
+                                server['lotAtcSettings']['blue_password'], server['lotAtcSettings']['red_password'])
+            else:
+                value = '_ _'
+            self.add_field(name='LotAtc [{}]'.format(server['lotAtcSettings']['port']), value=value)
             return True
         else:
             return False
