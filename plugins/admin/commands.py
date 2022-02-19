@@ -11,7 +11,7 @@ from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report
 from core.const import Status
 from discord.ext import commands, tasks
-from typing import Union
+from typing import Union, List
 from .listener import AdminEventListener
 
 
@@ -113,7 +113,7 @@ class Agent(Plugin):
                 else:
                     await ctx.send('DCS-SRS server {} is already shut down.'.format(server['server_name']))
 
-    async def do_update(self, warntime: int, ctx=None):
+    async def do_update(self, warntimes: List[int], ctx=None):
         self.update_pending = True
         if ctx:
             await ctx.send('Shutting down DCS servers, warning users before ...')
@@ -126,15 +126,16 @@ class Agent(Plugin):
             else:
                 server['maintenance'] = True
             if server['status'] in [Status.RUNNING, Status.PAUSED]:
-                self.loop.call_later(warntime, self.bot.sendtoDCS,
-                                     server, {
-                                         'command': 'sendPopupMessage',
-                                         'message': f'Server is going down for a DCS update in {warntime} seconds!',
-                                         'to': 'all'
-                                     })
-                self.loop.call_later(warntime, utils.stop_dcs, self, server)
+                for warntime in warntimes:
+                    self.loop.call_later(warntime, self.bot.sendtoDCS,
+                                         server, {
+                                             'command': 'sendPopupMessage',
+                                             'message': f'Server is going down for a DCS update in {warntime} seconds!',
+                                             'to': 'all'
+                                         })
+                self.loop.call_later(max(warntimes), utils.stop_dcs, self, server)
         # give the DCS servers some time to shut down.
-        await asyncio.sleep(warntime + 10)
+        await asyncio.sleep(max(warntimes) + 10)
         if ctx:
             await ctx.send('Updating DCS World. Please wait, this might take some time ...')
         else:
@@ -155,10 +156,10 @@ class Agent(Plugin):
                 # the server was running before (being in maintenance mode), so start it again
                 utils.start_dcs(self, server)
 
-    @commands.command(description='Update a DCS Installation', usage='[warn time in seconds]')
+    @commands.command(description='Update a DCS Installation'')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def update(self, ctx, warntime=60):
+    async def update(self, ctx):
         # check versions
         branch, old_version = utils.getInstalledVersion(self.config['DCS']['DCS_INSTALLATION'])
         new_version = await utils.getLatestVersion(branch)
@@ -170,7 +171,7 @@ class Agent(Plugin):
                                                                                           new_version)) is True:
                 await self.bot.audit(f"User {ctx.message.author.display_name} started an update of all DCS "
                                      f"servers on node {platform.node()}.")
-                await self.do_update(warntime, ctx)
+                await self.do_update([120, 60], ctx)
 
     @commands.command(description='Change the password of a DCS server')
     @utils.has_role('DCS Admin')
@@ -331,7 +332,7 @@ class Agent(Plugin):
         new_version = await utils.getLatestVersion(branch)
         if new_version and old_version != new_version:
             self.log.info('A new version of DCS World is available. Auto-updating ...')
-            await self.do_update(60)
+            await self.do_update([120, 60])
 
     @check_for_dcs_update.before_loop
     async def before_check(self):
