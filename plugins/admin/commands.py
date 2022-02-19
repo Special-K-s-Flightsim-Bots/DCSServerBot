@@ -156,7 +156,7 @@ class Agent(Plugin):
                 # the server was running before (being in maintenance mode), so start it again
                 utils.start_dcs(self, server)
 
-    @commands.command(description='Update a DCS Installation'')
+    @commands.command(description='Update a DCS Installation')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def update(self, ctx):
