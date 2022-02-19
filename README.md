@@ -102,6 +102,7 @@ d) __DCS Section__
 | Parameter                | Description                                                                                                         |
 |--------------------------|---------------------------------------------------------------------------------------------------------------------|
 | DCS_INSTALLATION         | The installation directory of DCS World.                                                                            |
+| AUTOUPDATE               | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                          |
 | SRS_INSTALLATION         | The installation directory of DCS-SRS (optional).                                                                   |
 | GREETING_MESSAGE_MEMBERS | A greeting message, that people will receive in DCS, if they get recognized by the bot as a member of your discord. |
 | GREETING_MESSAGE_UNKNOWN | A greeting message, that people will receive in DCS, if they are not recognized as a member of your discord.        |

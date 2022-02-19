@@ -121,7 +121,8 @@ class Scheduler(Plugin):
         self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
         utils.start_dcs(self, server)
         server['status'] = Status.LOADING
-        self.launch_extensions(server, config)
+        if 'extensions' in config:
+            self.launch_extensions(server, config)
 
     @staticmethod
     def get_warn_times(config: dict) -> List[int]:
@@ -165,7 +166,8 @@ class Scheduler(Plugin):
                 self.log.info(
                     f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
             self.loop.call_later(restart_in, utils.stop_dcs, self, server)
-            self.loop.call_later(restart_in, self.shutdown_extensions, server, config)
+            if 'extensions' in config:
+                self.loop.call_later(restart_in, self.shutdown_extensions, server, config)
 
     def restart_mission(self, server: dict, config: dict):
         # check if the mission is still populated
