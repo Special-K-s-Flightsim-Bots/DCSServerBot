@@ -59,7 +59,8 @@ Press "Copy" on the generated URL, paste it into the browser of your choice, sel
 For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
 
 ### Bot Configuration
-The bot configuration is held in **config/dcsserverbot.ini**. See **dcsserverbot.ini.sample** for an example.
+The bot configuration is held in **config/dcsserverbot.ini**. See **dcsserverbot.ini.sample** for an example.<br/>
+If you start the bot for the first time, it will generate a basic file for you that you can amend to your needs afterwards.<br/>
 For some configurations, default values may apply. They are kept in config/default.ini. **Don't change this file**, just overwrite the settings, if you want to have them differently.
 
 The following parameters can be used to configure the bot:
