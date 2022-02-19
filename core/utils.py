@@ -440,7 +440,7 @@ def get_player(self, server_name, **kwargs):
 
 def is_populated(self, server: dict) -> bool:
     if server['server_name'] not in self.bot.player_data:
-        return False
+        return True
     players = self.bot.player_data[server['server_name']]
     return len(players[players['active'] == True]) > 0
 
