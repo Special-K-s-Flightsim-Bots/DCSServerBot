@@ -1,0 +1,7 @@
+{
+  "config":
+    {
+      "autoexport": true,
+      "tablefilter": ["missions", "statistics"]
+    }
+}
