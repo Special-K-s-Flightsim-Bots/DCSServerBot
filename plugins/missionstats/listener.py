@@ -63,8 +63,7 @@ class MissionStatisticsEventListener(EventListener):
                 value += '{}\n'.format(coalition_data['captures'] if ('captures' in coalition_data) else 0)
                 if 'kills' in coalition_data:
                     for unit_type in ['Airplanes', 'Helicopters', 'Ground Units', 'Ships', 'Static']:
-                        value += '{}\n'.format(coalition_data['kills'][unit_type]
-                                               if unit_type in coalition_data['kills'] else 0)
+                        value += '{}\n'.format(coalition_data['kills'][unit_type] if unit_type in coalition_data['kills'] else 0)
                 else:
                     value += '0\n' * 5
                 embed.add_field(name=coalition, value=value)
@@ -156,6 +155,7 @@ class MissionStatisticsEventListener(EventListener):
                             stats['coalitions'][coalition]['kills']['Static'] = 1
                         else:
                             stats['coalitions'][coalition]['kills']['Static'] += 1
+                    update = True
             elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT'] and 'initiator' in data and len(data['initiator']) > 0:
                 initiator = data['initiator']
                 category = self.UNIT_CATEGORY[initiator['category']]

@@ -28,13 +28,6 @@ class UserStatistics(Plugin):
         report = PaginationReport(self.bot, ctx, self.plugin, 'highscore.json')
         await report.render(period=period, server_name=server_name)
 
-    @commands.command(description='Shows servers statistics', usage='[period]')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def serverstats(self, ctx, period: Optional[str], server_name: Optional[str]):
-        report = PaginationReport(self.bot, ctx, self.plugin, 'serverstats.json')
-        await report.render(period=period, server_name=server_name)
-
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()

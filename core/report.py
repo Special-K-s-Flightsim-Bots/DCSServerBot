@@ -203,7 +203,7 @@ class Report:
     def parse_input(kwargs: dict, params: List[Any]):
         new_args = kwargs.copy()
         for param in params:
-            if param['name'] in new_args:
+            if param['name'] in new_args and new_args[param['name']]:
                 if 'range' in param:
                     value = new_args[param['name']] or ''
                     if value not in param['range']:

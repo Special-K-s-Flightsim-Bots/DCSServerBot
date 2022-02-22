@@ -33,6 +33,18 @@ function admin.onPlayerTryConnect(addr, name, ucid, playerID)
 	return true
 end
 
+function admin.onPlayerTryChangeSlot(playerID, side, slotID)
+	log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerTryChangeSlot()')
+	groupname = DCS.getUnitProperty(slotID, DCS.UNIT_GROUPNAME)
+	if groupname == nil or groupname == '' then
+        msg.command = 'ban'
+		msg.ucid = net.get_player_info(playerID, 'ucid')
+        msg.reason = 'Hacking'
+    	utils.sendBotTable(msg)
+		return false
+	end
+end
+
 function admin.onPlayerConnect(id)
     log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerConnect()')
 	if (dcsbot.registered == false) then

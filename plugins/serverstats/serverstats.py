@@ -1,15 +1,18 @@
-import discord
+import matplotlib.dates as mdates
+import matplotlib.units as munits
 import numpy as np
+import pandas as pd
 import psycopg2
 from contextlib import closing
-from core import const, report, DCSServerBot
+from core import const, report
+from datetime import datetime
 from matplotlib.ticker import FuncFormatter
-from typing import Optional, Tuple
+from typing import Optional
 
 
 class ServerUsage(report.EmbedElement):
 
-    def render(self, server_name: str, period: str):
+    def render(self, server_name: Optional[str], period: Optional[str]):
         sql = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')) " \
               f"AS server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, " \
               f"COUNT(DISTINCT s.player_ucid) AS players, COUNT(DISTINCT p.discord_id) AS members FROM missions m, " \
@@ -45,7 +48,7 @@ class ServerUsage(report.EmbedElement):
 
 class TopMissionPerServer(report.EmbedElement):
 
-    def render(self, server_name: str, period: str, limit: int):
+    def render(self, server_name: Optional[str], period: Optional[str], limit: int):
         sql_left = 'SELECT server_name, mission_name, playtime FROM (SELECT server_name, ' \
                                       'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
                                       'playtime DESC) AS rn FROM ( '
@@ -86,7 +89,7 @@ class TopMissionPerServer(report.EmbedElement):
 
 class TopModulesPerServer(report.EmbedElement):
 
-    def render(self, server_name: str, period: str, limit: int):
+    def render(self, server_name: Optional[str], period: Optional[str], limit: int):
         sql = 'SELECT s.slot, COUNT(s.slot) AS num_usage, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - ' \
               's.hop_on))) / 3600) AS playtime, COUNT(DISTINCT s.player_ucid) AS players FROM missions m, ' \
               'statistics s WHERE m.id = s.mission_id '
@@ -117,7 +120,7 @@ class TopModulesPerServer(report.EmbedElement):
 
 class UniquePast14(report.GraphElement):
 
-    def render(self, server_name: str):
+    def render(self, server_name: Optional[str]):
         sql = 'SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, ' \
               'missions m, generate_series(DATE(NOW()) - INTERVAL \'2 weeks\', DATE(NOW()), INTERVAL \'1 ' \
               'day\') d WHERE d.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off) AND s.mission_id = m.id '
@@ -154,7 +157,7 @@ class UniquePast14(report.GraphElement):
 
 class UsersPerDayTime(report.GraphElement):
 
-    def render(self, server_name: str, period: str):
+    def render(self, server_name: Optional[str], period: Optional[str]):
         sql = 'SELECT to_char(s.hop_on, \'ID\') as weekday, to_char(h.time, \'HH24\') AS hour, ' \
               'COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(' \
               'TIMESTAMP \'01.01.1970 00:00:00\', TIMESTAMP \'01.01.1970 23:00:00\', INTERVAL \'1 hour\') ' \
@@ -176,6 +179,39 @@ class UsersPerDayTime(report.GraphElement):
                 self.axes.imshow(values, cmap='cividis', aspect='auto')
                 self.axes.set_title('Users per Day/Time (UTC)', color='white', fontsize=25)
                 self.axes.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: const.WEEKDAYS[int(np.clip(x, 0, 6))]))
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
+
+class ServerLoad(report.MultiGraphElement):
+
+    def render(self, server_name: Optional[str], period: str):
+        sql = f"select date_trunc('minute', time) AS time, SUM(users) AS users, SUM(cpu) AS cpu, SUM(mem_total-mem_ram)/(1024*1024) " \
+              f"AS mem_swap, SUM(mem_ram)/(1024*1024) AS mem_ram, SUM(read_bytes)/1024 AS read_bytes, SUM(write_bytes)/1024 " \
+              f"AS write_bytes, ROUND(AVG(bytes_sent))/1024 AS bytes_sent, ROUND(AVG(bytes_recv))/1024 AS bytes_recv, " \
+              f"ROUND(AVG(fps), 2) AS fps FROM serverstats WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}') "
+        if server_name:
+            sql += f" AND server_name = '{server_name}' "
+        sql += " GROUP BY 1"
+        print(sql)
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+                cursor.execute(sql)
+                series = pd.DataFrame.from_dict(cursor.fetchall())
+                ax2 = self.axes[0].twinx()
+                series.plot(ax=self.axes[0], x='time', y=['fps', 'cpu'], title='Users/CPU/FPS', xticks=[], xlabel='', ylim=(0, 100))
+                self.axes[0].legend(['FPS', 'CPU'])
+                series.plot(ax=ax2, x='time', y=['users'], xticks=[], xlabel='', color='blue')
+                ax2.legend(['Users'])
+                series.plot(ax=self.axes[1], x='time', y=['mem_ram', 'mem_swap'], title='Memory', xticks=[], xlabel="", ylabel='Memory (GB)', kind='bar', stacked=True)
+                self.axes[1].legend(['Memory (RAM)', 'Memory (paged)'])
+                series.plot(ax=self.axes[2], x='time', y=['read_bytes', 'write_bytes'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='Bytes (Mbs)', grid=True)
+                self.axes[2].legend(['Read', 'Write'])
+                series.plot(ax=self.axes[3], x='time', y=['bytes_sent', 'bytes_recv'], title='Network', logy=True, xlabel='', ylabel='Bytes (Mbs)', grid=True)
+                self.axes[3].legend(['Sent', 'Recv'])
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:

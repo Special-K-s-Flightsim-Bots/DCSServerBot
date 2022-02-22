@@ -190,9 +190,9 @@ class MissionEventListener(EventListener):
         await self.displayPlayerEmbed(data)
 
     async def onMissionLoadEnd(self, data):
+        self.globals[data['server_name']] = self.globals[data['server_name']] | data
         server = self.globals[data['server_name']]
         server['status'] = Status.PAUSED
-        server['airbases'] = data['airbases']
         await self.displayMissionEmbed(data)
 
     async def onSimulationStop(self, data):

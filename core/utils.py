@@ -336,8 +336,9 @@ def find_process(proc, installation):
     for p in psutil.process_iter(['name', 'cmdline']):
         if p.info['name'] == proc:
             with suppress(Exception):
-                if installation in p.info['cmdline'][1]:
-                    return p
+                for c in p.info['cmdline']:
+                    if installation in c:
+                        return p
     return None
 
 
@@ -380,10 +381,10 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
 
 
 def start_dcs(self, server: dict):
-    self.log.debug('Launching DCS server with: "{}\\bin\\dcs.exe" --server --norender -w {}'.format(
+    self.log.debug(r'Launching DCS server with: "{}\bin\dcs.exe" --server --norender -w {}'.format(
         os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']), server['installation']))
     return subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', server['installation']],
-                            executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs.exe')
+                            executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\bin\dcs.exe')
 
 
 def stop_dcs(self, server: dict):
@@ -392,12 +393,12 @@ def stop_dcs(self, server: dict):
 
 
 def start_srs(self, server: dict):
-    self.log.debug('Launching SRS server with: "{}\\SR-Server.exe" -cfg="{}"'.format(
+    self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
         os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']),
         os.path.expandvars(self.config[server['installation']]['SRS_CONFIG'])))
     return subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(
         os.path.expandvars(self.config[server['installation']]['SRS_CONFIG']))],
-                            executable=os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']) + '\\SR-Server.exe')
+                           executable=os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']) + r'\SR-Server.exe')
 
 
 def check_srs(self, server: dict) -> bool:
@@ -476,4 +477,3 @@ def sanitize(self):
     except (OSError, IOError) as e:
         self.log.error(f"Can't access {filename}. Make sure, {self.config['DCS']['DCS_INSTALLATION']} is writable.")
         raise e
-
