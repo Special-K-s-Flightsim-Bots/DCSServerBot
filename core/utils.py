@@ -16,7 +16,7 @@ from configparser import ConfigParser
 from contextlib import closing, suppress
 from datetime import datetime, timedelta
 from discord.ext import commands
-from typing import Union
+from typing import Union, Optional
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
 REGEXP = {
@@ -183,6 +183,23 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False):
                         max_weight = weight
                         best_fit = row[0]
                 return best_fit
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
+
+
+def find_user(self, name: str) -> Optional[str]:
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            search = f'%{name}%'
+            cursor.execute('SELECT ucid FROM players WHERE LOWER(name) like LOWER(%s) ORDER BY last_seen DESC LIMIT 1',
+                           (search, ))
+            if cursor.rowcount == 1:
+                return cursor.fetchone()[0]
+            else:
+                return None
     except (Exception, psycopg2.DatabaseError) as error:
         self.log.exception(error)
     finally:

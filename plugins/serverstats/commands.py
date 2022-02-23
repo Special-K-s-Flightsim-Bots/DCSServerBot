@@ -1,4 +1,3 @@
-import asyncio
 import psutil
 import psycopg2
 from contextlib import closing
@@ -54,13 +53,13 @@ class ServerStats(Plugin):
                     cpu = process.cpu_percent()
                     memory = process.memory_full_info()
                     io_counters = process.io_counters()
-                    net_io_counters = psutil.net_io_counters(pernic=False)
                     if process.pid not in self.io_counters:
                         write_bytes = read_bytes = 0
                     else:
                         write_bytes = int((io_counters.write_bytes - self.io_counters[process.pid].write_bytes) / 60)
                         read_bytes = int((io_counters.read_bytes - self.io_counters[process.pid].read_bytes) / 60)
                     self.io_counters[process.pid] = io_counters
+                    net_io_counters = psutil.net_io_counters(pernic=False)
                     if not self.net_io_counters:
                         bytes_sent = bytes_recv = 0
                     else:

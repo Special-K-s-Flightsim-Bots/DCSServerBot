@@ -5,18 +5,23 @@ import string
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
+from core import report
 from datetime import timedelta
 from matplotlib.axes import Axes
 from matplotlib.patches import ConnectionPatch
-from core import report
+from typing import Union
 
 
 class PlaytimesPerPlane(report.GraphElement):
 
-    def render(self, member: discord.Member, server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name, period):
         sql = 'SELECT s.slot, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM ' \
-              'statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND ' \
+              'statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
               's.hop_off IS NOT NULL AND s.mission_id = m.id '
+        if isinstance(member, discord.Member):
+            sql += 'AND p.discord_id = %s '
+        else:
+            sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
@@ -26,7 +31,7 @@ class PlaytimesPerPlane(report.GraphElement):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql, (member.id,))
+                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 labels = []
                 values = []
                 for row in cursor.fetchall():
@@ -52,11 +57,15 @@ class PlaytimesPerPlane(report.GraphElement):
 
 class PlaytimesPerServer(report.GraphElement):
 
-    def render(self, member: discord.Member, server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name, period):
         sql = f"SELECT regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g') AS " \
               f"server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, " \
-              f"players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND m.id = s.mission_id AND " \
+              f"players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND " \
               f"s.hop_off IS NOT NULL "
+        if isinstance(member, discord.Member):
+            sql += 'AND p.discord_id = %s '
+        else:
+            sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
@@ -66,7 +75,7 @@ class PlaytimesPerServer(report.GraphElement):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql, (member.id,))
+                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
@@ -92,10 +101,14 @@ class PlaytimesPerServer(report.GraphElement):
 
 class PlaytimesPerMap(report.GraphElement):
 
-    def render(self, member: discord.Member, server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name, period):
         sql = 'SELECT m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS ' \
               'playtime FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
-              'p.discord_id = %s AND m.id = s.mission_id AND s.hop_off IS NOT NULL '
+              'm.id = s.mission_id AND s.hop_off IS NOT NULL '
+        if isinstance(member, discord.Member):
+            sql += 'AND p.discord_id = %s '
+        else:
+            sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
@@ -105,7 +118,7 @@ class PlaytimesPerMap(report.GraphElement):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql, (member.id,))
+                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
@@ -131,11 +144,15 @@ class PlaytimesPerMap(report.GraphElement):
 
 class RecentActivities(report.GraphElement):
 
-    def render(self, member: discord.Member, server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name, period):
         sql = 'SELECT TO_CHAR(s.hop_on, \'MM/DD\') as day, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(' \
                          's.hop_off, NOW()) - s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE ' \
-                         's.player_ucid = p.ucid AND p.discord_id = %s AND s.hop_on > (DATE(NOW()) - integer \'7\') ' \
+                         's.player_ucid = p.ucid AND s.hop_on > (DATE(NOW()) - integer \'7\') ' \
                          'AND s.mission_id = m.id '
+        if isinstance(member, discord.Member):
+            sql += 'AND p.discord_id = %s '
+        else:
+            sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
@@ -147,7 +164,7 @@ class RecentActivities(report.GraphElement):
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 labels = []
                 values = []
-                cursor.execute(sql, (member.id,))
+                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 self.axes.set_title('Recent Activities', color='white', fontsize=25)
                 self.axes.set_yticks([])
                 for row in cursor.fetchall():
@@ -168,11 +185,15 @@ class RecentActivities(report.GraphElement):
 
 class FlightPerformance(report.GraphElement):
 
-    def render(self, member: discord.Member, server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name, period):
         sql = 'SELECT SUM(ejections) as ejections, SUM(crashes) as crashes, ' \
               'SUM(takeoffs) as takeoffs, SUM(landings) as landings FROM statistics s, ' \
-              'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s' \
+              'players p, missions m WHERE s.player_ucid = p.ucid ' \
               'AND s.mission_id = m.id '
+        if isinstance(member, discord.Member):
+            sql += 'AND p.discord_id = %s '
+        else:
+            sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\''
         if period:
@@ -181,7 +202,7 @@ class FlightPerformance(report.GraphElement):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql, (member.id,))
+                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
@@ -211,20 +232,24 @@ class FlightPerformance(report.GraphElement):
 
 class KDRatio(report.MultiGraphElement):
 
-    def draw_kill_performance(self, ax: Axes, member: discord.Member, server_name: str, period: str):
-        SQL_STATISTICS = 'SELECT COALESCE(SUM(kills), 0) as kills, COALESCE(SUM(deaths), 0) as deaths, COALESCE(SUM(' \
+    def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str):
+        sql = 'SELECT COALESCE(SUM(kills), 0) as kills, COALESCE(SUM(deaths), 0) as deaths, COALESCE(SUM(' \
                          'teamkills), 0) as teamkills FROM statistics s, players p, missions m WHERE s.player_ucid = ' \
-                         'p.ucid AND p.discord_id = %s AND s.mission_id = m.id '
+                         'p.ucid AND s.mission_id = m.id '
+        if isinstance(member, discord.Member):
+            sql += 'AND p.discord_id = %s '
+        else:
+            sql += 'AND p.ucid = %s '
         if server_name:
-            SQL_STATISTICS += f'AND m.server_name = \'{server_name}\''
+            sql += f'AND m.server_name = \'{server_name}\''
         if period:
-            SQL_STATISTICS += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
 
         retval = []
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(SQL_STATISTICS, (member.id,))
+                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
@@ -271,23 +296,25 @@ class KDRatio(report.MultiGraphElement):
             self.pool.putconn(conn)
         return retval
 
-
-    def draw_kill_types(self, ax: Axes, member: discord.Member, server_name: str, period: str):
-        SQL_STATISTICS = 'SELECT 0 AS self, COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(' \
+    def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str):
+        sql = 'SELECT 0 AS self, COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(' \
                          'kills_helicopters), 0) helicopters, COALESCE(SUM(kills_ships), 0) as ships, COALESCE(SUM(' \
                          'kills_sams), 0) as air_defence, COALESCE(SUM(kills_ground), 0) as ground FROM statistics s, ' \
-                         'players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s AND s.mission_id = ' \
-                         'm.id '
+                         'players p, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id '
+        if isinstance(member, discord.Member):
+            sql += 'AND p.discord_id = %s'
+        else:
+            sql += 'AND p.ucid = %s'
         if server_name:
-            SQL_STATISTICS += f'AND m.server_name = \'{server_name}\' '
+            sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            SQL_STATISTICS += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
 
         retval = False
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(SQL_STATISTICS, (member.id,))
+                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 # if no data was found, return False as no chart was drawn
                 if cursor.rowcount > 0:
                     labels = []
@@ -322,23 +349,26 @@ class KDRatio(report.MultiGraphElement):
             self.pool.putconn(conn)
         return retval
 
-
-    def draw_death_types(self, ax: Axes, legend: bool, member: discord.Member, server_name: str, period: str):
-        SQL_STATISTICS = 'SELECT SUM(deaths - deaths_planes - deaths_helicopters - deaths_ships - deaths_sams - ' \
+    def draw_death_types(self, ax: Axes, legend: bool, member: Union[discord.Member, str], server_name: str, period: str):
+        sql = 'SELECT SUM(deaths - deaths_planes - deaths_helicopters - deaths_ships - deaths_sams - ' \
                          'deaths_ground) AS self, SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, ' \
                          'SUM(deaths_ships) as ships, SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground ' \
-                         'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND p.discord_id = %s ' \
+                         'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid ' \
                          'AND s.mission_id = m.id '
+        if isinstance(member, discord.Member):
+            sql += 'AND p.discord_id = %s '
+        else:
+            sql += 'AND p.ucid = %s '
         if server_name:
-            SQL_STATISTICS += f'AND m.server_name = \'{server_name}\' '
+            sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            SQL_STATISTICS += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
 
         retval = False
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(SQL_STATISTICS, (member.id,))
+                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 result = cursor.fetchone()
                 # if no data was found, return False as no chart was drawn
                 if cursor.rowcount > 0:
@@ -375,7 +405,7 @@ class KDRatio(report.MultiGraphElement):
             self.pool.putconn(conn)
         return retval
 
-    def render(self, member: discord.Member, server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name, period):
         retval = self.draw_kill_performance(self.axes[1], member, server_name, period)
         i = 0
         if ('kills' in retval) and (self.draw_kill_types(self.axes[2], member, server_name, period) is True):

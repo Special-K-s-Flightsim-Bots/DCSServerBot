@@ -15,11 +15,29 @@ class UserStatistics(Plugin):
     @commands.command(description='Shows player statistics', usage='[member] [period]', aliases=['stats'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def statistics(self, ctx, member: Optional[discord.Member], period: Optional[str], server_name: Optional[str]):
-        if member is None:
+    async def statistics(self, ctx, member: Optional[Union[discord.Member, str]], *params):
+        num = len(params)
+        if not member:
             member = ctx.message.author
+            period = None
+        elif isinstance(member, discord.Member):
+            period = params[0] if num > 0 else None
+        elif member in ['day', 'week', 'month', 'year']:
+            period = member
+            member = ctx.message.author
+        else:
+            i = 0
+            name = member
+            while i < num and params[i] not in ['day', 'week', 'month', 'year']:
+                name += ' ' + params[i]
+                i += 1
+            member = utils.find_user(self, name)
+            if not member:
+                await ctx.send('No players found with that nickname.')
+                return
+            period = params[i] if i < num else None
         report = PaginationReport(self.bot, ctx, self.plugin, 'userstats.json')
-        await report.render(member=member, period=period, server_name=server_name)
+        await report.render(member=member, period=period, server_name=None)
 
     @commands.command(description='Shows actual highscores', usage='[period]', aliases=['hs'])
     @utils.has_role('DCS')
