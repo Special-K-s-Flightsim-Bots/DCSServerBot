@@ -38,13 +38,16 @@ class Plugin(commands.Cog):
         self.log.debug(f'- Plugin {type(self).__name__} unloaded.')
 
     def install(self):
-        self.init_db()
+        # don't init the DB on agents, whole DB handling is a master task
+        if self.config.getboolean('BOT', 'MASTER') is True:
+            self.init_db()
         for installation in utils.findDCSInstallations():
             if installation not in self.config:
                 continue
             source_path = f'./plugins/{self.plugin}/lua'
             if path.exists(source_path):
-                target_path = path.expandvars(self.config[installation]['DCS_HOME'] + f'\\Scripts\\net\\DCSServerBot\\{self.plugin}\\')
+                target_path = path.expandvars(self.config[installation]['DCS_HOME'] +
+                                              f'\\Scripts\\net\\DCSServerBot\\{self.plugin}\\')
                 copytree(source_path, target_path, dirs_exist_ok=True)
                 self.log.debug(f'  => Luas installed into {installation}')
         # create report directories for convenience

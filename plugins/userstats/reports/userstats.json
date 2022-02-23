@@ -6,7 +6,7 @@
   [
     {
       "name": "period",
-      "range": ["", "day", "month", "week", "year"]
+      "range": ["", "day", "week", "month", "year"]
     }
   ],
   "pagination":

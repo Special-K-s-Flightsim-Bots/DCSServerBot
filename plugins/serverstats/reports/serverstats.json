@@ -27,16 +27,16 @@
   "elements":
   [
     {
-      "class": "plugins.userstats.serverstats.ServerUsage"
+      "class": "plugins.serverstats.serverstats.ServerUsage"
     },
     "Ruler",
     {
-      "class": "plugins.userstats.serverstats.TopMissionPerServer",
+      "class": "plugins.serverstats.serverstats.TopMissionPerServer",
       "params": { "limit": 3 }
     },
     "Ruler",
     {
-      "class": "plugins.userstats.serverstats.TopModulesPerServer",
+      "class": "plugins.serverstats.serverstats.TopModulesPerServer",
       "params": { "limit": 10 }
     },
     "Ruler",
@@ -51,11 +51,11 @@
         "elements":
          [
             {
-              "class": "plugins.userstats.serverstats.UniquePast14",
+              "class": "plugins.serverstats.serverstats.UniquePast14",
               "params": { "col": 0, "row": 0 }
             },
             {
-              "class": "plugins.userstats.serverstats.UsersPerDayTime",
+              "class": "plugins.serverstats.serverstats.UsersPerDayTime",
               "params": { "col": 0, "row": 1 }
             }
          ]

@@ -16,7 +16,7 @@ from configparser import ConfigParser
 from contextlib import closing, suppress
 from datetime import datetime, timedelta
 from discord.ext import commands
-from typing import Union
+from typing import Union, Optional
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
 REGEXP = {
@@ -189,6 +189,23 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False):
         self.pool.putconn(conn)
 
 
+def find_user(self, name: str) -> Optional[str]:
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            search = f'%{name}%'
+            cursor.execute('SELECT ucid FROM players WHERE LOWER(name) like LOWER(%s) ORDER BY last_seen DESC LIMIT 1',
+                           (search, ))
+            if cursor.rowcount == 1:
+                return cursor.fetchone()[0]
+            else:
+                return None
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
+
+
 async def wait_for_single_reaction(self, ctx, message):
     def check_press(react, user):
         return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.message.id == message.id)
@@ -336,8 +353,9 @@ def find_process(proc, installation):
     for p in psutil.process_iter(['name', 'cmdline']):
         if p.info['name'] == proc:
             with suppress(Exception):
-                if installation in p.info['cmdline'][1]:
-                    return p
+                for c in p.info['cmdline']:
+                    if installation in c:
+                        return p
     return None
 
 
@@ -380,10 +398,10 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
 
 
 def start_dcs(self, server: dict):
-    self.log.debug('Launching DCS server with: "{}\\bin\\dcs.exe" --server --norender -w {}'.format(
+    self.log.debug(r'Launching DCS server with: "{}\bin\dcs.exe" --server --norender -w {}'.format(
         os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']), server['installation']))
     return subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', server['installation']],
-                            executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs.exe')
+                            executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\bin\dcs.exe')
 
 
 def stop_dcs(self, server: dict):
@@ -392,12 +410,12 @@ def stop_dcs(self, server: dict):
 
 
 def start_srs(self, server: dict):
-    self.log.debug('Launching SRS server with: "{}\\SR-Server.exe" -cfg="{}"'.format(
+    self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
         os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']),
         os.path.expandvars(self.config[server['installation']]['SRS_CONFIG'])))
     return subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(
         os.path.expandvars(self.config[server['installation']]['SRS_CONFIG']))],
-                            executable=os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']) + '\\SR-Server.exe')
+                           executable=os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']) + r'\SR-Server.exe')
 
 
 def check_srs(self, server: dict) -> bool:
@@ -476,4 +494,3 @@ def sanitize(self):
     except (OSError, IOError) as e:
         self.log.error(f"Can't access {filename}. Make sure, {self.config['DCS']['DCS_INSTALLATION']} is writable.")
         raise e
-

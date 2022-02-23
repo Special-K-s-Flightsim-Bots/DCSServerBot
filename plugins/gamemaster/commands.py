@@ -46,7 +46,7 @@ class GameMaster(Plugin):
             else:
                 await ctx.send(f"Mission is {server['status'].lower()}, message discarded.")
 
-    @commands.command(description='Send a chat message to a running DCS instance', usage='<message>', hidden=True)
+    @commands.command(description='Send a chat message to a running DCS instance', usage='<flag> [value]', hidden=True)
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def flag(self, ctx, flag, value=None):

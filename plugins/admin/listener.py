@@ -60,7 +60,7 @@ class AdminEventListener(EventListener):
             self.globals[data['server_name']] = data | self.globals[data['server_name']]
             server = self.globals[data['server_name']]
             if data['channel'].startswith('sync-'):
-                server['status'] = Status.RUNNING
+                server['status'] = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
             else:
                 server['status'] = Status.LOADING
             # Store server configuration
@@ -70,3 +70,20 @@ class AdminEventListener(EventListener):
             self.log.error(
                 'Configuration mismatch. Please check channel settings in dcsserverbot.ini for server {}!'.format(
                     data['server_name']))
+
+    async def ban(self, data):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
+                               (data['ucid'], 'DCSServerBot', data['reason']))
+                for server in self.globals.values():
+                    self.bot.sendtoDCS(server, {
+                        "command": "ban",
+                        "ucid": data['ucid'],
+                        "reason": data['reason']
+                    })
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)

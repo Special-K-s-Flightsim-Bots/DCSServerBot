@@ -1,0 +1,49 @@
+{
+  "color": "blue",
+  "title": "Server Load ({period})",
+  "description": "_{server_name}_",
+  "input": [
+    {
+      "name": "period",
+      "range": ["", "hour", "day", "week"],
+      "default": "hour"
+    },
+    {
+      "name": "ruler_length",
+      "value": 27
+    }
+  ],
+  "pagination":
+  {
+    "param":
+    {
+      "name": "server_name",
+      "sql": "SELECT DISTINCT server_name FROM missions"
+    }
+  },
+  "elements":
+  [
+    {
+      "type": "Graph",
+      "params":
+      {
+        "width": 15,
+        "height": 10,
+        "cols": 1,
+        "rows": 4,
+        "elements":
+         [
+            {
+              "class": "plugins.serverstats.serverstats.ServerLoad",
+              "params": [
+                { "row": 0, "col": 0 },
+                { "row": 1, "col": 0 },
+                { "row": 2, "col": 0 },
+                { "row": 3, "col": 0 }
+              ]
+            }
+         ]
+      }
+    }
+  ]
+}

@@ -29,6 +29,7 @@ These commands can be used to administrate the bot itself.
 | Scheduler    | Autostart / -stop of servers or missions.                           | no       | Mission      | [README](./plugins/scheduler/README.md)    |
 | Userstats    | Users statistics system.                                            | yes*     | Mission      | [README](./plugins/userstats/README.md)    |
 | Missionstats | Detailed users statistics / mission statistics.                     | yes*     | Userstats    | [README](./plugins/missionstats/README.md) |
+| Serverstats  | Server statistics for your DCS servers.                             | yes      | Userstats    | [README](./plugins/serverstats/README.md)  |
 | Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission      | [README](./plugins/punishment/README.md)   |
 | Slotblocking | Slotblocking either based on units or a point based system.         | yes      | Mission      | [README](./plugins/slotblocking/README.md) |
 | Gamemaster   | Interaction with the running mission (inform users, set flags, etc) | yes*     |              | [README](./plugins/gamemaster/README.md)   |
