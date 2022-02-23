@@ -58,14 +58,14 @@ class ServerStats(Plugin):
                     if process.pid not in self.io_counters:
                         write_bytes = read_bytes = 0
                     else:
-                        write_bytes = (io_counters.write_bytes - self.io_counters[process.pid].write_bytes) / 60.0
-                        read_bytes = (io_counters.read_bytes - self.io_counters[process.pid].read_bytes) / 60.0
+                        write_bytes = int((io_counters.write_bytes - self.io_counters[process.pid].write_bytes) / 60)
+                        read_bytes = int((io_counters.read_bytes - self.io_counters[process.pid].read_bytes) / 60)
                     self.io_counters[process.pid] = io_counters
                     if not self.net_io_counters:
                         bytes_sent = bytes_recv = 0
                     else:
-                        bytes_sent = (net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 60.0
-                        bytes_recv = (net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 60.0
+                        bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 60)
+                        bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 60)
                     self.net_io_counters = net_io_counters
                     if server_name in self.eventlistener.fps:
                         cursor.execute('INSERT INTO serverstats (server_name, mission_id, users, status, cpu, '
