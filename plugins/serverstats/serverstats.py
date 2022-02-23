@@ -1,11 +1,8 @@
-import matplotlib.dates as mdates
-import matplotlib.units as munits
 import numpy as np
 import pandas as pd
 import psycopg2
 from contextlib import closing
 from core import const, report
-from datetime import datetime
 from matplotlib.ticker import FuncFormatter
 from typing import Optional
 
@@ -206,7 +203,7 @@ class ServerLoad(report.MultiGraphElement):
                 self.axes[0].legend(['FPS', 'CPU'])
                 series.plot(ax=ax2, x='time', y=['users'], xticks=[], xlabel='', color='blue')
                 ax2.legend(['Users'])
-                series.plot(ax=self.axes[1], x='time', y=['mem_ram', 'mem_swap'], title='Memory', xticks=[], xlabel="", ylabel='Memory (GB)', kind='bar', stacked=True)
+                series.plot(ax=self.axes[1], x='time', y=['mem_ram', 'mem_swap'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='bar', stacked=True)
                 self.axes[1].legend(['Memory (RAM)', 'Memory (paged)'])
                 series.plot(ax=self.axes[2], x='time', y=['read_bytes', 'write_bytes'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='Bytes (Mbs)', grid=True)
                 self.axes[2].legend(['Read', 'Write'])

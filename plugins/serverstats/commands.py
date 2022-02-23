@@ -39,7 +39,7 @@ class AgentServerStats(Plugin):
                         continue
                     if server['server_name'] in self.bot.player_data:
                         players = self.bot.player_data[server['server_name']]
-                        users = len(players[players['active'] == True]) + 1
+                        users = len(players[players['active'] == True])
                     else:
                         users = 0
                     mission_id = self.globals[server_name]['mission_id'] if 'mission_id' in server else -1
