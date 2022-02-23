@@ -1,6 +1,6 @@
 {
   "color": "blue",
-  "title": "Server Load ({period})",
+  "title": "Load ({period}) for Server {agent_host}",
   "description": "_{server_name}_",
   "input": [
     {

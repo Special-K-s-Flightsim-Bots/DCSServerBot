@@ -187,19 +187,19 @@ class UsersPerDayTime(report.GraphElement):
 
 class ServerLoad(report.MultiGraphElement):
 
-    def render(self, server_name: Optional[str], period: str):
-        sql = f"select date_trunc('minute', time) AS time, SUM(users) AS users, SUM(cpu) AS cpu, SUM(mem_total-mem_ram)/(1024*1024) " \
-              f"AS mem_swap, SUM(mem_ram)/(1024*1024) AS mem_ram, SUM(read_bytes)/1024 AS read_bytes, SUM(write_bytes)/1024 " \
-              f"AS write_bytes, ROUND(AVG(bytes_sent))/1024 AS bytes_sent, ROUND(AVG(bytes_recv))/1024 AS bytes_recv, " \
-              f"ROUND(AVG(fps), 2) AS fps FROM serverstats WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}') "
+    def render(self, server_name: Optional[str], period: str, agent_host: str):
+        sql = f"select date_trunc('minute', time) AS time, SUM(users) AS users, SUM(cpu) AS cpu, " \
+              f"SUM(mem_total-mem_ram)/(1024*1024) AS mem_swap, SUM(mem_ram)/(1024*1024) AS mem_ram, " \
+              f"SUM(read_bytes)/1024 AS read_bytes, SUM(write_bytes)/1024 AS write_bytes, ROUND(AVG(bytes_sent))/1024 " \
+              f"AS bytes_sent, ROUND(AVG(bytes_recv))/1024 AS bytes_recv, ROUND(AVG(fps), 2) AS fps FROM serverstats " \
+              f"WHERE agent_host = %s AND time > (CURRENT_TIMESTAMP - interval '1 {period}')"
         if server_name:
             sql += f" AND server_name = '{server_name}' "
         sql += " GROUP BY 1"
-        print(sql)
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute(sql)
+                cursor.execute(sql, (agent_host, ))
                 series = pd.DataFrame.from_dict(cursor.fetchall())
                 ax2 = self.axes[0].twinx()
                 series.plot(ax=self.axes[0], x='time', y=['fps', 'cpu'], title='Users/CPU/FPS', xticks=[], xlabel='', ylim=(0, 100))
