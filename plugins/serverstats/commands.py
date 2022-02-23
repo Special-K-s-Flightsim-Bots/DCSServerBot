@@ -58,30 +58,22 @@ class ServerStats(Plugin):
                     if process.pid not in self.io_counters:
                         write_bytes = read_bytes = 0
                     else:
-                        write_bytes = io_counters.write_bytes - self.io_counters[process.pid].write_bytes
-                        read_bytes = io_counters.read_bytes - self.io_counters[process.pid].read_bytes
+                        write_bytes = (io_counters.write_bytes - self.io_counters[process.pid].write_bytes) / 60.0
+                        read_bytes = (io_counters.read_bytes - self.io_counters[process.pid].read_bytes) / 60.0
                     self.io_counters[process.pid] = io_counters
                     if not self.net_io_counters:
                         bytes_sent = bytes_recv = 0
                     else:
-                        bytes_sent = net_io_counters.bytes_sent - self.net_io_counters.bytes_sent
-                        bytes_recv = net_io_counters.bytes_recv - self.net_io_counters.bytes_recv
+                        bytes_sent = (net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 60.0
+                        bytes_recv = (net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 60.0
                     self.net_io_counters = net_io_counters
                     if server_name in self.eventlistener.fps:
                         cursor.execute('INSERT INTO serverstats (server_name, mission_id, users, status, cpu, '
                                        'mem_total, mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, '
-                                       'fps) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)', (server_name,
-                                                                                                        mission_id,
-                                                                                                        users,
-                                                                                                        server['status'].name,
-                                                                                                        cpu,
-                                                                                                        memory.private,
-                                                                                                        memory.uss,
-                                                                                                        read_bytes,
-                                                                                                        write_bytes,
-                                                                                                        bytes_sent,
-                                                                                                        bytes_recv,
-                                                                                                        self.eventlistener.fps[server_name]))
+                                       'fps) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                                       (server_name, mission_id, users, server['status'].name, cpu, memory.private,
+                                        memory.uss, read_bytes, write_bytes, bytes_sent, bytes_recv,
+                                        self.eventlistener.fps[server_name]))
                         conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
