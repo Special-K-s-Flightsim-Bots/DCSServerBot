@@ -21,6 +21,7 @@ from psycopg2 import pool
 
 # Set the bot's version (not externally configurable)
 BOT_VERSION = '2.5.7'
+SUB_VERSION = 1
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -43,7 +44,7 @@ class Main:
     def __init__(self):
         self.config = self.read_config()
         self.log = self.init_logger()
-        self.log.info(f'DCSServerBot v{BOT_VERSION} starting up ...')
+        self.log.info(f'DCSServerBot v{BOT_VERSION}.{SUB_VERSION} starting up ...')
         if self.config.getboolean('BOT', 'AUTOUPDATE') and self.upgrade():
             self.log.warning('- Restart needed => exiting.')
             exit(-1)
