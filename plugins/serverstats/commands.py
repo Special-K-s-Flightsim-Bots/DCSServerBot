@@ -25,7 +25,9 @@ class AgentServerStats(Plugin):
     @commands.command(description='Shows servers load', usage='[period]')
     @utils.has_role('Admin')
     @commands.guild_only()
-    async def serverload(self, ctx, period: Optional[str], server_name: Optional[str]):
+    async def serverload(self, ctx, period: Optional[str]):
+        server = await utils.get_server(self, ctx)
+        server_name = server['server_name'] if server else None
         report = PaginationReport(self.bot, ctx, self.plugin, 'serverload.json')
         await report.render(period=period, server_name=server_name, agent_host=platform.node())
 
@@ -93,7 +95,9 @@ class MasterServerStats(AgentServerStats):
     @commands.command(description='Shows servers statistics', usage='[period]')
     @utils.has_role('Admin')
     @commands.guild_only()
-    async def serverstats(self, ctx, period: Optional[str], server_name: Optional[str]):
+    async def serverstats(self, ctx, period: Optional[str]):
+        server = await utils.get_server(self, ctx)
+        server_name = server['server_name'] if server else None
         report = PaginationReport(self.bot, ctx, self.plugin, 'serverstats.json')
         await report.render(period=period, server_name=server_name)
 

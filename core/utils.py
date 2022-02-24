@@ -312,7 +312,9 @@ async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]
         if isinstance(ctx, discord.ext.commands.context.Context):
             if server['status'] == Status.UNKNOWN:
                 continue
-            if (int(server['status_channel']) == ctx.channel.id) or (int(server['chat_channel']) == ctx.channel.id) or (int(server['admin_channel']) == ctx.channel.id):
+            if (int(server['status_channel']) == ctx.channel.id) or \
+                    (int(server['chat_channel']) == ctx.channel.id) or \
+                    (int(server['admin_channel']) == ctx.channel.id):
                 return server
         else:
             if server_name == ctx:

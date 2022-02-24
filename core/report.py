@@ -310,6 +310,8 @@ class PaginationReport(Report):
 
     async def render(self, *args, **kwargs) -> ReportEnv:
         name, values = self.read_param(self.report_def['pagination']['param'])
+        if name in kwargs and kwargs[name] is not None:
+            values = [kwargs[name]]
         func = super().render
 
         async def pagination(value=None):
@@ -360,7 +362,10 @@ class PaginationReport(Report):
             except asyncio.TimeoutError:
                 await message.clear_reactions()
 
-        await pagination()
+        if len(values) == 1:
+            await pagination(values[0])
+        else:
+            await pagination()
         return self.env
 
 

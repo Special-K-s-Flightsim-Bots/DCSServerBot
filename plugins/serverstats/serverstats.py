@@ -87,8 +87,8 @@ class TopMissionPerServer(report.EmbedElement):
 class TopModulesPerServer(report.EmbedElement):
 
     def render(self, server_name: Optional[str], period: Optional[str], limit: int):
-        sql = 'SELECT s.slot, COUNT(s.slot) AS num_usage, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - ' \
-              's.hop_on))) / 3600) AS playtime, COUNT(DISTINCT s.player_ucid) AS players FROM missions m, ' \
+        sql = 'SELECT s.slot, COUNT(s.slot) AS num_usage, COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - ' \
+              's.hop_on))) / 3600),0) AS playtime, COUNT(DISTINCT s.player_ucid) AS players FROM missions m, ' \
               'statistics s WHERE m.id = s.mission_id '
         if server_name:
             sql += ' AND m.server_name = \'{}\' '.format(server_name)
@@ -197,18 +197,23 @@ class ServerLoad(report.MultiGraphElement):
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
                 cursor.execute(sql, (agent_host, ))
-                series = pd.DataFrame.from_dict(cursor.fetchall())
-                ax2 = self.axes[0].twinx()
-                series.plot(ax=self.axes[0], x='time', y=['fps', 'cpu'], title='Users/CPU/FPS', xticks=[], xlabel='', ylim=(0, 100))
-                self.axes[0].legend(['FPS', 'CPU'])
-                series.plot(ax=ax2, x='time', y=['users'], xticks=[], xlabel='', color='blue')
-                ax2.legend(['Users'])
-                series.plot(ax=self.axes[1], x='time', y=['mem_ram', 'mem_swap'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='bar', stacked=True)
-                self.axes[1].legend(['Memory (RAM)', 'Memory (paged)'])
-                series.plot(ax=self.axes[2], x='time', y=['read_bytes', 'write_bytes'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='Bytes (Mbs)', grid=True)
-                self.axes[2].legend(['Read', 'Write'])
-                series.plot(ax=self.axes[3], x='time', y=['bytes_sent', 'bytes_recv'], title='Network', logy=True, xlabel='', ylabel='Bytes (Mbs)', grid=True)
-                self.axes[3].legend(['Sent', 'Recv'])
+                if cursor.rowcount > 0:
+                    series = pd.DataFrame.from_dict(cursor.fetchall())
+                    ax2 = self.axes[0].twinx()
+                    series.plot(ax=self.axes[0], x='time', y=['fps', 'cpu'], title='Users/CPU/FPS', xticks=[], xlabel='', ylim=(0, 100))
+                    self.axes[0].legend(['FPS', 'CPU'])
+                    series.plot(ax=ax2, x='time', y=['users'], xticks=[], xlabel='', color='blue')
+                    ax2.legend(['Users'])
+                    series.plot(ax=self.axes[1], x='time', y=['mem_ram', 'mem_swap'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='bar', stacked=True)
+                    self.axes[1].legend(['Memory (RAM)', 'Memory (paged)'])
+                    series.plot(ax=self.axes[2], x='time', y=['read_bytes', 'write_bytes'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='Bytes (Mbs)', grid=True)
+                    self.axes[2].legend(['Read', 'Write'])
+                    series.plot(ax=self.axes[3], x='time', y=['bytes_sent', 'bytes_recv'], title='Network', logy=True, xlabel='', ylabel='Bytes (Mbs)', grid=True)
+                    self.axes[3].legend(['Sent', 'Recv'])
+                else:
+                    for i in range(0, 4):
+                        self.axes[i].set_xticks([])
+                        self.axes[i].set_yticks([])
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
