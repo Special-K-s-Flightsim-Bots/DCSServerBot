@@ -6,7 +6,7 @@ n/a
 
 ## Discord Commands
 
-| Command      | Parameter        | Role  | Description                                                                            |
-|--------------|------------------|-------|----------------------------------------------------------------------------------------|
-| .serverstats | [day/week/month] | Admin | Displays server statistics, like usual playtime, most frequented servers and missions. |
-| .serverload  | [hour/day/week]  | Admin | Displays technical server statistics, like CPU load, memory consumption, etc.          |
+| Command      | Parameter               | Role  | Description                                                                                                                                             |
+|--------------|-------------------------|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| .serverstats | [day/week/month] [-all] | Admin | Displays server statistics, like usual playtime, most frequented servers and missions.<br/>If -all is provided, you can cycle through all your servers. |
+| .serverload  | [hour/day/week] [-all]  | Admin | Displays technical server statistics, like CPU load, memory consumption, etc.<br/>If -all is provided, you can cycle through all your servers.          |

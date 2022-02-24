@@ -8,7 +8,9 @@ function dcsbot.uploadUserInfo(json)
     dcsbot.userInfo[json.ucid] = {}
     dcsbot.userInfo[json.ucid].points = tonumber(json.points) or 0
     dcsbot.userInfo[json.ucid].roles = json.roles
-    net.send_chat_to('You currently have ' .. json.points .. ' points!', json.id)
+    if json.points > 0 then
+        net.send_chat_to('You currently have ' .. json.points .. ' points!', json.id)
+    end
 end
 
 function dcsbot.updateUserPoints(json)
