@@ -347,7 +347,7 @@ def is_open(ip, port):
 
 async def get_external_ip():
     async with aiohttp.ClientSession() as session:
-        async with session.get('https://api64.ipify.org/') as resp:
+        async with session.get('https://api4.ipify.org/') as resp:
             return await resp.text()
 
 
