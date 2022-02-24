@@ -17,7 +17,7 @@ class PunishmentEventListener(EventListener):
         self.stats_type: StatsType = StatsType.USER_STATS
         self.lock = asyncio.Lock()
 
-    async def registerDCSServer(self, data):
+    async def registerDCSServer(self, data: dict):
         server = self.globals[data['server_name']]
         if 'configs' in self.locals:
             specific = default = None
@@ -51,14 +51,14 @@ class PunishmentEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    def sendChatMessage(self, server_name: str, id: int, message):
+    def sendChatMessage(self, server_name: str, player: int, message: str):
         self.bot.sendtoDCS(self.globals[server_name], {
             "command": "sendChatMessage",
-            "to": id,
+            "to": player,
             "message": message
         })
 
-    async def add_points(self, data: dict):
+    async def punish(self, data: dict):
         config = self.globals[data['server_name']][self.plugin]
         if 'penalties' in config:
             penalty = next((item for item in config['penalties'] if item['event'] == data['eventName']), None)
@@ -110,7 +110,7 @@ class PunishmentEventListener(EventListener):
                     finally:
                         self.pool.putconn(conn)
 
-    async def onGameEvent(self, data):
+    async def onGameEvent(self, data: dict):
         if self.stats_type == StatsType.USER_STATS:
             server = self.globals[data['server_name']]
             if self.plugin in server:
@@ -124,7 +124,7 @@ class PunishmentEventListener(EventListener):
                         # check collision
                         if data['arg2'] == initiator['unit_type']:
                             data['eventName'] = 'collision_hit'
-                        await self.add_points(data)
+                        await self.punish(data)
                 elif data['eventName'] == 'kill':
                     if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
                         initiator = utils.get_player(self, data['server_name'], id=data['arg1'])
@@ -135,9 +135,9 @@ class PunishmentEventListener(EventListener):
                         # check collision
                         if data['arg7'] == initiator['unit_type']:
                             data['eventName'] = 'collision_kill'
-                        await self.add_points(data)
+                        await self.punish(data)
 
-    async def onChatMessage(self, data):
+    async def onChatMessage(self, data: dict):
         if '-forgive' in data['message']:
             config = self.globals[data['server_name']][self.plugin]
             target = utils.get_player(self, data['server_name'], id=data['from_id'])
