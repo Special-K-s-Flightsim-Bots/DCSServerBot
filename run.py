@@ -21,7 +21,7 @@ from psycopg2 import pool
 
 # Set the bot's version (not externally configurable)
 BOT_VERSION = '2.5.7'
-SUB_VERSION = 1
+SUB_VERSION = 2
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
