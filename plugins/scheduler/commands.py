@@ -173,7 +173,7 @@ class Scheduler(Plugin):
         # check if the mission is still populated
         if 'populated' in config['restart'] and config['restart']['populated'] is False and utils.is_populated(self, server):
             # check again in a minute
-            self.loop.call_later(60, self.restart_mission, (server, config))
+            self.loop.call_later(60, self.restart_mission, server, config)
         else:
             method = config['restart']['method']
             restart_time = self.warn_users(server, config)
