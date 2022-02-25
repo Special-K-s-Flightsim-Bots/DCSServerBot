@@ -76,21 +76,25 @@ class AgentServerStats(Plugin):
                         users = 0
                     mission_id = self.globals[server_name]['mission_id'] if 'mission_id' in server else -1
                     process = utils.find_process('DCS.exe', server['installation'])
+                    if not process:
+                        self.log.warning(f"Could not find a running DCS instance for server {server_name}, skipping "
+                                         f"server load gathering.")
+                        continue
                     cpu = process.cpu_percent()
                     memory = process.memory_full_info()
                     io_counters = process.io_counters()
                     if process.pid not in self.io_counters:
                         write_bytes = read_bytes = 0
                     else:
-                        write_bytes = int((io_counters.write_bytes - self.io_counters[process.pid].write_bytes) / 60)
-                        read_bytes = int((io_counters.read_bytes - self.io_counters[process.pid].read_bytes) / 60)
+                        write_bytes = io_counters.write_bytes - self.io_counters[process.pid].write_bytes
+                        read_bytes = io_counters.read_bytes - self.io_counters[process.pid].read_bytes
                     self.io_counters[process.pid] = io_counters
                     net_io_counters = psutil.net_io_counters(pernic=False)
                     if not self.net_io_counters:
                         bytes_sent = bytes_recv = 0
                     else:
-                        bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 60)
-                        bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 60)
+                        bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
+                        bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
                     self.net_io_counters = net_io_counters
                     if server_name in self.eventlistener.fps:
                         cursor.execute('INSERT INTO serverstats (server_name, agent_host, mission_id, users, status, '
