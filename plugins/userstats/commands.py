@@ -36,6 +36,7 @@ class UserStatistics(Plugin):
                 await ctx.send('No players found with that nickname.')
                 return
             period = params[i] if i < num else None
+        await ctx.message.delete()
         report = PaginationReport(self.bot, ctx, self.plugin, 'userstats.json')
         await report.render(member=member, period=period, server_name=None)
 
@@ -43,6 +44,7 @@ class UserStatistics(Plugin):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def highscore(self, ctx, period: Optional[str], server_name: Optional[str]):
+        await ctx.message.delete()
         report = PaginationReport(self.bot, ctx, self.plugin, 'highscore.json')
         await report.render(period=period, server_name=server_name)
 
