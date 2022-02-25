@@ -72,12 +72,14 @@ class Punishment(Plugin):
                                         })
                                         self.eventlistener.sendChatMessage(server['server_name'], initiator['id'],
                                                                            f"You've been kicked back to spectators "
-                                                                           f"because of: {reason}")
+                                                                           f"because of: {reason}.\nYour current "
+                                                                           f"punishment points are: {row['points']}")
                                     elif punishment['action'] == 'warn':
                                         self.bot.sendtoDCS(server, {
                                             "command": "sendPopupMessage",
                                             "to": initiator['group_id'],
-                                            "message": f"{initiator['name']}, you have been punished for: {reason}!"
+                                            "message": f"{initiator['name']}, you have been punished for: {reason}!\n"
+                                                       f"Your current punishment points are: {row['points']}"
                                         })
                                     break
                         cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))

@@ -187,8 +187,8 @@ class ServerLoad(report.MultiGraphElement):
     def render(self, server_name: Optional[str], period: str, agent_host: str):
         sql = f"select date_trunc('minute', time) AS time, SUM(users) AS users, SUM(cpu) AS cpu, " \
               f"SUM(mem_total-mem_ram)/(1024*1024) AS mem_swap, SUM(mem_ram)/(1024*1024) AS mem_ram, " \
-              f"SUM(read_bytes)/1024 AS read_bytes, SUM(write_bytes)/1024 AS write_bytes, ROUND(AVG(bytes_sent))/1024 " \
-              f"AS bytes_sent, ROUND(AVG(bytes_recv))/1024 AS bytes_recv, ROUND(AVG(fps), 2) AS fps FROM serverstats " \
+              f"SUM(read_bytes)/1024 AS read_bytes, SUM(write_bytes)/1024 AS write_bytes, ROUND(AVG(bytes_sent)) " \
+              f"AS bytes_sent, ROUND(AVG(bytes_recv)) AS bytes_recv, ROUND(AVG(fps), 2) AS fps FROM serverstats " \
               f"WHERE agent_host = %s AND time > (CURRENT_TIMESTAMP - interval '1 {period}')"
         if server_name:
             sql += f" AND server_name = '{server_name}' "
@@ -206,9 +206,9 @@ class ServerLoad(report.MultiGraphElement):
                     ax2.legend(['Users'])
                     series.plot(ax=self.axes[1], x='time', y=['mem_ram', 'mem_swap'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='bar', stacked=True)
                     self.axes[1].legend(['Memory (RAM)', 'Memory (paged)'])
-                    series.plot(ax=self.axes[2], x='time', y=['read_bytes', 'write_bytes'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='Bytes (Mbs)', grid=True)
+                    series.plot(ax=self.axes[2], x='time', y=['read_bytes', 'write_bytes'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='KB', kind='bar', grid=True)
                     self.axes[2].legend(['Read', 'Write'])
-                    series.plot(ax=self.axes[3], x='time', y=['bytes_sent', 'bytes_recv'], title='Network', logy=True, xlabel='', ylabel='Bytes (Mbs)', grid=True)
+                    series.plot(ax=self.axes[3], x='time', y=['bytes_sent', 'bytes_recv'], title='Network', logy=True, xlabel='', ylabel='KB/s', grid=True)
                     self.axes[3].legend(['Sent', 'Recv'])
                 else:
                     for i in range(0, 4):

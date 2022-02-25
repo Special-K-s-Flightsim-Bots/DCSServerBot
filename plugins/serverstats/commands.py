@@ -1,10 +1,12 @@
+import discord
+import os
 import platform
 import psutil
 import psycopg2
 from contextlib import closing
-from core import utils, Plugin, DCSServerBot, TEventListener, Status, PaginationReport, PluginRequiredError
+from core import utils, Plugin, DCSServerBot, TEventListener, Status, PluginRequiredError, Report, PaginationReport
 from discord.ext import tasks, commands
-from typing import Type, Optional
+from typing import Type, Optional, Tuple
 from .listener import ServerStatsListener
 
 
@@ -22,14 +24,42 @@ class AgentServerStats(Plugin):
         self.schedule.cancel()
         super().cog_unload()
 
+    def get_params(self, *params) -> Tuple[bool, Optional[str]]:
+        all = False
+        period = None
+        if len(params):
+            for i in range(0, len(params)):
+                if params[i] in ['hour', 'day', 'week', 'month', 'year']:
+                    period = params[i]
+                elif params[i].lower() == '-all':
+                    all = True
+        return all, period
+
+    async def display_report(self, ctx, report: str, period: str, server_name: str):
+        report = Report(self.bot, self.plugin, report)
+        env = await report.render(period=period, server_name=server_name, agent_host=platform.node())
+        file = discord.File(env.filename) if env.filename else None
+        await ctx.send(embed=env.embed, file=file)
+        if env.filename:
+            os.remove(env.filename)
+
     @commands.command(description='Shows servers load', usage='[period]')
     @utils.has_role('Admin')
     @commands.guild_only()
-    async def serverload(self, ctx, period: Optional[str]):
+    async def serverload(self, ctx, *params):
+        all, period = self.get_params(*params)
         server = await utils.get_server(self, ctx)
-        server_name = server['server_name'] if server else None
-        report = PaginationReport(self.bot, ctx, self.plugin, 'serverload.json')
-        await report.render(period=period, server_name=server_name, agent_host=platform.node())
+        if not all and server:
+            await self.display_report(ctx, 'serverload.json', period, server['server_name'])
+
+    @commands.command(description='Shows servers statistics', usage='[period]')
+    @utils.has_role('Admin')
+    @commands.guild_only()
+    async def serverstats(self, ctx, *params):
+        all, period = self.get_params(*params)
+        server = await utils.get_server(self, ctx)
+        if not all and server:
+            await self.display_report(ctx, 'serverstats.json', period, server['server_name'])
 
     @tasks.loop(minutes=1.0)
     async def schedule(self):
@@ -46,21 +76,25 @@ class AgentServerStats(Plugin):
                         users = 0
                     mission_id = self.globals[server_name]['mission_id'] if 'mission_id' in server else -1
                     process = utils.find_process('DCS.exe', server['installation'])
+                    if not process:
+                        self.log.warning(f"Could not find a running DCS instance for server {server_name}, skipping "
+                                         f"server load gathering.")
+                        continue
                     cpu = process.cpu_percent()
                     memory = process.memory_full_info()
                     io_counters = process.io_counters()
                     if process.pid not in self.io_counters:
                         write_bytes = read_bytes = 0
                     else:
-                        write_bytes = int((io_counters.write_bytes - self.io_counters[process.pid].write_bytes) / 60)
-                        read_bytes = int((io_counters.read_bytes - self.io_counters[process.pid].read_bytes) / 60)
+                        write_bytes = io_counters.write_bytes - self.io_counters[process.pid].write_bytes
+                        read_bytes = io_counters.read_bytes - self.io_counters[process.pid].read_bytes
                     self.io_counters[process.pid] = io_counters
                     net_io_counters = psutil.net_io_counters(pernic=False)
                     if not self.net_io_counters:
                         bytes_sent = bytes_recv = 0
                     else:
-                        bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 60)
-                        bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 60)
+                        bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
+                        bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
                     self.net_io_counters = net_io_counters
                     if server_name in self.eventlistener.fps:
                         cursor.execute('INSERT INTO serverstats (server_name, agent_host, mission_id, users, status, '
@@ -92,14 +126,31 @@ class AgentServerStats(Plugin):
 
 class MasterServerStats(AgentServerStats):
 
+    @commands.command(description='Shows servers load', usage='[period]')
+    @utils.has_role('Admin')
+    @commands.guild_only()
+    async def serverload(self, ctx, *params):
+        all, period = self.get_params(*params)
+        server = await utils.get_server(self, ctx)
+        if not all:
+            if server:
+                await self.display_report(ctx, 'serverload.json', period, server['server_name'])
+        else:
+            report = PaginationReport(self.bot, ctx, self.plugin, 'serverload.json')
+            await report.render(period=period, server_name=None, agent_host=platform.node())
+
     @commands.command(description='Shows servers statistics', usage='[period]')
     @utils.has_role('Admin')
     @commands.guild_only()
-    async def serverstats(self, ctx, period: Optional[str]):
+    async def serverstats(self, ctx, *params):
+        all, period = self.get_params(*params)
         server = await utils.get_server(self, ctx)
-        server_name = server['server_name'] if server else None
-        report = PaginationReport(self.bot, ctx, self.plugin, 'serverstats.json')
-        await report.render(period=period, server_name=server_name)
+        if not all:
+            if server:
+                await self.display_report(ctx, 'serverstats.json', period, server['server_name'])
+        else:
+            report = PaginationReport(self.bot, ctx, self.plugin, 'serverstats.json')
+            await report.render(period=period, server_name=None)
 
 
 def setup(bot: DCSServerBot):

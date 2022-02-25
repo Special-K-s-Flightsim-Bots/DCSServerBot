@@ -160,3 +160,16 @@ class PunishmentEventListener(EventListener):
                         self.pool.putconn(conn)
             else:
                 self.sendChatMessage(data['server_name'], target['id'], '-forgive is not enabled on this server.')
+
+    async def onPlayerStart(self, data):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("SELECT COALESCE(SUM(points), 0) FROM pu_events WHERE init_id = %s", (data['ucid'], ))
+                points = int(cursor.fetchone()[0])
+                if points > 0:
+                    self.sendChatMessage(data['server_name'], data['id'], f'You currently have {points} punishment points.')
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)

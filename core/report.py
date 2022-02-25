@@ -182,17 +182,6 @@ class Report:
                     else:
                         raise KeyError
                 return super().format_field(value, spec)
-
-            def get_value(self, key, args, kwargs):
-                if isinstance(key, int):
-                    return args[key]
-                else:
-                    return kwargs[key]
-
-            def get_field(self, field_name, args, kwargs):
-                obj = self.get_value(field_name, args, kwargs)
-                return obj, field_name
-
         try:
             string_ = NoneFormatter().format(string_, **kwargs)
         except KeyError:
