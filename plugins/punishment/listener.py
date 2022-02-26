@@ -162,6 +162,9 @@ class PunishmentEventListener(EventListener):
                 self.sendChatMessage(data['server_name'], target['id'], '-forgive is not enabled on this server.')
 
     async def onPlayerStart(self, data):
+        # the server owner don't need to get an update of their stats
+        if data['id'] == 1:
+            return
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:

@@ -105,9 +105,14 @@ class Scheduler(Plugin):
                 if utils.is_in_timeframe(now, period):
                     state = daystate[weekday]
                     # check, if the server should be running
-                    if state.upper() == 'Y' and server['status'] not in [Status.LOADING, Status.RUNNING, Status.PAUSED]:
+                    if state.upper() == 'Y' and server['status'] in [Status.SHUTDOWN, Status.STOPPED]:
                         return Status.RUNNING
-                    elif state.upper() == 'N' and server['status'] in [Status.RUNNING, Status.PAUSED]:
+                    elif state.upper() == 'P' and server['status'] in [Status.RUNNING, Status.PAUSED]:
+                        if server['status'] == Status.RUNNING and utils.is_populated(self, server):
+                            return server['status']
+                        else:
+                            return Status.SHUTDOWN
+                    elif state.upper() == 'N' and server['status'] != Status.SHUTDOWN:
                         return Status.SHUTDOWN
         return server['status']
 
@@ -172,9 +177,9 @@ class Scheduler(Plugin):
     def restart_mission(self, server: dict, config: dict):
         # check if the mission is still populated
         if 'populated' in config['restart'] and config['restart']['populated'] is False and utils.is_populated(self, server):
-            # check again in a minute
-            self.loop.call_later(60, self.restart_mission, server, config)
-        else:
+            return
+        elif not server['status'] == Status.RESTART_PENDING:
+            server['status'] = Status.RESTART_PENDING
             method = config['restart']['method']
             restart_time = self.warn_users(server, config)
             if method == 'restart_with_shutdown':
@@ -203,7 +208,7 @@ class Scheduler(Plugin):
         # check all servers
         for server_name, server in self.globals.items():
             # only care about servers that are not in the startup phase
-            if server['status'] == Status.UNKNOWN:
+            if server['status'] in [Status.UNKNOWN, Status.LOADING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
                 continue
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
