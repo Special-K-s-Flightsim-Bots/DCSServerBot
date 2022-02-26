@@ -21,7 +21,9 @@ class Agent(Plugin):
         Status.LOADING: '🔄',
         Status.PAUSED: '⏸️',
         Status.RUNNING: '▶️',
-        Status.STOPPED: '⏹️'
+        Status.RESTART_PENDING: '▶️',
+        Status.STOPPED: '⏹️',
+        Status.SHUTDOWN_PENDING: '▶️'
     }
 
     def __init__(self, bot, listener):
