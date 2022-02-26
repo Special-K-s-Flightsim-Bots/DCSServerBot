@@ -208,7 +208,7 @@ class Scheduler(Plugin):
         # check all servers
         for server_name, server in self.globals.items():
             # only care about servers that are not in the startup phase
-            if server['status'] in [Status.UNKNOWN, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
+            if server['status'] in [Status.UNKNOWN, Status.LOADING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
                 continue
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
