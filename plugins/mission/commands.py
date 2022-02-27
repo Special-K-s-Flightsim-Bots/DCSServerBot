@@ -235,6 +235,9 @@ class Mission(Plugin):
                     data = await self.bot.sendtoDCSSync(server, {"command": "listMizFiles", "channel": ctx.channel.id})
                     available = data['missions']
                     files = list(set(available) - set(installed))
+                    if len(files) == 0:
+                        await ctx.send('No (new) mission found to add.')
+                        return
                     n = await utils.selection_list(self, ctx, files, self.format_file_list)
                     if n >= 0:
                         file = files[n]
