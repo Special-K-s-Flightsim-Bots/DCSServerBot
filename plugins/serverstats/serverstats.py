@@ -198,7 +198,7 @@ class ServerLoad(report.MultiGraphElement):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute(sql, (agent_host, ))
+                cursor.execute(sql)
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
                     ax2 = self.axes[0].twinx()

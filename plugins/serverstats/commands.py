@@ -35,9 +35,9 @@ class AgentServerStats(Plugin):
                     all = True
         return all, period
 
-    async def display_report(self, ctx, report: str, period: str, server_name: str):
-        report = Report(self.bot, self.plugin, report)
-        env = await report.render(period=period, server_name=server_name)
+    async def display_report(self, ctx, schema: str, period: str, server_name: str):
+        report = Report(self.bot, self.plugin, schema)
+        env = await report.render(period=period, server_name=server_name, agent_host=None)
         file = discord.File(env.filename) if env.filename else None
         await ctx.send(embed=env.embed, file=file)
         if env.filename:
