@@ -161,6 +161,10 @@ class Mission(Plugin):
                     })
                     await asyncio.sleep(delay)
                     await msg.delete()
+                elif server['status'] == Status.RESTART_PENDING and \
+                        utils.yn_question(self, ctx, 'There is a pending restart for this server already.\nWould you '
+                                                     'still like to restart?') == 'N':
+                    return
                 self.bot.sendtoDCS(server, {"command": "restartMission", "channel": ctx.channel.id})
                 msg = await ctx.send('Restart command sent. Mission will restart now.')
             else:
@@ -279,7 +283,7 @@ class Mission(Plugin):
     async def pause(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] == Status.RUNNING:
+            if server['status'] in [Status.RUNNING, Status.RESTART_PENDING]:
                 self.bot.sendtoDCS(server, {"command": "pauseMission", "channel": ctx.channel.id})
                 await ctx.send('Server "{}" paused.'.format(server['server_name']))
             else:
@@ -294,7 +298,7 @@ class Mission(Plugin):
             if server['status'] == Status.PAUSED:
                 self.bot.sendtoDCS(server, {"command": "unpauseMission", "channel": ctx.channel.id})
                 await ctx.send('Server "{}" unpaused.'.format(server['server_name']))
-            elif server['status'] == Status.RUNNING:
+            elif server['status'] in [Status.RUNNING, Status.RESTART_PENDING]:
                 await ctx.send('Server "{}" is already running.'.format(server['server_name']))
             elif server['status'] == Status.LOADING:
                 await ctx.send('Server "{}" is still loading... please wait a bit and try again.'.format(server['server_name']))
@@ -304,7 +308,7 @@ class Mission(Plugin):
     @tasks.loop(minutes=1.0)
     async def update_mission_status(self):
         for server_name, server in self.globals.items():
-            if server['status'] == Status.RUNNING:
+            if server['status'] in [Status.RUNNING, Status.RESTART_PENDING]:
                 self.bot.sendtoDCS(server, {
                     "command": "getMissionUpdate",
                     "channel": server['status_channel']

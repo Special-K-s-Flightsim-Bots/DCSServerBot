@@ -172,6 +172,16 @@ class DCSServerBot(commands.Bot):
         self.listeners[token] = future
         return asyncio.wait_for(future, timeout)
 
+    def sendtoBot(self, message: dict):
+        message['channel'] = '-1'
+        msg = json.dumps(message)
+        self.log.debug('HOST->HOST: {}'.format(msg))
+        dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        host = self.config['BOT']['HOST']
+        if host == '0.0.0.0':
+            host = '127.0.0.1'
+        dcs_socket.sendto(msg.encode('utf-8'), (host, int(self.config['BOT']['PORT'])))
+
     def get_bot_channel(self, data: dict, channel_type: Optional[str] = 'status_channel'):
         if data['channel'].startswith('sync') or int(data['channel']) == -1:
             return self.get_channel(int(self.globals[data['server_name']][channel_type]))

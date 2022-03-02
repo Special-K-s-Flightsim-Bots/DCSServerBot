@@ -176,3 +176,16 @@ class PunishmentEventListener(EventListener):
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
+
+    async def rename(self, data):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s',
+                               (data['newname'], data['server_name']))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)

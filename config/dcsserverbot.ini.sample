@@ -60,8 +60,6 @@ DCS_HOME = %%USERPROFILE%%\\Saved Games\\DCS.OpenBeta
 ; SRS_CONFIG = %%ProgramFiles%%\\DCS-SimpleRadio-Standalone\\server.cfg
 ; SRS_HOST = 127.0.0.1
 ; SRS_PORT = 5002
-AUTOSTART_DCS = true
-; AUTOSTART_SRS = true
 STATISTICS = true
 MISSION_STATISTICS = true
 ; These channels have to be replaced with the dedicated discord channel IDs (see README)
