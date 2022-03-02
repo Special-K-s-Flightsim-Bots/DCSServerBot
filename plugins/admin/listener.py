@@ -57,7 +57,10 @@ class AdminEventListener(EventListener):
                 conn.rollback()
             finally:
                 self.pool.putconn(conn)
-            self.globals[data['server_name']] = data | self.globals[data['server_name']]
+            if data['server_name'] in self.globals:
+                self.globals[data['server_name']] = data | self.globals[data['server_name']]
+            else:
+                self.globals[data['server_name']] = data
             server = self.globals[data['server_name']]
             if data['channel'].startswith('sync-'):
                 server['status'] = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
