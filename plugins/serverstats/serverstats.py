@@ -184,19 +184,21 @@ class UsersPerDayTime(report.GraphElement):
 
 class ServerLoad(report.MultiGraphElement):
 
-    def render(self, server_name: Optional[str], period: str, agent_host: str):
+    def render(self, server_name: Optional[str], period: str, agent_host: Optional[str]):
         sql = f"select date_trunc('minute', time) AS time, SUM(users) AS users, SUM(cpu) AS cpu, " \
               f"SUM(mem_total-mem_ram)/(1024*1024) AS mem_swap, SUM(mem_ram)/(1024*1024) AS mem_ram, " \
               f"SUM(read_bytes)/1024 AS read_bytes, SUM(write_bytes)/1024 AS write_bytes, ROUND(AVG(bytes_sent)) " \
               f"AS bytes_sent, ROUND(AVG(bytes_recv)) AS bytes_recv, ROUND(AVG(fps), 2) AS fps FROM serverstats " \
-              f"WHERE agent_host = %s AND time > (CURRENT_TIMESTAMP - interval '1 {period}')"
+              f"WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}')"
         if server_name:
             sql += f" AND server_name = '{server_name}' "
+        if agent_host:
+            sql += f" AND agent_host = '{agent_host}' "
         sql += " GROUP BY 1"
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute(sql, (agent_host, ))
+                cursor.execute(sql)
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
                     ax2 = self.axes[0].twinx()

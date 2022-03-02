@@ -293,12 +293,16 @@ class Agent(Plugin):
                 try:
                     if await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" '
                                                           'to "{}"?'.format(oldname, newname)) is True:
+                        # send the rename command to all other plugins
+                        self.bot.sendtoBot({
+                            "command": "rename",
+                            "newname": newname,
+                            "server_name": oldname
+                        })
                         with closing(conn.cursor()) as cursor:
                             cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
                                            (newname, oldname))
                             cursor.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                                           (newname, oldname))
-                            cursor.execute('UPDATE missions SET server_name = %s WHERE server_name = %s',
                                            (newname, oldname))
                             conn.commit()
                         utils.changeServerSettings(server['server_name'], 'name', newname)
