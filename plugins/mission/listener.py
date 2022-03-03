@@ -162,9 +162,8 @@ class MissionEventListener(EventListener):
             await self.displayPlayerEmbed(data)
 
     async def getMissionUpdate(self, data):
-        server_name = data['server_name']
-        server = self.globals[server_name]
-        if 'pause' in data:
+        server = self.globals[data['server_name']]
+        if server['status'] not in [Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
             server['status'] = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server['mission_time'] = data['mission_time']
         server['real_time'] = data['real_time']
@@ -204,11 +203,15 @@ class MissionEventListener(EventListener):
         await self.displayMissionEmbed(data)
 
     async def onSimulationPause(self, data):
-        self.globals[data['server_name']]['status'] = Status.PAUSED
+        server = self.globals[data['server_name']]
+        if server['status'] not in [Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
+            server['status'] = Status.PAUSED
         await self.displayMissionEmbed(data)
 
     async def onSimulationResume(self, data):
-        self.globals[data['server_name']]['status'] = Status.RUNNING
+        server = self.globals[data['server_name']]
+        if server['status'] not in [Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
+            server['status'] = Status.RUNNING
         await self.displayMissionEmbed(data)
 
     async def onPlayerConnect(self, data):
