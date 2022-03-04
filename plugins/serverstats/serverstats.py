@@ -202,7 +202,7 @@ class ServerLoad(report.MultiGraphElement):
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
                     ax2 = self.axes[0].twinx()
-                    series.plot(ax=self.axes[0], x='time', y=['fps', 'cpu'], title='Users/CPU/FPS', xticks=[], xlabel='', ylim=(0, 100))
+                    series.plot(ax=self.axes[0], x='time', y=['fps', 'cpu'], title='Users/CPU/FPS', xticks=[], xlabel='')
                     self.axes[0].legend(['FPS', 'CPU'])
                     series.plot(ax=ax2, x='time', y=['users'], xticks=[], xlabel='', color='blue')
                     ax2.legend(['Users'])

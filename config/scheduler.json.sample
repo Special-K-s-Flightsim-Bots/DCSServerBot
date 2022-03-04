@@ -8,6 +8,7 @@
     },
     {
       "installation": "DCS.openbeta_server",
+      "affinity": [2, 3],
       "schedule": {"00-24": "YYYYYYY"}
     },
     {

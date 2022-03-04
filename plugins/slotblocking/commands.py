@@ -1,5 +1,3 @@
-import psycopg2
-from contextlib import closing
 from core import DCSServerBot, Plugin, utils, PluginRequiredError
 from discord.ext import commands
 from typing import Optional

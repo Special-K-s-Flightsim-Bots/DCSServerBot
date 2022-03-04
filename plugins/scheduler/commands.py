@@ -1,4 +1,5 @@
 import json
+import psutil
 import string
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status
 from datetime import datetime, timedelta
@@ -184,7 +185,10 @@ class Scheduler(Plugin):
             restart_time = self.warn_users(server, config)
             if method == 'restart_with_shutdown':
                 self.loop.call_later(restart_time, utils.stop_dcs, self, server)
-                self.loop.call_later(restart_time + 10, utils.start_dcs, self, server['installation'])
+                if 'affinity' in config:
+                    self.loop.call_later(restart_time + 10, utils.start_dcs, self, server['installation'])
+                else:
+                    self.loop.call_later(restart_time + 10, utils.start_dcs, self, server['installation'])
             elif method == 'restart':
                 self.loop.call_later(restart_time, self.bot.sendtoDCS, server, {"command": "restartMission"})
             elif method == 'rotate':
@@ -203,6 +207,14 @@ class Scheduler(Plugin):
                     if utils.is_in_timeframe(now, t):
                         self.restart_mission(server, config)
 
+    def check_affinity(self, server, config):
+        if 'PID' not in server:
+            p = utils.find_process('DCS.exe', server['installation'])
+            server['PID'] = p.pid
+        pid = server['PID']
+        ps = psutil.Process(pid)
+        ps.cpu_affinity(config['affinity'])
+
     @tasks.loop(minutes=1.0)
     async def check_state(self):
         # check all servers
@@ -213,6 +225,8 @@ class Scheduler(Plugin):
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
             if config:
+                if server['status'] in [Status.RUNNING, Status.PAUSED] and 'affinity' in config:
+                    self.check_affinity(server, config)
                 target_state = self.check_server_state(server, config)
                 if server['status'] != target_state:
                     # only care about servers that are not in maintenance state
@@ -246,5 +260,4 @@ class Scheduler(Plugin):
 def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-#    bot.add_cog(Scheduler(bot, SchedulerEventListener))
     bot.add_cog(Scheduler(bot))
