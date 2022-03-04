@@ -18,6 +18,7 @@ Examples:
     },
     {
       "installation": "instance1",
+      "affinity": [2, 3],                     -- CPU affinity for this process
       "schedule": {
         "00-12": "NNNNNNN",                   -- instance1 will run everyday from 12 to 24 hrs, besides Sundays.
         "12-24": "YYYYYYN"
@@ -35,7 +36,6 @@ Examples:
         "00-12:30": "YYYYYYY",                -- instance2 runs Sunday all day, rest of the week between 00 and 12:30 hrs
         "12:30-24": "NNNNNNY"
       },
-     "populated": false,                      -- only restart the server (!) if it is not populated anymore
       "extensions": [ "SRS" ],                -- which extensions should be started / stopped with the server
       "restart": {                            -- missions rotate every 4 hrs
         "method": "rotate",
@@ -45,7 +45,8 @@ Examples:
     {
       "installation": "missions",
       "schedule": {
-        "21:30": "NNNNNYN"                    -- Missions start on Saturdays at 21:30, so start the server there
+        "21:30": "NNNNNYN",                   -- Missions start on Saturdays at 21:30, so start the server there
+        "23:00-00:00": "NNNNNPN"              -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated        
       }
     }
   ]
@@ -54,12 +55,12 @@ Examples:
 
 ### Section "restart"
 
-| Parameter    | Description                                                                                                                                                                                                                                              |
-|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Parameter    | Description                                                                                                                                                                                                                                                    |
+|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | method       | One of **restart**, **restart_with_shutdown** or **rotate**.<br/>- "restart" will restart the current mission,<br/>- "restart_with_shutdown" will do the same but shutdown the whole server<br/>- "rotate" will take the next mission out of the mission list. |
-| mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                             |
-| local_times  | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                        |
- | populated    | If **false**, the server will be restarted / rotated only, if no player is in.                                                                                                                                                                           |
+| mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                   |
+| local_times  | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                              |
+ | populated    | If **false**, the mission will be restarted / rotated only, if no player is in.                                                                                                                                                                                |
 
 ### Section "warn"
 
@@ -70,10 +71,10 @@ Examples:
 
 ### Section "schedule"
 
-| First Parameter                                                                                                                                                                                                         | Second Parameter                                                                                                                                                                                                                                                                                  |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Timeframe, with start and endtime in either HH24 or HH24:MM format.<br/>If only one time is provided, the action (see second parameter) has to happen at exactly this time.                                             | The second parameter contains a character for every day, starting Mo and ending Su.<br/>Depending on the character, the behaviour will be selected:<br/>Y or N - the server should run in that timeframe (Y) or not (N).<br/>1..2..3 - Run a specific mission with this number in this timeframe. |
-| __Examples:__<br/>Time between 12:30h and 18:00h => 12:30-18:00<br/>Time between 09:00h and 21:30h => 09-21:30<br/>Time between 21:00h and 03:00h => 21-03 (next day!)<br/>All day long (00:00h - 24:00h) => 00-24<br/> | __Examples:__<br/>YYYYYYY => every day<br/>YYYYYNN => weekdays only<br/>&nbsp;<br/>&nbsp;                                                                                                                                                                                                         |
+| First Parameter                                                                                                                                                                                                         | Second Parameter                                                                                                                                                                                                                                                   |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Timeframe, with start and endtime in either HH24 or HH24:MM format.<br/>If only one time is provided, the action (see second parameter) has to happen at exactly this time.                                             | The second parameter contains a character for every day, starting Mo and ending Su. Depending on the character, the behaviour will be selected:<br/>Y, N or P - the server should run in that timeframe (Y) or not (N). P means, it should only run, if populated. |
+| __Examples:__<br/>Time between 12:30h and 18:00h => 12:30-18:00<br/>Time between 09:00h and 21:30h => 09-21:30<br/>Time between 21:00h and 03:00h => 21-03 (next day!)<br/>All day long (00:00h - 24:00h) => 00-24<br/> | __Examples:__<br/>YYYYYYY => every day<br/>YYYYYNN => weekdays only<br/>&nbsp;<br/>&nbsp;                                                                                                                                                                          |
 See the above examples for a better understanding on how it works.
 
 ### Section "extensions"

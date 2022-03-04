@@ -402,8 +402,10 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
 def start_dcs(self, server: dict):
     self.log.debug(r'Launching DCS server with: "{}\bin\dcs.exe" --server --norender -w {}'.format(
         os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']), server['installation']))
-    return subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', server['installation']],
-                            executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\bin\dcs.exe')
+    p = subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', server['installation']],
+                         executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\bin\dcs.exe')
+    server['PID'] = p.pid
+    return p
 
 
 def stop_dcs(self, server: dict):
