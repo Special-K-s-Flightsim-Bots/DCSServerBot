@@ -155,7 +155,7 @@ class SQLField(EmbedElement):
                     row = cursor.fetchone()
                     name = list(row.keys())[0]
                     value = row[0]
-                    self.add_field(name=name, value=value, inline=self.inline)
+                    self.add_field(name=name, value=value, inline=inline)
         except psycopg2.DatabaseError as error:
             self.log.exception(error)
         finally:
