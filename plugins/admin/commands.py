@@ -194,7 +194,7 @@ class Agent(Plugin):
             else:
                 await ctx.send('Server "{}" has to be shut down to change the password.'.format(server['server_name']))
 
-    @commands.command(description='Kick a user by ucid', usage='<ucid>')
+    @commands.command(description='Kick a user by name', usage='<name>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def kick(self, ctx, name, *args):
