@@ -10,7 +10,6 @@ local mission = mission or {}
 
 function mission.onMissionLoadBegin()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadBegin()')
-	--dcsbot.SlotsData['coalitions'] = nil
 	local msg = {}
 	msg.command = 'onMissionLoadBegin'
 	msg.current_mission = DCS.getMissionName()
@@ -218,13 +217,14 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
 	utils.sendBotTable(msg)
 end
 
-function mission.onChatMessage(message, from)
+function mission.onChatMessage(message, from, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onChatMessage()')
 	local msg = {}
 	msg.command = 'onChatMessage'
 	msg.message = message
 	msg.from_id = net.get_player_info(from, 'id')
 	msg.from_name = net.get_player_info(from, 'name')
+    msg.to = to
 	utils.sendBotTable(msg, config.CHAT_CHANNEL)
 end
 
