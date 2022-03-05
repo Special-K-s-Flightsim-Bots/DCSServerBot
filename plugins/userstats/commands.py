@@ -132,7 +132,6 @@ class UserStatistics(Plugin):
         if isinstance(member, str):
             if len(params):
                 member += ' ' + ' '.join(params)
-                print(member)
             sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
                    f"p.ucid = '{member}' OR p.name = '{member}' "
         else:
