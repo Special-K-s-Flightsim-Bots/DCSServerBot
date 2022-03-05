@@ -121,7 +121,7 @@ class UserStatistics(Plugin):
     @commands.command(description='Shows information about a specific player', usage='<@member / ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def info(self, ctx, member: Union[discord.Member, str]):
+    async def info(self, ctx, member: Union[discord.Member, str], *params):
         sql = 'SELECT p.discord_id, p.ucid, p.last_seen, COALESCE(p.name, \'?\') AS NAME, ' \
               'COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS playtime, ' \
               'CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned ' \
@@ -130,7 +130,10 @@ class UserStatistics(Plugin):
               'LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) ' \
               'WHERE p.discord_id = '
         if isinstance(member, str):
-            sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR p.ucid = '{member}'"
+            if len(params):
+                member += ' ' + ' '.join(params)
+            sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
+                   f"p.ucid = '{member}' OR p.name = '{member}' "
         else:
             sql += f"'{member.id}'"
         sql += ' GROUP BY p.ucid, b.ucid'
