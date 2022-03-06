@@ -1,25 +1,24 @@
-# Documentation
-Welcome to DCSServerBot, a comprehensive solution that lets you administrate your DCS instances via Discord, has built in per-server and per-user statistics and much more!
+# Welcome to DCSServerBot!
+You've found a comprehensive solution that lets you administrate your DCS instances via Discord, has built in per-server and per-user statistics and much more!
+With its plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come into your mind. 
 
-This documentation will show you the main features (enhancements come regularly), how to install and configure the bot and some more sophisticated stuff at the bottom, 
+This documentation will show you the main features, how to install and configure the bot and some more sophisticated stuff at the bottom, 
 if you for instance run multiple servers maybe even over multiple locations. 
 
-So, first let's see, what it can do for you!
+First let's see, what it can do for you!
 
 ---
 ## Plugins
-DCSServerBot has a modular architecture with plugins that support specific Discord commands or allow events from a connected DCS server to be processed.
-Which plugins you want to add is configured during the installation (see below).
-
-__Attention:__ Some plugins require another plugin to be available (Userstats needs Mission for instance).
+DCSServerBot has a modular architecture with plugins that support specific Discord commands or allow events from connected DCS servers to be processed.
+It comes with a rich set of default plugins but can be enhanced either by optional plugins provided by me or some that you wrote on your own.
 
 ### General Administrative Commands
 These commands can be used to administrate the bot itself.
 
-| Command  | Parameter | Channel | Role   | Description                                                   |
-|----------|-----------|---------|--------|---------------------------------------------------------------|
-| .reload  | [Plugin]  | all     | Owner  | Reloads one or all plugin(s) and the configuration from disk. |
-| .upgrade |           | all     | Owner  | Upgrades the bot to the latest available version.             |
+| Command  | Parameter | Channel | Role   | Description                                                      |
+|----------|-----------|---------|--------|------------------------------------------------------------------|
+| .reload  | [Plugin]  | all     | Owner  | Reloads one or all plugin(s) and their configurations from disk. |
+| .upgrade |           | all     | Owner  | Upgrades the bot to the latest available version.                |
 
 ### List of supported Plugins
 | Plugin       | Scope                                                               | Optional | Dependent on | Documentation                              |
@@ -42,8 +41,6 @@ There is a sample in the plugins/samples subdirectory, that will guide you throu
 
 ---
 ## Installation
-First download the latest release version and extract it somewhere on your server, where it has write access.
-Make sure that this directory can only be seen by yourself and is not exposed to anybody outside via www etc.
 
 ### Prerequisites
 You need to have [python 3.9](https://www.python.org/downloads/) and [PostgreSQL](https://www.postgresql.org/download/) installed.
@@ -52,14 +49,19 @@ If using PostgreSQL remotely over unsecured networks, it is recommended to have 
 For autoupdate to work, you have to install [GIT](https://git-scm.com/download/win) and make sure, ```git``` is in your PATH.
 
 ### Discord Token
-The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers.
+The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers <br/>
 Create a "New Application", add a Bot, select Bot from the left menu, give it a nice name and icon, press "Copy" below "Click to Reveal Token".
 Now your Token is in your clipboard. Paste it in dcsserverbot.ini in your config-directory.
-Both "Privileged Gateway Intents" have to be enabled on that page.
+Both "Privileged Gateway Intents" have to be enabled on that page.<br/>
 To add the bot to your Discord guild, select "OAuth2" from the menu, then "URL Generator", select the "bot" checkbox, and then select the following permissions:
 _Manage Channels, Send Messages, Manage Messages, Embed Links, Attach Files, Read Message History, Add Reactions_
 Press "Copy" on the generated URL, paste it into the browser of your choice, select the guild the bot has to be added to - and you're done!
 For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
+
+### Download
+Download the latest release version and extract it somewhere on your PC that is running the DCS server(s) and give it write permissions, if needed. Best is to use ```git clone``` as you then can use the autoupdate functionality of the bot.
+
+__Attention:__ Make sure that the bot's installation directory can only be seen by yourself and is not exposed to anybody outside via www etc.
 
 ### Bot Configuration
 The bot configuration is held in **config/dcsserverbot.ini**. See **dcsserverbot.ini.sample** for an example.<br/>
@@ -70,21 +72,22 @@ The following parameters can be used to configure the bot:
 
 a) __BOT Section__
 
-| Parameter      | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
-|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| OWNER          | The Discord ID of the Bot's owner (that's you!). If you don't know your ID, go to your Discord profile, make sure "Developer Mode" is enabled under "Advanced", go to "My Account", press the "..." besides your profile picture and select "Copy ID"                                                                                                                                                                |
-| TOKEN          | The token to be used to run the bot. Can be obtained at http://discord.com/developers.                                                                                                                                                                                                                                                                                                                               |
-| DATABASE_URL   | URL to the PostgreSQL database used to store our data.                                                                                                                                                                                                                                                                                                                                                               |
-| COMMAND_PREFIX | The prefix to be used. Default is '.'                                                                                                                                                                                                                                                                                                                                                                                |
-| HOST           | IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.                                                                                                                                                                                                                                                                                            |
-| PORT           | UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose this port to the outside world!__**                                                                                                                                                                                                                                                                                           |
-| MASTER         | If true, start the bot in master-mode (default for one-bot-installations). If only one bot is running, then there is only a master.\nIf you have to use more than one bot installation, for multiple DCS servers that are spanned over several locations, you have to install one agent (MASTER = false) at every other location. All DCS servers of that location will then automatically register with that agent. |
-| PLUGINS        | List of plugins to be loaded (you usually don't want to touch this).                                                                                                                                                                                                                                                                                                                                                 |
-| OPT_PLUGINS    | List of optional plugins to be loaded. Here you can add your plugins that you want to use and that are not loaded by default.                                                                                                                                                                                                                                                                                        |
-| AUTOUPDATE     | If true, the bot autoupdates itself with the latest release on startup.                                                                                                                                                                                                                                                                                                                                              |
-| AUTOBAN        | If true, members leaving the discord will be automatically banned.                                                                                                                                                                                                                                                                                                                                                   |
-| LOGLEVEL       | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).                                                                                                                                                                                                                                                                                                                       |
-| AUDIT_CHANNEL  | (Optional) The ID of an audit channel where audit events will be logged into. For security reasons, it is recommended that no users can delete messages in this channel.                                                                                                                                                                                                                                             |
+| Parameter        | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
+|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| OWNER            | The Discord ID of the Bot's owner (that's you!). If you don't know your ID, go to your Discord profile, make sure "Developer Mode" is enabled under "Advanced", go to "My Account", press the "..." besides your profile picture and select "Copy ID"                                                                                                                                                                |
+| TOKEN            | The token to be used to run the bot. Can be obtained at http://discord.com/developers.                                                                                                                                                                                                                                                                                                                               |
+| DATABASE_URL     | URL to the PostgreSQL database used to store our data.                                                                                                                                                                                                                                                                                                                                                               |
+| COMMAND_PREFIX   | The prefix to be used. Default is '.'                                                                                                                                                                                                                                                                                                                                                                                |
+| HOST             | IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.                                                                                                                                                                                                                                                                                            |
+| PORT             | UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose this port to the outside world!__**                                                                                                                                                                                                                                                                                           |
+| MASTER           | If true, start the bot in master-mode (default for one-bot-installations). If only one bot is running, then there is only a master.\nIf you have to use more than one bot installation, for multiple DCS servers that are spanned over several locations, you have to install one agent (MASTER = false) at every other location. All DCS servers of that location will then automatically register with that agent. |
+| PLUGINS          | List of plugins to be loaded (you usually don't want to touch this).                                                                                                                                                                                                                                                                                                                                                 |
+| OPT_PLUGINS      | List of optional plugins to be loaded. Here you can add your plugins that you want to use and that are not loaded by default.                                                                                                                                                                                                                                                                                        |
+| AUTOUPDATE       | If true, the bot autoupdates itself with the latest release on startup.                                                                                                                                                                                                                                                                                                                                              |
+| AUTOBAN          | If true, members leaving the discord will be automatically banned.                                                                                                                                                                                                                                                                                                                                                   |
+| LOGLEVEL         | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).                                                                                                                                                                                                                                                                                                                       |
+| MESSAGE_TIMEOUT  | General timeout for popup messages (default 10 seconds).                                                                                                                                                                                                                                                                                                                                                             | 
+| AUDIT_CHANNEL    | (Optional) The ID of an audit channel where audit events will be logged into. For security reasons, it is recommended that no users can delete messages in this channel.                                                                                                                                                                                                                                             |
 
 b) __ROLES Section__
 
@@ -156,7 +159,7 @@ end
 
 ### Discord Configuration
 The bot uses the following **internal** roles to apply specific permissions to commands.
-You can change the role names to the ones being used in your discord. That has to be done in the dcsserverbot.ini configuration file.
+You can change the role names to the ones being used in your discord. That has to be done in the dcsserverbot.ini configuration file. If you want to add multiple groups, separate them by comma.
 
 | Role      | Description                                                                                                                                         |
 |-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
