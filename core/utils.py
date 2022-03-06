@@ -170,7 +170,7 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False):
                 best_fit = None
                 sql = 'SELECT ucid, name from players'
                 if rematch is False:
-                    sql += ' WHERE discord_id = -1'
+                    sql += ' WHERE discord_id = -1 AND name IS NOT NULL'
                 cursor.execute(sql)
                 for row in cursor.fetchall():
                     name = re.sub(tag_filter, '', data.name).strip() if tag_filter else data.name

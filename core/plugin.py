@@ -35,6 +35,9 @@ class Plugin(commands.Cog):
     def cog_unload(self):
         if self.eventlistener:
             self.bot.unregister_eventListener(self.eventlistener)
+        # delete a possible configuration
+        for server in self.bot.globals.values():
+            del server[self.plugin]
         self.log.debug(f'- Plugin {type(self).__name__} unloaded.')
 
     def install(self):

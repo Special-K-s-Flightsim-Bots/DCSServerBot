@@ -240,7 +240,7 @@ class DCSServerBot(commands.Bot):
                 if command != 'registerDCSServer' and \
                         (dt['server_name'] not in self.globals or
                          self.globals[dt['server_name']]['status'] == Status.UNKNOWN):
-                    self.log.warning('Message for unregistered server retrieved, ignoring.')
+                    self.log.debug('Message for unregistered server retrieved, ignoring.')
                     return
                 for listener in self.eventListeners:
                     futures.append(asyncio.run_coroutine_threadsafe(listener.processEvent(dt), self.loop))

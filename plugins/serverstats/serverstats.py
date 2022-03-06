@@ -185,10 +185,10 @@ class UsersPerDayTime(report.GraphElement):
 class ServerLoad(report.MultiGraphElement):
 
     def render(self, server_name: Optional[str], period: str, agent_host: Optional[str]):
-        sql = f"select date_trunc('minute', time) AS time, SUM(users) AS users, SUM(cpu) AS cpu, " \
-              f"SUM(mem_total-mem_ram)/(1024*1024) AS mem_swap, SUM(mem_ram)/(1024*1024) AS mem_ram, " \
-              f"SUM(read_bytes)/1024 AS read_bytes, SUM(write_bytes)/1024 AS write_bytes, ROUND(AVG(bytes_sent)) " \
-              f"AS bytes_sent, ROUND(AVG(bytes_recv)) AS bytes_recv, ROUND(AVG(fps), 2) AS fps FROM serverstats " \
+        sql = f"SELECT date_trunc('minute', time) AS time, SUM(users) AS \"Users\", SUM(cpu) AS \"CPU\", " \
+              f"SUM(mem_total-mem_ram)/(1024*1024) AS \"Memory (paged)\", SUM(mem_ram)/(1024*1024) AS \"Memory (RAM)\", " \
+              f"SUM(read_bytes)/1024 AS \"Read\", SUM(write_bytes)/1024 AS \"Write\", ROUND(AVG(bytes_sent)) " \
+              f"AS \"Sent\", ROUND(AVG(bytes_recv)) AS \"Recv\", ROUND(AVG(fps), 2) AS \"FPS\" FROM serverstats " \
               f"WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}')"
         if server_name:
             sql += f" AND server_name = '{server_name}' "
@@ -202,16 +202,16 @@ class ServerLoad(report.MultiGraphElement):
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
                     ax2 = self.axes[0].twinx()
-                    series.plot(ax=self.axes[0], x='time', y=['fps', 'cpu'], title='Users/CPU/FPS', xticks=[], xlabel='')
-                    self.axes[0].legend(['FPS', 'CPU'])
-                    series.plot(ax=ax2, x='time', y=['users'], xticks=[], xlabel='', color='blue')
-                    ax2.legend(['Users'])
-                    series.plot(ax=self.axes[1], x='time', y=['mem_ram', 'mem_swap'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='bar', stacked=True)
-                    self.axes[1].legend(['Memory (RAM)', 'Memory (paged)'])
-                    series.plot(ax=self.axes[2], x='time', y=['read_bytes', 'write_bytes'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='KB', kind='bar', grid=True)
-                    self.axes[2].legend(['Read', 'Write'])
-                    series.plot(ax=self.axes[3], x='time', y=['bytes_sent', 'bytes_recv'], title='Network', logy=True, xlabel='', ylabel='KB/s', grid=True)
-                    self.axes[3].legend(['Sent', 'Recv'])
+                    series.plot(ax=self.axes[0], x='time', y=['FPS', 'CPU'], title='Users / CPU / FPS', xticks=[], xlabel='')
+                    self.axes[0].legend()
+                    series.plot(ax=ax2, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
+                    ax2.legend()
+                    series.plot(ax=self.axes[1], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
+                    self.axes[1].legend()
+                    series.plot(ax=self.axes[2], x='time', y=['Read', 'Write'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='KB', grid=True)
+                    self.axes[2].legend()
+                    series.plot(ax=self.axes[3], x='time', y=['Sent', 'Recv'], title='Network', logy=True, xlabel='', ylabel='KB/s', grid=True)
+                    self.axes[3].legend()
                 else:
                     for i in range(0, 4):
                         self.axes[i].set_xticks([])

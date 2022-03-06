@@ -1,5 +1,7 @@
 # run.py
 import asyncio
+import string
+
 import discord
 import logging
 import os
@@ -21,7 +23,7 @@ from psycopg2 import pool
 
 # Set the bot's version (not externally configurable)
 BOT_VERSION = '2.5.7'
-SUB_VERSION = 6
+SUB_VERSION = 7
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -193,15 +195,15 @@ class Main:
         self.bot.run(self.config['BOT']['TOKEN'], bot=True, reconnect=True)
 
     def add_commands(self):
-        @self.bot.command(description='Reloads a COG', usage='[cog]')
+        @self.bot.command(description='Reloads a Plugin', usage='[cog]')
         @commands.is_owner()
         async def reload(ctx, plugin=None):
             self.read_config()
             self.bot.reload(plugin)
             if plugin:
-                await ctx.send('COG {} reloaded.'.format(plugin))
+                await ctx.send('Plugin {} reloaded.'.format(string.capwords(plugin)))
             else:
-                await ctx.send('All COGs reloaded.')
+                await ctx.send('All plugins reloaded.')
 
         @self.bot.command(description='Upgrades the bot')
         @commands.is_owner()
