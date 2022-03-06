@@ -157,7 +157,9 @@ class Mission(Plugin):
                         "command": "sendPopupMessage",
                         "channel": ctx.channel.id,
                         "message": message,
-                        "from": ctx.message.author.display_name, "to": "all"
+                        "from": ctx.message.author.display_name,
+                        "to": "all",
+                        "time": self.config['BOT']['MESSAGE_TIMEOUT']
                     })
                     await asyncio.sleep(delay)
                     await msg.delete()

@@ -79,7 +79,8 @@ class Punishment(Plugin):
                                             "command": "sendPopupMessage",
                                             "to": initiator['group_id'],
                                             "message": f"{initiator['name']}, you have been punished for: {reason}!\n"
-                                                       f"Your current punishment points are: {row['points']}"
+                                                       f"Your current punishment points are: {row['points']}",
+                                            "time": self.config['BOT']['MESSAGE_TIMEOUT']
                                         })
                                     break
                         cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))

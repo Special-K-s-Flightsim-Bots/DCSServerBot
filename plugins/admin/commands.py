@@ -133,7 +133,8 @@ class Agent(Plugin):
                                          server, {
                                              'command': 'sendPopupMessage',
                                              'message': f'Server is going down for a DCS update in {warntime} seconds!',
-                                             'to': 'all'
+                                             'to': 'all',
+                                             'time': self.config['BOT']['MESSAGE_TIMEOUT']
                                          })
                 self.loop.call_later(max(warntimes), utils.stop_dcs, self, server)
         # give the DCS servers some time to shut down.

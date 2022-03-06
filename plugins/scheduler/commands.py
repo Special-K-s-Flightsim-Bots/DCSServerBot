@@ -148,7 +148,8 @@ class Scheduler(Plugin):
                                      server, {
                                         'command': 'sendPopupMessage',
                                         'message': warn_text.format(warn_time),
-                                        'to': 'all'
+                                        'to': 'all',
+                                        'time': self.config['BOT']['MESSAGE_TIMEOUT']
                                      })
         return restart_in
 
