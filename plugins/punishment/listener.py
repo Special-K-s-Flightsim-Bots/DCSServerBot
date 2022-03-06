@@ -33,7 +33,7 @@ class PunishmentEventListener(EventListener):
             elif specific and not default:
                 server[self.plugin] = specific
             elif default and specific:
-                merged = default
+                merged = default.copy()
                 # specific settings will always overwrite default settings
                 for key, value in specific.items():
                     merged[key] = value
