@@ -1,8 +1,6 @@
-# listener.py
 import discord
 import pandas as pd
 import psycopg2
-import re
 from core import const, utils, EventListener, PersistentReport, Plugin
 from core.const import Status
 from contextlib import closing
@@ -119,24 +117,6 @@ class MissionEventListener(EventListener):
         embed.add_field(name='Unit', value=units)
         embed.add_field(name='Side', value=sides)
         await self.bot.setEmbed(data, 'players_embed', embed)
-        channel = self.bot.get_channel(int(self.globals[data['server_name']]['status_channel']))
-        # name changes of the status channel will only happen with the correct permission
-        if channel.permissions_for(self.bot.guilds[0].get_member(self.bot.user.id)).manage_channels:
-            name = channel.name
-            # if the server owner leaves, the server is shut down
-            if ('id' in data) and (data['id'] == 1):
-                if name.find('［') == -1:
-                    name = name + '［-］'
-                else:
-                    name = re.sub('［.*］', f'［-］', name)
-            else:
-                current = len(players) + 1
-                max_players = self.globals[data['server_name']]['serverSettings']['maxPlayers']
-                if name.find('［') == -1:
-                    name = name + f'［{current}／{max_players}］'
-                else:
-                    name = re.sub('［.*］', f'［{current}／{max_players}］', name)
-            await channel.edit(name=name)
 
     async def callback(self, data):
         server = self.globals[data['server_name']]

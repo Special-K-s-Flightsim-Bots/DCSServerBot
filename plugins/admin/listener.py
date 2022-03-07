@@ -58,7 +58,7 @@ class AdminEventListener(EventListener):
             finally:
                 self.pool.putconn(conn)
             if data['server_name'] in self.globals:
-                self.globals[data['server_name']] = data | self.globals[data['server_name']]
+                self.globals[data['server_name']] = self.globals[data['server_name']] | data
             else:
                 self.globals[data['server_name']] = data
             server = self.globals[data['server_name']]

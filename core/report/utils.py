@@ -1,10 +1,8 @@
-import string
-from contextlib import closing
-
 import psycopg2
-
+from contextlib import closing
+from core import utils
 from core.report.errors import ValueNotInRange
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Tuple
 
 
 def parse_params(kwargs: dict, params: Tuple[dict, List]):
@@ -15,22 +13,6 @@ def parse_params(kwargs: dict, params: Tuple[dict, List]):
     else:
         new_args['params'] = params
     return new_args
-
-
-def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str:
-    class NoneFormatter(string.Formatter):
-        def format_field(self, value, spec):
-            if value is None:
-                if default_:
-                    value = default_
-                else:
-                    raise KeyError
-            return super().format_field(value, spec)
-    try:
-        string_ = NoneFormatter().format(string_, **kwargs)
-    except KeyError:
-        string_ = ''
-    return string_
 
 
 def parse_input(self, kwargs: dict, params: List[Any]):
@@ -52,7 +34,7 @@ def parse_input(self, kwargs: dict, params: List[Any]):
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                    cursor.execute(format_string(param['sql'], **kwargs), kwargs)
+                    cursor.execute(utils.format_string(param['sql'], **kwargs), kwargs)
                     if cursor.rowcount == 1:
                         for name, value in cursor.fetchone().items():
                             new_args[name] = value

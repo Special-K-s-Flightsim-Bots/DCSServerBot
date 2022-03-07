@@ -9,7 +9,7 @@ from contextlib import closing
 from core import utils
 from core.report.env import ReportEnv
 from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements
-from core.report.utils import parse_params, format_string
+from core.report.utils import parse_params
 from datetime import timedelta
 from matplotlib import pyplot as plt
 from typing import Optional, List, Any
@@ -55,7 +55,7 @@ class Ruler(EmbedElement):
 
 class Field(EmbedElement):
     def render(self, name: str, value: Any, inline: Optional[bool] = True):
-        self.add_field(name=name, value=format_string(value, '_ _', **self.env.params), inline=inline)
+        self.add_field(name=name, value=utils.format_string(value, '_ _', **self.env.params), inline=inline)
 
 
 class Table(EmbedElement):
@@ -70,7 +70,7 @@ class Table(EmbedElement):
             if not header:
                 header = list(row.keys())
             for i in range(0, elements):
-                cols[i] += format_string(row[header[i]], '_ _', **self.env.params)
+                cols[i] += utils.format_string(row[header[i]], '_ _', **self.env.params)
         for i in range(0, elements):
             self.add_field(name=header[i], value=cols[i])
         for i in range(elements, 3):
@@ -150,7 +150,7 @@ class SQLField(EmbedElement):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(format_string(sql, **self.env.params), self.env.params)
+                cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount > 0:
                     row = cursor.fetchone()
                     name = list(row.keys())[0]
@@ -167,7 +167,7 @@ class SQLTable(EmbedElement):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(format_string(sql, **self.env.params), self.env.params)
+                cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 header = None
                 cols = ['', '', '']
                 elements = 0
@@ -222,7 +222,7 @@ class SQLBarChart(BarChart):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute(format_string(sql, **self.env.params), self.env.params)
+                cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 1:
                     super().render(cursor.fetchone())
                 elif cursor.rowcount > 1:
@@ -273,7 +273,7 @@ class SQLPieChart(PieChart):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute(format_string(sql, **self.env.params), self.env.params)
+                cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 1:
                     super().render(cursor.fetchone())
                 elif cursor.rowcount > 1:

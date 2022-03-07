@@ -10,7 +10,7 @@ from core import utils, DCSServerBot
 from core.report.env import ReportEnv
 from core.report.elements import ReportElement
 from core.report.errors import UnknownReportElement, ClassNotFound, ValueNotInRange
-from core.report.utils import parse_input, parse_params, format_string
+from core.report.utils import parse_input, parse_params
 from discord.ext.commands import Context
 from os import path
 from typing import List, Tuple
@@ -46,9 +46,9 @@ class Report:
         else:
             self.env.embed = discord.Embed()
         if 'title' in self.report_def:
-            self.env.embed.title = format_string(self.report_def['title'], **self.env.params)
+            self.env.embed.title = utils.format_string(self.report_def['title'], **self.env.params)
         if 'description' in self.report_def:
-            self.env.embed.description = format_string(self.report_def['description'], **self.env.params)
+            self.env.embed.description = utils.format_string(self.report_def['description'], **self.env.params)
         if 'url' in self.report_def:
             self.env.embed.url = self.report_def['url']
         if 'img' in self.report_def:

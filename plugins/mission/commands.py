@@ -1,4 +1,3 @@
-# agent.py
 import asyncio
 import discord
 import itertools
@@ -15,8 +14,10 @@ class Mission(Plugin):
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
         self.update_mission_status.start()
+        self.update_channel_name.start()
 
     def cog_unload(self):
+        self.update_channel_name.stop()
         self.update_mission_status.cancel()
         super().cog_unload()
 
@@ -319,6 +320,32 @@ class Mission(Plugin):
     @update_mission_status.before_loop
     async def before_update(self):
         await self.bot.wait_until_ready()
+
+    @tasks.loop(minutes=5.0)
+    async def update_channel_name(self):
+        for server_name, server in self.globals.items():
+            if server['status'] == Status.UNKNOWN:
+                continue
+            channel = self.bot.get_channel(int(server['status_channel']))
+            # name changes of the status channel will only happen with the correct permission
+            if channel.permissions_for(self.bot.guilds[0].get_member(self.bot.user.id)).manage_channels:
+                name = channel.name
+                # if the server owner leaves, the server is shut down
+                if server['status'] in [Status.STOPPED, Status.SHUTDOWN, Status.LOADING]:
+                    if name.find('［') == -1:
+                        name = name + '［-］'
+                    else:
+                        name = re.sub('［.*］', f'［-］', name)
+                elif server_name in self.bot.player_data:
+                    players = self.bot.player_data[server_name]
+                    players = players[players['active'] == True]
+                    current = len(players) + 1
+                    max_players = server['serverSettings']['maxPlayers']
+                    if name.find('［') == -1:
+                        name = name + f'［{current}／{max_players}］'
+                    else:
+                        name = re.sub('［.*］', f'［{current}／{max_players}］', name)
+                await channel.edit(name=name)
 
 
 def setup(bot: DCSServerBot):

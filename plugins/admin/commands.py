@@ -1,4 +1,3 @@
-# commands.py
 import asyncio
 import discord
 import os
@@ -8,7 +7,7 @@ import psycopg2.extras
 import re
 import subprocess
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, Report
+from core import utils, DCSServerBot, Plugin, Report, const
 from core.const import Status
 from discord.ext import commands, tasks
 from typing import Union, List
@@ -16,15 +15,6 @@ from .listener import AdminEventListener
 
 
 class Agent(Plugin):
-
-    STATUS_EMOJI = {
-        Status.LOADING: '🔄',
-        Status.PAUSED: '⏸️',
-        Status.RUNNING: '▶️',
-        Status.RESTART_PENDING: '▶️',
-        Status.STOPPED: '⏹️',
-        Status.SHUTDOWN_PENDING: '▶️'
-    }
 
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
@@ -324,8 +314,8 @@ class Agent(Plugin):
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
         for server_name, server in self.globals.items():
-            if server['status'] in self.STATUS_EMOJI.keys():
-                await self.bot.change_presence(activity=discord.Game(self.STATUS_EMOJI[server['status']] + ' ' +
+            if server['status'] in const.STATUS_EMOJI.keys():
+                await self.bot.change_presence(activity=discord.Game(const.STATUS_EMOJI[server['status']] + ' ' +
                                                                      re.sub(self.config['FILTER']['SERVER_FILTER'],
                                                                             '', server_name).strip()))
                 await asyncio.sleep(10)
