@@ -2,7 +2,7 @@
 One of the main goals of DCSServerBot is gathering data of your DCS World servers and display them in a useful format.<br/>
 To achieve this, DCSServerBot already comes with some built-in reports. Many plugins display simple to complex data, which I thought, might be of interest.
 <br/><br/>
-To allow you to change the look and feel of existing reports and to make it easier to build your own, I've developed a JSON-baed reporting framework.<br/>
+To allow you to change the look and feel of existing reports and to make it easier to build your own, I've developed a JSON-baed reporting framework.
 Here you'll find the main features and elements of this framework.
 
 ## Using Reports in your Plugins
@@ -41,7 +41,7 @@ An Embed has several attributes and many of them can be set inside the report de
 }
 ```
 ### Input Section
-Within the input section you can define variables that will be used inside the report or validate such, that came from your render(...) call.
+Within the "input" section you can define variables that will be used inside the report or validate such, that came from your render(...) call.
 ```json
   "input":
   [
@@ -63,11 +63,11 @@ Within the input section you can define variables that will be used inside the r
 Only needed for PaginationReports (see below).
 
 ### Elements Section
-The elements-section contains the real data that you want to present with your report.<br/>
+The "elements" section contains the real data that you want to present with your report.<br/>
 You can either use pre-defined elements or write your own element by inheritance of one of the base classes provided by the framework.
 
 ### Variables
-You usually work with variables that you pass to the corresponding render() call or that you define in the _input_ section. These can be dictionaries like server or player or just single values like server_name.
+You usually work with variables that you pass to the corresponding render() call or that you define in the "input" section. These can be dictionaries like server- or player-data or just single values like server_name.
 To use them in your reports, expect all strings to be f-string capable:
 ```json
 {
@@ -83,7 +83,7 @@ The following elements can be used in your reports without any additional coding
 ### Ruler
 A ruler, default size is 25 characters.
 ```json
-"elements: [
+"elements": [
   {
     "Ruler"
   }
@@ -183,17 +183,18 @@ Similar to the Table element but with values from a SQL query:
 To display nice graphics like barcharts or piecharts, you need to wrap them in a Graph element:
 ```json
 "elements": [
-    {
-      "type": "Graph",
-      "params": {
-      "width": 10,        -- width of the resulting image
-      "height": 10,       -- height of the resulting image
-      "cols": 2,          -- number of columns in the grid
-      "rows": 1,          -- number of rows in the grid
-      "elements": [       
-         ... describe your GraphElements in here ...
+  {
+    "type": "Graph",
+    "params": {
+      "width": 10, -- width of the resulting image
+      "height": 10, -- height of the resulting image
+      "cols": 2, -- number of columns in the grid
+      "rows": 1, -- number of rows in the grid
+      "elements": [
+        ... describe your GraphElements in here ...
       ]
-   }
+    }
+  }      
 ]
 ```
 __Attention:__ Only one Graph element per report is allowed.

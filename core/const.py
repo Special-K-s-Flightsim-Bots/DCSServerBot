@@ -17,6 +17,15 @@ class Status(Enum):
     LOADING = 'Loading'
 
 
+STATUS_EMOJI = {
+    Status.LOADING: '🔄',
+    Status.PAUSED: '⏸️',
+    Status.RUNNING: '▶️',
+    Status.RESTART_PENDING: '▶️',
+    Status.STOPPED: '⏹️',
+    Status.SHUTDOWN_PENDING: '▶️'
+}
+
 SIDE_UNKNOWN = -1
 SIDE_SPECTATOR = 0
 SIDE_RED = 1
@@ -40,7 +49,6 @@ WEEKDAYS = {
     5: 'Sat',
     6: 'Sun'
 }
-
 
 STATUS_IMG = {
     Status.LOADING: 'https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/loading_256.png?raw=true',

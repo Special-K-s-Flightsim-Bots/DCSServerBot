@@ -8,6 +8,7 @@ import psutil
 import re
 import shutil
 import socket
+import string
 import subprocess
 import psycopg2
 import xmltodict
@@ -498,3 +499,19 @@ def sanitize(self):
     except (OSError, IOError) as e:
         self.log.error(f"Can't access {filename}. Make sure, {self.config['DCS']['DCS_INSTALLATION']} is writable.")
         raise e
+
+
+def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str:
+    class NoneFormatter(string.Formatter):
+        def format_field(self, value, spec):
+            if value is None:
+                if default_:
+                    value = default_
+                else:
+                    raise KeyError
+            return super().format_field(value, spec)
+    try:
+        string_ = NoneFormatter().format(string_, **kwargs)
+    except KeyError:
+        string_ = ''
+    return string_
