@@ -45,5 +45,6 @@
          ]
       }
     }
-  ]
+  ],
+  "footer": "Bot Version: v{bot.version}.{bot.sub_version}"
 }

@@ -21,6 +21,7 @@ class DCSServerBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.version = kwargs['version']
+        self.sub_version = kwargs['sub_version']
         self.listeners = {}
         self.eventListeners = []
         self.external_ip = None

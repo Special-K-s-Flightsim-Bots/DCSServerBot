@@ -78,6 +78,7 @@ class Main:
         config.read('config/default.ini')
         config.read('config/dcsserverbot.ini')
         config['BOT']['VERSION'] = BOT_VERSION
+        config['BOT']['SUB_VERSION'] = str(SUB_VERSION)
         return config
 
     def init_db(self):
@@ -178,6 +179,7 @@ class Main:
 
         # Create the Bot
         return DCSServerBot(version=BOT_VERSION,
+                            sub_version=SUB_VERSION,
                             command_prefix=get_prefix,
                             description='Interact with DCS World servers',
                             owner_id=int(self.config['BOT']['OWNER']),

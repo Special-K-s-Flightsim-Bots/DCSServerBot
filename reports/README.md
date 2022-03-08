@@ -37,7 +37,8 @@ An Embed has several attributes and many of them can be set inside the report de
   "img": "https://raw.githubusercontent.com/Special-K-s-Flightsim-Bots/DCSServerBot/master/images/play_256.png",
   "input": [],
   "pagination": {},
-  "elements": []
+  "elements": [],
+  "footer": "This is the footer (will be added to any other footers)"
 }
 ```
 ### Input Section
@@ -282,3 +283,83 @@ Same as pie chart, but with an SQL to grab the data from the database.
       }
     ]
 ```
+
+## Report Types
+There are three report types that you can use:
+
+1) Report
+<br/>Standard implementation. Will output a single report as an embed.
+2) PaginationReport
+<br/>Will enable pagination based on a provided parameter list.
+3) PersistentReport
+<br/>For auto-updates. Everytime a persistent report is generated, it will update the former embed.
+
+Let's look at the more complex ones.
+
+### PaginationReport
+To use a PaginationReport, your code could look like the following:
+```python
+from core import PaginationReport
+from discord.ext import commands
+from typing import Optional    
+
+    @commands.command(description='Pagination Test', usage='[period] [server name]')
+    async def test(self, ctx, period: Optional[str] = None, server_name: Optional[str] = None):
+        report = PaginationReport(self.bot, ctx, self.plugin, 'mytest.json')
+        await report.render(period=period, server_name=server_name)
+```
+
+In your report though, you have to specify a pagination section:
+```json
+{
+  "color": "blue",
+  "title": "My Pagination Test",
+  "input": [
+    {
+      "name": "period",
+      "range": ["", "day", "week", "month", "year"],
+      "default": "day"
+    }
+  ],
+  "pagination":
+  {
+    "param":
+    {
+      "name": "server_name",
+      "sql": "SELECT DISTINCT server_name FROM missions"
+    }
+  },
+  "elements": []
+}
+```
+Now you can use {server_name} in your report elements:
+```json
+    "elements": [
+      {
+        "type": "SQLPieChart",
+        "params": {
+          "col": 0,
+          "row": 0,
+          "title": "Server Time",
+          "sql": "select mission_name, ROUND(SUM(EXTRACT(EPOCH FROM (mission_end - mission_start))) / 3600) FROM missions GROUP BY 1 WHERE server_name LIKE '{server_name}'"
+        }
+      }
+    ]
+```
+
+### Persistent Report
+To use a PersistentReport, in general you produce a normal report but provide a unique key with it, that will be used to access and update it later on.
+```python
+from core import utils, PersistentReport
+from discord.ext import commands
+from typing import Optional    
+
+    @commands.command(description='Pagination Test', usage='[period] [server name]')
+    async def test(self, ctx, period: Optional[str] = None, server_name: Optional[str] = None):
+        server = await utils.get_server(self, ctx)
+        report = PersistentReport(self.bot, self.plugin, 'mytest.json', server, 'test_embed')
+        return await report.render(period=period, server_name=server_name)
+```
+
+Whenever you call ```.test```, you will not generate a new report but update the existing one.<br/>
+__Attention__: The key is unique in that server. You must not use the same key for two different reports, they will replace each other otherwise.

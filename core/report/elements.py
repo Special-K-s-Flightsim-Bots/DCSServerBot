@@ -1,4 +1,5 @@
 import concurrent
+import discord
 import inspect
 import numpy as np
 import psycopg2
@@ -147,7 +148,12 @@ class Graph(ReportElement):
         self.env.figure.savefig(self.env.filename, bbox_inches='tight', facecolor='#2C2F33')
         plt.close(self.env.figure)
         self.env.embed.set_image(url='attachment://' + self.env.filename)
-        self.env.embed.set_footer(text='Click on the image to zoom in.')
+        footer = self.env.embed.footer.text
+        if footer == discord.Embed.Empty:
+            footer = 'Click on the image to zoom in.'
+        else:
+            footer += '\nClick on the image to zoom in.'
+        self.env.embed.set_footer(text=footer)
 
 
 class SQLField(EmbedElement):
