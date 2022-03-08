@@ -54,7 +54,14 @@ So if you want to use the system and for instance reset it on every mission star
 lines in one of your triggers that fire after a mission load:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
+  [...]
   dcsbot.resetCampaign() -- remove, if you want to keep the points for players
   dcsbot.startCampaign() -- starts a new campaign (if there is not one started already)
 ```
 This can for instance be used for some arena based game, which should start all over again after being restarted.
+If you want to change user points based on any mission achievements, you are good to go:
+```lua
+  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
+  [...]
+  dcsbot.addUserPoints('Special K', 10) -- add 10 points to users "Special K"'s credits. Points can be negative.
+```

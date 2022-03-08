@@ -224,9 +224,10 @@ Simple bar chart that will display all elements of a given dictionary.
           "row": 0,
           "title": "Test BarChart",
           "color": "blue",
-          "rotate_labels": 30,    -- rotate the labels by 30°        
-          "bar_labels": true,     -- put the value of each bar at the top
-          "is_time": true,        -- select the time formatter
+          "rotate_labels": 30,         -- rotate the labels by 30°        
+          "bar_labels": true,          -- put the value of each bar at the top
+          "is_time": true,             -- select the time formatter
+          "orientation": "horizontal", -- set the orientation (vertical is default)
           "values": { "Takeoffs": 2, "Landings": 1, "Crashes": 1 }
         }
       }

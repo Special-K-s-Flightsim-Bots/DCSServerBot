@@ -17,7 +17,7 @@ local socket 	= require("socket")
 local dcsbotgui = {}
 
 function dcsbotgui.onSimulationFrame()
-	-- idea from HypeMan
+	-- general idea from HypeMan
 	if not dcsbotgui.UDPRecvSocket then
 		local host, port = config.DCS_HOST, config.DCS_PORT
 		local ip = socket.dns.toip(host)
@@ -33,8 +33,6 @@ function dcsbotgui.onSimulationFrame()
 			json = JSON:decode(msg)
 			if dcsbot[json.command] ~= nil then
 				dcsbot[json.command](json)
-			else
-
 			end
 		end
 	until err

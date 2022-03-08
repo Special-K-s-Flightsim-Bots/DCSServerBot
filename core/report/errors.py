@@ -25,3 +25,8 @@ class ValueNotInRange(Exception):
 class TooManyElements(Exception):
     def __init__(self, number: int):
         super().__init__(f'The SQL provided returns {number} columns. Allowed is a maximum of 3.')
+
+
+class UnknownValue(Exception):
+    def __init__(self, name: str, value: str):
+        super().__init__(f'The value {str} is unknown for parameter {name}.')

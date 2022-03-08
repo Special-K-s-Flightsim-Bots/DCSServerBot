@@ -1,7 +1,7 @@
 import psycopg2
 from contextlib import closing
 from core import utils, EventListener
-from typing import Optional
+from typing import Optional, Union
 
 
 class SlotBlockingListener(EventListener):
@@ -36,8 +36,9 @@ class SlotBlockingListener(EventListener):
                     default = unit['default']
         return default
 
-    def get_player_points(self, server_name: str, player_id: int) -> Optional[dict]:
-        player = utils.get_player(self, server_name, id=player_id)
+    def get_player_points(self, server_name: str, player: Union[dict, int]) -> Optional[dict]:
+        if isinstance(player, int):
+            player = utils.get_player(self, server_name, id=player)
         if player:
             if 'points' not in player:
                 conn = self.pool.getconn()
@@ -202,6 +203,21 @@ class SlotBlockingListener(EventListener):
     async def resetCampaign(self, data):
         server = self.globals[data['server_name']]
         self.campaign('reset', server)
+
+    async def addUserPoints(self, data):
+        player = self.get_player_points(data['server_name'],
+                                        utils.get_player(self, data['server_name'], name=data['name']))
+        player['points'] += data['points']
+        if player['points'] < 0:
+            player['points'] = 0
+        self.update_user_points(data['server_name'], player)
+
+    async def onChatMessage(self, data: dict):
+        if '-credits' in data['message']:
+            server_name = data['server_name']
+            player_id = data['from_id']
+            player = self.get_player_points(server_name, player_id)
+            utils.sendChatMessage(self, server_name, player_id, f"You currently have {player['points']} credit points.")
 
     async def rename(self, data):
         conn = self.pool.getconn()

@@ -9,7 +9,7 @@ class GameMaster(Plugin):
     @commands.Cog.listener()
     async def on_message(self, message):
         for key, value in self.globals.items():
-            if value["chat_channel"] == message.channel.id:
+            if value["chat_channel"] == str(message.channel.id):
                 if message.content.startswith(self.config['BOT']['COMMAND_PREFIX']) is False:
                     message.content = self.config['BOT']['COMMAND_PREFIX'] + 'chat ' + message.content
                     await self.bot.process_commands(message)

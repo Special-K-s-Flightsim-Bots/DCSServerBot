@@ -46,17 +46,21 @@ class PunishmentEventListener(EventListener):
                 cursor.execute('SELECT ROUND(SUM(EXTRACT(EPOCH FROM (hop_off - hop_on)))) / 3600 AS playtime FROM '
                                'statistics WHERE player_ucid = %s AND hop_off IS NOT NULL', (player['ucid'], ))
                 return cursor.fetchone()[0] if cursor.rowcount > 0 else 0
-        except (Exception, psycopg2.DatabaseError) as error:
+        except psycopg2.DatabaseError as error:
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
 
-    def sendChatMessage(self, server_name: str, player: int, message: str):
-        self.bot.sendtoDCS(self.globals[server_name], {
-            "command": "sendChatMessage",
-            "to": player,
-            "message": message
-        })
+    def get_punishment_points(self, player: dict) -> int:
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("SELECT COALESCE(SUM(points), 0) FROM pu_events WHERE init_id = %s", (player['ucid'], ))
+                return int(cursor.fetchone()[0])
+        except psycopg2.DatabaseError as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
 
     async def punish(self, data: dict):
         config = self.globals[data['server_name']][self.plugin]
@@ -79,7 +83,7 @@ class PunishmentEventListener(EventListener):
                 if 'target' in data and data['target'] != -1:
                     target = utils.get_player(self, data['server_name'], name=data['target'])
                     if 'forgive' in config:
-                        self.sendChatMessage(data['server_name'], target['id'],
+                        utils.sendChatMessage(self, data['server_name'], target['id'],
                                              f"{target['name']}, you are a victim of a {data['eventName']} event by "
                                              f"player {data['initiator']}.\nIf you send -forgive in this chat within "
                                              f"the next {config['forgive']} seconds, you can pardon the other player.")
@@ -138,7 +142,7 @@ class PunishmentEventListener(EventListener):
                         await self.punish(data)
 
     async def onChatMessage(self, data: dict):
-        if '-forgive' in data['message']:
+        if data['message'].startswith('-forgive') and self.plugin in self.globals[data['server_name']]:
             config = self.globals[data['server_name']][self.plugin]
             target = utils.get_player(self, data['server_name'], id=data['from_id'])
             if 'forgive' in config:
@@ -159,23 +163,21 @@ class PunishmentEventListener(EventListener):
                     finally:
                         self.pool.putconn(conn)
             else:
-                self.sendChatMessage(data['server_name'], target['id'], '-forgive is not enabled on this server.')
+                utils.sendChatMessage(self, data['server_name'], target['id'], '-forgive is not enabled on this server.')
+        elif data['message'].startswith('-penalty'):
+            player = utils.get_player(self, data['server_name'], id=data['from_id'])
+            points = self.get_punishment_points(player)
+            if points > 0:
+                utils.sendChatMessage(self, data['server_name'], data['from_id'],
+                                      f"{player['name']}, you currently have {points} penalty points.")
 
     async def onPlayerStart(self, data):
         # the server owner don't need to get an update of their stats
         if data['id'] == 1:
             return
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("SELECT COALESCE(SUM(points), 0) FROM pu_events WHERE init_id = %s", (data['ucid'], ))
-                points = int(cursor.fetchone()[0])
-                if points > 0:
-                    self.sendChatMessage(data['server_name'], data['id'], f'You currently have {points} punishment points.')
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        points = self.get_punishment_points(data)
+        if points > 0:
+            utils.sendChatMessage(self, data['server_name'], data['id'], f"{data['name']}, you currently have {points} penalty points.")
 
     async def rename(self, data):
         conn = self.pool.getconn()

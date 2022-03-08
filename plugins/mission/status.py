@@ -109,7 +109,8 @@ class PluginsInfo(report.EmbedElement):
     def render_lotatc(self, server: dict, param: dict) -> bool:
         if 'lotAtcSettings' in server:
             show_password = param['show_password'] if 'show_password' in param else True
-            if show_password:
+            if show_password and 'blue_password' in server['lotAtcSettings'] \
+                    and 'red_password' in server['lotAtcSettings']:
                 value = '🔹 Pass: {}\n🔸 Pass: {}'.format(
                                 server['lotAtcSettings']['blue_password'], server['lotAtcSettings']['red_password'])
             else:

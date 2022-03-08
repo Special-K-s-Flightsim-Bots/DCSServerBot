@@ -445,7 +445,7 @@ def str_to_class(name):
 
 
 # Return a player from the internal list
-def get_player(self, server_name, **kwargs):
+def get_player(self, server_name: str, **kwargs):
     if server_name in self.bot.player_data:
         df = self.bot.player_data[server_name]
         if 'id' in kwargs:
@@ -458,6 +458,18 @@ def get_player(self, server_name, **kwargs):
             return None
         if not row.empty:
             return row.to_dict('records')[0]
+    return None
+
+
+def get_crew_members(self, server_name: str, player_id: int):
+    # get the pilot
+    pilot = get_player(self, server_name, id=player_id)
+    if pilot:
+        # now find players that have the same slot
+        df = self.bot.player_data[server_name]
+        rows = df[df['slot'] == pilot['slot']]
+        if not rows.empty:
+            return rows.to_dict('records')
     return None
 
 
@@ -515,3 +527,11 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
     except KeyError:
         string_ = ''
     return string_
+
+
+def sendChatMessage(self, server_name: str, player: int, message: str):
+    self.bot.sendtoDCS(self.globals[server_name], {
+        "command": "sendChatMessage",
+        "to": player,
+        "message": message
+    })
