@@ -24,14 +24,21 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
         if (unit['unit_type'] and unit['unit_type'] == unit_type)
                 or (unit['unit_name'] and string.find(unit_name, unit['unit_name'], 1, true) ~= nil)
                 or (unit['group_name'] and string.find(group_name, unit['group_name'], 1, true) ~= nil) then
-            -- blocking slots by points
-            if unit['points'] and dcsbot.userInfo[player].points < unit['points'] then
-                message = 'You need at least ' .. unit['points'] .. ' points to enter this slot. You currently have ' .. dcsbot.userInfo[player].points .. ' points.'
-                net.send_chat_to(message, playerID)
-                return false
+            -- blocking slots by points // check multicrew
+            if tonumber(slotID) then
+                points = unit['points']
+            else
+                points = unit['crew'] or 0
+            end
+            if points then
+                if dcsbot.userInfo[player].points < points then
+                    local message = 'You need at least ' .. points .. ' points to enter this slot. You currently have ' .. dcsbot.userInfo[player].points .. ' points.'
+                    net.send_chat_to(message, playerID)
+                    return false
+                end
             -- blocking slots by discord groups
             elseif unit['discord'] and has_value(dcsbot.userInfo[player].roles, unit['discord']) == false then
-                message = unit['message'] or 'This slot is restricted for a specific discord role.'
+                local message = unit['message'] or 'This slot is restricted for a specific discord role.'
                 net.send_chat_to(message, playerID)
                 return false
             end
