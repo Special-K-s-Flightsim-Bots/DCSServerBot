@@ -101,7 +101,7 @@ class AgentServerStats(Plugin):
                                        'cpu, mem_total, mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, '
                                        'fps) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
                                        (server_name, platform.node(), mission_id, users, server['status'].name, cpu,
-                                        memory.private, memory.uss, read_bytes, write_bytes, bytes_sent, bytes_recv,
+                                        memory.private, memory.rss, read_bytes, write_bytes, bytes_sent, bytes_recv,
                                         self.eventlistener.fps[server_name]))
                         conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
