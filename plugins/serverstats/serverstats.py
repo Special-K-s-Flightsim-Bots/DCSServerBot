@@ -185,11 +185,11 @@ class UsersPerDayTime(report.GraphElement):
 class ServerLoad(report.MultiGraphElement):
 
     def render(self, server_name: Optional[str], period: str, agent_host: Optional[str]):
-        sql = f"SELECT date_trunc('minute', time) AS time, SUM(users) AS \"Users\", SUM(cpu) AS \"CPU\", " \
-              f"SUM(mem_total-mem_ram)/(1024*1024) AS \"Memory (paged)\", SUM(mem_ram)/(1024*1024) AS \"Memory (RAM)\", " \
-              f"SUM(read_bytes)/1024 AS \"Read\", SUM(write_bytes)/1024 AS \"Write\", ROUND(AVG(bytes_sent)) " \
-              f"AS \"Sent\", ROUND(AVG(bytes_recv)) AS \"Recv\", ROUND(AVG(fps), 2) AS \"FPS\" FROM serverstats " \
-              f"WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}')"
+        sql = f"SELECT date_trunc('minute', time) AS time, SUM(users) AS \"Users\", SUM(cpu) AS \"CPU\", SUM(CASE " \
+              f"WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS \"Memory (paged)\", " \
+              f"SUM(mem_ram)/(1024*1024) AS \"Memory (RAM)\", SUM(read_bytes)/1024 AS \"Read\", SUM(write_bytes)/1024 " \
+              f"AS \"Write\", ROUND(AVG(bytes_sent)) AS \"Sent\", ROUND(AVG(bytes_recv)) AS \"Recv\", ROUND(AVG(fps), " \
+              f"2) AS \"FPS\" FROM serverstats WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}') "
         if server_name:
             sql += f" AND server_name = '{server_name}' "
         if agent_host:
@@ -214,8 +214,10 @@ class ServerLoad(report.MultiGraphElement):
                     self.axes[3].legend()
                 else:
                     for i in range(0, 4):
+                        self.axes[i].bar([], [])
                         self.axes[i].set_xticks([])
                         self.axes[i].set_yticks([])
+                        self.axes[i].text(0, 0, 'No data available.', ha='center', va='center', size=20)
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:

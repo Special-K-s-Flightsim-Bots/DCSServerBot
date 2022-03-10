@@ -35,56 +35,67 @@ class Report:
             self.report_def = json.load(file)
 
     async def render(self, *args, **kwargs) -> ReportEnv:
-        # parse report parameters
         if 'input' in self.report_def:
             self.env.params = parse_input(self, kwargs, self.report_def['input'])
         else:
             self.env.params = kwargs.copy()
+        # add the bot to be able to access the whole environment from inside the report
+        self.env.params['bot'] = self.bot
         # format the embed
         if 'color' in self.report_def:
             self.env.embed = discord.Embed(color=getattr(discord.Color, self.report_def['color'])())
         else:
             self.env.embed = discord.Embed()
-        if 'title' in self.report_def:
-            self.env.embed.title = utils.format_string(self.report_def['title'], **self.env.params)
-        if 'description' in self.report_def:
-            self.env.embed.description = utils.format_string(self.report_def['description'], **self.env.params)
-        if 'url' in self.report_def:
-            self.env.embed.url = self.report_def['url']
-        if 'img' in self.report_def:
-            self.env.embed.set_thumbnail(url=self.report_def['img'])
-
-        for element in self.report_def['elements']:
-            if isinstance(element, dict):
-                if 'params' in element:
-                    element_args = parse_params(self.env.params, element['params'])
+        for name, item in self.report_def.items():
+            # parse report parameters
+            if name == 'title':
+                self.env.embed.title = utils.format_string(item, **self.env.params)
+            elif name == 'description':
+                self.env.embed.description = utils.format_string(item, **self.env.params)
+            elif name == 'url':
+                self.env.embed.url = item
+            elif name == 'img':
+                self.env.embed.set_thumbnail(url=item)
+            elif name == 'footer':
+                footer = self.env.embed.footer.text
+                text = utils.format_string(item, **self.env.params)
+                if footer == discord.Embed.Empty:
+                    footer = text
                 else:
-                    element_args = self.env.params.copy()
-                element_class = utils.str_to_class(element['class']) if 'class' in element else None
-                if not element_class and 'type' in element:
-                    element_class = getattr(sys.modules['core.report.elements'], element['type'])
-            elif isinstance(element, str):
-                element_class = getattr(sys.modules['core.report.elements'], element)
-                element_args = self.env.params.copy()
-            else:
-                raise UnknownReportElement(str(element))
-            if element_class:
-                # remove parameters, that are not in the class __init__ signature
-                signature = inspect.signature(element_class.__init__).parameters.keys()
-                class_args = {name: value for name, value in element_args.items() if name in signature}
-                element_class = element_class(self.env, **class_args)
-                if isinstance(element_class, ReportElement):
-                    # remove parameters, that are not in the render classes signature
-                    signature = inspect.signature(element_class.render).parameters.keys()
-                    render_args = {name: value for name, value in element_args.items() if name in signature}
-                    try:
-                        element_class.render(**render_args)
-                    except Exception as ex:
-                        self.log.exception(ex)
-                else:
-                    raise UnknownReportElement(element['class'])
-            else:
-                raise ClassNotFound(element['class'])
+                    footer += '\n' + text
+                self.env.embed.set_footer(text=footer)
+            elif name == 'elements':
+                for element in item:
+                    if isinstance(element, dict):
+                        if 'params' in element:
+                            element_args = parse_params(self.env.params, element['params'])
+                        else:
+                            element_args = self.env.params.copy()
+                        element_class = utils.str_to_class(element['class']) if 'class' in element else None
+                        if not element_class and 'type' in element:
+                            element_class = getattr(sys.modules['core.report.elements'], element['type'])
+                    elif isinstance(element, str):
+                        element_class = getattr(sys.modules['core.report.elements'], element)
+                        element_args = self.env.params.copy()
+                    else:
+                        raise UnknownReportElement(str(element))
+                    if element_class:
+                        # remove parameters, that are not in the class __init__ signature
+                        signature = inspect.signature(element_class.__init__).parameters.keys()
+                        class_args = {name: value for name, value in element_args.items() if name in signature}
+                        element_class = element_class(self.env, **class_args)
+                        if isinstance(element_class, ReportElement):
+                            # remove parameters, that are not in the render classes signature
+                            signature = inspect.signature(element_class.render).parameters.keys()
+                            render_args = {name: value for name, value in element_args.items() if name in signature}
+                            try:
+                                element_class.render(**render_args)
+                            except Exception as ex:
+                                self.log.exception(ex)
+                        else:
+                            raise UnknownReportElement(element['class'])
+                    else:
+                        raise ClassNotFound(element['class'])
         return self.env
 
 

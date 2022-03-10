@@ -53,6 +53,13 @@ class UserStatisticsEventListener(EventListener):
         else:
             return None
 
+    @staticmethod
+    def get_unit_type(data: dict) -> str:
+        unit_type = data['unit_type']
+        if int(data['sub_slot']) not in [-1, 0]:
+            unit_type += ' (Crew)'
+        return unit_type
+
     async def registerDCSServer(self, data):
         if data['statistics']:
             server_name = data['server_name']
@@ -69,8 +76,8 @@ class UserStatisticsEventListener(EventListener):
                             if row[1] == data['current_mission']:
                                 mission_id = row[0]
                             else:
-                                self.log.warn('The mission in the database does not match the mission that is live on '
-                                              'this server. Fixing...')
+                                self.log.warning('The mission in the database does not match the mission that is live '
+                                                 'on this server. Fixing...')
                         if mission_id == -1:
                             # close ambiguous missions
                             if cursor.rowcount >= 1:
@@ -108,7 +115,7 @@ class UserStatisticsEventListener(EventListener):
                                         player_started = True
                                 if not player_started and player['side'] != const.SIDE_SPECTATOR:
                                     cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
-                                                   (mission_id, player['ucid'], player['unit_type']))
+                                                   (mission_id, player['ucid'], self.get_unit_type(player)))
                             # close dead entries in the database (if existent)
                             cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
                             for row in cursor.fetchall():
@@ -167,7 +174,8 @@ class UserStatisticsEventListener(EventListener):
                 with closing(conn.cursor()) as cursor:
                     cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, data['ucid']))
                     if data['side'] != const.SIDE_SPECTATOR:
-                        cursor.execute(self.SQL_MISSION_HANDLING['start_player'], (mission_id, data['ucid'], data['unit_type']))
+                        cursor.execute(self.SQL_MISSION_HANDLING['start_player'], (mission_id, data['ucid'],
+                                                                                   self.get_unit_type(data)))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
@@ -235,10 +243,9 @@ class UserStatisticsEventListener(EventListener):
                             kill_type = 'kill_ground'
                         else:
                             kill_type = 'kill_other'  # Static objects
-                        player1 = utils.get_player(self, data['server_name'], id=data['arg1'])
                         if kill_type in self.SQL_EVENT_UPDATES.keys():
-                            cursor.execute(self.SQL_EVENT_UPDATES[kill_type],
-                                           (mission_id, player1['ucid']))
+                            for player in utils.get_crew_members(self, data['server_name'], data['arg1']):
+                                cursor.execute(self.SQL_EVENT_UPDATES[kill_type], (mission_id, player['ucid']))
                         else:
                             self.log.debug(f'No SQL for kill_type {kill_type} found!.')
 
@@ -264,23 +271,22 @@ class UserStatisticsEventListener(EventListener):
                             death_type = 'deaths_ground'
                         else:
                             death_type = 'other'
-                        player2 = utils.get_player(self, data['server_name'], id=data['arg4'])
                         if death_type in self.SQL_EVENT_UPDATES.keys():
-                            cursor.execute(self.SQL_EVENT_UPDATES[death_type],
-                                           (mission_id, player2['ucid']))
+                            for player in utils.get_crew_members(self, data['server_name'], data['arg4']):
+                                cursor.execute(self.SQL_EVENT_UPDATES[death_type], (mission_id, player['ucid']))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
                 conn.rollback()
             finally:
                 self.pool.putconn(conn)
-        elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
+        elif data['eventName'] in ['takeoff', 'landing', 'crash', 'pilot_death']:
             if data['arg1'] != -1:
-                player = utils.get_player(self, data['server_name'], id=data['arg1'])
                 if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
                     conn = self.pool.getconn()
                     try:
                         with closing(conn.cursor()) as cursor:
+                            player = utils.get_player(self, data['server_name'], id=data['arg1'])
                             cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
                                            (mission_id, player['ucid']))
                             conn.commit()
@@ -289,6 +295,20 @@ class UserStatisticsEventListener(EventListener):
                         conn.rollback()
                     finally:
                         self.pool.putconn(conn)
-        else:
-            self.log.debug(f"UserStatisticsEventListener: Unhandled event: {data['eventName']}")
-        return None
+        elif data['eventName'] in ['eject']:
+            if data['arg1'] != -1:
+                if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
+                    # TODO: when DCS bug wih multicrew eject gets fixed, change this to single player only
+                    players = utils.get_crew_members(self, data['server_name'], data['arg4'])
+                    if len(players) == 1:
+                        conn = self.pool.getconn()
+                        try:
+                            with closing(conn.cursor()) as cursor:
+                                cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
+                                               (mission_id, players[0]['ucid']))
+                                conn.commit()
+                        except (Exception, psycopg2.DatabaseError) as error:
+                            self.log.exception(error)
+                            conn.rollback()
+                        finally:
+                            self.pool.putconn(conn)

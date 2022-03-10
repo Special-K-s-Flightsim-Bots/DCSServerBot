@@ -70,10 +70,10 @@ class Punishment(Plugin):
                                             "command": "force_player_slot",
                                             "playerID": initiator['id']
                                         })
-                                        self.eventlistener.sendChatMessage(server['server_name'], initiator['id'],
-                                                                           f"You've been kicked back to spectators "
-                                                                           f"because of: {reason}.\nYour current "
-                                                                           f"punishment points are: {row['points']}")
+                                        utils.sendChatMessage(self, server['server_name'], initiator['id'],
+                                                              f"You've been kicked back to spectators because of: "
+                                                              f"{reason}.\nYour current punishment points are: "
+                                                              f"{row['points']}")
                                     elif punishment['action'] == 'warn':
                                         self.bot.sendtoDCS(server, {
                                             "command": "sendPopupMessage",

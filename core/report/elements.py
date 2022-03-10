@@ -1,4 +1,5 @@
 import concurrent
+import discord
 import inspect
 import numpy as np
 import psycopg2
@@ -8,7 +9,7 @@ from abc import ABC, abstractmethod
 from contextlib import closing
 from core import utils
 from core.report.env import ReportEnv
-from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements
+from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue
 from core.report.utils import parse_params
 from datetime import timedelta
 from matplotlib import pyplot as plt
@@ -112,6 +113,7 @@ class Graph(ReportElement):
         plt.style.use('dark_background')
         plt.rcParams['axes.facecolor'] = '2C2F33'
         self.env.figure = plt.figure(figsize=(width, height))
+        futures = []
         with concurrent.futures.ThreadPoolExecutor(
                 max_workers=int(self.env.bot.config['REPORTS']['NUM_WORKERS'])) as executor:
             for element in elements:
@@ -132,17 +134,26 @@ class Graph(ReportElement):
                         # remove parameters, that are not in the render methods signature
                         signature = inspect.signature(element_class.render).parameters.keys()
                         render_args = {name: value for name, value in element_args.items() if name in signature}
-                        executor.submit(element_class.render, **render_args)
+                        futures.append(executor.submit(element_class.render, **render_args))
                     else:
                         raise UnknownGraphElement(element['class'])
                 else:
                     raise ClassNotFound(element['class'])
+        # check for any exceptions and raise them
+        for future in futures:
+            if future.exception():
+                raise future.exception()
         plt.subplots_adjust(hspace=0.5, wspace=0.5)
         self.env.filename = f'{uuid.uuid4()}.png'
         self.env.figure.savefig(self.env.filename, bbox_inches='tight', facecolor='#2C2F33')
         plt.close(self.env.figure)
         self.env.embed.set_image(url='attachment://' + self.env.filename)
-        self.env.embed.set_footer(text='Click on the image to zoom in.')
+        footer = self.env.embed.footer.text
+        if footer == discord.Embed.Empty:
+            footer = 'Click on the image to zoom in.'
+        else:
+            footer += '\nClick on the image to zoom in.'
+        self.env.embed.set_footer(text=footer)
 
 
 class SQLField(EmbedElement):
@@ -192,18 +203,29 @@ class SQLTable(EmbedElement):
 class BarChart(GraphElement):
     def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: Optional[int] = 1,
                  rowspan: Optional[int] = 1, title: Optional[str] = '', color: Optional[str] = None,
-                 rotate_labels: Optional[int] = 0, bar_labels: Optional[bool] = False, is_time: Optional[bool] = False):
+                 rotate_labels: Optional[int] = 0, bar_labels: Optional[bool] = False, is_time: Optional[bool] = False,
+                 orientation: Optional[str] = 'vertical', width: Optional[float] = 0.5,
+                 show_no_data: Optional[bool] = True):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
         self.color = color
         self.rotate_labels = rotate_labels
         self.bar_labels = bar_labels
         self.is_time = is_time
+        self.orientation = orientation
+        self.width = width
+        self.show_no_data = show_no_data
 
     def render(self, values: dict[str, float]):
-        if len(values):
-            labels = values.keys()
-            self.axes.bar(labels, values.values(), width=0.5, color=self.color)
+        if len(values) or self.show_no_data:
+            labels = list(values.keys())
+            values = list(values.values())
+            if self.orientation == 'vertical':
+                self.axes.bar(labels, values, width=self.width, color=self.color)
+            elif self.orientation == 'horizontal':
+                self.axes.barh(labels, values, height=self.width, color=self.color)
+            else:
+                raise UnknownValue('orientation', self.orientation)
             self.axes.set_title(self.title, color='white', fontsize=25)
             if self.rotate_labels > 0:
                 for label in self.axes.get_xticklabels():
@@ -212,9 +234,11 @@ class BarChart(GraphElement):
             if self.bar_labels:
                 for c in self.axes.containers:
                     self.axes.bar_label(c, fmt='%.1f h' if self.is_time else '%.1f', label_type='edge')
+            if len(values) == 0:
+                self.axes.set_xticks([])
+                self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
         else:
-            self.axes.set_xticks([])
-            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+            self.axes.set_visible(False)
 
 
 class SQLBarChart(BarChart):
@@ -242,11 +266,12 @@ class SQLBarChart(BarChart):
 class PieChart(GraphElement):
     def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: Optional[int] = 1,
                  rowspan: Optional[int] = 1, title: Optional[str] = '', colors: Optional[List[str]] = None,
-                 is_time: Optional[bool] = False):
+                 is_time: Optional[bool] = False, show_no_data: Optional[bool] = True):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
         self.colors = colors
         self.is_time = is_time
+        self.show_no_data = show_no_data
 
     def func(self, pct, allvals):
         absolute = int(round(pct / 100. * np.sum(allvals)))
@@ -256,7 +281,7 @@ class PieChart(GraphElement):
             return '{:.1f}%\n({:d})'.format(pct, absolute)
 
     def render(self, values: dict[str, Any]):
-        if len(values):
+        if len(values) or self.show_no_data:
             labels = values.keys()
             values = list(values.values())
             patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: self.func(pct, values),
@@ -264,6 +289,9 @@ class PieChart(GraphElement):
             plt.setp(pcts, color='black', fontweight='bold')
             self.axes.set_title(self.title, color='white', fontsize=25)
             self.axes.axis('equal')
+            if len(values) == 0:
+                self.axes.set_xticks([])
+                self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
         else:
             self.axes.set_visible(False)
 

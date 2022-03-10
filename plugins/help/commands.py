@@ -2,6 +2,7 @@ import discord
 import string
 from discord.ext import commands
 from core import DCSServerBot, Plugin
+from .listener import HelpListener
 
 
 class Help(Plugin):
@@ -53,4 +54,4 @@ class Help(Plugin):
 def setup(bot: DCSServerBot):
     # help is only available on the master
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(Help(bot))
+        bot.add_cog(Help(bot, HelpListener))

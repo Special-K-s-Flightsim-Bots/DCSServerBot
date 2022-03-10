@@ -7,6 +7,7 @@ local utils 	= base.require("DCSServerBotUtils")
 local config	= base.require("DCSServerBotConfig")
 
 local mission = mission or {}
+mission.last_takeoff = {}
 
 function mission.onMissionLoadBegin()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadBegin()')
@@ -200,6 +201,14 @@ end
 
 function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent()')
+    -- ignore false landing events
+    if eventName == 'takeoff' then
+        mission.last_takeoff[arg1] = os.clock()
+    elseif eventName == 'landing' then
+        if mission.last_takeoff[arg1] > (os.clock() - 1) then
+            return
+        end
+    end
 	local msg = {}
 	msg.command = 'onGameEvent'
 	msg.eventName = eventName

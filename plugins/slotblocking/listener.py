@@ -1,23 +1,32 @@
 import psycopg2
 from contextlib import closing
-from core import utils, EventListener
-from typing import Optional
+from core import utils, EventListener, const, Plugin
+from typing import Optional, Union
 
 
 class SlotBlockingListener(EventListener):
+    def __init__(self, plugin: Plugin):
+        super().__init__(plugin)
+        self.credits = {}
 
     def get_points(self, server: dict, player: dict) -> int:
         if 'restricted' in server[self.plugin]:
             for unit in server[self.plugin]['restricted']:
-                if ('unit_type' in unit and unit['unit_type'] == player['unit_type']) or ('unit_name' in unit and unit['unit_name'] in player['unit_name']) or ('group_name' in unit and unit['group_name'] in player['group_name']):
-                    if 'points' in unit:
+                if ('unit_type' in unit and unit['unit_type'] == player['unit_type']) or \
+                        ('unit_name' in unit and unit['unit_name'] in player['unit_name']) or \
+                        ('group_name' in unit and unit['group_name'] in player['group_name']):
+                    if player['sub_slot'] == 0 and 'points' in unit:
                         return unit['points']
+                    elif player['sub_slot'] > 0 and 'crew' in unit:
+                        return unit['crew']
         return 0
 
     def get_costs(self, server: dict, player: dict) -> int:
         if 'restricted' in server[self.plugin]:
             for unit in server[self.plugin]['restricted']:
-                if ('unit_type' in unit and unit['unit_type'] == player['unit_type']) or ('unit_name' in unit and unit['unit_name'] in player['unit_name']) or ('group_name' in unit and unit['group_name'] in player['group_name']):
+                if ('unit_type' in unit and unit['unit_type'] == player['unit_type']) or \
+                        ('unit_name' in unit and unit['unit_name'] in player['unit_name']) or \
+                        ('group_name' in unit and unit['group_name'] in player['group_name']):
                     if 'costs' in unit:
                         return unit['costs']
         return 0
@@ -36,8 +45,9 @@ class SlotBlockingListener(EventListener):
                     default = unit['default']
         return default
 
-    def get_player_points(self, server_name: str, player_id: int) -> Optional[dict]:
-        player = utils.get_player(self, server_name, id=player_id)
+    def get_player_points(self, server_name: str, player: Union[dict, int]) -> Optional[dict]:
+        if isinstance(player, int):
+            player = utils.get_player(self, server_name, id=player)
         if player:
             if 'points' not in player:
                 conn = self.pool.getconn()
@@ -74,6 +84,10 @@ class SlotBlockingListener(EventListener):
                 server[self.plugin] = specific
             elif default and specific:
                 merged = {}
+                if 'use_reservations' in specific:
+                    merged['use_reservations'] = specific['use_reservations']
+                elif 'use_reservations' in default:
+                    merged['use_reservations'] = default['use_reservations']
                 if 'restricted' in default and 'restricted' not in specific:
                     merged['restricted'] = default['restricted']
                 elif 'restricted' not in default and 'restricted' in specific:
@@ -147,30 +161,77 @@ class SlotBlockingListener(EventListener):
             "slotID": ""
         })
 
+    async def onPlayerChangeSlot(self, data):
+        server = self.globals[data['server_name']]
+        config = server[self.plugin]
+        if 'side' in data and 'use_reservations' in config and config['use_reservations']:
+            player = self.get_player_points(data['server_name'],
+                                            utils.get_player(self, data['server_name'], ucid=data['ucid']))
+            if data['side'] != const.SIDE_SPECTATOR:
+                # slot change - credit will be taken
+                costs = self.get_costs(server, data)
+                if costs > 0:
+                    self.credits[player['ucid']] = costs
+                    player['points'] -= costs
+                    self.update_user_points(data['server_name'], player)
+            elif player['ucid'] in self.credits:
+                # back to spectator removes any credit
+                del self.credits[player['ucid']]
+
     async def onGameEvent(self, data):
         server = self.globals[data['server_name']]
         if self.plugin in server:
+            config = server[self.plugin]
             if data['eventName'] == 'kill':
                 # players gain points only, if they don't kill themselves and no teamkills
                 if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
-                    player = self.get_player_points(data['server_name'], data['arg1'])
-                    player['points'] += self.get_points_per_kill(server, data)
-                    self.update_user_points(data['server_name'], player)
+                    # Multicrew - pilot and all crew members gain points
+                    for player in utils.get_crew_members(self, data['server_name'], data['arg1']):
+                        player = self.get_player_points(data['server_name'], player)
+                        player['points'] += self.get_points_per_kill(server, data)
+                        self.update_user_points(data['server_name'], player)
                 # players only lose points if they weren't killed as a teamkill
                 if data['arg4'] != -1 and data['arg3'] != data['arg6']:
-                    player = self.get_player_points(data['server_name'], data['arg4'])
+                    # if we don't use reservations, credit will be taken on kill
+                    if 'use_reservations' not in config or not config['use_reservations']:
+                        player = self.get_player_points(data['server_name'], data['arg4'])
+                        player['points'] -= self.get_costs(server, player)
+                        self.update_user_points(data['server_name'], player)
+                        # if the remaining points are not enough to stay in this plane, move them back to spectators
+                        if player['points'] < self.get_points(server, player):
+                            self.move_to_spectators(server, player)
+            elif data['eventName'] == 'crash':
+                # if we don't use reservations, credit will be taken on crash
+                if 'use_reservations' not in config or not config['use_reservations']:
+                    player = self.get_player_points(data['server_name'], data['arg1'])
                     player['points'] -= self.get_costs(server, player)
                     self.update_user_points(data['server_name'], player)
                     # if the remaining points are not enough to stay in this plane, move them back to spectators
                     if player['points'] < self.get_points(server, player):
                         self.move_to_spectators(server, player)
-            elif data['eventName'] == 'crash':
+            elif data['eventName'] == 'landing':
+                # pay back on landing
                 player = self.get_player_points(data['server_name'], data['arg1'])
-                player['points'] -= self.get_costs(server, player)
-                self.update_user_points(data['server_name'], player)
-                # if the remaining points are not enough to stay in this plane, move them back to spectators
-                if player['points'] < self.get_points(server, player):
-                    self.move_to_spectators(server, player)
+                if player['ucid'] in self.credits:
+                    player['points'] += self.credits[player['ucid']]
+                    self.update_user_points(data['server_name'], player)
+                    del self.credits[player['ucid']]
+            elif data['eventName'] == 'takeoff':
+                # credit on takeoff but don't move back to spectators
+                if 'use_reservations' in config and config['use_reservations']:
+                    player = self.get_player_points(data['server_name'],
+                                                    utils.get_player(self, data['server_name'], id=data['arg1']))
+                    if player['ucid'] not in self.credits:
+                        costs = self.get_costs(server, player)
+                        if costs > 0:
+                            self.credits[player['ucid']] = costs
+                            player['points'] -= costs
+                            self.update_user_points(data['server_name'], player)
+            elif data['eventName'] == 'disconnect':
+                player = self.get_player_points(data['server_name'],
+                                                utils.get_player(self, data['server_name'], id=data['arg1']))
+                if player['ucid'] in self.credits:
+                    del self.credits[player['ucid']]
 
     def campaign(self, command, server):
         conn = self.pool.getconn()
@@ -202,6 +263,21 @@ class SlotBlockingListener(EventListener):
     async def resetCampaign(self, data):
         server = self.globals[data['server_name']]
         self.campaign('reset', server)
+
+    async def addUserPoints(self, data):
+        player = self.get_player_points(data['server_name'],
+                                        utils.get_player(self, data['server_name'], name=data['name']))
+        player['points'] += data['points']
+        if player['points'] < 0:
+            player['points'] = 0
+        self.update_user_points(data['server_name'], player)
+
+    async def onChatMessage(self, data: dict):
+        if '-credits' in data['message']:
+            server_name = data['server_name']
+            player_id = data['from_id']
+            player = self.get_player_points(server_name, player_id)
+            utils.sendChatMessage(self, server_name, player_id, f"You currently have {player['points']} credit points.")
 
     async def rename(self, data):
         conn = self.pool.getconn()

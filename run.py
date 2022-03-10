@@ -1,7 +1,4 @@
-# run.py
 import asyncio
-import string
-
 import discord
 import logging
 import os
@@ -9,6 +6,7 @@ import platform
 import psycopg2
 import psycopg2.extras
 import shutil
+import string
 import subprocess
 import sys
 import winreg
@@ -21,9 +19,9 @@ from logging.handlers import RotatingFileHandler
 from os import path
 from psycopg2 import pool
 
-# Set the bot's version (not externally configurable)
+# Set the bot version (not externally configurable)
 BOT_VERSION = '2.5.7'
-SUB_VERSION = 8
+SUB_VERSION = 9
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -80,6 +78,7 @@ class Main:
         config.read('config/default.ini')
         config.read('config/dcsserverbot.ini')
         config['BOT']['VERSION'] = BOT_VERSION
+        config['BOT']['SUB_VERSION'] = str(SUB_VERSION)
         return config
 
     def init_db(self):
@@ -180,6 +179,7 @@ class Main:
 
         # Create the Bot
         return DCSServerBot(version=BOT_VERSION,
+                            sub_version=SUB_VERSION,
                             command_prefix=get_prefix,
                             description='Interact with DCS World servers',
                             owner_id=int(self.config['BOT']['OWNER']),
@@ -258,7 +258,7 @@ class Main:
                     else:
                         self.log.debug('- No upgrade found for DCSServerBot.')
             except git.exc.InvalidGitRepositoryError:
-                self.log.error('No git repository found. Aborting. Please run the installer again.')
+                self.log.error('No git repository found. Aborting. Please use "git clone" to install DCSServerBot.')
         except ImportError:
             self.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
         return False
@@ -335,7 +335,8 @@ if __name__ == "__main__":
         try:
             Main().run()
         except psycopg2.OperationalError:
-            print('Can\'t connect to the database. Please check your dcsserverbot.ini for any error in the DATABASE_URL!')
+            print('Can\'t connect to the database. Please check your dcsserverbot.ini for any error in the '
+                  'DATABASE_URL!')
         except Exception as e:
             print(e.__repr__())
             exit(-1)

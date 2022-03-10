@@ -7,17 +7,18 @@ local counter     = 0
 local starttime   = -1
 
 function serverstats.onSimulationFrame()
-    if starttime == -1 then
-        starttime = os.clock()
-    end
     if counter == 3600 then
-        local endtime = os.clock()
-        msg = {}
-        msg.command = 'perfmon'
-        msg.fps = counter / (endtime-starttime)
-    	utils.sendBotTable(msg)
+        if starttime == -1 then
+            starttime = os.clock()
+        else
+            local endtime = os.clock()
+            msg = {}
+            msg.command = 'perfmon'
+            msg.fps = counter / (endtime-starttime)
+            utils.sendBotTable(msg)
+            starttime = endtime
+        end
         counter = 0
-        starttime = endtime
     else
         counter = counter + 1
     end
