@@ -299,7 +299,7 @@ class UserStatisticsEventListener(EventListener):
             if data['arg1'] != -1:
                 if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
                     # TODO: when DCS bug wih multicrew eject gets fixed, change this to single player only
-                    players = utils.get_crew_members(self, data['server_name'], data['arg4'])
+                    players = utils.get_crew_members(self, data['server_name'], data['arg1'])
                     if len(players) == 1:
                         conn = self.pool.getconn()
                         try:
