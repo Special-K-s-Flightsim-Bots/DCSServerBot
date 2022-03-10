@@ -214,8 +214,10 @@ class ServerLoad(report.MultiGraphElement):
                     self.axes[3].legend()
                 else:
                     for i in range(0, 4):
+                        self.axes[i].bar([], [])
                         self.axes[i].set_xticks([])
                         self.axes[i].set_yticks([])
+                        self.axes[i].text(0, 0, 'No data available.', ha='center', va='center', size=20)
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:

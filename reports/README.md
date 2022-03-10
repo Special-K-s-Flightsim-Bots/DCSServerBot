@@ -229,6 +229,7 @@ Simple bar chart that will display all elements of a given dictionary.
           "bar_labels": true,          -- put the value of each bar at the top
           "is_time": true,             -- select the time formatter
           "orientation": "horizontal", -- set the orientation (vertical is default)
+          "show_no_data": false,       -- if no data is available, don't display "No data available." but nothing
           "values": { "Takeoffs": 2, "Landings": 1, "Crashes": 1 }
         }
       }
@@ -261,7 +262,8 @@ Simple pie chart that will display all elements of a given dictionary.
           "col": 0,
           "row": 0,
           "title": "Test PieChart",
-          "is_time": true,            -- select the time formatter
+          "is_time": true,             -- select the time formatter
+          "show_no_data": false,       -- if no data is available, don't display "No data available." but nothing
           "values": { "Takeoffs": 2, "Landings": 1, "Crashes": 1 }
         }
       }

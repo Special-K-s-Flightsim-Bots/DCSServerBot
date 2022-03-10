@@ -204,7 +204,8 @@ class BarChart(GraphElement):
     def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: Optional[int] = 1,
                  rowspan: Optional[int] = 1, title: Optional[str] = '', color: Optional[str] = None,
                  rotate_labels: Optional[int] = 0, bar_labels: Optional[bool] = False, is_time: Optional[bool] = False,
-                 orientation: Optional[str] = 'vertical', width: Optional[float] = 0.5):
+                 orientation: Optional[str] = 'vertical', width: Optional[float] = 0.5,
+                 show_no_data: Optional[bool] = True):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
         self.color = color
@@ -213,9 +214,10 @@ class BarChart(GraphElement):
         self.is_time = is_time
         self.orientation = orientation
         self.width = width
+        self.show_no_data = show_no_data
 
     def render(self, values: dict[str, float]):
-        if len(values):
+        if len(values) or self.show_no_data:
             labels = list(values.keys())
             values = list(values.values())
             if self.orientation == 'vertical':
@@ -232,9 +234,11 @@ class BarChart(GraphElement):
             if self.bar_labels:
                 for c in self.axes.containers:
                     self.axes.bar_label(c, fmt='%.1f h' if self.is_time else '%.1f', label_type='edge')
+            if len(values) == 0:
+                self.axes.set_xticks([])
+                self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
         else:
-            self.axes.set_xticks([])
-            self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+            self.axes.set_visible(False)
 
 
 class SQLBarChart(BarChart):
@@ -262,11 +266,12 @@ class SQLBarChart(BarChart):
 class PieChart(GraphElement):
     def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: Optional[int] = 1,
                  rowspan: Optional[int] = 1, title: Optional[str] = '', colors: Optional[List[str]] = None,
-                 is_time: Optional[bool] = False):
+                 is_time: Optional[bool] = False, show_no_data: Optional[bool] = True):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
         self.colors = colors
         self.is_time = is_time
+        self.show_no_data = show_no_data
 
     def func(self, pct, allvals):
         absolute = int(round(pct / 100. * np.sum(allvals)))
@@ -276,7 +281,7 @@ class PieChart(GraphElement):
             return '{:.1f}%\n({:d})'.format(pct, absolute)
 
     def render(self, values: dict[str, Any]):
-        if len(values):
+        if len(values) or self.show_no_data:
             labels = values.keys()
             values = list(values.values())
             patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: self.func(pct, values),
@@ -284,6 +289,9 @@ class PieChart(GraphElement):
             plt.setp(pcts, color='black', fontweight='bold')
             self.axes.set_title(self.title, color='white', fontsize=25)
             self.axes.axis('equal')
+            if len(values) == 0:
+                self.axes.set_xticks([])
+                self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
         else:
             self.axes.set_visible(False)
 
