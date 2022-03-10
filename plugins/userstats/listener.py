@@ -76,8 +76,8 @@ class UserStatisticsEventListener(EventListener):
                             if row[1] == data['current_mission']:
                                 mission_id = row[0]
                             else:
-                                self.log.warn('The mission in the database does not match the mission that is live on '
-                                              'this server. Fixing...')
+                                self.log.warning('The mission in the database does not match the mission that is live '
+                                                 'on this server. Fixing...')
                         if mission_id == -1:
                             # close ambiguous missions
                             if cursor.rowcount >= 1:
@@ -286,7 +286,7 @@ class UserStatisticsEventListener(EventListener):
                     conn = self.pool.getconn()
                     try:
                         with closing(conn.cursor()) as cursor:
-                            player = utils.get_player(self, data['server_name'], id=['arg1'])
+                            player = utils.get_player(self, data['server_name'], id=data['arg1'])
                             cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
                                            (mission_id, player['ucid']))
                             conn.commit()
@@ -312,6 +312,3 @@ class UserStatisticsEventListener(EventListener):
                             conn.rollback()
                         finally:
                             self.pool.putconn(conn)
-        else:
-            self.log.debug(f"UserStatisticsEventListener: Unhandled event: {data['eventName']}")
-        return None
