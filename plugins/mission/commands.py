@@ -1,8 +1,10 @@
 import asyncio
 import discord
 import itertools
+import psycopg2
 import re
 import typing
+from contextlib import closing
 from core import utils, const, DCSServerBot, Plugin, Report
 from core.const import Status
 from discord.ext import commands, tasks
@@ -20,6 +22,18 @@ class Mission(Plugin):
         self.update_channel_name.stop()
         self.update_mission_status.cancel()
         super().cog_unload()
+
+    def rename(self, old_name: str, new_name: str):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
     @commands.command(description='Shows the active DCS mission', hidden=True)
     @utils.has_role('DCS Admin')

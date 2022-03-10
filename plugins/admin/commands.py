@@ -271,46 +271,6 @@ class Agent(Plugin):
             else:
                 await ctx.send('Please stop server "{}" before unregistering!'.format(server_name))
 
-    @commands.command(description='Rename a server')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def rename(self, ctx, *args):
-        server = await utils.get_server(self, ctx)
-        if server:
-            oldname = server['server_name']
-            newname = ' '.join(args)
-            if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
-                conn = self.pool.getconn()
-                try:
-                    if await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" '
-                                                          'to "{}"?'.format(oldname, newname)) is True:
-                        # send the rename command to all other plugins
-                        self.bot.sendtoBot({
-                            "command": "rename",
-                            "newname": newname,
-                            "server_name": oldname
-                        })
-                        with closing(conn.cursor()) as cursor:
-                            cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                                           (newname, oldname))
-                            cursor.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                                           (newname, oldname))
-                            conn.commit()
-                        utils.changeServerSettings(server['server_name'], 'name', newname)
-                        server['server_name'] = newname
-                        self.bot.embeds[newname] = self.bot.embeds[oldname]
-                        self.bot.embeds.pop(oldname)
-                        await ctx.send('Server has been renamed.')
-                        await self.bot.audit(
-                            f'User {ctx.message.author.display_name} renamed DCS server "{oldname}" to "{newname}".')
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
-            else:
-                await ctx.send('Please stop server "{}" before renaming!'.format(oldname))
-
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
         for server_name, server in self.globals.items():
@@ -342,80 +302,22 @@ class Master(Agent):
     @utils.has_role('Admin')
     @commands.guild_only()
     async def prune(self, ctx):
-        if not await utils.yn_question(self, ctx, 'This will remove unused data from your database and compact '
-                                                  'it.\nAre you sure?'):
+        if not await utils.yn_question(self, ctx, 'This will remove old data from your database and compact it.\nAre '
+                                                  'you sure?'):
             return
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('CREATE TEMPORARY TABLE temp_players (discord_id BIGINT)')
-                cursor.execute('CREATE TEMPORARY TABLE temp_missions (id SERIAL PRIMARY KEY, server_name TEXT NOT '
-                               'NULL, mission_name TEXT NOT NULL, mission_theatre TEXT NOT NULL, mission_start '
-                               'TIMESTAMP NOT NULL DEFAULT NOW(), mission_end TIMESTAMP)')
-                cursor.execute('CREATE TEMPORARY TABLE temp_statistics (mission_id INTEGER NOT NULL, player_ucid TEXT '
-                               'NOT NULL, slot TEXT NOT NULL, kills INTEGER DEFAULT 0, pvp INTEGER DEFAULT 0, '
-                               'deaths INTEGER DEFAULT 0, ejections INTEGER DEFAULT 0, crashes INTEGER DEFAULT 0, '
-                               'teamkills INTEGER DEFAULT 0, kills_planes INTEGER DEFAULT 0, kills_helicopters '
-                               'INTEGER DEFAULT 0, kills_ships INTEGER DEFAULT 0, kills_sams INTEGER DEFAULT 0, '
-                               'kills_ground INTEGER DEFAULT 0, deaths_pvp INTEGER DEFAULT 0, deaths_planes INTEGER '
-                               'DEFAULT 0, deaths_helicopters INTEGER DEFAULT 0, deaths_ships INTEGER DEFAULT 0, '
-                               'deaths_sams INTEGER DEFAULT 0, deaths_ground INTEGER DEFAULT 0, takeoffs INTEGER '
-                               'DEFAULT 0, landings INTEGER DEFAULT 0, hop_on TIMESTAMP NOT NULL DEFAULT NOW(), '
-                               'hop_off TIMESTAMP, PRIMARY KEY (mission_id, player_ucid, slot, hop_on))')
-                for member in self.bot.guilds[0].members:
-                    cursor.execute('INSERT INTO temp_players VALUES (%s)', (member.id, ))
-                cursor.execute('SELECT COUNT(*) FROM statistics s, players p WHERE s.player_ucid = p.ucid AND '
-                               'p.discord_id NOT IN (SELECT discord_id FROM temp_players)')
-                prune_statistics = cursor.fetchone()[0]
+                # delete non-members that haven't a name with them (very old data)
                 cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
-                               'discord_id NOT IN (SELECT discord_id FROM temp_players))')
-                await ctx.send(f'{prune_statistics} statistics pruned.')
-                cursor.execute('SELECT COUNT(*) FROM players WHERE discord_id NOT IN (SELECT discord_id FROM '
-                               'temp_players)')
-                prune_players = cursor.fetchone()[0]
-                cursor.execute('DELETE FROM players WHERE discord_id NOT IN (SELECT discord_id FROM temp_players)')
-                await ctx.send(f'{prune_players} players pruned.')
-                cursor.execute('SELECT COUNT(*) FROM missions WHERE id NOT IN (SELECT mission_id FROM statistics)')
-                prune_missions = cursor.fetchone()[0]
-                cursor.execute('DELETE FROM missions WHERE id NOT IN (SELECT mission_id FROM statistics)')
-                await ctx.send(f'{prune_missions} missions pruned.')
-                cursor.execute('INSERT INTO temp_missions SELECT MIN(id), server_name, mission_name, mission_theatre, '
-                               'MIN(mission_start), MIN(mission_start) + SUM(mission_end - mission_start) as runtime '
-                               'FROM missions GROUP BY server_name, mission_name, mission_theatre')
-                cursor.execute('SELECT count(*) FROM missions')
-                missions_old = cursor.fetchone()[0]
-                cursor.execute('SELECT count(*) FROM temp_missions')
-                missions_new = cursor.fetchone()[0]
-                await ctx.send(f'{missions_old - missions_new} ({missions_old}) missions aggregated.')
-                cursor.execute('INSERT INTO temp_statistics SELECT tm.id AS mission_id, player_ucid, slot, sum(kills) '
-                               'as kills, sum(pvp) as pvp, sum(deaths) as death, sum(ejections) as ejections, '
-                               'sum(crashes) as crashes, sum(teamkills) as teamkills, sum(kills_planes) as '
-                               'kills_planes, sum(kills_helicopters) as kills_helicopters, sum(kills_ships) as '
-                               'kills_ships, sum(kills_sams) as kills_sams, sum(kills_ground) as kills_ground, '
-                               'sum(deaths_pvp) as deaths_pvp, sum(deaths_planes) as deaths_planes, '
-                               'sum(deaths_helicopters) as deaths_helicopters, sum(deaths_ships) as deaths_ships, '
-                               'sum(deaths_sams) as deaths_sams, sum(deaths_ground) as deaths_groups, sum(takeoffs) '
-                               'as takeoffs, sum(landings) as landings, MIN(hop_on) as hop_on, MIN(hop_on) + SUM('
-                               'hop_off - hop_on) FROM statistics s, missions m, temp_missions tm WHERE m.id = '
-                               's.mission_id AND m.server_name = tm.server_name AND m.mission_name = tm.mission_name '
-                               'AND m.mission_theatre = tm.mission_theatre group by tm.id, player_ucid, slot')
-                cursor.execute('SELECT count(*) FROM statistics')
-                statistics_old = cursor.fetchone()[0]
-                cursor.execute('SELECT count(*) FROM temp_statistics')
-                statistics_new = cursor.fetchone()[0]
-                await ctx.send(f'{statistics_old - statistics_new} ({statistics_old}) statistics aggregated.')
-                cursor.execute('DELETE FROM missions')
-                cursor.execute('INSERT INTO missions SELECT * FROM temp_missions')
-                cursor.execute('DELETE FROM statistics')
-                cursor.execute('INSERT INTO statistics SELECT * FROM temp_statistics')
-                # TODO: REMOVE THIS !!!
-                conn.rollback()
-                # TODO: REMOVE THIS !!!
-                cursor.execute('DROP TABLE temp_players')
-                cursor.execute('DROP TABLE temp_missions')
-                cursor.execute('DROP TABLE temp_statistics')
-                conn.commit()
-                await self.bot.audit(f'User {ctx.message.author.display_name} pruned the database.')
+                               'discord_id = -1 AND name IS NULL)')
+                cursor.execute('DELETE FROM players WHERE discord_id = -1 AND name IS NULL')
+                # delete players that haven't shown up for 6 month
+                cursor.execute("DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE last_seen "
+                               "IS NULL OR last_seen < NOW() - interval '6 month')")
+                cursor.execute("DELETE FROM players WHERE last_seen IS NULL OR last_seen < NOW() - interval '6 month'")
+            conn.commit()
+            await self.bot.audit(f'User {ctx.message.author.display_name} pruned the database.')
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.bot.log.exception(error)
