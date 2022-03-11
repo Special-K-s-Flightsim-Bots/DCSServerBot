@@ -101,7 +101,7 @@ class Install:
                 return False
 
         def check_channel(channel: str) -> bool:
-            return channel.isnumeric()
+            return channel.strip('-').isnumeric()
 
         config = ConfigParser()
         if path.exists('config/default.ini'):
