@@ -192,11 +192,12 @@ To run multiple DCS servers under control of DCSServerBot you just have to make 
 Don't forget to configure different Discord channels (CHAT_CHANNEL, STATUS_CHANNEL and ADMIN_CHANNEL) for every server, too.
 To add subsequent servers, just follow the steps above, and you're good, unless they are on a different Windows server (see below).
 
-### Setup Multiple Servers on Multiple Host at the Same Location (_no longer recommended_)
+### Setup Multiple Servers on Multiple Host at the Same Location
 To communicate with DCSServerBot over the network, you need to change two configurations.
-By default, DCSServerBot is configured to be bound to the loopback interface (127.0.0.1) not allowing any external connection to the system. This can be changed in dcsserverbot.ini by using the LAN IP address of the Windows server running DCSServerBot instead.
+By default, DCSServerBot is configured to be bound to the loopback interface (127.0.0.1) not allowing any external connection to the system. This can be changed in dcsserverbot.ini by using the LAN IP address of the Windows server running DCSServerBot instead.<br/>
 
-__Attention:__ .startup and .shutdown commands will only work without issues, if the DCS servers are on the same machine as the bot. So you might consider not using this method anymore but install a single bot instance on every server that you use in your network. Just configure them as agents (_MASTER = false_) and you are good.
+__Attention:__ The scheduler, .startup and .shutdown commands will only work without issues, if the DCS servers are on the same machine as the bot. 
+So you might consider installing a bot instance on every server that you use in your network. Just configure them as agents (_MASTER = false_) and you are good.
 
 ### Setup Multiple Servers on Multiple Host at Different Locations
 DCSServerBot is able to run in multiple locations, worldwide. In every location, one instance of DCSServerBot is needed to be installed in the local network containing the DCS server(s).
@@ -206,11 +207,12 @@ The master and all agents are collecting statistics of the DCS servers they cont
 
 ### Moving a Server from one Location to Another
 When running multiple servers over different locations it might be necessary to move a server from one location to another. As all servers are registered with their local bots, some steps are needed to move a server over.
-1) Stop the server in the **old** location from where it should be moved.
+1) Stop the server in the **old** location from where it should be moved (```.shutdown```)
 2) Goto the ADMIN_CHANNEL of that server and type ```.unregister```
 3) Remove the entries of that server from the dcsserverbot.ini at the **old** location.
 4) Configure a server at the **new** location with the very same name and make sure the correct channels are configured in dcsserverbot.ini of that server.
-5) Start the server at the **new** location.
+5) Reload the configuration of that server using the ```.reload``` command.
+6) Start the server at the **new** location.
 
 ### How to talk to the Bot from inside Missions
 If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a trigger:
