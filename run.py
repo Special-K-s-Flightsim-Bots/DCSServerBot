@@ -313,10 +313,10 @@ if __name__ == "__main__":
         Install.install()
     else:
         try:
+            Install.verify()
             Main().run()
-        except psycopg2.OperationalError:
-            print('Can\'t connect to the database. Please check your dcsserverbot.ini for any error in the '
-                  'DATABASE_URL!')
-        except Exception as e:
-            print(e.__repr__())
+        except discord.errors.LoginFailure:
+            print('Invalid Discord TOKEN provided. Please check the documentation.')
+        except Exception as ex:
+            print(f"{ex.__class__.__name__}: {ex}")
             exit(-1)

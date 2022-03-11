@@ -7,7 +7,7 @@ import psycopg2
 import socket
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import closing, suppress
+from contextlib import closing
 from core import utils
 from core.const import Status
 from discord.ext import commands
@@ -151,7 +151,7 @@ class DCSServerBot(commands.Bot):
 
     def rename_server(self, old_name: str, new_name: str, update_settings: bool = False) -> None:
         if new_name not in self.globals:
-            self.globals[new_name] = self.globals[old_name].copy()
+            self.globals[new_name] = self.globals[old_name].deepcopy()
             self.globals[new_name]['server_name'] = new_name
         del self.globals[old_name]
         if old_name in self.embeds:
