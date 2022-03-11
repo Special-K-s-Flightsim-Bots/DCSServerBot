@@ -252,25 +252,6 @@ class Agent(Plugin):
         finally:
             self.pool.putconn(conn)
 
-    @commands.command(description='Unregisters the server from this instance')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def unregister(self, ctx, node=platform.node()):
-        server = await utils.get_server(self, ctx)
-        if server:
-            server_name = server['server_name']
-            if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
-                if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from '
-                                                      'node "{}"?'.format(server_name, node)) is True:
-                    self.bot.embeds.pop(server_name)
-                    await ctx.send('Server {} unregistered.'.format(server_name))
-                    await self.bot.audit(
-                        f"User {ctx.message.author.display_name} unregistered DCS server \"{server['server_name']}\".")
-                else:
-                    await ctx.send('Aborted.')
-            else:
-                await ctx.send('Please stop server "{}" before unregistering!'.format(server_name))
-
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
         for server_name, server in self.globals.items():

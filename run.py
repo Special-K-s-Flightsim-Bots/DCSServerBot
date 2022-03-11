@@ -198,6 +198,7 @@ class Main:
     def add_commands(self):
         @self.bot.command(description='Reloads a Plugin', usage='[cog]')
         @utils.has_role('Admin')
+        @commands.guild_only()
         async def reload(ctx, plugin=None):
             self.read_config()
             self.bot.reload(plugin)
@@ -208,6 +209,7 @@ class Main:
 
         @self.bot.command(description='Rename a server')
         @utils.has_role('Admin')
+        @commands.guild_only()
         async def rename(ctx, *args):
             server = await utils.get_server(self.bot, ctx)
             if server:
@@ -226,8 +228,29 @@ class Main:
                 else:
                     await ctx.send('Please stop server "{}" before renaming!'.format(old_name))
 
+        @self.bot.command(description='Unregisters the server from this instance')
+        @utils.has_role('Admin')
+        @commands.guild_only()
+        async def unregister(ctx):
+            server = await utils.get_server(self.bot, ctx)
+            if server:
+                server_name = server['server_name']
+                if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
+                    if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from '
+                                                          'node "{}"?'.format(server_name, platform.node())) is True:
+                        del self.bot.globals[server_name]
+                        del self.bot.embeds[server_name]
+                        await ctx.send('Server {} unregistered.'.format(server_name))
+                        await self.bot.audit(f"User {ctx.message.author.display_name} unregistered DCS server "
+                                             f"\"{server['server_name']}\" from node {platform.node()}.")
+                    else:
+                        await ctx.send('Aborted.')
+                else:
+                    await ctx.send('Please stop server "{}" before unregistering!'.format(server_name))
+
         @self.bot.command(description='Upgrades the bot')
         @utils.has_role('Admin')
+        @commands.guild_only()
         async def upgrade(ctx):
             if await utils.yn_question(self, ctx, 'The bot will check and upgrade to the latest version, '
                                                   'if available.\nAre you sure?') is True:

@@ -59,14 +59,6 @@ class DCSServerBot(commands.Bot):
                 for row in cursor.fetchall():
                     server = self.globals[row['server_name']] = dict(row)
                     server['status'] = Status.UNKNOWN
-                    # read persisted messages for this server
-                    server['embeds'] = {}
-                    cursor.execute('SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name '
-                                   'IN (SELECT server_name FROM servers WHERE server_name = %s AND agent_host = %s)',
-                                   (server['server_name'], platform.node()))
-                    if cursor.rowcount > 0:
-                        for erow in cursor.fetchall():
-                            server['embeds'][erow['embed_name']] = erow['embed']
                     # attach ini file parameters
                     installations = utils.findDCSInstallations(server['server_name'])
                     if len(installations) == 1:
@@ -279,11 +271,11 @@ class DCSServerBot(commands.Bot):
             self.log.error(f"Server {data['server_name']} not found in dcsserverbot.ini. Please add a "
                            f"configuration for it!")
             return False
-        self.log.debug('  => Registering DCS-Server ' + data['server_name'])
+        self.log.debug(f"  => Registering DCS-Server \"{data['server_name']}\"")
         # check for protocol incompatibilities
         if data['hook_version'] != self.version:
             self.log.error(
-                'Server {} has wrong Hook version installed. Please update lua files and restart server. Registration '
+                'Server \"{}\" has wrong Hook version installed. Please update lua files and restart server. Registration '
                 'ignored.'.format(
                     data['server_name']))
             return False
@@ -326,6 +318,13 @@ class DCSServerBot(commands.Bot):
                                '%s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s',
                                (data['server_name'], platform.node(), data['host'], data['port'], platform.node(),
                                 data['host'], data['port']))
+                # read persisted messages for this server
+                server['embeds'] = {}
+                cursor.execute('SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name '
+                               'IN (SELECT server_name FROM servers WHERE server_name = %s AND agent_host = %s)',
+                               (server['server_name'], platform.node()))
+                for row in cursor.fetchall():
+                    server['embeds'][row['embed_name']] = row['embed']
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
