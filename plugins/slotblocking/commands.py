@@ -1,3 +1,5 @@
+import psycopg2
+from contextlib import closing
 from core import DCSServerBot, Plugin, utils, PluginRequiredError
 from discord.ext import commands
 from typing import Optional
@@ -5,6 +7,18 @@ from .listener import SlotBlockingListener
 
 
 class SlotBlocking(Plugin):
+
+    def rename(self, old_name: str, new_name: str):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE campaigns SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
     @commands.command(description='Campaign management', usage='[start / stop / reset]')
     @utils.has_role('DCS Admin')

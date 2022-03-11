@@ -125,14 +125,6 @@ class MissionEventListener(EventListener):
             self.bot.sendtoDCS(server, data)
 
     async def registerDCSServer(self, data):
-        # check for protocol incompatibilities
-        if data['hook_version'] != self.bot.version:
-            self.log.error(
-                'Server {} has wrong Hook version installed. Please update lua files and restart server. Registration '
-                'ignored.'.format(
-                    data['server_name']))
-            return
-        server = self.globals[data['server_name']]
         self.bot.player_data[data['server_name']] = pd.DataFrame(data['players'], columns=[
             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
             'group_id', 'group_name'])
@@ -164,7 +156,6 @@ class MissionEventListener(EventListener):
         self.bot.player_data[data['server_name']] = pd.DataFrame(
             columns=['id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name',
                      'unit_type', 'group_name'])
-
         await self.displayMissionEmbed(data)
         await self.displayPlayerEmbed(data)
 
@@ -324,24 +315,9 @@ class MissionEventListener(EventListener):
                     else:
                         await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                             const.PLAYER_SIDES[player['side']], player['name']))
-        else:
-            self.log.debug(f"MissionEventListener: Unhandled event: {data['eventName']}")
 
     async def listMizFiles(self, data):
         return data
 
     async def getWeatherInfo(self, data):
         return data
-
-    async def rename(self, data):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE missions SET server_name = %s WHERE server_name = %s',
-                               (data['newname'], data['server_name']))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)

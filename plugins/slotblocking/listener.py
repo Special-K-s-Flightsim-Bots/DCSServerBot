@@ -278,16 +278,3 @@ class SlotBlockingListener(EventListener):
             player_id = data['from_id']
             player = self.get_player_points(server_name, player_id)
             utils.sendChatMessage(self, server_name, player_id, f"You currently have {player['points']} credit points.")
-
-    async def rename(self, data):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE campaigns SET server_name = %s WHERE server_name = %s',
-                               (data['newname'], data['server_name']))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)

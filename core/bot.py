@@ -7,13 +7,13 @@ import psycopg2
 import socket
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import closing, suppress
+from contextlib import closing
 from core import utils
 from core.const import Status
 from discord.ext import commands
 from .listener import EventListener
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Any
 
 
 class DCSServerBot(commands.Bot):
@@ -39,7 +39,6 @@ class DCSServerBot(commands.Bot):
         self.audit_channel = None
         self.player_data = None
         self.executor = ThreadPoolExecutor(max_workers=10)
-        self.loop.create_task(self.start_udp_listener())
 
     async def close(self):
         await super().close()
@@ -52,41 +51,38 @@ class DCSServerBot(commands.Bot):
         self.log.debug('- Executor stopped.')
         self.log.info('Shutdown complete.')
 
-    def read_servers(self):
+    def init_servers(self):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT server_name, host, port, chat_channel, status_channel, admin_channel FROM '
-                               'servers WHERE agent_host = %s', (platform.node(),))
+                cursor.execute('SELECT server_name, host, port FROM servers WHERE agent_host = %s', (platform.node(),))
                 for row in cursor.fetchall():
-                    self.globals[row['server_name']] = dict(row)
-                    self.globals[row['server_name']]['status'] = Status.UNKNOWN
-                    self.globals[row['server_name']]['embeds'] = {}
-                    # Initialize statistics with true unless we get other information from the server
-                    self.globals[row['server_name']]['statistics'] = True
-                cursor.execute('SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name IN ('
-                               'SELECT server_name FROM servers WHERE agent_host = %s)', (platform.node(),))
-                for row in cursor.fetchall():
-                    self.globals[row['server_name']]['embeds'][row['embed_name']] = row['embed']
+                    server = self.globals[row['server_name']] = dict(row)
+                    server['status'] = Status.UNKNOWN
+                    # attach ini file parameters
+                    installations = utils.findDCSInstallations(server['server_name'])
+                    if len(installations) == 1:
+                        server['installation'] = installations[0]
+                        server['chat_channel'] = self.config[installations[0]]['CHAT_CHANNEL']
+                        server['status_channel'] = self.config[installations[0]]['STATUS_CHANNEL']
+                        server['admin_channel'] = self.config[installations[0]]['ADMIN_CHANNEL']
+                    else:
+                        self.log.error(
+                            f"Can't find a DCS server named \"{server['server_name']}\" in your installations!\nIf "
+                            f"you have renamed it, please start the newly named server manually now.\nIf that server "
+                            f"does not exist anymore, please remove the entries from dcsserverbot.ini")
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
         self.log.debug('{} server(s) read from database.'.format(len(self.globals)))
 
-    async def init_servers(self):
+    async def register_servers(self):
         self.log.info('- Searching for DCS servers ...')
         for server_name, server in self.globals.items():
-            installation = utils.findDCSInstallations(server_name)[0]
-            server['installation'] = installation
-            channel = await self.fetch_channel(server['status_channel'])
-            self.embeds[server_name] = {}
-            for embed_name, embed_id in server['embeds'].items():
-                with suppress(Exception):
-                    self.embeds[server_name][embed_name] = await channel.fetch_message(embed_id)
             try:
                 # check if there is a running server already
-                await self.sendtoDCSSync(server, {"command": "registerDCSServer"})
+                await self.sendtoDCSSync(server, {"command": "registerDCSServer"}, 2)
                 self.log.info(f'  => Running DCS server "{server_name}" registered.')
             except asyncio.TimeoutError:
                 server['status'] = Status.SHUTDOWN
@@ -111,17 +107,22 @@ class DCSServerBot(commands.Bot):
         self.unload_plugin(plugin)
         self.load_plugin(plugin)
 
+    def run(self, *args: Any, **kwargs: Any) -> None:
+        self.init_servers()
+        super().run(*args, **kwargs)
+
     async def on_ready(self):
         if not self.external_ip:
             self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
             self.external_ip = await utils.get_external_ip()
-            self.read_servers()
             self.remove_command('help')
             self.log.info('- Loading Plugins ...')
             for plugin in self.plugins:
                 self.load_plugin(plugin.lower())
                 self.log.info(f'  => {string.capwords(plugin)} loaded.')
-            await self.init_servers()
+            # start the UDP listener to accept commands from DCS
+            self.loop.create_task(self.start_udp_listener())
+            await self.register_servers()
             self.log.info('DCSServerBot started, accepting commands.')
         else:
             self.log.info('Discord connection reestablished.')
@@ -147,6 +148,34 @@ class DCSServerBot(commands.Bot):
         else:
             for plugin in self.plugins:
                 self.reload_plugin(plugin)
+
+    def rename_server(self, old_name: str, new_name: str, update_settings: bool = False) -> None:
+        if new_name not in self.globals:
+            self.globals[new_name] = self.globals[old_name].deepcopy()
+            self.globals[new_name]['server_name'] = new_name
+        del self.globals[old_name]
+        if old_name in self.embeds:
+            self.embeds[new_name] = self.embeds[old_name].copy()
+            del self.embeds[old_name]
+        # call rename() in all Plugins
+        for plugin in self.cogs.values():
+            plugin.rename(old_name, new_name)
+        # rename the entries in the main database tables
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
+                               (new_name, old_name))
+                cursor.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
+                               (new_name, old_name))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+        if update_settings:
+            utils.changeServerSettings(old_name, 'name', new_name)
 
     async def audit(self, message, *, embed: Optional[discord.Embed] = None):
         if not self.audit_channel:
@@ -189,10 +218,22 @@ class DCSServerBot(commands.Bot):
         else:
             return self.get_channel(int(data['channel']))
 
-    async def setEmbed(self, server: dict, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None):
-        server_name = server['server_name']
-        message = self.embeds[server_name][embed_name] if (
-            server_name in self.embeds and embed_name in self.embeds[server_name]) else None
+    async def setEmbed(self, data: dict, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None):
+        server_name = data['server_name']
+        server = self.globals[server_name]
+        if server_name in self.embeds and embed_name in self.embeds[server_name]:
+            message = self.embeds[server_name][embed_name]
+        elif embed_name in server['embeds']:
+            # load a persisted message, if it hasn't been done yet
+            if server_name not in self.embeds:
+                self.embeds[server_name] = {}
+            try:
+                message = self.embeds[server_name][embed_name] = \
+                    await self.get_bot_channel(server).fetch_message(server['embeds'][embed_name])
+            except discord.errors.NotFound:
+                message = None
+        else:
+            message = None
         if message:
             try:
                 await message.edit(embed=embed, file=file)
@@ -201,16 +242,14 @@ class DCSServerBot(commands.Bot):
         if not message:
             if server_name not in self.embeds:
                 self.embeds[server_name] = {}
-            message = await self.get_bot_channel(server).send(embed=embed, file=file)
-            self.embeds[server_name][embed_name] = message
+            message = self.embeds[server_name][embed_name] = \
+                await self.get_bot_channel(server).send(embed=embed, file=file)
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
                     cursor.execute('INSERT INTO message_persistence (server_name, embed_name, embed) VALUES (%s, %s, '
-                                   '%s) ON CONFLICT (server_name, embed_name) DO UPDATE SET embed=%s', (server_name,
-                                                                                                        embed_name,
-                                                                                                        message.id,
-                                                                                                        message.id))
+                                   '%s) ON CONFLICT (server_name, embed_name) DO UPDATE SET embed=%s',
+                                   (server_name, embed_name, message.id, message.id))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
@@ -226,25 +265,95 @@ class DCSServerBot(commands.Bot):
         self.eventListeners.remove(listener)
         self.log.debug(f'- EventListener {type(listener).__name__} unregistered.')
 
+    def register_server(self, data) -> bool:
+        installations = utils.findDCSInstallations(data['server_name'])
+        if not installations:
+            self.log.error(f"Server {data['server_name']} not found in dcsserverbot.ini. Please add a "
+                           f"configuration for it!")
+            return False
+        self.log.debug(f"  => Registering DCS-Server \"{data['server_name']}\"")
+        # check for protocol incompatibilities
+        if data['hook_version'] != self.version:
+            self.log.error(
+                'Server \"{}\" has wrong Hook version installed. Please update lua files and restart server. Registration '
+                'ignored.'.format(
+                    data['server_name']))
+            return False
+        # register the server in the internal datastructures
+        if data['server_name'] in self.globals:
+            self.globals[data['server_name']] = self.globals[data['server_name']] | data.copy()
+            server = self.globals[data['server_name']]
+        else:
+            # a new server is to be registered
+            server = self.globals[data['server_name']] = data.copy()
+            server['chat_channel'] = self.config[installations[0]]['CHAT_CHANNEL']
+            server['status_channel'] = self.config[installations[0]]['STATUS_CHANNEL']
+            server['admin_channel'] = self.config[installations[0]]['ADMIN_CHANNEL']
+        server['installation'] = installations[0]
+        if data['channel'].startswith('sync-'):
+            server['status'] = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
+        else:
+            server['status'] = Status.LOADING
+        self.log.debug(f"Server {server['server_name']} initialized")
+        # update the database and check for server name changes
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute('SELECT server_name FROM servers WHERE agent_host=%s AND host=%s AND port=%s',
+                               (platform.node(), data['host'], data['port']))
+                if cursor.rowcount == 1:
+                    server_name = cursor.fetchone()[0]
+                    if server_name != data['server_name']:
+                        self.log.warning(
+                            f"The server \"{data['server_name']}\" has the same parameters as the server \"{server_name}\".")
+                        if len(utils.findDCSInstallations(server_name)) == 0:
+                            self.log.info(f"Auto-renaming server \"{server_name}\" to \"{data['server_name']}\"")
+                            self.rename_server(server_name, data['server_name'])
+                        else:
+                            self.log.warning(
+                                f"Registration of server \"{data['server_name']}\" aborted due to UDP port conflict.")
+                            del self.globals[data['server_name']]
+                            return False
+                cursor.execute('INSERT INTO servers (server_name, agent_host, host, port) VALUES(%s, %s, %s, '
+                               '%s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s',
+                               (data['server_name'], platform.node(), data['host'], data['port'], platform.node(),
+                                data['host'], data['port']))
+                # read persisted messages for this server
+                server['embeds'] = {}
+                cursor.execute('SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name '
+                               'IN (SELECT server_name FROM servers WHERE server_name = %s AND agent_host = %s)',
+                               (server['server_name'], platform.node()))
+                for row in cursor.fetchall():
+                    server['embeds'][row['embed_name']] = row['embed']
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+        return True
+
     async def start_udp_listener(self):
         class RequestHandler(BaseRequestHandler):
 
             def handle(s):
-                dt = json.loads(s.request[0].strip())
+                data = json.loads(s.request[0].strip())
                 # ignore messages not containing server names
-                if 'server_name' not in dt:
-                    self.log.warning('Message without server_name retrieved: {}'.format(dt))
+                if 'server_name' not in data:
+                    self.log.warning('Message without server_name retrieved: {}'.format(data))
                     return
-                self.log.debug('{}->HOST: {}'.format(dt['server_name'], json.dumps(dt)))
+                self.log.debug('{}->HOST: {}'.format(data['server_name'], json.dumps(data)))
                 futures = []
-                command = dt['command']
-                if command != 'registerDCSServer' and \
-                        (dt['server_name'] not in self.globals or
-                         self.globals[dt['server_name']]['status'] == Status.UNKNOWN):
-                    self.log.debug('Message for unregistered server retrieved, ignoring.')
+                command = data['command']
+                if command == 'registerDCSServer':
+                    if not self.register_server(data):
+                        return
+                elif (data['server_name'] not in self.globals or
+                      self.globals[data['server_name']]['status'] == Status.UNKNOWN):
+                    self.log.debug(f"Command {command} for unregistered server {data['server_name']} retrieved, ignoring.")
                     return
                 for listener in self.eventListeners:
-                    futures.append(asyncio.run_coroutine_threadsafe(listener.processEvent(dt), self.loop))
+                    futures.append(asyncio.run_coroutine_threadsafe(listener.processEvent(data), self.loop))
                 results = []
                 for future in futures:
                     try:
@@ -253,11 +362,11 @@ class DCSServerBot(commands.Bot):
                             results.append(result)
                     except BaseException as ex:
                         self.log.exception(ex)
-                if dt['channel'].startswith('sync') and dt['channel'] in self.listeners:
-                    f = self.listeners[dt['channel']]
+                if data['channel'].startswith('sync') and data['channel'] in self.listeners:
+                    f = self.listeners[data['channel']]
                     if not f.cancelled():
                         f.get_loop().call_soon_threadsafe(f.set_result, results[0] if len(results) > 0 else None)
-                    del self.listeners[dt['channel']]
+                    del self.listeners[data['channel']]
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):

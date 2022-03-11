@@ -21,6 +21,18 @@ class Punishment(Plugin):
         self.decay.cancel()
         super().cog_unload()
 
+    def rename(self, old_name: str, new_name: str):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+
     def read_decay_config(self):
         if 'configs' in self.locals:
             for element in self.locals['configs']:

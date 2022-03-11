@@ -101,6 +101,10 @@ class Plugin(commands.Cog):
         else:
             return {}
 
+    def rename(self, old_name:str, new_name: str):
+        # this function has to be implemented in your own plugins, if a server rename takes place
+        pass
+
 
 class PluginRequiredError(Exception):
 

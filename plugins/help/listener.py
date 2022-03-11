@@ -13,4 +13,5 @@ class HelpListener(EventListener):
             [utils.sendChatMessage(self, data['server_name'], data['from_id'], message) for message in messages]
 
     async def onPlayerStart(self, data):
-        utils.sendChatMessage(self, data['server_name'], data['id'], 'Use "-help" for commands.')
+        if data['id'] != 1:
+            utils.sendChatMessage(self, data['server_name'], data['id'], 'Use "-help" for commands.')

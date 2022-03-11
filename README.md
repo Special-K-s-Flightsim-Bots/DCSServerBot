@@ -15,10 +15,12 @@ It comes with a rich set of default plugins but can be enhanced either by option
 ### General Administrative Commands
 These commands can be used to administrate the bot itself.
 
-| Command  | Parameter | Channel | Role   | Description                                                      |
-|----------|-----------|---------|--------|------------------------------------------------------------------|
-| .reload  | [Plugin]  | all     | Owner  | Reloads one or all plugin(s) and their configurations from disk. |
-| .upgrade |           | all     | Owner  | Upgrades the bot to the latest available version.                |
+| Command     | Parameter | Channel       | Role    | Description                                                                                                                                                    |
+|-------------|-----------|---------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| .reload     | [Plugin]  | all           | Admin   | Reloads one or all plugin(s) and their configurations from disk.                                                                                               |
+| .upgrade    |           | all           | Admin   | Upgrades the bot to the latest available version (git needed, see below).                                                                                      |
+| .rename     | newname   | admin-channel | Admin   | Renames a DCS server. DCSServerBot auto-detects server renaming, too.                                                                                          |
+| .unregister |           | admin-channel | Admin   | Unregisters the current server from this agent.<br/>Only needed, if the very same server is going to be started on another machine connected to another agent. |
 
 ### List of supported Plugins
 | Plugin       | Scope                                                               | Optional | Dependent on | Documentation                              |
@@ -190,11 +192,12 @@ To run multiple DCS servers under control of DCSServerBot you just have to make 
 Don't forget to configure different Discord channels (CHAT_CHANNEL, STATUS_CHANNEL and ADMIN_CHANNEL) for every server, too.
 To add subsequent servers, just follow the steps above, and you're good, unless they are on a different Windows server (see below).
 
-### Setup Multiple Servers on Multiple Host at the Same Location (_no longer recommended_)
+### Setup Multiple Servers on Multiple Host at the Same Location
 To communicate with DCSServerBot over the network, you need to change two configurations.
-By default, DCSServerBot is configured to be bound to the loopback interface (127.0.0.1) not allowing any external connection to the system. This can be changed in dcsserverbot.ini by using the LAN IP address of the Windows server running DCSServerBot instead.
+By default, DCSServerBot is configured to be bound to the loopback interface (127.0.0.1) not allowing any external connection to the system. This can be changed in dcsserverbot.ini by using the LAN IP address of the Windows server running DCSServerBot instead.<br/>
 
-__Attention:__ .startup and .shutdown commands will only work without issues, if the DCS servers are on the same machine as the bot. So you might consider not using this method anymore but install a single bot instance on every server that you use in your network. Just configure them as agents (_MASTER = false_) and you are good.
+__Attention:__ The scheduler, .startup and .shutdown commands will only work without issues, if the DCS servers are on the same machine as the bot. 
+So you might consider installing a bot instance on every server that you use in your network. Just configure them as agents (_MASTER = false_) and you are good.
 
 ### Setup Multiple Servers on Multiple Host at Different Locations
 DCSServerBot is able to run in multiple locations, worldwide. In every location, one instance of DCSServerBot is needed to be installed in the local network containing the DCS server(s).
@@ -204,11 +207,12 @@ The master and all agents are collecting statistics of the DCS servers they cont
 
 ### Moving a Server from one Location to Another
 When running multiple servers over different locations it might be necessary to move a server from one location to another. As all servers are registered with their local bots, some steps are needed to move a server over.
-1) Stop the server in the **old** location from where it should be moved.
+1) Stop the server in the **old** location from where it should be moved (```.shutdown```)
 2) Goto the ADMIN_CHANNEL of that server and type ```.unregister```
 3) Remove the entries of that server from the dcsserverbot.ini at the **old** location.
 4) Configure a server at the **new** location with the very same name and make sure the correct channels are configured in dcsserverbot.ini of that server.
-5) Start the server at the **new** location.
+5) Reload the configuration of that server using the ```.reload``` command.
+6) Start the server at the **new** location.
 
 ### How to talk to the Bot from inside Missions
 If you plan to create Bot-events from inside a DCS mission, that is possible! Just make sure, you include this line in a trigger:
