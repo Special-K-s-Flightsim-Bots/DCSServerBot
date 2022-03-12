@@ -22,7 +22,7 @@ from psycopg2 import pool
 
 # Set the bot version (not externally configurable)
 BOT_VERSION = '2.5.7'
-SUB_VERSION = 10
+SUB_VERSION = 11
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -135,7 +135,7 @@ class Main:
 
     def install_hooks(self):
         self.log.info('- Configure DCS installations ...')
-        for installation in utils.findDCSInstallations():
+        for _, installation in utils.findDCSInstallations():
             if installation not in self.config:
                 continue
             self.log.info(f'  => {installation}')

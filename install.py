@@ -74,7 +74,7 @@ class Install:
                     '\n'
                 ])
             dcs_port = 6666
-            for installation in utils.findDCSInstallations():
+            for _, installation in utils.findDCSInstallations():
                 inifile.writelines([
                     f'[{installation}]\n',
                     'DCS_HOST=127.0.0.1\n',
@@ -141,7 +141,7 @@ class Install:
             raise MissingParameter('DCS', str(key))
         num_installs = 0
         ports = set()
-        for installation in utils.findDCSInstallations():
+        for _, installation in utils.findDCSInstallations():
             try:
                 if installation not in config:
                     continue
