@@ -30,7 +30,6 @@ function admin.onPlayerTryConnect(addr, name, ucid, playerID)
     	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
 	    return false, 'You are banned from this server.'
 	end
-	return true
 end
 
 function admin.onPlayerTryChangeSlot(playerID, side, slotID)
