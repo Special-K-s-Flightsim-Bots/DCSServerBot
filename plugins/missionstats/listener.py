@@ -169,26 +169,28 @@ class MissionStatisticsEventListener(EventListener):
                         stats['coalitions'][coalition]['statics'].remove(unit_name)
                 update = True
             elif data['eventName'] == 'S_EVENT_BASE_CAPTURED':
-                win_coalition = self.COALITION[data['initiator']['coalition']]
-                lose_coalition = self.COALITION[(data['initiator']['coalition'] % 2) + 1]
-                name = data['place']['name']
-                # workaround for DCS base capture bug:
-                if name in stats['coalitions'][win_coalition]['airbases'] or \
-                        name not in stats['coalitions'][lose_coalition]['airbases']:
-                    return None
-                stats['coalitions'][win_coalition]['airbases'].append(name)
-                if 'captures' not in stats['coalitions'][win_coalition]:
-                    stats['coalitions'][win_coalition]['captures'] = 1
-                else:
-                    stats['coalitions'][win_coalition]['captures'] += 1
-                message = '{} coalition has captured {}'.format(win_coalition.upper(), name)
-                if name in stats['coalitions'][lose_coalition]['airbases']:
-                    stats['coalitions'][lose_coalition]['airbases'].remove(name)
-                    message += ' from {} coalition'.format(lose_coalition.upper())
-                update = True
-                chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
-                if chat_channel is not None:
-                    await chat_channel.send(message)
+                # TODO: rewrite that code, so the initiator is not needed
+                if 'initiator' in data:
+                    win_coalition = self.COALITION[data['initiator']['coalition']]
+                    lose_coalition = self.COALITION[(data['initiator']['coalition'] % 2) + 1]
+                    name = data['place']['name']
+                    # workaround for DCS base capture bug:
+                    if name in stats['coalitions'][win_coalition]['airbases'] or \
+                            name not in stats['coalitions'][lose_coalition]['airbases']:
+                        return None
+                    stats['coalitions'][win_coalition]['airbases'].append(name)
+                    if 'captures' not in stats['coalitions'][win_coalition]:
+                        stats['coalitions'][win_coalition]['captures'] = 1
+                    else:
+                        stats['coalitions'][win_coalition]['captures'] += 1
+                    message = '{} coalition has captured {}'.format(win_coalition.upper(), name)
+                    if name in stats['coalitions'][lose_coalition]['airbases']:
+                        stats['coalitions'][lose_coalition]['airbases'].remove(name)
+                        message += ' from {} coalition'.format(lose_coalition.upper())
+                    update = True
+                    chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
+                    if chat_channel is not None:
+                        await chat_channel.send(message)
             if update:
                 return await self.displayMissionStats(data)
             else:
