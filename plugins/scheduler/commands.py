@@ -24,7 +24,7 @@ class Scheduler(Plugin):
         locals = {
             'configs': []
         }
-        for installation in utils.findDCSInstallations():
+        for _, installation in utils.findDCSInstallations():
             if installation in self.config:
                 config = self.config[installation]
                 settings = {

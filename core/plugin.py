@@ -44,9 +44,8 @@ class Plugin(commands.Cog):
         # don't init the DB on agents, whole DB handling is a master task
         if self.config.getboolean('BOT', 'MASTER') is True:
             self.init_db()
-        for installation in utils.findDCSInstallations():
-            if installation not in self.config:
-                continue
+        for server in self.globals.values():
+            installation = server['installation']
             source_path = f'./plugins/{self.plugin}/lua'
             if path.exists(source_path):
                 target_path = path.expandvars(self.config[installation]['DCS_HOME'] +

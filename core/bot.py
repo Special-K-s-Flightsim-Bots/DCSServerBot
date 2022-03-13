@@ -52,33 +52,21 @@ class DCSServerBot(commands.Bot):
         self.log.info('Shutdown complete.')
 
     def init_servers(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT server_name, host, port FROM servers WHERE agent_host = %s', (platform.node(),))
-                for row in cursor.fetchall():
-                    server = self.globals[row['server_name']] = dict(row)
-                    server['status'] = Status.UNKNOWN
-                    # attach ini file parameters
-                    installations = utils.findDCSInstallations(server['server_name'])
-                    if len(installations) == 1:
-                        server['installation'] = installations[0]
-                        server['chat_channel'] = self.config[installations[0]]['CHAT_CHANNEL']
-                        server['status_channel'] = self.config[installations[0]]['STATUS_CHANNEL']
-                        server['admin_channel'] = self.config[installations[0]]['ADMIN_CHANNEL']
-                    else:
-                        self.log.error(
-                            f"Can't find a DCS server named \"{server['server_name']}\" in your installations!\nIf "
-                            f"you have renamed it, please start the newly named server manually now.\nIf that server "
-                            f"does not exist anymore, please remove the entries from dcsserverbot.ini")
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-        self.log.debug('{} server(s) read from database.'.format(len(self.globals)))
+        for server_name, installation in utils.findDCSInstallations():
+            if installation in self.config:
+                self.globals[server_name] = {
+                    "server_name": server_name,
+                    "installation": installation,
+                    "status": Status.UNKNOWN,
+                    "host": self.config[installation]['DCS_HOST'],
+                    "port": self.config[installation]['DCS_PORT'],
+                    "chat_channel": self.config[installation]['CHAT_CHANNEL'],
+                    "status_channel": self.config[installation]['STATUS_CHANNEL'],
+                    "admin_channel": self.config[installation]['ADMIN_CHANNEL']
+                }
 
     async def register_servers(self):
-        self.log.info('- Searching for DCS servers ...')
+        self.log.info('- Searching for running DCS servers ...')
         for server_name, server in self.globals.items():
             try:
                 # check if there is a running server already
@@ -153,7 +141,8 @@ class DCSServerBot(commands.Bot):
         if new_name not in self.globals:
             self.globals[new_name] = self.globals[old_name].deepcopy()
             self.globals[new_name]['server_name'] = new_name
-        del self.globals[old_name]
+        if old_name in self.globals:
+            del self.globals[old_name]
         if old_name in self.embeds:
             self.embeds[new_name] = self.embeds[old_name].copy()
             del self.embeds[old_name]
@@ -267,17 +256,16 @@ class DCSServerBot(commands.Bot):
 
     def register_server(self, data) -> bool:
         installations = utils.findDCSInstallations(data['server_name'])
-        if not installations:
-            self.log.error(f"Server {data['server_name']} not found in dcsserverbot.ini. Please add a "
+        if len(installations) == 0:
+            self.log.error(f"No section found for server {data['server_name']} in your dcsserverbot.ini.\nPlease add a "
                            f"configuration for it!")
             return False
+        _, installation = installations[0]
         self.log.debug(f"  => Registering DCS-Server \"{data['server_name']}\"")
         # check for protocol incompatibilities
         if data['hook_version'] != self.version:
-            self.log.error(
-                'Server \"{}\" has wrong Hook version installed. Please update lua files and restart server. Registration '
-                'ignored.'.format(
-                    data['server_name']))
+            self.log.error('Server \"{}\" has wrong Hook version installed. Please update lua files and restart '
+                           'server. Registration ignored.'.format(data['server_name']))
             return False
         # register the server in the internal datastructures
         if data['server_name'] in self.globals:
@@ -286,10 +274,10 @@ class DCSServerBot(commands.Bot):
         else:
             # a new server is to be registered
             server = self.globals[data['server_name']] = data.copy()
-            server['chat_channel'] = self.config[installations[0]]['CHAT_CHANNEL']
-            server['status_channel'] = self.config[installations[0]]['STATUS_CHANNEL']
-            server['admin_channel'] = self.config[installations[0]]['ADMIN_CHANNEL']
-        server['installation'] = installations[0]
+            server['chat_channel'] = self.config[installation]['CHAT_CHANNEL']
+            server['status_channel'] = self.config[installation]['STATUS_CHANNEL']
+            server['admin_channel'] = self.config[installation]['ADMIN_CHANNEL']
+        server['installation'] = installation
         if data['channel'].startswith('sync-'):
             server['status'] = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
         else:
@@ -304,8 +292,6 @@ class DCSServerBot(commands.Bot):
                 if cursor.rowcount == 1:
                     server_name = cursor.fetchone()[0]
                     if server_name != data['server_name']:
-                        self.log.warning(
-                            f"The server \"{data['server_name']}\" has the same parameters as the server \"{server_name}\".")
                         if len(utils.findDCSInstallations(server_name)) == 0:
                             self.log.info(f"Auto-renaming server \"{server_name}\" to \"{data['server_name']}\"")
                             self.rename_server(server_name, data['server_name'])
@@ -318,6 +304,7 @@ class DCSServerBot(commands.Bot):
                                '%s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s',
                                (data['server_name'], platform.node(), data['host'], data['port'], platform.node(),
                                 data['host'], data['port']))
+                conn.commit()
                 # read persisted messages for this server
                 server['embeds'] = {}
                 cursor.execute('SELECT server_name, embed_name, embed FROM message_persistence WHERE server_name '
@@ -325,7 +312,6 @@ class DCSServerBot(commands.Bot):
                                (server['server_name'], platform.node()))
                 for row in cursor.fetchall():
                     server['embeds'][row['embed_name']] = row['embed']
-                conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()

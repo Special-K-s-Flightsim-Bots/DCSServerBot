@@ -76,7 +76,8 @@ class Punishment(Plugin):
                                         })
                                         if punishment['action'] == 'ban':
                                             cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, '
-                                                           '%s, %s)', (row['init_id'], self.plugin, reason))
+                                                           '%s, %s) ON CONFLICT DO NOTHING', (row['init_id'],
+                                                                                              self.plugin, reason))
                                     elif punishment['action'] == 'move_to_spec':
                                         self.bot.sendtoDCS(server, {
                                             "command": "force_player_slot",

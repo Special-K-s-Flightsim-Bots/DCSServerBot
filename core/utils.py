@@ -17,12 +17,13 @@ from configparser import ConfigParser
 from contextlib import closing, suppress
 from datetime import datetime, timedelta
 from discord.ext import commands
-from typing import Union, Optional
+from typing import Union, Optional, List, Tuple
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
 REGEXP = {
     'branch': re.compile(r'"branch": "(?P<branch>.*)"'),
-    'version': re.compile(r'"version": "(?P<version>.*)"')
+    'version': re.compile(r'"version": "(?P<version>.*)"'),
+    'server_name': re.compile(r'\["name"\] = "(?P<server_name>.*)"')
 }
 PATCHNOTES_URL = 'https://www.digitalcombatsimulator.com/en/news/changelog/rss/'
 
@@ -40,9 +41,12 @@ def findDCSInstallations(server_name=None):
                 if server_name:
                     with open(settings, encoding='utf8') as f:
                         if '["name"] = "{}"'.format(server_name) in f.read():
-                            installations.append(dirname)
+                            installations.append((server_name, dirname))
                 else:
-                    installations.append(dirname)
+                    with open(settings, encoding='utf8') as f:
+                        match = REGEXP['server_name'].search(f.read())
+                        if match:
+                            installations.append((match.group('server_name'), dirname))
     return installations
 
 
@@ -50,7 +54,7 @@ def changeServerSettings(server_name, name, value):
     assert name in ['listStartIndex', 'password', 'name', 'maxPlayers'], 'Value can\'t be changed.'
     if isinstance(value, str):
         value = '"' + value + '"'
-    installation = findDCSInstallations(server_name)[0]
+    _, installation = findDCSInstallations(server_name)[0]
     server_settings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.lua')
     tmp_settings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.tmp')
     with open(server_settings, encoding='utf8') as infile:
