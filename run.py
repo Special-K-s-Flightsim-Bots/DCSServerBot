@@ -310,7 +310,7 @@ class Main:
 
 if __name__ == "__main__":
     if not path.exists('config/dcsserverbot.ini'):
-        Install.launch_gui()
+        Install.install()
     else:
         try:
             Install.verify()

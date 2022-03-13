@@ -70,7 +70,7 @@ class DCSServerBot(commands.Bot):
         for server_name, server in self.globals.items():
             try:
                 # check if there is a running server already
-                await self.sendtoDCSSync(server, {"command": "registerDCSServer"}, 2)
+                await self.sendtoDCSSync(server, {"command": "registerDCSServer"}, 5)
                 self.log.info(f'  => Running DCS server "{server_name}" registered.')
             except asyncio.TimeoutError:
                 server['status'] = Status.SHUTDOWN
