@@ -327,11 +327,17 @@ class Mission(Plugin):
         for server_name, server in self.globals.items():
             if server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.PAUSED, Status.SHUTDOWN_PENDING]:
                 try:
-                    await self.bot.sendtoDCSSync(server, {
-                        "command": "getMissionUpdate",
-                        "channel": server['status_channel']
+                    data = await self.bot.sendtoDCSSync(server, {
+                        "command": "getMissionUpdate"
                     })
+                    if server['status'] not in [Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
+                        server['status'] = Status.PAUSED if data['pause'] is True else Status.RUNNING
+                    server['mission_time'] = data['mission_time']
+                    server['real_time'] = data['real_time']
+                    data['channel'] = server['status_channel']
+                    await self.eventlistener.displayMissionEmbed(data)
                 except asyncio.TimeoutError:
+                    self.log.warning('Timeout during getMissionUpdate() - setting server as SHUTDOWN')
                     server['status'] = Status.SHUTDOWN
 
     @update_mission_status.before_loop

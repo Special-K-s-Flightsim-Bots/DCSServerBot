@@ -134,12 +134,6 @@ class MissionEventListener(EventListener):
             await self.displayPlayerEmbed(data)
 
     async def getMissionUpdate(self, data):
-        server = self.globals[data['server_name']]
-        if server['status'] not in [Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
-            server['status'] = Status.PAUSED if data['pause'] is True else Status.RUNNING
-        server['mission_time'] = data['mission_time']
-        server['real_time'] = data['real_time']
-        await self.displayMissionEmbed(data)
         return data
 
     async def listMissions(self, data):
