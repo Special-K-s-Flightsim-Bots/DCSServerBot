@@ -325,11 +325,14 @@ class Mission(Plugin):
     @tasks.loop(minutes=1.0)
     async def update_mission_status(self):
         for server_name, server in self.globals.items():
-            if server['status'] in [Status.RUNNING, Status.RESTART_PENDING]:
-                self.bot.sendtoDCS(server, {
-                    "command": "getMissionUpdate",
-                    "channel": server['status_channel']
-                })
+            if server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.PAUSED, Status.SHUTDOWN_PENDING]:
+                try:
+                    await self.bot.sendtoDCSSync(server, {
+                        "command": "getMissionUpdate",
+                        "channel": server['status_channel']
+                    })
+                except asyncio.TimeoutError:
+                    server['status'] = Status.SHUTDOWN
 
     @update_mission_status.before_loop
     async def before_update(self):
