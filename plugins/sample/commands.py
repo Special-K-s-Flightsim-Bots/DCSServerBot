@@ -42,7 +42,7 @@ class Sample(Plugin):
         # the server to run the command on will be determined from the channel where you called the command in
         server = await utils.get_server(self, ctx)
         # Calls can be done async (default) or synchronous, which means we will wait for a response from DCS
-        data = self.bot.sendtoDCSSync(server, {
+        data = await self.bot.sendtoDCSSync(server, {
             "command": "sample",        # command name
             "message": text,            # the message to transfer
             "channel": ctx.channel.id   # the channel where the response should go to

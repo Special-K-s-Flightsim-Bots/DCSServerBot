@@ -183,13 +183,16 @@ class DCSServerBot(commands.Bot):
         dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         dcs_socket.sendto(msg.encode('utf-8'), (server['host'], int(server['port'])))
 
-    def sendtoDCSSync(self, server: dict, message: dict, timeout: Optional[int] = 5):
+    async def sendtoDCSSync(self, server: dict, message: dict, timeout: Optional[int] = 5.0):
         future = self.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
         message['channel'] = token
         self.sendtoDCS(server, message)
         self.listeners[token] = future
-        return asyncio.wait_for(future, timeout)
+        try:
+            return await asyncio.wait_for(future, timeout)
+        finally:
+            del self.listeners[token]
 
     def sendtoBot(self, message: dict):
         message['channel'] = '-1'
@@ -348,11 +351,10 @@ class DCSServerBot(commands.Bot):
                             results.append(result)
                     except BaseException as ex:
                         self.log.exception(ex)
-                if data['channel'].startswith('sync') and data['channel'] in self.listeners:
+                if data['channel'].startswith('sync-') and data['channel'] in self.listeners:
                     f = self.listeners[data['channel']]
                     if not f.cancelled():
                         f.get_loop().call_soon_threadsafe(f.set_result, results[0] if len(results) > 0 else None)
-                    del self.listeners[data['channel']]
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
