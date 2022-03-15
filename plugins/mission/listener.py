@@ -140,6 +140,7 @@ class MissionEventListener(EventListener):
         server['mission_time'] = data['mission_time']
         server['real_time'] = data['real_time']
         await self.displayMissionEmbed(data)
+        return data
 
     async def listMissions(self, data):
         return data

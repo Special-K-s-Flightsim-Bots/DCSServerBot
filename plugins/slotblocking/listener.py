@@ -105,33 +105,35 @@ class SlotBlockingListener(EventListener):
                 self.bot.sendtoDCS(server, {'command': 'loadParams', 'plugin': self.plugin, 'params': server[self.plugin]})
 
     async def onPlayerStart(self, data):
-        if data['id'] == 1:
-            return
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                # Initialize the player with a value of 0 if a campaign is active
-                cursor.execute('INSERT INTO sb_points (campaign_id, player_ucid, points) SELECT campaign_id, %s, '
-                               '0 FROM campaigns WHERE server_name = %s ON CONFLICT DO NOTHING', (data['ucid'],
-                                                                                                  data['server_name']))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-        player = self.get_player_points(data['server_name'], data['id'])
-        points = player['points'] if player else 0
-        user = utils.match_user(self, data)
-        roles = [x.name for x in user.roles] if user else []
-        self.bot.sendtoDCS(self.globals[data['server_name']],
-                           {
-                               'command': 'uploadUserInfo',
-                               'id': data['id'],
-                               'ucid': data['ucid'],
-                               'points': points,
-                               'roles': roles
-                           })
+        server = self.globals[data['server_name']]
+        if self.plugin in server:
+            if data['id'] == 1:
+                return
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    # Initialize the player with a value of 0 if a campaign is active
+                    cursor.execute('INSERT INTO sb_points (campaign_id, player_ucid, points) SELECT campaign_id, %s, '
+                                   '0 FROM campaigns WHERE server_name = %s ON CONFLICT DO NOTHING', (data['ucid'],
+                                                                                                      data['server_name']))
+                    conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                conn.rollback()
+                self.log.exception(error)
+            finally:
+                self.pool.putconn(conn)
+            player = self.get_player_points(data['server_name'], data['id'])
+            points = player['points'] if player else 0
+            user = utils.match_user(self, data)
+            roles = [x.name for x in user.roles] if user else []
+            self.bot.sendtoDCS(self.globals[data['server_name']],
+                               {
+                                   'command': 'uploadUserInfo',
+                                   'id': data['id'],
+                                   'ucid': data['ucid'],
+                                   'points': points,
+                                   'roles': roles
+                               })
 
     def update_user_points(self, server_name: str, player: dict):
         conn = self.pool.getconn()
@@ -163,20 +165,21 @@ class SlotBlockingListener(EventListener):
 
     async def onPlayerChangeSlot(self, data):
         server = self.globals[data['server_name']]
-        config = server[self.plugin]
-        if 'side' in data and 'use_reservations' in config and config['use_reservations']:
-            player = self.get_player_points(data['server_name'],
-                                            utils.get_player(self, data['server_name'], ucid=data['ucid']))
-            if data['side'] != const.SIDE_SPECTATOR:
-                # slot change - credit will be taken
-                costs = self.get_costs(server, data)
-                if costs > 0:
-                    self.credits[player['ucid']] = costs
-                    player['points'] -= costs
-                    self.update_user_points(data['server_name'], player)
-            elif player['ucid'] in self.credits:
-                # back to spectator removes any credit
-                del self.credits[player['ucid']]
+        if self.plugin in server:
+            config = server[self.plugin]
+            if 'side' in data and 'use_reservations' in config and config['use_reservations']:
+                player = self.get_player_points(data['server_name'],
+                                                utils.get_player(self, data['server_name'], ucid=data['ucid']))
+                if data['side'] != const.SIDE_SPECTATOR:
+                    # slot change - credit will be taken
+                    costs = self.get_costs(server, data)
+                    if costs > 0:
+                        self.credits[player['ucid']] = costs
+                        player['points'] -= costs
+                        self.update_user_points(data['server_name'], player)
+                elif player['ucid'] in self.credits:
+                    # back to spectator removes any credit
+                    del self.credits[player['ucid']]
 
     async def onGameEvent(self, data):
         server = self.globals[data['server_name']]
