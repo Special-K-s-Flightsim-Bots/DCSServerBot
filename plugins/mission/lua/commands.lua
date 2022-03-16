@@ -185,3 +185,13 @@ function dcsbot.sendPopupMessage(json)
 		net.dostring_in('mission', 'a_out_text_delay_s(\'blue\', ' .. basicSerialize(message) .. ', ' .. tostring(time) .. ')')
 	end
 end
+
+function dcsbot.do_script(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: do_script()')
+    net.dostring_in('mission', 'a_do_script(' .. basicSerialize(json.script) .. ')')
+end
+
+function dcsbot.do_script_file(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: do_script_file()')
+    net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. json.file .. '\\")")')
+end

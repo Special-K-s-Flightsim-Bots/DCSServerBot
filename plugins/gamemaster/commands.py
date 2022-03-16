@@ -19,7 +19,7 @@ class GameMaster(Plugin):
     @commands.guild_only()
     async def chat(self, ctx, *args):
         server = await utils.get_server(self, ctx)
-        if server and server['status'] in [Status.RUNNING, Status.RESTART_PENDING]:
+        if server and server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
             self.bot.sendtoDCS(server, {
                 "command": "sendChatMessage",
                 "channel": ctx.channel.id,
@@ -35,7 +35,7 @@ class GameMaster(Plugin):
         if server:
             if to not in ['all', 'red', 'blue']:
                 await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}popup all|red|blue [time] <message>")
-            elif server['status'] in [Status.RUNNING, Status.RESTART_PENDING]:
+            elif server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
                 if len(args) > 0:
                     if args[0].isnumeric():
                         time = int(args[0])
@@ -56,18 +56,49 @@ class GameMaster(Plugin):
             else:
                 await ctx.send(f"Mission is {server['status'].name.lower()}, message discarded.")
 
-    @commands.command(description='Send a chat message to a running DCS instance', usage='<flag> [value]', hidden=True)
+    @commands.command(description='Set or clear a flag inside the mission environment', usage='<flag> [value]', hidden=True)
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def flag(self, ctx, flag, value=None):
         server = await utils.get_server(self, ctx)
-        if server and server['status'] in [Status.RUNNING, Status.RESTART_PENDING]:
+        if server and server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING, Status.PAUSED]:
             self.bot.sendtoDCS(server, {
                 "command": "setFlag",
                 "channel": ctx.channel.id,
                 "flag": flag,
                 "value": value
             })
+            await ctx.send('Flag set.')
+        else:
+            await ctx.send(f"Mission is {server['status'].name.lower()}, can't set flag.")
+
+    @commands.command(description='Calls any function inside the mission environment', usage='<script>', hidden=True)
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def do_script(self, ctx, *script):
+        server = await utils.get_server(self, ctx)
+        if server and server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING, Status.PAUSED]:
+            self.bot.sendtoDCS(server, {
+                "command": "do_script",
+                "script": ' '.join(script)
+            })
+            await ctx.send('Command sent.')
+        else:
+            await ctx.send(f"Mission is {server['status'].name.lower()}, command discarded.")
+
+    @commands.command(description='Loads a lua file into the mission environment', usage='<file>', hidden=True)
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def do_script_file(self, ctx, filename):
+        server = await utils.get_server(self, ctx)
+        if server and server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING, Status.PAUSED]:
+            self.bot.sendtoDCS(server, {
+                "command": "do_script_file",
+                "file": filename.replace('\\', '/')
+            })
+            await ctx.send('Command sent.')
+        else:
+            await ctx.send(f"Mission is {server['status'].name.lower()}, command discarded.")
 
 
 def setup(bot: DCSServerBot):
