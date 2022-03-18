@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from discord.ext import tasks, commands
 from os import path
 from typing import Type, Optional, List
+from .listener import SchedulerListener
 
 
 class Scheduler(Plugin):
@@ -172,7 +173,11 @@ class Scheduler(Plugin):
             else:
                 self.log.info(
                     f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
-            self.loop.call_later(restart_in, utils.stop_dcs, self, server)
+            self.loop.call_later(restart_in, self.bot.sendtoBot,
+                                 {"command": "onMissionEnd", "server_name": server['server_name']})
+            self.loop.call_later(restart_in + 1, self.bot.sendtoBot,
+                                 {"command": "onShutdown", "server_name": server['server_name']})
+            self.loop.call_later(restart_in + 2, utils.stop_dcs, self, server)
             if 'extensions' in config:
                 self.loop.call_later(restart_in, self.shutdown_extensions, server, config)
 
@@ -191,8 +196,12 @@ class Scheduler(Plugin):
                 else:
                     self.loop.call_later(restart_time + 10, utils.start_dcs, self, server['installation'])
             elif method == 'restart':
+                self.loop.call_later(restart_time, self.bot.sendtoBot,
+                                     {"command": "onMissionEnd", "server_name": server['server_name']})
                 self.loop.call_later(restart_time, self.bot.sendtoDCS, server, {"command": "restartMission"})
             elif method == 'rotate':
+                self.loop.call_later(restart_time, self.bot.sendtoBot,
+                                     {"command": "onMissionEnd", "server_name": server['server_name']})
                 self.loop.call_later(restart_time, self.bot.sendtoDCS, server, {"command": "startNextMission"})
 
     def check_mission_state(self, server: dict, config: dict):
@@ -261,4 +270,4 @@ class Scheduler(Plugin):
 def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-    bot.add_cog(Scheduler(bot))
+    bot.add_cog(Scheduler(bot, SchedulerListener))

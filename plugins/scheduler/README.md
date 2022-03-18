@@ -40,14 +40,17 @@ Examples:
       "restart": {                            -- missions rotate every 4 hrs
         "method": "rotate",
         "local_times": [ "00:00", "04:00", "08:00" ],
-      }
+      },
+     "onMissionEnd": "load:Scripts/net/persist.lua", -- load a specific lua on restart 
+     "onShutdown": "run:shutdown /s"                 -- shutdown the PC when DCS is shut down
     },
     {
       "installation": "missions",
       "schedule": {
         "21:30": "NNNNNYN",                   -- Missions start on Saturdays at 21:30, so start the server there
         "23:00-00:00": "NNNNNPN"              -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated        
-      }
+      },
+     "onMissionStart": "load:Script/net/f10menu.lua"  -- load some lua in the mission on mission start
     }
   ]
 }
@@ -81,6 +84,23 @@ See the above examples for a better understanding on how it works.
 
 A list of extensions that should be started / stopped with the server. Currently, only SRS is supported.
 If SRS is listed as an extension, a configured SRS server will be started with the DCS server.
+
+### on-commands
+
+| Parameter      | Description                                                                                  |
+|----------------|----------------------------------------------------------------------------------------------|
+| onMissionStart | Called at the start of a mission (onSimulationStart).                                        |
+| onMissionEnd   | Called, when the Scheduler (!) ends a mission. Not if the mission is ended in any other way. |
+| onShutdown     | Called, when the DCS server is being shut down.                                              |
+
+Commands can be executed in different ways:
+
+| Starts with      | Description                                                     | Example                                                               |
+|------------------|-----------------------------------------------------------------|-----------------------------------------------------------------------|
+| load             | Load an external lua file into the mission (do_script_file).    | load:Scripts/net/test.lua                                             |
+| lua              | Run this lua script inside the mission environment (do_script). | lua:dcsbot.restartMission()                                           |
+| call             | Send a DCSServerBot command to DCS.                             | call:shutdown()                                                       | 
+| run              | Run a Windows command (via cmd.exe).                            | run:shutdown /s                                                       |
 
 ## Discord Commands
 

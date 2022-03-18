@@ -17,16 +17,19 @@
     },
     {
       "installation": "instance2",
-      "schedule": {"00-12": "YYYYYYY", "12-24": "NNNNNNN"}
+      "schedule": {"00-12": "YYYYYYY", "12-24": "NNNNNNN"},
       "restart": {
         "method": "rotate",
         "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
-        "populated": true,
-      }
+        "populated": true
+      }.
+      "onMissionStart": "load:Scripts/net/start.lua",
+      "onMissionEnd": "load:Scripts/net/end.lua",
+      "onShutdown": "run:start cmd.exe"
     },
     {
       "installation": "instance3",
-      "schedule": {"00-12": "NNNNNNN", "12-24": "YYYYYYY"}
+      "schedule": {"00-12": "NNNNNNN", "12-24": "YYYYYYY"},
       "restart": {
         "method": "restart_with_shutdown",
         "mission_time": 480,
