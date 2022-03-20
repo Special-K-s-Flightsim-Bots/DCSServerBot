@@ -196,22 +196,28 @@ class SlotBlockingListener(EventListener):
                 # players only lose points if they weren't killed as a teamkill
                 if data['arg4'] != -1 and data['arg3'] != data['arg6']:
                     # if we don't use reservations, credit will be taken on kill
-                    if 'use_reservations' not in config or not config['use_reservations']:
-                        player = self.get_player_points(data['server_name'], data['arg4'])
+                    player = self.get_player_points(data['server_name'], data['arg4'])
+                    if 'use_reservations' in config and config['use_reservations']:
                         player['points'] -= self.get_costs(server, player)
                         self.update_user_points(data['server_name'], player)
-                        # if the remaining points are not enough to stay in this plane, move them back to spectators
-                        if player['points'] < self.get_points(server, player):
-                            self.move_to_spectators(server, player)
-            elif data['eventName'] == 'crash':
-                # if we don't use reservations, credit will be taken on crash
-                if 'use_reservations' not in config or not config['use_reservations']:
-                    player = self.get_player_points(data['server_name'], data['arg1'])
-                    player['points'] -= self.get_costs(server, player)
-                    self.update_user_points(data['server_name'], player)
+                    elif player['ucid'] in self.credits:
+                        # back to spectator removes any credit
+                        del self.credits[player['ucid']]
                     # if the remaining points are not enough to stay in this plane, move them back to spectators
                     if player['points'] < self.get_points(server, player):
                         self.move_to_spectators(server, player)
+            elif data['eventName'] == 'crash':
+                # if we don't use reservations, credit will be taken on crash
+                player = self.get_player_points(data['server_name'], data['arg1'])
+                if 'use_reservations' not in config or not config['use_reservations']:
+                    player['points'] -= self.get_costs(server, player)
+                    self.update_user_points(data['server_name'], player)
+                    # if the remaining points are not enough to stay in this plane, move them back to spectators
+                elif player['ucid'] in self.credits:
+                    # back to spectator removes any credit
+                    del self.credits[player['ucid']]
+                if player['points'] < self.get_points(server, player):
+                    self.move_to_spectators(server, player)
             elif data['eventName'] == 'landing':
                 # pay back on landing
                 player = self.get_player_points(data['server_name'], data['arg1'])
