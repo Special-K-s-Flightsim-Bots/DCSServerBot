@@ -201,11 +201,11 @@ function mission.onSimulationResume()
 end
 
 function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
-    log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent()')
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent(' .. eventName .. ')')
     -- ignore false events
     if eventName == 'change_slot' then
         mission.last_change_slot[arg1] = os.clock()
-    elseif eventName == 'takeoff' or evenName == 'landing' then
+    elseif eventName == 'takeoff' or eventName == 'landing' then
         if mission.last_change_slot[arg1] and mission.last_change_slot[arg1] > (os.clock() - 60) then
             log.write('DCSServerBot', log.DEBUG, 'Mission: ignoring ' .. eventName .. ' event.')
             return
