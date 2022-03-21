@@ -20,9 +20,9 @@ The slot blocking is configured with a file named config\slotblocking.json. You'
       "installation": "DCS.openbeta_server",
       "use_reservations": true, -- if true, points will be credited on hop-on and payed out on RTB, otherwise points will be credited on death 
       "restricted": [           -- restriction for specific groups of planes, based on a points system
-        { "group_name": "Rookie", "points": 10, "costs": 10 },
-        { "group_name": "Veteran", "points": 20, "crew": 5, "costs": 10 }, -- a multicrew seat (aka RIO) costs 5 points here
-        { "group_name": "Ace", "points": 50, "costs": 30 }
+        { "group_name": "^Rookie", "points": 10, "costs": 10 },
+        { "group_name": "^Veteran", "points": 20, "crew": 5, "costs": 10 }, -- a multicrew seat (aka RIO) costs 5 points here
+        { "group_name": "^Ace", "points": 50, "costs": 30 }
       ],
       "points_per_kill": [      -- How many points do we get per kill? If not set, default will be 1 point per kill
         { "default": 1 },
@@ -37,7 +37,7 @@ The slot blocking is configured with a file named config\slotblocking.json. You'
   ]
 }
 ```
-Each unit can be either defined by its "group_name" or "unit_name", which are substrings of the used names in your mission or by its "unit_type".
+Each unit can be either defined by its "group_name" or "unit_name", which are substrings/[pattern](https://riptutorial.com/lua/example/20315/lua-pattern-matching) of the used names in your mission or by its "unit_type".
 The restriction can either be "points" that you gain by kills or "discord", which is then a specific Discord role (in the example "Donators").
 "costs" are the points you lose when you get killed in this specific aircraft and if provided.
 
