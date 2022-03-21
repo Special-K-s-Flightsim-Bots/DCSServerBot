@@ -1,10 +1,10 @@
 import asyncio
-import string
 import discord
 import json
 import platform
 import psycopg2
 import socket
+import string
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
@@ -179,7 +179,7 @@ class DCSServerBot(commands.Bot):
             if type(value) == int:
                 message[key] = str(value)
         msg = json.dumps(message)
-        self.log.debug('HOST->{}: {}'.format(server['server_name'], msg))
+        self.log.debug(f"HOST->{server['server_name']}: {msg}")
         dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         dcs_socket.sendto(msg.encode('utf-8'), (server['host'], int(server['port'])))
 
@@ -281,11 +281,6 @@ class DCSServerBot(commands.Bot):
             server['status_channel'] = self.config[installation]['STATUS_CHANNEL']
             server['admin_channel'] = self.config[installation]['ADMIN_CHANNEL']
         server['installation'] = installation
-        if data['channel'].startswith('sync-'):
-            server['status'] = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
-        else:
-            server['status'] = Status.LOADING
-        self.log.debug(f"Server {server['server_name']} initialized")
         # update the database and check for server name changes
         conn = self.pool.getconn()
         try:
@@ -320,6 +315,11 @@ class DCSServerBot(commands.Bot):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+        if data['channel'].startswith('sync-'):
+            server['status'] = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
+        else:
+            server['status'] = Status.LOADING
+        self.log.debug(f"Server {server['server_name']} initialized")
         return True
 
     async def start_udp_listener(self):
