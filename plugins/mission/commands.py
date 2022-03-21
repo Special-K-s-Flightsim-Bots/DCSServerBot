@@ -1,6 +1,7 @@
 import asyncio
 import discord
 import itertools
+import psutil
 import psycopg2
 import re
 import typing
@@ -9,6 +10,9 @@ from core import utils, const, DCSServerBot, Plugin, Report
 from core.const import Status
 from discord.ext import commands, tasks
 from .listener import MissionEventListener
+
+
+MAX_HUNG_MINUTES = 3
 
 
 class Mission(Plugin):
@@ -330,6 +334,9 @@ class Mission(Plugin):
                     data = await self.bot.sendtoDCSSync(server, {
                         "command": "getMissionUpdate"
                     })
+                    # remove any hung flag, if the server has responded
+                    if 'hung' in server:
+                        del server['hung']
                     if server['status'] not in [Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
                         server['status'] = Status.PAUSED if data['pause'] is True else Status.RUNNING
                     server['mission_time'] = data['mission_time']
@@ -337,8 +344,23 @@ class Mission(Plugin):
                     data['channel'] = server['status_channel']
                     await self.eventlistener.displayMissionEmbed(data)
                 except asyncio.TimeoutError:
-                    self.log.warning('Timeout during getMissionUpdate() - setting server as SHUTDOWN')
-                    server['status'] = Status.SHUTDOWN
+                    # check if the server process is still existent
+                    if 'PID' in server and psutil.pid_exists(server['PID']):
+                        self.log.warning(f"Server \"{server['server_name']}\" is not responding.")
+                        # process might be in a hung state, so try again for a specified amount of times
+                        if 'hung' in server and server['hung'] >= (MAX_HUNG_MINUTES - 1):
+                            self.log.warning(f"Killing server \"{server['server_name']}\" after {MAX_HUNG_MINUTES} "
+                                             f"retries and setting state to SHUTDOWN.")
+                            psutil.Process(server['PID']).kill()
+                            del server['hung']
+                            server['status'] = Status.SHUTDOWN
+                        elif 'hung' not in server:
+                            server['hung'] = 1
+                        else:
+                            server['hung'] += 1
+                    else:
+                        self.log.warning(f"Server \"{server['server_name']}\" died. Setting state to SHUTDOWN.")
+                        server['status'] = Status.SHUTDOWN
 
     @update_mission_status.before_loop
     async def before_update(self):

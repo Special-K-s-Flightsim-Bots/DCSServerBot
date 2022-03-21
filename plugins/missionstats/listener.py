@@ -1,4 +1,3 @@
-# listener.py
 import discord
 import psycopg2
 from contextlib import closing
@@ -8,6 +7,7 @@ from core import utils, EventListener, Plugin
 class MissionStatisticsEventListener(EventListener):
 
     COALITION = {
+        0: 'Neutral',
         1: 'Red',
         2: 'Blue'
     }
