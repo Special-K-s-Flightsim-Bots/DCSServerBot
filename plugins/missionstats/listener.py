@@ -123,6 +123,9 @@ class MissionStatisticsEventListener(EventListener):
                 if initiator is not None and len(initiator) > 0:
                     category = self.UNIT_CATEGORY[initiator['category']]
                     coalition = self.COALITION[initiator['coalition']]
+                    # no stats for Neutral
+                    if coalition == 'Neutral':
+                        return
                     unit_name = initiator['unit_name']
                     if initiator['type'] == 'UNIT':
                         if category not in stats['coalitions'][coalition]['units']:
@@ -140,6 +143,9 @@ class MissionStatisticsEventListener(EventListener):
                 victim = data['target']
                 if killer is not None and len(killer) > 0 and len(victim) > 0:
                     coalition = self.COALITION[killer['coalition']]
+                    # no stats for Neutral
+                    if coalition == 'Neutral':
+                        return
                     category = self.UNIT_CATEGORY[victim['category']]
                     if victim['type'] == 'UNIT':
                         if 'kills' not in stats['coalitions'][coalition]:
@@ -160,6 +166,9 @@ class MissionStatisticsEventListener(EventListener):
                 initiator = data['initiator']
                 category = self.UNIT_CATEGORY[initiator['category']]
                 coalition = self.COALITION[initiator['coalition']]
+                # no stats for Neutral
+                if coalition == 'Neutral':
+                    return
                 unit_name = initiator['unit_name']
                 if initiator['type'] == 'UNIT':
                     if unit_name in stats['coalitions'][coalition]['units'][category]:

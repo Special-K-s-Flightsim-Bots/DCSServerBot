@@ -22,8 +22,8 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     -- check levels if any
     for id, unit in pairs(dcsbot.params['slotblocking']['restricted']) do
         if (unit['unit_type'] and unit['unit_type'] == unit_type)
-                or (unit['unit_name'] and string.find(unit_name, unit['unit_name'], 1, true) ~= nil)
-                or (unit['group_name'] and string.find(group_name, unit['group_name'], 1, true) ~= nil) then
+                or (unit['unit_name'] and string.match(unit_name, unit['unit_name']) ~= nil)
+                or (unit['group_name'] and string.match(group_name, unit['group_name']) ~= nil) then
             -- blocking slots by points // check multicrew
             if tonumber(slotID) then
                 points = unit['points']
