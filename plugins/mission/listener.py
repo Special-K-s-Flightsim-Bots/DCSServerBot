@@ -289,16 +289,21 @@ class MissionEventListener(EventListener):
                     data['arg2'] if (len(data['arg2']) > 0) else 'Cannon'))
         elif data['eventName'] == 'kill':
             # Player is not an AI
+            player1 = utils.get_player(self, server_name, id=data['arg1']) if data['arg1'] != -1 else None
+            player2 = utils.get_player(self, server_name, id=data['arg4']) if data['arg4'] != -1 else None
             chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
             if chat_channel is not None:
-                player1 = utils.get_player(self, server_name, id=data['arg1']) if data['arg1'] != -1 else None
-                player2 = utils.get_player(self, server_name, id=data['arg4']) if data['arg4'] != -1 else None
                 await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                     const.PLAYER_SIDES[data['arg3']],
                     ('player ' + player1['name']) if player1 is not None else 'AI',
                     data['arg2'], const.PLAYER_SIDES[data['arg6']],
                     ('player ' + player2['name']) if player2 is not None else 'AI',
                     data['arg5'], data['arg7']))
+            # report teamkills from players to admins
+            if (player1 is not None) and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
+                await self.bot.get_bot_channel(data, 'admin_channel').send(
+                    'Player {} (ucid={}) is killing team members. Please investigate.'.format(
+                        player1['name'], player1['ucid']))
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
             if data['arg1'] != -1:
                 player = utils.get_player(self, server_name, id=data['arg1'])

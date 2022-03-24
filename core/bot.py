@@ -215,17 +215,21 @@ class DCSServerBot(commands.Bot):
         server = self.globals[server_name]
         if server_name in self.embeds and embed_name in self.embeds[server_name]:
             message = self.embeds[server_name][embed_name]
-        elif embed_name in server['embeds']:
-            # load a persisted message, if it hasn't been done yet
-            if server_name not in self.embeds:
-                self.embeds[server_name] = {}
-            try:
-                message = self.embeds[server_name][embed_name] = \
-                    await self.get_bot_channel(server).fetch_message(server['embeds'][embed_name])
-            except discord.errors.NotFound:
+        elif 'embeds' in server:
+            if embed_name in server['embeds']:
+                # load a persisted message, if it hasn't been done yet
+                if server_name not in self.embeds:
+                    self.embeds[server_name] = {}
+                try:
+                    message = self.embeds[server_name][embed_name] = \
+                        await self.get_bot_channel(server).fetch_message(server['embeds'][embed_name])
+                except discord.errors.NotFound:
+                    message = None
+            else:
                 message = None
         else:
-            message = None
+            # unlikely event when someone tries to send a message when the server isn't initialized yet
+            return
         if message:
             try:
                 await message.edit(embed=embed, file=file)

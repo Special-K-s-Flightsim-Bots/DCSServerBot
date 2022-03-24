@@ -173,11 +173,7 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             if server['status'] == Status.SHUTDOWN:
-                msg = await ctx.send('Please enter the new password: ')
-                response = await self.bot.wait_for('message', timeout=300.0)
-                password = response.content
-                await msg.delete()
-                await response.delete()
+                password = await utils.input_value(self, ctx, 'Please enter the new password (. for none):', True)
                 utils.changeServerSettings(server['server_name'], 'password', password)
                 await ctx.send('Password has been changed.')
                 await self.bot.audit(f"User {ctx.message.author.display_name} changed the password "
