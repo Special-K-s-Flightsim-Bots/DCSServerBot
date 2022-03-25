@@ -222,7 +222,7 @@ class DCSServerBot(commands.Bot):
                     self.embeds[server_name] = {}
                 try:
                     message = self.embeds[server_name][embed_name] = \
-                        await self.get_bot_channel(server).fetch_message(server['embeds'][embed_name])
+                        await self.get_bot_channel(data).fetch_message(server['embeds'][embed_name])
                 except discord.errors.NotFound:
                     message = None
             else:
@@ -239,7 +239,7 @@ class DCSServerBot(commands.Bot):
             if server_name not in self.embeds:
                 self.embeds[server_name] = {}
             message = self.embeds[server_name][embed_name] = \
-                await self.get_bot_channel(server).send(embed=embed, file=file)
+                await self.get_bot_channel(data).send(embed=embed, file=file)
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
