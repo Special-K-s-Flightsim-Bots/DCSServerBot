@@ -44,9 +44,10 @@ class GreenieBoardEventListener(EventListener):
                 conn = self.pool.getconn()
                 try:
                     with closing(conn.cursor()) as cursor:
-                        cursor.execute("INSERT INTO greenieboard (player_ucid, grade, comment, place, night, points) "
-                                       "VALUES (%s, %s, %s, %s, %s, %s)", (player['ucid'], grade, data['comment'],
-                                                                           data['place']['name'], night, points))
+                        cursor.execute("INSERT INTO greenieboard (player_ucid, unit_type, grade, comment, place, "
+                                       "night, points) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                                       (player['ucid'], data['initiator']['unit_type'], grade, data['comment'],
+                                        data['place']['name'], night, points))
                     conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
                     conn.rollback()
