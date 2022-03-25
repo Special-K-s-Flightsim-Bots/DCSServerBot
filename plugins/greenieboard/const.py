@@ -30,6 +30,7 @@ ERRORS = {
     "NERD": "Not enough rate of descent",
     "NSU": "Not set up",
     "N": "Nose",
+    "PPP": "Power, power, power",
     "P": "Power",
     "SLO": "Slow",
     "TMRD": "Too much rate of descent",
