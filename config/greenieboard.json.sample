@@ -3,8 +3,8 @@
     {
       "num_landings": 5,
       "num_rows": 10,
-      "persistent_board": true,
-      "persistent_channel": "-1",
+      "persistent_board": false,
+      "persistent_channel": "123456789",
       "ratings": {
         "_OK_": 5,
         "OK": 4,

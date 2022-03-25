@@ -33,6 +33,7 @@ ERRORS = {
     "P": "Power",
     "SLO": "Slow",
     "TMRD": "Too much rate of descent",
+    "WO(AFU)": "Waved off (all fouled up)",
     "W": "Wings"
 }
 
