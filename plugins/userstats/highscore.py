@@ -51,7 +51,7 @@ class HighscoreElement(report.GraphElement):
             'Ground Targets': 'SUM(s.kills_ground)',
             'Most Efficient Killers': '(SUM(s.kills) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600))',
             'Most Wasteful Pilots': '(SUM(s.crashes) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600))',
-            'KD-Ratio': 'CASE when sum(s.deaths) = 0 then sum(s.kills) else sum(s.kills::DECIMAL)/sum(s.deaths::DECIMAL) end',
+            'KD-Ratio': 'CASE when sum(s.crashes) = 0 then sum(s.kills) else sum(s.kills::DECIMAL)/sum(s.crashes::DECIMAL) end',
             'PvP-KD-Ratio': 'CASE when sum(s.deaths_pvp) = 0 then sum(s.pvp) else sum(s.pvp::DECIMAL)/sum(s.deaths_pvp::DECIMAL) end'
         }
         xlabels = {

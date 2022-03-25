@@ -233,7 +233,7 @@ class FlightPerformance(report.GraphElement):
 class KDRatio(report.MultiGraphElement):
 
     def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str):
-        sql = 'SELECT COALESCE(SUM(kills), 0) as kills, COALESCE(SUM(deaths), 0) as deaths, COALESCE(SUM(' \
+        sql = 'SELECT COALESCE(SUM(kills), 0) as kills, COALESCE(SUM(crashes), 0) as deaths, COALESCE(SUM(' \
                          'teamkills), 0) as teamkills FROM statistics s, players p, missions m WHERE s.player_ucid = ' \
                          'p.ucid AND s.mission_id = m.id '
         if isinstance(member, discord.Member):
