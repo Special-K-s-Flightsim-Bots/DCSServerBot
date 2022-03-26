@@ -197,8 +197,10 @@ class SlotBlockingListener(EventListener):
                 if data['arg4'] != -1 and data['arg3'] != data['arg6']:
                     # if we don't use reservations, credit will be taken on kill
                     player = self.get_player_points(data['server_name'], data['arg4'])
-                    if 'use_reservations' in config and config['use_reservations']:
+                    if 'use_reservations' not in config or not config['use_reservations']:
                         player['points'] -= self.get_costs(server, player)
+                        if player['points'] < 0:
+                            player['points'] = 0
                         self.update_user_points(data['server_name'], player)
                     elif player['ucid'] in self.credits:
                         # back to spectator removes any credit
@@ -211,6 +213,8 @@ class SlotBlockingListener(EventListener):
                 player = self.get_player_points(data['server_name'], data['arg1'])
                 if 'use_reservations' not in config or not config['use_reservations']:
                     player['points'] -= self.get_costs(server, player)
+                    if player['points'] < 0:
+                        player['points'] = 0
                     self.update_user_points(data['server_name'], player)
                     # if the remaining points are not enough to stay in this plane, move them back to spectators
                 elif player['ucid'] in self.credits:
@@ -286,4 +290,7 @@ class SlotBlockingListener(EventListener):
             server_name = data['server_name']
             player_id = data['from_id']
             player = self.get_player_points(server_name, player_id)
-            utils.sendChatMessage(self, server_name, player_id, f"You currently have {player['points']} credit points.")
+            points = player['points']
+            if player['ucid'] in self.credits:
+                points += self.credits[player['ucid']]
+            utils.sendChatMessage(self, server_name, player_id, f"You currently have {points} credit points.")
