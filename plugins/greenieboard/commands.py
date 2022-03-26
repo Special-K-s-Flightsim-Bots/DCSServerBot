@@ -48,7 +48,8 @@ class GreenieBoard(Plugin):
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC LIMIT 1',
                                    (member.id, ))
                     ucid = cursor.fetchone()['ucid']
-                cursor.execute("SELECT p.name, g.grade, g.unit_type, g.place, g.time FROM greenieboard g, players p WHERE p.ucid = %s AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s",
+                cursor.execute("SELECT p.name, g.grade, g.unit_type, g.place, g.time FROM greenieboard g, players p "
+                               "WHERE p.ucid = %s AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s",
                                (ucid, self.get_config()['num_landings']))
                 if cursor.rowcount == 0:
                     await ctx.send('No carrier landings recorded for this user.')
