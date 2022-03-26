@@ -181,6 +181,16 @@ class Scheduler(Plugin):
             if 'extensions' in config:
                 self.loop.call_later(restart_in, self.shutdown_extensions, server, config)
 
+    def stop_dcs(self, server: dict) -> None:
+        # make sure, the scheduler does not start the server again by itself
+        server['maintenance'] = True
+        utils.stop_dcs(self, server)
+
+    def start_dcs(self, server: dict) -> None:
+        utils.start_dcs(self, server)
+        # clear the maintenance flag again
+        del server['maintenance']
+
     def restart_mission(self, server: dict, config: dict):
         # check if the mission is still populated
         if 'populated' in config['restart'] and config['restart']['populated'] is False and utils.is_populated(self, server):
@@ -190,11 +200,8 @@ class Scheduler(Plugin):
             method = config['restart']['method']
             restart_time = self.warn_users(server, config)
             if method == 'restart_with_shutdown':
-                self.loop.call_later(restart_time, utils.stop_dcs, self, server)
-                if 'affinity' in config:
-                    self.loop.call_later(restart_time + 10, utils.start_dcs, self, server['installation'])
-                else:
-                    self.loop.call_later(restart_time + 10, utils.start_dcs, self, server['installation'])
+                self.loop.call_later(restart_time, self.stop_dcs, server)
+                self.loop.call_later(restart_time + 10, self.start_dcs, server)
             elif method == 'restart':
                 self.loop.call_later(restart_time, self.bot.sendtoBot,
                                      {"command": "onMissionEnd", "server_name": server['server_name']})
