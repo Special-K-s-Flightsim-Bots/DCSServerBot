@@ -17,12 +17,12 @@ class GreenieBoard(Plugin):
 
     @staticmethod
     def format_comments(data, marker, marker_emoji):
-        embed = discord.Embed(title='Latest Carrier Landings', color=discord.Color.blue())
+        embed = discord.Embed(title=f"Latest Carrier Landings for user {data[0]['name']}", color=discord.Color.blue())
         ids = landings = grades = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
             landings += f"{data[i]['time']:%y-%m-%d %H:%M:%S} - {data[i]['unit_type']}@{data[i]['place']}\n"
-            grades += f"{get_element(data[i]['comment'], 'grade')}\n"
+            grades += f"{data[i]['grade']}\n"
         embed.add_field(name='ID', value=ids)
         embed.add_field(name='Landing', value=landings)
         embed.add_field(name='Grade', value=grades)
@@ -32,11 +32,14 @@ class GreenieBoard(Plugin):
     @commands.command(description='Show carrier landing qualifications', usage='[member]')
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def carrier(self, ctx, member: Optional[Union[discord.Member, str]]):
+    async def carrier(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         if not member:
             member = ctx.message.author
         elif isinstance(member, str):
-            ucid = utils.find_user(self, member)
+            name = member
+            if len(params) > 0:
+                name += ' ' + ' '.join(params)
+            ucid = utils.find_user(self, name)
         landings = List[dict]
         conn = self.pool.getconn()
         try:
@@ -45,7 +48,7 @@ class GreenieBoard(Plugin):
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC LIMIT 1',
                                    (member.id, ))
                     ucid = cursor.fetchone()['ucid']
-                cursor.execute("SELECT * FROM greenieboard WHERE player_ucid = %s ORDER BY ID DESC LIMIT %s",
+                cursor.execute("SELECT p.name, g.grade, g.unit_type, g.place, g.time FROM greenieboard g, players p WHERE p.ucid = %s AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s",
                                (ucid, self.get_config()['num_landings']))
                 if cursor.rowcount == 0:
                     await ctx.send('No carrier landings recorded for this user.')
@@ -61,8 +64,7 @@ class GreenieBoard(Plugin):
             grade = landings[n]['grade']
             comment = get_element(landings[n]['comment'], 'comment').replace('_', '\\_')
             wire = get_element(landings[n]['comment'], 'wire')
-            env = await report.render(landing=landings[n],
-                                      grade=GRADES[grade], comment=comment, wire=wire)
+            env = await report.render(landing=landings[n], grade=GRADES[grade], comment=comment, wire=wire)
             await ctx.send(embed=env.embed)
 
     def render_board(self):

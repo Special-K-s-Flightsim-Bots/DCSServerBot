@@ -34,6 +34,7 @@ These commands can be used to administrate the bot itself.
 | Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission      | [README](./plugins/punishment/README.md)   |
 | Slotblocking | Slotblocking either based on units or a point based system.         | yes      | Mission      | [README](./plugins/slotblocking/README.md) |
 | Gamemaster   | Interaction with the running mission (inform users, set flags, etc) | yes*     |              | [README](./plugins/gamemaster/README.md)   |
+| Greenieboard | Greenieboard and LSO quality mark analysis (SC only)                | yes      | Missionstats | [README](./plugins/greenieboard/README.md) |
 | DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |              | [README](./plugins/dbexporter/README.md)   |
 
 *) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot.
