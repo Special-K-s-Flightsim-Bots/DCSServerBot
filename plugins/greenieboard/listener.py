@@ -11,7 +11,8 @@ class GreenieBoardEventListener(EventListener):
             data = {"channel": self.locals['configs'][0]['persistent_channel'] if 'persistent_channel' in self.locals['configs'][0] else "-1",
                     "server_name": list(self.globals.values())[0]['server_name']}
             embed = self._plugin.render_board()
-            await self.bot.setEmbed(data, 'greenieboard', embed)
+            if embed:
+                await self.bot.setEmbed(data, 'greenieboard', embed)
 
     async def send_chat_message(self, player, data, grade, comment):
         chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
