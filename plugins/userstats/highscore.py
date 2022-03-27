@@ -6,7 +6,7 @@ from core import report
 
 class HighscorePlaytime(report.GraphElement):
 
-    def render(self, server_name, period, limit):
+    def render(self, server_name: str, period: str, limit: int):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - " \
               "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
@@ -43,16 +43,19 @@ class HighscorePlaytime(report.GraphElement):
 
 class HighscoreElement(report.GraphElement):
 
-    def render(self, server_name, period, limit, kill_type):
+    def render(self, server_name: str, period: str, limit: int, kill_type: str):
         sql_parts = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',
             'Air Defence': 'SUM(s.kills_sams)',
             'Ground Targets': 'SUM(s.kills_ground)',
-            'Most Efficient Killers': '(SUM(s.kills) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600))',
-            'Most Wasteful Pilots': '(SUM(s.crashes) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600))',
-            'KD-Ratio': 'CASE when sum(s.crashes) = 0 then sum(s.kills) else sum(s.kills::DECIMAL)/sum(s.crashes::DECIMAL) end',
-            'PvP-KD-Ratio': 'CASE when sum(s.deaths_pvp) = 0 then sum(s.pvp) else sum(s.pvp::DECIMAL)/sum(s.deaths_pvp::DECIMAL) end'
+            'KD-Ratio': 'CASE WHEN SUM(deaths_planes + deaths_helicopters + deaths_ships + deaths_sams + '
+                        'deaths_ground) = 0 THEN SUM(s.kills) ELSE SUM(s.kills::DECIMAL)/SUM((deaths_planes + '
+                        'deaths_helicopters + deaths_ships + deaths_sams + deaths_ground)::DECIMAL) END',
+            'PvP-KD-Ratio': 'CASE WHEN SUM(s.deaths_pvp) = 0 THEN SUM(s.pvp) ELSE SUM(s.pvp::DECIMAL)/SUM('
+                            's.deaths_pvp::DECIMAL) END',
+            'Most Efficient Killers': 'SUM(s.kills) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600.0)',
+            'Most Wasteful Pilots': 'SUM(s.crashes) / (SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600.0)'
         }
         xlabels = {
             'Air Targets': 'kills',
