@@ -8,6 +8,7 @@ import string
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
+from copy import deepcopy
 from core import utils
 from core.const import Status
 from discord.ext import commands
@@ -139,7 +140,7 @@ class DCSServerBot(commands.Bot):
 
     def rename_server(self, old_name: str, new_name: str, update_settings: bool = False) -> None:
         if new_name not in self.globals:
-            self.globals[new_name] = self.globals[old_name].deepcopy()
+            self.globals[new_name] = deepcopy(self.globals[old_name])
             self.globals[new_name]['server_name'] = new_name
         if old_name in self.globals:
             del self.globals[old_name]
@@ -215,17 +216,21 @@ class DCSServerBot(commands.Bot):
         server = self.globals[server_name]
         if server_name in self.embeds and embed_name in self.embeds[server_name]:
             message = self.embeds[server_name][embed_name]
-        elif embed_name in server['embeds']:
-            # load a persisted message, if it hasn't been done yet
-            if server_name not in self.embeds:
-                self.embeds[server_name] = {}
-            try:
-                message = self.embeds[server_name][embed_name] = \
-                    await self.get_bot_channel(server).fetch_message(server['embeds'][embed_name])
-            except discord.errors.NotFound:
+        elif 'embeds' in server:
+            if embed_name in server['embeds']:
+                # load a persisted message, if it hasn't been done yet
+                if server_name not in self.embeds:
+                    self.embeds[server_name] = {}
+                try:
+                    message = self.embeds[server_name][embed_name] = \
+                        await self.get_bot_channel(data).fetch_message(server['embeds'][embed_name])
+                except discord.errors.NotFound:
+                    message = None
+            else:
                 message = None
         else:
-            message = None
+            # unlikely event when someone tries to send a message when the server isn't initialized yet
+            return
         if message:
             try:
                 await message.edit(embed=embed, file=file)
@@ -235,7 +240,7 @@ class DCSServerBot(commands.Bot):
             if server_name not in self.embeds:
                 self.embeds[server_name] = {}
             message = self.embeds[server_name][embed_name] = \
-                await self.get_bot_channel(server).send(embed=embed, file=file)
+                await self.get_bot_channel(data).send(embed=embed, file=file)
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:

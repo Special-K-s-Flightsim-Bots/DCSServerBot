@@ -50,8 +50,8 @@ def findDCSInstallations(server_name=None):
     return installations
 
 
-def changeServerSettings(server_name, name, value):
-    assert name in ['listStartIndex', 'password', 'name', 'maxPlayers'], 'Value can\'t be changed.'
+def changeServerSettings(server_name, name: str, value: Union[str, int]):
+    assert name in ['listStartIndex', 'password', 'name', 'maxPlayers'], "Value can't be changed."
     if isinstance(value, str):
         value = '"' + value + '"'
     _, installation = findDCSInstallations(server_name)[0]
@@ -62,7 +62,6 @@ def changeServerSettings(server_name, name, value):
     outlines = []
     for line in inlines:
         if '["{}"]'.format(name) in line:
-            #    outlines.append('["{}"] = {}\n'.format(name, value))
             outlines.append(re.sub(' = ([^,]*)', ' = {}'.format(value), line))
         else:
             outlines.append(line)
@@ -227,6 +226,23 @@ async def wait_for_single_reaction(self, ctx, message):
     finally:
         for task in tasks:
             task.cancel()
+
+
+async def input_value(self, ctx, message: str, delete: Optional[bool] = False, timeout: Optional[float] = 300.0):
+    def check(m):
+        return (m.channel == ctx.message.channel) & (m.author == ctx.message.author)
+
+    msg = response = None
+    try:
+        msg = await ctx.send(message)
+        response = await self.bot.wait_for('message', check=check, timeout=timeout)
+        return response.content if response.content != '.' else None
+    finally:
+        if delete:
+            if msg:
+                await msg.delete()
+            if response:
+                await response.delete()
 
 
 async def pagination(self, ctx, data, embed_formatter, num=10):
@@ -539,3 +555,12 @@ def sendChatMessage(self, server_name: str, player: int, message: str):
         "to": player,
         "message": message
     })
+
+
+def convert_time(seconds: int):
+    days = int(seconds / 86400)
+    seconds = seconds - days * 86400
+    hours = int(seconds / 3600)
+    seconds = seconds - hours * 3600
+    minutes = int(seconds / 60)
+    return f"{days}d:{hours:02d}h{minutes:02d}m"

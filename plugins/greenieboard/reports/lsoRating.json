@@ -1,0 +1,55 @@
+{
+  "color": "blue",
+  "title": "LSO Rating",
+  "input":
+  [
+    {
+      "name": "wire",
+      "default": "-"
+    }
+  ],
+  "elements":
+  [
+    {
+      "type": "Table",
+      "params": {
+        "values": [
+          {
+            "Date/Time": "{landing[time]:%y-%m-%d %H:%M:%S}",
+            "Plane": "{landing[unit_type]}",
+            "Carrier": "{landing[place]}"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Table",
+      "params": {
+        "values": [
+          {
+            "LSO Grade": "{landing[grade]}",
+            "Wire": "{wire}",
+            "Points": "{landing[points]}"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Field",
+      "params": {
+        "name": "LSO Comment",
+        "value": "{comment}",
+        "inline": false
+      }
+    },
+    {
+      "type": "Ruler",
+      "params": {
+        "ruler_length": 34
+      }
+    },
+    {
+      "class": "plugins.greenieboard.reports.LSORating"
+    }
+  ]
+}

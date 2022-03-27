@@ -13,14 +13,16 @@ class UserStatisticsEventListener(EventListener):
         'eject': 'UPDATE statistics SET ejections = ejections + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'crash': 'UPDATE statistics SET crashes = crashes + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'pilot_death': 'UPDATE statistics SET deaths = deaths + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
-        'pvp': 'UPDATE statistics SET kills = kills + 1, pvp = pvp + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
+        'pvp_planes': 'UPDATE statistics SET kills = kills + 1, pvp = pvp + 1, kills_planes = kills_planes + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
+        'pvp_helicopters': 'UPDATE statistics SET kills = kills + 1, pvp = pvp + 1, kills_helicopters = kills_helicopters + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'teamkill': 'UPDATE statistics SET teamkills = teamkills + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'kill_planes': 'UPDATE statistics SET kills = kills + 1, kills_planes = kills_planes + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'kill_helicopters': 'UPDATE statistics SET kills = kills + 1, kills_helicopters = kills_helicopters + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'kill_ships': 'UPDATE statistics SET kills = kills + 1, kills_ships = kills_ships + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'kill_sams': 'UPDATE statistics SET kills = kills + 1, kills_sams = kills_sams + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'kill_ground': 'UPDATE statistics SET kills = kills + 1, kills_ground = kills_ground + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
-        'deaths_pvp': 'UPDATE statistics SET deaths_pvp = deaths_pvp + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
+        'deaths_pvp_planes': 'UPDATE statistics SET deaths_pvp = deaths_pvp + 1, death_planes = deaths_planes + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
+        'deaths_pvp_helicopters': 'UPDATE statistics SET deaths_pvp = deaths_pvp + 1, death_helicopters = deaths_helicopters + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'deaths_planes': 'UPDATE statistics SET deaths_planes = deaths_planes + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'deaths_helicopters': 'UPDATE statistics SET deaths_helicopters = deaths_helicopters + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'deaths_ships': 'UPDATE statistics SET deaths_ships = deaths_ships + 1 WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
@@ -224,12 +226,17 @@ class UserStatisticsEventListener(EventListener):
                     # Player is not an AI
                     if data['arg1'] != -1:
                         if data['arg4'] != -1:
-                            if data['arg1'] == data['arg4']:  # self kill
+                            # selfkill
+                            if data['arg1'] == data['arg4']:
                                 kill_type = 'self_kill'
-                            elif data['arg3'] == data['arg6']:  # teamkills
+                            # teamkills
+                            elif data['arg3'] == data['arg6']:
                                 kill_type = 'teamkill'
-                            elif data['victimCategory'] in ['Planes', 'Helicopters']:  # pvp
-                                kill_type = 'pvp'
+                            # PVP
+                            elif data['victimCategory'] == 'Planes':
+                                kill_type = 'pvp_planes'
+                            elif data['victimCategory'] == 'Helicopters':
+                                kill_type = 'pvp_helicopters'
                         elif data['victimCategory'] == 'Planes':
                             kill_type = 'kill_planes'
                         elif data['victimCategory'] == 'Helicopters':
@@ -256,8 +263,11 @@ class UserStatisticsEventListener(EventListener):
                                 death_type = 'self_kill'
                             elif data['arg3'] == data['arg6']:  # killed by team member - no death counted
                                 death_type = 'teamdeath'
-                            elif data['killerCategory'] in ['Planes', 'Helicopters']:  # pvp
-                                death_type = 'deaths_pvp'
+                            # PVP
+                            elif data['killerCategory'] == 'Planes':
+                                death_type = 'deaths_pvp_planes'
+                            elif data['killerCategory'] == 'Helicopters':
+                                death_type = 'deaths_pvp_helicopters'
                         elif data['killerCategory'] == 'Planes':
                             death_type = 'deaths_planes'
                         elif data['killerCategory'] == 'Helicopters':

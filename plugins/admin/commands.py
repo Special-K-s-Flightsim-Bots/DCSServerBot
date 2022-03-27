@@ -11,6 +11,7 @@ from core import utils, DCSServerBot, Plugin, Report, const
 from core.const import Status
 from discord.ext import commands, tasks
 from typing import Union, List
+from zipfile import ZipFile
 from .listener import AdminEventListener
 
 
@@ -173,11 +174,7 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             if server['status'] == Status.SHUTDOWN:
-                msg = await ctx.send('Please enter the new password: ')
-                response = await self.bot.wait_for('message', timeout=300.0)
-                password = response.content
-                await msg.delete()
-                await response.delete()
+                password = await utils.input_value(self, ctx, 'Please enter the new password (. for none):', True)
                 utils.changeServerSettings(server['server_name'], 'password', password)
                 await ctx.send('Password has been changed.')
                 await self.bot.audit(f"User {ctx.message.author.display_name} changed the password "
@@ -251,6 +248,72 @@ class Agent(Plugin):
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
+
+    @commands.command(description='Moves a user to spectators', usage='<name>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def spec(self, ctx, name, *args):
+        server = await utils.get_server(self, ctx)
+        if server:
+            reason = ' '.join(args) if len(args) > 0 else None
+            player = utils.get_player(self, server['server_name'], name=name)
+            if player:
+                self.bot.sendtoDCS(server, {
+                    "command": "force_player_slot",
+                    "playerID": player['id']
+                })
+                if reason:
+                    self.bot.sendtoDCS(server, {
+                        "command": "sendChatMessage",
+                        "channel": ctx.channel.id,
+                        "message": "You have been moved to spectators." + (f" Reason: {reason}" if reason else ""),
+                        "from": ctx.message.author.display_name
+                    })
+                await ctx.send(f'User "{name}" moved to spectators.')
+                await self.bot.audit(f'User {ctx.message.author.display_name} moved player {name} to spectators' +
+                                     (f' with reason "{reason}".' if reason != 'n/a' else '.'))
+            else:
+                await ctx.send(f"Player {name} not found.")
+
+    @commands.command(description='Sends the current DCS server log as a DM')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def dcslog(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            channel = await ctx.message.author.create_dm()
+            path = os.path.expandvars(self.config[server['installation']]['DCS_HOME']) + r'\logs\dcs.log'
+            if os.path.getsize(path) >= 8*1024*1024:
+                with ZipFile('dcs.log.zip', 'w') as zipfile:
+                    zipfile.write(path)
+                filename = zipfile.filename
+            else:
+                filename = path
+            try:
+                await channel.send(content=f"This is the DCS logfile of server {server['server_name']}",
+                                   file=discord.File(filename))
+            finally:
+                if filename.endswith('.zip'):
+                    os.remove(filename)
+
+    @commands.command(description='Sends the current bot log as a DM')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def botlog(self, ctx):
+        channel = await ctx.message.author.create_dm()
+        path = r'.\dcsserverbot.log'
+        if os.path.getsize(path) >= 8 * 1024 * 1024:
+            with ZipFile('dcsserverbot.log.zip', 'w') as zipfile:
+                zipfile.write(path)
+            filename = zipfile.filename
+        else:
+            filename = path
+        try:
+            await channel.send(content=f"This is the current DCSServerBot log of agent {platform.node()}",
+                               file=discord.File(filename))
+        finally:
+            if filename.endswith('.zip'):
+                os.remove(filename)
 
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
@@ -421,14 +484,6 @@ class Master(Agent):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                # try to match new users with existing but unmatched DCS users
-                ucid = utils.match_user(self, member)
-                if ucid:
-                    cursor.execute(
-                        'UPDATE players SET discord_id = %s WHERE ucid = %s AND discord_id = -1', (member.id, ucid))
-                    await self.bot.audit(f"New member {member.display_name} could be matched to ucid {ucid}.")
-                else:
-                    await self.bot.audit(f"New member {member.display_name} could not be matched to a DCS user.")
                 # auto-unban them if they were auto-banned
                 if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
                     self.bot.log.debug('Member {} has joined guild {} - remove possible '

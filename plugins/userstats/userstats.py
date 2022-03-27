@@ -5,8 +5,7 @@ import string
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
-from core import report
-from datetime import timedelta
+from core import report, utils
 from matplotlib.axes import Axes
 from matplotlib.patches import ConnectionPatch
 from typing import Union
@@ -14,7 +13,7 @@ from typing import Union
 
 class PlaytimesPerPlane(report.GraphElement):
 
-    def render(self, member: Union[discord.Member, str], server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
         sql = 'SELECT s.slot, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM ' \
               'statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
               's.hop_off IS NOT NULL AND s.mission_id = m.id '
@@ -41,7 +40,7 @@ class PlaytimesPerPlane(report.GraphElement):
                 for label in self.axes.get_xticklabels():
                     label.set_rotation(30)
                     label.set_ha('right')
-                self.axes.set_title('Flighttimes per Plane', color='white', fontsize=25)
+                self.axes.set_title('Airframe Hours per Aircraft', color='white', fontsize=25)
                 self.axes.set_yticks([])
                 for i in range(0, len(values)):
                     self.axes.annotate('{:.1f} h'.format(values[i]), xy=(
@@ -57,7 +56,7 @@ class PlaytimesPerPlane(report.GraphElement):
 
 class PlaytimesPerServer(report.GraphElement):
 
-    def render(self, member: Union[discord.Member, str], server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
         sql = f"SELECT regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g') AS " \
               f"server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, " \
               f"players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND " \
@@ -79,7 +78,7 @@ class PlaytimesPerServer(report.GraphElement):
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return '{:.1f}%\n({:s}h)'.format(pct, str(timedelta(seconds=absolute)))
+                        return utils.convert_time(absolute)
 
                     labels = []
                     values = []
@@ -101,7 +100,7 @@ class PlaytimesPerServer(report.GraphElement):
 
 class PlaytimesPerMap(report.GraphElement):
 
-    def render(self, member: Union[discord.Member, str], server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
         sql = 'SELECT m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS ' \
               'playtime FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
               'm.id = s.mission_id AND s.hop_off IS NOT NULL '
@@ -122,7 +121,7 @@ class PlaytimesPerMap(report.GraphElement):
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return '{:.1f}%\n({:s}h)'.format(pct, str(timedelta(seconds=absolute)))
+                        return utils.convert_time(absolute)
 
                     labels = []
                     values = []
@@ -144,7 +143,7 @@ class PlaytimesPerMap(report.GraphElement):
 
 class RecentActivities(report.GraphElement):
 
-    def render(self, member: Union[discord.Member, str], server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
         sql = 'SELECT TO_CHAR(s.hop_on, \'MM/DD\') as day, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(' \
                          's.hop_off, NOW()) - s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE ' \
                          's.player_ucid = p.ucid AND s.hop_on > (DATE(NOW()) - integer \'7\') ' \
@@ -185,9 +184,9 @@ class RecentActivities(report.GraphElement):
 
 class FlightPerformance(report.GraphElement):
 
-    def render(self, member: Union[discord.Member, str], server_name, period):
-        sql = 'SELECT SUM(ejections) as ejections, SUM(crashes) as crashes, ' \
-              'SUM(takeoffs) as takeoffs, SUM(landings) as landings FROM statistics s, ' \
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
+        sql = 'SELECT SUM(ejections) as "Ejections", SUM(crashes-ejections) as "Crashes\n(Pilot dead)", ' \
+              'SUM(landings) as "Landings" FROM statistics s, ' \
               'players p, missions m WHERE s.player_ucid = p.ucid ' \
               'AND s.mission_id = m.id '
         if isinstance(member, discord.Member):
@@ -206,14 +205,14 @@ class FlightPerformance(report.GraphElement):
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return '{:.1f}%\n({:d})'.format(pct, absolute)
+                        return f'{absolute}'
 
                     labels = []
                     values = []
-                    for item in dict(cursor.fetchone()).items():
-                        if item[1] is not None and item[1] > 0:
-                            labels.append(string.capwords(item[0]))
-                            values.append(item[1])
+                    for name, value in dict(cursor.fetchone()).items():
+                        if value and value > 0:
+                            labels.append(name)
+                            values.append(value)
                     if len(values) > 0:
                         patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
                                                         wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
@@ -233,17 +232,20 @@ class FlightPerformance(report.GraphElement):
 class KDRatio(report.MultiGraphElement):
 
     def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str):
-        sql = 'SELECT COALESCE(SUM(kills), 0) as kills, COALESCE(SUM(deaths), 0) as deaths, COALESCE(SUM(' \
-                         'teamkills), 0) as teamkills FROM statistics s, players p, missions m WHERE s.player_ucid = ' \
-                         'p.ucid AND s.mission_id = m.id '
+        sql = 'SELECT COALESCE(SUM(kills - pvp), 0) as "AI Kills", COALESCE(SUM(pvp), 0) as "Player Kills", ' \
+              'COALESCE(SUM(deaths_planes + deaths_helicopters + deaths_ships + deaths_sams + deaths_ground - ' \
+              'deaths_pvp), 0) as "Deaths by AI", COALESCE(SUM(deaths_pvp),0) as "Deaths by Player", COALESCE(SUM(' \
+              'GREATEST(deaths, crashes) - deaths_planes - deaths_helicopters - deaths_ships - deaths_sams - ' \
+              'deaths_ground), 0) AS "Selfkill", COALESCE(SUM(teamkills), 0) as "Teamkills" FROM statistics s, ' \
+              'players p, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id '
         if isinstance(member, discord.Member):
             sql += 'AND p.discord_id = %s '
         else:
             sql += 'AND p.ucid = %s '
         if server_name:
-            sql += f'AND m.server_name = \'{server_name}\''
+            sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += f'AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
 
         retval = []
         conn = self.pool.getconn()
@@ -253,24 +255,21 @@ class KDRatio(report.MultiGraphElement):
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return '{:.1f}%\n({:d})'.format(pct, absolute)
+                        return f'{absolute}'
 
                     labels = []
                     values = []
                     explode = []
                     result = cursor.fetchone()
-                    for item in dict(result).items():
-                        if item[1] is not None and item[1] > 0:
-                            labels.append(string.capwords(item[0]))
-                            values.append(item[1])
-                            if item[0] in ['deaths', 'kills']:
-                                retval.append(item[0])
-                                explode.append(0.1)
-                            else:
-                                explode.append(0.0)
-                    if len(values):
-                        angle1 = -180 * result[0] / np.sum(values)
-                        angle2 = 180 - 180 * result[1] / np.sum(values)
+                    for name, value in dict(result).items():
+                        if value and value > 0:
+                            labels.append(name)
+                            values.append(value)
+                            retval.append(name)
+                            explode.append(0.02)
+                    if len(values) > 0:
+                        angle1 = -180 * (result[0] + result[1]) / np.sum(values)
+                        angle2 = 180 - 180 * (result[2] + result[3]) / np.sum(values)
                         if angle1 == 0:
                             angle = angle2
                         elif angle2 == 180:
@@ -279,10 +278,10 @@ class KDRatio(report.MultiGraphElement):
                             angle = angle1 + (angle2 + angle1) / 2
 
                         patches, texts, pcts = ax.pie(values, labels=labels, startangle=angle, explode=explode,
-                                                        autopct=lambda pct: func(pct, values),
-                                                        colors=['lightgreen', 'darkorange', 'lightblue'],
-                                                        wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'},
-                                                        normalize=True)
+                                                      autopct=lambda pct: func(pct, values),
+                                                      colors=['lightgreen', 'darkorange', 'lightblue'],
+                                                      wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'},
+                                                      normalize=True)
                         plt.setp(pcts, color='black', fontweight='bold')
                         ax.set_title('Kill/Death-Ratio', color='white', fontsize=25)
                         ax.axis('equal')
@@ -297,18 +296,18 @@ class KDRatio(report.MultiGraphElement):
         return retval
 
     def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str):
-        sql = 'SELECT 0 AS self, COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(' \
-                         'kills_helicopters), 0) helicopters, COALESCE(SUM(kills_ships), 0) as ships, COALESCE(SUM(' \
-                         'kills_sams), 0) as air_defence, COALESCE(SUM(kills_ground), 0) as ground FROM statistics s, ' \
-                         'players p, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id '
+        sql = 'SELECT COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(kills_helicopters), 0) helicopters, ' \
+              'COALESCE(SUM(kills_ships), 0) as ships, COALESCE(SUM(kills_sams), 0) as air_defence, COALESCE(SUM(' \
+              'kills_ground), 0) as ground FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
+              's.mission_id = m.id '
         if isinstance(member, discord.Member):
-            sql += 'AND p.discord_id = %s'
+            sql += 'AND p.discord_id = %s '
         else:
-            sql += 'AND p.ucid = %s'
+            sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += f'AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
 
         retval = False
         conn = self.pool.getconn()
@@ -334,7 +333,7 @@ class KDRatio(report.MultiGraphElement):
                             ypos = bottom + ax.patches[i].get_height() / 2
                             bottom += height
                             if int(values[i]) > 0:
-                                ax.text(xpos, ypos, str(np.round(height * 100, 1)) + '%', ha='center', color='black')
+                                ax.text(xpos, ypos, f"{values[i]}", ha='center', color='black')
 
                         ax.set_title('Killed by\nPlayer', color='white', fontsize=15)
                         ax.axis('off')
@@ -350,11 +349,9 @@ class KDRatio(report.MultiGraphElement):
         return retval
 
     def draw_death_types(self, ax: Axes, legend: bool, member: Union[discord.Member, str], server_name: str, period: str):
-        sql = 'SELECT SUM(deaths - deaths_planes - deaths_helicopters - deaths_ships - deaths_sams - ' \
-                         'deaths_ground) AS self, SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, ' \
-                         'SUM(deaths_ships) as ships, SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground ' \
-                         'FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid ' \
-                         'AND s.mission_id = m.id '
+        sql = 'SELECT SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, SUM(deaths_ships) as ships, ' \
+              'SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground FROM statistics s, players p, ' \
+              'missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id '
         if isinstance(member, discord.Member):
             sql += 'AND p.discord_id = %s '
         else:
@@ -389,7 +386,7 @@ class KDRatio(report.MultiGraphElement):
                             ypos = bottom + ax.patches[i].get_height() / 2
                             bottom += height
                             if int(values[i]) > 0:
-                                ax.text(xpos, ypos, str(np.round(height * 100, 1)) + '%', ha='center', color='black')
+                                ax.text(xpos, ypos, f"{values[i]}", ha='center', color='black')
 
                         ax.set_title('Player\nkilled by', color='white', fontsize=15)
                         ax.axis('off')
@@ -405,13 +402,17 @@ class KDRatio(report.MultiGraphElement):
             self.pool.putconn(conn)
         return retval
 
-    def render(self, member: Union[discord.Member, str], server_name, period):
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
         retval = self.draw_kill_performance(self.axes[1], member, server_name, period)
         i = 0
-        if ('kills' in retval) and (self.draw_kill_types(self.axes[2], member, server_name, period) is True):
+        if ('AI Kills' in retval or 'Player Kills' in retval) and \
+                (self.draw_kill_types(self.axes[2], member, server_name, period) is True):
             # use ConnectionPatch to draw lines between the two plots
             # get the wedge data
-            theta1, theta2 = self.axes[1].patches[i].theta1, self.axes[1].patches[i].theta2
+            theta1 = self.axes[1].patches[i].theta1
+            if 'AI Kills' in retval and 'Player Kills' in retval:
+                i += 1
+            theta2 = self.axes[1].patches[i].theta2
             center, r = self.axes[1].patches[i].center, self.axes[1].patches[i].r
             bar_height = sum([item.get_height() for item in self.axes[2].patches])
 
@@ -437,10 +438,14 @@ class KDRatio(report.MultiGraphElement):
             i += 1
         else:
             self.axes[2].set_visible(False)
-        if ('deaths' in retval) and (self.draw_death_types(self.axes[0], (i == 0), member, server_name, period) is True):
+        if ('Deaths by AI' in retval or 'Deaths by Player' in retval) and \
+                (self.draw_death_types(self.axes[0], (i == 0), member, server_name, period) is True):
             # use ConnectionPatch to draw lines between the two plots
             # get the wedge data
-            theta1, theta2 = self.axes[1].patches[i].theta1, self.axes[1].patches[i].theta2
+            theta1 = self.axes[1].patches[i].theta1
+            if 'Deaths by AI' in retval and 'Deaths by Player' in retval:
+                i += 1
+            theta2 = self.axes[1].patches[i].theta2
             center, r = self.axes[1].patches[i].center, self.axes[1].patches[i].r
             bar_height = sum([item.get_height() for item in self.axes[0].patches])
 
