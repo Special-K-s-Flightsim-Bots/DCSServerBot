@@ -5,8 +5,7 @@ import string
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
-from core import report
-from datetime import timedelta
+from core import report, utils
 from matplotlib.axes import Axes
 from matplotlib.patches import ConnectionPatch
 from typing import Union
@@ -41,7 +40,7 @@ class PlaytimesPerPlane(report.GraphElement):
                 for label in self.axes.get_xticklabels():
                     label.set_rotation(30)
                     label.set_ha('right')
-                self.axes.set_title('Flighttimes per Plane', color='white', fontsize=25)
+                self.axes.set_title('Airframe Hours per Aircraft', color='white', fontsize=25)
                 self.axes.set_yticks([])
                 for i in range(0, len(values)):
                     self.axes.annotate('{:.1f} h'.format(values[i]), xy=(
@@ -79,7 +78,7 @@ class PlaytimesPerServer(report.GraphElement):
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return '{:.1f}%\n({:s}h)'.format(pct, str(timedelta(seconds=absolute)))
+                        return utils.convert_time(absolute)
 
                     labels = []
                     values = []
@@ -122,7 +121,7 @@ class PlaytimesPerMap(report.GraphElement):
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return '{:.1f}%\n({:s}h)'.format(pct, str(timedelta(seconds=absolute)))
+                        return utils.convert_time(absolute)
 
                     labels = []
                     values = []
@@ -206,7 +205,7 @@ class FlightPerformance(report.GraphElement):
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return '{:.1f}%\n({:d})'.format(pct, absolute)
+                        return f'{absolute}'
 
                     labels = []
                     values = []
@@ -256,7 +255,7 @@ class KDRatio(report.MultiGraphElement):
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
                         absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return '{:.1f}%\n({:d})'.format(pct, absolute)
+                        return f'{absolute}'
 
                     labels = []
                     values = []
@@ -334,8 +333,7 @@ class KDRatio(report.MultiGraphElement):
                             ypos = bottom + ax.patches[i].get_height() / 2
                             bottom += height
                             if int(values[i]) > 0:
-                                ax.text(xpos, ypos, f"{np.round(height * 100, 1)}% ({values[i]})", ha='center',
-                                        color='black')
+                                ax.text(xpos, ypos, f"{values[i]}", ha='center', color='black')
 
                         ax.set_title('Killed by\nPlayer', color='white', fontsize=15)
                         ax.axis('off')
@@ -388,8 +386,7 @@ class KDRatio(report.MultiGraphElement):
                             ypos = bottom + ax.patches[i].get_height() / 2
                             bottom += height
                             if int(values[i]) > 0:
-                                ax.text(xpos, ypos, f"{np.round(height * 100, 1)}% ({values[i]})", ha='center',
-                                        color='black')
+                                ax.text(xpos, ypos, f"{values[i]}", ha='center', color='black')
 
                         ax.set_title('Player\nkilled by', color='white', fontsize=15)
                         ax.axis('off')

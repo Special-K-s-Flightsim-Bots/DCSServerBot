@@ -62,10 +62,10 @@ class HighscoreElement(report.GraphElement):
             'Ships': 'kills',
             'Air Defence': 'kills',
             'Ground Targets': 'kills',
-            'Most Efficient Killers': 'kills / h',
-            'Most Wasteful Pilots': 'airframes wasted / h',
             'KD-Ratio': 'K/D-ratio',
-            'PvP-KD-Ratio': 'K/D-ratio'
+            'PvP-KD-Ratio': 'K/D-ratio',
+            'Most Efficient Killers': 'kills / h',
+            'Most Wasteful Pilots': 'airframes wasted / h'
         }
         colors = ['#CD7F32', 'silver', 'gold']
         sql = f"SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, {sql_parts[kill_type]} AS value FROM " \

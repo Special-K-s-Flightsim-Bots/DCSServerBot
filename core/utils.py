@@ -555,3 +555,12 @@ def sendChatMessage(self, server_name: str, player: int, message: str):
         "to": player,
         "message": message
     })
+
+
+def convert_time(seconds: int):
+    days = int(seconds / 86400)
+    seconds = seconds - days * 86400
+    hours = int(seconds / 3600)
+    seconds = seconds - hours * 3600
+    minutes = int(seconds / 60)
+    return f"{days}d:{hours:02d}h{minutes:02d}m"

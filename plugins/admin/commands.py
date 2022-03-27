@@ -484,14 +484,6 @@ class Master(Agent):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                # try to match new users with existing but unmatched DCS users
-                ucid = utils.match_user(self, member)
-                if ucid:
-                    cursor.execute(
-                        'UPDATE players SET discord_id = %s WHERE ucid = %s AND discord_id = -1', (member.id, ucid))
-                    await self.bot.audit(f"New member {member.display_name} could be matched to ucid {ucid}.")
-                else:
-                    await self.bot.audit(f"New member {member.display_name} could not be matched to a DCS user.")
                 # auto-unban them if they were auto-banned
                 if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
                     self.bot.log.debug('Member {} has joined guild {} - remove possible '
