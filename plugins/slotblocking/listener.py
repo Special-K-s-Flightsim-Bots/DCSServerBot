@@ -285,7 +285,7 @@ class SlotBlockingListener(EventListener):
             player['points'] = 0
         self.update_user_points(data['server_name'], player)
 
-    async def onChatMessage(self, data: dict):
+    async def onChatCommand(self, data: dict):
         if '-credits' in data['message']:
             server_name = data['server_name']
             player_id = data['from_id']

@@ -2,14 +2,14 @@ from core import EventListener, utils
 
 
 class HelpListener(EventListener):
-    async def onChatMessage(self, data: dict):
+    async def onChatCommand(self, data: dict):
         if data['message'].startswith('-help'):
-            messages = []
+            messages = ['"-linkme token" link your user to Discord']
             if 'punishment' in self.bot.plugins:
-                messages.append('"-penalty"   display your penalty points')
-                messages.append('"- forgive"   forgive another user for teamhits/-kills')
+                messages.append('"-penalty"      display your penalty points')
+                messages.append('"-forgive"      forgive another user for teamhits/-kills')
             if 'slotblocking' in self.bot.plugins:
-                messages.append('"-credits"   display your credits')
+                messages.append('"-credits"      display your credits')
             [utils.sendChatMessage(self, data['server_name'], data['from_id'], message) for message in messages]
 
     async def onPlayerStart(self, data):

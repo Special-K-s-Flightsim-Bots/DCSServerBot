@@ -322,3 +322,32 @@ class UserStatisticsEventListener(EventListener):
                             conn.rollback()
                         finally:
                             self.pool.putconn(conn)
+
+    async def onChatCommand(self, data: dict) -> None:
+        if data['message'].startswith('-linkme'):
+            items = data['message'].split(' ')
+            if len(items) > 1:
+                token = items[1]
+                player = utils.get_player(self, data['server_name'], id=data['from_id'])
+                conn = self.pool.getconn()
+                try:
+                    with closing(conn.cursor()) as cursor:
+                        cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token, ))
+                        if cursor.rowcount == 0:
+                            utils.sendChatMessage(self, data['server_name'], data['from_id'], 'Invalid token.')
+                            await self.bot.get_bot_channel(data, 'admin_channel').send(
+                                'Player {} (ucid={}) entered a non-existent linking token.'.format(
+                                    player['name'], player['ucid']))
+                        else:
+                            discord_id = cursor.fetchone()[0]
+                            cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (discord_id, player['ucid']))
+                            cursor.execute('DELETE FROM players WHERE ucid = %s', (token, ))
+                            utils.sendChatMessage(self, data['server_name'], data['from_id'], 'Your user has been linked!')
+                        conn.commit()
+                except (Exception, psycopg2.DatabaseError) as error:
+                    self.log.exception(error)
+                    conn.rollback()
+                finally:
+                    self.pool.putconn(conn)
+            else:
+                utils.sendChatMessage(self, data['server_name'], data['from_id'], 'Syntax: -linkme token\nYou get the token with {}linkme in our Discord.'.format(self.config['BOT']['COMMAND_PREFIX']))

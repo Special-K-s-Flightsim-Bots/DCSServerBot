@@ -1,6 +1,7 @@
 import asyncio
 import discord
 import psycopg2
+import random
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, PaginationReport
 from core.const import Status
@@ -31,13 +32,14 @@ class UserStatistics(Plugin):
             while i < num and params[i] not in ['day', 'week', 'month', 'year']:
                 name += ' ' + params[i]
                 i += 1
-            member = utils.find_user(self, name)
+            member = utils.get_ucid_by_name(self, name)
             if not member:
                 await ctx.send('No players found with that nickname.')
                 return
             period = params[i] if i < num else None
         await ctx.message.delete()
-        report = PaginationReport(self.bot, ctx, self.plugin, 'userstats.json')
+        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+        report = PaginationReport(self.bot, ctx, self.plugin, 'userstats.json', timeout if timeout > 0 else None)
         await report.render(member=member,
                             member_name=member.display_name if isinstance(member, discord.Member) else name,
                             period=period, server_name=None)
@@ -47,7 +49,8 @@ class UserStatistics(Plugin):
     @commands.guild_only()
     async def highscore(self, ctx, period: Optional[str], server_name: Optional[str]):
         await ctx.message.delete()
-        report = PaginationReport(self.bot, ctx, self.plugin, 'highscore.json')
+        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+        report = PaginationReport(self.bot, ctx, self.plugin, 'highscore.json', timeout if timeout > 0 else None)
         await report.render(period=period, server_name=server_name)
 
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
@@ -357,6 +360,43 @@ class UserStatistics(Plugin):
             self.bot.log.exception(error)
         finally:
             self.bot.pool.putconn(conn)
+
+    @commands.command(description='Generate a token to link your DCS and Discord user')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def linkme(self, ctx):
+        async def send_token(token):
+            channel = await ctx.message.author.create_dm()
+            await channel.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
+                               f"following into the DCS chat of one of our servers:```-linkme {token}```")
+
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (ctx.message.author.id, ))
+                if cursor.rowcount >= 1:
+                    ucid = cursor.fetchone()[0]
+                    if len(ucid) == 4:
+                        await send_token(ucid)
+                        return
+                    elif await utils.yn_question(self, ctx, 'You have a valid user mapping.\nUnlink your user first?'):
+                        cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s', (ctx.message.author.id,))
+                # in the very unlikely event that we have generated the very same random number twice
+                while True:
+                    try:
+                        token = random.randrange(1000, 9999)
+                        cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
+                                       (token, ctx.message.author.id))
+                        break
+                    except psycopg2.DatabaseError:
+                        pass
+                await send_token(token)
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
 
 def setup(bot: DCSServerBot):

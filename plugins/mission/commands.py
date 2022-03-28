@@ -183,8 +183,7 @@ class Mission(Plugin):
                     await asyncio.sleep(delay)
                     await msg.delete()
                 elif server['status'] == Status.RESTART_PENDING and \
-                        utils.yn_question(self, ctx, 'There is a pending restart for this server already.\nWould you '
-                                                     'still like to restart?') == 'N':
+                        not await utils.yn_question(self, ctx, 'There is a pending restart for this server already.\nWould you still like to restart?'):
                     return
                 self.bot.sendtoDCS(server, {"command": "restartMission", "channel": ctx.channel.id})
                 msg = await ctx.send('Restart command sent. Mission will restart now.')

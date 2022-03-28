@@ -140,38 +140,36 @@ def match(name1, name2):
     return 0
 
 
-def match_user(self, data: Union[dict, discord.Member], rematch=False):
-    conn = self.pool.getconn()
-    try:
-        with closing(conn.cursor()) as cursor:
-            # try to match a DCS user with a Discord member
-            tag_filter = self.config['FILTER']['TAG_FILTER'] if 'TAG_FILTER' in self.config['FILTER'] else None
-            if isinstance(data, dict):
-                if not rematch:
-                    sql = 'SELECT discord_id FROM players WHERE ucid = %s AND discord_id != -1'
-                    cursor.execute(sql, (data['ucid'], ))
-                    result = cursor.fetchone()
-                    if result and result[0] != -1:
-                        return self.bot.guilds[0].get_member(result[0])
-                # we could not find the user, so try to match them
-                dcs_name = re.sub(tag_filter, '', data['name']).strip() if tag_filter else data['name']
-                max_weight = 0
-                best_fit = None
-                for member in self.bot.get_all_members():
-                    name = re.sub(tag_filter, '', member.name).strip() if tag_filter else member.name
-                    if member.nick:
-                        nickname = re.sub(tag_filter, '', member.nick).strip() if tag_filter else member.nick
-                        weight = max(match(dcs_name, nickname), match(dcs_name, name))
-                    else:
-                        weight = match(dcs_name, name)
-                    if weight > max_weight:
-                        max_weight = weight
-                        best_fit = member
-                return best_fit
-            # try to match a Discord member with a DCS user that played on the servers
+def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Optional[discord.Member]:
+    # try to match a DCS user with a Discord member
+    tag_filter = self.config['FILTER']['TAG_FILTER'] if 'TAG_FILTER' in self.config['FILTER'] else None
+    if isinstance(data, dict):
+        if not rematch:
+            member = get_member_by_ucid(self, data['ucid'])
+            if member:
+                return member
+        # we could not find the user, so try to match them
+        dcs_name = re.sub(tag_filter, '', data['name']).strip() if tag_filter else data['name']
+        max_weight = 0
+        best_fit = None
+        for member in self.bot.get_all_members():
+            name = re.sub(tag_filter, '', member.name).strip() if tag_filter else member.name
+            if member.nick:
+                nickname = re.sub(tag_filter, '', member.nick).strip() if tag_filter else member.nick
+                weight = max(match(dcs_name, nickname), match(dcs_name, name))
             else:
-                max_weight = 0
-                best_fit = None
+                weight = match(dcs_name, name)
+            if weight > max_weight:
+                max_weight = weight
+                best_fit = member
+        return best_fit
+    # try to match a Discord member with a DCS user that played on the servers
+    else:
+        max_weight = 0
+        best_fit = None
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
                 sql = 'SELECT ucid, name from players'
                 if rematch is False:
                     sql += ' WHERE discord_id = -1 AND name IS NOT NULL'
@@ -187,13 +185,13 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False):
                         max_weight = weight
                         best_fit = row[0]
                 return best_fit
-    except (Exception, psycopg2.DatabaseError) as error:
-        self.log.exception(error)
-    finally:
-        self.pool.putconn(conn)
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
 
 
-def find_user(self, name: str) -> Optional[str]:
+def get_ucid_by_name(self, name: str) -> Optional[str]:
     conn = self.pool.getconn()
     try:
         with closing(conn.cursor()) as cursor:
@@ -202,6 +200,21 @@ def find_user(self, name: str) -> Optional[str]:
                            (search, ))
             if cursor.rowcount == 1:
                 return cursor.fetchone()[0]
+            else:
+                return None
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
+
+
+def get_member_by_ucid(self, ucid: str) -> Optional[discord.Member]:
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute('SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1', (ucid, ))
+            if cursor.rowcount == 1:
+                return self.bot.guilds[0].get_member(cursor.fetchone()[0])
             else:
                 return None
     except (Exception, psycopg2.DatabaseError) as error:
@@ -312,7 +325,7 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, mar
         return -1
 
 
-async def yn_question(self, ctx, question, msg=None):
+async def yn_question(self, ctx, question: str, msg: Optional[str] = None) -> bool:
     yn_embed = discord.Embed(title=question, color=discord.Color.red())
     if msg is not None:
         yn_embed.add_field(name=msg, value='_ _')
