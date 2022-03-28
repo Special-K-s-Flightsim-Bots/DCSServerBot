@@ -14,7 +14,7 @@ class MissionEventListener(EventListener):
         'crash': '{} player {} crashed.',
         'pilot_death': '{} player {} died.',
         'kill': '{} {} in {} killed {} {} in {} with {}.',
-        'friendly_fire': '{} {} FRIENDLY FIRE onto {} with {}.'
+        'friendly_fire': '**{} {} FRIENDLY FIRE onto {} with {}.**'
     }
 
     def __init__(self, plugin: Plugin):
@@ -180,62 +180,69 @@ class MissionEventListener(EventListener):
             server['status'] = Status.RUNNING
         await self.displayMissionEmbed(data)
 
-    async def onPlayerConnect(self, data):
-        if data['id'] != 1:
-            chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
-            if chat_channel is not None:
-                await chat_channel.send('{} connected to server'.format(data['name']))
-            self.updatePlayer(data)
+    async def onPlayerConnect(self, data: dict) -> None:
+        if data['id'] == 1:
+            return
+        chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
+        if chat_channel is not None:
+            await chat_channel.send('{} connected to server'.format(data['name']))
+        self.updatePlayer(data)
 
-    async def onPlayerStart(self, data):
-        if data['id'] != 1:
-            SQL_PLAYERS = 'INSERT INTO players (ucid, discord_id) VALUES (%s, %s) ON CONFLICT (ucid) DO UPDATE SET ' \
-                          'discord_id = %s WHERE players.discord_id = -1 '
-            SQL_PLAYER_NAME = 'UPDATE players SET name = %s, last_seen = NOW() WHERE ucid = %s'
+    async def onPlayerStart(self, data: dict) -> None:
+        if data['id'] == 1:
+            return
+        if self.config.getboolean('BOT', 'AUTOMATCH'):
+            # if automatch is enabled, try to match the user
             discord_user = utils.match_user(self, data)
-            discord_id = discord_user.id if discord_user else -1
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(SQL_PLAYERS, (data['ucid'], discord_id, discord_id))
-                    cursor.execute(SQL_PLAYER_NAME, (data['name'], data['ucid']))
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-                conn.rollback()
-            finally:
-                self.pool.putconn(conn)
-            server = self.globals[data['server_name']]
-            if discord_user is None:
-                self.bot.sendtoDCS(server, {
-                    "command": "sendChatMessage",
-                    "message": self.bot.config['DCS']['GREETING_MESSAGE_UNKNOWN'].format(data['name']),
-                    "to": data['id']
-                })
-                # only warn for unknown users if it is a non-public server
-                if len(self.globals[data['server_name']]['serverSettings']['password']) > 0:
-                    await self.bot.get_bot_channel(data, 'admin_channel').send(
-                        'Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
-            else:
-                name = discord_user.nick if discord_user.nick else discord_user.name
-                self.bot.sendtoDCS(server, {
-                    "command": "sendChatMessage",
-                    "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(name, data['server_name']),
-                    "to": int(data['id'])
-                })
-            self.updatePlayer(data)
-            await self.displayMissionEmbed(data)
-            await self.displayPlayerEmbed(data)
-        return None
+        else:
+            # else only true matches will return a member
+            discord_user = utils.get_member_by_ucid(self, data['ucid'])
+        discord_id = discord_user.id if discord_user else -1
+        # update the database
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('INSERT INTO players (ucid, discord_id, name, ipaddr, last_seen) VALUES (%s, %s, %s, '
+                               '%s, NOW()) ON CONFLICT (ucid) DO UPDATE SET discord_id = EXCLUDED.discord_id, '
+                               'name = EXCLUDED.name, ipaddr = EXCLUDED.ipaddr, last_seen = NOW()',
+                               (data['ucid'], discord_id, data['name'], data['ipaddr']))
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+        server = self.globals[data['server_name']]
+        if discord_user is None:
+            self.bot.sendtoDCS(server, {
+                "command": "sendChatMessage",
+                "message": self.bot.config['DCS']['GREETING_MESSAGE_UNMATCHED'].format(name=data['name'], prefix=self.config['BOT']['COMMAND_PREFIX']),
+                "to": data['id']
+            })
+            # only warn for unknown users if it is a non-public server and automatch is on
+            if self.config.getboolean('BOT', 'AUTOMATCH') and \
+                    len(self.globals[data['server_name']]['serverSettings']['password']) > 0:
+                await self.bot.get_bot_channel(data, 'admin_channel').send(
+                    'Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
+        else:
+            name = discord_user.nick if discord_user.nick else discord_user.name
+            self.bot.sendtoDCS(server, {
+                "command": "sendChatMessage",
+                "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(name, data['server_name']),
+                "to": int(data['id'])
+            })
+        self.updatePlayer(data)
+        await self.displayMissionEmbed(data)
+        await self.displayPlayerEmbed(data)
 
-    async def onPlayerStop(self, data):
+    async def onPlayerStop(self, data: dict) -> None:
         # ignore events that might have been sent in unclear bot states
         if data['server_name'] in self.bot.player_data:
             self.removePlayer(data)
             await self.displayMissionEmbed(data)
             await self.displayPlayerEmbed(data)
 
-    async def onPlayerChangeSlot(self, data):
+    async def onPlayerChangeSlot(self, data: dict) -> None:
         if 'side' in data:
             player = utils.get_player(self, data['server_name'], id=data['id'])
             if data['side'] != const.SIDE_SPECTATOR:
@@ -253,7 +260,7 @@ class MissionEventListener(EventListener):
             self.updatePlayer(data)
             await self.displayPlayerEmbed(data)
 
-    async def onGameEvent(self, data):
+    async def onGameEvent(self, data: dict) -> None:
         server_name = data['server_name']
         # ignore game events until the server is not initialized correctly
         if server_name not in self.bot.player_data:
@@ -316,8 +323,8 @@ class MissionEventListener(EventListener):
                         await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                             const.PLAYER_SIDES[player['side']], player['name']))
 
-    async def listMizFiles(self, data):
+    async def listMizFiles(self, data: dict) -> dict:
         return data
 
-    async def getWeatherInfo(self, data):
+    async def getWeatherInfo(self, data: dict) -> dict:
         return data

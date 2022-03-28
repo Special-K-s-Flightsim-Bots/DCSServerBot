@@ -117,6 +117,7 @@ function mission.onPlayerConnect(id)
 	msg.id = id
 	msg.name = net.get_player_info(id, 'name')
 	msg.ucid = net.get_player_info(id, 'ucid')
+	msg.ipaddr = net.get_player_info(id, 'ipaddr')
     msg.side = 0
     -- server user is never active
     if (msg.id == 1) then
@@ -134,6 +135,7 @@ function mission.onPlayerStart(id)
 	msg.id = id
 	msg.ucid = net.get_player_info(id, 'ucid')
 	msg.name = net.get_player_info(id, 'name')
+	msg.ipaddr = net.get_player_info(id, 'ipaddr')
     msg.side = 0
     -- server user is never active
     if (msg.id == 1) then
@@ -232,6 +234,20 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
 		msg.killerCategory = utils.getCategory(arg2)
 	end
 	utils.sendBotTable(msg)
+end
+
+function mission.onPlayerTrySendChat(from, message, to)
+    if string.sub(message, 1, 1) == '-' then
+        local msg = {}
+        msg.command = 'onChatCommand'
+        msg.message = message
+        msg.from_id = net.get_player_info(from, 'id')
+        msg.from_name = net.get_player_info(from, 'name')
+        msg.to = to
+        utils.sendBotTable(msg)
+        return ''
+    end
+    return message
 end
 
 function mission.onChatMessage(message, from, to)

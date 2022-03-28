@@ -39,7 +39,7 @@ class GreenieBoard(Plugin):
             name = member
             if len(params) > 0:
                 name += ' ' + ' '.join(params)
-            ucid = utils.find_user(self, name)
+            ucid = utils.get_ucid_by_name(self, name)
         landings = List[dict]
         conn = self.pool.getconn()
         try:
@@ -67,7 +67,8 @@ class GreenieBoard(Plugin):
             comment = get_element(landings[n]['comment'], 'comment').replace('_', '\\_')
             wire = get_element(landings[n]['comment'], 'wire')
             env = await report.render(landing=landings[n], grade=GRADES[grade], comment=comment, wire=wire)
-            await ctx.send(embed=env.embed)
+            timeout = self.config['BOT']['MESSAGE_AUTODELETE']
+            await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     def render_board(self):
         conn = self.pool.getconn()
@@ -81,7 +82,7 @@ class GreenieBoard(Plugin):
                                           color=discord.Color.blue())
                     pilots = points = landings = ''
                     for row in cursor.fetchall():
-                        pilots += row['name'] + '\n'
+                        pilots += row['name'][:20] + '\n'
                         points += f"{row['points']:.2f}\n"
                         cursor.execute('SELECT grade, night FROM greenieboard WHERE player_ucid = %s ORDER BY time '
                                        'DESC LIMIT 15', (row['player_ucid'], ))
@@ -119,7 +120,8 @@ class GreenieBoard(Plugin):
     async def greenieboard(self, ctx):
         embed = self.render_board()
         if embed:
-            await ctx.send(embed=embed)
+            timeout = self.config['BOT']['MESSAGE_AUTODELETE']
+            await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
         else:
             await ctx.send('No carrier landings recorded yet.')
 

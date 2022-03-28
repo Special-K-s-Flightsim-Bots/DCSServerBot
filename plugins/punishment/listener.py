@@ -141,7 +141,7 @@ class PunishmentEventListener(EventListener):
                             data['eventName'] = 'collision_kill'
                         await self.punish(data)
 
-    async def onChatMessage(self, data: dict):
+    async def onChatCommand(self, data: dict):
         if data['message'].startswith('-forgive') and self.plugin in self.globals[data['server_name']]:
             config = self.globals[data['server_name']][self.plugin]
             target = utils.get_player(self, data['server_name'], id=data['from_id'])

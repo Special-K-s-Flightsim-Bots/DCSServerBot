@@ -13,7 +13,7 @@ from core.report.errors import UnknownReportElement, ClassNotFound, ValueNotInRa
 from core.report.utils import parse_input, parse_params
 from discord.ext.commands import Context
 from os import path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 
 class Report:
@@ -104,9 +104,10 @@ class PaginationReport(Report):
     class NoPaginationInformation(Exception):
         pass
 
-    def __init__(self, bot: DCSServerBot, ctx: Context, plugin: str, filename: str):
+    def __init__(self, bot: DCSServerBot, ctx: Context, plugin: str, filename: str, timeout: Optional[int] = None):
         super().__init__(bot, plugin, filename)
         self.ctx = ctx
+        self.timeout = timeout
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
 
@@ -141,7 +142,7 @@ class PaginationReport(Report):
                     env = await func(*args, **kwargs)
                     file = discord.File(env.filename) if env.filename else None
                     with suppress(Exception):
-                        message = await self.ctx.send(embed=env.embed, file=file)
+                        message = await self.ctx.send(embed=env.embed, file=file, delete_after=self.timeout)
                     if env.filename:
                         os.remove(env.filename)
                 except ValueNotInRange as ex:
