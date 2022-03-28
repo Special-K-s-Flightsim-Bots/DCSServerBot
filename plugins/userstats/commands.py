@@ -38,7 +38,7 @@ class UserStatistics(Plugin):
                 return
             period = params[i] if i < num else None
         await ctx.message.delete()
-        timeout = self.config['BOT']['MESSAGE_AUTODELETE']
+        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         report = PaginationReport(self.bot, ctx, self.plugin, 'userstats.json', timeout if timeout > 0 else None)
         await report.render(member=member,
                             member_name=member.display_name if isinstance(member, discord.Member) else name,
@@ -49,7 +49,7 @@ class UserStatistics(Plugin):
     @commands.guild_only()
     async def highscore(self, ctx, period: Optional[str], server_name: Optional[str]):
         await ctx.message.delete()
-        timeout = self.config['BOT']['MESSAGE_AUTODELETE']
+        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         report = PaginationReport(self.bot, ctx, self.plugin, 'highscore.json', timeout if timeout > 0 else None)
         await report.render(period=period, server_name=server_name)
 

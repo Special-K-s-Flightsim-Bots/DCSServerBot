@@ -67,7 +67,7 @@ class GreenieBoard(Plugin):
             comment = get_element(landings[n]['comment'], 'comment').replace('_', '\\_')
             wire = get_element(landings[n]['comment'], 'wire')
             env = await report.render(landing=landings[n], grade=GRADES[grade], comment=comment, wire=wire)
-            timeout = self.config['BOT']['MESSAGE_AUTODELETE']
+            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     def render_board(self):
@@ -120,7 +120,7 @@ class GreenieBoard(Plugin):
     async def greenieboard(self, ctx):
         embed = self.render_board()
         if embed:
-            timeout = self.config['BOT']['MESSAGE_AUTODELETE']
+            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
             await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
         else:
             await ctx.send('No carrier landings recorded yet.')
