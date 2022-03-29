@@ -104,7 +104,8 @@ class GreenieBoard(Plugin):
                     footer = ''
                     for grade, text in const.GRADES.items():
                         footer += const.DAY_EMOJIS[grade] + ' ' + text + '\n'
-                    footer += '\nNight landings shown by round markers.'
+                    footer += '\nLandings are added at the front, meaning 1 is your latest landing.\nNight landings ' \
+                              'shown by round markers. '
                     embed.set_footer(text=footer)
                     return embed
                 else:

@@ -38,7 +38,7 @@ class GreenieBoardEventListener(EventListener):
             if player:
                 grade = get_element(data['comment'], 'grade')
                 comment = get_element(data['comment'], 'comment')
-                time = (int(server['start_time']) + int(server['mission_time'])) % 24*3600
+                time = (int(server['start_time']) + int(server['mission_time'])) % 86400
                 night = time > 20*3600 or time < 6 * 3600
                 points = self.locals['configs'][0]['ratings'][grade]
                 await self.send_chat_message(player, data, grade, comment.replace('_', '\\_'))
