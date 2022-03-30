@@ -318,7 +318,8 @@ class MissionEventListener(EventListener):
                 if chat_channel is not None:
                     if data['eventName'] in ['takeoff', 'landing']:
                         await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
-                            const.PLAYER_SIDES[player['side']], player['name'], data['arg3']))
+                            const.PLAYER_SIDES[player['side']], player['name'],
+                            data['arg3'] if len(data['arg3']) > 0 else 'ground'))
                     else:
                         await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                             const.PLAYER_SIDES[player['side']], player['name']))

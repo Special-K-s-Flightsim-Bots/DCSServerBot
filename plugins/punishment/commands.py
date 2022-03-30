@@ -60,42 +60,49 @@ class Punishment(Plugin):
                             return
                         config = self.globals[row['server_name']][self.plugin]
                         server = self.globals[row['server_name']]
-                        initiator = utils.get_player(self, row['server_name'], ucid=row['init_id'])
-                        if 'punishments' in config and initiator:
+                        player = utils.get_player(self, row['server_name'], ucid=row['init_id'])
+                        if 'punishments' in config:
                             for punishment in config['punishments']:
-                                if row['points'] >= punishment['points']:
-                                    for penalty in config['penalties']:
-                                        if penalty['event'] == row['event']:
-                                            reason = penalty['reason'] if 'reason' in penalty else row['event']
-                                            break
-                                    if punishment['action'] in ['kick', 'ban']:
-                                        self.bot.sendtoDCS(server, {
-                                            "command": punishment['action'],
-                                            "ucid": initiator['ucid'],
-                                            "reason": reason
-                                        })
-                                        if punishment['action'] == 'ban':
-                                            cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, '
-                                                           '%s, %s) ON CONFLICT DO NOTHING', (row['init_id'],
-                                                                                              self.plugin, reason))
-                                    elif punishment['action'] == 'move_to_spec':
+                                if row['points'] < punishment['points']:
+                                    continue
+                                reason = None
+                                for penalty in config['penalties']:
+                                    if penalty['event'] == row['event']:
+                                        reason = penalty['reason'] if 'reason' in penalty else row['event']
+                                        break
+                                if not reason:
+                                    self.log.warning(f"No penalty configured for event {row['event']}.")
+                                    reason = row['event']
+                                if punishment['action'] in ['kick', 'ban']:
+                                    self.bot.sendtoDCS(server, {
+                                        "command": punishment['action'],
+                                        "ucid": row['init_id'],
+                                        "reason": reason
+                                    })
+                                    if punishment['action'] == 'ban':
+                                        cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, '
+                                                       '%s, %s) ON CONFLICT DO NOTHING', (row['init_id'],
+                                                                                          self.plugin, reason))
+                                # all other punishments only happen if the player is still in the server
+                                elif player:
+                                    if punishment['action'] == 'move_to_spec':
                                         self.bot.sendtoDCS(server, {
                                             "command": "force_player_slot",
-                                            "playerID": initiator['id']
+                                            "playerID": player['id']
                                         })
-                                        utils.sendChatMessage(self, server['server_name'], initiator['id'],
+                                        utils.sendChatMessage(self, server['server_name'], player['id'],
                                                               f"You've been kicked back to spectators because of: "
                                                               f"{reason}.\nYour current punishment points are: "
                                                               f"{row['points']}")
-                                    elif punishment['action'] == 'warn' and 'group_id' in initiator:
+                                    elif punishment['action'] == 'warn' 'group_id' in player:
                                         self.bot.sendtoDCS(server, {
                                             "command": "sendPopupMessage",
-                                            "to": initiator['group_id'],
-                                            "message": f"{initiator['name']}, you have been punished for: {reason}!\n"
+                                            "to": player['group_id'],
+                                            "message": f"{player['name']}, you have been punished for: {reason}!\n"
                                                        f"Your current punishment points are: {row['points']}",
                                             "time": self.config['BOT']['MESSAGE_TIMEOUT']
                                         })
-                                    break
+                                break
                         cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:

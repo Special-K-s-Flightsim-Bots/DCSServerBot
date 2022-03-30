@@ -237,6 +237,7 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
 end
 
 function mission.onPlayerTrySendChat(from, message, to)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTrySendChat()')
     if string.sub(message, 1, 1) == '-' then
         local msg = {}
         msg.command = 'onChatCommand'

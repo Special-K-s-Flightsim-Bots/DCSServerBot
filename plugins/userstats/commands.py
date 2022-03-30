@@ -6,17 +6,26 @@ from contextlib import closing
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, PaginationReport
 from core.const import Status
 from datetime import datetime
-from discord.ext import commands
+from discord.ext import commands, tasks
 from typing import Union, Optional
 from .listener import UserStatisticsEventListener
 
 
 class UserStatistics(Plugin):
 
+    def __init__(self, bot, listener):
+        super().__init__(bot, listener)
+        self.expire_token.start()
+
+    def cog_unload(self):
+        self.expire_token.stop()
+        super().cog_unload()
+
     @commands.command(description='Shows player statistics', usage='[member] [period]', aliases=['stats'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def statistics(self, ctx, member: Optional[Union[discord.Member, str]], *params):
+        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         num = len(params)
         if not member:
             member = ctx.message.author
@@ -34,11 +43,10 @@ class UserStatistics(Plugin):
                 i += 1
             member = utils.get_ucid_by_name(self, name)
             if not member:
-                await ctx.send('No players found with that nickname.')
+                await ctx.send('No players found with that nickname.', delete_after=timeout if timeout > 0 else None)
                 return
             period = params[i] if i < num else None
         await ctx.message.delete()
-        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         report = PaginationReport(self.bot, ctx, self.plugin, 'userstats.json', timeout if timeout > 0 else None)
         await report.render(member=member,
                             member_name=member.display_name if isinstance(member, discord.Member) else name,
@@ -368,8 +376,10 @@ class UserStatistics(Plugin):
         async def send_token(token):
             channel = await ctx.message.author.create_dm()
             await channel.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
-                               f"following into the DCS chat of one of our servers:```-linkme {token}```")
+                               f"following into the DCS chat of one of our servers:```-linkme {token}```\n\n"
+                               f"The TOKEN will expire in 2 days.")
 
+        await ctx.message.delete()
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -391,6 +401,19 @@ class UserStatistics(Plugin):
                     except psycopg2.DatabaseError:
                         pass
                 await send_token(token)
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+
+    @tasks.loop(hours=1.0)
+    async def expire_token(self):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("DELETE FROM players WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(NOW()) - interval '2 days')")
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)

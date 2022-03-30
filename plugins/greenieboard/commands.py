@@ -41,6 +41,7 @@ class GreenieBoard(Plugin):
                 name += ' ' + ' '.join(params)
             ucid = utils.get_ucid_by_name(self, name)
         landings = List[dict]
+        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
@@ -53,13 +54,15 @@ class GreenieBoard(Plugin):
                                "DESC LIMIT %s",
                                (ucid, self.get_config()['num_landings']))
                 if cursor.rowcount == 0:
-                    await ctx.send('No carrier landings recorded for this user.')
+                    await ctx.send('No carrier landings recorded for this user.',
+                                   delete_after=timeout if timeout > 0 else None)
                     return
                 landings = [dict(row) for row in cursor.fetchall()]
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
+        await ctx.message.delete()
         n = await utils.selection_list(self, ctx, landings, self.format_comments)
         if n != -1:
             report = Report(self.bot, self.plugin, 'lsoRating.json')
@@ -67,7 +70,6 @@ class GreenieBoard(Plugin):
             comment = get_element(landings[n]['comment'], 'comment').replace('_', '\\_')
             wire = get_element(landings[n]['comment'], 'wire')
             env = await report.render(landing=landings[n], grade=GRADES[grade], comment=comment, wire=wire)
-            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     def render_board(self):
@@ -82,10 +84,10 @@ class GreenieBoard(Plugin):
                                           color=discord.Color.blue())
                     pilots = points = landings = ''
                     for row in cursor.fetchall():
-                        pilots += row['name'][:20] + '\n'
+                        pilots += row['name'] + '\n'
                         points += f"{row['points']:.2f}\n"
                         cursor.execute('SELECT grade, night FROM greenieboard WHERE player_ucid = %s ORDER BY time '
-                                       'DESC LIMIT 15', (row['player_ucid'], ))
+                                       'DESC LIMIT 10', (row['player_ucid'], ))
                         i = 0
                         landings += '**|'
                         for landing in cursor.fetchall():
@@ -94,13 +96,12 @@ class GreenieBoard(Plugin):
                             else:
                                 landings += const.DAY_EMOJIS[landing['grade']] + '|'
                             i += 1
-                        for i in range(i, 15):
+                        for i in range(i, 10):
                             landings += const.DAY_EMOJIS[None] + '|'
                         landings += '**\n'
                     embed.add_field(name='Pilot', value=pilots)
                     embed.add_field(name='Avg', value=points)
-                    embed.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|:one'
-                                         ':|:two:|:three:|:four:|:five:|', value=landings)
+                    embed.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|', value=landings)
                     footer = ''
                     for grade, text in const.GRADES.items():
                         footer += const.DAY_EMOJIS[grade] + ' ' + text + '\n'
@@ -119,12 +120,13 @@ class GreenieBoard(Plugin):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def greenieboard(self, ctx):
+        await ctx.message.delete()
+        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         embed = self.render_board()
         if embed:
-            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
             await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
         else:
-            await ctx.send('No carrier landings recorded yet.')
+            await ctx.send('No carrier landings recorded yet.', delete_after=timeout if timeout > 0 else None)
 
 
 def setup(bot: DCSServerBot):

@@ -344,13 +344,15 @@ class Mission(Plugin):
                     await self.eventlistener.displayMissionEmbed(data)
                 except asyncio.TimeoutError:
                     # check if the server process is still existent
-                    if 'PID' in server and psutil.pid_exists(server['PID']):
+                    if 'PID' not in server or psutil.pid_exists(server['PID']):
                         self.log.warning(f"Server \"{server['server_name']}\" is not responding.")
                         # process might be in a hung state, so try again for a specified amount of times
                         if 'hung' in server and server['hung'] >= (MAX_HUNG_MINUTES - 1):
-                            self.log.warning(f"Killing server \"{server['server_name']}\" after {MAX_HUNG_MINUTES} "
-                                             f"retries and setting state to SHUTDOWN.")
-                            psutil.Process(server['PID']).kill()
+                            if 'PID' in server:
+                                self.log.warning(f"Killing server \"{server['server_name']}\" after {MAX_HUNG_MINUTES} retries")
+                                psutil.Process(server['PID']).kill()
+                            else:
+                                self.log.warning(f"Server \"{server['server_name']}\" considered dead after {MAX_HUNG_MINUTES} retries")
                             del server['hung']
                             server['status'] = Status.SHUTDOWN
                         elif 'hung' not in server:
@@ -372,7 +374,7 @@ class Mission(Plugin):
                 continue
             channel = self.bot.get_channel(int(server['status_channel']))
             # name changes of the status channel will only happen with the correct permission
-            if channel.permissions_for(self.bot.guilds[0].get_member(self.bot.user.id)).manage_channels:
+            if channel.permissions_for(self.bot.member).manage_channels:
                 name = channel.name
                 # if the server owner leaves, the server is shut down
                 if server['status'] in [Status.STOPPED, Status.SHUTDOWN, Status.LOADING]:

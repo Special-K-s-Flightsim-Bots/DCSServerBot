@@ -36,11 +36,11 @@ class SlotBlockingListener(EventListener):
         if 'points_per_kill' in server[self.plugin]:
             for unit in server[self.plugin]['points_per_kill']:
                 if 'category' in unit and data['victimCategory'] == unit['category']:
-                    if 'type' in unit:
-                        if (unit['type'] == 'AI' and data['arg4'] == "-1") or (unit['type'] == 'Player' and data['arg4'] != "-1"):
-                            return unit['points']
-                    else:
-                        return unit['points']
+                    if 'unit_type' in unit and unit['unit_type'] != data['arg5']:
+                        continue
+                    if 'type' in unit and ((unit['type'] == 'AI' and data['arg4'] != "-1") or (unit['type'] == 'Player' and data['arg4'] == "-1")):
+                        continue
+                    return unit['points']
                 elif 'default' in unit:
                     default = unit['default']
         return default

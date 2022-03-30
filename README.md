@@ -98,11 +98,13 @@ a) __BOT Section__
 
 b) __ROLES Section__
 
-| Parameter  | Description                                                                                                                   |
-|------------|-------------------------------------------------------------------------------------------------------------------------------|
-| Admin      | The name of the admin role in you Discord.                                                                                    |
-| DCS Admin  | The name of the role you'd like to give admin rights on your DCS servers (_Moderator_ for instance).                          |
-| DCS        | The role of users being able to see their statistics and mission information (usually the general user role in your Discord). |
+| Parameter      | Description                                                                                                                   |
+|----------------|-------------------------------------------------------------------------------------------------------------------------------|
+| Admin          | The name of the admin role in you Discord.                                                                                    |
+| DCS Admin      | The name of the role you'd like to give admin rights on your DCS servers (_Moderator_ for instance).                          |
+| DCS            | The role of users being able to see their statistics and mission information (usually the general user role in your Discord). |
+| Coalition Red  | Members of this role are part of the red coalition (for future use).                                                          |
+| Coalition Blue | Members of this role are part of the blue coalition (for future use).                                                         |
 
 c) __FILTER Section__ (Optional)
 
@@ -115,14 +117,14 @@ c) __FILTER Section__ (Optional)
 
 d) __DCS Section__
 
-| Parameter                | Description                                                                                                         |
-|--------------------------|---------------------------------------------------------------------------------------------------------------------|
-| DCS_INSTALLATION         | The installation directory of DCS World.                                                                            |
-| AUTOUPDATE               | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                          |
-| SRS_INSTALLATION         | The installation directory of DCS-SRS (optional).                                                                   |
-| GREETING_MESSAGE_MEMBERS | A greeting message, that people will receive in DCS, if they get recognized by the bot as a member of your discord. |
-| GREETING_MESSAGE_UNKNOWN | A greeting message, that people will receive in DCS, if they are not recognized as a member of your discord.        |
-| SERVER_USER              | The username to display as user no. 1 in the server (Observer)                                                      |
+| Parameter                   | Description                                                                                                              |
+|-----------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| DCS_INSTALLATION            | The installation directory of DCS World.                                                                                 |
+| AUTOUPDATE                  | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                               |
+| SRS_INSTALLATION            | The installation directory of DCS-SRS (optional).                                                                        |
+| GREETING_MESSAGE_MEMBERS    | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord. |
+| GREETING_MESSAGE_UNMATCHED  | A greeting message, that people will receive in DCS chat, if they are unmatched.                                         |
+| SERVER_USER                 | The username to display as user no. 1 in the server (Observer)                                                           |
 
 e) __Server Specific Sections__
 

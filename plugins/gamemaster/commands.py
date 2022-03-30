@@ -1,10 +1,11 @@
+import discord
 from core import DCSServerBot, Plugin, utils
 from core.const import Status
 from discord.ext import commands
 from .listener import GameMasterEventListener
 
 
-class GameMaster(Plugin):
+class GameMasterAgent(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -101,5 +102,53 @@ class GameMaster(Plugin):
             await ctx.send(f"Mission is {server['status'].name.lower()}, command discarded.")
 
 
+class GameMasterMaster(GameMasterAgent):
+
+    @commands.command(description='Join a coalition (red / blue)', usage='[red | blue]')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def join(self, ctx, coalition: str):
+        member = ctx.message.author
+        roles = {
+            "red": discord.utils.get(member.guild.roles, name=self.config['ROLES']['Coalition Red']),
+            "blue": discord.utils.get(member.guild.roles, name=self.config['ROLES']['Coalition Blue'])
+        }
+        if coalition.lower() not in roles.keys():
+            await ctx.send('Usage: {}join [{}]'.format(self.config['BOT']['COMMAND_PREFIX'], '|'.join(roles.keys())))
+            return
+        for key, value in roles.items():
+            if value in member.roles:
+                await ctx.send(f'You are a member of coalition {key} already. Aborted.')
+                return
+        try:
+            await member.add_roles(roles[coalition.lower()])
+            await ctx.send(f'Welcome to the {coalition} side!')
+        except discord.Forbidden:
+            await ctx.send("I can't add you to this coalition. Please contact an Admin.")
+            await self.bot.audit(f'Permission "Manage Roles" missing for {self.bot.member.name}.')
+
+    @commands.command(description='Leave a coalition (red / blue)', usage='[red | blue]')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def leave(self, ctx):
+        member = ctx.message.author
+        roles = {
+            "red": discord.utils.get(member.guild.roles, name=self.config['ROLES']['Coalition Red']),
+            "blue": discord.utils.get(member.guild.roles, name=self.config['ROLES']['Coalition Blue'])
+        }
+        for key, value in roles.items():
+            if value in member.roles:
+                try:
+                    await member.remove_roles(value)
+                    await ctx.send(f"You've left the {key} coalition!")
+                    return
+                except discord.Forbidden:
+                    await ctx.send("I can't remove you from this coalition. Please contact an Admin.")
+                    await self.bot.audit(f'Permission "Manage Roles" missing for {self.bot.member.name}.')
+
+
 def setup(bot: DCSServerBot):
-    bot.add_cog(GameMaster(bot, GameMasterEventListener))
+    if bot.config.getboolean('BOT', 'MASTER') is True:
+        bot.add_cog(GameMasterMaster(bot, GameMasterEventListener))
+    else:
+        bot.add_cog(GameMasterAgent(bot, GameMasterEventListener))
