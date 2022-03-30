@@ -21,6 +21,7 @@ class DCSServerBot(commands.Bot):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.member = None
         self.version = kwargs['version']
         self.sub_version = kwargs['sub_version']
         self.listeners = {}
@@ -100,8 +101,40 @@ class DCSServerBot(commands.Bot):
         self.init_servers()
         super().run(*args, **kwargs)
 
+    def check_channel(self, channel_id: int):
+        channel = self.get_channel(channel_id)
+        channel_name = channel.name.encode(encoding='ASCII', errors='replace').decode()
+        # name changes of the status channel will only happen with the correct permission
+        permissions = channel.permissions_for(self.member)
+        if not permissions.view_channel:
+            self.log.error(f'Permission "View Channel" missing for channel {channel_name}')
+        if not permissions.send_messages:
+            self.log.error(f'Permission "Send Messages" missing for channel {channel_name}')
+        if not permissions.read_messages:
+            self.log.error(f'Permission "Read Messages" missing for channel {channel_name}')
+        if not permissions.read_message_history:
+            self.log.error(f'Permission "Read Message History" missing for channel {channel_name}')
+        if not permissions.add_reactions:
+            self.log.error(f'Permission "Add Reactions" missing for channel {channel_name}')
+        if not permissions.attach_files:
+            self.log.error(f'Permission "Attach Files" missing for channel {channel_name}')
+        if not permissions.embed_links:
+            self.log.error(f'Permission "Embed Links" missing for channel {channel_name}')
+        if not permissions.manage_messages:
+            self.log.error(f'Permission "Manage Messages" missing for channel {channel_name}')
+
+    def check_channels(self, installation: str):
+        for c in ['ADMIN_CHANNEL', 'STATUS_CHANNEL', 'CHAT_CHANNEL']:
+            channel_id = int(self.config[installation][c])
+            if channel_id != -1:
+                self.check_channel(channel_id)
+
     async def on_ready(self):
         if not self.external_ip:
+            self.member = self.guilds[0].get_member(self.user.id)
+            self.log.debug('- Checking channels ...')
+            for server in self.globals.values():
+                self.check_channels(server['installation'])
             self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
             self.external_ip = await utils.get_external_ip()
             self.remove_command('help')
@@ -170,7 +203,7 @@ class DCSServerBot(commands.Bot):
     async def audit(self, message, *, embed: Optional[discord.Embed] = None):
         if not self.audit_channel:
             if 'AUDIT_CHANNEL' in self.config['BOT']:
-                self.audit_channel = self.guilds[0].get_channel(int(self.config['BOT']['AUDIT_CHANNEL']))
+                self.audit_channel = self.get_channel(int(self.config['BOT']['AUDIT_CHANNEL']))
         if self.audit_channel:
             await self.audit_channel.send(message, embed=embed)
 
@@ -286,6 +319,10 @@ class DCSServerBot(commands.Bot):
             server['status_channel'] = self.config[installation]['STATUS_CHANNEL']
             server['admin_channel'] = self.config[installation]['ADMIN_CHANNEL']
         server['installation'] = installation
+        # set the PID
+        process = utils.find_process('DCS.exe', server['installation'])
+        if process:
+            server['PID'] = process.pid
         # update the database and check for server name changes
         conn = self.pool.getconn()
         try:
@@ -343,7 +380,7 @@ class DCSServerBot(commands.Bot):
                     if not self.register_server(data):
                         return
                 elif (data['server_name'] not in self.globals or
-                      self.globals[data['server_name']]['status'] == Status.UNKNOWN):
+                      self.globals[data['server_name']]['status'] in [Status.SHUTDOWN, Status.UNKNOWN]):
                     self.log.debug(f"Command {command} for unregistered server {data['server_name']} retrieved, ignoring.")
                     return
                 for listener in self.eventListeners:
