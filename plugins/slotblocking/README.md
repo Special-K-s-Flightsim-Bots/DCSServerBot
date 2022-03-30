@@ -28,10 +28,10 @@ The slot blocking is configured with a file named config\slotblocking.json. You'
         { "default": 1 },
         { "category": "Ships", "points": 2 },
         { "category": "Air Defence", "points": 3 },
+        { "category": "Planes", "unit_type": "F-14B", "type": "Player", "points": 5 },
         { "category": "Planes", "type": "AI", "points": 3 },
-        { "category": "Helicopters", "points": 3 },
         { "category": "Planes", "type": "Player", "points": 4 },
-        { "category": "Planes", "unit_type": "F-14B", "type": "Player", "points": 5 }
+        { "category": "Helicopters", "points": 3 }
       ]
     }
   ]
@@ -40,6 +40,10 @@ The slot blocking is configured with a file named config\slotblocking.json. You'
 Each unit can be either defined by its "group_name" or "unit_name", which are substrings/[pattern](https://riptutorial.com/lua/example/20315/lua-pattern-matching) of the used names in your mission or by its "unit_type".
 The restriction can either be "points" that you gain by kills or "discord", which is then a specific Discord role (in the example "Donators").
 "costs" are the points you lose when you get killed in this specific aircraft and if provided.
+
+If you use multiple entries for points_to_kill, please make sure, that you order them from specialized to non-specialized.
+That means, in the above example you need to specify the plane with the unit_type first, then the planes without.
+So this list will be evaluated **exactly in the order the items are listed** and the first match will count! 
 
 To enable the points system, you need to start a "Campaign" on the specific server. To handle campaigns, you have the following commands:
 
