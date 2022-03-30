@@ -61,7 +61,7 @@ class Punishment(Plugin):
                         config = self.globals[row['server_name']][self.plugin]
                         server = self.globals[row['server_name']]
                         initiator = utils.get_player(self, row['server_name'], ucid=row['init_id'])
-                        if 'punishments' in config:
+                        if 'punishments' in config and initiator:
                             for punishment in config['punishments']:
                                 if row['points'] >= punishment['points']:
                                     for penalty in config['penalties']:
@@ -87,7 +87,7 @@ class Punishment(Plugin):
                                                               f"You've been kicked back to spectators because of: "
                                                               f"{reason}.\nYour current punishment points are: "
                                                               f"{row['points']}")
-                                    elif punishment['action'] == 'warn':
+                                    elif punishment['action'] == 'warn' and 'group_id' in initiator:
                                         self.bot.sendtoDCS(server, {
                                             "command": "sendPopupMessage",
                                             "to": initiator['group_id'],
