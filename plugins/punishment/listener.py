@@ -167,9 +167,8 @@ class PunishmentEventListener(EventListener):
         elif data['message'].startswith('-penalty'):
             player = utils.get_player(self, data['server_name'], id=data['from_id'])
             points = self.get_punishment_points(player)
-            if points > 0:
-                utils.sendChatMessage(self, data['server_name'], data['from_id'],
-                                      f"{player['name']}, you currently have {points} penalty points.")
+            utils.sendChatMessage(self, data['server_name'], data['from_id'],
+                                  f"{player['name']}, you currently have {points} penalty points.")
 
     async def onPlayerStart(self, data):
         # the server owner don't need to get an update of their stats

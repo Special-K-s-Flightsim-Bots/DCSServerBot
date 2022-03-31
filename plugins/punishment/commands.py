@@ -7,7 +7,11 @@ from typing import Type, Union
 from .listener import PunishmentEventListener
 
 
-class Punishment(Plugin):
+class PunishmentAgent(Plugin):
+    pass
+
+
+class PunishmentMaster(PunishmentAgent):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
@@ -176,6 +180,6 @@ def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(Punishment(bot, PunishmentEventListener))
+        bot.add_cog(PunishmentMaster(bot, PunishmentEventListener))
     else:
-        bot.add_cog(Plugin(bot, PunishmentEventListener))
+        bot.add_cog(PunishmentAgent(bot, PunishmentEventListener))

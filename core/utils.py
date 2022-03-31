@@ -1,3 +1,5 @@
+import xml
+
 import aiohttp
 import asyncio
 import discord
@@ -17,7 +19,7 @@ from configparser import ConfigParser
 from contextlib import closing, suppress
 from datetime import datetime, timedelta
 from discord.ext import commands
-from typing import Union, Optional, List, Tuple
+from typing import Union, Optional, Tuple
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
 REGEXP = {
@@ -71,7 +73,7 @@ def changeServerSettings(server_name, name: str, value: Union[str, int]):
     os.rename(tmp_settings, server_settings)
 
 
-def getInstalledVersion(path):
+def getInstalledVersion(path: str) -> Tuple[Optional[str], Optional[str]]:
     branch = version = None
     with open(os.path.join(os.path.expandvars(path), 'autoupdate.cfg'), encoding='utf8') as cfg:
         lines = cfg.readlines()
@@ -87,13 +89,17 @@ def getInstalledVersion(path):
     return branch, version
 
 
-async def getLatestVersion(branch):
+async def getLatestVersion(branch: str) -> Optional[str]:
     async with aiohttp.ClientSession() as session:
         async with session.get(PATCHNOTES_URL) as response:
-            xpars = xmltodict.parse(await response.text())
-            for item in xpars['rss']['channel']['item']:
-                if branch in item['link']:
-                    return item['link'].split('/')[-2]
+            try:
+                xpars = xmltodict.parse(await response.text())
+                for item in xpars['rss']['channel']['item']:
+                    if branch in item['link']:
+                        return item['link'].split('/')[-2]
+            except xml.parsers.expat.ExpatError:
+                pass
+    return None
 
 
 def match(name1: str, name2: str) -> int:

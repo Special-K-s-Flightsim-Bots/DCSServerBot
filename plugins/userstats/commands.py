@@ -11,7 +11,11 @@ from typing import Union, Optional
 from .listener import UserStatisticsEventListener
 
 
-class UserStatistics(Plugin):
+class UserStatisticsAgent(Plugin):
+    pass
+
+
+class UserStatisticsMaster(Plugin):
 
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
@@ -426,6 +430,6 @@ def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(UserStatistics(bot, UserStatisticsEventListener))
+        bot.add_cog(UserStatisticsMaster(bot, UserStatisticsEventListener))
     else:
-        bot.add_cog(Plugin(bot, UserStatisticsEventListener))
+        bot.add_cog(UserStatisticsAgent(bot, UserStatisticsEventListener))

@@ -166,6 +166,8 @@ class Agent(Plugin):
                 await self.bot.audit(f"User {ctx.message.author.display_name} started an update of all DCS "
                                      f"servers on node {platform.node()}.")
                 await self.do_update([120, 60], ctx)
+        else:
+            await ctx.send("Can't check the latest version on the DCS World website. Try again later.")
 
     @commands.command(description='Change the password of a DCS server')
     @utils.has_role('DCS Admin')
