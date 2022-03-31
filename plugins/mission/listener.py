@@ -29,7 +29,7 @@ class MissionEventListener(EventListener):
             data['active'] = False
         new_df = pd.DataFrame([data], columns=['id', 'name', 'active', 'side', 'slot',
                                                'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
-                                               'group_name', 'group_id'])
+                                               'group_name', 'group_id', 'ipaddr'])
         new_df.set_index('id')
         if data['server_name'] not in self.bot.player_data:
             self.bot.player_data[server_name] = new_df
@@ -38,20 +38,14 @@ class MissionEventListener(EventListener):
             if len(df[df['id'] == data['id']]) == 1:
                 if data['command'] == 'onPlayerChangeSlot':
                     df.loc[df['id'] == data['id'], ['active', 'side', 'slot', 'sub_slot', 'unit_callsign', 'unit_name',
-                                                    'unit_type', 'group_name', 'group_id']] = [data['active'],
-                                                                                               data['side'],
-                                                                                               data['slot'],
-                                                                                               data['sub_slot'],
-                                                                                               data['unit_callsign'],
-                                                                                               data['unit_name'],
-                                                                                               data['unit_type'],
-                                                                                               data['group_name'],
-                                                                                               data['group_id']]
+                                                    'unit_type', 'group_name', 'group_id']] = \
+                        [data['active'], data['side'], data['slot'], data['sub_slot'], data['unit_callsign'],
+                         data['unit_name'], data['unit_type'], data['group_name'], data['group_id']]
                 elif data['command'] in ['onPlayerConnect', 'onPlayerStart']:
                     df.loc[df['id'] == data['id'], ['name', 'active', 'side', 'slot', 'sub_slot', 'ucid',
                                                     'unit_callsign', 'unit_name', 'unit_type', 'group_name',
-                                                    'group_id']] = \
-                        [data['name'], data['active'], data['side'], '', 0, data['ucid'], '', '', '', '', '']
+                                                    'group_id', 'ipaddr']] = \
+                        [data['name'], data['active'], data['side'], '', 0, data['ucid'], '', '', '', '', '', data['ipaddr']]
             else:
                 df = pd.concat([df, new_df])
             self.bot.player_data[server_name] = df
@@ -191,6 +185,8 @@ class MissionEventListener(EventListener):
     async def onPlayerStart(self, data: dict) -> None:
         if data['id'] == 1:
             return
+        # update the player data as soon as possible
+        self.updatePlayer(data)
         if self.config.getboolean('BOT', 'AUTOMATCH'):
             # if automatch is enabled, try to match the user
             discord_user = utils.match_user(self, data)
@@ -216,7 +212,8 @@ class MissionEventListener(EventListener):
         if discord_user is None:
             self.bot.sendtoDCS(server, {
                 "command": "sendChatMessage",
-                "message": self.bot.config['DCS']['GREETING_MESSAGE_UNMATCHED'].format(name=data['name'], prefix=self.config['BOT']['COMMAND_PREFIX']),
+                "message": self.bot.config['DCS']['GREETING_MESSAGE_UNMATCHED'].format(
+                    name=data['name'], prefix=self.config['BOT']['COMMAND_PREFIX']),
                 "to": data['id']
             })
             # only warn for unknown users if it is a non-public server and automatch is on
@@ -231,7 +228,6 @@ class MissionEventListener(EventListener):
                 "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(name, data['server_name']),
                 "to": int(data['id'])
             })
-        self.updatePlayer(data)
         await self.displayMissionEmbed(data)
         await self.displayPlayerEmbed(data)
 

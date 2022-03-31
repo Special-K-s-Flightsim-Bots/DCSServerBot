@@ -23,19 +23,20 @@ These commands can be used to administrate the bot itself.
 | .unregister |           | admin-channel | Admin   | Unregisters the current server from this agent.<br/>Only needed, if the very same server is going to be started on another machine connected to another agent. |
 
 ### List of supported Plugins
-| Plugin       | Scope                                                               | Optional | Dependent on | Documentation                              |
-|--------------|---------------------------------------------------------------------|----------|--------------|--------------------------------------------|
-| Admin        | Admin commands to manage your DCS server.                           | no       |              | [README](./plugins/admin/README.md)        |
-| Mission      | Handling of mission, compared to the WebGUI.                        | no       |              | [README](./plugins/mission/README.md)      |
-| Scheduler    | Autostart / -stop of servers or missions.                           | no       | Mission      | [README](./plugins/scheduler/README.md)    |
-| Userstats    | Users statistics system.                                            | yes*     | Mission      | [README](./plugins/userstats/README.md)    |
-| Missionstats | Detailed users statistics / mission statistics.                     | yes*     | Userstats    | [README](./plugins/missionstats/README.md) |
-| Serverstats  | Server statistics for your DCS servers.                             | yes      | Userstats    | [README](./plugins/serverstats/README.md)  |
-| Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission      | [README](./plugins/punishment/README.md)   |
-| Slotblocking | Slotblocking either based on units or a point based system.         | yes      | Mission      | [README](./plugins/slotblocking/README.md) |
-| Gamemaster   | Interaction with the running mission (inform users, set flags, etc) | yes*     |              | [README](./plugins/gamemaster/README.md)   |
-| Greenieboard | Greenieboard and LSO quality mark analysis (SC only)                | yes      | Missionstats | [README](./plugins/greenieboard/README.md) |
-| DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |              | [README](./plugins/dbexporter/README.md)   |
+| Plugin       | Scope                                                               | Optional | Dependent on          | Documentation                              |
+|--------------|---------------------------------------------------------------------|----------|-----------------------|--------------------------------------------|
+| Admin        | Admin commands to manage your DCS server.                           | no       |                       | [README](./plugins/admin/README.md)        |
+| Mission      | Handling of mission, compared to the WebGUI.                        | no       |                       | [README](./plugins/mission/README.md)      |
+| Scheduler    | Autostart / -stop of servers or missions.                           | no       | Mission               | [README](./plugins/scheduler/README.md)    |
+| Userstats    | Users statistics system.                                            | yes*     | Mission               | [README](./plugins/userstats/README.md)    |
+| Missionstats | Detailed users statistics / mission statistics.                     | yes*     | Userstats             | [README](./plugins/missionstats/README.md) |
+| Serverstats  | Server statistics for your DCS servers.                             | yes      | Userstats             | [README](./plugins/serverstats/README.md)  |
+| Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission               | [README](./plugins/punishment/README.md)   |
+| Slotblocking | Slotblocking either based on units or a point based system.         | yes      | Mission               | [README](./plugins/slotblocking/README.md) |
+| Gamemaster   | Interaction with the running mission (inform users, set flags, etc) | yes*     |                       | [README](./plugins/gamemaster/README.md)   |
+| Greenieboard | Greenieboard and LSO quality mark analysis (SC only)                | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
+| DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
+| MOTD         | Generates a message of the day.                                     | yes      | Mission, Missionstats | [README](./plugins/motd/README.md)         |
 
 *) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot.
 

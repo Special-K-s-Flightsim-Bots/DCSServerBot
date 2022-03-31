@@ -2,8 +2,11 @@
 This plugin allows you to have a (optional: persistent) greenieboard for the top x (default: 10) players and to give 
 players the opportunity to analyse their last carrier landings.
 
-**__Attention:__ The landing quality marks will only be generated for landings\* on the DCS Super Carrier module!**
-<br/>*Not all landings generate a mark for whatever reason.
+**__Attention:__**<br/> 
+- The landing quality marks will only be generated for landings\* on the DCS Super Carrier module!</br>
+- MISSION_STATISTICS = true has to be enabled for your server.**
+<p></p>
+*Not all landings generate a mark for whatever reason.
 
 ## Configuration
 Greenieboard comes as many other plugins with a JSON configuration. If you don't generate your own config, DCSServerBot

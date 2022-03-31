@@ -1,0 +1,10 @@
+{
+  "configs": [
+    {
+      "message": "{player[name]}, welcome to {server[server_name]}!\n",
+      "on_event": "birth",
+      "display_type": "popup",
+      "display_time": 20
+    }
+  ]
+}
