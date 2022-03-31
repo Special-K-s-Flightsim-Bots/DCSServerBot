@@ -96,16 +96,32 @@ async def getLatestVersion(branch):
                     return item['link'].split('/')[-2]
 
 
-def match(name1, name2):
+def match(name1: str, name2: str) -> int:
+    # TODO
+    def word_match(n1: str, n2: str) -> int:
+        if (len(n1) < 3 or len(n2) < 3) and n1 != n2:
+            return 0
+        words1 = n1.split()
+        w1 = 0
+        for i in range(0, len(words1)):
+            if words1[i] in n2:
+                w1 += len(words1[i])
+        words2 = n2.split()
+        w2 = 0
+        for i in range(0, len(words2)):
+            if words2[i] in n1:
+                w2 += len(words2[i])
+        return max(w1, w2)
+
     if name1 == name2:
         return len(name1)
     # remove any tags
-    n1 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name1).strip()
+    n1 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name1).strip().casefold()
     if len(n1) == 0:
-        n1 = name1
-    n2 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name2).strip()
+        n1 = name1.casefold()
+    n2 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name2).strip().casefold()
     if len(n2) == 0:
-        n2 = name2
+        n2 = name2.casefold()
     # if the names are too short, return
     if (len(n1) < 3 or len(n2) < 3) and (n1 != n2):
         return 0
@@ -114,8 +130,8 @@ def match(name1, name2):
     elif n2 in n1:
         return len(n2)
     # remove any special characters
-    n1 = re.sub('[^a-zA-Z0-9 ]', '', n1).strip().lower()
-    n2 = re.sub('[^a-zA-Z0-9 ]', '', n2).strip().lower()
+    n1 = re.sub('[^a-zA-Z0-9 ]', '', n1).strip()
+    n2 = re.sub('[^a-zA-Z0-9 ]', '', n2).strip()
     if (len(n1) == 0) or (len(n2) == 0):
         return 0
     # if the names are too short, return
@@ -358,9 +374,6 @@ async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]
 
 def has_role(item: str):
     def predicate(ctx):
-        if ctx.guild is None:
-            raise commands.errors.NoPrivateMessage()
-
         if 'ROLES' not in config or item not in config['ROLES']:
             valid_roles = [item]
         else:
@@ -368,7 +381,7 @@ def has_role(item: str):
         for role in ctx.author.roles:
             if role.name in valid_roles:
                 return True
-        raise commands.errors.MissingRole(item)
+        return False
 
     return commands.check(predicate)
 

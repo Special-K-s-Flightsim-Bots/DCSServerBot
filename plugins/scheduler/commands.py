@@ -260,7 +260,7 @@ class Scheduler(Plugin):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
-    @commands.command(description='Clears the servers maintenance flag and lets the scheduler handle the state')
+    @commands.command(description='Clears the servers maintenance flag')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def clear(self, ctx):

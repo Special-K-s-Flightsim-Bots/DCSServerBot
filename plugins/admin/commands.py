@@ -275,7 +275,7 @@ class Agent(Plugin):
             else:
                 await ctx.send(f"Player {name} not found.")
 
-    @commands.command(description='Sends the current DCS server log as a DM')
+    @commands.command(description='DMs the current DCS server log')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def dcslog(self, ctx):
@@ -296,7 +296,7 @@ class Agent(Plugin):
                 if filename.endswith('.zip'):
                     os.remove(filename)
 
-    @commands.command(description='Sends the current bot log as a DM')
+    @commands.command(description='DMs the current bot log')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def botlog(self, ctx):
