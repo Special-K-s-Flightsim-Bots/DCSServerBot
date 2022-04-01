@@ -119,6 +119,10 @@ class MissionEventListener(EventListener):
             self.bot.sendtoDCS(server, data)
 
     async def registerDCSServer(self, data):
+        if 'players' not in data:
+            data['players'] = []
+            self.log.warning(f"Server {data['server_name']} seems to be stopped. This is unsupported atm, please "
+                             f"start a mission via the WebGUI.")
         self.bot.player_data[data['server_name']] = pd.DataFrame(data['players'], columns=[
             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
             'group_id', 'group_name'])
