@@ -5,6 +5,12 @@
       "on_event": "birth",
       "display_type": "popup",
       "display_time": 20
+    },
+    {
+      "installation": "DCS.openbeta_server",
+      "message": "Welcome to our public server! Teamkills will be punished.",
+      "on_event": "join",
+      "display_type": "chat"
     }
   ]
 }
