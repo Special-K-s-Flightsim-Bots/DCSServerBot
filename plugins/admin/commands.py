@@ -119,15 +119,16 @@ class Agent(Plugin):
             else:
                 server['maintenance'] = True
             if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                shutdown_in = max(warntimes)
                 for warntime in warntimes:
-                    self.loop.call_later(warntime, self.bot.sendtoDCS,
+                    self.loop.call_later(shutdown_in - warntime, self.bot.sendtoDCS,
                                          server, {
                                              'command': 'sendPopupMessage',
                                              'message': f'Server is going down for a DCS update in {warntime} seconds!',
                                              'to': 'all',
                                              'time': self.config['BOT']['MESSAGE_TIMEOUT']
                                          })
-                self.loop.call_later(max(warntimes), utils.stop_dcs, self, server)
+            self.loop.call_later(shutdown_in, utils.stop_dcs, self, server)
         # give the DCS servers some time to shut down.
         await asyncio.sleep(max(warntimes) + 10)
         if ctx:
@@ -141,7 +142,6 @@ class Agent(Plugin):
             await ctx.send('DCS World updated to the latest version.\nStarting up DCS servers again ...')
         else:
             self.log.info('DCS World updated to the latest version.\nStarting up DCS servers again ...')
-        self.update_pending = False
         for server_name, server in self.globals.items():
             if server not in servers:
                 # let the scheduler do its job
@@ -149,11 +149,15 @@ class Agent(Plugin):
             else:
                 # the server was running before (being in maintenance mode), so start it again
                 utils.start_dcs(self, server)
+        self.update_pending = False
 
     @commands.command(description='Update a DCS Installation')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def update(self, ctx):
+        if self.update_pending:
+            await ctx.send('An update is already running, please wait ...')
+            return
         # check versions
         branch, old_version = utils.getInstalledVersion(self.config['DCS']['DCS_INSTALLATION'])
         new_version = await utils.getLatestVersion(branch)
@@ -166,6 +170,8 @@ class Agent(Plugin):
                 await self.bot.audit(f"User {ctx.message.author.display_name} started an update of all DCS "
                                      f"servers on node {platform.node()}.")
                 await self.do_update([120, 60], ctx)
+        else:
+            await ctx.send("Can't check the latest version on the DCS World website. Try again later.")
 
     @commands.command(description='Change the password of a DCS server')
     @utils.has_role('DCS Admin')
@@ -275,7 +281,7 @@ class Agent(Plugin):
             else:
                 await ctx.send(f"Player {name} not found.")
 
-    @commands.command(description='Sends the current DCS server log as a DM')
+    @commands.command(description='DMs the current DCS server log')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def dcslog(self, ctx):
@@ -296,7 +302,7 @@ class Agent(Plugin):
                 if filename.endswith('.zip'):
                     os.remove(filename)
 
-    @commands.command(description='Sends the current bot log as a DM')
+    @commands.command(description='DMs the current bot log')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def botlog(self, ctx):

@@ -1,3 +1,5 @@
+import xml
+
 import aiohttp
 import asyncio
 import discord
@@ -17,7 +19,7 @@ from configparser import ConfigParser
 from contextlib import closing, suppress
 from datetime import datetime, timedelta
 from discord.ext import commands
-from typing import Union, Optional, List, Tuple
+from typing import Union, Optional, Tuple
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
 REGEXP = {
@@ -71,7 +73,7 @@ def changeServerSettings(server_name, name: str, value: Union[str, int]):
     os.rename(tmp_settings, server_settings)
 
 
-def getInstalledVersion(path):
+def getInstalledVersion(path: str) -> Tuple[Optional[str], Optional[str]]:
     branch = version = None
     with open(os.path.join(os.path.expandvars(path), 'autoupdate.cfg'), encoding='utf8') as cfg:
         lines = cfg.readlines()
@@ -87,25 +89,45 @@ def getInstalledVersion(path):
     return branch, version
 
 
-async def getLatestVersion(branch):
+async def getLatestVersion(branch: str) -> Optional[str]:
     async with aiohttp.ClientSession() as session:
         async with session.get(PATCHNOTES_URL) as response:
-            xpars = xmltodict.parse(await response.text())
-            for item in xpars['rss']['channel']['item']:
-                if branch in item['link']:
-                    return item['link'].split('/')[-2]
+            try:
+                xpars = xmltodict.parse(await response.text())
+                for item in xpars['rss']['channel']['item']:
+                    if branch in item['link']:
+                        return item['link'].split('/')[-2]
+            except xml.parsers.expat.ExpatError:
+                pass
+    return None
 
 
-def match(name1, name2):
+def match(name1: str, name2: str) -> int:
+    # TODO
+    def word_match(n1: str, n2: str) -> int:
+        if (len(n1) < 3 or len(n2) < 3) and n1 != n2:
+            return 0
+        words1 = n1.split()
+        w1 = 0
+        for i in range(0, len(words1)):
+            if words1[i] in n2:
+                w1 += len(words1[i])
+        words2 = n2.split()
+        w2 = 0
+        for i in range(0, len(words2)):
+            if words2[i] in n1:
+                w2 += len(words2[i])
+        return max(w1, w2)
+
     if name1 == name2:
         return len(name1)
     # remove any tags
-    n1 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name1).strip()
+    n1 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name1).strip().casefold()
     if len(n1) == 0:
-        n1 = name1
-    n2 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name2).strip()
+        n1 = name1.casefold()
+    n2 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name2).strip().casefold()
     if len(n2) == 0:
-        n2 = name2
+        n2 = name2.casefold()
     # if the names are too short, return
     if (len(n1) < 3 or len(n2) < 3) and (n1 != n2):
         return 0
@@ -114,8 +136,8 @@ def match(name1, name2):
     elif n2 in n1:
         return len(n2)
     # remove any special characters
-    n1 = re.sub('[^a-zA-Z0-9 ]', '', n1).strip().lower()
-    n2 = re.sub('[^a-zA-Z0-9 ]', '', n2).strip().lower()
+    n1 = re.sub('[^a-zA-Z0-9 ]', '', n1).strip()
+    n2 = re.sub('[^a-zA-Z0-9 ]', '', n2).strip()
     if (len(n1) == 0) or (len(n2) == 0):
         return 0
     # if the names are too short, return
@@ -358,9 +380,6 @@ async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]
 
 def has_role(item: str):
     def predicate(ctx):
-        if ctx.guild is None:
-            raise commands.errors.NoPrivateMessage()
-
         if 'ROLES' not in config or item not in config['ROLES']:
             valid_roles = [item]
         else:
@@ -368,7 +387,7 @@ def has_role(item: str):
         for role in ctx.author.roles:
             if role.name in valid_roles:
                 return True
-        raise commands.errors.MissingRole(item)
+        return False
 
     return commands.check(predicate)
 

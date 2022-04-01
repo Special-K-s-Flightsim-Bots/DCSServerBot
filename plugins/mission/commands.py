@@ -58,7 +58,7 @@ class Mission(Plugin):
                 await ctx.message.delete()
                 self.bot.sendtoDCS(server, {"command": "getMissionUpdate", "channel": ctx.channel.id})
 
-    @commands.command(description='Shows briefing of the active DCS mission', aliases=['brief'])
+    @commands.command(description='Shows briefing of the active mission', aliases=['brief'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def briefing(self, ctx):

@@ -88,7 +88,8 @@ class AgentServerStats(Plugin):
                     else:
                         users = 0
                     mission_id = self.globals[server_name]['mission_id'] if 'mission_id' in server else -1
-                    process = psutil.Process(server['PID']) if 'PID' in server else None
+                    # don't use the PID in here as it creates a NEW process which we don't want to
+                    process = utils.find_process('DCS.exe', server['installation'])
                     if not process:
                         self.log.warning(f"Could not find a running DCS instance for server {server_name}, skipping "
                                          f"server load gathering.")

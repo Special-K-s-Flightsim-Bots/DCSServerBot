@@ -19,6 +19,8 @@ AUTOBAN = true
 LOGLEVEL = DEBUG
 ; Optional, audit channel for special events
 AUDIT_CHANNEL = 123456789012345678
+; Optional, load optional plugins
+OPT_PLUGINS = slotblocking, punishment, serverstats, greenieboard
 
 [ROLES]
 Admin = Admin

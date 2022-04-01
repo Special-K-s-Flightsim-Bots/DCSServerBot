@@ -11,7 +11,11 @@ from typing import Union, Optional
 from .listener import UserStatisticsEventListener
 
 
-class UserStatistics(Plugin):
+class UserStatisticsAgent(Plugin):
+    pass
+
+
+class UserStatisticsMaster(Plugin):
 
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
@@ -101,7 +105,7 @@ class UserStatistics(Plugin):
         finally:
             self.pool.putconn(conn)
 
-    @commands.command(description='Resets the statistics of a specific server')
+    @commands.command(description='Deletes the statistics of a server')
     @utils.has_role('Admin')
     @commands.guild_only()
     async def reset(self, ctx):
@@ -129,7 +133,7 @@ class UserStatistics(Plugin):
             else:
                 await ctx.send('Please stop server "{}" before deleteing the statistics!'.format(server_name))
 
-    @commands.command(description='Shows information about a specific player', usage='<@member / ucid>')
+    @commands.command(description='Shows player information', usage='<@member / ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def info(self, ctx, member: Union[discord.Member, str], *params):
@@ -277,7 +281,7 @@ class UserStatistics(Plugin):
         finally:
             self.bot.pool.putconn(conn)
 
-    @commands.command(description='Checks the matching links of all members / ucids and displays potential violations')
+    @commands.command(description='Validates member/player links')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def linkcheck(self, ctx):
@@ -369,7 +373,7 @@ class UserStatistics(Plugin):
         finally:
             self.bot.pool.putconn(conn)
 
-    @commands.command(description='Generate a token to link your DCS and Discord user')
+    @commands.command(description='Link your DCS and Discord user')
     @utils.has_role('DCS')
     @commands.guild_only()
     async def linkme(self, ctx):
@@ -426,6 +430,6 @@ def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(UserStatistics(bot, UserStatisticsEventListener))
+        bot.add_cog(UserStatisticsMaster(bot, UserStatisticsEventListener))
     else:
-        bot.add_cog(Plugin(bot, UserStatisticsEventListener))
+        bot.add_cog(UserStatisticsAgent(bot, UserStatisticsEventListener))
