@@ -170,6 +170,25 @@ class PunishmentEventListener(EventListener):
             utils.sendChatMessage(self, data['server_name'], data['from_id'],
                                   f"{player['name']}, you currently have {points} penalty points.")
 
+    async def onPlayerConnect(self, data):
+        # check if someone was banned on server A and tries to sneak into server B on another node
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT COUNT(*) FROM bans WHERE ucid = %s', (data['ucid'], ))
+                if cursor.fetchone()[0] > 0:
+                    # ban them on all servers on this node as it wasn't populated yet
+                    for s in self.globals.values():
+                        self.bot.sendtoDCS(s, {
+                            "command": "ban",
+                            "ucid": data['ucid'],
+                            "reason": "You are banned on this server."
+                        })
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
     async def onPlayerStart(self, data):
         # the server owner don't need to get an update of their stats
         if data['id'] == 1:

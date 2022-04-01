@@ -119,15 +119,16 @@ class Agent(Plugin):
             else:
                 server['maintenance'] = True
             if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                shutdown_in = max(warntimes)
                 for warntime in warntimes:
-                    self.loop.call_later(warntime, self.bot.sendtoDCS,
+                    self.loop.call_later(shutdown_in - warntime, self.bot.sendtoDCS,
                                          server, {
                                              'command': 'sendPopupMessage',
                                              'message': f'Server is going down for a DCS update in {warntime} seconds!',
                                              'to': 'all',
                                              'time': self.config['BOT']['MESSAGE_TIMEOUT']
                                          })
-                self.loop.call_later(max(warntimes), utils.stop_dcs, self, server)
+            self.loop.call_later(shutdown_in, utils.stop_dcs, self, server)
         # give the DCS servers some time to shut down.
         await asyncio.sleep(max(warntimes) + 10)
         if ctx:
@@ -141,7 +142,6 @@ class Agent(Plugin):
             await ctx.send('DCS World updated to the latest version.\nStarting up DCS servers again ...')
         else:
             self.log.info('DCS World updated to the latest version.\nStarting up DCS servers again ...')
-        self.update_pending = False
         for server_name, server in self.globals.items():
             if server not in servers:
                 # let the scheduler do its job
@@ -149,11 +149,15 @@ class Agent(Plugin):
             else:
                 # the server was running before (being in maintenance mode), so start it again
                 utils.start_dcs(self, server)
+        self.update_pending = False
 
     @commands.command(description='Update a DCS Installation')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def update(self, ctx):
+        if self.update_pending:
+            await ctx.send('An update is already running, please wait ...')
+            return
         # check versions
         branch, old_version = utils.getInstalledVersion(self.config['DCS']['DCS_INSTALLATION'])
         new_version = await utils.getLatestVersion(branch)

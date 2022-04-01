@@ -171,12 +171,14 @@ class SlotBlockingListener(EventListener):
                 player = self.get_player_points(data['server_name'],
                                                 utils.get_player(self, data['server_name'], ucid=data['ucid']))
                 if data['side'] != const.SIDE_SPECTATOR:
-                    # slot change - credit will be taken
-                    costs = self.get_costs(server, data)
-                    if costs > 0:
-                        self.credits[player['ucid']] = costs
-                        player['points'] -= costs
-                        self.update_user_points(data['server_name'], player)
+                    # only pilots have to "pay" for their plane
+                    if int(data['sub_slot']) == 0:
+                        # slot change - credit will be taken
+                        costs = self.get_costs(server, data)
+                        if costs > 0:
+                            self.credits[player['ucid']] = costs
+                            player['points'] -= costs
+                            self.update_user_points(data['server_name'], player)
                 elif player['ucid'] in self.credits:
                     # back to spectator removes any credit
                     del self.credits[player['ucid']]
@@ -234,7 +236,7 @@ class SlotBlockingListener(EventListener):
                 if 'use_reservations' in config and config['use_reservations']:
                     player = self.get_player_points(data['server_name'],
                                                     utils.get_player(self, data['server_name'], id=data['arg1']))
-                    if player['ucid'] not in self.credits:
+                    if player['ucid'] not in self.credits and int(player['sub_slot']) == 0:
                         costs = self.get_costs(server, player)
                         if costs > 0:
                             self.credits[player['ucid']] = costs
