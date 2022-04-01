@@ -23,7 +23,7 @@ class MessageOfTheDayListener(EventListener):
         if data['id'] == 1:
             return
         server = self.globals[data['server_name']]
-        config = server[self.plugin]
+        config = server[self.plugin] if self.plugin in server else None
         if config and config['on_event'].lower() == 'join':
             player = utils.get_player(self, data['server_name'], id=data['id'])
             self.bot.sendtoDCS(server, {
@@ -34,7 +34,7 @@ class MessageOfTheDayListener(EventListener):
 
     async def onMissionEvent(self, data):
         server = self.globals[data['server_name']]
-        config = server[self.plugin]
+        config = server[self.plugin] if self.plugin in server else None
         if not config:
             return
         if config['on_event'].lower() == 'birth' and data['eventName'] == 'S_EVENT_BIRTH':
