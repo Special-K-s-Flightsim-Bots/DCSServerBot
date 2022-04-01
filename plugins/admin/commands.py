@@ -118,6 +118,7 @@ class Agent(Plugin):
                 servers.append(server)
             else:
                 server['maintenance'] = True
+            shutdown_in = 0
             if server['status'] in [Status.RUNNING, Status.PAUSED]:
                 shutdown_in = max(warntimes)
                 for warntime in warntimes:
@@ -468,16 +469,33 @@ class Master(Agent):
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        self.bot.log.debug('Member {} has left guild {} - ban them on DCS servers (optional) '
-                           'and delete their stats.'.format(member.display_name, member.guild.name))
+        self.bot.log.debug(f'Member {member.display_name} has left the discord')
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
+                    self.bot.log.debug(f'- Auto-ban member {member.display_name} on the DCS servers')
                     cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
-                                   'players WHERE discord_id = %s', (member.id, ))
+                                   'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
+                self.bot.log.debug(f'- Delete stats of member {member.display_name}')
                 cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
                                'discord_id = %s)', (member.id, ))
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+            conn.rollback()
+        finally:
+            self.bot.pool.putconn(conn)
+
+    @commands.Cog.listener()
+    async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
+        self.bot.log.debug(f"Member {member.display_name} has been banned.")
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                self.bot.log.debug(f'- Ban member {member.display_name} on the DCS servers.')
+                cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
+                               'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
