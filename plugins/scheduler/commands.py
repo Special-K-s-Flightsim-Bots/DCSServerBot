@@ -127,7 +127,6 @@ class Scheduler(Plugin):
     def launch(self, server: dict, config: dict):
         self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
         utils.start_dcs(self, server)
-        server['status'] = Status.LOADING
         if 'extensions' in config:
             self.launch_extensions(server, config)
 
@@ -164,8 +163,8 @@ class Scheduler(Plugin):
         # if we should not restart populated servers, wait for it to be unpopulated
         if 'populated' in config and config['populated'] is False and utils.is_populated(self, server):
             return
-        elif not server['status'] == Status.SHUTDOWN_PENDING:
-            server['status'] = Status.SHUTDOWN_PENDING
+        elif 'restart_pending' not in server:
+            server['restart_pending'] = True
             restart_in = self.warn_users(server, config)
             if restart_in > 0:
                 self.log.info(f"  => DCS server \"{server['server_name']}\" will be stopped "
@@ -181,27 +180,19 @@ class Scheduler(Plugin):
             if 'extensions' in config:
                 self.loop.call_later(restart_in, self.shutdown_extensions, server, config)
 
-    def stop_dcs(self, server: dict) -> None:
-        # make sure, the scheduler does not start the server again by itself
-        server['maintenance'] = True
-        utils.stop_dcs(self, server)
-
-    def start_dcs(self, server: dict) -> None:
-        utils.start_dcs(self, server)
-        # clear the maintenance flag again
-        del server['maintenance']
-
     def restart_mission(self, server: dict, config: dict):
         # check if the mission is still populated
         if 'populated' in config['restart'] and config['restart']['populated'] is False and utils.is_populated(self, server):
             return
-        elif not server['status'] == Status.RESTART_PENDING:
-            server['status'] = Status.RESTART_PENDING
+        elif 'restart_pending' not in server:
+            server['restart_pending'] = True
             method = config['restart']['method']
             restart_time = self.warn_users(server, config)
             if method == 'restart_with_shutdown':
-                self.loop.call_later(restart_time, self.stop_dcs, server)
-                self.loop.call_later(restart_time + 10, self.start_dcs, server)
+                self.loop.call_later(restart_time, self.bot.sendtoBot,
+                                     {"command": "onMissionEnd", "server_name": server['server_name']})
+                self.loop.call_later(restart_time, utils.stop_dcs, self, server)
+                self.loop.call_later(restart_time + 10, utils.start_dcs, self, server)
             elif method == 'restart':
                 self.loop.call_later(restart_time, self.bot.sendtoBot,
                                      {"command": "onMissionEnd", "server_name": server['server_name']})
@@ -237,7 +228,8 @@ class Scheduler(Plugin):
         # check all servers
         for server_name, server in self.globals.items():
             # only care about servers that are not in the startup phase
-            if server['status'] in [Status.UNKNOWN, Status.LOADING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
+            if server['status'] in [Status.UNREGISTERED, Status.LOADING] or \
+                    'maintenance' in server or 'restart_pending' in server:
                 continue
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
@@ -246,9 +238,6 @@ class Scheduler(Plugin):
                     self.check_affinity(server, config)
                 target_state = self.check_server_state(server, config)
                 if server['status'] != target_state:
-                    # only care about servers that are not in maintenance state
-                    if 'maintenance' in server:
-                        continue
                     if target_state == Status.RUNNING:
                         self.launch(server, config)
                     elif target_state == Status.SHUTDOWN:

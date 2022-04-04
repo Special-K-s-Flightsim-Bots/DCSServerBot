@@ -79,7 +79,7 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             installation = server['installation']
-            if server['status'] in [Status.UNKNOWN, Status.LOADING]:
+            if server['status'] in [Status.UNREGISTERED, Status.LOADING]:
                 await ctx.send('Server is currently starting up. Please wait and try again.')
             elif server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
                 if await utils.yn_question(self, ctx, 'Do you want to shut down the '

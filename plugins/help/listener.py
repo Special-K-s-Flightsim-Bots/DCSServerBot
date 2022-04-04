@@ -2,7 +2,7 @@ from core import EventListener, utils
 
 
 class HelpListener(EventListener):
-    async def onChatCommand(self, data: dict):
+    async def onChatCommand(self, data: dict) -> None:
         if data['message'].startswith('-help'):
             messages = ['"-linkme token" link your user to Discord']
             if 'punishment' in self.bot.plugins:
@@ -12,6 +12,6 @@ class HelpListener(EventListener):
                 messages.append('"-credits"      display your credits')
             [utils.sendChatMessage(self, data['server_name'], data['from_id'], message) for message in messages]
 
-    async def onPlayerStart(self, data):
+    async def onPlayerStart(self, data: dict) -> None:
         if data['id'] != 1:
             utils.sendChatMessage(self, data['server_name'], data['id'], 'Use "-help" for commands.')

@@ -266,7 +266,6 @@ class Main:
                                                                       'Y/N)?') is True:
                         for server_name, server in self.bot.globals.items():
                             self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
-                            server['status'] = Status.SHUTDOWN
                         await asyncio.sleep(5)
                     await ctx.send('The bot is now restarting itself.\nAll servers with AUTOSTART_DCS=true will be '
                                    'launched on bot start.')

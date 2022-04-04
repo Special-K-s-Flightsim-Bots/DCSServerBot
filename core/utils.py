@@ -366,7 +366,7 @@ async def yn_question(self, ctx, question: str, msg: Optional[str] = None) -> bo
 async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]):
     for server_name, server in self.globals.items():
         if isinstance(ctx, discord.ext.commands.context.Context):
-            if server['status'] == Status.UNKNOWN:
+            if server['status'] == Status.UNREGISTERED:
                 continue
             if (int(server['status_channel']) == ctx.channel.id) or \
                     (int(server['chat_channel']) == ctx.channel.id) or \
@@ -458,12 +458,12 @@ def start_dcs(self, server: dict):
     p = subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', server['installation']],
                          executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\bin\dcs.exe')
     server['PID'] = p.pid
+    server['status'] = Status.LOADING
     return p
 
 
 def stop_dcs(self, server: dict):
     self.bot.sendtoDCS(server, {"command": "shutdown"})
-    server['status'] = Status.SHUTDOWN
 
 
 def start_srs(self, server: dict):
