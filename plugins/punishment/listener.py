@@ -43,8 +43,8 @@ class PunishmentEventListener(EventListener):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT ROUND(SUM(EXTRACT(EPOCH FROM (hop_off - hop_on)))) / 3600 AS playtime FROM '
-                               'statistics WHERE player_ucid = %s AND hop_off IS NOT NULL', (player['ucid'], ))
+                cursor.execute('SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(hop_off, NOW()) - hop_on)))) / '
+                               '3600, 0) AS playtime FROM statistics WHERE player_ucid = %s', (player['ucid'], ))
                 return cursor.fetchone()[0] if cursor.rowcount > 0 else 0
         except psycopg2.DatabaseError as error:
             self.log.exception(error)

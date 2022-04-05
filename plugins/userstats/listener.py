@@ -1,6 +1,6 @@
 # listener.py
 import psycopg2
-from contextlib import closing
+from contextlib import closing, suppress
 from core import const, EventListener, Plugin, utils
 from typing import Union, Any
 
@@ -167,6 +167,57 @@ class UserStatisticsEventListener(EventListener):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+
+    async def onPlayerStart(self, data: dict) -> None:
+        if data['id'] == 1:
+            return
+        if self.config.getboolean('BOT', 'AUTOMATCH'):
+            # if automatch is enabled, try to match the user
+            discord_user = utils.match_user(self, data)
+        else:
+            # else only true matches will return a member
+            discord_user = utils.get_member_by_ucid(self, data['ucid'])
+        discord_id = discord_user.id if discord_user else -1
+        # update the database
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                if discord_id != -1:
+                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
+                    # if this is a new match
+                    if cursor.rowcount == 0:
+                        await self.bot.audit(
+                            f"Member \"{discord_user.display_name}\" auto-linked to DCS user \"{data['name']}\" (ucid={data['ucid']}).")
+                cursor.execute('INSERT INTO players (ucid, discord_id, name, ipaddr, last_seen) VALUES (%s, %s, %s, '
+                               '%s, NOW()) ON CONFLICT (ucid) DO UPDATE SET discord_id = EXCLUDED.discord_id, '
+                               'name = EXCLUDED.name, ipaddr = EXCLUDED.ipaddr, last_seen = NOW()',
+                               (data['ucid'], discord_id, data['name'], data['ipaddr']))
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+        server = self.globals[data['server_name']]
+        if discord_user is None:
+            self.bot.sendtoDCS(server, {
+                "command": "sendChatMessage",
+                "message": self.bot.config['DCS']['GREETING_MESSAGE_UNMATCHED'].format(
+                    name=data['name'], prefix=self.config['BOT']['COMMAND_PREFIX']),
+                "to": data['id']
+            })
+            # only warn for unknown users if it is a non-public server and automatch is on
+            if self.config.getboolean('BOT', 'AUTOMATCH') and \
+                    len(self.globals[data['server_name']]['serverSettings']['password']) > 0:
+                await self.bot.get_bot_channel(data, 'admin_channel').send(
+                    'Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
+        else:
+            name = discord_user.nick if discord_user.nick else discord_user.name
+            self.bot.sendtoDCS(server, {
+                "command": "sendChatMessage",
+                "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(name, data['server_name']),
+                "to": int(data['id'])
+            })
 
     async def onPlayerChangeSlot(self, data):
         if 'side' in data:
@@ -343,6 +394,9 @@ class UserStatisticsEventListener(EventListener):
                             cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (discord_id, player['ucid']))
                             cursor.execute('DELETE FROM players WHERE ucid = %s', (token, ))
                             utils.sendChatMessage(self, data['server_name'], data['from_id'], 'Your user has been linked!')
+                            with suppress(Exception):
+                                member = self.bot.guilds[0].get_member(discord_id)
+                                await self.bot.audit(f"Member \"{member.display_name}\" self-linked to DCS user \"{player['name']}\" (ucid={player['ucid']}).")
                         conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.log.exception(error)

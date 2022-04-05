@@ -1,9 +1,7 @@
 import discord
 import pandas as pd
-import psycopg2
 from core import const, utils, EventListener, PersistentReport, Plugin
 from core.const import Status
-from contextlib import closing
 
 
 class MissionEventListener(EventListener):
@@ -119,6 +117,10 @@ class MissionEventListener(EventListener):
             self.bot.sendtoDCS(server, data)
 
     async def registerDCSServer(self, data):
+        if 'players' not in data:
+            data['players'] = []
+            self.log.warning(f"Server {data['server_name']} seems to be stopped. This is unsupported atm, please "
+                             f"start a mission via the WebGUI.")
         self.bot.player_data[data['server_name']] = pd.DataFrame(data['players'], columns=[
             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
             'group_id', 'group_name'])
@@ -126,15 +128,6 @@ class MissionEventListener(EventListener):
         if 'sync' in data['channel']:
             await self.displayMissionEmbed(data)
             await self.displayPlayerEmbed(data)
-
-    async def getMissionUpdate(self, data):
-        return data
-
-    async def listMissions(self, data):
-        return data
-
-    async def getMissionDetails(self, data):
-        return data
 
     async def onMissionLoadBegin(self, data):
         server = self.globals[data['server_name']]
@@ -158,24 +151,23 @@ class MissionEventListener(EventListener):
         data['current_map'] = '-'
         data['mission_time'] = 0
         server = self.globals[data['server_name']]
-        if server['status'] != Status.SHUTDOWN:
-            server['status'] = Status.STOPPED
+        server['status'] = Status.STOPPED
         await self.displayMissionEmbed(data)
 
     async def onSimulationPause(self, data):
         server = self.globals[data['server_name']]
-        if server['status'] not in [Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
-            server['status'] = Status.PAUSED
+        server['status'] = Status.PAUSED
         await self.displayMissionEmbed(data)
 
     async def onSimulationResume(self, data):
         server = self.globals[data['server_name']]
-        if server['status'] not in [Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
-            server['status'] = Status.RUNNING
+        server['status'] = Status.RUNNING
         await self.displayMissionEmbed(data)
 
     async def onPlayerConnect(self, data: dict) -> None:
+        # The admin player connects only on an initial start of DCS
         if data['id'] == 1:
+            self.globals[data['server_name']]['status'] = Status.LOADING
             return
         chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
         if chat_channel is not None:
@@ -185,49 +177,7 @@ class MissionEventListener(EventListener):
     async def onPlayerStart(self, data: dict) -> None:
         if data['id'] == 1:
             return
-        # update the player data as soon as possible
         self.updatePlayer(data)
-        if self.config.getboolean('BOT', 'AUTOMATCH'):
-            # if automatch is enabled, try to match the user
-            discord_user = utils.match_user(self, data)
-        else:
-            # else only true matches will return a member
-            discord_user = utils.get_member_by_ucid(self, data['ucid'])
-        discord_id = discord_user.id if discord_user else -1
-        # update the database
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('INSERT INTO players (ucid, discord_id, name, ipaddr, last_seen) VALUES (%s, %s, %s, '
-                               '%s, NOW()) ON CONFLICT (ucid) DO UPDATE SET discord_id = EXCLUDED.discord_id, '
-                               'name = EXCLUDED.name, ipaddr = EXCLUDED.ipaddr, last_seen = NOW()',
-                               (data['ucid'], discord_id, data['name'], data['ipaddr']))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-        server = self.globals[data['server_name']]
-        if discord_user is None:
-            self.bot.sendtoDCS(server, {
-                "command": "sendChatMessage",
-                "message": self.bot.config['DCS']['GREETING_MESSAGE_UNMATCHED'].format(
-                    name=data['name'], prefix=self.config['BOT']['COMMAND_PREFIX']),
-                "to": data['id']
-            })
-            # only warn for unknown users if it is a non-public server and automatch is on
-            if self.config.getboolean('BOT', 'AUTOMATCH') and \
-                    len(self.globals[data['server_name']]['serverSettings']['password']) > 0:
-                await self.bot.get_bot_channel(data, 'admin_channel').send(
-                    'Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
-        else:
-            name = discord_user.nick if discord_user.nick else discord_user.name
-            self.bot.sendtoDCS(server, {
-                "command": "sendChatMessage",
-                "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(name, data['server_name']),
-                "to": int(data['id'])
-            })
         await self.displayMissionEmbed(data)
         await self.displayPlayerEmbed(data)
 
@@ -319,9 +269,3 @@ class MissionEventListener(EventListener):
                     else:
                         await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                             const.PLAYER_SIDES[player['side']], player['name']))
-
-    async def listMizFiles(self, data: dict) -> dict:
-        return data
-
-    async def getWeatherInfo(self, data: dict) -> dict:
-        return data

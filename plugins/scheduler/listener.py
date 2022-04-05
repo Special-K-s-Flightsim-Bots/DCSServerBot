@@ -30,6 +30,11 @@ class SchedulerListener(EventListener):
             if 'onMissionStart' in config:
                 self.run(server, config['onMissionStart'])
 
+    async def onMissionLoadEnd(self, data):
+        server = self.globals[data['server_name']]
+        if 'restart_pending' in server:
+            del server['restart_pending']
+
     async def onMissionEnd(self, data):
         server = self.globals[data['server_name']]
         if self.plugin in server:

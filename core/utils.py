@@ -1,5 +1,3 @@
-import xml
-
 import aiohttp
 import asyncio
 import discord
@@ -13,6 +11,7 @@ import socket
 import string
 import subprocess
 import psycopg2
+import xml
 import xmltodict
 from core.const import Status
 from configparser import ConfigParser
@@ -52,10 +51,12 @@ def findDCSInstallations(server_name=None):
     return installations
 
 
-def changeServerSettings(server_name, name: str, value: Union[str, int]):
-    assert name in ['listStartIndex', 'password', 'name', 'maxPlayers'], "Value can't be changed."
+def changeServerSettings(server_name, name: str, value: Union[str, int, bool]):
+    assert name in ['listStartIndex', 'password', 'name', 'maxPlayers', 'listLoop'], "Value can't be changed."
     if isinstance(value, str):
         value = '"' + value + '"'
+    elif isinstance(value, bool):
+        value = value.__repr__().lower()
     _, installation = findDCSInstallations(server_name)[0]
     server_settings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.lua')
     tmp_settings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.tmp')
@@ -366,7 +367,7 @@ async def yn_question(self, ctx, question: str, msg: Optional[str] = None) -> bo
 async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]):
     for server_name, server in self.globals.items():
         if isinstance(ctx, discord.ext.commands.context.Context):
-            if server['status'] == Status.UNKNOWN:
+            if server['status'] == Status.UNREGISTERED:
                 continue
             if (int(server['status_channel']) == ctx.channel.id) or \
                     (int(server['chat_channel']) == ctx.channel.id) or \
@@ -458,12 +459,12 @@ def start_dcs(self, server: dict):
     p = subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', server['installation']],
                          executable=os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\bin\dcs.exe')
     server['PID'] = p.pid
+    server['status'] = Status.LOADING
     return p
 
 
 def stop_dcs(self, server: dict):
     self.bot.sendtoDCS(server, {"command": "shutdown"})
-    server['status'] = Status.SHUTDOWN
 
 
 def start_srs(self, server: dict):

@@ -20,7 +20,7 @@ class GameMasterAgent(Plugin):
     @commands.guild_only()
     async def chat(self, ctx, *args):
         server = await utils.get_server(self, ctx)
-        if server and server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
+        if server and server['status'] == Status.RUNNING:
             self.bot.sendtoDCS(server, {
                 "command": "sendChatMessage",
                 "channel": ctx.channel.id,
@@ -36,7 +36,7 @@ class GameMasterAgent(Plugin):
         if server:
             if to not in ['all', 'red', 'blue']:
                 await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}popup all|red|blue [time] <message>")
-            elif server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING]:
+            elif server['status'] == Status.RUNNING:
                 if len(args) > 0:
                     if args[0].isnumeric():
                         time = int(args[0])
@@ -62,7 +62,7 @@ class GameMasterAgent(Plugin):
     @commands.guild_only()
     async def flag(self, ctx, flag, value=None):
         server = await utils.get_server(self, ctx)
-        if server and server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING, Status.PAUSED]:
+        if server and server['status'] in [Status.RUNNING, Status.PAUSED]:
             self.bot.sendtoDCS(server, {
                 "command": "setFlag",
                 "channel": ctx.channel.id,
@@ -78,7 +78,7 @@ class GameMasterAgent(Plugin):
     @commands.guild_only()
     async def do_script(self, ctx, *script):
         server = await utils.get_server(self, ctx)
-        if server and server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING, Status.PAUSED]:
+        if server and server['status'] in [Status.RUNNING, Status.PAUSED]:
             self.bot.sendtoDCS(server, {
                 "command": "do_script",
                 "script": ' '.join(script)
@@ -92,7 +92,7 @@ class GameMasterAgent(Plugin):
     @commands.guild_only()
     async def do_script_file(self, ctx, filename):
         server = await utils.get_server(self, ctx)
-        if server and server['status'] in [Status.RUNNING, Status.RESTART_PENDING, Status.SHUTDOWN_PENDING, Status.PAUSED]:
+        if server and server['status'] in [Status.RUNNING, Status.PAUSED]:
             self.bot.sendtoDCS(server, {
                 "command": "do_script_file",
                 "file": filename.replace('\\', '/')

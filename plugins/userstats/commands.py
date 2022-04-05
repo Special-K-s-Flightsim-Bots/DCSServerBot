@@ -380,8 +380,8 @@ class UserStatisticsMaster(Plugin):
         async def send_token(token):
             channel = await ctx.message.author.create_dm()
             await channel.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
-                               f"following into the DCS chat of one of our servers:```-linkme {token}```\n\n"
-                               f"The TOKEN will expire in 2 days.")
+                               f"following into the DCS chat of one of our servers:```-linkme {token}```\n"
+                               f"**The TOKEN will expire in 2 days.**")
 
         await ctx.message.delete()
         conn = self.pool.getconn()
@@ -391,9 +391,12 @@ class UserStatisticsMaster(Plugin):
                 if cursor.rowcount >= 1:
                     ucid = cursor.fetchone()[0]
                     if len(ucid) == 4:
+                        # resend the TOKEN, if there is one already
                         await send_token(ucid)
                         return
-                    elif await utils.yn_question(self, ctx, 'You have a valid user mapping.\nUnlink your user first?'):
+                    elif not await utils.yn_question(self, ctx, 'You have a valid user mapping.\nDo you want to continue and re-link your user?'):
+                        return
+                    else:
                         cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s', (ctx.message.author.id,))
                 # in the very unlikely event that we have generated the very same random number twice
                 while True:

@@ -59,13 +59,15 @@ class DCSServerBot(commands.Bot):
                 self.globals[server_name] = {
                     "server_name": server_name,
                     "installation": installation,
-                    "status": Status.UNKNOWN,
+                    "status": Status.UNREGISTERED,
                     "host": self.config[installation]['DCS_HOST'],
                     "port": self.config[installation]['DCS_PORT'],
                     "chat_channel": self.config[installation]['CHAT_CHANNEL'],
                     "status_channel": self.config[installation]['STATUS_CHANNEL'],
                     "admin_channel": self.config[installation]['ADMIN_CHANNEL']
                 }
+                # TODO: can be removed if bug in net.load_next_mission() is fixed
+                utils.changeServerSettings(server_name, 'listLoop', True)
 
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers ...')
@@ -221,9 +223,9 @@ class DCSServerBot(commands.Bot):
         future = self.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
         message['channel'] = token
-        self.sendtoDCS(server, message)
         self.listeners[token] = future
         try:
+            self.sendtoDCS(server, message)
             return await asyncio.wait_for(future, timeout)
         finally:
             del self.listeners[token]
@@ -266,7 +268,7 @@ class DCSServerBot(commands.Bot):
             return
         if message:
             try:
-                await message.edit(embed=embed, file=file)
+                await message.edit(embed=embed)
             except discord.errors.NotFound:
                 message = None
         if not message:
@@ -374,29 +376,23 @@ class DCSServerBot(commands.Bot):
                     self.log.warning('Message without server_name retrieved: {}'.format(data))
                     return
                 self.log.debug('{}->HOST: {}'.format(data['server_name'], json.dumps(data)))
-                futures = []
                 command = data['command']
                 if command == 'registerDCSServer':
                     if not self.register_server(data):
                         return
                 elif (data['server_name'] not in self.globals or
-                      self.globals[data['server_name']]['status'] in [Status.SHUTDOWN, Status.UNKNOWN]):
+                      self.globals[data['server_name']]['status'] == Status.UNREGISTERED):
                     self.log.debug(f"Command {command} for unregistered server {data['server_name']} retrieved, ignoring.")
                     return
+                if data['channel'].startswith('sync-'):
+                    if data['channel'] in self.listeners:
+                        f = self.listeners[data['channel']]
+                        if not f.cancelled():
+                            f.get_loop().call_soon_threadsafe(f.set_result, data)
+                    if command != 'registerDCSServer':
+                        return
                 for listener in self.eventListeners:
-                    futures.append(asyncio.run_coroutine_threadsafe(listener.processEvent(data), self.loop))
-                results = []
-                for future in futures:
-                    try:
-                        result = future.result()
-                        if result:
-                            results.append(result)
-                    except BaseException as ex:
-                        self.log.exception(ex)
-                if data['channel'].startswith('sync-') and data['channel'] in self.listeners:
-                    f = self.listeners[data['channel']]
-                    if not f.cancelled():
-                        f.get_loop().call_soon_threadsafe(f.set_result, results[0] if len(results) > 0 else None)
+                    asyncio.run_coroutine_threadsafe(listener.processEvent(data), self.loop)
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):

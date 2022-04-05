@@ -31,7 +31,7 @@ class SlotBlockingListener(EventListener):
                         return unit['costs']
         return 0
 
-    def get_points_per_kill(self, server, data):
+    def get_points_per_kill(self, server: dict, data: dict) -> int:
         default = 1
         if 'points_per_kill' in server[self.plugin]:
             for unit in server[self.plugin]['points_per_kill']:
@@ -67,7 +67,7 @@ class SlotBlockingListener(EventListener):
             return player
         return None
 
-    async def registerDCSServer(self, data):
+    async def registerDCSServer(self, data: dict) -> None:
         server = self.globals[data['server_name']]
         if 'configs' in self.locals:
             specific = default = None
@@ -104,7 +104,7 @@ class SlotBlockingListener(EventListener):
             if default or specific:
                 self.bot.sendtoDCS(server, {'command': 'loadParams', 'plugin': self.plugin, 'params': server[self.plugin]})
 
-    async def onPlayerStart(self, data):
+    async def onPlayerStart(self, data: dict) -> None:
         server = self.globals[data['server_name']]
         if self.plugin in server:
             if data['id'] == 1:
@@ -135,7 +135,7 @@ class SlotBlockingListener(EventListener):
                                    'roles': roles
                                })
 
-    def update_user_points(self, server_name: str, player: dict):
+    def update_user_points(self, server_name: str, player: dict) -> None:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -155,7 +155,7 @@ class SlotBlockingListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    def move_to_spectators(self, server, player):
+    def move_to_spectators(self, server: dict, player: dict) -> None:
         self.bot.sendtoDCS(server, {
             "command": "force_player_slot",
             "playerID": player['id'],
@@ -163,7 +163,7 @@ class SlotBlockingListener(EventListener):
             "slotID": ""
         })
 
-    async def onPlayerChangeSlot(self, data):
+    async def onPlayerChangeSlot(self, data: dict) -> None:
         server = self.globals[data['server_name']]
         if self.plugin in server:
             config = server[self.plugin]
@@ -183,7 +183,7 @@ class SlotBlockingListener(EventListener):
                     # back to spectator removes any credit
                     del self.credits[player['ucid']]
 
-    async def onGameEvent(self, data):
+    async def onGameEvent(self, data: dict) -> None:
         server = self.globals[data['server_name']]
         if self.plugin in server:
             config = server[self.plugin]
@@ -247,8 +247,17 @@ class SlotBlockingListener(EventListener):
                                                 utils.get_player(self, data['server_name'], id=data['arg1']))
                 if player['ucid'] in self.credits:
                     del self.credits[player['ucid']]
+            elif data['eventName'] == 'mission_end':
+                # give all players their credit back, if the mission ends and they are still airborne
+                for ucid, points in self.credits.items():
+                    player = utils.get_player(self, data['server_name'], ucid=ucid)
+                    if player:
+                        player = self.get_player_points(data['server_name'], player)
+                        player['points'] += points
+                        self.update_user_points(data['server_name'], player)
+                self.credits = {}
 
-    def campaign(self, command, server):
+    def campaign(self, command: str, server: dict) -> None:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -267,19 +276,19 @@ class SlotBlockingListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    async def startCampaign(self, data):
+    async def startCampaign(self, data: dict) -> None:
         server = self.globals[data['server_name']]
         self.campaign('start', server)
 
-    async def stopCampaign(self, data):
+    async def stopCampaign(self, data: dict) -> None:
         server = self.globals[data['server_name']]
         self.campaign('stop', server)
 
-    async def resetCampaign(self, data):
+    async def resetCampaign(self, data: dict) -> None:
         server = self.globals[data['server_name']]
         self.campaign('reset', server)
 
-    async def addUserPoints(self, data):
+    async def addUserPoints(self, data: dict) -> None:
         player = self.get_player_points(data['server_name'],
                                         utils.get_player(self, data['server_name'], name=data['name']))
         player['points'] += data['points']
@@ -287,7 +296,7 @@ class SlotBlockingListener(EventListener):
             player['points'] = 0
         self.update_user_points(data['server_name'], player)
 
-    async def onChatCommand(self, data: dict):
+    async def onChatCommand(self, data: dict) -> None:
         if '-credits' in data['message']:
             server_name = data['server_name']
             player_id = data['from_id']
