@@ -1,5 +1,3 @@
-import xml
-
 import aiohttp
 import asyncio
 import discord
@@ -13,6 +11,7 @@ import socket
 import string
 import subprocess
 import psycopg2
+import xml
 import xmltodict
 from core.const import Status
 from configparser import ConfigParser
@@ -52,10 +51,12 @@ def findDCSInstallations(server_name=None):
     return installations
 
 
-def changeServerSettings(server_name, name: str, value: Union[str, int]):
-    assert name in ['listStartIndex', 'password', 'name', 'maxPlayers'], "Value can't be changed."
+def changeServerSettings(server_name, name: str, value: Union[str, int, bool]):
+    assert name in ['listStartIndex', 'password', 'name', 'maxPlayers', 'listLoop'], "Value can't be changed."
     if isinstance(value, str):
         value = '"' + value + '"'
+    elif isinstance(value, bool):
+        value = value.__repr__().lower()
     _, installation = findDCSInstallations(server_name)[0]
     server_settings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.lua')
     tmp_settings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.tmp')

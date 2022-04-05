@@ -66,6 +66,8 @@ class DCSServerBot(commands.Bot):
                     "status_channel": self.config[installation]['STATUS_CHANNEL'],
                     "admin_channel": self.config[installation]['ADMIN_CHANNEL']
                 }
+                # TODO: can be removed if bug in net.load_next_mission() is fixed
+                utils.changeServerSettings(server_name, 'listLoop', True)
 
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers ...')
@@ -382,12 +384,13 @@ class DCSServerBot(commands.Bot):
                       self.globals[data['server_name']]['status'] == Status.UNREGISTERED):
                     self.log.debug(f"Command {command} for unregistered server {data['server_name']} retrieved, ignoring.")
                     return
-                if data['channel'].startswith('sync-') and data['channel'] in self.listeners:
-                    f = self.listeners[data['channel']]
-                    if not f.cancelled():
-                        f.get_loop().call_soon_threadsafe(f.set_result, data)
-                        if command != 'registerDCSServer':
-                            return
+                if data['channel'].startswith('sync-'):
+                    if data['channel'] in self.listeners:
+                        f = self.listeners[data['channel']]
+                        if not f.cancelled():
+                            f.get_loop().call_soon_threadsafe(f.set_result, data)
+                    if command != 'registerDCSServer':
+                        return
                 for listener in self.eventListeners:
                     asyncio.run_coroutine_threadsafe(listener.processEvent(data), self.loop)
 

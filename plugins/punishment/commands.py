@@ -56,7 +56,7 @@ class PunishmentAgent(Plugin):
                                     # all other punishments only happen if the player is still in the server
                                     elif player:
                                         if punishment['action'] == 'kick':
-                                            self.bot.sendtoDCS(s, {
+                                            self.bot.sendtoDCS(server, {
                                                 "command": "kick",
                                                 "ucid": row['init_id'],
                                                 "reason": reason
