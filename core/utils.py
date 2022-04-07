@@ -533,9 +533,15 @@ def is_populated(self, server: dict) -> bool:
     return len(players[players['active'] == True]) > 0
 
 
-def sanitize(self):
+def sanitize(self) -> None:
     # Sanitizing MissionScripting.lua
     filename = os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\Scripts\MissionScripting.lua'
+    backup = filename.replace('.lua', '.bak')
+    if os.path.exists('./config/MissionScripting.lua'):
+        self.log.info('- Sanitizing MissionScripting')
+        shutil.copyfile(filename, backup)
+        shutil.copyfile('./config/MissionScripting.lua', filename)
+        return
     try:
         with open(filename, 'r') as infile:
             orig = infile.readlines()
@@ -556,7 +562,6 @@ def sanitize(self):
             output.append(line)
         if dirty:
             self.log.info('- Sanitizing MissionScripting')
-            backup = filename.replace('.lua', '.bak')
             # backup original file
             shutil.copyfile(filename, backup)
             with open(filename, 'w') as outfile:

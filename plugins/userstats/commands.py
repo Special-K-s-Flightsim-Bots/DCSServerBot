@@ -410,7 +410,10 @@ class UserStatisticsMaster(Plugin):
                 await send_token(token)
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
+            if isinstance(error, discord.Forbidden):
+                await ctx.send("Please allow me to send you the secret TOKEN in a DM!")
+            else:
+                self.log.exception(error)
             conn.rollback()
         finally:
             self.pool.putconn(conn)
