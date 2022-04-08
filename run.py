@@ -22,7 +22,7 @@ from psycopg2 import pool
 
 # Set the bot version (not externally configurable)
 BOT_VERSION = '2.5.8'
-SUB_VERSION = 3
+SUB_VERSION = 4
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -59,13 +59,15 @@ class Main:
         # Initialize the logger
         log = logging.getLogger(name='dcsserverbot')
         log.setLevel(logging.DEBUG)
-        fh = RotatingFileHandler('dcsserverbot.log', maxBytes=int(self.config['BOT']['LOGROTATE_SIZE']), backupCount=int(self.config['BOT']['LOGROTATE_COUNT']))
+        fh = RotatingFileHandler('dcsserverbot.log', encoding='utf-8',
+                                 maxBytes=int(self.config['BOT']['LOGROTATE_SIZE']),
+                                 backupCount=int(self.config['BOT']['LOGROTATE_COUNT']))
         if 'LOGLEVEL' in self.config['BOT']:
             fh.setLevel(LOGLEVEL[self.config['BOT']['LOGLEVEL']])
         else:
             fh.setLevel(logging.DEBUG)
         fh.setFormatter(logging.Formatter(
-            fmt='%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+            fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
         fh.doRollover()
         log.addHandler(fh)
         ch = logging.StreamHandler()
