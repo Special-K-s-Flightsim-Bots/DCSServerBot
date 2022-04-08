@@ -332,6 +332,7 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, mar
                 return marker - j * num - 1
             elif (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x39):
                 return (ord(react.emoji[0]) - 0x31) + j * num
+        return -1
     except asyncio.TimeoutError:
         if message:
             await message.delete()
