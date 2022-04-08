@@ -104,21 +104,14 @@ async def getLatestVersion(branch: str) -> Optional[str]:
 
 
 def match(name1: str, name2: str) -> int:
-    # TODO
-    def word_match(n1: str, n2: str) -> int:
-        if (len(n1) < 3 or len(n2) < 3) and n1 != n2:
-            return 0
-        words1 = n1.split()
-        w1 = 0
-        for i in range(0, len(words1)):
-            if words1[i] in n2:
-                w1 += len(words1[i])
-        words2 = n2.split()
-        w2 = 0
-        for i in range(0, len(words2)):
-            if words2[i] in n1:
-                w2 += len(words2[i])
-        return max(w1, w2)
+    def compare_words(n1: str, n2: str) -> int:
+        n1_words = n1.split()
+        n2_words = n2.split()
+        length = 0
+        for w in n1_words:
+            if w in n2_words:
+                length += len(w)
+        return length
 
     if name1 == name2:
         return len(name1)
@@ -130,37 +123,31 @@ def match(name1: str, name2: str) -> int:
     if len(n2) == 0:
         n2 = name2.casefold()
     # if the names are too short, return
-    if (len(n1) < 3 or len(n2) < 3) and (n1 != n2):
+    if (len(n1) <= 3 or len(n2) <= 3) and (n1 != n2):
         return 0
-    elif n1 in n2:
-        return len(n1)
-    elif n2 in n1:
-        return len(n2)
+    length = compare_words(n1, n2)
+    if length > 0:
+        return length
     # remove any special characters
     n1 = re.sub('[^a-zA-Z0-9 ]', '', n1).strip()
     n2 = re.sub('[^a-zA-Z0-9 ]', '', n2).strip()
     if (len(n1) == 0) or (len(n2) == 0):
         return 0
     # if the names are too short, return
-    if len(n1) < 3 or len(n2) < 3:
+    if len(n1) <= 3 or len(n2) <= 3:
         return 0
-    elif n1 in n2:
-        return len(n1)
-    elif n2 in n1:
-        return len(n2)
+    length = compare_words(n1, n2)
+    if length > 0:
+        return length
     # remove any numbers
     n1 = re.sub('[0-9 ]', '', n1).strip()
     n2 = re.sub('[0-9 ]', '', n2).strip()
     if (len(n1) == 0) or (len(n2) == 0):
         return 0
     # if the names are too short, return
-    if (len(n1) < 3 or len(n2) < 3) and (n1 != n2):
+    if (len(n1) <= 3 or len(n2) <= 3) and (n1 != n2):
         return 0
-    elif n1 in n2:
-        return len(n1)
-    elif n2 in n1:
-        return len(n2)
-    return 0
+    return compare_words(n1, n2)
 
 
 def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Optional[discord.Member]:
@@ -173,6 +160,9 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Option
                 return member
         # we could not find the user, so try to match them
         dcs_name = re.sub(tag_filter, '', data['name']).strip() if tag_filter else data['name']
+        # we do not match the default names
+        if dcs_name in ['Player', 'Spieler', 'Jugador', 'Joueur']:
+            return
         max_weight = 0
         best_fit = None
         for member in self.bot.get_all_members():
@@ -342,6 +332,7 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, mar
                 return marker - j * num - 1
             elif (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x39):
                 return (ord(react.emoji[0]) - 0x31) + j * num
+        return -1
     except asyncio.TimeoutError:
         if message:
             await message.delete()
@@ -533,9 +524,15 @@ def is_populated(self, server: dict) -> bool:
     return len(players[players['active'] == True]) > 0
 
 
-def sanitize(self):
+def sanitize(self) -> None:
     # Sanitizing MissionScripting.lua
     filename = os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\Scripts\MissionScripting.lua'
+    backup = filename.replace('.lua', '.bak')
+    if os.path.exists('./config/MissionScripting.lua'):
+        self.log.info('- Sanitizing MissionScripting')
+        shutil.copyfile(filename, backup)
+        shutil.copyfile('./config/MissionScripting.lua', filename)
+        return
     try:
         with open(filename, 'r') as infile:
             orig = infile.readlines()
@@ -556,7 +553,6 @@ def sanitize(self):
             output.append(line)
         if dirty:
             self.log.info('- Sanitizing MissionScripting')
-            backup = filename.replace('.lua', '.bak')
             # backup original file
             shutil.copyfile(filename, backup)
             with open(filename, 'w') as outfile:

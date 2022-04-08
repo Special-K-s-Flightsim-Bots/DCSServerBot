@@ -101,21 +101,19 @@ class Scheduler(Plugin):
         if 'schedule' in config:
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) and utils.is_populated(self, server) else 0
-            now = datetime.now() + timedelta(seconds=restart_in)
+            now = datetime.now()
             weekday = now.weekday()
             for period, daystate in config['schedule'].items():
-                if utils.is_in_timeframe(now, period):
-                    state = daystate[weekday]
-                    # check, if the server should be running
-                    if state.upper() == 'Y' and server['status'] in [Status.SHUTDOWN, Status.STOPPED]:
-                        return Status.RUNNING
-                    elif state.upper() == 'P' and server['status'] in [Status.RUNNING, Status.PAUSED]:
-                        if server['status'] == Status.RUNNING and utils.is_populated(self, server):
-                            return server['status']
-                        else:
-                            return Status.SHUTDOWN
-                    elif state.upper() == 'N' and server['status'] != Status.SHUTDOWN:
-                        return Status.SHUTDOWN
+                state = daystate[weekday]
+                # check, if the server should be running
+                if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server['status'] in [Status.SHUTDOWN, Status.STOPPED]:
+                    return Status.RUNNING
+                elif utils.is_in_timeframe(now, period) and state.upper() == 'P' and server['status'] in [Status.RUNNING, Status.PAUSED] and not utils.is_populated(self, server):
+                    return Status.SHUTDOWN
+                elif utils.is_in_timeframe(now + timedelta(seconds=restart_in), period) and state.upper() == 'N' and server['status'] == Status.RUNNING:
+                    return Status.SHUTDOWN
+                elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and server['status'] == Status.PAUSED:
+                    return Status.SHUTDOWN
         return server['status']
 
     def launch_extensions(self, server: dict, config: dict):
