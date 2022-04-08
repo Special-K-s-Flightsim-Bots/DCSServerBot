@@ -183,10 +183,16 @@ function dcsbot.eventHandler:onEvent(event)
 		end
 		if event.weapon_name then
 			msg.weapon = {}
-			msg.weapon.name = event.weapon_name
+			msg.weapon.name = event.weapon_name or 'Gun'
+			if msg.weapon.name == '' then
+			    msg.weapon.name = 'Gun'
+			end
 		elseif event.weapon then
 			msg.weapon = {}
-			msg.weapon.name = event.weapon:getTypeName() or 'Bullet'
+			msg.weapon.name = event.weapon:getTypeName() or 'Gun'
+			if msg.weapon.name == '' then
+			    msg.weapon.name = 'Gun'
+			end
 		end
 		if event.comment then
 			msg.comment = event.comment

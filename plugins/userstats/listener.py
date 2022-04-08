@@ -251,7 +251,7 @@ class UserStatisticsEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    async def onGameEvent(self, data):
+    async def onGameEvent(self, data: dict) -> None:
         mission_id = self.globals[data['server_name']]['mission_id']
         # ignore game events until the server is not initialized correctly
         if data['server_name'] not in self.bot.player_data:
@@ -259,6 +259,9 @@ class UserStatisticsEventListener(EventListener):
         if data['eventName'] == 'disconnect':
             if data['arg1'] != 1:
                 player = utils.get_player(self, data['server_name'], id=data['arg1'])
+                if not player:
+                    self.log.warning(f"Player id={data['arg1']} not found. Can't close their statistics.")
+                    return
                 conn = self.pool.getconn()
                 try:
                     with closing(conn.cursor()) as cursor:
