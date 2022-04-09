@@ -105,12 +105,21 @@ async def getLatestVersion(branch: str) -> Optional[str]:
 
 def match(name1: str, name2: str) -> int:
     def compare_words(n1: str, n2: str) -> int:
+        n1 = re.sub('|', '', n1)
+        n1 = re.sub('[._]', ' ', n1)
+        n2 = re.sub('|', '', n2)
+        n2 = re.sub('[._]', ' ', n2)
         n1_words = n1.split()
         n2_words = n2.split()
         length = 0
         for w in n1_words:
-            if len(w) > 3 and w in n2_words:
-                length += len(w)
+            if w in n2_words:
+                if len(w) > 3 or length > 0:
+                    length += len(w)
+            elif len(w) > 4:
+                for w2 in n2_words:
+                    if w in w2:
+                        length += len(w)
         return length
 
     if name1 == name2:
@@ -125,7 +134,7 @@ def match(name1: str, name2: str) -> int:
     # if the names are too short, return
     if (len(n1) <= 3 or len(n2) <= 3) and (n1 != n2):
         return 0
-    length = compare_words(n1, n2)
+    length = max(compare_words(n1, n2), compare_words(n2, n1))
     if length > 0:
         return length
     # remove any special characters
@@ -136,7 +145,7 @@ def match(name1: str, name2: str) -> int:
     # if the names are too short, return
     if len(n1) <= 3 or len(n2) <= 3:
         return 0
-    length = compare_words(n1, n2)
+    length = max(compare_words(n1, n2), compare_words(n2, n1))
     if length > 0:
         return length
     # remove any numbers
@@ -147,7 +156,7 @@ def match(name1: str, name2: str) -> int:
     # if the names are too short, return
     if (len(n1) <= 3 or len(n2) <= 3) and (n1 != n2):
         return 0
-    return compare_words(n1, n2)
+    return max(compare_words(n1, n2), compare_words(n2, n1))
 
 
 def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Optional[discord.Member]:
