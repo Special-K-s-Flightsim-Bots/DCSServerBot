@@ -302,6 +302,7 @@ class UserStatisticsMaster(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def linkcheck(self, ctx):
+        await ctx.send('Please wait, this might take a bit ...')
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -313,7 +314,7 @@ class UserStatisticsMaster(Plugin):
                     if matched_member:
                         unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
                 if len(unmatched) == 0:
-                    await ctx.send('No unmatched member could be auto-matched.')
+                    await ctx.send('No unmatched member could be matched.')
                     return
                 n = await utils.selection_list(self, ctx, unmatched, self.format_unmatched)
                 if n != -1:
@@ -346,6 +347,7 @@ class UserStatisticsMaster(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def mislinks(self, ctx):
+        await ctx.send('Please wait, this might take a bit ...')
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
