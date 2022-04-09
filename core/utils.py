@@ -111,7 +111,7 @@ def match(name1: str, name2: str) -> int:
         for w in n1_words:
             if w in n2_words:
                 length += len(w)
-        return length
+        return length if length > 3 else 0
 
     if name1 == name2:
         return len(name1)
