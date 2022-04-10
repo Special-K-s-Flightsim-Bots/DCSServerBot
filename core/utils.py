@@ -66,6 +66,8 @@ def changeServerSettings(server_name, name: str, value: Union[str, int, bool]):
     for line in inlines:
         if '["{}"]'.format(name) in line:
             outlines.append(re.sub(' = ([^,]*)', ' = {}'.format(value), line))
+            if line.startswith('cfg'):
+                outlines.append('\n')
         else:
             outlines.append(line)
     with open(tmp_settings, 'w', encoding='utf8') as outfile:
