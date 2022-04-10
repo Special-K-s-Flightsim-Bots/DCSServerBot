@@ -70,7 +70,7 @@ class PunishmentEventListener(EventListener):
                 initiator = utils.get_player(self, data['server_name'], name=data['initiator'])
                 # check if there is an exemption for this user
                 if 'exemptions' in config:
-                    user = utils.match_user(self, initiator)
+                    user = utils.get_member_by_ucid(self, initiator['ucid'])
                     roles = [x.name for x in user.roles] if user else []
                     for e in config['exemptions']:
                         if ('ucid' in e and e['ucid'] == initiator['ucid']) or ('discord' in e and e['discord'] in roles):

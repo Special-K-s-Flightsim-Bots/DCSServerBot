@@ -108,9 +108,9 @@ async def getLatestVersion(branch: str) -> Optional[str]:
 def match(name1: str, name2: str) -> int:
     def compare_words(n1: str, n2: str) -> int:
         n1 = re.sub('|', '', n1)
-        n1 = re.sub('[._]', ' ', n1)
+        n1 = re.sub('[._-]', ' ', n1)
         n2 = re.sub('|', '', n2)
-        n2 = re.sub('[._]', ' ', n2)
+        n2 = re.sub('[._-]', ' ', n2)
         n1_words = n1.split()
         n2_words = n2.split()
         length = 0
@@ -169,9 +169,10 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Option
         dcs_name = re.sub(tag_filter, '', data['name']).strip() if tag_filter else data['name']
         # we do not match the default names
         if dcs_name in ['Player', 'Spieler', 'Jugador', 'Joueur']:
-            return
-        max_weight = 0
-        best_fit = None
+            return None
+        # a minimum of 3 characters have to match
+        max_weight = 3
+        best_fit = []
         for member in self.bot.get_all_members():
             name = re.sub(tag_filter, '', member.name).strip() if tag_filter else member.name
             if member.nick:
@@ -181,8 +182,26 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Option
                 weight = match(dcs_name, name)
             if weight > max_weight:
                 max_weight = weight
-                best_fit = member
-        return best_fit
+                best_fit = [member]
+            elif weight == max_weight:
+                best_fit.append(member)
+        if len(best_fit) == 1:
+            return best_fit[0]
+        # ambiguous matches
+        elif len(best_fit) > 1 and not rematch:
+            online_match = []
+            gaming_match = []
+            # check for online users
+            for m in best_fit:
+                if m.status != discord.Status.offline:
+                    online_match.append(m)
+                    if isinstance(m.activiy, discord.Game) and 'DCS' in m.activity.name:
+                        gaming_match.append(m)
+            if len(gaming_match) == 1:
+                return gaming_match[0]
+            elif len(online_match) == 1:
+                return online_match[0]
+        return None
     # try to match a Discord member with a DCS user that played on the servers
     else:
         max_weight = 0

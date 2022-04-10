@@ -124,7 +124,7 @@ class SlotBlockingListener(EventListener):
                 self.pool.putconn(conn)
             player = self.get_player_points(data['server_name'], data['id'])
             points = player['points'] if player else 0
-            user = utils.match_user(self, data)
+            user = utils.get_member_by_ucid(self, player['ucid'])
             roles = [x.name for x in user.roles] if user else []
             self.bot.sendtoDCS(self.globals[data['server_name']],
                                {
