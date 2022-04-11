@@ -17,3 +17,12 @@ This plugin supports administrative commands that are needed to operate a DCS se
 | .bans     |                          | all           | DCS Admin | Lists the current active bans.                                                                                           |
 | .dcslog   |                          | admin-channel | DCS Admin | Send the current dcs.log as a DM (zipped, if > 8 MB).                                                                    |
 | .botlog   |                          | all           | DCS Admin | Send the current dcsserverbot.log as a DM (zipped, if > 8 MB).                                                           |
+
+## Tables
+### Bans
+| Column    | Type                             | Description                                          |
+|-----------|----------------------------------|------------------------------------------------------|
+| #ucid     | TEXT NOT NULL                    | Unique ID of this player. FK to the players table.   |
+| banned_by | TEXT NOT NULL                    | User name that banned or DCSServerBot for auto bans. |
+| reason    | TEXT                             | Reason for the ban.                                  |
+| banned_at | TIMESTAMP NOT NULL DEFAULT NOW() | When was that user banned.                           |
