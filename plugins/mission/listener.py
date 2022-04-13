@@ -175,7 +175,7 @@ class MissionEventListener(EventListener):
         self.updatePlayer(data)
 
     async def onPlayerStart(self, data: dict) -> None:
-        if data['id'] == 1:
+        if data['id'] == 1 or 'ucid' not in data:
             return
         self.updatePlayer(data)
         await self.displayMissionEmbed(data)

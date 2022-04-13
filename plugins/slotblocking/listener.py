@@ -107,7 +107,7 @@ class SlotBlockingListener(EventListener):
     async def onPlayerStart(self, data: dict) -> None:
         server = self.globals[data['server_name']]
         if self.plugin in server:
-            if data['id'] == 1:
+            if data['id'] == 1 or 'ucid' not in data:
                 return
             conn = self.pool.getconn()
             try:
