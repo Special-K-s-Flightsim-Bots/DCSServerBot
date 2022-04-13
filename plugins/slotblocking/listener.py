@@ -107,7 +107,7 @@ class SlotBlockingListener(EventListener):
     async def onPlayerStart(self, data: dict) -> None:
         server = self.globals[data['server_name']]
         if self.plugin in server:
-            if data['id'] == 1:
+            if data['id'] == 1 or 'ucid' not in data:
                 return
             conn = self.pool.getconn()
             try:
@@ -124,7 +124,7 @@ class SlotBlockingListener(EventListener):
                 self.pool.putconn(conn)
             player = self.get_player_points(data['server_name'], data['id'])
             points = player['points'] if player else 0
-            user = utils.match_user(self, data)
+            user = utils.get_member_by_ucid(self, player['ucid'])
             roles = [x.name for x in user.roles] if user else []
             self.bot.sendtoDCS(self.globals[data['server_name']],
                                {

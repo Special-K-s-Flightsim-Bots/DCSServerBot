@@ -72,7 +72,7 @@ class UserStatisticsMaster(Plugin):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (member.id, ucid))
+                cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
                 conn.commit()
                 await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
                 await self.bot.audit(f'User {ctx.message.author.display_name} linked member {member.display_name} to ucid {ucid}.')
@@ -90,7 +90,7 @@ class UserStatisticsMaster(Plugin):
         try:
             with closing(conn.cursor()) as cursor:
                 if isinstance(member, discord.Member):
-                    cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s', (member.id, ))
+                    cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s', (member.id, ))
                     await ctx.send('Member {} unlinked.'.format(member.display_name))
                     await self.bot.audit(
                         f'User {ctx.message.author.display_name} unlinked member {member.display_name}.')
@@ -219,7 +219,7 @@ class UserStatisticsMaster(Plugin):
                         embed.add_field(name='▬' * 32, value='_ _', inline=False)
                     footer = '🔀 Unlink all DCS players from this user\n' if isinstance(member, discord.Member) else ''
                     footer += f'🔄 Relink ucid(s) to the correct user\n' if not match else ''
-                    footer += '⏏️ Kick this user from the current servers\n' if len(servers) > 0 else ''
+                    footer += '⏏️ Kick this user from the active server\n' if len(servers) > 0 else ''
                     footer += '✅ Unban this user\n' if banned else '⛔ Ban this user (DCS only)\n'
                     footer += '⏹️Cancel'
                     embed.set_footer(text=footer)
@@ -237,7 +237,7 @@ class UserStatisticsMaster(Plugin):
                         await self.unlink(ctx, member)
                     elif react.emoji == '🔄':
                         for match in mismatched_members:
-                            cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (match['member'].id, match['ucid']))
+                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (match['member'].id, match['ucid']))
                             await self.bot.audit(f"User {ctx.message.author.display_name} has relinked DCS player {match['name']}(ucid={match['ucid']}) to member {match['member'].display_name}.")
                         await ctx.send(f"DCS player {match['name']} has been relinked to member {match['member'].display_name}.")
                     elif react.emoji == '⏏️':
@@ -318,7 +318,7 @@ class UserStatisticsMaster(Plugin):
                     return
                 n = await utils.selection_list(self, ctx, unmatched, self.format_unmatched)
                 if n != -1:
-                    cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s', (unmatched[n]['match'].id, unmatched[n]['ucid']))
+                    cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (unmatched[n]['match'].id, unmatched[n]['ucid']))
                     await self.bot.audit(f"User {ctx.message.author.display_name} linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.")
                     await ctx.send(f"DCS player {unmatched[n]['name']} linked to member {unmatched[n]['match'].display_name}.")
             conn.commit()
@@ -354,7 +354,7 @@ class UserStatisticsMaster(Plugin):
                 # check all matched members
                 suspicious = []
                 for member in self.bot.get_all_members():
-                    cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL ORDER BY last_seen DESC', (member.id, ))
+                    cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL AND manual = FALSE ORDER BY last_seen DESC', (member.id, ))
                     for row in cursor.fetchall():
                         matched_member = utils.match_user(self, dict(row), True)
                         if not matched_member:
@@ -366,8 +366,9 @@ class UserStatisticsMaster(Plugin):
                     return
                 n = await utils.selection_list(self, ctx, suspicious, self.format_suspicious)
                 if n != -1:
-                    cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
+                    cursor.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
                                    (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
+                                    'match' in suspicious[n],
                                     suspicious[n]['ucid']))
                     await self.bot.audit(f"User {ctx.message.author.display_name} unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.")
                     if 'match' in suspicious[n]:
@@ -406,7 +407,7 @@ class UserStatisticsMaster(Plugin):
                     elif not await utils.yn_question(self, ctx, 'You have a valid user mapping.\nDo you want to continue and re-link your user?'):
                         return
                     else:
-                        cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s', (ctx.message.author.id,))
+                        cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s', (ctx.message.author.id,))
                 # in the very unlikely event that we have generated the very same random number twice
                 while True:
                     try:
@@ -420,7 +421,7 @@ class UserStatisticsMaster(Plugin):
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             if isinstance(error, discord.Forbidden):
-                await ctx.send("Please allow me to send you the secret TOKEN in a DM!")
+                await ctx.send("Please allow me to send you the secret TOKEN in a DM!", delete_after=10)
             else:
                 self.log.exception(error)
             conn.rollback()

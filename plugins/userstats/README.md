@@ -33,3 +33,32 @@ Well, then - just disable them from inside your mission:
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
   dcsbot.disableUserStats()
 ```
+
+## Tables
+### Statistics
+| Column             | Type               | Description                                                                                                                   |
+|--------------------|--------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| #mission_id        | INTEGER NOT NULL   | Unique ID of this mission. FK to the missions table.                                                                          |
+| #player_ucid       | TEXT NOT NULL      | Unique ID of this player. FK to the players table.                                                                            |
+| #slot              | TEXT NOT NULL      | Unit type of this slot. Slots that end with "(Crew)" are sub slots in multicrew units.                                        |
+| kills              | INTEGER DEFAULT 0  | Total number of kills. Teamkills or selfkills are not counted.                                                                |
+| pvp                | INTEGER DEFAULT 0  | Number of pvp-only kills. A pvp kill is a human player kill of another coalition.                                             |
+| ejections          | INTEGER DEFAULT 0  | Increased when you eject. Will not be counted for multicrew atm, as there is a bug in DCS.                                    |
+| crashes            | INTEGER DEFAULT 0  | Increased when your plane crashes.                                                                                            |
+| teamkills          | INTEGER DEFAULT 0  | Number of FF incidents, either against players or AI.                                                                         |
+| kills_planes       | INTEGER DEFAULT 0  | Increased on every kill of unit-type Airplane.                                                                                |
+| kills_helicopters  | INTEGER DEFAULT 0  | Increased on every kill of unit-type Helicopter.                                                                              |
+| kills_ships        | INTEGER DEFAULT 0  | Increased on every kill of unit-type Ship.                                                                                    |
+| kills_sams         | INTEGER DEFAULT 0  | Increased on every kill of unit-type Air Defence.                                                                             |
+| kills_ground       | INTEGER DEFAULT 0  | Increased on every kill of unit-type Ground Unit.                                                                             |
+| deaths             | INTEGER DEFAULT 0  | Increased when the pilot dies. If you manage to eject and land safely, no death is counted.<br/>Teamkills don't count deaths. |
+| deaths_pvp         | INTEGER DEFAULT 0  | Increased, when you die in a PVP fight (no FF).                                                                               |
+| deaths_planes      | INTEGER DEFAULT 0  | Increased, when you got killed by a plane.                                                                                    |
+| deaths_helicopters | INTEGER DEFAULT 0  | Increased, when you got killed by a helicopter.                                                                               |
+| deaths_shops       | INTEGER DEFAULT 0  | Increased, when you got killed by a ship.                                                                                     |
+| deaths_sams        | INTEGER DEFAULT 0  | Increased, when you got killed by AA.                                                                                         |
+| death_ground       | INTEGER DEFAULT 0  | Increased, when you got killed by a ground unit.                                                                              |
+| takeoffs           | INTEGER DEFAULT 0  | Number of takeoffs. Subsequent takeoffs inbetween one minute are counted as one takeoff (workaround DCS bug).                 |
+| landings           | INTEGER DEFAULT 0  | Number of landings. Subsequent landings inbetween one minute are counted as one landing (workaround DCS bug).                 |
+| #hop_on            | TIMESTAMP NOT NULL | Time the player occupied this unit.                                                                                           |
+| hop_off            | TIMESTAMP          | Time, the player left this unit or the server.                                                                                |

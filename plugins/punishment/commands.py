@@ -53,6 +53,16 @@ class PunishmentAgent(Plugin):
                                                 "ucid": row['init_id'],
                                                 "reason": reason
                                             })
+                                        cursor.execute('SELECT discord_id, name FROM players WHERE ucid = %s AND ucid '
+                                                       'NOT IN (SELECT ucid FROM bans)', (row['init_id'], ))
+                                        if cursor.rowcount == 1:
+                                            banned = cursor.fetchone()
+                                            await self.bot.audit(f"Player {banned['name']}(ucid={row['init_id']}) banned by {self.bot.member.name} for {reason}.")
+                                            guild = self.bot.guilds[0]
+                                            member = await guild.fetch_member(banned['discord_id'])
+                                            channel = await member.create_dm()
+                                            await channel.send(f"You have been banned from the DCS servers on {guild.name} for {reason}.\n"
+                                                               f"To retrieve your current points, check out the {self.config['BOT']['COMMAND_PREFIX']}penalty command.")
                                     # all other punishments only happen if the player is still in the server
                                     elif player:
                                         if punishment['action'] == 'kick':
@@ -196,6 +206,42 @@ class PunishmentMaster(PunishmentAgent):
                 self.log.exception(error)
             finally:
                 self.pool.putconn(conn)
+
+    @commands.command(description='Show the current penalty points for a user')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def penalty(self, ctx):
+        await ctx.message.delete()
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("SELECT init_id, COALESCE(SUM(points), 0) FROM pu_events WHERE init_id IN (SELECT ucid "
+                               "FROM players WHERE discord_id = %s) GROUP BY init_id ORDER BY 2 DESC",
+                               (ctx.message.author.id, ))
+                if cursor.rowcount == 0:
+                    await ctx.send('You currently have 0 penalty points.')
+                    return
+                embed = discord.Embed(title='Penalty Points', color=discord.Color.blue())
+                embed.description = 'You currently have these penalty points:'
+                ucids = points = ''
+                for row in cursor.fetchall():
+                    ucids += row[0] + '\n'
+                    points += str(row[1]) + '\n'
+                embed.add_field(name='UCID', value=ucids)
+                embed.add_field(name='Points', value=points)
+                cursor.execute("SELECT COUNT(*) FROM bans b, players p WHERE p.discord_id = %s AND b.ucid = p.ucid",
+                               (ctx.message.author.id, ))
+                if cursor.fetchone()[0] > 0:
+                    unban = self.read_unban_config()
+                    if unban:
+                        embed.set_footer(text=f"You are currently banned.\nAutomatic unban will happen, if your "
+                                              f"points decayed below {unban}.")
+                timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+                await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
 
 
 def setup(bot: DCSServerBot):

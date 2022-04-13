@@ -15,3 +15,24 @@ The mission plugin adds commands for amending the mission list, scheduled restar
 | .unpause                     |                          | admin-channel               | DCS Admin | Resumes the current running mission.                                                                                                                                                                                                                 |
 | .briefing/.brief             |                          | status-/chat-/admin-channel | DCS       | Shows the description / briefing of the running mission.                                                                                                                                                                                             |
 | .atis/.airport/.airfield/.ap | Airport Name             | all                         | DCS       | Information about a specific airport in this mission (incl. weather).                                                                                                                                                                                |
+
+## Tables
+### Players
+| Column     | Type                  | Description                                              |
+|------------|-----------------------|----------------------------------------------------------|
+| #ucid      | TEXT                  | Unique ID of this user (DCS ID).                         |
+| discord_id | BIGINT                | Discord ID of this user (if matched) or -1 otherwise.    |
+| name       | TEXT                  | Last used DCS ingame-name of this user.                  |
+| ipaddr     | TEXT                  | Last used IP-address of this user.                       |
+| manual     | BOOLEAN DEFAULT FALSE | True if this user was manually matched, FALSE otherwise. |
+| last_seen  | TIMESTAMP             | Time the user was last seen on the DCS servers.          |
+
+### Missions
+| Column          | Type               | Description                                     |
+|-----------------|--------------------|-------------------------------------------------|
+| #id             | SERIAL             | Auto-incrementing unique mission ID.            |
+| server_name     | TEXT NOT NULL      | The name of the DCS server this mission was on. |
+| mission_name    | TEXT NOT NULL      | The name of the mission.                        |
+| mission_theatre | TEXT NOT NULL      | The map being used by the mission.              |
+| mission_start   | TIMESTAMP NOT NULL | When was this mission started.                  |
+| mission_end     | TIMESTAMP          | When was this mission stopped.                  |
