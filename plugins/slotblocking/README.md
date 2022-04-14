@@ -47,11 +47,12 @@ So this list will be evaluated **exactly in the order the items are listed** and
 
 To enable the points system, you need to start a "Campaign" on the specific server. To handle campaigns, you have the following commands:
 
-| Command        | Parameter | Role      | Description                                                                                     |
-|----------------|-----------|-----------|-------------------------------------------------------------------------------------------------|
-| .campaign      | start     | DCS Admin | Starts a new campaign. All previous campaigns will be closed and their points will get deleted. |
-| .campaign      | stop      | DCS Admin | Stops the current campaign. All points for this campaign will get deleted.                      |
-| .campaign      | reset     | DCS Admin | Deletes all points for the running campaign on this server.                                     |
+| Command   | Parameter | Role      | Description                                                                                     |
+|-----------|-----------|-----------|-------------------------------------------------------------------------------------------------|
+| .campaign | start     | DCS Admin | Starts a new campaign. All previous campaigns will be closed and their points will get deleted. |
+| .campaign | stop      | DCS Admin | Stops the current campaign. All points for this campaign will get deleted.                      |
+| .campaign | reset     | DCS Admin | Deletes all points for the running campaign on this server.                                     |
+| .credits  |           | DCS       | Displays the players campaign credits.                                                          |
 
 ## Usage inside of Missions (Scripting API)
 You can enable, disable and reset the plugin base slot blocking system (aka campaigns) inside of missions, too. 

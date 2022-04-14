@@ -1,3 +1,4 @@
+import discord
 import psycopg2
 from contextlib import closing
 from core import DCSServerBot, Plugin, utils, PluginRequiredError
@@ -6,7 +7,7 @@ from typing import Optional
 from .listener import SlotBlockingListener
 
 
-class SlotBlocking(Plugin):
+class SlotBlockingAgent(Plugin):
 
     def rename(self, old_name: str, new_name: str):
         conn = self.pool.getconn()
@@ -46,7 +47,46 @@ class SlotBlocking(Plugin):
                     return False
 
 
+class SlotBlockingMaster(SlotBlockingAgent):
+
+    @commands.command(description='Displays your current credits')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def credits(self, ctx):
+        await ctx.message.delete()
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute(f"SELECT trim(regexp_replace(c.server_name, '"
+                               f"{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')), p.name, COALESCE(SUM("
+                               f"s.points), 0) AS credits FROM sb_points s, players p, campaigns c WHERE "
+                               f"s.player_ucid = p.ucid AND p.discord_id = %s AND s.campaign_id = c.campaign_id GROUP "
+                               f"BY 1, 2", (ctx.message.author.id, ))
+                if cursor.rowcount == 0:
+                    await ctx.send('You currently have 0 campaign credits.')
+                    return
+                embed = discord.Embed(title='Campaign Credits', color=discord.Color.blue())
+                embed.description = 'You currently have these credits:'
+                servers = names = credits = ''
+                for row in cursor.fetchall():
+                    servers += row[0] + '\n'
+                    names += row[1] + '\n'
+                    credits += f"{row[2]:.2f}\n"
+                embed.add_field(name='Server', value=servers)
+                embed.add_field(name='DCS Name', value=names)
+                embed.add_field(name='Points', value=credits)
+                timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+                await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
+
 def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-    bot.add_cog(SlotBlocking(bot, SlotBlockingListener))
+    if bot.config.getboolean('BOT', 'MASTER') is True:
+        bot.add_cog(SlotBlockingMaster(bot, SlotBlockingListener))
+    else:
+        bot.add_cog(SlotBlockingAgent(bot, SlotBlockingListener))
