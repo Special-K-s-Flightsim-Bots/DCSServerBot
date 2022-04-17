@@ -159,7 +159,7 @@ class PunishmentMaster(PunishmentAgent):
             self.log.debug('Punishment - Running decay.')
             conn = self.pool.getconn()
             try:
-                with closing(conn.cursor()) as cursor:
+                with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                     for d in self.decay_config:
                         cursor.execute('UPDATE pu_events SET points = ROUND(points * %s, 2), decay_run = %s WHERE '
                                        'time < (NOW() - interval \'%s days\') AND decay_run < %s',
@@ -172,13 +172,13 @@ class PunishmentMaster(PunishmentAgent):
                             for server_name, server in self.globals.items():
                                 self.bot.sendtoDCS(server, {
                                     "command": "unban",
-                                    "ucid": row[0]
+                                    "ucid": row['ucid']
                                 })
-                            cursor.execute('DELETE FROM bans WHERE ucid = %s', (row[0], ))
-                            cursor.execute('SELECT discord_id, name FROM players WHERE ucid = %s', (row['init_id'],))
+                            cursor.execute('DELETE FROM bans WHERE ucid = %s', (row['ucid'], ))
+                            cursor.execute('SELECT discord_id, name FROM players WHERE ucid = %s', (row['ucid'],))
                             banned = cursor.fetchone()
                             await self.bot.audit(
-                                f"Player {banned['name']}(ucid={row['init_id']}) unbanned by {self.bot.member.name} due to decay.")
+                                f"Player {banned['name']}(ucid={row['ucid']}) unbanned by {self.bot.member.name} due to decay.")
                             with suppress(Exception):
                                 guild = self.bot.guilds[0]
                                 member = await guild.fetch_member(banned['discord_id'])
@@ -192,7 +192,7 @@ class PunishmentMaster(PunishmentAgent):
                 self.log.exception(error)
             finally:
                 self.pool.putconn(conn)
-
+                
     @commands.command(description='Set punishment to 0 for a user', usage='<member / ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
