@@ -208,7 +208,7 @@ itself after an update has taken place.
 The bot works best, if DCS users and Discord users are matched. See [README](./plugins/userstats/README.md) for details.
 
 ---
-## Coalitions (as of DCS 2.7.12, DCSServerBot 2.5.9)
+## Coalitions
 If you want to support Blue and Red coalitions in your Discord and your DCS servers, you're good to go! Just enable 
 _COALITIONS = true_ in your dcsserverbot.ini and make sure you've set up the coalition roles (see "Discord Configuration" 
 above).<br/>
