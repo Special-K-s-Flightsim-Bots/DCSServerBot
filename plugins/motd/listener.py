@@ -15,15 +15,15 @@ class MessageOfTheDayListener(EventListener):
                 else:
                     default = element
             if specific:
-                server[self.plugin] = specific
+                server[self.plugin_name] = specific
             elif default:
-                server[self.plugin] = default
+                server[self.plugin_name] = default
 
     async def onPlayerStart(self, data: dict) -> None:
         if data['id'] == 1:
             return
         server = self.globals[data['server_name']]
-        config = server[self.plugin] if self.plugin in server else None
+        config = server[self.plugin_name] if self.plugin_name in server else None
         if config and config['on_event'].lower() == 'join':
             player = utils.get_player(self, data['server_name'], id=data['id'])
             self.bot.sendtoDCS(server, {
@@ -34,7 +34,7 @@ class MessageOfTheDayListener(EventListener):
 
     async def onMissionEvent(self, data):
         server = self.globals[data['server_name']]
-        config = server[self.plugin] if self.plugin in server else None
+        config = server[self.plugin_name] if self.plugin_name in server else None
         if not config:
             return
         if config['on_event'].lower() == 'birth' and data['eventName'] == 'S_EVENT_BIRTH':
@@ -59,5 +59,5 @@ class MessageOfTheDayListener(EventListener):
                     "message": utils.format_string(config['message'], server=server,
                                                    player=player, data=data),
                     "time": display_time,
-                    "to": player['group_id']
+                    "to": player['slot']
                 })

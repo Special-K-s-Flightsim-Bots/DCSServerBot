@@ -66,6 +66,11 @@ class DCSServerBot(commands.Bot):
                     "status_channel": self.config[installation]['STATUS_CHANNEL'],
                     "admin_channel": self.config[installation]['ADMIN_CHANNEL']
                 }
+                # Coalition chat channels
+                if 'CHAT_CHANNEL_BLUE' in self.config[installation]:
+                    self.globals[server_name]['chat_channel_blue'] = self.config[installation]['CHAT_CHANNEL_BLUE']
+                if 'CHAT_CHANNEL_RED' in self.config[installation]:
+                    self.globals[server_name]['chat_channel_red'] = self.config[installation]['CHAT_CHANNEL_RED']
                 # TODO: can be removed if bug in net.load_next_mission() is fixed
                 utils.changeServerSettings(server_name, 'listLoop', True)
 
@@ -160,7 +165,7 @@ class DCSServerBot(commands.Bot):
         elif isinstance(err, commands.MissingRequiredArgument):
             await ctx.send('Parameter missing. Try !help')
         elif isinstance(err, commands.errors.CheckFailure):
-            await ctx.send('You don\'t have the rights to use that command.')
+            await ctx.send('Your role does not allow you to use this command (in this channel).')
         elif isinstance(err, asyncio.TimeoutError):
             await ctx.send('A timeout occured. Is the DCS server running?')
         else:

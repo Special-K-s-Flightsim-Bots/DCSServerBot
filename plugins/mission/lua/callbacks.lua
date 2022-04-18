@@ -238,28 +238,39 @@ end
 
 function mission.onPlayerTrySendChat(from, message, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTrySendChat()')
+    local msg = {}
     if string.sub(message, 1, 1) == '-' then
-        local msg = {}
         msg.command = 'onChatCommand'
-        msg.message = message
+        local elements = utils.split(message, ' ')
+        msg.subcommand = string.sub(elements[1], 2)
+        msg.params = { unpack(elements, 2) }
         msg.from_id = net.get_player_info(from, 'id')
         msg.from_name = net.get_player_info(from, 'name')
         msg.to = to
         utils.sendBotTable(msg)
         return ''
+    else
+        msg.command = 'onChatMessage'
+        msg.message = message
+        msg.from_id = net.get_player_info(from, 'id')
+        msg.from_name = net.get_player_info(from, 'name')
+        msg.to = to
+        utils.sendBotTable(msg)
     end
     return message
 end
 
 function mission.onChatMessage(message, from, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onChatMessage()')
-	local msg = {}
-	msg.command = 'onChatMessage'
-	msg.message = message
-	msg.from_id = net.get_player_info(from, 'id')
-	msg.from_name = net.get_player_info(from, 'name')
-    msg.to = to
-	utils.sendBotTable(msg, config.CHAT_CHANNEL)
+    if not from then
+        local msg = {}
+        msg.command = 'onChatMessage'
+        msg.message = message
+        msg.from_id = net.get_player_info(from, 'id')
+        msg.from_name = net.get_player_info(from, 'name')
+        msg.to = to
+        utils.sendBotTable(msg, config.CHAT_CHANNEL)
+    end
 end
 
 DCS.setUserCallbacks(mission)

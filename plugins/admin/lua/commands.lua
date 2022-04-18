@@ -244,3 +244,23 @@ function dcsbot.loadParams(json)
     dcsbot.params = dcsbot.params or {}
     dcsbot.params[json.plugin] = json.params
 end
+
+function dcsbot.setCoalitionPassword(json)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: setCoalitionPassword()')
+    settings = utils.loadSettingsRaw()
+    if json.bluePassword then
+        if json.bluePassword == '' then
+            settings['advanced']['bluePasswordHash'] = nil
+        else
+            settings['advanced']['bluePasswordHash'] = net.hash_password(json.bluePassword)
+        end
+    end
+    if json.redPassword then
+        if json.redPassword == '' then
+            settings['advanced']['redPasswordHash'] = nil
+        else
+            settings['advanced']['redPasswordHash'] = net.hash_password(json.redPassword)
+        end
+    end
+    utils.saveSettings(settings)
+end

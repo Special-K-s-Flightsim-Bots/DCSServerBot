@@ -66,14 +66,14 @@ class Scheduler(Plugin):
         return locals
 
     def read_locals(self):
-        filename = f'./config/{self.plugin}.json'
+        filename = f'./config/{self.plugin_name}.json'
         if not path.exists(filename):
             return self.migrate(filename)
         else:
             return super().read_locals()
 
     def get_config(self, server: dict) -> Optional[dict]:
-        if self.plugin not in server:
+        if self.plugin_name not in server:
             if 'configs' in self.locals:
                 specific = default = None
                 for element in self.locals['configs']:
@@ -84,18 +84,18 @@ class Scheduler(Plugin):
                     else:
                         default = element
                 if default and not specific:
-                    server[self.plugin] = default
+                    server[self.plugin_name] = default
                 elif specific and not default:
-                    server[self.plugin] = specific
+                    server[self.plugin_name] = specific
                 elif default and specific:
                     merged = default.copy()
                     # specific settings will always overwrite default settings
                     for key, value in specific.items():
                         merged[key] = value
-                    server[self.plugin] = merged
+                    server[self.plugin_name] = merged
             else:
                 return None
-        return server[self.plugin] if self.plugin in server else None
+        return server[self.plugin_name] if self.plugin_name in server else None
 
     def check_server_state(self, server: dict, config: dict) -> Status:
         if 'schedule' in config:
@@ -119,11 +119,11 @@ class Scheduler(Plugin):
     def launch_extensions(self, server: dict, config: dict):
         for extension in config['extensions']:
             if extension == 'SRS' and not utils.check_srs(self, server):
-                self.log.info(f"  => Launching DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
+                self.log.info(f"  => Launching DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
                 utils.start_srs(self, server)
 
     def launch(self, server: dict, config: dict):
-        self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
+        self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
         utils.start_dcs(self, server)
         if 'extensions' in config:
             self.launch_extensions(server, config)
@@ -154,7 +154,7 @@ class Scheduler(Plugin):
     def shutdown_extensions(self, server: dict, config: dict):
         for extension in config['extensions']:
             if extension == 'SRS' and utils.check_srs(self, server):
-                self.log.info(f"  => Stopping DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
+                self.log.info(f"  => Stopping DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
                 utils.stop_srs(self, server)
 
     def shutdown(self, server: dict, config: dict):
@@ -166,10 +166,10 @@ class Scheduler(Plugin):
             restart_in = self.warn_users(server, config)
             if restart_in > 0:
                 self.log.info(f"  => DCS server \"{server['server_name']}\" will be stopped "
-                              f"by {string.capwords(self.plugin)} in {restart_in} seconds ...")
+                              f"by {string.capwords(self.plugin_name)} in {restart_in} seconds ...")
             else:
                 self.log.info(
-                    f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
+                    f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
             self.loop.call_later(restart_in, self.bot.sendtoBot,
                                  {"command": "onMissionEnd", "server_name": server['server_name']})
             self.loop.call_later(restart_in + 1, self.bot.sendtoBot,
@@ -190,7 +190,7 @@ class Scheduler(Plugin):
                 self.loop.call_later(restart_time, self.bot.sendtoBot,
                                      {"command": "onMissionEnd", "server_name": server['server_name']})
                 self.loop.call_later(restart_time, utils.stop_dcs, self, server)
-                self.loop.call_later(restart_time + 10, utils.start_dcs, self, server)
+                self.loop.call_later(restart_time + 30, utils.start_dcs, self, server)
             elif method == 'restart':
                 self.loop.call_later(restart_time, self.bot.sendtoBot,
                                      {"command": "onMissionEnd", "server_name": server['server_name']})
@@ -256,7 +256,7 @@ class Scheduler(Plugin):
             if 'maintenance' in server:
                 del server['maintenance']
                 await ctx.send(f"Maintenance mode cleared for server {server['server_name']}.\n"
-                               f"The {string.capwords(self.plugin)} will take over the state handling now.")
+                               f"The {string.capwords(self.plugin_name)} will take over the state handling now.")
             else:
                 await ctx.send(f"Server {server['server_name']} is not in maintenance mode.")
 

@@ -2,6 +2,7 @@ import asyncio
 import discord
 import os
 import platform
+import psutil
 import psycopg2
 import psycopg2.extras
 import re
@@ -10,7 +11,7 @@ from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, const
 from core.const import Status
 from discord.ext import commands, tasks
-from typing import Union, List
+from typing import Union, List, Optional
 from zipfile import ZipFile
 from .listener import AdminEventListener
 
@@ -84,11 +85,17 @@ class Agent(Plugin):
             elif server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
                 if await utils.yn_question(self, ctx, 'Do you want to shut down the '
                                                       'DCS server "{}"?'.format(server['server_name'])) is True:
-                    await ctx.send('Shutting down DCS server "{}" ...'.format(server['server_name']))
-                    utils.stop_dcs(self, server)
-                    server['status'] = Status.SHUTDOWN
                     # set maintenance flag to prevent auto-starts of this server
                     server['maintenance'] = True
+                    utils.stop_dcs(self, server)
+                    # wait for the server to shut down
+                    if 'PID' in server:
+                        while psutil.pid_exists(server['PID']):
+                            await asyncio.sleep(1)
+                        await ctx.send('DCS server "{}" shut down.'.format(server['server_name']))
+                    else:
+                        await ctx.send('Shutting down DCS server "{}" ...'.format(server['server_name']))
+                    server['status'] = Status.SHUTDOWN
                     await self.bot.audit(
                         f"User {ctx.message.author.display_name} shut DCS server \"{server['server_name']}\" down.")
             else:
@@ -130,8 +137,8 @@ class Agent(Plugin):
                                              'time': self.config['BOT']['MESSAGE_TIMEOUT']
                                          })
             self.loop.call_later(shutdown_in, utils.stop_dcs, self, server)
-        # give the DCS servers some time to shut down.
-        await asyncio.sleep(max(warntimes) + 10)
+            # give the DCS servers some time to shut down.
+            await asyncio.sleep(shutdown_in + 30)
         if ctx:
             await ctx.send('Updating DCS World. Please wait, this might take some time ...')
         else:
@@ -174,20 +181,59 @@ class Agent(Plugin):
         else:
             await ctx.send("Can't check the latest version on the DCS World website. Try again later.")
 
-    @commands.command(description='Change the password of a DCS server')
+    @commands.command(description='Change the password of a DCS server', aliases=['passwd'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def password(self, ctx):
+    async def password(self, ctx, coalition: Optional[str] = None):
         server = await utils.get_server(self, ctx)
         if server:
-            if server['status'] == Status.SHUTDOWN:
-                password = await utils.input_value(self, ctx, 'Please enter the new password (. for none):', True)
-                utils.changeServerSettings(server['server_name'], 'password', password)
-                await ctx.send('Password has been changed.')
-                await self.bot.audit(f"User {ctx.message.author.display_name} changed the password "
-                                     f"of server \"{server['server_name']}\".")
+            if not coalition:
+                if server['status'] == Status.SHUTDOWN:
+                    password = await utils.input_value(self, ctx, 'Please enter the new password (. for none):', True)
+                    utils.changeServerSettings(server['server_name'], 'password', password)
+                    await self.bot.audit(f"User {ctx.message.author.display_name} changed the password "
+                                         f"of server \"{server['server_name']}\".")
+                    await ctx.send('Password has been changed.')
+                else:
+                    await ctx.send(f"Server \"{server['server_name']}\" has to be shut down to change the password.")
+            elif coalition.casefold() in ['red', 'blue']:
+                if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                    password = await utils.input_value(self, ctx, 'Please enter the new password (. for none):', True)
+                    self.bot.sendtoDCS(server, {
+                        "command": "setCoalitionPassword",
+                        ("redPassword" if coalition.casefold() == 'red' else "bluePassword"): password or ''
+                    })
+                    conn = self.pool.getconn()
+                    try:
+                        with closing(conn.cursor()) as cursor:
+                            cursor.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format('blue_password' if coalition.casefold() == 'blue' else 'red_password'), (password, server['server_name']))
+                            conn.commit()
+                    except (Exception, psycopg2.DatabaseError) as error:
+                        self.log.exception(error)
+                        conn.rollback()
+                    finally:
+                        self.pool.putconn(conn)
+                    await self.bot.audit(f"User {ctx.message.author.display_name} changed the password "
+                                         f"for coalition {coalition} of server \"{server['server_name']}\".")
+                    if await utils.yn_question(self, ctx, "Password has been changed.\nDo you want the servers to be "
+                                                          "restarted for the change to take effect?") is True:
+                        flag = server['maintenance'] if 'maintenance' in server else None
+                        server['maintenance'] = True
+                        utils.stop_dcs(self, server)
+                        if 'PID' in server:
+                            while psutil.pid_exists(server['PID']):
+                                await asyncio.sleep(1)
+                        else:
+                            await asyncio.sleep(30)
+                        utils.start_dcs(self, server)
+                        if flag:
+                            server['maintenance'] = flag
+                        else:
+                            del server['maintenance']
+                else:
+                    await ctx.send(f"Server \"{server['server_name']}\" must be running to change coalition passwords.")
             else:
-                await ctx.send('Server "{}" has to be shut down to change the password.'.format(server['server_name']))
+                await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}password [red|blue]")
 
     @commands.command(description='Kick a user by name', usage='<name>')
     @utils.has_role('DCS Admin')
@@ -477,6 +523,7 @@ class Master(Agent):
                     self.bot.log.debug(f'- Auto-ban member {member.display_name} on the DCS servers')
                     cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                    'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
+                    self.eventlistener.updateBans()
                 self.bot.log.debug(f'- Delete stats of member {member.display_name}')
                 cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
                                'discord_id = %s)', (member.id, ))
@@ -496,6 +543,7 @@ class Master(Agent):
                 self.bot.log.debug(f'- Ban member {member.display_name} on the DCS servers.')
                 cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
+                self.eventlistener.updateBans()
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -505,22 +553,22 @@ class Master(Agent):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                # auto-unban them if they were auto-banned
-                if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
-                    self.bot.log.debug('Member {} has joined guild {} - remove possible '
-                                       'bans from DCS servers.'.format(member.display_name, member.guild.name))
+        self.bot.log.debug('Member {} has joined guild {}'.format(member.display_name, member.guild.name))
+        if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
+            self.bot.log.debug('Remove possible bans from DCS servers.')
+            conn = self.bot.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    # auto-unban them if they were auto-banned
                     cursor.execute('DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE '
                                    'discord_id = %s)', (member.id, ))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
-        self.eventlistener.updateBans()
+                    self.eventlistener.updateBans()
+                    conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.bot.log.exception(error)
+                conn.rollback()
+            finally:
+                self.bot.pool.putconn(conn)
 
 
 def setup(bot: DCSServerBot):

@@ -51,7 +51,7 @@ class UserStatisticsMaster(Plugin):
                 return
             period = params[i] if i < num else None
         await ctx.message.delete()
-        report = PaginationReport(self.bot, ctx, self.plugin, 'userstats.json', timeout if timeout > 0 else None)
+        report = PaginationReport(self.bot, ctx, self.plugin_name, 'userstats.json', timeout if timeout > 0 else None)
         await report.render(member=member,
                             member_name=member.display_name if isinstance(member, discord.Member) else name,
                             period=period, server_name=None)
@@ -62,7 +62,7 @@ class UserStatisticsMaster(Plugin):
     async def highscore(self, ctx, period: Optional[str], server_name: Optional[str]):
         await ctx.message.delete()
         timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-        report = PaginationReport(self.bot, ctx, self.plugin, 'highscore.json', timeout if timeout > 0 else None)
+        report = PaginationReport(self.bot, ctx, self.plugin_name, 'highscore.json', timeout if timeout > 0 else None)
         await report.render(period=period, server_name=server_name)
 
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')

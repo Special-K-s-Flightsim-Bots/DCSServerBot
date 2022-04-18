@@ -91,7 +91,7 @@ class MissionEventListener(EventListener):
         server = self.globals[data['server_name']]
         players = self.bot.player_data[data['server_name']]
         num_players = len(players[players['active'] == True]) + 1
-        report = PersistentReport(self.bot, self.plugin, 'serverStatus.json', server, 'mission_embed')
+        report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', server, 'mission_embed')
         return await report.render(server=server, num_players=num_players)
 
     # Display the list of active players

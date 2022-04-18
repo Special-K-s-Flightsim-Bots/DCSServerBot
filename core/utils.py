@@ -396,6 +396,38 @@ async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]
     return None
 
 
+def has_roles(roles: list[str]):
+    def predicate(ctx):
+        valid_roles = []
+        for role in roles:
+            if 'ROLES' not in config or role not in config['ROLES']:
+                valid_roles.append(role)
+            else:
+                valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
+        for role in ctx.author.roles:
+            if role.name in valid_roles:
+                return True
+        return False
+
+    return commands.check(predicate)
+
+
+def has_not_roles(roles: list[str]):
+    def predicate(ctx):
+        valid_roles = []
+        for role in roles:
+            if 'ROLES' not in config or role not in config['ROLES']:
+                valid_roles.append(role)
+            else:
+                valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
+        for role in ctx.author.roles:
+            if role.name in valid_roles:
+                return False
+        return True
+
+    return commands.check(predicate)
+
+
 def has_role(item: str):
     def predicate(ctx):
         if 'ROLES' not in config or item not in config['ROLES']:
@@ -407,6 +439,30 @@ def has_role(item: str):
                 return True
         return False
 
+    return commands.check(predicate)
+
+
+def has_not_role(item: str):
+    def predicate(ctx):
+        if 'ROLES' not in config or item not in config['ROLES']:
+            valid_roles = [item]
+        else:
+            valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
+        for role in ctx.author.roles:
+            if role.name in valid_roles:
+                return False
+        return True
+
+    return commands.check(predicate)
+
+
+def coalition_only():
+    def predicate(ctx):
+        for role in ctx.message.author.roles:
+            if role.name in [config['ROLES']['Coalition Blue'], config['ROLES']['Coalition Red']]:
+                if ctx.message.channel.overwrites_for(role).send_messages:
+                    return True
+        return False
     return commands.check(predicate)
 
 

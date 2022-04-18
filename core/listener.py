@@ -1,13 +1,12 @@
 # listener.py
-import asyncio
 from typing import List, Union, TypeVar, Any
 
 
 class EventListener:
 
     def __init__(self, plugin):
-        self._plugin = plugin
-        self.plugin = type(self).__module__.split('.')[-2]
+        self.plugin = plugin
+        self.plugin_name = type(self).__module__.split('.')[-2]
         self.bot = plugin.bot
         self.log = plugin.log
         self.pool = plugin.pool

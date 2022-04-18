@@ -18,14 +18,16 @@ The mission plugin adds commands for amending the mission list, scheduled restar
 
 ## Tables
 ### Players
-| Column     | Type                  | Description                                              |
-|------------|-----------------------|----------------------------------------------------------|
-| #ucid      | TEXT                  | Unique ID of this user (DCS ID).                         |
-| discord_id | BIGINT                | Discord ID of this user (if matched) or -1 otherwise.    |
-| name       | TEXT                  | Last used DCS ingame-name of this user.                  |
-| ipaddr     | TEXT                  | Last used IP-address of this user.                       |
-| manual     | BOOLEAN DEFAULT FALSE | True if this user was manually matched, FALSE otherwise. |
-| last_seen  | TIMESTAMP             | Time the user was last seen on the DCS servers.          |
+| Column          | Type                  | Description                                              |
+|-----------------|-----------------------|----------------------------------------------------------|
+| #ucid           | TEXT                  | Unique ID of this user (DCS ID).                         |
+| discord_id      | BIGINT                | Discord ID of this user (if matched) or -1 otherwise.    |
+| name            | TEXT                  | Last used DCS ingame-name of this user.                  |
+| ipaddr          | TEXT                  | Last used IP-address of this user.                       |
+| manual          | BOOLEAN DEFAULT FALSE | True if this user was manually matched, FALSE otherwise. |
+ | coalition       | TEXT                  | The coalition the user belongs to.                       |
+| coalition_leave | TIMESTAMP             | The time that user last left their coalition.            |
+| last_seen       | TIMESTAMP             | Time the user was last seen on the DCS servers.          |
 
 ### Missions
 | Column          | Type               | Description                                     |

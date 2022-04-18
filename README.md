@@ -15,12 +15,12 @@ It comes with a rich set of default plugins but can be enhanced either by option
 ### General Administrative Commands
 These commands can be used to administrate the bot itself.
 
-| Command     | Parameter | Channel       | Role    | Description                                                                                                                                                    |
-|-------------|-----------|---------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| .reload     | [Plugin]  | all           | Admin   | Reloads one or all plugin(s) and their configurations from disk.                                                                                               |
-| .upgrade    |           | all           | Admin   | Upgrades the bot to the latest available version (git needed, see below).                                                                                      |
-| .rename     | newname   | admin-channel | Admin   | Renames a DCS server. DCSServerBot auto-detects server renaming, too.                                                                                          |
-| .unregister |           | admin-channel | Admin   | Unregisters the current server from this agent.<br/>Only needed, if the very same server is going to be started on another machine connected to another agent. |
+| Command     | Parameter | Channel       | Role    | Description                                                                                                                                                                                                               |
+|-------------|-----------|---------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| .reload     | [Plugin]  | all           | Admin   | Reloads one or all plugin(s) and their configurations from disk.                                                                                                                                                          |
+| .upgrade    |           | all           | Admin   | Upgrades the bot to the latest available version (git needed, see below).                                                                                                                                                 |
+| .rename     | newname   | admin-channel | Admin   | Renames a DCS server. DCSServerBot auto-detects server renaming, too.                                                                                                                                                     |
+| .unregister |           | admin-channel | Admin   | Unregisters the current server from this agent.<br/>Only needed, if the very same server is going to be started on another machine connected to another agent (see "Moving a Server from one Location to Another" below). |
 
 ### List of supported Plugins
 | Plugin       | Scope                                                               | Optional | Dependent on          | Documentation                              |
@@ -35,8 +35,8 @@ These commands can be used to administrate the bot itself.
 | Slotblocking | Slotblocking either based on units or a point based system.         | yes      | Mission               | [README](./plugins/slotblocking/README.md) |
 | Gamemaster   | Interaction with the running mission (inform users, set flags, etc) | yes*     |                       | [README](./plugins/gamemaster/README.md)   |
 | Greenieboard | Greenieboard and LSO quality mark analysis (SC only)                | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
-| DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
 | MOTD         | Generates a message of the day.                                     | yes      | Mission, Missionstats | [README](./plugins/motd/README.md)         |
+| DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
 
 *) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot.
 
@@ -63,11 +63,13 @@ Press "Copy" on the generated URL, paste it into the browser of your choice, sel
 For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
 
 ### Download
-Download the latest release version and extract it somewhere on your PC that is running the DCS server(s) and give it write permissions, if needed. Best is to use ```git clone``` as you then can use the autoupdate functionality of the bot.
+Best is to use ```git clone``` as you then can use the autoupdate functionality of the bot.<br/>
+Otherwise download the latest release version and extract it somewhere on your PC that is running the DCS server(s) and give it write permissions, if needed. 
 
 __Attention:__ Make sure that the bot's installation directory can only be seen by yourself and is not exposed to anybody outside via www etc.
 
-### Bot Configuration
+---
+## Configuration
 The bot configuration is held in **config/dcsserverbot.ini**. See **dcsserverbot.ini.sample** for an example.<br/>
 If you start the bot for the first time, it will generate a basic file for you that you can amend to your needs afterwards.<br/>
 For some configurations, default values may apply. They are kept in config/default.ini. **Don't change this file**, just overwrite the settings, if you want to have them differently.
@@ -76,26 +78,28 @@ The following parameters can be used to configure the bot:
 
 a) __BOT Section__
 
-| Parameter          | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
-|--------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| OWNER              | The Discord ID of the Bot's owner (that's you!). If you don't know your ID, go to your Discord profile, make sure "Developer Mode" is enabled under "Advanced", go to "My Account", press the "..." besides your profile picture and select "Copy ID"                                                                                                                                                                |
-| TOKEN              | The token to be used to run the bot. Can be obtained at http://discord.com/developers.                                                                                                                                                                                                                                                                                                                               |
-| DATABASE_URL       | URL to the PostgreSQL database used to store our data. **If login fails, check password for any special character!**                                                                                                                                                                                                                                                                                                 |
-| COMMAND_PREFIX     | The prefix to be used. Default is '.'                                                                                                                                                                                                                                                                                                                                                                                |
-| HOST               | IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.                                                                                                                                                                                                                                                                                            |
-| PORT               | UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose this port to the outside world!__**                                                                                                                                                                                                                                                                                           |
-| MASTER             | If true, start the bot in master-mode (default for one-bot-installations). If only one bot is running, then there is only a master.\nIf you have to use more than one bot installation, for multiple DCS servers that are spanned over several locations, you have to install one agent (MASTER = false) at every other location. All DCS servers of that location will then automatically register with that agent. |
-| PLUGINS            | List of plugins to be loaded (you usually don't want to touch this).                                                                                                                                                                                                                                                                                                                                                 |
-| OPT_PLUGINS        | List of optional plugins to be loaded. Here you can add your plugins that you want to use and that are not loaded by default.                                                                                                                                                                                                                                                                                        |
-| AUTOUPDATE         | If true, the bot autoupdates itself with the latest release on startup.                                                                                                                                                                                                                                                                                                                                              |
-| AUTOBAN            | If true, members leaving the discord will be automatically banned.                                                                                                                                                                                                                                                                                                                                                   |
-| AUTOMATCH          | If false, users have to match themselves using the .linkme command (see [README](./plugins/userstats/README.md))                                                                                                                                                                                                                                                                                                     |
-| LOGLEVEL           | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).                                                                                                                                                                                                                                                                                                                       |
-| LOGROTATE_COUNT    | Number of logfiles to keep (default: 5).                                                                                                                                                                                                                                                                                                                                                                             |
-| LOGROTATE_SIZE     | Number of bytes until which a logfile is rotated (default: 10 MB).                                                                                                                                                                                                                                                                                                                                                   |
-| MESSAGE_TIMEOUT    | General timeout for popup messages (default 10 seconds).                                                                                                                                                                                                                                                                                                                                                             | 
-| MESSAGE_AUTODELETE | Delete messages after a specific amount of seconds. This is true for all statistics embeds, LSO analysis, greenieboard, but no usual user commands.                                                                                                                                                                                                                                                                  |
-| AUDIT_CHANNEL      | (Optional) The ID of an audit channel where audit events will be logged into. For security reasons, it is recommended that no users can delete messages in this channel.                                                                                                                                                                                                                                             |
+| Parameter            | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
+|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| OWNER                | The Discord ID of the Bot's owner (that's you!). If you don't know your ID, go to your Discord profile, make sure "Developer Mode" is enabled under "Advanced", go to "My Account", press the "..." besides your profile picture and select "Copy ID"                                                                                                                                                                |
+| TOKEN                | The token to be used to run the bot. Can be obtained at http://discord.com/developers.                                                                                                                                                                                                                                                                                                                               |
+| DATABASE_URL         | URL to the PostgreSQL database used to store our data. **If login fails, check password for any special character!**                                                                                                                                                                                                                                                                                                 |
+| COMMAND_PREFIX       | The prefix to be used. Default is '.'                                                                                                                                                                                                                                                                                                                                                                                |
+| HOST                 | IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.                                                                                                                                                                                                                                                                                            |
+| PORT                 | UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose this port to the outside world!__**                                                                                                                                                                                                                                                                                           |
+| MASTER               | If true, start the bot in master-mode (default for one-bot-installations). If only one bot is running, then there is only a master.\nIf you have to use more than one bot installation, for multiple DCS servers that are spanned over several locations, you have to install one agent (MASTER = false) at every other location. All DCS servers of that location will then automatically register with that agent. |
+| PLUGINS              | List of plugins to be loaded (you usually don't want to touch this).                                                                                                                                                                                                                                                                                                                                                 |
+| OPT_PLUGINS          | List of optional plugins to be loaded. Here you can add your plugins that you want to use and that are not loaded by default.                                                                                                                                                                                                                                                                                        |
+| AUTOUPDATE           | If true, the bot autoupdates itself with the latest release on startup.                                                                                                                                                                                                                                                                                                                                              |
+| AUTOBAN              | If true, members leaving the discord will be automatically banned (default = false).                                                                                                                                                                                                                                                                                                                                 |
+| AUTOMATCH            | If false, users have to match themselves using the .linkme command (see [README](./plugins/userstats/README.md))                                                                                                                                                                                                                                                                                                     |
+| COALITIONS           | Enable coalition handling (see "Coalitions" below), default = false.                                                                                                                                                                                                                                                                                                                                                 |                                                                                                                                                                                                                                                                                                                                                 
+ | COALITION_LOCK_TIME  | The time you are not allowed to change coalitions in the format "nn days" or "nn hours". Default is 1 day.                                                                                                                                                                                                                                                                                                           |
+| LOGLEVEL             | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).                                                                                                                                                                                                                                                                                                                       |
+| LOGROTATE_COUNT      | Number of logfiles to keep (default: 5).                                                                                                                                                                                                                                                                                                                                                                             |
+| LOGROTATE_SIZE       | Number of bytes until which a logfile is rotated (default: 10 MB).                                                                                                                                                                                                                                                                                                                                                   |
+| MESSAGE_TIMEOUT      | General timeout for popup messages (default 10 seconds).                                                                                                                                                                                                                                                                                                                                                             | 
+| MESSAGE_AUTODELETE   | Delete messages after a specific amount of seconds. This is true for all statistics embeds, LSO analysis, greenieboard, but no usual user commands.                                                                                                                                                                                                                                                                  |
+| AUDIT_CHANNEL        | (Optional) The ID of an audit channel where audit events will be logged into. For security reasons, it is recommended that no users can delete messages in this channel.                                                                                                                                                                                                                                             |
 
 b) __ROLES Section__
 
@@ -104,8 +108,8 @@ b) __ROLES Section__
 | Admin          | The name of the admin role in you Discord.                                                                                    |
 | DCS Admin      | The name of the role you'd like to give admin rights on your DCS servers (_Moderator_ for instance).                          |
 | DCS            | The role of users being able to see their statistics and mission information (usually the general user role in your Discord). |
-| Coalition Red  | Members of this role are part of the red coalition (for future use).                                                          |
-| Coalition Blue | Members of this role are part of the blue coalition (for future use).                                                         |
+| Coalition Red  | Members of this role are part of the red coalition (see **Coalitions** below).                                                |
+| Coalition Blue | Members of this role are part of the blue coalition (see **Coalitions** below).                                               |
 
 c) __FILTER Section__ (Optional)
 
@@ -125,7 +129,7 @@ d) __DCS Section__
 | SRS_INSTALLATION            | The installation directory of DCS-SRS (optional).                                                                        |
 | GREETING_MESSAGE_MEMBERS    | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord. |
 | GREETING_MESSAGE_UNMATCHED  | A greeting message, that people will receive in DCS chat, if they are unmatched.                                         |
-| SERVER_USER                 | The username to display as user no. 1 in the server (Observer)                                                           |
+| SERVER_USER                 | The username to display as user no. 1 in the server (aka "Observer")                                                     |
 
 e) __Server Specific Sections__
 
@@ -140,16 +144,16 @@ If your directory is named DCS instead (stable version), just add these fields t
 | SRS_CONFIG         | The configuration file to use for the dedicated DCS-SRS server (optional).                                                                                                                 |
 | SRS_HOST           | The IP-address the DCS-SRS server is listening on (optional, default: 127.0.0.1).                                                                                                          |
 | SRS_PORT           | The port the DCS-SRS server uses (optional, default: 5002).                                                                                                                                |
-| AUTOSTART_DCS      | [Deprecated] If true, the corresponding DCS server will be started automatically at bot start.<br/>Replaced, see [Scheduler](./plugins/scheduler/README.md)                                |
-| AUTOSTART_SRS      | [Deprecated] If true, the corresponding DCS-SRS server will be started automatically at bot start (optional).<br/>Replaced, see [Scheduler](./plugins/scheduler/README.md)                 |
 | STATISTICS         | If false, no statistics will be generated for this server. Default is true (see [Userstats](./plugins/userstats/README.md)).                                                               |
 | MISSION_STATISTICS | If true, mission statistics will be generated for all missions loaded in this server (see [Missionstats](./plugins/missionstats/README.md)).                                               | 
 | CHAT_CHANNEL       | The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.           |
+| CHAT_CHANNEL_BLUE  | Coalition chat channel for blue coalition (optional, see Coalitions below).                                                                                                                |
+| CHAT_CHANNEL_RED   | Coalition chat channel for red coalition (optional, see Coalitions below).                                                                                                                 |
 | STATUS_CHANNEL     | The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
 | ADMIN_CHANNEL      | The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
 
 ### DCS/Hook Configuration
-The DCS World integration is done via a Hook. They are being installed automatically into your configured DCS servers.
+The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by the bot.
 
 ### Sanitization
 DCSServerBot sanitizes your MissionScripting environment. That means, it changes entries in {DCS_INSTALLATION}\Scripts\MissionScripting.lua.
@@ -166,35 +170,58 @@ do
 	--_G['package'] = nil
 end
 ```
-If you want to use a **custom MissionScripting.lua** that has more sanitization (for instance for Moose) or additional lines 
-to be loaded (for instance for LotAtc, or DCS-gRPC), just place the MissionScripting.lua of your choice in the config 
-directory of the bot. It will be replaced on every bot startup then.
+
+### Custom MissionScripting.lua
+If you want to use a **custom MissionScripting.lua** that has more sanitization (for instance for LotAtc, Moose, 
+OverlordBot or the like) or additional lines to be loaded (for instance for LotAtc, or DCS-gRPC), just place the 
+MissionScripting.lua of your choice in the config directory of the bot. It will be replaced on every bot startup then.
 
 ### Discord Configuration
 The bot uses the following **internal** roles to apply specific permissions to commands.
 You can change the role names to the ones being used in your discord. That has to be done in the dcsserverbot.ini configuration file. If you want to add multiple groups, separate them by comma.
 
-| Role      | Description                                                                                                                                         |
-|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| DCS       | People with this role are allowed to chat, check their statistics and gather information about running missions and players.                        |
-| DCS Admin | People with this role are allowed to restart missions, managing the mission list, ban and unban people.                                             |
-| Admin     | People with this role are allowed to manage the server, start it up, shut it down, update it, change the password and gather the server statistics. |
+| Role           | Description                                                                                                                                         |
+|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| DCS            | People with this role are allowed to chat, check their statistics and gather information about running missions and players.                        |
+| DCS Admin      | People with this role are allowed to restart missions, managing the mission list, ban and unban people.                                             |
+| Admin          | People with this role are allowed to manage the server, start it up, shut it down, update it, change the password and gather the server statistics. |
+| Coalition Blue | People with this role are members of the blue coalition. See Coalitions below for details.                                                          |
+| Coalition Red  | People with this role are members of the red coalition. See Coalitions below for details.                                                           |
 
-### Running of the Bot
+### Auto-Banning
+The bot supports automatically bans / unbans of players from the configured DCS servers, as soon as they leave / join your Discord guild.
+If you like that feature, set _AUTOBAN = true_ in dcsserverbot.ini (default = false).
+
+However, players that are being banned from your Discord or that are being detected as hackers are auto-banned from all your configured DCS servers without prior notice.
+
+### Additional Security Features
+Players that have no pilot ID (empty), will not be able to join your DCS server. That is not configurable, it's a general rule (and a good one in my eyes).
+
+---
+## Running of the Bot
 To start the bot, you can either use the packaged _run.cmd_ command or _python run.py_.
-If using _AUTOUPDATE = true_ it is recommended to start the bot in a loop as it will close itself after an update has taken place.
+<br/>If using _AUTOUPDATE = true_ it is recommended to start the bot via _run.cmd_, as this runs it in a loop as it will close 
+itself after an update has taken place.
 
-### **!!! ATTENTION !!!**
-_One of the concepts of this bot it to bind people to your discord._
+---
+## User Matching
+The bot works best, if DCS users and Discord users are matched. See [README](./plugins/userstats/README.md) for details.
 
-The bot automatically bans / unbans people from the configured DCS servers, as soon as they leave / join the configured Discord guild.
-If you don't like that feature, set _AUTOBAN = false_ in dcsserverbot.ini.
-Besides that, people that have no pilot ID (empty), will not get into the server. That is not configurable, it's a general rule (and a good one in my eyes).
+---
+## Coalitions (as of DCS 2.7.12, DCSServerBot 2.5.9)
+If you want to support Blue and Red coalitions in your Discord and your DCS servers, you're good to go! Just enable 
+_COALITIONS = true_ in your dcsserverbot.ini and make sure you've set up the coalition roles (see "Discord Configuration" 
+above).<br/>
+You can use the bot to set coalition passwords on your servers, and you can use the _.join_ and _.leave_ commands to let
+members join one of the both coalitions that are to be set up in your Discord server. The default role names are
+"Coalition Blue" and "Coalition Red", but you can use whatever name you like.<p>
+Some bot commands are coalition branded already, that means, that you can for instance see the coalition passwords or the
+coalition-specific briefing only, if you are in a channel that belongs to this coalition.
 
 ---
 ## How to do the more complex stuff?
 DCSServerBot can be used to run a whole worldwide distributed set of DCS servers and therefore supports the largest communities.
-The installation and maintenance of such a use-case is a bit more complex than a single server installation.
+The installation and maintenance of such a use-case is just a bit more complex than a single server installation.
 
 ### Setup Multiple Servers on a Single Host
 DCSServerBot is able to contact DCS servers at the same machine or over the local network.
@@ -202,6 +229,8 @@ DCSServerBot is able to contact DCS servers at the same machine or over the loca
 To run multiple DCS servers under control of DCSServerBot you just have to make sure that you configure different communication ports. This can be done with the parameter DCS_PORT in DCSServerBotConfig.lua. The default is 6666, you can just increase that for every server (6667, 6668, ...).
 Don't forget to configure different Discord channels (CHAT_CHANNEL, STATUS_CHANNEL and ADMIN_CHANNEL) for every server, too.
 To add subsequent servers, just follow the steps above, and you're good, unless they are on a different Windows server (see below).
+
+DCSServerBot will autodetect all configured DCS servers on the first startup and generate a sample ini file for you already.
 
 ### Setup Multiple Servers on Multiple Host at the Same Location
 To communicate with DCSServerBot over the network, you need to change two configurations.

@@ -29,15 +29,15 @@ class PunishmentEventListener(EventListener):
                 else:
                     default = element
             if default and not specific:
-                server[self.plugin] = default
+                server[self.plugin_name] = default
             elif specific and not default:
-                server[self.plugin] = specific
+                server[self.plugin_name] = specific
             elif default and specific:
                 merged = default.copy()
                 # specific settings will always overwrite default settings
                 for key, value in specific.items():
                     merged[key] = value
-                server[self.plugin] = merged
+                server[self.plugin_name] = merged
 
     def get_flight_hours(self, player: dict) -> int:
         conn = self.pool.getconn()
@@ -63,7 +63,7 @@ class PunishmentEventListener(EventListener):
             self.pool.putconn(conn)
 
     async def punish(self, data: dict):
-        config = self.globals[data['server_name']][self.plugin]
+        config = self.globals[data['server_name']][self.plugin_name]
         if 'penalties' in config:
             penalty = next((item for item in config['penalties'] if item['event'] == data['eventName']), None)
             if penalty:
@@ -117,7 +117,7 @@ class PunishmentEventListener(EventListener):
     async def onGameEvent(self, data: dict):
         if self.stats_type == StatsType.USER_STATS:
             server = self.globals[data['server_name']]
-            if self.plugin in server:
+            if self.plugin_name in server:
                 if data['eventName'] == 'friendly_fire':
                     if data['arg1'] != -1 and data['arg1'] != data['arg3']:
                         initiator = utils.get_player(self, data['server_name'], id=data['arg1'])
@@ -141,9 +141,9 @@ class PunishmentEventListener(EventListener):
                             data['eventName'] = 'collision_kill'
                         await self.punish(data)
 
-    async def onChatCommand(self, data: dict):
-        if data['message'].startswith('-forgive') and self.plugin in self.globals[data['server_name']]:
-            config = self.globals[data['server_name']][self.plugin]
+    async def onChatCommand(self, data: dict) -> None:
+        if data['subcommand'] == 'forgive' and self.plugin_name in self.globals[data['server_name']]:
+            config = self.globals[data['server_name']][self.plugin_name]
             target = utils.get_player(self, data['server_name'], id=data['from_id'])
             if 'forgive' in config:
                 async with self.lock:
@@ -163,8 +163,9 @@ class PunishmentEventListener(EventListener):
                     finally:
                         self.pool.putconn(conn)
             else:
-                utils.sendChatMessage(self, data['server_name'], target['id'], '-forgive is not enabled on this server.')
-        elif data['message'].startswith('-penalty'):
+                utils.sendChatMessage(self, data['server_name'], data['from_id'],
+                                      '-forgive is not enabled on this server.')
+        elif data['subcommand'] == 'penalty':
             player = utils.get_player(self, data['server_name'], id=data['from_id'])
             points = self.get_punishment_points(player)
             utils.sendChatMessage(self, data['server_name'], data['from_id'],

@@ -4,11 +4,11 @@ import itertools
 import psutil
 import psycopg2
 import re
-import typing
 from contextlib import closing
-from core import utils, const, DCSServerBot, Plugin, Report
+from core import utils, const, DCSServerBot, Plugin, Report, PaginationReport
 from core.const import Status
 from discord.ext import commands, tasks
+from typing import Optional
 from .listener import MissionEventListener
 
 
@@ -50,7 +50,7 @@ class Mission(Plugin):
             if server['status'] in [Status.RUNNING, Status.PAUSED]:
                 players = self.bot.player_data[server['server_name']]
                 num_players = len(players[players['active'] == True]) + 1
-                report = Report(self.bot, self.plugin, 'serverStatus.json')
+                report = Report(self.bot, self.plugin_name, 'serverStatus.json')
                 env = await report.render(server=server, num_players=num_players)
                 await ctx.send(embed=env.embed)
             else:
@@ -63,16 +63,30 @@ class Mission(Plugin):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def briefing(self, ctx):
-        server = await utils.get_server(self, ctx)
-        if not server:
+        def read_passwords(server_name: str) -> dict:
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
+                                   (server_name,))
+                    row = cursor.fetchone()
+                    return {"Blue": row[0], "Red": row[1]}
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+            finally:
+                self.pool.putconn(conn)
+
+        mission_info = {}
+        for server_name, server in self.globals.items():
+            if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                mission_info[server_name] = await self.bot.sendtoDCSSync(server, {"command": "getMissionDetails", "channel": ctx.message.id})
+                mission_info[server_name]['passwords'] = read_passwords(server_name)
+        if len(mission_info) == 0:
+            await ctx.send('No running mission found.')
             return
-        if server['status'] in [Status.RUNNING, Status.PAUSED]:
-            data = await self.bot.sendtoDCSSync(server, {"command": "getMissionDetails", "channel": ctx.message.id})
-            embed = discord.Embed(title=data['current_mission'], color=discord.Color.blue())
-            embed.description = data['mission_description'][:2048]
-            await ctx.send(embed=embed)
-        else:
-            await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
+        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+        report = PaginationReport(self.bot, ctx, self.plugin_name, 'briefing.json', timeout if timeout > 0 else None)
+        await report.render(ctx=ctx, mission_info=mission_info, server_name=list(mission_info.keys())[0])
 
     @commands.command(description='Shows information of a specific airport', aliases=['weather', 'airport', 'airfield', 'ap'])
     @utils.has_role('DCS')
@@ -159,7 +173,7 @@ class Mission(Plugin):
     @commands.command(description='Restarts the current active mission', usage='[delay] [message]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def restart(self, ctx, delay: typing.Optional[int] = 120, *args):
+    async def restart(self, ctx, delay: Optional[int] = 120, *args):
         server = await utils.get_server(self, ctx)
         if not server:
             return

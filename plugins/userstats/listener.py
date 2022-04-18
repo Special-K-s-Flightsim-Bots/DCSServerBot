@@ -378,7 +378,7 @@ class UserStatisticsEventListener(EventListener):
                             self.pool.putconn(conn)
 
     async def onChatCommand(self, data: dict) -> None:
-        if data['message'].startswith('-linkme'):
+        if data['subcommand'] == 'linkme':
             items = data['message'].split(' ')
             if len(items) > 1:
                 token = items[1]
