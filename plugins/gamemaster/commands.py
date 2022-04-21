@@ -1,8 +1,6 @@
-from contextlib import closing
-
 import discord
 import psycopg2
-
+from contextlib import closing
 from core import DCSServerBot, Plugin, utils
 from core.const import Status
 from discord.ext import commands
@@ -137,8 +135,7 @@ class GameMasterMaster(GameMasterAgent):
                     if cursor.fetchone()[0] != coalition.casefold():
                         await ctx.send(f"You can't join the {coalition} coalition in-between "
                                        f"{self.config['BOT']['COALITION_LOCK_TIME']} of leaving a coalition.")
-                        await self.bot.audit(f'Member {member.display_name} tried to join a new coalition in-between '
-                                             f'the time limit.')
+                        await self.bot.audit(f'tried to join a new coalition in-between the time limit.', user=member)
                         return
                 await member.add_roles(roles[coalition.lower()])
                 cursor.execute('UPDATE players SET coalition = %s WHERE discord_id = %s', (coalition, member.id))
@@ -146,7 +143,7 @@ class GameMasterMaster(GameMasterAgent):
                 conn.commit()
         except discord.Forbidden:
             await ctx.send("I can't add you to this coalition. Please contact an Admin.")
-            await self.bot.audit(f'Permission "Manage Roles" missing for {self.bot.member.name}.')
+            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
             conn.rollback()
@@ -175,7 +172,7 @@ class GameMasterMaster(GameMasterAgent):
                     return
                 except discord.Forbidden:
                     await ctx.send("I can't remove you from this coalition. Please contact an Admin.")
-                    await self.bot.audit(f'Permission "Manage Roles" missing for {self.bot.member.name}.')
+                    await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.bot.log.exception(error)
                     conn.rollback()

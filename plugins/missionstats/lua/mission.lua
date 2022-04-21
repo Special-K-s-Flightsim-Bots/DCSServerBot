@@ -20,6 +20,8 @@ world.event.S_EVENT_DELETE_ZONE_GOAL = world.event.S_EVENT_MAX + 1005
 world.event.S_EVENT_REMOVE_UNIT = world.event.S_EVENT_MAX + 1006
 world.event.S_EVENT_PLAYER_ENTER_AIRCRAFT = world.event.S_EVENT_MAX + 1007
 
+dcsbot.mission_stats_enabled = false
+
 dcsbot.eventHandler = {}
 function dcsbot.eventHandler:onEvent(event)
 	if event then
@@ -201,10 +203,9 @@ function dcsbot.eventHandler:onEvent(event)
 	end
 end
 
-function dcsbot.enableMissionStats()
-	dcsbot.eventHandler = world.addEventHandler(dcsbot.eventHandler)
+function dcsbot.getMissionSituation(channel)
 	local msg = {}
-	msg.command = 'enableMissionStats'
+	msg.command = 'getMissionStats'
 	msg.coalitions = {}
 	msg.coalitions['Blue'] = {}
 	msg.coalitions['Red'] = {}
@@ -257,17 +258,21 @@ function dcsbot.enableMissionStats()
 	for id, static in pairs(coalition.getStaticObjects(coalition.side.RED)) do
 		table.insert(msg.coalitions['Red'].statics, static:getName())
 	end
-	dcsbot.sendBotTable(msg)
-	env.info('DCSServerBot - Mission Statistics enabled.')
+	dcsbot.sendBotTable(msg, channel)
+end
+
+function dcsbot.enableMissionStats()
+	if not dcsbot.mission_stats_enabled then
+        dcsbot.eventHandler = world.addEventHandler(dcsbot.eventHandler)
+        env.info('DCSServerBot - Mission Statistics enabled.')
+        dcsbot.mission_stats_enabled = true
+    end
 end
 
 function dcsbot.disableMissionStats()
-	dcsbot.eventHandler = world.removeEventHandler(dcsbot.eventHandler)
-	env.info('DCSServerBot - Mission Statistics disabled.')
-end
-
-do
-	if config.MISSION_STATISTICS then
-		dcsbot.enableMissionStats()
-	end
+	if dcsbot.mission_stats_enabled then
+        dcsbot.eventHandler = world.removeEventHandler(dcsbot.eventHandler)
+        env.info('DCSServerBot - Mission Statistics disabled.')
+        dcsbot.mission_stats_enabled = false
+    end
 end

@@ -228,7 +228,8 @@ class Main:
                         self.bot.rename_server(old_name, new_name, True)
                         await ctx.send('Server has been renamed.')
                         await self.bot.audit(
-                            f'User {ctx.message.author.display_name} renamed DCS server "{old_name}" to "{new_name}".')
+                            f'User {ctx.message.author.display_name} renamed DCS server "{old_name}" to "{new_name}".',
+                            user=ctx.message.author)
                 else:
                     await ctx.send('Please stop server "{}" before renaming!'.format(old_name))
 
@@ -246,7 +247,8 @@ class Main:
                         del self.bot.embeds[server_name]
                         await ctx.send('Server {} unregistered.'.format(server_name))
                         await self.bot.audit(f"User {ctx.message.author.display_name} unregistered DCS server "
-                                             f"\"{server['server_name']}\" from node {platform.node()}.")
+                                             f"\"{server['server_name']}\" from node {platform.node()}.",
+                                             user=ctx.message.author)
                     else:
                         await ctx.send('Aborted.')
                 else:

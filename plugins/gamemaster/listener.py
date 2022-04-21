@@ -45,7 +45,7 @@ class GameMasterEventListener(EventListener):
             self.bot.pool.putconn(conn)
 
     async def onPlayerStart(self, data: dict) -> None:
-        if self.bot.config.getboolean('BOT', 'COALITIONS'):
+        if data['id'] != 1 and self.bot.config.getboolean('BOT', 'COALITIONS'):
             coalition = self.get_coalition(utils.get_player(self, data['server_name'], id=data['id']))
             if coalition:
                 data['subcommand'] = 'coalition'
@@ -74,8 +74,8 @@ class GameMasterEventListener(EventListener):
                         utils.sendChatMessage(self, data['server_name'], data['from_id'],
                                               f"You can't join the {coalition} coalition in-between "
                                               f"{self.config['BOT']['COALITION_LOCK_TIME']} of leaving a coalition.")
-                        await self.bot.audit(f"Player {player['name']}(ucid={player['ucid']}) tried to join "
-                                             f"a new coalition in-between the time limit.")
+                        await self.bot.audit(f"{player['name']} tried to join a new coalition in-between the time limit.",
+                                             user=player['ucid'])
                         return
                 member = utils.get_member_by_ucid(self, player['ucid'])
                 if member:
@@ -89,7 +89,7 @@ class GameMasterEventListener(EventListener):
                 utils.sendChatMessage(self, data['server_name'], data['from_id'], f'Welcome to the {coalition} side!')
                 conn.commit()
         except discord.Forbidden:
-            await self.bot.audit(f'Permission "Manage Roles" missing for {self.bot.member.name}.')
+            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
             conn.rollback()
@@ -118,7 +118,7 @@ class GameMasterEventListener(EventListener):
             utils.sendChatMessage(self, data['server_name'], data['from_id'], f"You've left the {coalition} coalition!")
             return
         except discord.Forbidden:
-            await self.bot.audit(f'Permission "Manage Roles" missing for {self.bot.member.name}.')
+            await self.bot.audit(f'Permission "Manage Roles" missing for {self.bot.member.name}.', user=self.bot.member)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
             conn.rollback()

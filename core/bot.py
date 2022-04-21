@@ -11,10 +11,11 @@ from contextlib import closing
 from copy import deepcopy
 from core import utils
 from core.const import Status
+from datetime import datetime
 from discord.ext import commands
-from .listener import EventListener
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Callable, Optional, Tuple, Any
+from typing import Callable, Optional, Tuple, Any, Union
+from .listener import EventListener
 
 
 class DCSServerBot(commands.Bot):
@@ -207,12 +208,31 @@ class DCSServerBot(commands.Bot):
         if update_settings:
             utils.changeServerSettings(old_name, 'name', new_name)
 
-    async def audit(self, message, *, embed: Optional[discord.Embed] = None):
+    async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None, server: Optional[dict] = None):
         if not self.audit_channel:
             if 'AUDIT_CHANNEL' in self.config['BOT']:
                 self.audit_channel = self.get_channel(int(self.config['BOT']['AUDIT_CHANNEL']))
         if self.audit_channel:
-            await self.audit_channel.send(message, embed=embed)
+            if isinstance(user, str):
+                member = utils.get_member_by_ucid(self, user)
+            else:
+                member = user
+            embed = discord.Embed(color=discord.Color.blue())
+            if member:
+                embed.set_author(name=member.name + '#' + member.discriminator, icon_url=member.avatar_url)
+                embed.set_thumbnail(url=member.avatar_url)
+                message = f'<@{member.id}> ' + message
+            elif not user:
+                embed.set_author(name=self.member.name + '#' + self.member.discriminator,
+                                 icon_url=self.member.avatar_url)
+                embed.set_thumbnail(url=self.member.avatar_url)
+            embed.description = message
+            if isinstance(user, str):
+                embed.add_field(name='UCID', value=user)
+            if server:
+                embed.add_field(name='Server', value=server['server_name'])
+            embed.set_footer(text=datetime.now().strftime("%d/%m/%y %H:%M:%S"))
+            await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
 
     def sendtoDCS(self, server: dict, message: dict):
         # As Lua does not support large numbers, convert them to strings

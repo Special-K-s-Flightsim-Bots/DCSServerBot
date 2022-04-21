@@ -2,6 +2,7 @@
 import psycopg2
 from contextlib import closing, suppress
 from core import const, EventListener, Plugin, utils
+from core.const import Status
 from typing import Union, Any
 
 
@@ -63,7 +64,7 @@ class UserStatisticsEventListener(EventListener):
         return unit_type
 
     async def registerDCSServer(self, data):
-        if data['statistics']:
+        if data['statistics'] and self.globals[data['server_name']]['status'] != Status.STOPPED:
             server_name = data['server_name']
             self.statistics.add(server_name)
             # registering a running instance
@@ -162,6 +163,7 @@ class UserStatisticsEventListener(EventListener):
                 cursor.execute(self.SQL_MISSION_HANDLING['close_statistics'], (mission_id,))
                 cursor.execute(self.SQL_MISSION_HANDLING['close_mission'], (mission_id,))
                 conn.commit()
+            self.globals[data['server_name']]['mission_id'] = -1
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()
@@ -186,8 +188,8 @@ class UserStatisticsEventListener(EventListener):
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
                     # if this is a new match
                     if cursor.rowcount == 0:
-                        await self.bot.audit(
-                            f"Member \"{discord_user.display_name}\" auto-linked to DCS user \"{data['name']}\" (ucid={data['ucid']}).")
+                        await self.bot.audit(f"auto-linked to DCS user \"{data['name']}\" (ucid={data['ucid']}).",
+                                             user=discord_user)
                 cursor.execute('INSERT INTO players (ucid, discord_id, name, ipaddr, last_seen) VALUES (%s, %s, %s, '
                                '%s, NOW()) ON CONFLICT (ucid) DO UPDATE SET discord_id = EXCLUDED.discord_id, '
                                'name = EXCLUDED.name, ipaddr = EXCLUDED.ipaddr, last_seen = NOW()',
@@ -399,7 +401,8 @@ class UserStatisticsEventListener(EventListener):
                             utils.sendChatMessage(self, data['server_name'], data['from_id'], 'Your user has been linked!')
                             with suppress(Exception):
                                 member = self.bot.guilds[0].get_member(discord_id)
-                                await self.bot.audit(f"Member \"{member.display_name}\" self-linked to DCS user \"{player['name']}\" (ucid={player['ucid']}).")
+                                await self.bot.audit(f"self-linked to DCS user \"{player['name']}\" (ucid={player['ucid']}).",
+                                                     user=member)
                         conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.log.exception(error)

@@ -122,8 +122,10 @@ class Scheduler(Plugin):
                 self.log.info(f"  => Launching DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
                 utils.start_srs(self, server)
 
-    def launch(self, server: dict, config: dict):
-        self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
+    async def launch(self, server: dict, config: dict):
+        self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by "
+                      f"{string.capwords(self.plugin_name)} ...")
+        await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS server", server=server)
         utils.start_dcs(self, server)
         if 'extensions' in config:
             self.launch_extensions(server, config)
@@ -154,10 +156,11 @@ class Scheduler(Plugin):
     def shutdown_extensions(self, server: dict, config: dict):
         for extension in config['extensions']:
             if extension == 'SRS' and utils.check_srs(self, server):
-                self.log.info(f"  => Stopping DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
+                self.log.info(f"  => Stopping DCS-SRS server \"{server['server_name']}\" by "
+                              f"{string.capwords(self.plugin_name)} ...")
                 utils.stop_srs(self, server)
 
-    def shutdown(self, server: dict, config: dict):
+    async def shutdown(self, server: dict, config: dict):
         # if we should not restart populated servers, wait for it to be unpopulated
         if 'populated' in config and config['populated'] is False and utils.is_populated(self, server):
             return
@@ -167,9 +170,12 @@ class Scheduler(Plugin):
             if restart_in > 0:
                 self.log.info(f"  => DCS server \"{server['server_name']}\" will be stopped "
                               f"by {string.capwords(self.plugin_name)} in {restart_in} seconds ...")
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} stopping DCS server in {restart_in} seconds",
+                                     server=server)
             else:
                 self.log.info(
                     f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} stopped DCS server", server=server)
             self.loop.call_later(restart_in, self.bot.sendtoBot,
                                  {"command": "onMissionEnd", "server_name": server['server_name']})
             self.loop.call_later(restart_in + 1, self.bot.sendtoBot,
@@ -226,7 +232,7 @@ class Scheduler(Plugin):
         # check all servers
         for server_name, server in self.globals.items():
             # only care about servers that are not in the startup phase
-            if server['status'] in [Status.UNREGISTERED, Status.LOADING] or \
+            if server['status'] in [Status.UNREGISTERED, Status.LOADING, Status.STOPPED] or \
                     'maintenance' in server or 'restart_pending' in server:
                 continue
             config = self.get_config(server)
@@ -237,9 +243,9 @@ class Scheduler(Plugin):
                 target_state = self.check_server_state(server, config)
                 if server['status'] != target_state:
                     if target_state == Status.RUNNING:
-                        self.launch(server, config)
+                        await self.launch(server, config)
                     elif target_state == Status.SHUTDOWN:
-                        self.shutdown(server, config)
+                        await self.shutdown(server, config)
                 elif server['status'] in [Status.RUNNING, Status.PAUSED]:
                     self.check_mission_state(server, config)
 
@@ -257,6 +263,7 @@ class Scheduler(Plugin):
                 del server['maintenance']
                 await ctx.send(f"Maintenance mode cleared for server {server['server_name']}.\n"
                                f"The {string.capwords(self.plugin_name)} will take over the state handling now.")
+                await self.bot.audit("cleared maintenance flag", user=ctx.message.author, server=server)
             else:
                 await ctx.send(f"Server {server['server_name']} is not in maintenance mode.")
 

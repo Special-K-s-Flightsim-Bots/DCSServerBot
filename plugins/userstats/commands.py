@@ -68,14 +68,14 @@ class UserStatisticsMaster(Plugin):
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def link(self, ctx, member: discord.Member, ucid):
+    async def link(self, ctx, member: discord.Member, ucid: str):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
                 conn.commit()
                 await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
-                await self.bot.audit(f'User {ctx.message.author.display_name} linked member {member.display_name} to ucid {ucid}.')
+                await self.bot.audit(f'linked member {member.display_name} to ucid {ucid}.', user=ctx.message.author)
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()
@@ -92,12 +92,11 @@ class UserStatisticsMaster(Plugin):
                 if isinstance(member, discord.Member):
                     cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s', (member.id, ))
                     await ctx.send('Member {} unlinked.'.format(member.display_name))
-                    await self.bot.audit(
-                        f'User {ctx.message.author.display_name} unlinked member {member.display_name}.')
+                    await self.bot.audit(f'unlinked member {member.display_name}.', user=ctx.message.author)
                 else:
                     cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (member, ))
                     await ctx.send('ucid {} unlinked.'.format(member))
-                    await self.bot.audit(f'User {ctx.message.author.display_name} unlinked ucid {member}.')
+                    await self.bot.audit(f'unlinked ucid {member}.', user=ctx.message.author)
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -123,8 +122,7 @@ class UserStatisticsMaster(Plugin):
                             cursor.execute('DELETE FROM missions WHERE server_name = %s', (server_name, ))
                             conn.commit()
                         await ctx.send('Statistics for server "{}" have been wiped.'.format(server_name))
-                        await self.bot.audit(
-                            f'User {ctx.message.author.display_name} reset the statistics for server "{server_name}".')
+                        await self.bot.audit('reset statistics', user=ctx.message.author, server=server)
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.log.exception(error)
                     conn.rollback()
@@ -237,16 +235,18 @@ class UserStatisticsMaster(Plugin):
                         await self.unlink(ctx, member)
                     elif react.emoji == '🔄':
                         for match in mismatched_members:
-                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (match['member'].id, match['ucid']))
-                            await self.bot.audit(f"User {ctx.message.author.display_name} has relinked DCS player {match['name']}(ucid={match['ucid']}) to member {match['member'].display_name}.")
+                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
+                                           (match['member'].id, match['ucid']))
+                            await self.bot.audit(f"relinked DCS player {match['name']}(ucid={match['ucid']}) to member "
+                                                 f"{match['member'].display_name}.", user=ctx.message.author)
                         await ctx.send(f"DCS player {match['name']} has been relinked to member {match['member'].display_name}.")
                     elif react.emoji == '⏏️':
                         for server in self.globals.values():
                             for ucid in ucids:
                                 self.bot.sendtoDCS(server, {"command": "kick", "ucid": ucid, "reason": "Kicked by admin."})
                         await ctx.send(f"User has been kicked from server \"{server['server_name']}\".")
-                        await self.bot.audit(f'User {ctx.message.author.display_name} has kicked ' +
-                                             (f'user {member.display_name}.' if isinstance(member, discord.Member) else f'ucid {member}'))
+                        await self.bot.audit(f' kicked ' + (f'user {member.display_name}.' if isinstance(member, discord.Member) else f'ucid {member}'),
+                                             user=ctx.message.author)
                     elif react.emoji == '⛔':
                         for ucid in ucids:
                             cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
@@ -258,8 +258,8 @@ class UserStatisticsMaster(Plugin):
                                     "reason": "Banned by admin."
                                 })
                         await ctx.send('User has been banned from all DCS servers.')
-                        await self.bot.audit(f'User {ctx.message.author.display_name} has banned ' +
-                                             (f' user {member.display_name}.' if isinstance(member, discord.Member) else f' ucid {member}'))
+                        await self.bot.audit(f'banned ' + (f' user {member.display_name}.' if isinstance(member, discord.Member) else f' ucid {member}'),
+                                             user=ctx.message.author)
                     elif react.emoji == '✅':
                         for ucid in ucids:
                             cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
@@ -269,8 +269,8 @@ class UserStatisticsMaster(Plugin):
                                     "ucid": ucid
                                 })
                         await ctx.send('User has been unbanned from the DCS servers.')
-                        await self.bot.audit(f'User {ctx.message.author.display_name} has unbanned ' +
-                                             (f' user {member.display_name}.' if isinstance(member, discord.Member) else f' ucid {member}'))
+                        await self.bot.audit(f'unbanned ' + (f' user {member.display_name}.' if isinstance(member, discord.Member) else f' ucid {member}'),
+                                             user=ctx.message.author)
                     conn.commit()
                 else:
                     await ctx.send(f'No data found for user "{member if isinstance(member, str) else member.display_name}".')
@@ -319,7 +319,8 @@ class UserStatisticsMaster(Plugin):
                 n = await utils.selection_list(self, ctx, unmatched, self.format_unmatched)
                 if n != -1:
                     cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (unmatched[n]['match'].id, unmatched[n]['ucid']))
-                    await self.bot.audit(f"User {ctx.message.author.display_name} linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.")
+                    await self.bot.audit(f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
+                                         user=ctx.message.author)
                     await ctx.send(f"DCS player {unmatched[n]['name']} linked to member {unmatched[n]['match'].display_name}.")
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
@@ -370,9 +371,11 @@ class UserStatisticsMaster(Plugin):
                                    (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
                                     'match' in suspicious[n],
                                     suspicious[n]['ucid']))
-                    await self.bot.audit(f"User {ctx.message.author.display_name} unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.")
+                    await self.bot.audit(f"unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.",
+                                         user=ctx.message.author)
                     if 'match' in suspicious[n]:
-                        await self.bot.audit(f"User {ctx.message.author.display_name} linked ucid {suspicious[n]['ucid']} to user {suspicious[n]['match'].display_name}.")
+                        await self.bot.audit(f"linked ucid {suspicious[n]['ucid']} to user {suspicious[n]['match'].display_name}.",
+                                             user=ctx.message.author)
                         await ctx.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked and re-linked to member {suspicious[n]['match'].display_name}.")
                     else:
                         await ctx.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked.")

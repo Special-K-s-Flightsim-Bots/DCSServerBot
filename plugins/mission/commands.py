@@ -234,26 +234,29 @@ class Mission(Plugin):
             embed.set_footer(text='Press a number to delete this mission.')
         return embed
 
-    @commands.command(description='Lists the current configured missions', aliases=['load', 'start'])
+    @commands.command(description='Lists the current configured missions', aliases=['load'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def list(self, ctx):
+    async def list(self, ctx, num: Optional[int] = None):
         server = await utils.get_server(self, ctx)
         if not server:
             return
         if server['status'] in [Status.RUNNING, Status.PAUSED]:
             data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
             missions = data['missionList']
-            n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '🔄')
-            if n >= 0:
-                mission = missions[n]
+            if len(missions) == 0:
+                await ctx.send('No missions registered with this server, please add one.')
+            if not num:
+                num = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '🔄')
+            if num >= 0:
+                mission = missions[num]
                 mission = mission[(mission.rfind('\\') + 1):-4]
                 # make sure that the Scheduler doesn't interfere
                 server['restart_pending'] = True
-                self.bot.sendtoDCS(server, {"command": "startMission", "id": n + 1, "channel": ctx.channel.id})
+                self.bot.sendtoDCS(server, {"command": "startMission", "id": num + 1, "channel": ctx.channel.id})
                 await ctx.send(f'Loading mission "{mission}" ...')
         else:
-            return await ctx.send('Server ' + server['server_name'] + ' is not running.')
+            return await ctx.send(f"Server {server['server_name']} is {server['status'].name}.")
 
     @staticmethod
     def format_file_list(data, marker, marker_emoji):
@@ -275,7 +278,7 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if not server:
             return
-        if server['status'] in [Status.RUNNING, Status.PAUSED]:
+        if server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             if len(path) == 0:
                 data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
                 installed = [mission[(mission.rfind('\\') + 1):] for mission in data['missionList']]
@@ -307,7 +310,7 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if not server:
             return
-        if server['status'] in [Status.RUNNING, Status.PAUSED]:
+        if server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
             missions = data['missionList']
             n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '❌')
@@ -354,7 +357,11 @@ class Mission(Plugin):
     @tasks.loop(minutes=1.0)
     async def update_mission_status(self):
         for server_name, server in self.globals.items():
-            if server['status'] not in [Status.RUNNING, Status.PAUSED]:
+            if server['status'] in [Status.UNREGISTERED, Status.LOADING, Status.SHUTDOWN]:
+                continue
+            elif server['status'] == Status.STOPPED:
+                if 'PID' in server and not psutil.pid_exists(server['PID']):
+                    server['status'] = Status.SHUTDOWN
                 continue
             try:
                 data = await self.bot.sendtoDCSSync(server, {

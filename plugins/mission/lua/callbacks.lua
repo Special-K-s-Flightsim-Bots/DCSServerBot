@@ -12,15 +12,17 @@ mission.last_change_slot = {}
 
 function mission.onMissionLoadBegin()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadBegin()')
-	local msg = {}
-	msg.command = 'onMissionLoadBegin'
-	msg.current_mission = DCS.getMissionName()
-	msg.current_map = DCS.getCurrentMission().mission.theatre
-	msg.mission_time = 0
-	if (lotatc_inst ~= nil) then
-		msg.lotAtcSettings = lotatc_inst.options
-	end
-	utils.sendBotTable(msg)
+	if DCS.getCurrentMission() then
+        local msg = {}
+        msg.command = 'onMissionLoadBegin'
+        msg.current_mission = DCS.getMissionName()
+        msg.current_map = DCS.getCurrentMission().mission.theatre
+        msg.mission_time = 0
+        if (lotatc_inst ~= nil) then
+            msg.lotAtcSettings = lotatc_inst.options
+        end
+        utils.sendBotTable(msg)
+    end
 end
 
 function mission.onMissionLoadEnd()

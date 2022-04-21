@@ -37,7 +37,7 @@ class Agent(Plugin):
     async def servers(self, ctx):
         if len(self.globals) > 0:
             for server_name, server in self.globals.items():
-                if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                if server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
                     players = self.bot.player_data[server['server_name']]
                     num_players = len(players[players['active'] == True]) + 1
                     report = Report(self.bot, 'mission', 'serverStatus.json')
@@ -53,14 +53,15 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             installation = server['installation']
-            if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
+            if server['status'] == Status.SHUTDOWN:
                 await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
                 utils.start_dcs(self, server)
                 server['status'] = Status.LOADING
                 # set maintenance flag to prevent auto-stops of this server
                 server['maintenance'] = True
-                await self.bot.audit(
-                    f"User {ctx.message.author.display_name} started DCS server \"{server['server_name']}\".")
+                await self.bot.audit(f"started DCS server", user=ctx.message.author, server=server)
+            elif server['status'] == Status.STOPPED:
+                await self.start(ctx)
             else:
                 await ctx.send('DCS server "{}" is already started.'.format(server['server_name']))
             if 'SRS_CONFIG' in self.config[installation]:
@@ -68,8 +69,7 @@ class Agent(Plugin):
                     if await utils.yn_question(self, ctx, 'Do you want to start the DCS-SRS server "{}"?'.format(server['server_name'])) is True:
                         await ctx.send('DCS-SRS server "{}" starting up ...'.format(server['server_name']))
                         utils.start_srs(self, server)
-                        await self.bot.audit(
-                            f"User {ctx.message.author.display_name} started DCS-SRS server \"{server['server_name']}\".")
+                        await self.bot.audit(f"started DCS-SRS server", user=ctx.message.author, server=server)
                 else:
                     await ctx.send('DCS-SRS server "{}" is already started.'.format(server['server_name']))
 
@@ -82,22 +82,18 @@ class Agent(Plugin):
             installation = server['installation']
             if server['status'] in [Status.UNREGISTERED, Status.LOADING]:
                 await ctx.send('Server is currently starting up. Please wait and try again.')
-            elif server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
+            elif server['status'] != Status.SHUTDOWN:
                 if await utils.yn_question(self, ctx, 'Do you want to shut down the '
                                                       'DCS server "{}"?'.format(server['server_name'])) is True:
                     # set maintenance flag to prevent auto-starts of this server
                     server['maintenance'] = True
                     utils.stop_dcs(self, server)
                     # wait for the server to shut down
-                    if 'PID' in server:
-                        while psutil.pid_exists(server['PID']):
-                            await asyncio.sleep(1)
-                        await ctx.send('DCS server "{}" shut down.'.format(server['server_name']))
-                    else:
-                        await ctx.send('Shutting down DCS server "{}" ...'.format(server['server_name']))
+                    while server['Status'] in [Status.RUNNING, Status.PAUSED]:
+                        await asyncio.sleep(1)
+                    await ctx.send('DCS server "{}" shut down.'.format(server['server_name']))
                     server['status'] = Status.SHUTDOWN
-                    await self.bot.audit(
-                        f"User {ctx.message.author.display_name} shut DCS server \"{server['server_name']}\" down.")
+                    await self.bot.audit(f"shut DCS server down", user=ctx.message.author, server=server)
             else:
                 await ctx.send('DCS server {} is already shut down.'.format(server['server_name']))
             if 'SRS_CONFIG' in self.config[installation]:
@@ -106,8 +102,7 @@ class Agent(Plugin):
                                                           'DCS-SRS server "{}"?'.format(server['server_name'])) is True:
                         if utils.stop_srs(self, server):
                             await ctx.send('DCS-SRS server "{}" shutdown.'.format(server['server_name']))
-                            await self.bot.audit(f"User {ctx.message.author.display_name} shut "
-                                                 f"DCS-SRS server \"{server['server_name']}\" down.")
+                            await self.bot.audit(f"shut DCS-SRS server down", user=ctx.message.author, server=server)
                         else:
                             await ctx.send('Shutdown of DCS-SRS server "{}" failed.'.format(server['server_name']))
                 else:
@@ -175,8 +170,8 @@ class Agent(Plugin):
             if await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?\nAll running '
                                                   'DCS servers will be shut down!'.format(old_version,
                                                                                           new_version)) is True:
-                await self.bot.audit(f"User {ctx.message.author.display_name} started an update of all DCS "
-                                     f"servers on node {platform.node()}.")
+                await self.bot.audit(f"started an update of all DCS servers on node {platform.node()}.",
+                                     user=ctx.message.author)
                 await self.do_update([120, 60], ctx)
         else:
             await ctx.send("Can't check the latest version on the DCS World website. Try again later.")
@@ -188,16 +183,15 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             if not coalition:
-                if server['status'] == Status.SHUTDOWN:
+                if server['status'] in [Status.SHUTDOWN, Status.STOPPED]:
                     password = await utils.input_value(self, ctx, 'Please enter the new password (. for none):', True)
                     utils.changeServerSettings(server['server_name'], 'password', password)
-                    await self.bot.audit(f"User {ctx.message.author.display_name} changed the password "
-                                         f"of server \"{server['server_name']}\".")
+                    await self.bot.audit(f"changed password", user=ctx.message.author, server=server)
                     await ctx.send('Password has been changed.')
                 else:
-                    await ctx.send(f"Server \"{server['server_name']}\" has to be shut down to change the password.")
+                    await ctx.send(f"Server \"{server['server_name']}\" has to be stopped or shut down to change the password.")
             elif coalition.casefold() in ['red', 'blue']:
-                if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                if server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
                     password = await utils.input_value(self, ctx, 'Please enter the new password (. for none):', True)
                     self.bot.sendtoDCS(server, {
                         "command": "setCoalitionPassword",
@@ -213,25 +207,19 @@ class Agent(Plugin):
                         conn.rollback()
                     finally:
                         self.pool.putconn(conn)
-                    await self.bot.audit(f"User {ctx.message.author.display_name} changed the password "
-                                         f"for coalition {coalition} of server \"{server['server_name']}\".")
-                    if await utils.yn_question(self, ctx, "Password has been changed.\nDo you want the servers to be "
-                                                          "restarted for the change to take effect?") is True:
-                        flag = server['maintenance'] if 'maintenance' in server else None
-                        server['maintenance'] = True
-                        utils.stop_dcs(self, server)
-                        if 'PID' in server:
-                            while psutil.pid_exists(server['PID']):
-                                await asyncio.sleep(1)
-                        else:
-                            await asyncio.sleep(30)
-                        utils.start_dcs(self, server)
-                        if flag:
-                            server['maintenance'] = flag
-                        else:
-                            del server['maintenance']
+                    await self.bot.audit(f"changed password for coalition {coalition}",
+                                         user=ctx.message.author, server=server)
+                    if server['status'] != Status.STOPPED and \
+                            await utils.yn_question(self, ctx, "Password has been changed.\nDo you want the servers "
+                                                               "to be restarted for the change to take effect?"):
+                        self.bot.sendtoDCS(server, {"command": "stop_server"})
+                        while server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
+                            await asyncio.sleep(1)
+                        self.bot.sendtoDCS(server, {"command": "start_server"})
+                        await self.bot.audit('restarted the server', server=server, user=ctx.message.author)
                 else:
-                    await ctx.send(f"Server \"{server['server_name']}\" must be running to change coalition passwords.")
+                    await ctx.send(f"Server \"{server['server_name']}\" must not be shut down to change coalition "
+                                   f"passwords.")
             else:
                 await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}password [red|blue]")
 
@@ -247,8 +235,8 @@ class Agent(Plugin):
                 reason = 'n/a'
             self.bot.sendtoDCS(server, {"command": "kick", "name": name, "reason": reason})
             await ctx.send(f'User "{name}" kicked.')
-            await self.bot.audit(f'User {ctx.message.author.display_name} kicked player {name}' +
-                                 (f' with reason "{reason}".' if reason != 'n/a' else '.'))
+            await self.bot.audit(f'kicked player {name}' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                                 user=ctx.message.author)
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
     @utils.has_role('DCS Admin')
@@ -323,8 +311,8 @@ class Agent(Plugin):
                         "from": ctx.message.author.display_name
                     })
                 await ctx.send(f'User "{name}" moved to spectators.')
-                await self.bot.audit(f'User {ctx.message.author.display_name} moved player {name} to spectators' +
-                                     (f' with reason "{reason}".' if reason != 'n/a' else '.'))
+                await self.bot.audit(f'moved player {name} to spectators' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                                     user=ctx.message.author)
             else:
                 await ctx.send(f"Player {name} not found.")
 
@@ -368,13 +356,80 @@ class Agent(Plugin):
             if filename.endswith('.zip'):
                 os.remove(filename)
 
+    @commands.command(description='Runs a shell command')
+    @utils.has_role('Admin')
+    @commands.guild_only()
+    async def shell(self, ctx, *params):
+        server = await utils.get_server(self, ctx)
+        if server:
+            await self.bot.audit('executed a shell command: ```' + ' '.join(params) + '```', server=server,
+                                 user=ctx.message.author)
+            subprocess.run(params, shell=True)
+
+    @commands.command(description='Starts a stopped DCS server')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def start(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            if server['status'] == Status.STOPPED:
+                self.bot.sendtoDCS(server, {"command": "start_server"})
+                await ctx.send(f"Starting server {server['server_name']} ...")
+                await self.bot.audit('started the server', server=server, user=ctx.message.author)
+            elif server['status'] == Status.SHUTDOWN:
+                await ctx.send(f"Server {server['server_name']} is shut down. Use {self.config['BOT']['COMMAND_PREFIX']}startup to start it up.")
+            elif server['status'] in [Status.RUNNING, Status.PAUSED]:
+                await ctx.send(f"Server {server['server_name']} is already started.")
+            else:
+                await ctx.send(f"Server {server['server_name']} is still {server['status'].name}, please wait ...")
+
+    @commands.command(description='Stops a DCS server')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def stop(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                self.bot.sendtoDCS(server, {"command": "stop_server"})
+                await self.bot.audit('stopped the server', server=server, user=ctx.message.author)
+                while server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
+                    await asyncio.sleep(1)
+                await ctx.send(f"Server {server['server_name']} stopped.")
+            elif server['status'] == Status.STOPPED:
+                await ctx.send(
+                    f"Server {server['server_name']} is stopped already. Use {self.config['BOT']['COMMAND_PREFIX']}shutdown to terminate the dcs.exe process.")
+            elif server['status'] == Status.SHUTDOWN:
+                await ctx.send(f"Server {server['server_name']} is shut down already.")
+            else:
+                await ctx.send(f"Server {server['server_name']} is {server['status'].name}, please wait ...")
+
+    @commands.command(description='Status of a DCS server')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def status(self, ctx):
+        server = await utils.get_server(self, ctx)
+        embed = discord.Embed(title='Server Status', color=discord.Color.blue())
+        names = []
+        status = []
+        if server:
+            names.append(server['server_name'])
+            status.append(server['status'].name)
+        else:
+            for server in self.globals.values():
+                names.append(server['server_name'])
+                status.append(server['status'].name)
+        if len(names):
+            embed.add_field(name='Server', value='\n'.join(names))
+            embed.add_field(name='Status', value='\n'.join(status))
+            await ctx.send(embed=embed)
+
     @tasks.loop(minutes=1.0)
     async def update_bot_status(self):
         for server_name, server in self.globals.items():
             if server['status'] in const.STATUS_EMOJI.keys():
-                await self.bot.change_presence(activity=discord.Game(const.STATUS_EMOJI[server['status']] + ' ' +
-                                                                     re.sub(self.config['FILTER']['SERVER_FILTER'],
-                                                                            '', server_name).strip()))
+                await self.bot.change_presence(
+                    activity=discord.Game(const.STATUS_EMOJI[server['status']] + ' ' +
+                                          re.sub(self.config['FILTER']['SERVER_FILTER'], '', server_name).strip()))
                 await asyncio.sleep(10)
 
     @tasks.loop(minutes=5.0)
@@ -414,7 +469,7 @@ class Master(Agent):
                                "IS NULL OR last_seen < NOW() - interval '6 month')")
                 cursor.execute("DELETE FROM players WHERE last_seen IS NULL OR last_seen < NOW() - interval '6 month'")
             conn.commit()
-            await self.bot.audit(f'User {ctx.message.author.display_name} pruned the database.')
+            await self.bot.audit(f'pruned the database', user=ctx.message.author)
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.bot.log.exception(error)
@@ -445,9 +500,10 @@ class Master(Agent):
                 conn.commit()
                 await super().ban(self, ctx, user, *args)
             await ctx.send('Player {} banned.'.format(user))
-            await self.bot.audit(f'User {ctx.message.author.display_name} banned ' +
+            await self.bot.audit(f'banned ' +
                                  (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}') +
-                                 (f' with reason "{reason}"' if reason != 'n/a' else ''))
+                                 (f' with reason "{reason}"' if reason != 'n/a' else ''),
+                                 user=ctx.message.author)
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.bot.log.exception(error)
@@ -473,8 +529,9 @@ class Master(Agent):
                 conn.commit()
                 await super().unban(self, ctx, user)
             await ctx.send('Player {} unbanned.'.format(user))
-            await self.bot.audit(f'User {ctx.message.author.display_name} unbanned ' +
-                                 (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}'))
+            await self.bot.audit(f'unbanned ' +
+                                 (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}'),
+                                 user=ctx.message.author)
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.bot.log.exception(error)
@@ -519,7 +576,7 @@ class Master(Agent):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
+                if self.bot.config.getboolean('BOT', 'AUTOBAN'):
                     self.bot.log.debug(f'- Auto-ban member {member.display_name} on the DCS servers')
                     cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                    'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))

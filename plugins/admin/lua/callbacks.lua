@@ -44,6 +44,13 @@ function admin.onPlayerTryChangeSlot(playerID, side, slotID)
 	end
 end
 
+function admin.onMissionLoadBegin(id)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: onMissionLoadBegin()')
+	if (dcsbot.registered == false) then
+		dcsbot.registerDCSServer()
+	end
+end
+
 function admin.onPlayerConnect(id)
     log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerConnect()')
 	if (dcsbot.registered == false) then
