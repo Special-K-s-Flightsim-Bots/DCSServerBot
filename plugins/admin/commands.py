@@ -2,10 +2,10 @@ import asyncio
 import discord
 import os
 import platform
-import psutil
 import psycopg2
 import psycopg2.extras
 import re
+import string
 import subprocess
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, const
@@ -417,7 +417,7 @@ class Agent(Plugin):
         else:
             for server in self.globals.values():
                 names.append(server['server_name'])
-                status.append(server['status'].name)
+                status.append(string.capwords(server['status'].name.lower()))
         if len(names):
             embed.add_field(name='Server', value='\n'.join(names))
             embed.add_field(name='Status', value='\n'.join(status))

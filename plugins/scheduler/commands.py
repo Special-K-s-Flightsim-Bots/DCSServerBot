@@ -106,13 +106,13 @@ class Scheduler(Plugin):
             for period, daystate in config['schedule'].items():
                 state = daystate[weekday]
                 # check, if the server should be running
-                if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server['status'] in [Status.SHUTDOWN, Status.STOPPED]:
+                if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server['status'] == Status.SHUTDOWN:
                     return Status.RUNNING
-                elif utils.is_in_timeframe(now, period) and state.upper() == 'P' and server['status'] in [Status.RUNNING, Status.PAUSED] and not utils.is_populated(self, server):
+                elif utils.is_in_timeframe(now, period) and state.upper() == 'P' and server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and not utils.is_populated(self, server):
                     return Status.SHUTDOWN
                 elif utils.is_in_timeframe(now + timedelta(seconds=restart_in), period) and state.upper() == 'N' and server['status'] == Status.RUNNING:
                     return Status.SHUTDOWN
-                elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and server['status'] == Status.PAUSED:
+                elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and server['status'] in [Status.PAUSED, Status.STOPPED]:
                     return Status.SHUTDOWN
         return server['status']
 
@@ -232,13 +232,13 @@ class Scheduler(Plugin):
         # check all servers
         for server_name, server in self.globals.items():
             # only care about servers that are not in the startup phase
-            if server['status'] in [Status.UNREGISTERED, Status.LOADING, Status.STOPPED] or \
+            if server['status'] in [Status.UNREGISTERED, Status.LOADING] or \
                     'maintenance' in server or 'restart_pending' in server:
                 continue
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
             if config:
-                if server['status'] in [Status.RUNNING, Status.PAUSED] and 'affinity' in config:
+                if server['status'] == Status.RUNNING and 'affinity' in config:
                     self.check_affinity(server, config)
                 target_state = self.check_server_state(server, config)
                 if server['status'] != target_state:

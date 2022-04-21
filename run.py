@@ -240,7 +240,7 @@ class Main:
             server = await utils.get_server(self.bot, ctx)
             if server:
                 server_name = server['server_name']
-                if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
+                if server['status'] == Status.SHUTDOWN:
                     if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from '
                                                           'node "{}"?'.format(server_name, platform.node())) is True:
                         del self.bot.globals[server_name]
@@ -252,7 +252,7 @@ class Main:
                     else:
                         await ctx.send('Aborted.')
                 else:
-                    await ctx.send('Please stop server "{}" before unregistering!'.format(server_name))
+                    await ctx.send('Please shut down server "{}" before unregistering!'.format(server_name))
 
         @self.bot.command(description='Upgrades the bot')
         @utils.has_role('Admin')
@@ -265,7 +265,7 @@ class Main:
                     await ctx.send('The bot has upgraded itself.')
                     running = False
                     for server_name, server in self.bot.globals.items():
-                        if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                        if server['status'] != Status.SHUTDOWN:
                             running = True
                     if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
                                                                       'servers.\nWould you like to shut them down now ('

@@ -357,9 +357,9 @@ class Mission(Plugin):
     @tasks.loop(minutes=1.0)
     async def update_mission_status(self):
         for server_name, server in self.globals.items():
-            if server['status'] in [Status.UNREGISTERED, Status.LOADING, Status.SHUTDOWN]:
+            if server['status'] in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
-            elif server['status'] == Status.STOPPED:
+            elif server['status'] in [Status.LOADING, Status.STOPPED]:
                 if 'PID' in server and not psutil.pid_exists(server['PID']):
                     server['status'] = Status.SHUTDOWN
                 continue
