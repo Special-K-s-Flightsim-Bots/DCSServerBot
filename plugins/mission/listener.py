@@ -96,19 +96,10 @@ class MissionEventListener(EventListener):
 
     # Display the list of active players
     async def displayPlayerEmbed(self, data):
-        players = self.bot.player_data[data['server_name']]
-        players = players[players['active'] == True]
-        embed = discord.Embed(title='Active Players', color=discord.Color.blue())
-        names = units = sides = '' if (len(players) > 0) else '_ _'
-        for idx, player in players.iterrows():
-            side = player['side']
-            names += player['name'] + '\n'
-            units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
-            sides += const.PLAYER_SIDES[side] + '\n'
-        embed.add_field(name='Name', value=names)
-        embed.add_field(name='Unit', value=units)
-        embed.add_field(name='Side', value=sides)
-        await self.bot.setEmbed(data, 'players_embed', embed)
+        if not self.bot.config.getboolean('BOT', 'COALITIONS'):
+            server = self.globals[data['server_name']]
+            report = PersistentReport(self.bot, self.plugin_name, 'player.json', server, 'players_embed')
+            return await report.render(server=server)
 
     async def callback(self, data):
         server = self.globals[data['server_name']]

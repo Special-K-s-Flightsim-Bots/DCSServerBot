@@ -1,0 +1,10 @@
+{
+  "color": "blue",
+  "title": "Active Players",
+  "elements":
+  [
+    {
+      "class": "plugins.mission.players.Main"
+    }
+  ]
+}

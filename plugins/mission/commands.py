@@ -54,7 +54,8 @@ class Mission(Plugin):
                 env = await report.render(server=server, num_players=num_players)
                 await ctx.send(embed=env.embed)
             else:
-                return await ctx.send('Server ' + server['server_name'] + ' is not running.')
+                await ctx.send('Server ' + server['server_name'] + ' is not running.')
+                return
         else:
             await ctx.message.delete()
             self.bot.sendtoDCS(server, {"command": "getMissionUpdate", "channel": ctx.channel.id})
@@ -156,19 +157,13 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if not server:
             return
-        players = self.bot.player_data[server['server_name']]
-        players = players[players['active'] == True]
-        embed = discord.Embed(title='Active Players', color=discord.Color.blue())
-        names = units = sides = '' if (len(players) > 0) else '_ _'
-        for idx, player in players.iterrows():
-            side = player['side']
-            names += player['name'] + '\n'
-            units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
-            sides += const.PLAYER_SIDES[side] + '\n'
-        embed.add_field(name='Name', value=names)
-        embed.add_field(name='Unit', value=units)
-        embed.add_field(name='Side', value=sides)
-        await ctx.send(embed=embed)
+        if server['status'] not in [Status.RUNNING, Status.PAUSED]:
+            await ctx.send('Server ' + server['server_name'] + ' is not running.')
+            return
+        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+        report = Report(self.bot, self.plugin_name, 'players.json')
+        env = await report.render(ctx=ctx, server=server, side=utils.get_side(ctx))
+        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     @commands.command(description='Restarts the current active mission', usage='[delay] [message]')
     @utils.has_role('DCS Admin')

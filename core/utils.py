@@ -13,6 +13,7 @@ import subprocess
 import psycopg2
 import xml
 import xmltodict
+from core import const
 from core.const import Status
 from configparser import ConfigParser
 from contextlib import closing, suppress
@@ -679,3 +680,20 @@ def convert_time(seconds: int):
     seconds = seconds - hours * 3600
     minutes = int(seconds / 60)
     return f"{days}d:{hours:02d}h{minutes:02d}m"
+
+
+def get_side(ctx: discord.ext.commands.Context):
+    side = None
+    if config.getboolean('BOT', 'COALITIONS'):
+        for role in ctx.author.roles:
+            if role.name == config['ROLES']['GameMaster']:
+                side = const.SIDE_NEUTRAL
+            elif role.name == config['ROLES']['Coalition Blue'] \
+                    and ctx.message.channel.overwrites_for(role).send_messages:
+                side = const.SIDE_BLUE
+            elif role.name == config['ROLES']['Coalition Red'] \
+                    and ctx.message.channel.overwrites_for(role).send_messages:
+                side = const.SIDE_RED
+        if not side:
+            raise commands.errors.CheckFailure()
+    return side
