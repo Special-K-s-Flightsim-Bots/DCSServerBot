@@ -151,7 +151,7 @@ class Mission(Plugin):
                     break
 
     @commands.command(description='List the current players on this server')
-    @utils.has_role('DCS Admin')
+    @utils.has_role('DCS')
     @commands.guild_only()
     async def players(self, ctx):
         server = await utils.get_server(self, ctx)

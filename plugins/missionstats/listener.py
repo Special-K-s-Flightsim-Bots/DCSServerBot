@@ -52,7 +52,7 @@ class MissionStatisticsEventListener(EventListener):
             return
         conn = self.pool.getconn()
         try:
-            server_name = data['server_name']
+            server = self.globals[data['server_name']]
             with closing(conn.cursor()) as cursor:
                 def get_value(values: dict, index1, index2):
                     if index1 not in values:
@@ -62,12 +62,12 @@ class MissionStatisticsEventListener(EventListener):
                     return values[index1][index2]
 
                 player = get_value(data, 'initiator', 'name')
-                init_player = utils.get_player(self, server_name, name=player) if player else None
+                init_player = utils.get_player(self, server['server_name'], name=player) if player else None
                 player = get_value(data, 'target', 'name')
-                target_player = utils.get_player(self, server_name, name=player) if player else None
-                if init_player or target_player:
+                target_player = utils.get_player(self, server['server_name'], name=player) if player else None
+                if self.config.getboolean(server['installation'], 'PERSIST_AI_STATISTICS') or init_player or target_player:
                     dataset = {
-                        'mission_id': self.globals[server_name]['mission_id'],
+                        'mission_id': server['mission_id'],
                         'event': data['eventName'],
                         'init_id': init_player['ucid'] if init_player else -1,
                         'init_side': get_value(data, 'initiator', 'coalition'),

@@ -1,6 +1,7 @@
 # Welcome to DCSServerBot!
-You've found a comprehensive solution that lets you administrate your DCS instances via Discord, has built in per-server and per-user statistics and much more!
-With its plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come into your mind. 
+You've found a comprehensive solution that lets you administrate your DCS instances via Discord, has built in per-server
+and per-user statistics, [coalitions](./COALITIONS.md) support and much more! With its plugin system and reporting framework, DCSServerBot can be enhanced very
+easily to support whatever might come into your mind. 
 
 This documentation will show you the main features, how to install and configure the bot and some more sophisticated stuff at the bottom, 
 if you for instance run multiple servers maybe even over multiple locations. 
@@ -92,7 +93,7 @@ a) __BOT Section__
 | AUTOUPDATE           | If true, the bot autoupdates itself with the latest release on startup.                                                                                                                                                                                                                                                                                                                                              |
 | AUTOBAN              | If true, members leaving the discord will be automatically banned (default = false).                                                                                                                                                                                                                                                                                                                                 |
 | AUTOMATCH            | If false, users have to match themselves using the .linkme command (see [README](./plugins/userstats/README.md))                                                                                                                                                                                                                                                                                                     |
-| COALITION_LOCK_TIME  | The time you are not allowed to change coalitions in the format "nn days" or "nn hours". Default is 1 day.                                                                                                                                                                                                                                                                                                           |
+| COALITION_LOCK_TIME  | The time you are not allowed to change [coalitions](./COALITIONS.md) in the format "nn days" or "nn hours". Default is 1 day.                                                                                                                                                                                                                                                                                        |
 | GREETING_DM          | A greeting message, that people will receive as a DM in Discord, if they join your guild.                                                                                                                                                                                                                                                                                                                            |
 | LOGLEVEL             | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).                                                                                                                                                                                                                                                                                                                       |
 | LOGROTATE_COUNT      | Number of logfiles to keep (default: 5).                                                                                                                                                                                                                                                                                                                                                                             |
@@ -108,8 +109,9 @@ b) __ROLES Section__
 | Admin          | The name of the admin role in you Discord.                                                                                    |
 | DCS Admin      | The name of the role you'd like to give admin rights on your DCS servers (_Moderator_ for instance).                          |
 | DCS            | The role of users being able to see their statistics and mission information (usually the general user role in your Discord). |
-| Coalition Red  | Members of this role are part of the red coalition (see **Coalitions** below).                                                |
-| Coalition Blue | Members of this role are part of the blue coalition (see **Coalitions** below).                                               |
+| GameMaster     | Members of this role can run commands that affect the mission behaviour or handle coalition specific details.                 |
+| Coalition Red  | Members of this role are part of the red coalition (see [Coalitions](./COALITIONS.md)).                                       |
+| Coalition Blue | Members of this role are part of the blue coalition (see [Coalitions](./COALITIONS.md)).                                      |
 
 c) __FILTER Section__ (Optional)
 
@@ -136,22 +138,24 @@ e) __Server Specific Sections__
 This section has to be named **exactly** like your Saved Games\<instance> directory. Usual names are DCS.OpenBeta or DCS.openbeta_server.
 If your directory is named DCS instead (stable version), just add these fields to the DCS category above.
 
-| Parameter          | Description                                                                                                                                                                                                                                                                                                                                                                                                            |
-|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| DCS_HOST           | The internal (!) IP of the machine, DCS is running onto. If the DCS server is running on the same machine as the bot (default), this should be 127.0.0.1.                                                                                                                                                                                                                                                              |
-| DCS_PORT           | Must be a unique value > 1024 of an unused port in your system. This is **NOT** the DCS tcp/udp port (10308), that is used by DCS but a unique different one. Keep the default, if unsure.                                                                                                                                                                                                                             |
-| DCS_HOME           | The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.                                                                                                                                                                                                                                                                    |
-| SRS_CONFIG         | The configuration file to use for the dedicated DCS-SRS server (optional).                                                                                                                                                                                                                                                                                                                                             |
-| SRS_HOST           | The IP-address the DCS-SRS server is listening on (optional, default: 127.0.0.1).                                                                                                                                                                                                                                                                                                                                      |
-| SRS_PORT           | The port the DCS-SRS server uses (optional, default: 5002).                                                                                                                                                                                                                                                                                                                                                            |
-| STATISTICS         | If false, no statistics will be generated for this server. Default is true (see [Userstats](./plugins/userstats/README.md)).                                                                                                                                                                                                                                                                                           |
-| MISSION_STATISTICS | If true, mission statistics will be generated for all missions loaded in this server (see [Missionstats](./plugins/missionstats/README.md)).                                                                                                                                                                                                                                                                           | 
-| COALITIONS         | Enable coalition handling (see "Coalitions" below), default = false.                                                                                                                                                                                                                                                                                                                                                   |                                                                                                                                                                                                                                                                                                                                                 
-| CHAT_CHANNEL       | The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.                                                                                                                                                                                                                                       |
-| CHAT_CHANNEL_BLUE  | Coalition chat channel for blue coalition (optional, see Coalitions below).                                                                                                                                                                                                                                                                                                                                            |
-| CHAT_CHANNEL_RED   | Coalition chat channel for red coalition (optional, see Coalitions below).                                                                                                                                                                                                                                                                                                                                             |
-| STATUS_CHANNEL     | The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                                                                                                                                                                                                                                                  |
-| ADMIN_CHANNEL      | The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                                                                                                                                                                                                                                                  |
+| Parameter                  | Description                                                                                                                                                                                |
+|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| DCS_HOST                   | The internal (!) IP of the machine, DCS is running onto. If the DCS server is running on the same machine as the bot (default), this should be 127.0.0.1.                                  |
+| DCS_PORT                   | Must be a unique value > 1024 of an unused port in your system. This is **NOT** the DCS tcp/udp port (10308), that is used by DCS but a unique different one. Keep the default, if unsure. |
+| DCS_HOME                   | The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.                                        |
+| SRS_CONFIG                 | The configuration file to use for the dedicated DCS-SRS server (optional).                                                                                                                 |
+| SRS_HOST                   | The IP-address the DCS-SRS server is listening on (optional, default: 127.0.0.1).                                                                                                          |
+| SRS_PORT                   | The port the DCS-SRS server uses (optional, default: 5002).                                                                                                                                |
+| STATISTICS                 | If false, no statistics will be generated for this server. Default is true (see [Userstats](./plugins/userstats/README.md)).                                                               |
+| MISSION_STATISTICS         | If true, mission statistics will be generated for all missions loaded in this server (see [Missionstats](./plugins/missionstats/README.md)).                                               | 
+| PERSIST_MISSION_STATISTICS | If true, player data is exported in the missionstats table (default = true).                                                                                                               |
+| PERSIST_AI_STATISTICS      | If true, AI data is exported, too (only player data otherwise), default = false.                                                                                                           |
+| COALITIONS                 | Enable coalition handling (see [Coalitions](./COALITIONS.md)), default = false.                                                                                                            |                                                                                                                                                                                                                                                                                                                                                 
+| CHAT_CHANNEL               | The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.           |
+| CHAT_CHANNEL_BLUE          | Coalition chat channel for blue coalition (optional, see [Coalitions](./COALITIONS.md)).                                                                                                   |
+| CHAT_CHANNEL_RED           | Coalition chat channel for red coalition (optional, see [Coalitions](./COALITIONS.md)).                                                                                                    |
+| STATUS_CHANNEL             | The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
+| ADMIN_CHANNEL              | The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
 
 ### DCS/Hook Configuration
 The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by the bot.
@@ -186,9 +190,9 @@ You can change the role names to the ones being used in your discord. That has t
 | DCS            | People with this role are allowed to chat, check their statistics and gather information about running missions and players.                        |
 | DCS Admin      | People with this role are allowed to restart missions, managing the mission list, ban and unban people.                                             |
 | Admin          | People with this role are allowed to manage the server, start it up, shut it down, update it, change the password and gather the server statistics. |
-| GameMaster     | People with this role can see both coalitions and run specific commands that are helpful in missions.                                               |
-| Coalition Blue | People with this role are members of the blue coalition. See Coalitions below for details.                                                          |
-| Coalition Red  | People with this role are members of the red coalition. See Coalitions below for details.                                                           |
+| GameMaster     | People with this role can see both [coalitions](./COALITIONS.md) and run specific commands that are helpful in missions.                            |
+| Coalition Blue | People with this role are members of the blue coalition (see [Coalitions](./COALITIONS.md)).                                                        |
+| Coalition Red  | People with this role are members of the red coalition (see [Coalitions](./COALITIONS.md)).                                                         |
 
 ### Auto-Banning
 The bot supports automatically bans / unbans of players from the configured DCS servers, as soon as they leave / join your Discord guild.
@@ -208,17 +212,6 @@ itself after an update has taken place.
 ---
 ## User Matching
 The bot works best, if DCS users and Discord users are matched. See [README](./plugins/userstats/README.md) for details.
-
----
-## Coalitions
-If you want to support Blue and Red coalitions in your Discord and your DCS servers, you're good to go! Just enable 
-_COALITIONS = true_ in your dcsserverbot.ini and make sure you've set up the coalition roles (see "Discord Configuration" 
-above).<br/>
-You can use the bot to set coalition passwords on your servers, and you can use the _.join_ and _.leave_ commands to let
-members join one of the both coalitions that are to be set up in your Discord server. The default role names are
-"Coalition Blue" and "Coalition Red", but you can use whatever name you like.<p>
-Some bot commands are coalition branded already, that means, that you can for instance see the coalition passwords or the
-coalition-specific briefing only, if you are in a channel that belongs to this coalition.
 
 ---
 ## How to do the more complex stuff?

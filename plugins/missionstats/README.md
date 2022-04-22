@@ -13,7 +13,10 @@ To disable mission statistics for a specific mission, you can use the following 
 ```
 
 ## Discord Commands
-This plugin does not (yet) come with commands. 
+
+| Command       | Parameter | Channel                     | Role  | Description                                                                                        |
+|---------------|-----------|-----------------------------|-------|----------------------------------------------------------------------------------------------------|
+| .missionstats |           | status-/chat-/admin-channel | DCS   | Display the current mission situation for red and blue and the achievments in kills and captures.  |
 
 ## Tables
 ### Missionstats
