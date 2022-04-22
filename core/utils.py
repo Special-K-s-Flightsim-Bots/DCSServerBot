@@ -707,3 +707,19 @@ def get_sides(message: discord.Message, server: dict) -> list[str]:
     else:
         sides = ['Blue', 'Red']
     return sides
+
+
+def format_embed(data):
+    embed = discord.Embed(color=discord.Color.blue())
+    if 'title' in data and len(data['title']) > 0:
+        embed.title = data['title']
+    if 'description' in data and len(data['description']) > 0:
+        embed.description = data['description']
+    if 'img' in data and len(data['img']) > 0:
+        embed.set_image(url=data['img'])
+    if 'footer' in data and len(data['footer']) > 0:
+        embed.set_footer(text=data['footer'])
+    if 'fields' in data:
+        for name, value in data['fields'].items():
+            embed.add_field(name=name, value=value)
+    return embed

@@ -51,9 +51,9 @@ Unfortunately, it is not possible to chat back yet, as the DCS API doesn't allow
 
 
 ## Discord Configuration
-The bot uses the following **internal** roles for coalitions to apply specific permissions to commands.
+The bot uses the following **internal** roles to apply specific permissions to commands.
 You can change the role names to the ones being used in your discord. That has to be done in the dcsserverbot.ini 
-configuration file. If you want to add multiple groups, separate them by comma.
+configuration file.
 
 | Role           | Description                                                                                                                                         |
 |----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|

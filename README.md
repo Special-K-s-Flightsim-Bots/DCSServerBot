@@ -183,7 +183,8 @@ MissionScripting.lua of your choice in the config directory of the bot. It will 
 
 ### Discord Configuration
 The bot uses the following **internal** roles to apply specific permissions to commands.
-You can change the role names to the ones being used in your discord. That has to be done in the dcsserverbot.ini configuration file. If you want to add multiple groups, separate them by comma.
+You can change the role names to the ones being used in your discord. That has to be done in the dcsserverbot.ini 
+configuration file. If you want to add multiple groups, separate them by comma (does **not** apply to coalition roles!).
 
 | Role           | Description                                                                                                                                         |
 |----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|

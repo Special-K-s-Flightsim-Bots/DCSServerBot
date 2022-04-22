@@ -1,5 +1,7 @@
+import aiohttp
 import asyncio
 import discord
+import json
 import os
 import platform
 import psycopg2
@@ -7,7 +9,7 @@ import psycopg2.extras
 import re
 import string
 import subprocess
-from contextlib import closing
+from contextlib import closing, suppress
 from core import utils, DCSServerBot, Plugin, Report, const
 from core.const import Status
 from discord.ext import commands, tasks
@@ -632,6 +634,34 @@ class Master(Agent):
         if 'GREETING_DM' in self.config['BOT']:
             channel = await member.create_dm()
             await channel.send(self.config['BOT']['GREETING_DM'].format(name=member.name, guild=member.guild.name))
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        # ignore bot messages
+        if message.author.bot:
+            return
+        if message.attachments:
+            roles = [x.strip() for x in self.config['ROLES']['Admin'].split(',')]
+            for role in message.author.roles:
+                if role.name in roles:
+                    att = message.attachments[0]
+                    if att.filename.endswith('.json'):
+                        try:
+                            async with aiohttp.ClientSession() as session:
+                                async with session.get(att.url) as response:
+                                    data = json.loads(await response.text())
+                                    embed = utils.format_embed(data)
+                                    msg = None
+                                    if 'message_id' in data:
+                                        with suppress(discord.errors.NotFound):
+                                            msg = await message.channel.fetch_message(int(data['message_id']))
+                                    if msg:
+                                        await msg.edit(embed=embed)
+                                    else:
+                                        await message.channel.send(embed=embed)
+                        finally:
+                            await message.delete()
+                    break
 
 
 def setup(bot: DCSServerBot):
