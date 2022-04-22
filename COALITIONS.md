@@ -4,6 +4,16 @@ As there are major changes to how the bot behaves with COALITIONS enables, I dec
 about it. It has redundant information in it, which is usually a bad idea, but I thought it might be easier for you
 guys to have everything in one place.
 
+**ATTENTION!**</BR>
+With COALITIONS enabled, some persistent displays will not appear in your server status channels
+like Player information or Mission Statistics, which would render all the work useless, if you could peek in there and 
+see what is going on. You can still use the commands .players or .missionstats in your dedicated coalition channels, but
+you can't see data from the opposite coalition anymore.
+
+COALITION handling can be enabled in each server individually. So if you only want to enable strict red/blue 
+handling in one server, you can do that. Every other server (and their persistent embeds) will not be affected.  
+
+---
 ## Bot Configuration
 There are some specific settings for coalitions that you can set in your dcsserverbot.ini:
 
@@ -33,8 +43,12 @@ c) __Server Specific Sections__
 | CHAT_CHANNEL_BLUE          | Coalition chat channel for blue coalition (optional, see Coalitions below).                                                                                                                |
 | CHAT_CHANNEL_RED           | Coalition chat channel for red coalition (optional, see Coalitions below).                                                                                                                 |
 
-**Attention!** Make sure, that all channels for red and blue coalitions have read access **only** for this coalition
-and not for everyone and not for the other coalition!  
+**Attention!**<br/>
+Make sure, that all channels for red and blue coalitions have read access **only** for this coalition and not for 
+everyone and not for the other coalition! The CHAT-channels for red and blue are similar to the general chat channel, 
+but they only replicate chat messages that are being sent to that specific coalition in game.
+Unfortunately, it is not possible to chat back yet, as the DCS API doesn't allow it (or I am too dumb to use it).
+
 
 ## Discord Configuration
 The bot uses the following **internal** roles for coalitions to apply specific permissions to commands.
