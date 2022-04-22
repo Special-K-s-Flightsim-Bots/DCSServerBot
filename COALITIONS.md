@@ -1,6 +1,6 @@
 # Coalitions
 If you want to support Blue and Red coalitions in your Discord and your DCS servers, you're good to go!
-As there are major changes to how the bot behaves with COALITIONS enables, I decided to have a separate documentation 
+As there are major changes to how the bot behaves with COALITIONS enabled, I decided to have a separate documentation 
 about it. It has redundant information in it, which is usually a bad idea, but I thought it might be easier for you
 guys to have everything in one place.
 
@@ -37,11 +37,11 @@ b) __ROLES Section__
 
 c) __Server Specific Sections__
 
-| Parameter                  | Description                                                                                                                                                                                |
-|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| COALITIONS                 | Enable coalition handling (see "Coalitions" below), default = false.                                                                                                                       |                                                                                                                                                                                                                                                                                                                                                 
-| CHAT_CHANNEL_BLUE          | Coalition chat channel for blue coalition (optional, see Coalitions below).                                                                                                                |
-| CHAT_CHANNEL_RED           | Coalition chat channel for red coalition (optional, see Coalitions below).                                                                                                                 |
+| Parameter              | Description                                 |
+|------------------------|---------------------------------------------|
+| COALITIONS             | Enable coalition handling, default = false. |                                                                                                                                                                                                                                                                                                                                                 
+| COALITION_BLUE_CHANNEL | Coalition channel for blue coalition.       |
+| COALITION_RED_CHANNEL  | Coalition channel for red coalition.        |
 
 **Attention!**<br/>
 Make sure, that all channels for red and blue coalitions have read access **only** for this coalition and not for 

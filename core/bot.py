@@ -68,10 +68,10 @@ class DCSServerBot(commands.Bot):
                     "admin_channel": self.config[installation]['ADMIN_CHANNEL']
                 }
                 # Coalition chat channels
-                if 'CHAT_CHANNEL_BLUE' in self.config[installation]:
-                    self.globals[server_name]['chat_channel_blue'] = self.config[installation]['CHAT_CHANNEL_BLUE']
-                if 'CHAT_CHANNEL_RED' in self.config[installation]:
-                    self.globals[server_name]['chat_channel_red'] = self.config[installation]['CHAT_CHANNEL_RED']
+                if 'COALITION_BLUE_CHANNEL' in self.config[installation]:
+                    self.globals[server_name]['coalition_blue_channel'] = self.config[installation]['COALITION_BLUE_CHANNEL']
+                if 'COALITION_RED_CHANNEL' in self.config[installation]:
+                    self.globals[server_name]['coalition_red_channel'] = self.config[installation]['COALITION_RED_CHANNEL']
                 # TODO: can be removed if bug in net.load_next_mission() is fixed
                 utils.changeServerSettings(server_name, 'listLoop', True)
 
@@ -132,7 +132,10 @@ class DCSServerBot(commands.Bot):
             self.log.error(f'Permission "Manage Messages" missing for channel {channel_name}')
 
     def check_channels(self, installation: str):
-        for c in ['ADMIN_CHANNEL', 'STATUS_CHANNEL', 'CHAT_CHANNEL']:
+        channels = ['ADMIN_CHANNEL', 'STATUS_CHANNEL', 'CHAT_CHANNEL']
+        if self.config.getboolean(installation, 'COALITIONS'):
+            channels.extend(['COALITION_BLUE_CHANNEL', 'COALITION_RED_CHANNEL'])
+        for c in channels:
             channel_id = int(self.config[installation][c])
             if channel_id != -1:
                 self.check_channel(channel_id)

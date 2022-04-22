@@ -388,10 +388,10 @@ async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]
             if server['status'] == Status.UNREGISTERED:
                 continue
             channels = ['status_channel', 'chat_channel', 'admin_channel']
-            if 'CHAT_CHANNEL_BLUE' in config[server['installation']]:
-                channels.append('chat_channel_blue')
-            if 'CHAT_CHANNEL_RED' in config[server['installation']]:
-                channels.append('chat_channel_red')
+            if 'COALITION_BLUE_CHANNEL' in config[server['installation']]:
+                channels.append('coalition_blue_channel')
+            if 'COALITION_RED_CHANNEL' in config[server['installation']]:
+                channels.append('coalition_red_channel')
             for channel in channels:
                 if int(server[channel]) == ctx.channel.id:
                     return server

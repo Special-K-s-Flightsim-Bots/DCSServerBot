@@ -19,7 +19,8 @@ class GameMasterAgent(Plugin):
                 continue
             if self.config[server['installation']]['COALITIONS']:
                 sides = utils.get_sides(message, server)
-                if 'Blue' in sides and 'chat_channel_blue' in server and server["chat_channel_blue"] == str(message.channel.id):
+                if 'Blue' in sides and 'coalition_blue_channel' in server and \
+                        server["coalition_blue_channel"] == str(message.channel.id):
                     # TODO: ignore messages for now, as DCS does not understand the coalitions yet
                     # self.bot.sendtoDCS(server, {
                     #    "command": "sendChatMessage",
@@ -28,7 +29,8 @@ class GameMasterAgent(Plugin):
                     #    "to": const.SIDE_BLUE * -1
                     # })
                     pass
-                elif 'Red' in sides and 'chat_channel_red' in server and server["chat_channel_red"] == str(message.channel.id):
+                elif 'Red' in sides and 'coalition_red_channel' in server and \
+                        server["coalition_red_channel"] == str(message.channel.id):
                     # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
                     # self.bot.sendtoDCS(server, {
                     #    "command": "sendChatMessage",
