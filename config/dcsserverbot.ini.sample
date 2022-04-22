@@ -18,6 +18,7 @@ AUTOUPDATE = true
 AUTOBAN = true
 LOGLEVEL = DEBUG
 ; Optional, audit channel for special events
+GREETING_DM = {name}, welcome to {guild}!\nWe have a coalition system running, which means, that you have to chose, which side you want to belong to. Make yourself comfortable on our Discord and join one of the available coalitions by using the command .join <blue|red>.\nOnce you have chosen a coalition, you can't change it for the next 24h, so chose wisely!
 AUDIT_CHANNEL = 123456789012345678
 ; Optional, load optional plugins
 OPT_PLUGINS = slotblocking, punishment, serverstats, greenieboard
@@ -48,9 +49,6 @@ EVENT_FILTER = S_EVENT_TOOK_CONTROL, S_EVENT_BDA, S_EVENT_MAX
 [DCS]
 DCS_INSTALLATION = %%ProgramFiles%%\\Eagle Dynamics\\DCS World OpenBeta
 ; SRS_INSTALLATION = %%ProgramFiles%%\\DCS-SimpleRadio-Standalone
-GREETING_MESSAGE_MEMBERS = {}, welcome back at {}!
-GREETING_MESSAGE_UNKNOWN = {}, please join our discord at ...<tbd>...
-SERVER_USER = Admin
 
 ; Only needed if your installation is not named DCS (stable installation).
 ; If you use stable, just add DCS_HOME and the other parameters to the

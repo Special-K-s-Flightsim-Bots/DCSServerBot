@@ -58,7 +58,7 @@ class SlotBlockingMaster(SlotBlockingAgent):
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute(f"SELECT trim(regexp_replace(c.server_name, '"
-                               f"{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')), p.name, COALESCE(SUM("
+                               f"{self.config['FILTER']['SERVER_FILTER']}', '', 'g')), p.name, COALESCE(SUM("
                                f"s.points), 0) AS credits FROM sb_points s, players p, campaigns c WHERE "
                                f"s.player_ucid = p.ucid AND p.discord_id = %s AND s.campaign_id = c.campaign_id GROUP "
                                f"BY 1, 2", (ctx.message.author.id, ))

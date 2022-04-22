@@ -96,8 +96,8 @@ class MissionEventListener(EventListener):
 
     # Display the list of active players
     async def displayPlayerEmbed(self, data):
-        if not self.bot.config.getboolean('BOT', 'COALITIONS'):
-            server = self.globals[data['server_name']]
+        server = self.globals[data['server_name']]
+        if not self.config.getboolean(server['installation'], 'COALITIONS'):
             report = PersistentReport(self.bot, self.plugin_name, 'player.json', server, 'players_embed')
             return await report.render(server=server)
 

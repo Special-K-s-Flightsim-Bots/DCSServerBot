@@ -31,7 +31,7 @@ class MissionStatisticsEventListener(EventListener):
 
     async def registerDCSServer(self, data):
         server = self.globals[data['server_name']]
-        if self.bot.config.getboolean(server['installation'], 'MISSION_STATISTICS'):
+        if self.config.getboolean(server['installation'], 'MISSION_STATISTICS'):
             self.bot.sendtoDCS(server, {"command": "enableMissionStats"})
             data = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"})
             self.mission_stats[data['server_name']] = data
@@ -39,12 +39,13 @@ class MissionStatisticsEventListener(EventListener):
         else:
             self.bot.sendtoDCS(server, {"command": "disableMissionStats"})
 
-    async def displayMissionStats(self, data) -> None:
-        if not self.bot.config.getboolean('BOT', 'COALITIONS'):
-            server = self.globals[data['server_name']]
+    async def displayMissionStats(self, data):
+        server = self.globals[data['server_name']]
+        # Hide the mission statistics embed, if coalitions are enabled
+        if not self.config.getboolean(server['installation'], 'COALITIONS'):
             stats = self.mission_stats[data['server_name']]
             report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server, 'stats_embed')
-            await report.render(stats=stats, mission_id=server['mission_id'], side=None)
+            await report.render(stats=stats, mission_id=server['mission_id'], sides=['Blue', 'Red'])
 
     def update_database(self, data):
         if data['eventName'] in self.filter:
@@ -94,7 +95,7 @@ class MissionStatisticsEventListener(EventListener):
 
     async def onMissionEvent(self, data):
         server = self.globals[data['server_name']]
-        if self.bot.config.getboolean(server['installation'], 'PERSIST_MISSION_STATISTICS'):
+        if self.config.getboolean(server['installation'], 'PERSIST_MISSION_STATISTICS'):
             self.update_database(data)
         if data['server_name'] in self.mission_stats:
             stats = self.mission_stats[data['server_name']]

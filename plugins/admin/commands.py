@@ -22,11 +22,11 @@ class Agent(Plugin):
         super().__init__(bot, listener)
         self.update_pending = False
         self.update_bot_status.start()
-        if self.bot.config.getboolean('DCS', 'AUTOUPDATE') is True:
+        if self.config.getboolean('DCS', 'AUTOUPDATE') is True:
             self.check_for_dcs_update.start()
 
     def cog_unload(self):
-        if self.bot.config.getboolean('DCS', 'AUTOUPDATE') is True:
+        if self.config.getboolean('DCS', 'AUTOUPDATE') is True:
             self.check_for_dcs_update.cancel()
         self.update_bot_status.cancel()
         super().cog_unload()
@@ -576,7 +576,7 @@ class Master(Agent):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if self.bot.config.getboolean('BOT', 'AUTOBAN'):
+                if self.config.getboolean('BOT', 'AUTOBAN'):
                     self.bot.log.debug(f'- Auto-ban member {member.display_name} on the DCS servers')
                     cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                    'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
@@ -611,7 +611,7 @@ class Master(Agent):
     @commands.Cog.listener()
     async def on_member_join(self, member):
         self.bot.log.debug('Member {} has joined guild {}'.format(member.display_name, member.guild.name))
-        if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
+        if self.config.getboolean('BOT', 'AUTOBAN') is True:
             self.bot.log.debug('Remove possible bans from DCS servers.')
             conn = self.bot.pool.getconn()
             try:
@@ -626,6 +626,12 @@ class Master(Agent):
                 conn.rollback()
             finally:
                 self.bot.pool.putconn(conn)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        if 'GREETING_DM' in self.config['BOT']:
+            channel = await member.create_dm()
+            await channel.send(self.config['BOT']['GREETING_DM'].format(name=member.name, guild=member.guild.name))
 
 
 def setup(bot: DCSServerBot):

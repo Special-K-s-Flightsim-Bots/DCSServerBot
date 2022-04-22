@@ -1,7 +1,7 @@
 import discord
 import psycopg2
 from contextlib import closing
-from core import DCSServerBot, Plugin, utils
+from core import DCSServerBot, Plugin, utils, const
 from core.const import Status
 from discord.ext import commands
 from .listener import GameMasterEventListener
@@ -11,11 +11,40 @@ class GameMasterAgent(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        # ignore bot messages
+        if message.author.bot:
+            return
         for server in self.globals.values():
+            if server['status'] != Status.RUNNING:
+                continue
+            if self.config[server['installation']]['COALITIONS']:
+                sides = utils.get_sides(message, server)
+                if 'Blue' in sides and 'chat_channel_blue' in server and server["chat_channel_blue"] == str(message.channel.id):
+                    # TODO: ignore messages for now, as DCS does not understand the coalitions yet
+                    # self.bot.sendtoDCS(server, {
+                    #    "command": "sendChatMessage",
+                    #    "message": message.content,
+                    #    "from": message.author.display_name,
+                    #    "to": const.SIDE_BLUE * -1
+                    # })
+                    pass
+                elif 'Red' in sides and 'chat_channel_red' in server and server["chat_channel_red"] == str(message.channel.id):
+                    # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
+                    # self.bot.sendtoDCS(server, {
+                    #    "command": "sendChatMessage",
+                    #    "message": message.content,
+                    #    "from": message.author.display_name,
+                    #    "to": const.SIDE_BLUE * -1
+                    # })
+                    pass
             if 'chat_channel' in server and server["chat_channel"] == str(message.channel.id):
                 if message.content.startswith(self.config['BOT']['COMMAND_PREFIX']) is False:
-                    message.content = self.config['BOT']['COMMAND_PREFIX'] + 'chat ' + message.content
-                    await self.bot.process_commands(message)
+                    self.bot.sendtoDCS(server, {
+                        "command": "sendChatMessage",
+                        "message": message.content,
+                        "from": message.author.display_name,
+                        "to": const.SIDE_BLUE * -1
+                    })
 
     @commands.command(description='Send a chat message to a running DCS instance', usage='<message>', hidden=True)
     @utils.has_role('DCS')
@@ -31,7 +60,7 @@ class GameMasterAgent(Plugin):
             })
 
     @commands.command(description='Sends a popup to a coalition', usage='<all|red|blue|user> [time] <message>')
-    @utils.has_role('DCS Admin')
+    @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
     async def popup(self, ctx, to, *args):
         server = await utils.get_server(self, ctx)
@@ -66,7 +95,7 @@ class GameMasterAgent(Plugin):
                 await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}popup all|red|blue|user [time] <message>")
 
     @commands.command(description='Set or clear a flag inside the mission environment', usage='<flag> [value]', hidden=True)
-    @utils.has_role('DCS Admin')
+    @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
     async def flag(self, ctx, flag, value=None):
         server = await utils.get_server(self, ctx)
@@ -82,7 +111,7 @@ class GameMasterAgent(Plugin):
             await ctx.send(f"Mission is {server['status'].name.lower()}, can't set flag.")
 
     @commands.command(description='Calls any function inside the mission environment', usage='<script>', hidden=True)
-    @utils.has_role('DCS Admin')
+    @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
     async def do_script(self, ctx, *script):
         server = await utils.get_server(self, ctx)
@@ -96,7 +125,7 @@ class GameMasterAgent(Plugin):
             await ctx.send(f"Mission is {server['status'].name.lower()}, command discarded.")
 
     @commands.command(description='Loads a lua file into the mission environment', usage='<file>', hidden=True)
-    @utils.has_role('DCS Admin')
+    @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
     async def do_script_file(self, ctx, filename):
         server = await utils.get_server(self, ctx)
@@ -114,7 +143,7 @@ class GameMasterMaster(GameMasterAgent):
 
     @commands.command(description='Join a coalition (red / blue)', usage='[red | blue]')
     @utils.has_role('DCS')
-    @utils.has_not_roles(['Coalition Blue', 'Coalition Red'])
+    @utils.has_not_roles(['Coalition Blue', 'Coalition Red', 'GameMaster'])
     @commands.guild_only()
     async def join(self, ctx, coalition: str):
         member = ctx.message.author
@@ -178,17 +207,6 @@ class GameMasterMaster(GameMasterAgent):
                     conn.rollback()
                 finally:
                     self.bot.pool.putconn(conn)
-
-    @commands.Cog.listener()
-    async def on_member_join(self, member):
-        if self.bot.config.getboolean('BOT', 'COALITIONS'):
-            channel = await member.create_dm()
-            await channel.send(
-                f"Welcome to {member.guild.name}!\nWe have a coalition system running, which means, that you have to "
-                f"chose, which side you want to belong to. Make yourself comfortable on our Discord and join one of the"
-                f"available coalitions by using the command {self.bot.config['BOT']['COMMAND_PREFIX']}join <blue|red>.\n"
-                f"Once you have chosen a coalition, you can't change it for the next "
-                f"{self.bot.config['BOT']['COALITION_LOCK_TIME']}, so chose wisely!")
 
 
 def setup(bot: DCSServerBot):

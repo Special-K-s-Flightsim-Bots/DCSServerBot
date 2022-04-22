@@ -682,18 +682,28 @@ def convert_time(seconds: int):
     return f"{days}d:{hours:02d}h{minutes:02d}m"
 
 
-def get_side(ctx: discord.ext.commands.Context):
-    side = None
-    if config.getboolean('BOT', 'COALITIONS'):
-        for role in ctx.author.roles:
-            if role.name == config['ROLES']['GameMaster']:
-                side = const.SIDE_NEUTRAL
-            elif role.name == config['ROLES']['Coalition Blue'] \
-                    and ctx.message.channel.overwrites_for(role).send_messages:
-                side = const.SIDE_BLUE
-            elif role.name == config['ROLES']['Coalition Red'] \
-                    and ctx.message.channel.overwrites_for(role).send_messages:
-                side = const.SIDE_RED
-        if not side:
-            raise commands.errors.CheckFailure()
-    return side
+def get_sides(message: discord.Message, server: dict) -> list[str]:
+    sides = []
+    if config.getboolean(server['installation'], 'COALITIONS'):
+        roles = {}
+        # find red and blue coalition roles
+        for role in message.channel.guild.roles:
+            if role.name == config['ROLES']['Coalition Blue']:
+                roles['Blue'] = role
+            elif role.name == config['ROLES']['Coalition Red']:
+                roles['Red'] = role
+        # check, which coalition specific data can be displayed in the questioned channel by that user
+        for role in message.author.roles:
+            if role.name in [config['ROLES']['GameMaster'], config['ROLES']['DCS Admin']] and \
+                    not message.channel.overwrites_for(roles['Blue']).read_messages and \
+                    not message.channel.overwrites_for(roles['Red']).read_messages:
+                sides = ['Blue', 'Red']
+            elif role.name in [config['ROLES']['Coalition Blue'], config['ROLES']['GameMaster']] \
+                    and message.channel.overwrites_for(roles['Blue']).send_messages:
+                sides = ['Blue']
+            elif role.name in [config['ROLES']['Coalition Red'], config['ROLES']['GameMaster']] \
+                    and message.channel.overwrites_for(roles['Red']).send_messages:
+                sides = ['Red']
+    else:
+        sides = ['Blue', 'Red']
+    return sides

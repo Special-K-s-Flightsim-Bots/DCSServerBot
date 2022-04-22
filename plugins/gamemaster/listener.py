@@ -8,8 +8,10 @@ from typing import Optional
 class GameMasterEventListener(EventListener):
 
     async def onChatMessage(self, data) -> None:
+        server = self.globals[data['server_name']]
         player = utils.get_player(self, data['server_name'], id=data['from_id'])
-        if data['to'] == -2 and player['side'] in [const.SIDE_BLUE, const.SIDE_RED]:
+        if self.config.getboolean(server['installation'], 'COALITIONS') \
+                and data['to'] == -2 and player['side'] in [const.SIDE_BLUE, const.SIDE_RED]:
             if player['side'] == const.SIDE_BLUE:
                 chat_channel = self.bot.get_bot_channel(data, 'chat_channel_blue')
             elif player['side'] == const.SIDE_RED:
@@ -45,7 +47,8 @@ class GameMasterEventListener(EventListener):
             self.bot.pool.putconn(conn)
 
     async def onPlayerStart(self, data: dict) -> None:
-        if data['id'] != 1 and self.bot.config.getboolean('BOT', 'COALITIONS'):
+        server = self.globals[data['server_name']]
+        if data['id'] != 1 and self.config.getboolean(server['installation'], 'COALITIONS'):
             coalition = self.get_coalition(utils.get_player(self, data['server_name'], id=data['id']))
             if coalition:
                 data['subcommand'] = 'coalition'
@@ -126,6 +129,9 @@ class GameMasterEventListener(EventListener):
             self.bot.pool.putconn(conn)
 
     async def onChatCommand(self, data):
+        server = self.globals[data['server_name']]
+        if not self.config.getboolean(server['installation'], 'COALITIONS'):
+            return
         if data['subcommand'] == 'join':
             await self.join(data)
         elif data['subcommand'] == 'leave':

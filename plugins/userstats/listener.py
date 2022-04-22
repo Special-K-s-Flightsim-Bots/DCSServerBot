@@ -204,7 +204,7 @@ class UserStatisticsEventListener(EventListener):
         if discord_user is None:
             self.bot.sendtoDCS(server, {
                 "command": "sendChatMessage",
-                "message": self.bot.config['DCS']['GREETING_MESSAGE_UNMATCHED'].format(
+                "message": self.config['DCS']['GREETING_MESSAGE_UNMATCHED'].format(
                     name=data['name'], prefix=self.config['BOT']['COMMAND_PREFIX']),
                 "to": data['id']
             })
@@ -217,7 +217,7 @@ class UserStatisticsEventListener(EventListener):
             name = discord_user.nick if discord_user.nick else discord_user.name
             self.bot.sendtoDCS(server, {
                 "command": "sendChatMessage",
-                "message": self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(name, data['server_name']),
+                "message": self.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(name, data['server_name']),
                 "to": int(data['id'])
             })
 

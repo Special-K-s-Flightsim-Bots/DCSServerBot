@@ -87,7 +87,7 @@ class Mission(Plugin):
             return
         timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         report = PaginationReport(self.bot, ctx, self.plugin_name, 'briefing.json', timeout if timeout > 0 else None)
-        await report.render(ctx=ctx, mission_info=mission_info, server_name=list(mission_info.keys())[0])
+        await report.render(mission_info=mission_info, server_name=list(mission_info.keys())[0], message=ctx.message)
 
     @commands.command(description='Shows information of a specific airport', aliases=['weather', 'airport', 'airfield', 'ap'])
     @utils.has_role('DCS')
@@ -162,7 +162,7 @@ class Mission(Plugin):
             return
         timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         report = Report(self.bot, self.plugin_name, 'players.json')
-        env = await report.render(ctx=ctx, server=server, side=utils.get_side(ctx))
+        env = await report.render(server=server, sides=utils.get_sides(ctx.message, server))
         await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     @commands.command(description='Restarts the current active mission', usage='[delay] [message]')

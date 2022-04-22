@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class Main(report.EmbedElement):
-    def render(self, server: dict, side: Optional[int] = None, ctx: Optional[Context] = None):
+    def render(self, server: dict, sides: list[str]):
         players = self.bot.player_data[server['server_name']]
         players = players[players['active'] == True]
         coalitions = {
@@ -14,14 +14,7 @@ class Main(report.EmbedElement):
         }
         for idx, player in players.iterrows():
             coalitions[player['side']]['names'].append(player['name'])
-            coalitions[player['side']]['units'].append(player['unit_type'] if side != 0 else '')
-
-        if side == const.SIDE_BLUE:
-            sides = ['Blue']
-        elif side == const.SIDE_RED:
-            sides = ['Red']
-        else:
-            sides = ['Blue', 'Red']
+            coalitions[player['side']]['units'].append(player['unit_type'] if player['side'] != 0 else '')
         if 'Blue' in sides and len(coalitions[const.SIDE_BLUE]['names']):
             self.embed.add_field(name='Blue', value='_ _')
             self.embed.add_field(name='Name', value='\n'.join(coalitions[const.SIDE_BLUE]['names']) or '_ _')
@@ -30,6 +23,7 @@ class Main(report.EmbedElement):
             self.embed.add_field(name='Red', value='_ _')
             self.embed.add_field(name='Name', value='\n'.join(coalitions[const.SIDE_RED]['names']) or '_ _')
             self.embed.add_field(name='Unit', value='\n'.join(coalitions[const.SIDE_RED]['units']) or '_ _')
+        # Neutral
         if len(coalitions[const.SIDE_SPECTATOR]['names']):
             self.embed.add_field(name='Spectator', value='_ _')
             self.embed.add_field(name='Name', value='\n'.join(coalitions[const.SIDE_SPECTATOR]['names']) or '_ _')
