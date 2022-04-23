@@ -1,0 +1,13 @@
+{
+  "color": "blue",
+  "title": "Mission Statistics",
+  "elements":
+  [
+    {
+      "class": "plugins.missionstats.reports.MissionStats",
+      "params": {
+        "sql": "SELECT init_side, MAX(captures) AS \"Base Captures\", MAX(airplanes) AS \"Killed Planes\", MAX(helicopters) AS \"Downed Helicopters\", MAX(ground) AS \"Ground Shacks\", MAX(ships) AS \"Sunken Ships\", MAX(structures) AS \"Demolished Structures\" FROM (SELECT init_side, SUM(CASE WHEN event = 'S_EVENT_BASE_CAPTURED' THEN 1 ELSE 0 END) AS captures, SUM(CASE WHEN event = 'S_EVENT_KILL' AND target_cat = 'Airplanes' THEN 1 ELSE 0 END) AS airplanes, SUM(CASE WHEN event = 'S_EVENT_KILL' AND target_cat = 'Helicopters' THEN 1 ELSE 0 END) AS helicopters, SUM(CASE WHEN event = 'S_EVENT_KILL' AND target_cat = 'Ground Units' THEN 1 ELSE 0 END) AS ground, SUM(CASE WHEN event = 'S_EVENT_KILL' AND target_cat = 'Ships' THEN 1 ELSE 0 END) AS ships, SUM(CASE WHEN event = 'S_EVENT_KILL' AND target_cat = 'Structures' THEN 1 ELSE 0 END) AS structures FROM missionstats WHERE mission_id = %(mission_id)s AND init_side IS NOT NULL GROUP BY init_side) x GROUP BY init_side"
+      }
+    }
+  ]
+}
