@@ -13,7 +13,6 @@ import subprocess
 import psycopg2
 import xml
 import xmltodict
-from core import const
 from core.const import Status
 from configparser import ConfigParser
 from contextlib import closing, suppress
@@ -685,6 +684,7 @@ def convert_time(seconds: int):
 def get_sides(message: discord.Message, server: dict) -> list[str]:
     sides = []
     if config.getboolean(server['installation'], 'COALITIONS'):
+        # TODO: cache that
         roles = {
             "All Blue": set(),
             "All Red": set(),

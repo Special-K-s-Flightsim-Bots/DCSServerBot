@@ -102,7 +102,7 @@ class Scheduler(Plugin):
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) and utils.is_populated(self, server) else 0
             now = datetime.now()
-            weekday = now.weekday()
+            weekday = (now + timedelta(seconds=restart_in)).weekday()
             for period, daystate in config['schedule'].items():
                 state = daystate[weekday]
                 # check, if the server should be running

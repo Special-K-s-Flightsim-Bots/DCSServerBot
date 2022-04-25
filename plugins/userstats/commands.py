@@ -1,9 +1,10 @@
 import asyncio
 import discord
+import os
 import psycopg2
 import random
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, PluginRequiredError, PaginationReport
+from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport
 from core.const import Status
 from datetime import datetime
 from discord.ext import commands, tasks
@@ -59,11 +60,20 @@ class UserStatisticsMaster(Plugin):
     @commands.command(description='Shows actual highscores', usage='[period]', aliases=['hs'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def highscore(self, ctx, period: Optional[str], server_name: Optional[str]):
+    async def highscore(self, ctx, period: Optional[str]):
         await ctx.message.delete()
         timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-        report = PaginationReport(self.bot, ctx, self.plugin_name, 'highscore.json', timeout if timeout > 0 else None)
-        await report.render(period=period, server_name=server_name)
+        server = await utils.get_server(self, ctx)
+        if not server:
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'highscore.json', timeout if timeout > 0 else None)
+            await report.render(period=period, message=ctx.message)
+        else:
+            report = Report(self.bot, self.plugin_name, 'highscore.json')
+            env = await report.render(period=period, message=ctx.message, server_name=server['server_name'])
+            file = discord.File(env.filename)
+            await ctx.send(embed=env.embed, file=file, delete_after=timeout if timeout > 0 else None)
+            if file:
+                os.remove(env.filename)
 
     @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
     @utils.has_role('DCS Admin')

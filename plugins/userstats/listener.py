@@ -40,7 +40,7 @@ class UserStatisticsEventListener(EventListener):
         'close_mission': 'UPDATE missions SET mission_end = NOW() WHERE id = %s',
         'close_all_missions': 'UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL',
         'check_player': 'SELECT slot FROM statistics WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
-        'start_player': 'INSERT INTO statistics (mission_id, player_ucid, slot) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING',
+        'start_player': 'INSERT INTO statistics (mission_id, player_ucid, slot, side) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING',
         'stop_player': 'UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'all_players': 'SELECT player_ucid FROM statistics WHERE mission_id = %s AND hop_off IS NULL'
     }
@@ -118,7 +118,8 @@ class UserStatisticsEventListener(EventListener):
                                         player_started = True
                                 if not player_started and player['side'] != const.SIDE_SPECTATOR:
                                     cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
-                                                   (mission_id, player['ucid'], self.get_unit_type(player)))
+                                                   (mission_id, player['ucid'], self.get_unit_type(player),
+                                                    player['side']))
                             # close dead entries in the database (if existent)
                             cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
                             for row in cursor.fetchall():
@@ -229,8 +230,8 @@ class UserStatisticsEventListener(EventListener):
                 with closing(conn.cursor()) as cursor:
                     cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, data['ucid']))
                     if data['side'] != const.SIDE_SPECTATOR:
-                        cursor.execute(self.SQL_MISSION_HANDLING['start_player'], (mission_id, data['ucid'],
-                                                                                   self.get_unit_type(data)))
+                        cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
+                                       (mission_id, data['ucid'], self.get_unit_type(data), data['side']))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
