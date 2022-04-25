@@ -673,13 +673,22 @@ def sendChatMessage(self, server_name: str, player: int, message: str):
 
 
 def convert_time(seconds: int):
+    retval = ""
     days = int(seconds / 86400)
+    if days != 0:
+        retval += f"{days}d"
     seconds = seconds - days * 86400
     hours = int(seconds / 3600)
+    if hours != 0:
+        if len(retval):
+            retval += ":"
+        retval += f"{hours:02d}h"
     seconds = seconds - hours * 3600
     minutes = int(seconds / 60)
-    return f"{days}d:{hours:02d}h{minutes:02d}m"
-
+    if len(retval):
+        retval += ":"
+    retval += f"{minutes:02d}m"
+    return retval
 
 def get_sides(message: discord.Message, server: dict) -> list[str]:
     sides = []

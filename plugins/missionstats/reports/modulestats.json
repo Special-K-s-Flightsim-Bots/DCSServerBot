@@ -1,0 +1,18 @@
+{
+  "color": "blue",
+  "title": "Module Usage Details",
+  "description": "{module}",
+  "input":
+  [
+    {
+      "name": "period",
+      "range": ["", "day", "week", "month", "year"]
+    }
+  ],
+  "elements":
+  [
+    {
+      "class": "plugins.missionstats.reports.ModuleStats"
+    }
+  ]
+}

@@ -59,14 +59,11 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         env = await report.render(member=member,
                                   member_name=member.display_name if isinstance(member, discord.Member) else name,
                                   period=period)
-        file = discord.File(env.filename)
-        await ctx.send(embed=env.embed, file=file)
-        if file:
-            os.remove(env.filename)
+        await ctx.send(embed=env.embed)
 
     @staticmethod
     def format_modules(data, marker, marker_emoji):
-        embed = discord.Embed(title=f"Select a module from your list", color=discord.Color.blue())
+        embed = discord.Embed(title=f"Select one of your modules from the list", color=discord.Color.blue())
         ids = modules  = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
@@ -110,8 +107,8 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         await ctx.message.delete()
         n = await utils.selection_list(self, ctx, modules, self.format_modules)
         if n != -1:
-            report = Report(self.bot, self.plugin_name, 'modstats.json')
-            env = await report.render(ucid=ucid, module=modules[n])
+            report = Report(self.bot, self.plugin_name, 'modulestats.json')
+            env = await report.render(ucid=ucid, module=modules[n]['slot'], period=None)
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
 
