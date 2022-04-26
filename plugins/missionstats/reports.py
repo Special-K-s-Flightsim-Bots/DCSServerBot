@@ -122,22 +122,36 @@ class MissionStats(report.EmbedElement):
             self.pool.putconn(conn)
 
 
-class ModuleStats(report.EmbedElement):
-    def render(self, ucid: str, module: str, period: Optional[str] = None) -> None:
-        sql = "SELECT init_type, " \
-              "COALESCE(CASE WHEN weapon = '' OR event = 'S_EVENT_SHOOTING_START' THEN NULL ELSE weapon END, 'Gun') AS weapon, " \
-              "COALESCE(SUM(CASE WHEN event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START') THEN 1 ELSE 0 END), 0) AS shots, " \
-              "COALESCE(SUM(CASE WHEN event = 'S_EVENT_HIT' THEN 1 ELSE 0 END), 0) AS hits, " \
-              "COALESCE(SUM(CASE WHEN event = 'S_EVENT_KILL' THEN 1 ELSE 0 END), 0) AS kills " \
-              "FROM missionstats WHERE init_id = %s AND init_type = %s GROUP BY 1, 2 ORDER BY 2"
+class ModuleStats1(report.EmbedElement):
+    def render(self, sql: str, ucid: str, module: str, period: Optional[str] = None) -> None:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute(sql, (ucid, module))
+                cursor.execute(sql, self.env.params)
+                row = cursor.fetchone()
+                self.add_field(name='Usages', value=row['num'])
+                self.add_field(name='Total Playtime', value=utils.convert_time(row['total'] or 0))
+                self.add_field(name='Average Playtime', value=utils.convert_time(row['average'] or 0))
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
+
+class ModuleStats2(report.EmbedElement):
+    def render(self, sql: str, ucid: str, module: str, period: Optional[str] = None) -> None:
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+                cursor.execute(sql, self.env.params)
                 if cursor.rowcount > 0:
                     gun_bursts = gun_hits = gun_kills = 0
                     weapons = hs_ratio = ks_ratio = ''
+                    category = None
                     for row in cursor.fetchall():
+                        if category != row['target_cat']:
+                            category = row['target_cat']
+                            self.add_field(name=f"▬▬▬▬▬▬ Category {category} ▬▬▬▬▬▬", value='_ _', inline=False)
                         shots = row['shots']
                         hits = row['hits']
                         kills = row['kills']
@@ -153,13 +167,13 @@ class ModuleStats(report.EmbedElement):
                         weapons += row['weapon'] + '\n'
                         hs_ratio += f"{100*hits/shots:.2f}%\n"
                         ks_ratio += f"{100*kills/shots:.2f}%\n"
-                    self.embed.add_field(name='Weapon', value=weapons)
-                    self.embed.add_field(name='Hits/Shot', value=hs_ratio)
-                    self.embed.add_field(name='Kills/Shot', value=ks_ratio)
+                    self.add_field(name='Weapon', value=weapons)
+                    self.add_field(name='Hits/Shot', value=hs_ratio)
+                    self.add_field(name='Kills/Shot', value=ks_ratio)
                     if gun_bursts > 0:
-                        self.embed.add_field(name='Gun Bursts', value=str(gun_bursts))
-                        self.embed.add_field(name='Hits', value=str(gun_hits))
-                        self.embed.add_field(name='Kills', value=str(gun_kills))
+                        self.add_field(name='Gun Bursts', value=str(gun_bursts))
+                        self.add_field(name='Bullet Hits', value=str(gun_hits))
+                        self.add_field(name='Gun Kills', value=str(gun_kills))
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:

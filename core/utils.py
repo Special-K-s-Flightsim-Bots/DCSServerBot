@@ -467,6 +467,7 @@ def coalition_only():
                 if ctx.message.channel.overwrites_for(role).send_messages:
                     return True
         return False
+
     return commands.check(predicate)
 
 
@@ -487,7 +488,7 @@ def find_process(proc, installation):
         if p.info['name'] == proc:
             with suppress(Exception):
                 for c in p.info['cmdline']:
-                    if installation in c:
+                    if installation in c.replace('\\', '/').split('/'):
                         return p
     return None
 
@@ -513,21 +514,21 @@ def get_active_runways(runways, wind):
 
 
 def is_in_timeframe(time: datetime, timeframe: str) -> bool:
-    def parse_time(timestr: str) -> datetime:
-        format, timestr = ('%H:%M', timestr.replace('24:', '00:')) \
-            if timestr.find(':') > -1 else ('%H', timestr.replace('24', '00'))
-        return datetime.strptime(timestr, format)
+    def parse_time(time_str: str) -> datetime:
+        fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
+            if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
+        return datetime.strptime(time_str, fmt)
 
     pos = timeframe.find('-')
     if pos != -1:
-        starttime = parse_time(timeframe[:pos])
-        endtime = parse_time(timeframe[pos+1:])
-        if endtime <= starttime:
-            endtime += timedelta(days=1)
+        start_time = parse_time(timeframe[:pos])
+        end_time = parse_time(timeframe[pos+1:])
+        if end_time <= start_time:
+            end_time += timedelta(days=1)
     else:
-        starttime = endtime = parse_time(timeframe)
-    checktime = time.replace(year=starttime.year, month=starttime.month, day=starttime.day, second=0, microsecond=0)
-    return starttime <= checktime <= endtime
+        start_time = end_time = parse_time(timeframe)
+    check_time = time.replace(year=start_time.year, month=start_time.month, day=start_time.day, second=0, microsecond=0)
+    return start_time <= check_time <= end_time
 
 
 def start_dcs(self, server: dict):

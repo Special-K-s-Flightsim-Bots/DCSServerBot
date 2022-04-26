@@ -45,7 +45,10 @@ class ServerInfo(report.EmbedElement):
             else:
                 value = '-'
             self.add_field(name='Date/Time in Mission', value=value)
-            self.add_field(name='Avail. Slots', value='🔹 {}  |  {} 🔸'.format(server['num_slots_blue'] if 'num_slots_blue' in server else '-', server['num_slots_red'] if 'num_slots_red' in server else '-'))
+            if not self.bot.config.getboolean(server['installation'], 'COALITIONS'):
+                self.add_field(name='Avail. Slots', value='🔹 {}  |  {} 🔸'.format(server['num_slots_blue'] if 'num_slots_blue' in server else '-', server['num_slots_red'] if 'num_slots_red' in server else '-'))
+            else:
+                self.add_field(name='Coalitions', value='Yes')
         self.embed.set_footer(text='- Server is running DCS {}\n'.format(server['dcs_version']))
 
 
