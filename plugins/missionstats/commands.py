@@ -76,10 +76,10 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         embed.set_footer(text='Press a number to display detailed stats about that specific module.')
         return embed
 
-    @commands.command(description='Display statistics about modules', usage='[member] [period]', aliases=['modulestats', 'modulestatistics'])
+    @commands.command(description='Display statistics about modules', usage='[member] [period]', aliases=['modstats', 'modulestatistics'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def modstats(self, ctx, member: Optional[Union[discord.Member, str]], *params):
+    async def modulestats(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         if not member:
             member = ctx.message.author
         elif isinstance(member, str):
