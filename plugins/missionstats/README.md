@@ -14,9 +14,11 @@ To disable mission statistics for a specific mission, you can use the following 
 
 ## Discord Commands
 
-| Command       | Parameter | Channel                     | Role  | Description                                                                                        |
-|---------------|-----------|-----------------------------|-------|----------------------------------------------------------------------------------------------------|
-| .missionstats |           | status-/chat-/admin-channel | DCS   | Display the current mission situation for red and blue and the achievments in kills and captures.  |
+| Command       | Parameter                        | Channel                     | Role | Description                                                                                       |
+|---------------|----------------------------------|-----------------------------|------|---------------------------------------------------------------------------------------------------|
+| .missionstats |                                  | status-/chat-/admin-channel | DCS  | Display the current mission situation for red and blue and the achievments in kills and captures. |
+| .sorties      | [@member / Player Name] [period] | all                         | DCS  | Display the number of sories and real flight time per module / period.                            |
+| .modulestats  | [@member / Player Name]          | all                         | DCS  | Display module and weapon statistics per module.                                                  |
 
 ## Tables
 ### Missionstats

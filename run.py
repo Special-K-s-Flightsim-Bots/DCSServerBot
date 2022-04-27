@@ -21,7 +21,7 @@ from psycopg2 import pool
 
 
 # Set the bot version (not externally configurable)
-BOT_VERSION = '2.5.9'
+BOT_VERSION = '2.6.0'
 SUB_VERSION = 0
 
 LOGLEVEL = {

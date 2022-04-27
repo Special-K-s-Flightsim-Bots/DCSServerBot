@@ -145,7 +145,6 @@ class ModuleStats2(report.EmbedElement):
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
                 cursor.execute(sql, self.env.params)
                 if cursor.rowcount > 0:
-                    gun_bursts = gun_hits = gun_kills = 0
                     weapons = hs_ratio = ks_ratio = ''
                     category = None
                     for row in cursor.fetchall():
@@ -164,11 +163,6 @@ class ModuleStats2(report.EmbedElement):
                             shots = hits
                         if shots == 0 and hits == 0 and kills == 0:
                             continue
-                        if row['weapon'] == 'Gun':
-                            gun_bursts = shots
-                            gun_hits = hits
-                            gun_kills = kills
-                            continue
                         weapons += row['weapon'] + '\n'
                         hs_ratio += f"{100*hits/shots:.2f}%\n"
                         ks_ratio += f"{100*kills/shots:.2f}%\n"
@@ -176,10 +170,6 @@ class ModuleStats2(report.EmbedElement):
                         self.add_field(name='Weapon', value=weapons)
                         self.add_field(name='Hits/Shot', value=hs_ratio)
                         self.add_field(name='Kills/Shot', value=ks_ratio)
-                    if gun_bursts > 0:
-                        self.add_field(name='Gun Bursts', value=str(gun_bursts))
-                        self.add_field(name='Bullet Hits', value=str(gun_hits))
-                        self.add_field(name='Gun Kills', value=str(gun_kills))
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
