@@ -691,6 +691,7 @@ def convert_time(seconds: int):
     retval += f"{minutes:02d}m"
     return retval
 
+
 def get_sides(message: discord.Message, server: dict) -> list[str]:
     sides = []
     if config.getboolean(server['installation'], 'COALITIONS'):

@@ -150,6 +150,11 @@ class ModuleStats2(report.EmbedElement):
                     category = None
                     for row in cursor.fetchall():
                         if category != row['target_cat']:
+                            if len(weapons) > 0:
+                                self.add_field(name='Weapon', value=weapons)
+                                self.add_field(name='Hits/Shot', value=hs_ratio)
+                                self.add_field(name='Kills/Shot', value=ks_ratio)
+                                weapons = hs_ratio = ks_ratio = ''
                             category = row['target_cat']
                             self.add_field(name=f"▬▬▬▬▬▬ Category {category} ▬▬▬▬▬▬", value='_ _', inline=False)
                         shots = row['shots']
@@ -167,9 +172,10 @@ class ModuleStats2(report.EmbedElement):
                         weapons += row['weapon'] + '\n'
                         hs_ratio += f"{100*hits/shots:.2f}%\n"
                         ks_ratio += f"{100*kills/shots:.2f}%\n"
-                    self.add_field(name='Weapon', value=weapons)
-                    self.add_field(name='Hits/Shot', value=hs_ratio)
-                    self.add_field(name='Kills/Shot', value=ks_ratio)
+                    if len(weapons) > 0:
+                        self.add_field(name='Weapon', value=weapons)
+                        self.add_field(name='Hits/Shot', value=hs_ratio)
+                        self.add_field(name='Kills/Shot', value=ks_ratio)
                     if gun_bursts > 0:
                         self.add_field(name='Gun Bursts', value=str(gun_bursts))
                         self.add_field(name='Bullet Hits', value=str(gun_hits))

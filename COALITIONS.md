@@ -5,7 +5,7 @@ about it. It has redundant information in it, which is usually a bad idea, but I
 guys to have everything in one place.
 
 **ATTENTION!**</BR>
-With COALITIONS enabled, some persistent displays will not appear in your server status channels
+With COALITIONS enabled, some persistent displays will not appear in your server status channels (or will be changed)
 like Player information or Mission Statistics, which would render all the work useless, if you could peek in there and 
 see what is going on. You can still use the commands .players or .missionstats in your dedicated coalition channels, but
 you can't see data from the opposite coalition anymore.

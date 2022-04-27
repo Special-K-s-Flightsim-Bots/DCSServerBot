@@ -1,8 +1,8 @@
 import discord
-import os
 import psycopg2
 from contextlib import closing
-from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report, const
+from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report
+from core.const import Status
 from discord.ext import commands
 from typing import Optional, Union
 from .listener import MissionStatisticsEventListener
@@ -17,8 +17,10 @@ class MissionStatisticsAgent(Plugin):
         if not server:
             return
         mission_id = server['mission_id'] if 'mission_id' in server else -1
-        if mission_id == -1:
+        if server['status'] not in [Status.RUNNING, Status.PAUSED]:
             await ctx.send(f"Server {server['server_name']} is not running.")
+        elif server['server_name'] not in self.eventlistener.mission_stats:
+            await ctx.send("Mission statistics not initialized yet or not active for this server.")
         else:
             timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
             stats = self.eventlistener.mission_stats[server['server_name']]
