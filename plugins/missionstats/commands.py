@@ -110,7 +110,8 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         n = await utils.selection_list(self, ctx, modules, self.format_modules)
         if n != -1:
             report = Report(self.bot, self.plugin_name, 'modulestats.json')
-            env = await report.render(ucid=ucid, module=modules[n]['slot'], period=None)
+            env = await report.render(member_name=member.display_name if isinstance(member, discord.Member) else name,
+                                      ucid=ucid, module=modules[n]['slot'], period=None)
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
 

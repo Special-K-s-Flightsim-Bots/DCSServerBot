@@ -1,6 +1,6 @@
 {
   "color": "blue",
-  "title": "Usage Details",
+  "title": "Usage Details for {member_name}",
   "description": "Module: {module}",
   "input":
   [

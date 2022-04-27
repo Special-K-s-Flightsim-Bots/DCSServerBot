@@ -1,7 +1,6 @@
 {
   "color": "blue",
   "title": "Sorties for {member_name}",
-  "description": "_{server_name}_",
   "input":
   [
     {
