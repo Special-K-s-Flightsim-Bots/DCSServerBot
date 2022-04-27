@@ -61,7 +61,7 @@ class Sorties(report.EmbedElement):
                     else:
                         flight.end = row['time']
                 self.add_flight(flight)
-                df = self.sorties.groupby('plane').agg(count=('time', 'size'), total_time=('time', 'sum')).reset_index()
+                df = self.sorties.groupby('plane').agg(count=('time', 'size'), total_time=('time', 'sum')).sort_values(by=['total_time'], ascending=False).reset_index()
                 planes = sorties = times = ''
                 for index, row in df.iterrows():
                     planes += row['plane'] + '\n'
