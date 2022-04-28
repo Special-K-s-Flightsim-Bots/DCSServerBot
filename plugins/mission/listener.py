@@ -88,7 +88,7 @@ class MissionEventListener(EventListener):
         server = self.globals[data['server_name']]
         if not self.config.getboolean(server['installation'], 'COALITIONS'):
             report = PersistentReport(self.bot, self.plugin_name, 'players.json', server, 'players_embed')
-            return await report.render(server=server)
+            return await report.render(server=server, sides=['Blue', 'Red'])
 
     async def callback(self, data):
         server = self.globals[data['server_name']]
