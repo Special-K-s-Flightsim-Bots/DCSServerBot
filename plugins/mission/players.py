@@ -1,6 +1,4 @@
 from core import report, const
-from discord.ext.commands import Context
-from typing import Optional
 
 
 class Main(report.EmbedElement):
