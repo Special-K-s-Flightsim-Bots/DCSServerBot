@@ -18,7 +18,7 @@ class Body(report.EmbedElement):
         server = self.bot.globals[server_name]
         sides = utils.get_sides(message, server)
         briefing = mission_info[server_name]['briefing']
-        self.embed.add_field(name='Description', value=briefing['descriptionText'][:4096] or 'n/a', inline=False)
+        self.embed.add_field(name='Description', value=briefing['descriptionText'][:1024] or 'n/a', inline=False)
         if 'Blue' in sides:
             self.embed.add_field(name='Blue Tasks', value=briefing['descriptionBlueTask'][:1024] or 'n/a', inline=False)
         if 'Red' in sides:
