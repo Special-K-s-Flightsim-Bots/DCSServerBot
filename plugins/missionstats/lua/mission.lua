@@ -82,6 +82,8 @@ function dcsbot.eventHandler:onEvent(event)
 			msg.eventName = 'S_EVENT_BDA'
 		elseif event.id == world.event.S_EVENT_MAX then
 			msg.eventName = 'S_EVENT_MAX'
+		elseif event.id == world.event.S_EVENT_EMERGENCY_LANDING then
+		    msg.eventName = 'S_EVENT_EMERGENCY_LANDING'
 		-- MOOSE
 		elseif event.id == world.event.S_EVENT_NEW_CARGO then
 			msg.eventName = 'S_EVENT_NEW_CARGO'
