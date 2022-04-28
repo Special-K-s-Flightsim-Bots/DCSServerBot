@@ -69,18 +69,7 @@ class MissionEventListener(EventListener):
             await channel.send(data['message'])
 
     async def sendEmbed(self, data):
-        embed = discord.Embed(color=discord.Color.blue())
-        if 'title' in data and len(data['title']) > 0:
-            embed.title = data['title']
-        if 'description' in data and len(data['description']) > 0:
-            embed.description = data['description']
-        if 'img' in data and len(data['img']) > 0:
-            embed.set_image(url=data['img'])
-        if 'footer' in data and len(data['footer']) > 0:
-            embed.set_footer(text=data['footer'])
-        if 'fields' in data:
-            for name, value in data['fields'].items():
-                embed.add_field(name=name, value=value)
+        embed = utils.format_embed(data)
         if 'id' in data and len(data['id']) > 0:
             return await self.bot.setEmbed(data, data['id'], embed)
         else:
@@ -91,24 +80,15 @@ class MissionEventListener(EventListener):
         server = self.globals[data['server_name']]
         players = self.bot.player_data[data['server_name']]
         num_players = len(players[players['active'] == True]) + 1
-        report = PersistentReport(self.bot, self.plugin, 'serverStatus.json', server, 'mission_embed')
+        report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', server, 'mission_embed')
         return await report.render(server=server, num_players=num_players)
 
     # Display the list of active players
     async def displayPlayerEmbed(self, data):
-        players = self.bot.player_data[data['server_name']]
-        players = players[players['active'] == True]
-        embed = discord.Embed(title='Active Players', color=discord.Color.blue())
-        names = units = sides = '' if (len(players) > 0) else '_ _'
-        for idx, player in players.iterrows():
-            side = player['side']
-            names += player['name'] + '\n'
-            units += (player['unit_type'] if (side != 0) else '_ _') + '\n'
-            sides += const.PLAYER_SIDES[side] + '\n'
-        embed.add_field(name='Name', value=names)
-        embed.add_field(name='Unit', value=units)
-        embed.add_field(name='Side', value=sides)
-        await self.bot.setEmbed(data, 'players_embed', embed)
+        server = self.globals[data['server_name']]
+        if not self.config.getboolean(server['installation'], 'COALITIONS'):
+            report = PersistentReport(self.bot, self.plugin_name, 'player.json', server, 'players_embed')
+            return await report.render(server=server)
 
     async def callback(self, data):
         server = self.globals[data['server_name']]
@@ -119,8 +99,7 @@ class MissionEventListener(EventListener):
     async def registerDCSServer(self, data):
         if 'players' not in data:
             data['players'] = []
-            self.log.warning(f"Server {data['server_name']} seems to be stopped. This is unsupported atm, please "
-                             f"start a mission via the WebGUI.")
+            self.globals[data['server_name']]['status'] = Status.STOPPED
         self.bot.player_data[data['server_name']] = pd.DataFrame(data['players'], columns=[
             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
             'group_id', 'group_name'])

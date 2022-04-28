@@ -19,7 +19,7 @@ class Init(report.EmbedElement):
 class ServerInfo(report.EmbedElement):
 
     def render(self, server: dict, show_password: Optional[bool] = True):
-        self.add_field(name='Map', value=server['current_map'])
+        self.add_field(name='Map', value=server['current_map'] if 'current_map' in server else 'n/a')
         self.add_field(name='Server-IP / Port',
                        value=self.bot.external_ip + ':' + str(server['serverSettings']['port']))
         if len(server['serverSettings']['password']) > 0:
@@ -29,22 +29,26 @@ class ServerInfo(report.EmbedElement):
                 self.add_field(name='Password', value='********')
         else:
             self.add_field(name='Password', value='_ _')
-        uptime = int(server['mission_time'])
-        self.add_field(name='Runtime', value=str(timedelta(seconds=uptime)))
-        if 'start_time' in server:
-            if server['date']['Year'] >= 1970:
-                date = datetime(server['date']['Year'], server['date']['Month'],
-                                server['date']['Day'], 0, 0).timestamp()
-                real_time = date + server['start_time'] + uptime
-                value = str(datetime.fromtimestamp(real_time))
+        if 'mission_time' in server:
+            uptime = int(server['mission_time'])
+            self.add_field(name='Runtime', value=str(timedelta(seconds=uptime)))
+            if 'start_time' in server:
+                if server['date']['Year'] >= 1970:
+                    date = datetime(server['date']['Year'], server['date']['Month'],
+                                    server['date']['Day'], 0, 0).timestamp()
+                    real_time = date + server['start_time'] + uptime
+                    value = str(datetime.fromtimestamp(real_time))
+                else:
+                    value = '{}-{:02d}-{:02d} {}'.format(server['date']['Year'], server['date']['Month'],
+                                                         server['date']['Day'],
+                                                         timedelta(seconds=server['start_time'] + uptime))
             else:
-                value = '{}-{:02d}-{:02d} {}'.format(server['date']['Year'], server['date']['Month'],
-                                                     server['date']['Day'],
-                                                     timedelta(seconds=server['start_time'] + uptime))
-        else:
-            value = '-'
-        self.add_field(name='Date/Time in Mission', value=value)
-        self.add_field(name='Avail. Slots', value='🔹 {}  |  {} 🔸'.format(server['num_slots_blue'] if 'num_slots_blue' in server else '-', server['num_slots_red'] if 'num_slots_red' in server else '-'))
+                value = '-'
+            self.add_field(name='Date/Time in Mission', value=value)
+            if not self.bot.config.getboolean(server['installation'], 'COALITIONS'):
+                self.add_field(name='Avail. Slots', value='🔹 {}  |  {} 🔸'.format(server['num_slots_blue'] if 'num_slots_blue' in server else '-', server['num_slots_red'] if 'num_slots_red' in server else '-'))
+            else:
+                self.add_field(name='Coalitions', value='Yes')
         self.embed.set_footer(text='- Server is running DCS {}\n'.format(server['dcs_version']))
 
 

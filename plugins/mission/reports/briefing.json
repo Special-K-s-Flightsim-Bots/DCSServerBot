@@ -1,0 +1,21 @@
+{
+  "color": "blue",
+  "title": "Mission Briefing",
+  "pagination":
+  {
+    "param":
+    {
+      "name": "server_name",
+      "obj": "mission_info"
+    }
+  },
+  "elements":
+  [
+    {
+      "class": "plugins.mission.briefing.Header"
+    },
+    {
+      "class": "plugins.mission.briefing.Body"
+    }
+  ]
+}

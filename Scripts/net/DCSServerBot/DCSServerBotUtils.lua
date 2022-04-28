@@ -17,6 +17,7 @@ local package		= base.package
 local pairs			= base.pairs
 local require		= base.require
 local string 		= base.string
+local table         = base.table
 local tonumber		= base.tonumber
 local DCS			= base.DCS
 
@@ -141,4 +142,13 @@ function getMulticrewAllParameters(PlayerId)
 		_sub_slot = -1
 	end
 	return _master_type,_master_slot,_sub_slot
+end
+
+function split(str, sep)
+   local result = {}
+   local regex = ("([^%s]+)"):format(sep)
+   for each in str:gmatch(regex) do
+      table.insert(result, each)
+   end
+   return result
 end

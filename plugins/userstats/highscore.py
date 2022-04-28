@@ -1,17 +1,30 @@
+import discord
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
-from core import report
+from core import report, utils, const
 
 
 class HighscorePlaytime(report.GraphElement):
 
-    def render(self, server_name: str, period: str, limit: int):
+    def render(self, server_name: str, period: str, limit: int, message: discord.Message):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - " \
               "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
         if server_name:
             sql += f' AND m.server_name = \'{server_name}\' '
+            if server_name in self.bot.globals:
+                server = self.bot.globals[server_name]
+                tmp = utils.get_sides(message, server)
+                sides = []
+                if 'Red' in tmp:
+                    sides.append(const.SIDE_RED)
+                if 'Blue' in tmp:
+                    sides.append(const.SIDE_BLUE)
+                # in this specific case, we want to display all data, if in public channels
+                if len(sides) == 0:
+                    sides = [1, 2]
+                sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         if period:
             sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
@@ -43,7 +56,7 @@ class HighscorePlaytime(report.GraphElement):
 
 class HighscoreElement(report.GraphElement):
 
-    def render(self, server_name: str, period: str, limit: int, kill_type: str):
+    def render(self, server_name: str, period: str, limit: int, kill_type: str, message: discord.Message):
         sql_parts = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',
@@ -72,6 +85,18 @@ class HighscoreElement(report.GraphElement):
               f"players p, statistics s, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id "
         if server_name:
             sql += f' AND m.server_name = \'{server_name}\' '
+            if server_name in self.bot.globals:
+                server = self.bot.globals[server_name]
+                tmp = utils.get_sides(message, server)
+                sides = []
+                if 'Red' in tmp:
+                    sides.append(const.SIDE_RED)
+                if 'Blue' in tmp:
+                    sides.append(const.SIDE_BLUE)
+                # in this specific case, we want to display all data, if in public channels
+                if len(sides) == 0:
+                    sides = [1, 2]
+                sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         if period:
             sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
         sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0 ORDER BY 3 DESC LIMIT {limit}'

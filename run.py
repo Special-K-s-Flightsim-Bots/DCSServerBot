@@ -21,8 +21,8 @@ from psycopg2 import pool
 
 
 # Set the bot version (not externally configurable)
-BOT_VERSION = '2.5.8'
-SUB_VERSION = 6
+BOT_VERSION = '2.6.0'
+SUB_VERSION = 0
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -96,30 +96,32 @@ class Main:
                 with suppress(Exception):
                     with closing(conn.cursor()) as cursor:
                         # check if there is an old database already
-                        cursor.execute(
-                            "SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename = 'version'")
-                        while cursor.fetchone()[0] == 1:
-                            cursor.execute('SELECT version FROM version')
-                            db_version = cursor.fetchone()[0]
-                            if path.exists(UPDATES_SQL.format(db_version)):
-                                self.log.info('Updating Database version {} ...'.format(db_version))
-                                with open(UPDATES_SQL.format(db_version)) as tables_sql:
-                                    for query in tables_sql.readlines():
-                                        self.log.debug(query.rstrip())
-                                        cursor.execute(query.rstrip())
-                                self.log.info('Database updated.'.format(db_version))
-                            cursor.execute(
-                                "SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename = 'version'")
-                        # check if the new database is already setup
-                        cursor.execute(
-                            "SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename = 'plugins'")
-                        if cursor.fetchone()[0] == 0:
+                        cursor.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('version', 'plugins')")
+                        tables = [x[0] for x in cursor.fetchall()]
+                        # initial setup
+                        if len(tables) == 0:
                             self.log.info('Initializing Database ...')
                             with open(TABLES_SQL) as tables_sql:
                                 for query in tables_sql.readlines():
                                     self.log.debug(query.rstrip())
                                     cursor.execute(query.rstrip())
                             self.log.info('Database initialized.')
+                        else:
+                            # version table missing
+                            if 'version' not in tables:
+                                cursor.execute("CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);"
+                                               "INSERT INTO version (version) VALUES ('v1.4');")
+                            cursor.execute('SELECT version FROM version')
+                            db_version = cursor.fetchone()[0]
+                            while path.exists(UPDATES_SQL.format(db_version)):
+                                self.log.info('Updating Database {} ...'.format(db_version))
+                                with open(UPDATES_SQL.format(db_version)) as tables_sql:
+                                    for query in tables_sql.readlines():
+                                        self.log.debug(query.rstrip())
+                                        cursor.execute(query.rstrip())
+                                cursor.execute('SELECT version FROM version')
+                                db_version = cursor.fetchone()[0]
+                                self.log.info(f"Database updated to {db_version}.")
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
@@ -226,7 +228,8 @@ class Main:
                         self.bot.rename_server(old_name, new_name, True)
                         await ctx.send('Server has been renamed.')
                         await self.bot.audit(
-                            f'User {ctx.message.author.display_name} renamed DCS server "{old_name}" to "{new_name}".')
+                            f'User {ctx.message.author.display_name} renamed DCS server "{old_name}" to "{new_name}".',
+                            user=ctx.message.author)
                 else:
                     await ctx.send('Please stop server "{}" before renaming!'.format(old_name))
 
@@ -237,18 +240,19 @@ class Main:
             server = await utils.get_server(self.bot, ctx)
             if server:
                 server_name = server['server_name']
-                if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
+                if server['status'] == Status.SHUTDOWN:
                     if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from '
                                                           'node "{}"?'.format(server_name, platform.node())) is True:
                         del self.bot.globals[server_name]
                         del self.bot.embeds[server_name]
                         await ctx.send('Server {} unregistered.'.format(server_name))
                         await self.bot.audit(f"User {ctx.message.author.display_name} unregistered DCS server "
-                                             f"\"{server['server_name']}\" from node {platform.node()}.")
+                                             f"\"{server['server_name']}\" from node {platform.node()}.",
+                                             user=ctx.message.author)
                     else:
                         await ctx.send('Aborted.')
                 else:
-                    await ctx.send('Please stop server "{}" before unregistering!'.format(server_name))
+                    await ctx.send('Please shut down server "{}" before unregistering!'.format(server_name))
 
         @self.bot.command(description='Upgrades the bot')
         @utils.has_role('Admin')
@@ -261,7 +265,7 @@ class Main:
                     await ctx.send('The bot has upgraded itself.')
                     running = False
                     for server_name, server in self.bot.globals.items():
-                        if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                        if server['status'] != Status.SHUTDOWN:
                             running = True
                     if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
                                                                       'servers.\nWould you like to shut them down now ('

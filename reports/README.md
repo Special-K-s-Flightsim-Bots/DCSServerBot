@@ -7,6 +7,7 @@ Here you'll find the main features and elements of this framework.
 
 ## Using Reports in your Plugins
 It is very simple to generate a report in your plugins. You just need to instantiate one of the available Report classes with a json file that is stored in the ./reports subdirectory of your plugin.
+
 ```python
 from core import DCSServerBot, Plugin, Report
 from discord.ext import commands
@@ -15,7 +16,7 @@ from discord.ext import commands
 class Test(Plugin):
     @commands.command(description='Test')
     async def test(self, ctx):
-        report = Report(self.bot, self.plugin, 'test.json')
+        report = Report(self.bot, self.plugin_name, 'test.json')
         env = await report.render(params={"name": "Special K"})
         await ctx.send(embed=env.embed)
 
@@ -300,15 +301,17 @@ Let's look at the more complex ones.
 
 ### PaginationReport
 To use a PaginationReport, your code could look like the following:
+
 ```python
 from core import PaginationReport
 from discord.ext import commands
-from typing import Optional    
+from typing import Optional
 
-    @commands.command(description='Pagination Test', usage='[period] [server name]')
-    async def test(self, ctx, period: Optional[str] = None, server_name: Optional[str] = None):
-        report = PaginationReport(self.bot, ctx, self.plugin, 'mytest.json')
-        await report.render(period=period, server_name=server_name)
+
+@commands.command(description='Pagination Test', usage='[period] [server name]')
+async def test(self, ctx, period: Optional[str] = None, server_name: Optional[str] = None):
+    report = PaginationReport(self.bot, ctx, self.plugin_name, 'mytest.json')
+    await report.render(period=period, server_name=server_name)
 ```
 
 In your report though, you have to specify a pagination section:
@@ -351,16 +354,18 @@ Now you can use {server_name} in your report elements:
 
 ### Persistent Report
 To use a PersistentReport, in general you produce a normal report but provide a unique key with it, that will be used to access and update it later on.
+
 ```python
 from core import utils, PersistentReport
 from discord.ext import commands
-from typing import Optional    
+from typing import Optional
 
-    @commands.command(description='Pagination Test', usage='[period] [server name]')
-    async def test(self, ctx, period: Optional[str] = None, server_name: Optional[str] = None):
-        server = await utils.get_server(self, ctx)
-        report = PersistentReport(self.bot, self.plugin, 'mytest.json', server, 'test_embed')
-        return await report.render(period=period, server_name=server_name)
+
+@commands.command(description='Pagination Test', usage='[period] [server name]')
+async def test(self, ctx, period: Optional[str] = None, server_name: Optional[str] = None):
+    server = await utils.get_server(self, ctx)
+    report = PersistentReport(self.bot, self.plugin_name, 'mytest.json', server, 'test_embed')
+    return await report.render(period=period, server_name=server_name)
 ```
 
 Whenever you call ```.test```, you will not generate a new report but update the existing one.<br/>

@@ -1,7 +1,6 @@
-import discord
 import psycopg2
 from contextlib import closing
-from core import utils, EventListener, Plugin
+from core import utils, EventListener, Plugin, PersistentReport
 
 
 class MissionStatisticsEventListener(EventListener):
@@ -30,91 +29,74 @@ class MissionStatisticsEventListener(EventListener):
         else:
             self.filter = []
 
-    async def enableMissionStats(self, data):
-        self.mission_stats[data['server_name']] = data
-        return await self.displayMissionStats(data)
-
-    async def disableMissionStats(self, data):
+    async def registerDCSServer(self, data):
         server = self.globals[data['server_name']]
-        self.bot.sendtoDCS(server, {"command": "disableMissionStats"})
+        if self.config.getboolean(server['installation'], 'MISSION_STATISTICS'):
+            self.bot.sendtoDCS(server, {"command": "enableMissionStats"})
+            data = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"})
+            self.mission_stats[data['server_name']] = data
+            await self.displayMissionStats(data)
+        else:
+            self.bot.sendtoDCS(server, {"command": "disableMissionStats"})
 
     async def displayMissionStats(self, data):
-        if data['server_name'] in self.mission_stats:
+        server = self.globals[data['server_name']]
+        # Hide the mission statistics embed, if coalitions are enabled
+        if not self.config.getboolean(server['installation'], 'COALITIONS'):
             stats = self.mission_stats[data['server_name']]
-            embed = discord.Embed(title='Mission Statistics', color=discord.Color.blue())
-            embed.add_field(name='▬▬▬▬▬▬ Current Situation ▬▬▬▬▬▬', value='_ _', inline=False)
-            embed.add_field(
-                name='_ _', value='Airbases / FARPs\nPlanes\nHelicopters\nGround Units\nShips\nStructures')
-            for coalition in ['Blue', 'Red']:
-                coalition_data = stats['coalitions'][coalition]
-                value = '{}\n'.format(len(coalition_data['airbases']))
-                for unit_type in ['Airplanes', 'Helicopters', 'Ground Units', 'Ships']:
-                    value += '{}\n'.format(len(coalition_data['units'][unit_type])
-                                           if unit_type in coalition_data['units'] else 0)
-                value += '{}\n'.format(len(coalition_data['statics']))
-                embed.add_field(name=coalition, value=value)
-            embed.add_field(name='▬▬▬▬▬▬ Achievements ▬▬▬▬▬▬▬', value='_ _', inline=False)
-            embed.add_field(
-                name='_ _',
-                value='Base Captures\nKilled Planes\nDowned Helicopters\nGround Shacks\nSunken Ships\nDemolished Structures')
-            for coalition in ['Blue', 'Red']:
-                value = ''
-                coalition_data = stats['coalitions'][coalition]
-                value += '{}\n'.format(coalition_data['captures'] if ('captures' in coalition_data) else 0)
-                if 'kills' in coalition_data:
-                    for unit_type in ['Airplanes', 'Helicopters', 'Ground Units', 'Ships', 'Static']:
-                        value += '{}\n'.format(coalition_data['kills'][unit_type] if unit_type in coalition_data['kills'] else 0)
-                else:
-                    value += '0\n' * 5
-                embed.add_field(name=coalition, value=value)
-            return await self.bot.setEmbed(data, 'stats_embed', embed)
+            report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server, 'stats_embed')
+            await report.render(stats=stats, mission_id=server['mission_id'], sides=['Blue', 'Red'])
+
+    def update_database(self, data):
+        if data['eventName'] in self.filter:
+            return
+        conn = self.pool.getconn()
+        try:
+            server = self.globals[data['server_name']]
+            with closing(conn.cursor()) as cursor:
+                def get_value(values: dict, index1, index2):
+                    if index1 not in values:
+                        return None
+                    if index2 not in values[index1]:
+                        return None
+                    return values[index1][index2]
+
+                player = get_value(data, 'initiator', 'name')
+                init_player = utils.get_player(self, server['server_name'], name=player) if player else None
+                player = get_value(data, 'target', 'name')
+                target_player = utils.get_player(self, server['server_name'], name=player) if player else None
+                if self.config.getboolean(server['installation'], 'PERSIST_AI_STATISTICS') or init_player or target_player:
+                    dataset = {
+                        'mission_id': server['mission_id'],
+                        'event': data['eventName'],
+                        'init_id': init_player['ucid'] if init_player else -1,
+                        'init_side': get_value(data, 'initiator', 'coalition'),
+                        'init_type': get_value(data, 'initiator', 'unit_type'),
+                        'init_cat': self.UNIT_CATEGORY[get_value(data, 'initiator', 'category')],
+                        'target_id': target_player['ucid'] if target_player else -1,
+                        'target_side': get_value(data, 'target', 'coalition'),
+                        'target_type': get_value(data, 'target', 'unit_type'),
+                        'target_cat': self.UNIT_CATEGORY[get_value(data, 'target', 'category')],
+                        'weapon': get_value(data, 'weapon', 'name'),
+                        'place': get_value(data, 'place', 'name'),
+                        'comment': data['comment'] if 'comment' in data else ''
+                    }
+                    cursor.execute('INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, '
+                                   'init_cat, target_id, target_side, target_type, target_cat, weapon, '
+                                   'place, comment) VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, '
+                                   '%(init_type)s, %(init_cat)s, %(target_id)s, %(target_side)s, %(target_type)s, '
+                                   '%(target_cat)s, %(weapon)s, %(place)s, %(comment)s)', dataset)
+                    conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
     async def onMissionEvent(self, data):
-        # TODO: make this configurable
-        if data['eventName'] not in self.filter:
-            conn = self.pool.getconn()
-            try:
-                server_name = data['server_name']
-                with closing(conn.cursor()) as cursor:
-                    def get_value(values: dict, index1, index2):
-                        if index1 not in values:
-                            return None
-                        if index2 not in values[index1]:
-                            return None
-                        return values[index1][index2]
-
-                    player = get_value(data, 'initiator', 'name')
-                    init_player = utils.get_player(self, server_name, name=player) if player else None
-                    player = get_value(data, 'target', 'name')
-                    target_player = utils.get_player(self, server_name, name=player) if player else None
-                    if init_player or target_player:
-                        dataset = {
-                            'mission_id': self.globals[server_name]['mission_id'],
-                            'event': data['eventName'],
-                            'init_id': init_player['ucid'] if init_player else -1,
-                            'init_side': get_value(data, 'initiator', 'coalition'),
-                            'init_type': get_value(data, 'initiator', 'unit_type'),
-                            'init_cat': self.UNIT_CATEGORY[get_value(data, 'initiator', 'category')],
-                            'target_id': target_player['ucid'] if target_player else -1,
-                            'target_side': get_value(data, 'target', 'coalition'),
-                            'target_type': get_value(data, 'target', 'unit_type'),
-                            'target_cat': self.UNIT_CATEGORY[get_value(data, 'target', 'category')],
-                            'weapon': get_value(data, 'weapon', 'name'),
-                            'place': get_value(data, 'place', 'name'),
-                            'comment': data['comment'] if 'comment' in data else ''
-                        }
-                        cursor.execute('INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, '
-                                       'init_cat, target_id, target_side, target_type, target_cat, weapon, '
-                                       'place, comment) VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, '
-                                       '%(init_type)s, %(init_cat)s, %(target_id)s, %(target_side)s, %(target_type)s, '
-                                       '%(target_cat)s, %(weapon)s, %(place)s, %(comment)s)', dataset)
-                        conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-                conn.rollback()
-            finally:
-                self.pool.putconn(conn)
-
+        server = self.globals[data['server_name']]
+        if self.config.getboolean(server['installation'], 'PERSIST_MISSION_STATISTICS'):
+            self.update_database(data)
         if data['server_name'] in self.mission_stats:
             stats = self.mission_stats[data['server_name']]
             update = False

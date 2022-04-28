@@ -25,8 +25,8 @@ class SchedulerListener(EventListener):
 
     async def onSimulationStart(self, data):
         server = self.globals[data['server_name']]
-        if self.plugin in server:
-            config = server[self.plugin]
+        if self.plugin_name in server:
+            config = server[self.plugin_name]
             if 'onMissionStart' in config:
                 self.run(server, config['onMissionStart'])
 
@@ -37,14 +37,14 @@ class SchedulerListener(EventListener):
 
     async def onMissionEnd(self, data):
         server = self.globals[data['server_name']]
-        if self.plugin in server:
-            config = server[self.plugin]
+        if self.plugin_name in server:
+            config = server[self.plugin_name]
             if 'onMissionEnd' in config:
                 self.run(server, config['onMissionEnd'])
 
     async def onShutdown(self, data):
         server = self.globals[data['server_name']]
-        if self.plugin in server:
-            config = server[self.plugin]
+        if self.plugin_name in server:
+            config = server[self.plugin_name]
             if 'onShutdown' in config:
                 self.run(server, config['onShutdown'])

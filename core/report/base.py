@@ -104,14 +104,15 @@ class PaginationReport(Report):
     class NoPaginationInformation(Exception):
         pass
 
-    def __init__(self, bot: DCSServerBot, ctx: Context, plugin: str, filename: str, timeout: Optional[int] = None):
+    def __init__(self, bot: DCSServerBot, ctx: Context, plugin: str, filename: str, timeout: Optional[int] = None,
+                 pagination: Optional[list] = None):
         super().__init__(bot, plugin, filename)
         self.ctx = ctx
         self.timeout = timeout
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
 
-    def read_param(self, param: dict) -> Tuple[str, List]:
+    def read_param(self, param: dict, **kwargs) -> Tuple[str, List]:
         name = param['name']
         values = None
         if 'sql' in param:
@@ -124,12 +125,18 @@ class PaginationReport(Report):
                 self.log.exception(error)
             finally:
                 self.pool.putconn(conn)
-        else:
+        elif 'values' in param:
             values = param['values']
+        elif 'obj' in param:
+            obj = kwargs[param['obj']]
+            if isinstance(obj, list):
+                values = obj
+            elif isinstance(obj, dict):
+                values = obj.keys()
         return name, values
 
     async def render(self, *args, **kwargs) -> ReportEnv:
-        name, values = self.read_param(self.report_def['pagination']['param'])
+        name, values = self.read_param(self.report_def['pagination']['param'], **kwargs)
         if name in kwargs and kwargs[name] is not None:
             values = [kwargs[name]]
         func = super().render

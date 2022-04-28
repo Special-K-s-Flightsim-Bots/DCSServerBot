@@ -10,7 +10,7 @@ class GreenieBoardEventListener(EventListener):
         if self.locals['configs'][0]['persistent_board']:
             data = {"channel": self.locals['configs'][0]['persistent_channel'] if 'persistent_channel' in self.locals['configs'][0] else "-1",
                     "server_name": list(self.globals.values())[0]['server_name']}
-            embed = self._plugin.render_board()
+            embed = self.plugin.render_board()
             if embed:
                 await self.bot.setEmbed(data, 'greenieboard', embed)
 

@@ -12,15 +12,17 @@ mission.last_change_slot = {}
 
 function mission.onMissionLoadBegin()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadBegin()')
-	local msg = {}
-	msg.command = 'onMissionLoadBegin'
-	msg.current_mission = DCS.getMissionName()
-	msg.current_map = DCS.getCurrentMission().mission.theatre
-	msg.mission_time = 0
-	if (lotatc_inst ~= nil) then
-		msg.lotAtcSettings = lotatc_inst.options
-	end
-	utils.sendBotTable(msg)
+	if DCS.getCurrentMission() then
+        local msg = {}
+        msg.command = 'onMissionLoadBegin'
+        msg.current_mission = DCS.getMissionName()
+        msg.current_map = DCS.getCurrentMission().mission.theatre
+        msg.mission_time = 0
+        if (lotatc_inst ~= nil) then
+            msg.lotAtcSettings = lotatc_inst.options
+        end
+        utils.sendBotTable(msg)
+    end
 end
 
 function mission.onMissionLoadEnd()
@@ -238,28 +240,39 @@ end
 
 function mission.onPlayerTrySendChat(from, message, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTrySendChat()')
+    local msg = {}
     if string.sub(message, 1, 1) == '-' then
-        local msg = {}
         msg.command = 'onChatCommand'
-        msg.message = message
+        local elements = utils.split(message, ' ')
+        msg.subcommand = string.sub(elements[1], 2)
+        msg.params = { unpack(elements, 2) }
         msg.from_id = net.get_player_info(from, 'id')
         msg.from_name = net.get_player_info(from, 'name')
         msg.to = to
         utils.sendBotTable(msg)
         return ''
+    else
+        msg.command = 'onChatMessage'
+        msg.message = message
+        msg.from_id = net.get_player_info(from, 'id')
+        msg.from_name = net.get_player_info(from, 'name')
+        msg.to = to
+        utils.sendBotTable(msg)
     end
     return message
 end
 
 function mission.onChatMessage(message, from, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onChatMessage()')
-	local msg = {}
-	msg.command = 'onChatMessage'
-	msg.message = message
-	msg.from_id = net.get_player_info(from, 'id')
-	msg.from_name = net.get_player_info(from, 'name')
-    msg.to = to
-	utils.sendBotTable(msg, config.CHAT_CHANNEL)
+    if not from then
+        local msg = {}
+        msg.command = 'onChatMessage'
+        msg.message = message
+        msg.from_id = net.get_player_info(from, 'id')
+        msg.from_name = net.get_player_info(from, 'name')
+        msg.to = to
+        utils.sendBotTable(msg, config.CHAT_CHANNEL)
+    end
 end
 
 DCS.setUserCallbacks(mission)

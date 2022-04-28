@@ -65,7 +65,7 @@ class GreenieBoard(Plugin):
         await ctx.message.delete()
         n = await utils.selection_list(self, ctx, landings, self.format_comments)
         if n != -1:
-            report = Report(self.bot, self.plugin, 'lsoRating.json')
+            report = Report(self.bot, self.plugin_name, 'lsoRating.json')
             grade = landings[n]['grade']
             comment = get_element(landings[n]['comment'], 'comment').replace('_', '\\_')
             wire = get_element(landings[n]['comment'], 'wire')

@@ -386,14 +386,50 @@ async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]
         if isinstance(ctx, discord.ext.commands.context.Context):
             if server['status'] == Status.UNREGISTERED:
                 continue
-            if (int(server['status_channel']) == ctx.channel.id) or \
-                    (int(server['chat_channel']) == ctx.channel.id) or \
-                    (int(server['admin_channel']) == ctx.channel.id):
-                return server
+            channels = ['status_channel', 'chat_channel', 'admin_channel']
+            if 'COALITION_BLUE_CHANNEL' in config[server['installation']]:
+                channels.append('coalition_blue_channel')
+            if 'COALITION_RED_CHANNEL' in config[server['installation']]:
+                channels.append('coalition_red_channel')
+            for channel in channels:
+                if int(server[channel]) == ctx.channel.id:
+                    return server
         else:
             if server_name == ctx:
                 return server
     return None
+
+
+def has_roles(roles: list[str]):
+    def predicate(ctx):
+        valid_roles = []
+        for role in roles:
+            if 'ROLES' not in config or role not in config['ROLES']:
+                valid_roles.append(role)
+            else:
+                valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
+        for role in ctx.author.roles:
+            if role.name in valid_roles:
+                return True
+        return False
+
+    return commands.check(predicate)
+
+
+def has_not_roles(roles: list[str]):
+    def predicate(ctx):
+        valid_roles = []
+        for role in roles:
+            if 'ROLES' not in config or role not in config['ROLES']:
+                valid_roles.append(role)
+            else:
+                valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
+        for role in ctx.author.roles:
+            if role.name in valid_roles:
+                return False
+        return True
+
+    return commands.check(predicate)
 
 
 def has_role(item: str):
@@ -405,6 +441,31 @@ def has_role(item: str):
         for role in ctx.author.roles:
             if role.name in valid_roles:
                 return True
+        return False
+
+    return commands.check(predicate)
+
+
+def has_not_role(item: str):
+    def predicate(ctx):
+        if 'ROLES' not in config or item not in config['ROLES']:
+            valid_roles = [item]
+        else:
+            valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
+        for role in ctx.author.roles:
+            if role.name in valid_roles:
+                return False
+        return True
+
+    return commands.check(predicate)
+
+
+def coalition_only():
+    def predicate(ctx):
+        for role in ctx.message.author.roles:
+            if role.name in [config['ROLES']['Coalition Blue'], config['ROLES']['Coalition Red']]:
+                if ctx.message.channel.overwrites_for(role).send_messages:
+                    return True
         return False
 
     return commands.check(predicate)
@@ -427,7 +488,7 @@ def find_process(proc, installation):
         if p.info['name'] == proc:
             with suppress(Exception):
                 for c in p.info['cmdline']:
-                    if installation in c:
+                    if installation in c.replace('\\', '/').split('/'):
                         return p
     return None
 
@@ -453,21 +514,21 @@ def get_active_runways(runways, wind):
 
 
 def is_in_timeframe(time: datetime, timeframe: str) -> bool:
-    def parse_time(timestr: str) -> datetime:
-        format, timestr = ('%H:%M', timestr.replace('24:', '00:')) \
-            if timestr.find(':') > -1 else ('%H', timestr.replace('24', '00'))
-        return datetime.strptime(timestr, format)
+    def parse_time(time_str: str) -> datetime:
+        fmt, time_str = ('%H:%M', time_str.replace('24:', '00:')) \
+            if time_str.find(':') > -1 else ('%H', time_str.replace('24', '00'))
+        return datetime.strptime(time_str, fmt)
 
     pos = timeframe.find('-')
     if pos != -1:
-        starttime = parse_time(timeframe[:pos])
-        endtime = parse_time(timeframe[pos+1:])
-        if endtime <= starttime:
-            endtime += timedelta(days=1)
+        start_time = parse_time(timeframe[:pos])
+        end_time = parse_time(timeframe[pos+1:])
+        if end_time <= start_time:
+            end_time += timedelta(days=1)
     else:
-        starttime = endtime = parse_time(timeframe)
-    checktime = time.replace(year=starttime.year, month=starttime.month, day=starttime.day, second=0, microsecond=0)
-    return starttime <= checktime <= endtime
+        start_time = end_time = parse_time(timeframe)
+    check_time = time.replace(year=start_time.year, month=start_time.month, day=start_time.day, second=0, microsecond=0)
+    return start_time <= check_time <= end_time
 
 
 def start_dcs(self, server: dict):
@@ -613,9 +674,91 @@ def sendChatMessage(self, server_name: str, player: int, message: str):
 
 
 def convert_time(seconds: int):
+    retval = ""
     days = int(seconds / 86400)
+    if days != 0:
+        retval += f"{days}d"
     seconds = seconds - days * 86400
     hours = int(seconds / 3600)
+    if hours != 0:
+        if len(retval):
+            retval += ":"
+        retval += f"{hours:02d}h"
     seconds = seconds - hours * 3600
     minutes = int(seconds / 60)
-    return f"{days}d:{hours:02d}h{minutes:02d}m"
+    if len(retval):
+        retval += ":"
+    retval += f"{minutes:02d}m"
+    return retval
+
+
+def get_sides(message: discord.Message, server: dict) -> list[str]:
+    sides = []
+    if config.getboolean(server['installation'], 'COALITIONS'):
+        # TODO: cache that
+        roles = {
+            "All Blue": set(),
+            "All Red": set(),
+            "everyone": discord.Role,
+            "DCS": discord.Role,
+            "Blue": discord.Role,
+            "Red": discord.Role,
+        }
+        da_roles = [x.strip() for x in config['ROLES']['DCS Admin'].split(',')]
+        gm_roles = [x.strip() for x in config['ROLES']['GameMaster'].split(',')]
+        # find all roles that are allowed to see red and blue
+        for role in message.channel.guild.roles:
+            if role.name == config['ROLES']['Coalition Blue']:
+                roles['Blue'] = role
+                roles['All Blue'].add(role.name)
+            elif role.name == config['ROLES']['Coalition Red']:
+                roles['Red'] = role
+                roles['All Red'].add(role.name)
+            elif role.name == config['ROLES']['DCS']:
+                roles['DCS'] = role
+            elif role.name == '@everyone':
+                roles['everyone'] = role
+            elif role.name in da_roles:
+                roles['All Blue'].add(role.name)
+                roles['All Red'].add(role.name)
+            elif role.name in gm_roles:
+                roles['All Blue'].add(role.name)
+                roles['All Red'].add(role.name)
+        # check, which coalition specific data can be displayed in the questioned channel by that user
+        for role in message.author.roles:
+            if (role.name in gm_roles or role.name in da_roles) and \
+                    not message.channel.overwrites_for(roles['everyone']).read_messages and \
+                    not message.channel.overwrites_for(roles['DCS']).read_messages and \
+                    not message.channel.overwrites_for(roles['Blue']).read_messages and \
+                    not message.channel.overwrites_for(roles['Red']).read_messages:
+                sides = ['Blue', 'Red']
+                break
+            elif role.name in roles['All Blue'] \
+                    and message.channel.overwrites_for(roles['Blue']).send_messages and \
+                    not message.channel.overwrites_for(roles['Red']).read_messages:
+                sides = ['Blue']
+                break
+            elif role.name in roles['All Red'] \
+                    and message.channel.overwrites_for(roles['Red']).send_messages and \
+                    not message.channel.overwrites_for(roles['Blue']).read_messages:
+                sides = ['Red']
+                break
+    else:
+        sides = ['Blue', 'Red']
+    return sides
+
+
+def format_embed(data):
+    embed = discord.Embed(color=discord.Color.blue())
+    if 'title' in data and len(data['title']) > 0:
+        embed.title = data['title']
+    if 'description' in data and len(data['description']) > 0:
+        embed.description = data['description']
+    if 'img' in data and len(data['img']) > 0:
+        embed.set_image(url=data['img'])
+    if 'footer' in data and len(data['footer']) > 0:
+        embed.set_footer(text=data['footer'])
+    if 'fields' in data:
+        for name, value in data['fields'].items():
+            embed.add_field(name=name, value=value)
+    return embed

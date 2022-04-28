@@ -3,12 +3,19 @@ local UC   	= base.require("utils_common")
 local dcsbot= base.dcsbot
 local utils = base.require("DCSServerBotUtils")
 
+local mod_dictionary= require('dictionary')
+
 function dcsbot.getMissionDetails(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionDetails()')
 	local msg = {}
 	msg.command = 'getMissionDetails'
 	msg.current_mission = DCS.getMissionName()
-	msg.mission_description = DCS.getMissionDescription()
+	msg.mission_time = DCS.getModelTime()
+  	msg.real_time = DCS.getRealTime()
+    msg.briefing = mod_dictionary.getBriefingData(DCS.getMissionFilename(), 'EN')
+    msg.results = {}
+    msg.results['Blue'] = DCS.getMissionResult("blue")
+    msg.results['Red'] = DCS.getMissionResult("red")
 	utils.sendBotTable(msg, json.channel)
 end
 
@@ -176,7 +183,7 @@ function dcsbot.sendPopupMessage(json)
 	time = json.time or 10
 	to = json.to or 'all'
 	if tonumber(to) then
-		net.dostring_in('mission', 'a_out_text_delay_g('.. to ..', ' .. basicSerialize(message) .. ', ' .. tostring(time) .. ')')
+		net.dostring_in('mission', 'a_out_text_delay_u('.. to ..', ' .. basicSerialize(message) .. ', ' .. tostring(time) .. ')')
 	elseif to == 'all' then
 		net.dostring_in('mission', 'a_out_text_delay(' .. basicSerialize(message) .. ', ' .. tostring(time) .. ')')
 	elseif to == 'red' then

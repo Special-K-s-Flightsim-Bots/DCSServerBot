@@ -10,8 +10,8 @@ class SlotBlockingListener(EventListener):
         self.credits = {}
 
     def get_points(self, server: dict, player: dict) -> int:
-        if 'restricted' in server[self.plugin]:
-            for unit in server[self.plugin]['restricted']:
+        if 'restricted' in server[self.plugin_name]:
+            for unit in server[self.plugin_name]['restricted']:
                 if ('unit_type' in unit and unit['unit_type'] == player['unit_type']) or \
                         ('unit_name' in unit and unit['unit_name'] in player['unit_name']) or \
                         ('group_name' in unit and unit['group_name'] in player['group_name']):
@@ -22,8 +22,8 @@ class SlotBlockingListener(EventListener):
         return 0
 
     def get_costs(self, server: dict, player: dict) -> int:
-        if 'restricted' in server[self.plugin]:
-            for unit in server[self.plugin]['restricted']:
+        if 'restricted' in server[self.plugin_name]:
+            for unit in server[self.plugin_name]['restricted']:
                 if ('unit_type' in unit and unit['unit_type'] == player['unit_type']) or \
                         ('unit_name' in unit and unit['unit_name'] in player['unit_name']) or \
                         ('group_name' in unit and unit['group_name'] in player['group_name']):
@@ -33,8 +33,8 @@ class SlotBlockingListener(EventListener):
 
     def get_points_per_kill(self, server: dict, data: dict) -> int:
         default = 1
-        if 'points_per_kill' in server[self.plugin]:
-            for unit in server[self.plugin]['points_per_kill']:
+        if 'points_per_kill' in server[self.plugin_name]:
+            for unit in server[self.plugin_name]['points_per_kill']:
                 if 'category' in unit and data['victimCategory'] == unit['category']:
                     if 'unit_type' in unit and unit['unit_type'] != data['arg5']:
                         continue
@@ -79,9 +79,9 @@ class SlotBlockingListener(EventListener):
                 else:
                     default = element
             if default and not specific:
-                server[self.plugin] = default
+                server[self.plugin_name] = default
             elif specific and not default:
-                server[self.plugin] = specific
+                server[self.plugin_name] = specific
             elif default and specific:
                 merged = {}
                 if 'use_reservations' in specific:
@@ -100,13 +100,13 @@ class SlotBlockingListener(EventListener):
                     merged['points_per_kill'] = specific['points_per_kill']
                 elif 'points_per_kill' in default and 'points_per_kill' in specific:
                     merged['points_per_kill'] = default['points_per_kill'] + specific['points_per_kill']
-                server[self.plugin] = merged
+                server[self.plugin_name] = merged
             if default or specific:
-                self.bot.sendtoDCS(server, {'command': 'loadParams', 'plugin': self.plugin, 'params': server[self.plugin]})
+                self.bot.sendtoDCS(server, {'command': 'loadParams', 'plugin': self.plugin_name, 'params': server[self.plugin_name]})
 
     async def onPlayerStart(self, data: dict) -> None:
         server = self.globals[data['server_name']]
-        if self.plugin in server:
+        if self.plugin_name in server:
             if data['id'] == 1 or 'ucid' not in data:
                 return
             conn = self.pool.getconn()
@@ -165,8 +165,8 @@ class SlotBlockingListener(EventListener):
 
     async def onPlayerChangeSlot(self, data: dict) -> None:
         server = self.globals[data['server_name']]
-        if self.plugin in server:
-            config = server[self.plugin]
+        if self.plugin_name in server:
+            config = server[self.plugin_name]
             if 'side' in data and 'use_reservations' in config and config['use_reservations']:
                 player = self.get_player_points(data['server_name'],
                                                 utils.get_player(self, data['server_name'], ucid=data['ucid']))
@@ -185,8 +185,8 @@ class SlotBlockingListener(EventListener):
 
     async def onGameEvent(self, data: dict) -> None:
         server = self.globals[data['server_name']]
-        if self.plugin in server:
-            config = server[self.plugin]
+        if self.plugin_name in server:
+            config = server[self.plugin_name]
             if data['eventName'] == 'kill':
                 # players gain points only, if they don't kill themselves and no teamkills
                 if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
@@ -297,7 +297,7 @@ class SlotBlockingListener(EventListener):
         self.update_user_points(data['server_name'], player)
 
     async def onChatCommand(self, data: dict) -> None:
-        if '-credits' in data['message']:
+        if data['subcommand'] == 'credits':
             server_name = data['server_name']
             player_id = data['from_id']
             player = self.get_player_points(server_name, player_id)

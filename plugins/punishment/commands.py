@@ -26,9 +26,9 @@ class PunishmentAgent(Plugin):
                         cursor.execute('SELECT * FROM pu_events_sdw WHERE server_name = %s', (server_name, ))
                         for row in cursor.fetchall():
                             # we are not initialized correctly yet
-                            if self.plugin not in self.globals[server_name]:
+                            if self.plugin_name not in self.globals[server_name]:
                                 return
-                            config = self.globals[server_name][self.plugin]
+                            config = self.globals[server_name][self.plugin_name]
                             player = utils.get_player(self, server_name, ucid=row['init_id'])
                             if 'punishments' in config:
                                 for punishment in config['punishments']:
@@ -45,7 +45,7 @@ class PunishmentAgent(Plugin):
                                     if punishment['action'] == 'ban':
                                         cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, '
                                                        '%s, %s) ON CONFLICT DO NOTHING',
-                                                       (row['init_id'], self.plugin, reason))
+                                                       (row['init_id'], self.plugin_name, reason))
                                         # ban them on all servers on this node
                                         for s in self.globals.values():
                                             self.bot.sendtoDCS(s, {
@@ -90,7 +90,7 @@ class PunishmentAgent(Plugin):
                                             if 'group_id' in player:
                                                 self.bot.sendtoDCS(server, {
                                                     "command": "sendPopupMessage",
-                                                    "to": player['group_id'],
+                                                    "to": player['slot'],
                                                     "message": message,
                                                     "time": self.config['BOT']['MESSAGE_TIMEOUT']
                                                 })
@@ -167,7 +167,7 @@ class PunishmentMaster(PunishmentAgent):
                     if self.unban_config:
                         cursor.execute(f"SELECT ucid FROM bans b, (SELECT init_id, SUM(points) AS points FROM "
                                        f"pu_events GROUP BY init_id) p WHERE b.ucid = p.init_id AND "
-                                       f"b.banned_by = '{self.plugin}' AND p.points <= %s", (self.unban_config, ))
+                                       f"b.banned_by = '{self.plugin_name}' AND p.points <= %s", (self.unban_config,))
                         for row in cursor.fetchall():
                             for server_name, server in self.globals.items():
                                 self.bot.sendtoDCS(server, {
@@ -210,8 +210,15 @@ class PunishmentMaster(PunishmentAgent):
                     for ucid in ucids:
                         cursor.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid, ))
                         cursor.execute('DELETE FROM pu_events_sdw WHERE init_id = %s', (ucid, ))
-                        cursor.execute(f"DELETE FROM bans WHERE ucid = %s AND banned_by = '{self.plugin}'", (ucid,))
+                        cursor.execute(f"DELETE FROM bans WHERE ucid = %s AND banned_by = '{self.plugin_name}'", (ucid,))
+                        for server_name, server in self.globals.items():
+                            self.bot.sendtoDCS(server, {
+                                "command": "unban",
+                                "ucid": ucid
+                            })
                     conn.commit()
+                    await ctx.send('All punishment points deleted and player unbanned (if they were banned by the bot '
+                                   'before).')
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
                 self.log.exception(error)

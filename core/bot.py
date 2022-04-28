@@ -11,10 +11,11 @@ from contextlib import closing
 from copy import deepcopy
 from core import utils
 from core.const import Status
+from datetime import datetime
 from discord.ext import commands
-from .listener import EventListener
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Callable, Optional, Tuple, Any
+from typing import Callable, Optional, Tuple, Any, Union
+from .listener import EventListener
 
 
 class DCSServerBot(commands.Bot):
@@ -66,6 +67,11 @@ class DCSServerBot(commands.Bot):
                     "status_channel": self.config[installation]['STATUS_CHANNEL'],
                     "admin_channel": self.config[installation]['ADMIN_CHANNEL']
                 }
+                # Coalition chat channels
+                if 'COALITION_BLUE_CHANNEL' in self.config[installation]:
+                    self.globals[server_name]['coalition_blue_channel'] = self.config[installation]['COALITION_BLUE_CHANNEL']
+                if 'COALITION_RED_CHANNEL' in self.config[installation]:
+                    self.globals[server_name]['coalition_red_channel'] = self.config[installation]['COALITION_RED_CHANNEL']
                 # TODO: can be removed if bug in net.load_next_mission() is fixed
                 utils.changeServerSettings(server_name, 'listLoop', True)
 
@@ -126,7 +132,10 @@ class DCSServerBot(commands.Bot):
             self.log.error(f'Permission "Manage Messages" missing for channel {channel_name}')
 
     def check_channels(self, installation: str):
-        for c in ['ADMIN_CHANNEL', 'STATUS_CHANNEL', 'CHAT_CHANNEL']:
+        channels = ['ADMIN_CHANNEL', 'STATUS_CHANNEL', 'CHAT_CHANNEL']
+        if self.config.getboolean(installation, 'COALITIONS'):
+            channels.extend(['COALITION_BLUE_CHANNEL', 'COALITION_RED_CHANNEL'])
+        for c in channels:
             channel_id = int(self.config[installation][c])
             if channel_id != -1:
                 self.check_channel(channel_id)
@@ -160,7 +169,7 @@ class DCSServerBot(commands.Bot):
         elif isinstance(err, commands.MissingRequiredArgument):
             await ctx.send('Parameter missing. Try !help')
         elif isinstance(err, commands.errors.CheckFailure):
-            await ctx.send('You don\'t have the rights to use that command.')
+            await ctx.send('Your role does not allow you to use this command (in this channel).')
         elif isinstance(err, asyncio.TimeoutError):
             await ctx.send('A timeout occured. Is the DCS server running?')
         else:
@@ -202,12 +211,31 @@ class DCSServerBot(commands.Bot):
         if update_settings:
             utils.changeServerSettings(old_name, 'name', new_name)
 
-    async def audit(self, message, *, embed: Optional[discord.Embed] = None):
+    async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None, server: Optional[dict] = None):
         if not self.audit_channel:
             if 'AUDIT_CHANNEL' in self.config['BOT']:
                 self.audit_channel = self.get_channel(int(self.config['BOT']['AUDIT_CHANNEL']))
         if self.audit_channel:
-            await self.audit_channel.send(message, embed=embed)
+            if isinstance(user, str):
+                member = utils.get_member_by_ucid(self, user)
+            else:
+                member = user
+            embed = discord.Embed(color=discord.Color.blue())
+            if member:
+                embed.set_author(name=member.name + '#' + member.discriminator, icon_url=member.avatar_url)
+                embed.set_thumbnail(url=member.avatar_url)
+                message = f'<@{member.id}> ' + message
+            elif not user:
+                embed.set_author(name=self.member.name + '#' + self.member.discriminator,
+                                 icon_url=self.member.avatar_url)
+                embed.set_thumbnail(url=self.member.avatar_url)
+            embed.description = message
+            if isinstance(user, str):
+                embed.add_field(name='UCID', value=user)
+            if server:
+                embed.add_field(name='Server', value=server['server_name'])
+            embed.set_footer(text=datetime.now().strftime("%d/%m/%y %H:%M:%S"))
+            await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
 
     def sendtoDCS(self, server: dict, message: dict):
         # As Lua does not support large numbers, convert them to strings

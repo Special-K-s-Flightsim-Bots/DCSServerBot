@@ -66,14 +66,14 @@ class Scheduler(Plugin):
         return locals
 
     def read_locals(self):
-        filename = f'./config/{self.plugin}.json'
+        filename = f'./config/{self.plugin_name}.json'
         if not path.exists(filename):
             return self.migrate(filename)
         else:
             return super().read_locals()
 
     def get_config(self, server: dict) -> Optional[dict]:
-        if self.plugin not in server:
+        if self.plugin_name not in server:
             if 'configs' in self.locals:
                 specific = default = None
                 for element in self.locals['configs']:
@@ -84,46 +84,48 @@ class Scheduler(Plugin):
                     else:
                         default = element
                 if default and not specific:
-                    server[self.plugin] = default
+                    server[self.plugin_name] = default
                 elif specific and not default:
-                    server[self.plugin] = specific
+                    server[self.plugin_name] = specific
                 elif default and specific:
                     merged = default.copy()
                     # specific settings will always overwrite default settings
                     for key, value in specific.items():
                         merged[key] = value
-                    server[self.plugin] = merged
+                    server[self.plugin_name] = merged
             else:
                 return None
-        return server[self.plugin] if self.plugin in server else None
+        return server[self.plugin_name] if self.plugin_name in server else None
 
     def check_server_state(self, server: dict, config: dict) -> Status:
         if 'schedule' in config:
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) and utils.is_populated(self, server) else 0
             now = datetime.now()
-            weekday = now.weekday()
+            weekday = (now + timedelta(seconds=restart_in)).weekday()
             for period, daystate in config['schedule'].items():
                 state = daystate[weekday]
                 # check, if the server should be running
-                if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server['status'] in [Status.SHUTDOWN, Status.STOPPED]:
+                if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server['status'] == Status.SHUTDOWN:
                     return Status.RUNNING
-                elif utils.is_in_timeframe(now, period) and state.upper() == 'P' and server['status'] in [Status.RUNNING, Status.PAUSED] and not utils.is_populated(self, server):
+                elif utils.is_in_timeframe(now, period) and state.upper() == 'P' and server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and not utils.is_populated(self, server):
                     return Status.SHUTDOWN
                 elif utils.is_in_timeframe(now + timedelta(seconds=restart_in), period) and state.upper() == 'N' and server['status'] == Status.RUNNING:
                     return Status.SHUTDOWN
-                elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and server['status'] == Status.PAUSED:
+                elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and server['status'] in [Status.PAUSED, Status.STOPPED]:
                     return Status.SHUTDOWN
         return server['status']
 
     def launch_extensions(self, server: dict, config: dict):
         for extension in config['extensions']:
             if extension == 'SRS' and not utils.check_srs(self, server):
-                self.log.info(f"  => Launching DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
+                self.log.info(f"  => Launching DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
                 utils.start_srs(self, server)
 
-    def launch(self, server: dict, config: dict):
-        self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
+    async def launch(self, server: dict, config: dict):
+        self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by "
+                      f"{string.capwords(self.plugin_name)} ...")
+        await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS server", server=server)
         utils.start_dcs(self, server)
         if 'extensions' in config:
             self.launch_extensions(server, config)
@@ -154,10 +156,11 @@ class Scheduler(Plugin):
     def shutdown_extensions(self, server: dict, config: dict):
         for extension in config['extensions']:
             if extension == 'SRS' and utils.check_srs(self, server):
-                self.log.info(f"  => Stopping DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
+                self.log.info(f"  => Stopping DCS-SRS server \"{server['server_name']}\" by "
+                              f"{string.capwords(self.plugin_name)} ...")
                 utils.stop_srs(self, server)
 
-    def shutdown(self, server: dict, config: dict):
+    async def shutdown(self, server: dict, config: dict):
         # if we should not restart populated servers, wait for it to be unpopulated
         if 'populated' in config and config['populated'] is False and utils.is_populated(self, server):
             return
@@ -166,10 +169,13 @@ class Scheduler(Plugin):
             restart_in = self.warn_users(server, config)
             if restart_in > 0:
                 self.log.info(f"  => DCS server \"{server['server_name']}\" will be stopped "
-                              f"by {string.capwords(self.plugin)} in {restart_in} seconds ...")
+                              f"by {string.capwords(self.plugin_name)} in {restart_in} seconds ...")
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} stopping DCS server in {restart_in} seconds",
+                                     server=server)
             else:
                 self.log.info(
-                    f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin)} ...")
+                    f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} stopped DCS server", server=server)
             self.loop.call_later(restart_in, self.bot.sendtoBot,
                                  {"command": "onMissionEnd", "server_name": server['server_name']})
             self.loop.call_later(restart_in + 1, self.bot.sendtoBot,
@@ -190,7 +196,7 @@ class Scheduler(Plugin):
                 self.loop.call_later(restart_time, self.bot.sendtoBot,
                                      {"command": "onMissionEnd", "server_name": server['server_name']})
                 self.loop.call_later(restart_time, utils.stop_dcs, self, server)
-                self.loop.call_later(restart_time + 10, utils.start_dcs, self, server)
+                self.loop.call_later(restart_time + 30, utils.start_dcs, self, server)
             elif method == 'restart':
                 self.loop.call_later(restart_time, self.bot.sendtoBot,
                                      {"command": "onMissionEnd", "server_name": server['server_name']})
@@ -232,14 +238,14 @@ class Scheduler(Plugin):
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
             if config:
-                if server['status'] in [Status.RUNNING, Status.PAUSED] and 'affinity' in config:
+                if server['status'] == Status.RUNNING and 'affinity' in config:
                     self.check_affinity(server, config)
                 target_state = self.check_server_state(server, config)
                 if server['status'] != target_state:
                     if target_state == Status.RUNNING:
-                        self.launch(server, config)
+                        await self.launch(server, config)
                     elif target_state == Status.SHUTDOWN:
-                        self.shutdown(server, config)
+                        await self.shutdown(server, config)
                 elif server['status'] in [Status.RUNNING, Status.PAUSED]:
                     self.check_mission_state(server, config)
 
@@ -256,7 +262,8 @@ class Scheduler(Plugin):
             if 'maintenance' in server:
                 del server['maintenance']
                 await ctx.send(f"Maintenance mode cleared for server {server['server_name']}.\n"
-                               f"The {string.capwords(self.plugin)} will take over the state handling now.")
+                               f"The {string.capwords(self.plugin_name)} will take over the state handling now.")
+                await self.bot.audit("cleared maintenance flag", user=ctx.message.author, server=server)
             else:
                 await ctx.send(f"Server {server['server_name']} is not in maintenance mode.")
 
