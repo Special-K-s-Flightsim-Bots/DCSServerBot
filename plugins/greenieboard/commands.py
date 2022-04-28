@@ -101,7 +101,8 @@ class GreenieBoard(Plugin):
                         landings += '**\n'
                     embed.add_field(name='Pilot', value=pilots)
                     embed.add_field(name='Avg', value=points)
-                    embed.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|', value=landings)
+                    embed.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|',
+                                    value=landings)
                     footer = ''
                     for grade, text in const.GRADES.items():
                         footer += const.DAY_EMOJIS[grade] + ' ' + text + '\n'

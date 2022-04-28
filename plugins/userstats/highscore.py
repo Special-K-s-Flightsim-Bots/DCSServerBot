@@ -16,14 +16,14 @@ class HighscorePlaytime(report.GraphElement):
             if server_name in self.bot.globals:
                 server = self.bot.globals[server_name]
                 tmp = utils.get_sides(message, server)
-                sides = []
+                sides = [0]
                 if 'Red' in tmp:
                     sides.append(const.SIDE_RED)
                 if 'Blue' in tmp:
                     sides.append(const.SIDE_BLUE)
                 # in this specific case, we want to display all data, if in public channels
                 if len(sides) == 0:
-                    sides = [1, 2]
+                    sides = [0, 1, 2]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         if period:
             sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
@@ -88,14 +88,14 @@ class HighscoreElement(report.GraphElement):
             if server_name in self.bot.globals:
                 server = self.bot.globals[server_name]
                 tmp = utils.get_sides(message, server)
-                sides = []
+                sides = [0]
                 if 'Red' in tmp:
                     sides.append(const.SIDE_RED)
                 if 'Blue' in tmp:
                     sides.append(const.SIDE_BLUE)
                 # in this specific case, we want to display all data, if in public channels
                 if len(sides) == 0:
-                    sides = [1, 2]
+                    sides = [0, 1, 2]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         if period:
             sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
