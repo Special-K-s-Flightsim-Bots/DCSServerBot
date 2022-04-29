@@ -49,9 +49,9 @@ class Report:
         for name, item in self.report_def.items():
             # parse report parameters
             if name == 'title':
-                self.env.embed.title = utils.format_string(item, **self.env.params)
+                self.env.embed.title = utils.format_string(item, **self.env.params)[:256]
             elif name == 'description':
-                self.env.embed.description = utils.format_string(item, **self.env.params)
+                self.env.embed.description = utils.format_string(item, **self.env.params)[:4096]
             elif name == 'url':
                 self.env.embed.url = item
             elif name == 'img':
@@ -63,7 +63,7 @@ class Report:
                     footer = text
                 else:
                     footer += '\n' + text
-                self.env.embed.set_footer(text=footer)
+                self.env.embed.set_footer(text=footer[:2048])
             elif name == 'elements':
                 for element in item:
                     if isinstance(element, dict):

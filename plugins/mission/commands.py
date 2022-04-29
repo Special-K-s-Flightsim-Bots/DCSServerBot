@@ -5,7 +5,7 @@ import psutil
 import psycopg2
 import re
 from contextlib import closing
-from core import utils, const, DCSServerBot, Plugin, Report, PaginationReport
+from core import utils, const, DCSServerBot, Plugin, Report
 from core.const import Status
 from discord.ext import commands, tasks
 from typing import Optional
@@ -60,6 +60,20 @@ class Mission(Plugin):
             await ctx.message.delete()
             self.bot.sendtoDCS(server, {"command": "getMissionUpdate", "channel": ctx.channel.id})
 
+    @staticmethod
+    def format_briefing_list(data: list[dict], marker, marker_emoji):
+        embed = discord.Embed(title='Briefing', color=discord.Color.blue())
+        embed.description = 'Select the server you want to get a briefing for:'
+        ids = servers = ''
+        for i in range(0, len(data)):
+            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+            servers += data[i]['server_name'] + '\n'
+        embed.add_field(name='ID', value=ids)
+        embed.add_field(name='Server', value=servers)
+        embed.add_field(name='_ _', value='_ _')
+        embed.set_footer(text='Press a number to select a server.')
+        return embed
+
     @commands.command(description='Shows briefing of the active mission', aliases=['brief'])
     @utils.has_role('DCS')
     @commands.guild_only()
@@ -77,17 +91,33 @@ class Mission(Plugin):
             finally:
                 self.pool.putconn(conn)
 
-        mission_info = {}
-        for server_name, server in self.globals.items():
-            if server['status'] in [Status.RUNNING, Status.PAUSED]:
-                mission_info[server_name] = await self.bot.sendtoDCSSync(server, {"command": "getMissionDetails", "channel": ctx.message.id})
-                mission_info[server_name]['passwords'] = read_passwords(server_name)
-        if len(mission_info) == 0:
-            await ctx.send('No running mission found.')
-            return
+        await ctx.message.delete()
+        server = await utils.get_server(self, ctx)
         timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-        report = PaginationReport(self.bot, ctx, self.plugin_name, 'briefing.json', timeout if timeout > 0 else None)
-        await report.render(mission_info=mission_info, server_name=list(mission_info.keys())[0], message=ctx.message)
+        if not server:
+            servers = []
+            for server_name, server in self.globals.items():
+                if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                    servers.append(server)
+            if len(servers) == 0:
+                await ctx.send('No running mission found.', delete_after=timeout if timeout > 0 else None)
+                return
+            elif len(servers) == 1:
+                server = servers[0]
+            else:
+                n = await utils.selection_list(self, ctx, servers, self.format_briefing_list)
+                if n < 0:
+                    return
+                server = servers[n]
+        elif server['status'] not in [Status.RUNNING, Status.PAUSED]:
+            await ctx.send('No running mission found.', delete_after=timeout if timeout > 0 else None)
+            return
+        mission_info = await self.bot.sendtoDCSSync(server, {"command": "getMissionDetails",
+                                                             "channel": ctx.message.id})
+        mission_info['passwords'] = read_passwords(server['server_name'])
+        report = Report(self.bot, self.plugin_name, 'briefing.json')
+        env = await report.render(mission_info=mission_info, server_name=server['server_name'], message=ctx.message)
+        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     @commands.command(description='Shows information of a specific airport', aliases=['weather', 'airport', 'airfield', 'ap'])
     @utils.has_role('DCS')
@@ -97,6 +127,7 @@ class Mission(Plugin):
         for server_name, server in self.globals.items():
             if server['status'] not in [Status.RUNNING, Status.PAUSED]:
                 continue
+            await ctx.message.delete()
             for airbase in server['airbases']:
                 if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
                     data = await self.bot.sendtoDCSSync(server, {
@@ -147,7 +178,8 @@ class Mission(Plugin):
                     embed.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']))
                     embed.add_field(name='QFE', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
                         int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])))
-                    await ctx.send(embed=embed)
+                    timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+                    await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
                     break
 
     @commands.command(description='List the current players on this server')
@@ -157,10 +189,12 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if not server:
             return
-        if server['status'] not in [Status.RUNNING, Status.PAUSED]:
-            await ctx.send('Server ' + server['server_name'] + ' is not running.')
-            return
+        ctx.message.delete()
         timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+        if server['status'] not in [Status.RUNNING, Status.PAUSED]:
+            await ctx.send('Server ' + server['server_name'] + ' is not running.',
+                           delete_after=timeout if timeout > 0 else None)
+            return
         report = Report(self.bot, self.plugin_name, 'players.json')
         env = await report.render(server=server, sides=utils.get_sides(ctx.message, server))
         await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)

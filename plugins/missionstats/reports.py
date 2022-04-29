@@ -27,7 +27,7 @@ class Sorties(report.EmbedElement):
             self.sorties.loc[len(self.sorties.index)] = [flight.plane, flight.end - flight.start]
         return Flight()
 
-    def render(self, member: Union[discord.Member, str], period: Optional[str]) -> None:
+    def render(self, member: Union[discord.Member, str], period: Optional[str] = None) -> None:
         sql = "SELECT mission_id, init_type, event, time FROM missionstats WHERE event IN " \
               "('S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
         if period:
@@ -67,9 +67,12 @@ class Sorties(report.EmbedElement):
                     planes += row['plane'] + '\n'
                     sorties += str(row['count']) + '\n'
                     times += utils.convert_time(row['total_time'].total_seconds()) + '\n'
-                self.embed.add_field(name='Planes', value=planes)
-                self.embed.add_field(name='Sorties', value=sorties)
-                self.embed.add_field(name='Total Flighttime', value=times)
+                if len(planes) == 0:
+                    self.add_field(name='No sorties found for this player.', value='_ _')
+                else:
+                    self.embed.add_field(name='Planes', value=planes)
+                    self.embed.add_field(name='Sorties', value=sorties)
+                    self.embed.add_field(name='Total Flighttime', value=times)
 
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)

@@ -61,7 +61,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         env = await report.render(member=member,
                                   member_name=member.display_name if isinstance(member, discord.Member) else name,
                                   period=period)
-        await ctx.send(embed=env.embed)
+        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     @staticmethod
     def format_modules(data, marker, marker_emoji):
@@ -76,7 +76,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         embed.set_footer(text='Press a number to display detailed stats about that specific module.')
         return embed
 
-    @commands.command(description='Display statistics about modules', usage='[member] [period]', aliases=['modstats', 'modulestatistics'])
+    @commands.command(description='Module statistics', usage='[user]', aliases=['modstats'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def modulestats(self, ctx, member: Optional[Union[discord.Member, str]], *params):
