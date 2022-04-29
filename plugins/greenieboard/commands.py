@@ -121,13 +121,15 @@ class GreenieBoard(Plugin):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def greenieboard(self, ctx):
-        await ctx.message.delete()
-        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-        embed = self.render_board()
-        if embed:
-            await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
-        else:
-            await ctx.send('No carrier landings recorded yet.', delete_after=timeout if timeout > 0 else None)
+        try:
+            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+            embed = self.render_board()
+            if embed:
+                await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
+            else:
+                await ctx.send('No carrier landings recorded yet.', delete_after=timeout if timeout > 0 else None)
+        finally:
+            await ctx.message.delete()
 
 
 def setup(bot: DCSServerBot):

@@ -4,7 +4,7 @@ import itertools
 import psutil
 import psycopg2
 import re
-from contextlib import closing
+from contextlib import closing, suppress
 from core import utils, const, DCSServerBot, Plugin, Report
 from core.const import Status
 from discord.ext import commands, tasks
@@ -57,7 +57,6 @@ class Mission(Plugin):
                 await ctx.send('Server ' + server['server_name'] + ' is not running.')
                 return
         else:
-            await ctx.message.delete()
             self.bot.sendtoDCS(server, {"command": "getMissionUpdate", "channel": ctx.channel.id})
 
     @staticmethod
@@ -91,7 +90,6 @@ class Mission(Plugin):
             finally:
                 self.pool.putconn(conn)
 
-        await ctx.message.delete()
         server = await utils.get_server(self, ctx)
         timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         if not server:
@@ -127,7 +125,6 @@ class Mission(Plugin):
         for server_name, server in self.globals.items():
             if server['status'] not in [Status.RUNNING, Status.PAUSED]:
                 continue
-            await ctx.message.delete()
             for airbase in server['airbases']:
                 if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
                     data = await self.bot.sendtoDCSSync(server, {
@@ -189,7 +186,6 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if not server:
             return
-        ctx.message.delete()
         timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         if server['status'] not in [Status.RUNNING, Status.PAUSED]:
             await ctx.send('Server ' + server['server_name'] + ' is not running.',
