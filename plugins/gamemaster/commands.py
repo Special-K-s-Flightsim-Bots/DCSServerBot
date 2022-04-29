@@ -61,7 +61,7 @@ class GameMasterAgent(Plugin):
                 "from": ctx.message.author.display_name
             })
 
-    @commands.command(description='Sends a popup to a coalition', usage='<all|red|blue|user> [time] <message>')
+    @commands.command(description='Sends a popup to a coalition', usage='<coal.|user> [time] <msg>')
     @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
     async def popup(self, ctx, to, *args):

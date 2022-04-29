@@ -1,14 +1,7 @@
 {
   "color": "blue",
-  "title": "Mission Briefing",
-  "pagination":
-  {
-    "param":
-    {
-      "name": "server_name",
-      "obj": "mission_info"
-    }
-  },
+  "title": "Mission Briefing: {mission_info[current_mission]}",
+  "description": "{mission_info[briefing][descriptionText]}",
   "elements":
   [
     {
