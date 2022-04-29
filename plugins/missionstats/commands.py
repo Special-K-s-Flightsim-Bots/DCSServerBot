@@ -35,33 +35,35 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def sorties(self, ctx, member: Optional[Union[discord.Member, str]], *params):
-        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-        num = len(params)
-        if not member:
-            member = ctx.message.author
-            period = None
-        elif isinstance(member, discord.Member):
-            period = params[0] if num > 0 else None
-        elif member in ['day', 'week', 'month', 'year']:
-            period = member
-            member = ctx.message.author
-        else:
-            i = 0
-            name = member
-            while i < num and params[i] not in ['day', 'week', 'month', 'year']:
-                name += ' ' + params[i]
-                i += 1
-            member = utils.get_ucid_by_name(self, name)
+        try:
+            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+            num = len(params)
             if not member:
-                await ctx.send('No players found with that nickname.', delete_after=timeout if timeout > 0 else None)
-                return
-            period = params[i] if i < num else None
-        await ctx.message.delete()
-        report = Report(self.bot, self.plugin_name, 'sorties.json')
-        env = await report.render(member=member,
-                                  member_name=member.display_name if isinstance(member, discord.Member) else name,
-                                  period=period)
-        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+                member = ctx.message.author
+                period = None
+            elif isinstance(member, discord.Member):
+                period = params[0] if num > 0 else None
+            elif member in ['day', 'week', 'month', 'year']:
+                period = member
+                member = ctx.message.author
+            else:
+                i = 0
+                name = member
+                while i < num and params[i] not in ['day', 'week', 'month', 'year']:
+                    name += ' ' + params[i]
+                    i += 1
+                member = utils.get_ucid_by_name(self, name)
+                if not member:
+                    await ctx.send('No players found with that nickname.', delete_after=timeout if timeout > 0 else None)
+                    return
+                period = params[i] if i < num else None
+            report = Report(self.bot, self.plugin_name, 'sorties.json')
+            env = await report.render(member=member,
+                                      member_name=member.display_name if isinstance(member, discord.Member) else name,
+                                      period=period)
+            await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        finally:
+            await ctx.message.delete()
 
     @staticmethod
     def format_modules(data, marker, marker_emoji):

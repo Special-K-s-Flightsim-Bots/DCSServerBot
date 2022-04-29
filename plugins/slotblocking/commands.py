@@ -53,7 +53,6 @@ class SlotBlockingMaster(SlotBlockingAgent):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def credits(self, ctx):
-        await ctx.message.delete()
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -81,6 +80,7 @@ class SlotBlockingMaster(SlotBlockingAgent):
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
+            await ctx.message.delete()
 
 
 def setup(bot: DCSServerBot):
