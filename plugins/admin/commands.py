@@ -91,7 +91,7 @@ class Agent(Plugin):
                     server['maintenance'] = True
                     utils.stop_dcs(self, server)
                     # wait for the server to shut down
-                    while server['Status'] in [Status.RUNNING, Status.PAUSED]:
+                    while server['status'] in [Status.RUNNING, Status.PAUSED]:
                         await asyncio.sleep(1)
                     await ctx.send('DCS server "{}" shut down.'.format(server['server_name']))
                     server['status'] = Status.SHUTDOWN
