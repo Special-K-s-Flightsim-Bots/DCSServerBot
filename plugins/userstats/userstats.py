@@ -24,6 +24,7 @@ class PlaytimesPerPlane(report.GraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
+            self.env.embed.title = utils.format_period(period) + ' ' + self.env.embed.title
             sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
         sql += 'GROUP BY s.slot ORDER BY 2'
 

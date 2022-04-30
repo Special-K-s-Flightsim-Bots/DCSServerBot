@@ -1,7 +1,7 @@
 {
   "color": "blue",
   "title": "Statistics for {member_name}",
-  "description": "_{server_name}_",
+  "description": "{server_name}",
   "input":
   [
     {

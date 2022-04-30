@@ -31,6 +31,7 @@ class Sorties(report.EmbedElement):
         sql = "SELECT mission_id, init_type, event, time FROM missionstats WHERE event IN " \
               "('S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
         if period:
+            self.env.embed.title = utils.format_period(period) + ' ' + self.env.embed.title
             sql += f" AND DATE(time) > (DATE(NOW()) - interval '1 {period}')"
         if isinstance(member, discord.Member):
             sql += " AND init_id IN (SELECT ucid FROM players WHERE discord_id = %s)"

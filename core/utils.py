@@ -656,12 +656,12 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
                 if default_:
                     value = default_
                 else:
-                    raise KeyError
+                    value = ""
             return super().format_field(value, spec)
     try:
         string_ = NoneFormatter().format(string_, **kwargs)
     except KeyError:
-        string_ = ''
+        string_ = ""
     return string_
 
 
@@ -689,6 +689,39 @@ def convert_time(seconds: int):
     if len(retval):
         retval += ":"
     retval += f"{minutes:02d}m"
+    return retval
+
+
+def format_time(seconds: int):
+    retval = ""
+    days = int(seconds / 86400)
+    if days != 0:
+        retval += f"{days} day"
+        if days > 1:
+            retval += "s"
+        seconds -= days * 86400
+    hours = int(seconds / 3600)
+    if hours != 0:
+        if len(retval):
+            retval += " "
+        retval += f"{hours} hour"
+        if hours > 1:
+            retval += "s"
+        seconds -= hours * 3600
+    minutes = int(seconds / 60)
+    if minutes != 0:
+        if len(retval):
+            retval += " "
+        retval += f"{minutes} minute"
+        if minutes > 1:
+            retval += "s"
+        seconds -= minutes * 60
+    if seconds != 0:
+        if len(retval):
+            retval += " "
+        retval += f"{seconds} second"
+        if seconds > 1:
+            retval += "s"
     return retval
 
 
@@ -762,3 +795,10 @@ def format_embed(data):
         for name, value in data['fields'].items():
             embed.add_field(name=name, value=value)
     return embed
+
+
+def format_period(period: str):
+    if period == 'day':
+        return 'Daily'
+    else:
+        return string.capwords(period) + 'ly'

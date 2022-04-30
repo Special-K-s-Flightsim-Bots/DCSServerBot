@@ -13,6 +13,8 @@ To disable mission statistics for a specific mission, you can use the following 
 ```
 
 ## Discord Commands
+**Attention:** - These commands need MISSION_STATISTICS=true in the server you want to run the commands on!
+
 
 | Command                  | Parameter                        | Channel                     | Role | Description                                                                                       |
 |--------------------------|----------------------------------|-----------------------------|------|---------------------------------------------------------------------------------------------------|

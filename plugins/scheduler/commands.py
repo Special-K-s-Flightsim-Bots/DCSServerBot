@@ -1,3 +1,4 @@
+import asyncio
 import json
 import psutil
 import string
@@ -116,19 +117,20 @@ class Scheduler(Plugin):
                     return Status.SHUTDOWN
         return server['status']
 
-    def launch_extensions(self, server: dict, config: dict):
+    async def launch_extensions(self, server: dict, config: dict):
         for extension in config['extensions']:
             if extension == 'SRS' and not utils.check_srs(self, server):
                 self.log.info(f"  => Launching DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
                 utils.start_srs(self, server)
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS-SRS server", server=server)
 
     async def launch(self, server: dict, config: dict):
         self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by "
                       f"{string.capwords(self.plugin_name)} ...")
-        await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS server", server=server)
         utils.start_dcs(self, server)
+        await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS server", server=server)
         if 'extensions' in config:
-            self.launch_extensions(server, config)
+            await self.launch_extensions(server, config)
 
     @staticmethod
     def get_warn_times(config: dict) -> List[int]:
@@ -136,90 +138,105 @@ class Scheduler(Plugin):
             return config['warn']['times']
         return []
 
-    def warn_users(self, server: dict, config: dict) -> int:
-        restart_in = 0
-        if 'warn' in config and utils.is_populated(self, server):
+    async def warn_users(self, server: dict, config: dict, what: str):
+        if 'warn' in config:
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) else 0
             warn_text = config['warn']['text'] if 'text' in config['warn'] \
-                else '!!! Server will restart in {} seconds !!!'
-            for warn_time in warn_times:
-                self.loop.call_later(restart_in - warn_time, self.bot.sendtoDCS,
-                                     server, {
-                                        'command': 'sendPopupMessage',
-                                        'message': warn_text.format(warn_time),
-                                        'to': 'all',
-                                        'time': self.config['BOT']['MESSAGE_TIMEOUT']
-                                     })
-        return restart_in
+                else '!!! Server will {what} in {when} !!!'
+            chat_channel = int(self.globals[server['server_name']]['chat_channel'])
+            while restart_in > 0:
+                for warn_time in warn_times:
+                    if warn_time == restart_in:
+                        self.bot.sendtoDCS(
+                            server, {
+                                'command': 'sendPopupMessage',
+                                'message': warn_text.format(what=what, when=utils.format_time(warn_time)),
+                                'to': 'all',
+                                'time': self.config['BOT']['MESSAGE_TIMEOUT']
+                            }
+                        )
+                        if chat_channel != -1:
+                            channel = self.bot.get_channel(chat_channel)
+                            await channel.send(warn_text.format(what=what, when=utils.format_time(warn_time)))
+                await asyncio.sleep(1)
+                restart_in -= 1
 
-    def shutdown_extensions(self, server: dict, config: dict):
+    async def shutdown_extensions(self, server: dict, config: dict):
         for extension in config['extensions']:
             if extension == 'SRS' and utils.check_srs(self, server):
                 self.log.info(f"  => Stopping DCS-SRS server \"{server['server_name']}\" by "
                               f"{string.capwords(self.plugin_name)} ...")
                 utils.stop_srs(self, server)
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} stopped DCS-SRS server", server=server)
 
     async def shutdown(self, server: dict, config: dict):
         # if we should not restart populated servers, wait for it to be unpopulated
-        if 'populated' in config and config['populated'] is False and utils.is_populated(self, server):
+        populated = utils.is_populated(self, server)
+        if 'populated' in config and not config['populated'] and populated:
             return
         elif 'restart_pending' not in server:
             server['restart_pending'] = True
-            restart_in = self.warn_users(server, config)
-            if restart_in > 0:
+            warn_times = Scheduler.get_warn_times(config)
+            restart_in = max(warn_times) if len(warn_times) else 0
+            if restart_in > 0 and populated:
                 self.log.info(f"  => DCS server \"{server['server_name']}\" will be stopped "
                               f"by {string.capwords(self.plugin_name)} in {restart_in} seconds ...")
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} stopping DCS server in {restart_in} seconds",
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} will stop DCS server in {utils.format_time(restart_in)}",
                                      server=server)
+                await self.warn_users(server, config, 'shutdown')
             else:
                 self.log.info(
                     f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
                 await self.bot.audit(f"{string.capwords(self.plugin_name)} stopped DCS server", server=server)
-            self.loop.call_later(restart_in, self.bot.sendtoBot,
-                                 {"command": "onMissionEnd", "server_name": server['server_name']})
-            self.loop.call_later(restart_in + 1, self.bot.sendtoBot,
-                                 {"command": "onShutdown", "server_name": server['server_name']})
-            self.loop.call_later(restart_in + 2, utils.stop_dcs, self, server)
+            self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
+            await asyncio.sleep(1)
+            self.bot.sendtoBot({"command": "onShutdown", "server_name": server['server_name']})
+            await asyncio.sleep(1)
+            utils.stop_dcs(self, server)
             if 'extensions' in config:
-                self.loop.call_later(restart_in, self.shutdown_extensions, server, config)
+                await self.shutdown_extensions(server, config)
 
-    def restart_mission(self, server: dict, config: dict):
+    async def restart_mission(self, server: dict, config: dict):
         # check if the mission is still populated
-        if 'populated' in config['restart'] and config['restart']['populated'] is False and utils.is_populated(self, server):
+        populated = utils.is_populated(self, server)
+        if 'populated' in config['restart'] and not config['restart']['populated'] and populated:
             return
         elif 'restart_pending' not in server:
             server['restart_pending'] = True
             method = config['restart']['method']
-            restart_time = self.warn_users(server, config)
+            if populated:
+                await self.warn_users(server, config, 'restart' if method == 'restart_and_shutdown' else method)
             if method == 'restart_with_shutdown':
-                self.loop.call_later(restart_time, self.bot.sendtoBot,
-                                     {"command": "onMissionEnd", "server_name": server['server_name']})
-                self.loop.call_later(restart_time, utils.stop_dcs, self, server)
-                self.loop.call_later(restart_time + 30, utils.start_dcs, self, server)
+                self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
+                await asyncio.sleep(1)
+                utils.stop_dcs(self, server)
+                await asyncio.sleep(30)
+                utils.start_dcs(self, server)
             elif method == 'restart':
-                self.loop.call_later(restart_time, self.bot.sendtoBot,
-                                     {"command": "onMissionEnd", "server_name": server['server_name']})
-                self.loop.call_later(restart_time, self.bot.sendtoDCS, server, {"command": "restartMission"})
+                self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
+                await asyncio.sleep(1)
+                self.bot.sendtoDCS(server, {"command": "restartMission"})
             elif method == 'rotate':
-                self.loop.call_later(restart_time, self.bot.sendtoBot,
-                                     {"command": "onMissionEnd", "server_name": server['server_name']})
-                self.loop.call_later(restart_time, self.bot.sendtoDCS, server, {"command": "startNextMission"})
+                self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
+                await asyncio.sleep(1)
+                self.bot.sendtoDCS(server, {"command": "startNextMission"})
 
-    def check_mission_state(self, server: dict, config: dict):
+    async def check_mission_state(self, server: dict, config: dict):
         if 'restart' in config:
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) and utils.is_populated(self, server) else 0
             if 'mission_time' in config['restart'] and \
                     (server['mission_time'] - restart_in) >= (int(config['restart']['mission_time']) * 60):
-                self.restart_mission(server, config)
+                asyncio.create_task(self.restart_mission(server, config))
             elif 'local_times' in config['restart']:
                 now = datetime.now() + timedelta(seconds=restart_in)
                 for t in config['restart']['local_times']:
                     if utils.is_in_timeframe(now, t):
-                        self.restart_mission(server, config)
+                        asyncio.create_task(self.restart_mission(server, config))
 
-    def check_affinity(self, server, config):
+    @staticmethod
+    def check_affinity(server, config):
         if 'PID' not in server:
             p = utils.find_process('DCS.exe', server['installation'])
             server['PID'] = p.pid
@@ -243,11 +260,11 @@ class Scheduler(Plugin):
                 target_state = self.check_server_state(server, config)
                 if server['status'] != target_state:
                     if target_state == Status.RUNNING:
-                        await self.launch(server, config)
+                        asyncio.create_task(self.launch(server, config))
                     elif target_state == Status.SHUTDOWN:
-                        await self.shutdown(server, config)
+                        asyncio.create_task(self.shutdown(server, config))
                 elif server['status'] in [Status.RUNNING, Status.PAUSED]:
-                    self.check_mission_state(server, config)
+                    await self.check_mission_state(server, config)
 
     @check_state.before_loop
     async def before_check(self):

@@ -12,8 +12,8 @@ Examples:
   "configs": [
     {
       "warn": {
-        "times": [ 600, 300, 60, 10],         -- warn users at 10 mins, 5 mins, 1 min and 10 sec before restart
-        "text": "!!! Server will restart in {} seconds !!!"
+        "times": [ 600, 300, 60, 10],         -- warn users at 10 mins, 5 mins, 1 min and 10 sec before the event
+        "text": "!!! Server will {what} in {when} !!!"
       }
     },
     {
@@ -67,10 +67,10 @@ Examples:
 
 ### Section "warn"
 
-| Parameter       | Description                                                                                                                            |
-|-----------------|----------------------------------------------------------------------------------------------------------------------------------------|
-| times           | List of seconds, when a warning should be issued.                                                                                      |
-| text            | A customizable message that will be sent to the users when a restart is pending.                                                       |
+| Parameter       | Description                                                                                                                     |
+|-----------------|---------------------------------------------------------------------------------------------------------------------------------|
+| times           | List of seconds, when a warning should be issued.                                                                               |
+| text            | A customizable message that will be sent to the users when a restart is pending.<br/>{} will be replaced with the time to wait. |
 
 ### Section "schedule"
 
