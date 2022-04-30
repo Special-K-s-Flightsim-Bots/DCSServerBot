@@ -382,9 +382,8 @@ class UserStatisticsEventListener(EventListener):
 
     async def onChatCommand(self, data: dict) -> None:
         if data['subcommand'] == 'linkme':
-            items = data['message'].split(' ')
-            if len(items) > 1:
-                token = items[1]
+            if len(data['params']):
+                token = data['params'][0]
                 player = utils.get_player(self, data['server_name'], id=data['from_id'])
                 conn = self.pool.getconn()
                 try:
