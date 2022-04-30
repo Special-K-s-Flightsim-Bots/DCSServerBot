@@ -42,7 +42,8 @@ class MissionStatisticsEventListener(EventListener):
     async def displayMissionStats(self, data):
         server = self.globals[data['server_name']]
         # Hide the mission statistics embed, if coalitions are enabled
-        if not self.config.getboolean(server['installation'], 'COALITIONS'):
+        if self.config.getboolean(server['installation'], 'DISPLAY_MISSION_STATISTICS') and \
+                not self.config.getboolean(server['installation'], 'COALITIONS'):
             stats = self.mission_stats[data['server_name']]
             report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server, 'stats_embed')
             await report.render(stats=stats, mission_id=server['mission_id'], sides=['Blue', 'Red'])
