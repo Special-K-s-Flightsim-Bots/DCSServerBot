@@ -50,7 +50,7 @@ class AgentServerStats(Plugin):
 
     async def display_report(self, ctx, schema: str, period: str, server_name: str):
         report = Report(self.bot, self.plugin_name, schema)
-        env = await report.render(period=period, server_name=server_name, agent_host=None)
+        env = await report.render(period=period, server_name=server_name, agent_host=platform.node())
         file = discord.File(env.filename) if env.filename else None
         await ctx.send(embed=env.embed, file=file)
         if env.filename:
@@ -129,7 +129,7 @@ class AgentServerStats(Plugin):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute("DELETE FROM serverstats WHERE time < (CURRENT_TIMESTAMP - interval '1 week')")
+                cursor.execute("DELETE FROM serverstats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()

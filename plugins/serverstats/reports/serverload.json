@@ -5,7 +5,7 @@
   "input": [
     {
       "name": "period",
-      "range": ["", "hour", "day", "week"],
+      "range": ["", "hour", "day", "week", "month"],
       "default": "hour"
     },
     {
