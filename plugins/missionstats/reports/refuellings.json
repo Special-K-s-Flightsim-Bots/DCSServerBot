@@ -1,6 +1,6 @@
 {
   "color": "blue",
-  "title": "Refuellings",
+  "title": "Refuellings for {member_name}",
   "elements":
   [
     {
