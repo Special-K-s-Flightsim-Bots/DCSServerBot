@@ -1,6 +1,7 @@
 import discord
 import psycopg2
 import psycopg2.extras
+import string
 from contextlib import closing
 from core import report, utils, const
 
@@ -26,6 +27,7 @@ class HighscorePlaytime(report.GraphElement):
                     sides = [0, 1, 2]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         if period:
+            self.env.embed.title = utils.format_period(period) + ' ' + self.env.embed.title
             sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
 

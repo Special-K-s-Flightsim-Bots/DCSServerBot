@@ -1,7 +1,7 @@
 import discord
 import psycopg2
 from contextlib import closing
-from core import DCSServerBot, Plugin, utils, const
+from core import DCSServerBot, Plugin, utils
 from core.const import Status
 from discord.ext import commands
 from .listener import GameMasterEventListener
@@ -44,8 +44,7 @@ class GameMasterAgent(Plugin):
                     self.bot.sendtoDCS(server, {
                         "command": "sendChatMessage",
                         "message": message.content,
-                        "from": message.author.display_name,
-                        "to": const.SIDE_BLUE * -1
+                        "from": message.author.display_name
                     })
 
     @commands.command(description='Send a chat message to a running DCS instance', usage='<message>', hidden=True)

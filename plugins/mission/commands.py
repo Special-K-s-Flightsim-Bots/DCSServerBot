@@ -4,7 +4,7 @@ import itertools
 import psutil
 import psycopg2
 import re
-from contextlib import closing, suppress
+from contextlib import closing
 from core import utils, const, DCSServerBot, Plugin, Report
 from core.const import Status
 from discord.ext import commands, tasks
@@ -209,7 +209,7 @@ class Mission(Plugin):
             server['restart_pending'] = True
             if server['status'] == Status.RUNNING:
                 if delay > 0:
-                    message = '!!! Server will be restarted in {} seconds !!!'.format(delay)
+                    message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
                 else:
                     message = '!!! Server will be restarted NOW !!!'
                 # have we got a message to present to the users?
@@ -218,7 +218,7 @@ class Mission(Plugin):
 
                 if int(server['status_channel']) == ctx.channel.id:
                     await ctx.message.delete()
-                msg = await ctx.send('Restarting mission in {} seconds (warning users before)...'.format(delay))
+                msg = await ctx.send(f'Restarting mission in {utils.format_time(delay)} (warning users before)...')
                 self.bot.sendtoDCS(server, {
                     "command": "sendPopupMessage",
                     "channel": ctx.channel.id,

@@ -129,7 +129,7 @@ class Agent(Plugin):
                     self.loop.call_later(shutdown_in - warntime, self.bot.sendtoDCS,
                                          server, {
                                              'command': 'sendPopupMessage',
-                                             'message': f'Server is going down for a DCS update in {warntime} seconds!',
+                                             'message': f'Server is going down for a DCS update in {utils.format_time(warntime)}!',
                                              'to': 'all',
                                              'time': self.config['BOT']['MESSAGE_TIMEOUT']
                                          })

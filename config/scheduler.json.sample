@@ -3,7 +3,7 @@
     {
       "warn": {
         "times": [ 600, 300, 60, 10],
-        "text": "!!! Server will restart in {} seconds !!!"
+        "text": "!!! Server will {what} in {when} !!!"
       }
     },
     {

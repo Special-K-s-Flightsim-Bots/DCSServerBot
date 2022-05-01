@@ -67,7 +67,7 @@ For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings"
 Best is to use ```git clone``` as you then can use the autoupdate functionality of the bot.<br/>
 Otherwise download the latest release version and extract it somewhere on your PC that is running the DCS server(s) and give it write permissions, if needed. 
 
-__Attention:__ Make sure that the bot's installation directory can only be seen by yourself and is not exposed to anybody outside via www etc.
+**Attention:** Make sure that the bot's installation directory can only be seen by yourself and is not exposed to anybody outside via www etc.
 
 ---
 ## Configuration
@@ -148,6 +148,7 @@ If your directory is named DCS instead (stable version), just add these fields t
 | SRS_PORT                   | The port the DCS-SRS server uses (optional, default: 5002).                                                                                                                                |
 | STATISTICS                 | If false, no statistics will be generated for this server. Default is true (see [Userstats](./plugins/userstats/README.md)).                                                               |
 | MISSION_STATISTICS         | If true, mission statistics will be generated for all missions loaded in this server (see [Missionstats](./plugins/missionstats/README.md)).                                               | 
+| DISPLAY_MISSION_STATISTICS | If true, the persistent mission stats embed is displayed in the servers stats channel (default = true).                                                                                    |
 | PERSIST_MISSION_STATISTICS | If true, player data is exported in the missionstats table (default = true).                                                                                                               |
 | PERSIST_AI_STATISTICS      | If true, AI data is exported, too (only player data otherwise), default = false.                                                                                                           |
 | COALITIONS                 | Enable coalition handling (see [Coalitions](./COALITIONS.md)), default = false.                                                                                                            |                                                                                                                                                                                                                                                                                                                                                 
@@ -232,7 +233,7 @@ DCSServerBot will autodetect all configured DCS servers on the first startup and
 To communicate with DCSServerBot over the network, you need to change two configurations.
 By default, DCSServerBot is configured to be bound to the loopback interface (127.0.0.1) not allowing any external connection to the system. This can be changed in dcsserverbot.ini by using the LAN IP address of the Windows server running DCSServerBot instead.<br/>
 
-__Attention:__ The scheduler, .startup and .shutdown commands will only work without issues, if the DCS servers are on the same machine as the bot. 
+**Attention:** The scheduler, .startup and .shutdown commands will only work without issues, if the DCS servers are on the same machine as the bot. 
 So you might consider installing a bot instance on every server that you use in your network. Just configure them as agents (_MASTER = false_) and you are good.
 
 ### Setup Multiple Servers on Multiple Host at Different Locations
@@ -262,7 +263,7 @@ After that, you can for instance send chat messages to the bot using
 ```
 inside a trigger or anywhere else where scripting is allowed.
 
-**Attention!** Channel always has to be a string, encapsulated with '', **not** a number.
+**Attention:** Channel always has to be a string, encapsulated with '', **not** a number.
 
 Embeds can be sent using code similar to this snippet:
 ```lua

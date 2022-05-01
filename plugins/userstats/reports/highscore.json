@@ -1,7 +1,7 @@
 {
   "color": "blue",
   "title": "Highscore (TOP {limit})",
-  "description": "_{server_name}_",
+  "description": "{server_name}",
   "input": [
     {
       "name": "period",
