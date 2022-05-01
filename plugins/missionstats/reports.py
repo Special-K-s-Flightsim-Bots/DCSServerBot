@@ -28,7 +28,7 @@ class Sorties(report.EmbedElement):
         return Flight()
 
     def render(self, member: Union[discord.Member, str], period: Optional[str] = None) -> None:
-        sql = "SELECT mission_id, init_type, event, time FROM missionstats WHERE event IN " \
+        sql = "SELECT mission_id, init_type, init_cat, event, place, time FROM missionstats WHERE event IN " \
               "('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
         if period:
             self.env.embed.title = utils.format_period(period) + ' ' + self.env.embed.title
@@ -37,7 +37,7 @@ class Sorties(report.EmbedElement):
             sql += " AND init_id IN (SELECT ucid FROM players WHERE discord_id = %s)"
         else:
             sql += " AND init_id = %s"
-        sql += " ORDER BY 4"
+        sql += " ORDER BY 6"
 
         conn = self.pool.getconn()
         try:
@@ -51,19 +51,24 @@ class Sorties(report.EmbedElement):
                         flight = self.add_flight(flight)
                     if not flight.plane:
                         flight.plane = row['init_type']
-                    if row['event'] in ['S_EVENT_BIRTH', 'S_EVENT_TAKEOFF']:
+                    # airstarts
+                    if row['event'] == 'S_EVENT_BIRTH' and row['place'] is None:
                         if not flight.start:
                             flight.start = row['time']
-                        elif row['event'] == 'S_EVENT_TAKEOFF':
+                        else:
+                            flight.end = row['time']
+                            flight = self.add_flight(flight)
+                            flight.start = row['time']
+                    elif row['event'] == 'S_EVENT_TAKEOFF':
+                        if not flight.start:
                             flight.start = row['time']
                         else:
+                            flight.end = row['time']
                             flight = self.add_flight(flight)
+                            flight.start = row['time']
                     elif row['event'] in ['S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT']:
                         flight.end = row['time']
                         flight = self.add_flight(flight)
-                    else:
-                        flight.end = row['time']
-                self.add_flight(flight)
                 df = self.sorties.groupby('plane').agg(count=('time', 'size'), total_time=('time', 'sum')).sort_values(by=['total_time'], ascending=False).reset_index()
                 planes = sorties = times = ''
                 for index, row in df.iterrows():
