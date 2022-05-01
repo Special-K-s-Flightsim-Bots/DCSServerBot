@@ -29,7 +29,7 @@ class Sorties(report.EmbedElement):
 
     def render(self, member: Union[discord.Member, str], period: Optional[str] = None) -> None:
         sql = "SELECT mission_id, init_type, event, time FROM missionstats WHERE event IN " \
-              "('S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
+              "('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
         if period:
             self.env.embed.title = utils.format_period(period) + ' ' + self.env.embed.title
             sql += f" AND DATE(time) > (DATE(NOW()) - interval '1 {period}')"
@@ -51,8 +51,10 @@ class Sorties(report.EmbedElement):
                         flight = self.add_flight(flight)
                     if not flight.plane:
                         flight.plane = row['init_type']
-                    if row['event'] == 'S_EVENT_TAKEOFF':
+                    if row['event'] in ['S_EVENT_BIRTH', 'S_EVENT_TAKEOFF']:
                         if not flight.start:
+                            flight.start = row['time']
+                        elif row['event'] == 'S_EVENT_TAKEOFF':
                             flight.start = row['time']
                         else:
                             flight = self.add_flight(flight)
