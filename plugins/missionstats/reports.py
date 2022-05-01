@@ -78,7 +78,7 @@ class Sorties(report.EmbedElement):
                 if len(planes) == 0:
                     self.add_field(name='No sorties found for this player.', value='_ _')
                 else:
-                    self.embed.add_field(name='Planes', value=planes)
+                    self.embed.add_field(name='Module', value=planes)
                     self.embed.add_field(name='Sorties', value=sorties)
                     self.embed.add_field(name='Total Flighttime', value=times)
                     self.embed.set_footer(text='Flighttime is the time you were airborne from takeoff to landing / '
@@ -182,6 +182,38 @@ class ModuleStats2(report.EmbedElement):
                         self.add_field(name='Weapon', value=weapons)
                         self.add_field(name='Hits/Shot', value=hs_ratio)
                         self.add_field(name='Kills/Shot', value=ks_ratio)
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
+
+class Refuellings(report.EmbedElement):
+    def render(self, member: Union[discord.Member, str], period: Optional[str] = None) -> None:
+        sql = "SELECT init_type, COUNT(*) FROM missionstats WHERE EVENT = 'S_EVENT_REFUELING_STOP'"
+        if period:
+            self.env.embed.title = utils.format_period(period) + ' ' + self.env.embed.title
+            sql += f" AND DATE(time) > (DATE(NOW()) - interval '1 {period}')"
+        if isinstance(member, discord.Member):
+            sql += " AND init_id IN (SELECT ucid FROM players WHERE discord_id = %s)"
+        else:
+            sql += " AND init_id = %s"
+        sql += " GROUP BY 1 ORDER BY 2 DESC"
+
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member, ))
+                modules = []
+                numbers = []
+                for row in cursor.fetchall():
+                    modules.append(row[0])
+                    numbers.append(str(row[1]))
+                if len(modules):
+                    self.add_field(name='Module', value='\n'.join(modules))
+                    self.add_field(name='Refuellings', value='\n'.join(numbers))
+                else:
+                    self.add_field(name='No refuellings found for this user.', value='_ _')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:

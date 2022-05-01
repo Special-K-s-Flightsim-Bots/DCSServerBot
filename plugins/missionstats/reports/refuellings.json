@@ -1,0 +1,10 @@
+{
+  "color": "blue",
+  "title": "Refuellings",
+  "elements":
+  [
+    {
+      "class": "plugins.missionstats.reports.Refuellings"
+    }
+  ]
+}
