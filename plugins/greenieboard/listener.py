@@ -26,7 +26,7 @@ class GreenieBoardEventListener(EventListener):
                     const.PLAYER_SIDES[player['side']], player['name'], carrier))
             else:
                 await chat_channel.send('{} player {} landed on carrier {} with grade {} / {}.'.format(
-                    const.PLAYER_SIDES[player['side']], player['name'], carrier, grade, comment))
+                    const.PLAYER_SIDES[player['side']], player['name'], carrier, grade.replace('_', '\\_'), comment))
 
     async def registerDCSServer(self, data):
         await self.update_greenieboard()
