@@ -27,7 +27,7 @@
       "params": {
         "values": [
           {
-            "LSO Grade": "{landing[grade]}",
+            "LSO Grade": "{grade}",
             "Wire": "{wire}",
             "Points": "{landing[points]}"
           }
