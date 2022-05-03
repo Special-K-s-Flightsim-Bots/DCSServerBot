@@ -116,7 +116,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
                                       ucid=ucid, module=modules[n]['slot'], period=None)
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
-    @commands.command(description='Display statistics about refuellings', usage='[member] [period]', aliases=['refuel'])
+    @commands.command(description='Refuelling statistics', usage='[member] [period]')
     @utils.has_role('DCS')
     @commands.guild_only()
     async def refuellings(self, ctx, member: Optional[Union[discord.Member, str]], *params):

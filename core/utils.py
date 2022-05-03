@@ -51,7 +51,7 @@ def findDCSInstallations(server_name=None):
     return installations
 
 
-def changeServerSettings(server_name, name: str, value: Union[str, int, bool]):
+def changeServerSettings(server_name: str, name: str, value: Union[str, int, bool]):
     assert name in ['listStartIndex', 'password', 'name', 'maxPlayers', 'listLoop'], "Value can't be changed."
     if isinstance(value, str):
         value = '"' + value + '"'
@@ -74,6 +74,27 @@ def changeServerSettings(server_name, name: str, value: Union[str, int, bool]):
         outfile.writelines(outlines)
     os.remove(server_settings)
     os.rename(tmp_settings, server_settings)
+
+
+def getServerSetting(server: dict, name: Union[str, int]):
+    if isinstance(name, str):
+        name = '"' + name + '"'
+    exp = re.compile(r'\[{}\] = (?P<value>.*),'.format(name))
+    _, installation = findDCSInstallations(server['server_name'])[0]
+    server_settings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.lua')
+    with open(server_settings, encoding='utf8') as infile:
+        for line in infile.readlines():
+            match = exp.search(line)
+            if match:
+                retval = match.group('value')
+                if retval.startswith('"'):
+                    return retval.replace('"', '')
+                elif retval == 'false':
+                    return False
+                elif retval == 'true':
+                    return True
+                else:
+                    return int(retval)
 
 
 def getInstalledVersion(path: str) -> Tuple[Optional[str], Optional[str]]:

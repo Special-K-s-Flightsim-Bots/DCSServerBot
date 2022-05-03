@@ -1,8 +1,9 @@
 import asyncio
+import discord
 import json
 import psutil
 import string
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status
+from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile
 from datetime import datetime, timedelta
 from discord.ext import tasks, commands
 from os import path
@@ -125,6 +126,11 @@ class Scheduler(Plugin):
                 await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS-SRS server", server=server)
 
     async def launch(self, server: dict, config: dict):
+        # change the weather in the mission if provided
+        if 'settings' in config['restart']:
+            if 'filename' not in server:
+                server['filename'] = utils.getServerSetting(server, utils.getServerSetting(server, 'listStartIndex'))
+            self.change_mizfile(server, config)
         self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by "
                       f"{string.capwords(self.plugin_name)} ...")
         utils.start_dcs(self, server)
@@ -197,6 +203,28 @@ class Scheduler(Plugin):
             if 'extensions' in config:
                 await self.shutdown_extensions(server, config)
 
+    def change_mizfile(self, server: dict, config: dict, preset: Optional[str] = None):
+        now = datetime.now()
+        if not preset:
+            for key, preset in config['restart']['settings'].items():
+                if utils.is_in_timeframe(now, key):
+                    value = config['presets'][preset]
+                    break
+        else:
+            value = config['presets'][preset]
+        miz = MizFile(server['filename'])
+        if 'start_time' in value:
+            miz.start_time = value['start_time']
+        if 'date' in value:
+            miz.date = datetime.strptime(value['date'], '%Y-%m-%d')
+        if 'temperature' in value:
+            miz.temperature = value['temperature']
+        if 'clouds' in value:
+            miz.preset = value['clouds']
+        if 'wind' in value:
+            miz.wind = value['wind']
+        miz.save()
+
     async def restart_mission(self, server: dict, config: dict):
         # check if the mission is still populated
         populated = utils.is_populated(self, server)
@@ -212,11 +240,19 @@ class Scheduler(Plugin):
                 await asyncio.sleep(1)
                 utils.stop_dcs(self, server)
                 await asyncio.sleep(30)
+                if 'settings' in config['restart']:
+                    self.change_mizfile(server, config)
                 utils.start_dcs(self, server)
             elif method == 'restart':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
-                self.bot.sendtoDCS(server, {"command": "restartMission"})
+                if 'settings' in config['restart']:
+                    self.bot.sendtoDCS(server, {"command": "stop_server"})
+                    await asyncio.sleep(5)
+                    self.change_mizfile(server, config)
+                    self.bot.sendtoDCS(server, {"command": "start_server"})
+                else:
+                    self.bot.sendtoDCS(server, {"command": "restartMission"})
             elif method == 'rotate':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
@@ -283,6 +319,32 @@ class Scheduler(Plugin):
                 await self.bot.audit("cleared maintenance flag", user=ctx.message.author, server=server)
             else:
                 await ctx.send(f"Server {server['server_name']} is not in maintenance mode.")
+
+    @staticmethod
+    def format_presets(data: list[str], marker, marker_emoji):
+        embed = discord.Embed(title='Mission Presets', color=discord.Color.blue())
+        embed.add_field(name='ID', value='\n'.join([chr(0x31 + x) + '\u20E3' for x in range(0, len(data))]))
+        embed.add_field(name='Preset', value='\n'.join(data))
+        embed.add_field(name='_ _', value='_ _')
+        embed.set_footer(text='Press a number to select a preset.')
+        return embed
+
+    @commands.command(description='Change mission preset', aliases=['presets'])
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def preset(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
+                await ctx.send('You need to stop / shutdown the server to change the mission preset.')
+                return
+            config = self.get_config(server)
+            presets = list(config['presets'].keys())
+            n = await utils.selection_list(self, ctx, presets, self.format_presets)
+            if n < 0:
+                return
+            self.change_mizfile(server, config, presets[n])
+            await ctx.send('Preset changed.')
 
 
 def setup(bot: DCSServerBot):

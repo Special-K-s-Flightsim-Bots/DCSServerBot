@@ -12,9 +12,6 @@ from typing import Optional
 from .listener import MissionEventListener
 
 
-MAX_HUNG_MINUTES = 3
-
-
 class Mission(Plugin):
 
     def __init__(self, bot, listener):
@@ -117,7 +114,7 @@ class Mission(Plugin):
         env = await report.render(mission_info=mission_info, server_name=server['server_name'], message=ctx.message)
         await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
-    @commands.command(description='Shows information of a specific airport', aliases=['weather', 'airport', 'airfield', 'ap'])
+    @commands.command(description='Shows information of a specific airport', aliases=['weather'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def atis(self, ctx, *args):
@@ -402,15 +399,18 @@ class Mission(Plugin):
                 await self.eventlistener.displayMissionEmbed(data)
             except asyncio.TimeoutError:
                 # check if the server process is still existent
-                if 'PID' not in server or psutil.pid_exists(server['PID']):
+                max_hung_minutes = int(self.config['DCS']['MAX_HUNG_MINUTES'])
+                if max_hung_minutes > 0 and ('PID' not in server or psutil.pid_exists(server['PID'])):
                     self.log.warning(f"Server \"{server['server_name']}\" is not responding.")
                     # process might be in a hung state, so try again for a specified amount of times
-                    if 'hung' in server and server['hung'] >= (MAX_HUNG_MINUTES - 1):
+                    if 'hung' in server and server['hung'] >= (max_hung_minutes - 1):
                         if 'PID' in server:
-                            self.log.warning(f"Killing server \"{server['server_name']}\" after {MAX_HUNG_MINUTES} retries")
+                            self.log.warning(f"Killing server \"{server['server_name']}\" after {max_hung_minutes} retries")
                             psutil.Process(server['PID']).kill()
+                            await self.bot.audit("Server killed due to a hung state.", server=server)
                         else:
-                            self.log.warning(f"Server \"{server['server_name']}\" considered dead after {MAX_HUNG_MINUTES} retries")
+                            self.log.warning(f"Server \"{server['server_name']}\" considered dead after {max_hung_minutes} retries")
+                            await self.bot.audit("Server set to SHUTDOWN due to a hung state.", server=server)
                         del server['hung']
                         server['status'] = Status.SHUTDOWN
                     elif 'hung' not in server:

@@ -140,6 +140,7 @@ function dcsbot.registerDCSServer(json)
     end
     -- mission
     if DCS.getCurrentMission() then
+        msg.filename = DCS.getMissionFilename()
         msg.current_mission = DCS.getMissionName()
         msg.current_map = DCS.getCurrentMission().mission.theatre
         msg.mission_time = DCS.getModelTime()

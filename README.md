@@ -124,14 +124,15 @@ c) __FILTER Section__ (Optional)
 
 d) __DCS Section__
 
-| Parameter                  | Description                                                                                                              |
-|----------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| DCS_INSTALLATION           | The installation directory of DCS World.                                                                                 |
-| AUTOUPDATE                 | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                               |
-| SRS_INSTALLATION           | The installation directory of DCS-SRS (optional).                                                                        |
-| GREETING_MESSAGE_MEMBERS   | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord. |
-| GREETING_MESSAGE_UNMATCHED | A greeting message, that people will receive in DCS chat, if they are unmatched.                                         |
-| SERVER_USER                | The username to display as user no. 1 in the server (aka "Observer")                                                     |
+| Parameter                  | Description                                                                                                                                   |
+|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| DCS_INSTALLATION           | The installation directory of DCS World.                                                                                                      |
+| AUTOUPDATE                 | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                                                    |
+| SRS_INSTALLATION           | The installation directory of DCS-SRS (optional).                                                                                             |
+| GREETING_MESSAGE_MEMBERS   | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord.                      |
+| GREETING_MESSAGE_UNMATCHED | A greeting message, that people will receive in DCS chat, if they are unmatched.                                                              |
+| SERVER_USER                | The username to display as user no. 1 in the server (aka "Observer")                                                                          |
+| MAX_HUNG_MINUTES           | The maximum amount in minutes the server is allowed to not respond to the bot until considered dead (default = 3). Set it to 0 to disable it. |
 
 e) __Server Specific Sections__
 
