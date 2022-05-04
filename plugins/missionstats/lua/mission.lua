@@ -206,8 +206,9 @@ function dcsbot.eventHandler:onEvent(event)
 end
 
 function dcsbot.getMissionSituation(channel)
+    env.info('DCSServerBot - getMissionSituation()')
 	local msg = {}
-	msg.command = 'getMissionStats'
+	msg.command = 'getMissionSituation'
 	msg.coalitions = {}
 	msg.coalitions['Blue'] = {}
 	msg.coalitions['Red'] = {}
