@@ -101,3 +101,16 @@ Following the example above, a possible call could be:
     end
 [...]
 ```
+
+## Tables
+### pu_events
+| Column      | Type                             | Description                                                         |
+|-------------|----------------------------------|---------------------------------------------------------------------|
+| #id         | SERIAL                           | Auto-incrementing unique ID of this column.                         |
+| init_id     | TEXT NOT NULL                    | The initiators UCID.                                                |
+| target_id   | TEXT                             | The victims UCID or -1 if AI.                                       |
+| server_name | TEXT NOT NULL                    | The server name the event happened.                                 |
+| event       | TEXT NOT NULL                    | The event that happened according to the configuration (see above). |
+| points      | DECIMAL NOT NULL                 | The points for this event (changes during decay runs).              |
+| time        | TIMESTAMP NOT NULL DEFAULT NOW() | The time the event occurred.                                        |
+| decay_run   | INTEGER NOT NULL DEFAULT -1      | The decay runs that were processed on this line already.            |

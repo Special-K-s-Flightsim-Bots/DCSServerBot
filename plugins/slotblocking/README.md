@@ -71,3 +71,20 @@ If you want to change user points based on any mission achievements, you are goo
   [...]
   dcsbot.addUserPoints('Special K', 10) -- add 10 points to users "Special K"'s credits. Points can be negative.
 ```
+
+## Tables
+### Campaigns*
+| Column       | Type                             | Description                                              |
+|--------------|----------------------------------|----------------------------------------------------------|
+| #campaign_id | SERIAL                           | Auto-incrementing unique ID of this campaign.            |
+| server_name  | TEXT NOT NULL                    | The server name the campaign is valid for.               |
+| mission_name | TEXT                             | The mission name the campaign is valid for (unused atm). |
+
+*) Campaigns will be moved to the Gamemaster plugin in a bit and reworked.
+
+### sb_points
+| Column       | Type                       | Description                       |
+|--------------|----------------------------|-----------------------------------|
+| #campaign_id | SERIAL                     | ID of this campaign.              |
+| #player_ucid | TEXT NOT NULL              | The UCID of the player            |
+| points       | INTEGER NOT NULL DEFAULT 0 | The earned credits of this player |
