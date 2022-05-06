@@ -10,6 +10,8 @@ local GROUP_CATEGORY = {
 	[Group.Category.SHIP] = 'Ships'
 }
 
+local db_all_units = {}
+
 -- MOOSE
 world.event.S_EVENT_NEW_CARGO = world.event.S_EVENT_MAX + 1000
 world.event.S_EVENT_DELETE_CARGO = world.event.S_EVENT_MAX + 1001
@@ -96,6 +98,11 @@ function dcsbot.eventHandler:onEvent(event)
 		if event.initiator then
 			msg.initiator = {}
 			category = event.initiator:getCategory()
+		    -- work around DCS bug with static targets
+		    if category == Object.Category.STATIC and db_all_units[event.initiator:getID()] then
+                category = Object.Category.UNIT
+		    end
+            -- end workaround
 			if category == Object.Category.UNIT then
 				msg.initiator.type = 'UNIT'
 				msg.initiator.unit = event.initiator
@@ -150,7 +157,15 @@ function dcsbot.eventHandler:onEvent(event)
 		if event.target then
 			msg.target = {}
 			category = event.target:getCategory()
+		    -- work around DCS bug with static targets
+		    if category == Object.Category.STATIC and db_all_units[event.target:getID()] then
+                category = Object.Category.UNIT
+		    end
+            -- end workaround
 			if category == Object.Category.UNIT then
+    		    -- work around DCS bug with static targets
+			    db_all_units[event.target:getID()] = event.target
+	            -- end workaround
 				msg.target.type = 'UNIT'
 				msg.target.unit = event.target
 				msg.target.unit_name = msg.target.unit:getName()

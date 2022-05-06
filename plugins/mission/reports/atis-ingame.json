@@ -1,0 +1,9 @@
+{
+  "title": "ATIS-Report for {airbase[name]}",
+  "elements":
+  [
+    {
+      "class": "plugins.mission.atis.Main"
+    }
+  ]
+}

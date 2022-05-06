@@ -1,11 +1,10 @@
 import asyncio
 import discord
-import itertools
 import psutil
 import psycopg2
 import re
 from contextlib import closing
-from core import utils, const, DCSServerBot, Plugin, Report
+from core import utils, DCSServerBot, Plugin, Report
 from core.const import Status
 from discord.ext import commands, tasks
 from typing import Optional
@@ -126,54 +125,14 @@ class Mission(Plugin):
                 if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
                     data = await self.bot.sendtoDCSSync(server, {
                         "command": "getWeatherInfo",
-                        "channel": ctx.message.id,
                         "lat": airbase['lat'],
                         "lng": airbase['lng'],
                         "alt": airbase['alt']
                     })
-                    embed = discord.Embed(
-                        title=f'{server_name}\nReport for "{airbase["name"]}"', color=discord.Color.blue())
-                    d, m, s, f = utils.dd_to_dms(airbase['lat'])
-                    lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
-                    d, m, s, f = utils.dd_to_dms(airbase['lng'])
-                    lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
-                    embed.add_field(name='Code', value=airbase['code'])
-                    embed.add_field(name='Position', value=f'{lat}\n{lng}')
-                    embed.add_field(name='Altitude', value='{} ft'.format(
-                        int(airbase['alt'] * const.METER_IN_FEET)))
-                    embed.add_field(name='▬' * 30, value='_ _', inline=False)
-                    embed.add_field(name='Tower Frequencies', value='\n'.join(
-                        '{:.3f} MHz'.format(x/1000000) for x in airbase['frequencyList']))
-                    embed.add_field(name='Runways', value='\n'.join(airbase['runwayList']))
-                    embed.add_field(name='Heading', value='{}°\n{}°'.format(
-                        (airbase['rwy_heading'] + 180) % 360, airbase['rwy_heading']))
-                    embed.add_field(name='▬' * 30, value='_ _', inline=False)
-                    weather = data['weather']
-                    embed.add_field(name='Active Runways', value='\n'.join(utils.get_active_runways(
-                        airbase['runwayList'], weather['wind']['atGround'])))
-                    embed.add_field(name='Surface Wind', value='{}° @ {} kts'.format(int(weather['wind']['atGround']['dir'] + 180) % 360, int(
-                        weather['wind']['atGround']['speed'])))
-                    visibility = weather['visibility']['distance']
-                    if weather['enable_fog'] is True:
-                        visibility = weather['fog']['visibility']
-                    embed.add_field(name='Visibility', value='{:,} m'.format(
-                        int(visibility)) if visibility < 10000 else '10 km (+)')
-                    if 'clouds' in data:
-                        if 'preset' in data['clouds']:
-                            readable_name = data['clouds']['preset']['readableName']
-                            metar = readable_name[readable_name.find('METAR:') + 6:]
-                            embed.add_field(name='Cloud Cover',
-                                            value=re.sub(' ', lambda m, c=itertools.count(): m.group() if not next(c) % 2 else '\n', metar))
-                        else:
-                            embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nThickness: {:,} ft'.format(
-                                int(data['clouds']['base'] * const.METER_IN_FEET + 0.5), int(data['clouds']['thickness'] * const.METER_IN_FEET + 0.5)))
-                    else:
-                        embed.add_field(name='Clouds', value='n/a')
-                    embed.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']))
-                    embed.add_field(name='QFE', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
-                        int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])))
+                    report = Report(self.bot, self.plugin_name, 'atis.json')
+                    env = await report.render(airbase=airbase, data=data)
                     timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-                    await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
+                    await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
                     break
 
     @commands.command(description='List the current players on this server')
@@ -386,9 +345,10 @@ class Mission(Plugin):
                     server['status'] = Status.SHUTDOWN
                 continue
             try:
+                # we set a 10s timeout in here because, we don't want to risk false restarts
                 data = await self.bot.sendtoDCSSync(server, {
                     "command": "getMissionUpdate"
-                })
+                }, 10)
                 # remove any hung flag, if the server has responded
                 if 'hung' in server:
                     del server['hung']

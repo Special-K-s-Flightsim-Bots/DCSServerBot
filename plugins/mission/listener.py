@@ -1,6 +1,5 @@
-import discord
 import pandas as pd
-from core import const, utils, EventListener, PersistentReport, Plugin
+from core import const, utils, EventListener, PersistentReport, Plugin, Report
 from core.const import Status
 
 
@@ -104,7 +103,7 @@ class MissionEventListener(EventListener):
             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
             'group_id', 'group_name'])
         self.bot.player_data[data['server_name']].set_index('id')
-        if 'sync' in data['channel']:
+        if data['channel'].startswith('sync'):
             await self.displayMissionEmbed(data)
             await self.displayPlayerEmbed(data)
 
@@ -248,3 +247,26 @@ class MissionEventListener(EventListener):
                     else:
                         await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
                             const.PLAYER_SIDES[player['side']], player['name']))
+
+    async def onChatCommand(self, data: dict) -> None:
+        server = self.globals[data['server_name']]
+        if data['subcommand'] == 'atis':
+            if len(data['params']) == 0:
+                utils.sendChatMessage(self, data['server_name'], data['from_id'], f"Usage: -atis <airbase/code>")
+                return
+            name = data['params'][0]
+            for airbase in server['airbases']:
+                if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
+                    response = await self.bot.sendtoDCSSync(server, {
+                        "command": "getWeatherInfo",
+                        "lat": airbase['lat'],
+                        "lng": airbase['lng'],
+                        "alt": airbase['alt']
+                    })
+                    report = Report(self.bot, self.plugin_name, 'atis-ingame.json')
+                    env = await report.render(airbase=airbase, data=response)
+                    player = utils.get_player(self, server['server_name'], id=data['from_id'])
+                    message = utils.embed_to_simpletext(env.embed)
+                    utils.sendUserMessage(self, server, data['from_id'], message, 30)
+                    return
+            utils.sendChatMessage(self, data['server_name'], data['from_id'], f"No ATIS information found for {name}.")

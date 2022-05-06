@@ -215,10 +215,9 @@ class UserStatisticsEventListener(EventListener):
                 await self.bot.get_bot_channel(data, 'admin_channel').send(
                     'Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
         else:
-            name = discord_user.nick if discord_user.nick else discord_user.name
             self.bot.sendtoDCS(server, {
                 "command": "sendChatMessage",
-                "message": self.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(name, data['server_name']),
+                "message": self.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(data['name'], data['server_name']),
                 "to": int(data['id'])
             })
 

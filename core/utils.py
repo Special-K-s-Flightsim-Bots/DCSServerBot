@@ -686,12 +686,32 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
     return string_
 
 
-def sendChatMessage(self, server_name: str, player: int, message: str):
+def sendChatMessage(self, server_name: str, player_id: int, message: str):
     self.bot.sendtoDCS(self.globals[server_name], {
         "command": "sendChatMessage",
-        "to": player,
+        "to": player_id,
         "message": message
     })
+
+
+def sendPopupMessage(self, server: dict, unit_id: str, message: str, timeout: Optional[int] = -1):
+    if timeout == -1:
+        timeout = config['BOT']['MESSAGE_TIMEOUT']
+    self.bot.sendtoDCS(server, {
+        "command": "sendPopupMessage",
+        "to": unit_id,
+        "message": message,
+        "time": timeout
+    })
+
+
+def sendUserMessage(self, server: dict, player_id: int, message: str, timeout: Optional[int] = -1):
+    player = get_player(self, server['server_name'], id=player_id)
+    if player:
+        if player['side'] == 0:
+            [sendChatMessage(self, server['server_name'], player_id, msg) for msg in message.splitlines()]
+        else:
+            sendPopupMessage(self, server, player['slot'], message, timeout)
 
 
 def convert_time(seconds: int):
@@ -802,7 +822,7 @@ def get_sides(message: discord.Message, server: dict) -> list[str]:
     return sides
 
 
-def format_embed(data):
+def format_embed(data: dict) -> discord.Embed:
     embed = discord.Embed(color=discord.Color.blue())
     if 'title' in data and len(data['title']) > 0:
         embed.title = data['title']
@@ -818,8 +838,75 @@ def format_embed(data):
     return embed
 
 
-def format_period(period: str):
+def format_period(period: str) -> str:
     if period == 'day':
         return 'Daily'
     else:
         return string.capwords(period) + 'ly'
+
+
+def embed_to_text(embed: discord.Embed) -> str:
+    def rows(line: str) -> list[str]:
+        return line.splitlines()
+
+    message = []
+    if len(embed.title):
+        message.append(embed.title.upper())
+    if len(embed.description):
+        message.append(embed.description)
+    message.append('')
+    row = len(message)
+    message.append('')
+    col = 0
+    pos = [0, 0]
+    for field in embed.fields:
+        name = field.name if field.name != '_ _' else ''
+        if not field.inline:
+            if len(message[row]) > 0:
+                message.append('')
+            message[row] += name
+            col = 0
+            pos = [0, 0]
+            row = len(message)
+            message.append('')
+            continue
+        if col > 0:
+            message[row] += ' ' * (pos[col - 1] - len(message[row])) + '| '
+        message[row] += name
+        if col < 2:
+            pos[col] = len(message[row]) + 1
+        value = field.value if field.value != '_ _' else ''
+        lines = rows(value)
+        if len(message) < (row + len(lines) + 1):
+            for i in range(len(message), row + len(lines) + 1):
+                message.append('')
+        for j in range(0, len(lines)):
+            if col > 0:
+                message[row + 1 + j] += ' ' * (pos[col - 1] - len(message[row + 1 + j])) + '| '
+            message[row + 1 + j] += lines[j]
+            if col < 2 and (len(message[row + 1 + j]) + 1) > pos[col]:
+                pos[col] = len(message[row + 1 + j]) + 1
+        if field.inline:
+            col += 1
+            if col == 3:
+                row = len(message)
+                col = 0
+                pos = [0, 0]
+                message.append('')
+    return '\n'.join(message)
+
+
+def embed_to_simpletext(embed: discord.Embed) -> str:
+    message = ''
+    if len(embed.title):
+        message += embed.title.upper() + '\n'
+    if len(embed.description):
+        message += embed.description + '\n'
+    message += '\n'
+    for field in embed.fields:
+        value = field.value if field.value != '_ _' else ''
+        if len(value):
+            message += field.name + ': '
+            message += ' | '.join(value.splitlines())
+            message += '\n'
+    return message

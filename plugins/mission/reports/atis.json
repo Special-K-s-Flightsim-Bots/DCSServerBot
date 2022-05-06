@@ -1,0 +1,10 @@
+{
+  "color": "blue",
+  "title": "{data[server_name]}\nReport for \"{airbase[name]}\"",
+  "elements":
+  [
+    {
+      "class": "plugins.mission.atis.Main"
+    }
+  ]
+}

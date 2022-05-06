@@ -30,12 +30,12 @@ class MissionStatisticsEventListener(EventListener):
         else:
             self.filter = []
 
-    async def registerDCSServer(self, data):
+    async def toggleMissionStats(self, data):
         server = self.globals[data['server_name']]
         if self.config.getboolean(server['installation'], 'MISSION_STATISTICS'):
             self.bot.sendtoDCS(server, {"command": "enableMissionStats"})
             try:
-                response = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"})
+                response = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"}, 10)
             except asyncio.TimeoutError as ex:
                 self.log.exception(ex)
                 response = {}
@@ -43,6 +43,13 @@ class MissionStatisticsEventListener(EventListener):
             await self.displayMissionStats(response)
         else:
             self.bot.sendtoDCS(server, {"command": "disableMissionStats"})
+
+    async def registerDCSServer(self, data):
+        if data['channel'].startswith('sync'):
+            await self.toggleMissionStats(data)
+
+    async def onMissionLoadEnd(self, data):
+        await self.toggleMissionStats(data)
 
     async def displayMissionStats(self, data):
         server = self.globals[data['server_name']]
