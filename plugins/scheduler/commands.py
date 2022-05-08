@@ -186,15 +186,15 @@ class Scheduler(Plugin):
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) else 0
             if restart_in > 0 and populated:
-                self.log.info(f"  => DCS server \"{server['server_name']}\" will be stopped "
+                self.log.info(f"  => DCS server \"{server['server_name']}\" will be shut down "
                               f"by {string.capwords(self.plugin_name)} in {restart_in} seconds ...")
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} will stop DCS server in {utils.format_time(restart_in)}",
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} will shut down DCS server in {utils.format_time(restart_in)}",
                                      server=server)
                 await self.warn_users(server, config, 'shutdown')
             else:
                 self.log.info(
-                    f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} stopped DCS server", server=server)
+                    f"  => Shutting DCS server \"{server['server_name']}\" down by {string.capwords(self.plugin_name)} ...")
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} shut down DCS server", server=server)
             self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
             await asyncio.sleep(1)
             self.bot.sendtoBot({"command": "onShutdown", "server_name": server['server_name']})
@@ -239,7 +239,10 @@ class Scheduler(Plugin):
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
                 utils.stop_dcs(self, server)
-                await asyncio.sleep(30)
+                for i in range(0, 30):
+                    await asyncio.sleep(1)
+                    if server['status'] == Status.SHUTDOWN:
+                        break
                 if 'settings' in config['restart']:
                     self.change_mizfile(server, config)
                 utils.start_dcs(self, server)
@@ -248,7 +251,10 @@ class Scheduler(Plugin):
                 await asyncio.sleep(1)
                 if 'settings' in config['restart']:
                     self.bot.sendtoDCS(server, {"command": "stop_server"})
-                    await asyncio.sleep(5)
+                    for i in range(0, 30):
+                        await asyncio.sleep(1)
+                        if server['status'] == Status.STOPPED:
+                            break
                     self.change_mizfile(server, config)
                     self.bot.sendtoDCS(server, {"command": "start_server"})
                 else:
