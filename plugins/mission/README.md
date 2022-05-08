@@ -1,6 +1,11 @@
 # Plugin "Mission"
 The mission plugin adds commands for amending the mission list, scheduled restarts, persistent mission- and player-embeds to be displayed in your status channels and ATIS like information for the missions' airports. 
 
+## Uploading of Missions
+You can upload .miz files in the configured admin channel of your server(s). You need the DCS Admin role for that.
+Existing missions will be replaced (with security question) and if the server is running with that mission, it will be
+restarted (another security question will apply).
+
 ## Discord Commands
 
 | Command          | Parameter                | Channel                     | Role                  | Description                                                                                                                                                                                                                                          |

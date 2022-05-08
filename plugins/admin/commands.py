@@ -1,7 +1,6 @@
 import aiohttp
 import asyncio
 import discord
-import json
 import os
 import platform
 import psycopg2
@@ -637,31 +636,30 @@ class Master(Agent):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        # ignore bot messages
-        if message.author.bot:
+        # ignore bot messages or messages that does not contain json attachments
+        if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.json'):
             return
-        if message.attachments:
-            roles = [x.strip() for x in self.config['ROLES']['Admin'].split(',')]
-            for role in message.author.roles:
-                if role.name in roles:
-                    att = message.attachments[0]
-                    if att.filename.endswith('.json'):
-                        try:
-                            async with aiohttp.ClientSession() as session:
-                                async with session.get(att.url) as response:
-                                    data = json.loads(await response.text())
-                                    embed = utils.format_embed(data)
-                                    msg = None
-                                    if 'message_id' in data:
-                                        with suppress(discord.errors.NotFound):
-                                            msg = await message.channel.fetch_message(int(data['message_id']))
-                                    if msg:
-                                        await msg.edit(embed=embed)
-                                    else:
-                                        await message.channel.send(embed=embed)
-                        finally:
-                            await message.delete()
-                    break
+        # only Admin role is allowed to upload json files in channels
+        if not utils.check_roles([self.config['ROLES']['Admin']], message.author):
+            return
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(message.attachments[0].url) as response:
+                    if response.status == 200:
+                        data = await response.json(encoding='utf-8')
+                        embed = utils.format_embed(data)
+                        msg = None
+                        if 'message_id' in data:
+                            with suppress(discord.errors.NotFound):
+                                msg = await message.channel.fetch_message(int(data['message_id']))
+                        if msg:
+                            await msg.edit(embed=embed)
+                        else:
+                            await message.channel.send(embed=embed)
+                    else:
+                        await message.channel.send(f'Error {response.status} while reading JSON file!')
+        finally:
+            await message.delete()
 
 
 def setup(bot: DCSServerBot):

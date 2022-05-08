@@ -27,7 +27,7 @@ These commands can be used to administrate the bot itself.
 | Plugin       | Scope                                                               | Optional | Dependent on          | Documentation                              |
 |--------------|---------------------------------------------------------------------|----------|-----------------------|--------------------------------------------|
 | Admin        | Admin commands to manage your DCS server.                           | no       |                       | [README](./plugins/admin/README.md)        |
-| Mission      | Handling of mission, compared to the WebGUI.                        | no       |                       | [README](./plugins/mission/README.md)      |
+| Mission      | Handling of missions, compared to the WebGUI.                       | no       |                       | [README](./plugins/mission/README.md)      |
 | Scheduler    | Autostart / -stop of servers or missions.                           | no       | Mission               | [README](./plugins/scheduler/README.md)    |
 | Userstats    | Users statistics system.                                            | yes*     | Mission               | [README](./plugins/userstats/README.md)    |
 | Missionstats | Detailed users statistics / mission statistics.                     | yes*     | Userstats             | [README](./plugins/missionstats/README.md) |

@@ -273,8 +273,8 @@ class Main:
                         for server_name, server in self.bot.globals.items():
                             self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                         await asyncio.sleep(5)
-                    await ctx.send('The bot is now restarting itself.\nAll servers with AUTOSTART_DCS=true will be '
-                                   'launched on bot start.')
+                    await ctx.send('The bot is now restarting itself.\nAll servers will be launched according to their '
+                                   'scheduler configuration on bot start.')
                     exit(-1)
                 else:
                     await ctx.send('No bot upgrade found.')

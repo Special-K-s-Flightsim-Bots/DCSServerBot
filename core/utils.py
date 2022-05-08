@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import aiohttp
 import asyncio
 import discord
@@ -402,9 +404,9 @@ async def yn_question(self, ctx, question: str, msg: Optional[str] = None) -> bo
     return react.emoji == '🇾'
 
 
-async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]):
+async def get_server(self, ctx: Union[discord.ext.commands.context.Context, discord.Message, str]):
     for server_name, server in self.globals.items():
-        if isinstance(ctx, discord.ext.commands.context.Context):
+        if isinstance(ctx, discord.ext.commands.context.Context) or isinstance(ctx, discord.Message):
             if server['status'] == Status.UNREGISTERED:
                 continue
             channels = ['status_channel', 'chat_channel', 'admin_channel']
@@ -421,62 +423,43 @@ async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]
     return None
 
 
+def check_roles(roles: list[str], author: discord.Member) -> bool:
+    valid_roles = []
+    for role in roles:
+        if 'ROLES' not in config or role not in config['ROLES']:
+            valid_roles.append(role)
+        else:
+            valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
+    for role in author.roles:
+        if role.name in valid_roles:
+            return True
+    return False
+
+
 def has_roles(roles: list[str]):
     def predicate(ctx):
-        valid_roles = []
-        for role in roles:
-            if 'ROLES' not in config or role not in config['ROLES']:
-                valid_roles.append(role)
-            else:
-                valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
-        for role in ctx.author.roles:
-            if role.name in valid_roles:
-                return True
-        return False
+        return check_roles(roles, ctx.author)
 
     return commands.check(predicate)
 
 
 def has_not_roles(roles: list[str]):
     def predicate(ctx):
-        valid_roles = []
-        for role in roles:
-            if 'ROLES' not in config or role not in config['ROLES']:
-                valid_roles.append(role)
-            else:
-                valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
-        for role in ctx.author.roles:
-            if role.name in valid_roles:
-                return False
-        return True
+        return not check_roles(roles, ctx.author)
 
     return commands.check(predicate)
 
 
-def has_role(item: str):
+def has_role(role: str):
     def predicate(ctx):
-        if 'ROLES' not in config or item not in config['ROLES']:
-            valid_roles = [item]
-        else:
-            valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
-        for role in ctx.author.roles:
-            if role.name in valid_roles:
-                return True
-        return False
+        return check_roles([role], ctx.author)
 
     return commands.check(predicate)
 
 
-def has_not_role(item: str):
+def has_not_role(role: str):
     def predicate(ctx):
-        if 'ROLES' not in config or item not in config['ROLES']:
-            valid_roles = [item]
-        else:
-            valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
-        for role in ctx.author.roles:
-            if role.name in valid_roles:
-                return False
-        return True
+        return not check_roles([role], ctx.author)
 
     return commands.check(predicate)
 
@@ -910,3 +893,15 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
             message += ' | '.join(value.splitlines())
             message += '\n'
     return message
+
+
+@dataclass
+class ContextWrapper:
+    message: discord.Message
+
+    async def send(self, content=None, *, tts=False, embed=None, file=None, files=None, delete_after=None, nonce=None,
+                   allowed_mentions=None, reference=None, mention_author=None):
+        return await self.message.channel.send(content, tts=tts, embed=embed, file=file, files=files,
+                                               delete_after=delete_after, nonce=nonce,
+                                               allowed_mentions=allowed_mentions, reference=reference,
+                                               mention_author=mention_author)

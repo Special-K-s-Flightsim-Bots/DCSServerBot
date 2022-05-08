@@ -1,3 +1,4 @@
+import aiohttp
 import asyncio
 import discord
 import psutil
@@ -7,6 +8,7 @@ from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report
 from core.const import Status
 from discord.ext import commands, tasks
+from os import path
 from typing import Optional
 from .listener import MissionEventListener
 
@@ -410,6 +412,51 @@ class Mission(Plugin):
                     else:
                         name = re.sub('［.*］', f'［{current}／{max_players}］', name)
                 await channel.edit(name=name)
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        # ignore bot messages or messages that does not contain miz attachments
+        if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.miz'):
+            return
+        server = await utils.get_server(self, message)
+        # only DCS Admin role is allowed to upload missions in the servers admin channel
+        if not server or not utils.check_roles([self.config['ROLES']['DCS Admin']], message.author):
+            return
+        att = message.attachments[0]
+        filename = path.expandvars(self.config[server['installation']]['DCS_HOME']) + '\\Missions\\' + att.filename
+        try:
+            stopped = False
+            if path.exists(filename):
+                ctx = utils.ContextWrapper(message)
+                if not await utils.yn_question(self, ctx, 'File exists. Do you want to overwrite it?'):
+                    await message.channel.send('Upload aborted.')
+                    return
+                if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                    if path.normpath(server['filename']) == path.normpath(filename) and \
+                        await utils.yn_question(self, ctx, 'Mission is currently active.\nDo you want me to stop '
+                                                           'the DCS Server to replace it?'):
+                        self.bot.sendtoDCS(server, {"command": "stop_server"})
+                        for i in range(0, 30):
+                            await asyncio.sleep(1)
+                            if server['status'] == Status.STOPPED:
+                                break
+                        stopped = True
+                    else:
+                        await message.channel.send('Upload aborted.')
+                        return
+            async with aiohttp.ClientSession() as session:
+                async with session.get(att.url) as response:
+                    if response.status == 200:
+                        with open(filename, 'wb') as outfile:
+                            outfile.write(await response.read())
+                    else:
+                        await message.channel.send(f'Error {response.status} while reading MIZ file!')
+            if stopped:
+                self.bot.sendtoDCS(server, {"command": "start_server"})
+            await message.channel.send(f"Mission uploaded.\nIf not already in the list, use the "
+                                       f"{self.config['BOT']['COMMAND_PREFIX']}add command to add it.")
+        finally:
+            await message.delete()
 
 
 def setup(bot: DCSServerBot):
