@@ -414,7 +414,7 @@ class Agent(Plugin):
         status = []
         if server:
             names.append(server['server_name'])
-            status.append(server['status'].name)
+            status.append(string.capwords(server['status'].name.lower()))
         else:
             for server in self.globals.values():
                 names.append(server['server_name'])
