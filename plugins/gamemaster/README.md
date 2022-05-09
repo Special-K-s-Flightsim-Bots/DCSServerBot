@@ -7,7 +7,7 @@ The gamemaster plugin adds commands that help you to interact with a running mis
 |-----------------|---------------------------------------|---------------------|-----------------------|--------------------------------------------------------------------------------------|
 | .chat           | message                               | chat-/admin-channel | DCS                   | Send a message to the DCS in-game-chat.                                              |
 | .popup          | red/blue/all/player [timeout] message | admin-channel       | DCS Admin, GameMaster | Send a popup to the dedicated coalition or player* in game with an optional timeout. |
-| .flag           | name [value]                          | admin-channel       | DCS Admin, GameMaster | Sets or clears a flag inside the running mission.                                    |
+| .flag           | name [value]                          | admin-channel       | DCS Admin, GameMaster | Sets (or clears) a flag inside the running mission or returns the current value.     |
 | .join           | red / blue                            | all                 | DCS                   | Joins either Coalition Red or Coalition Blue discord groups.                         |
 | .leave          |                                       | all                 | DCS                   | Leave the current coalition.                                                         |
 | .do_script      | lua code                              | admin-channel       | DCS Admin, GameMaster | Run specific lua code inside the running mission.                                    |

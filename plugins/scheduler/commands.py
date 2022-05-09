@@ -297,16 +297,19 @@ class Scheduler(Plugin):
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
             if config:
-                if server['status'] == Status.RUNNING and 'affinity' in config:
-                    self.check_affinity(server, config)
-                target_state = self.check_server_state(server, config)
-                if server['status'] != target_state:
-                    if target_state == Status.RUNNING:
-                        asyncio.create_task(self.launch(server, config))
-                    elif target_state == Status.SHUTDOWN:
-                        asyncio.create_task(self.shutdown(server, config))
-                elif server['status'] in [Status.RUNNING, Status.PAUSED]:
-                    await self.check_mission_state(server, config)
+                try:
+                    if server['status'] == Status.RUNNING and 'affinity' in config:
+                        self.check_affinity(server, config)
+                    target_state = self.check_server_state(server, config)
+                    if server['status'] != target_state:
+                        if target_state == Status.RUNNING:
+                            asyncio.create_task(self.launch(server, config))
+                        elif target_state == Status.SHUTDOWN:
+                            asyncio.create_task(self.shutdown(server, config))
+                    elif server['status'] in [Status.RUNNING, Status.PAUSED]:
+                        await self.check_mission_state(server, config)
+                except Exception as ex:
+                    self.log.warning("Exception in check_state(): " + str(ex))
 
     @check_state.before_loop
     async def before_check(self):

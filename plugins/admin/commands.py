@@ -409,7 +409,7 @@ class Agent(Plugin):
     @commands.guild_only()
     async def status(self, ctx):
         server = await utils.get_server(self, ctx)
-        embed = discord.Embed(title='Server Status', color=discord.Color.blue())
+        embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
         names = []
         status = []
         if server:
@@ -428,21 +428,27 @@ class Agent(Plugin):
     async def update_bot_status(self):
         for server_name, server in self.globals.items():
             if server['status'] in const.STATUS_EMOJI.keys():
-                await self.bot.change_presence(
-                    activity=discord.Game(const.STATUS_EMOJI[server['status']] + ' ' +
-                                          re.sub(self.config['FILTER']['SERVER_FILTER'], '', server_name).strip()))
-                await asyncio.sleep(10)
+                try:
+                    await self.bot.change_presence(
+                        activity=discord.Game(const.STATUS_EMOJI[server['status']] + ' ' +
+                                              re.sub(self.config['FILTER']['SERVER_FILTER'], '', server_name).strip()))
+                    await asyncio.sleep(10)
+                except Exception as ex:
+                    self.log.warning("Exception in update_bot_status(): " + str(ex))
 
     @tasks.loop(minutes=5.0)
     async def check_for_dcs_update(self):
         # don't run, if an update is currently running
         if self.update_pending:
             return
-        branch, old_version = utils.getInstalledVersion(self.config['DCS']['DCS_INSTALLATION'])
-        new_version = await utils.getLatestVersion(branch)
-        if new_version and old_version != new_version:
-            self.log.info('A new version of DCS World is available. Auto-updating ...')
-            await self.do_update([120, 60])
+        try:
+            branch, old_version = utils.getInstalledVersion(self.config['DCS']['DCS_INSTALLATION'])
+            new_version = await utils.getLatestVersion(branch)
+            if new_version and old_version != new_version:
+                self.log.info('A new version of DCS World is available. Auto-updating ...')
+                await self.do_update([120, 60])
+        except Exception as ex:
+            self.log.warning("Exception in check_for_dcs_update(): " + str(ex))
 
     @check_for_dcs_update.before_loop
     async def before_check(self):

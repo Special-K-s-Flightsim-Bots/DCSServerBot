@@ -52,9 +52,9 @@ class GameMasterEventListener(EventListener):
             coalition = self.get_coalition(utils.get_player(self, data['server_name'], id=data['id']))
             if coalition:
                 data['subcommand'] = 'coalition'
-                await self.onChatMessage(data)
+                await self.onChatCommand(data)
             data['subcommand'] = 'password'
-            await self.onChatMessage(data)
+            await self.onChatCommand(data)
 
     async def join(self, data: dict):
         coalition = data['params'][0] if len(data['params']) > 0 else ''

@@ -101,15 +101,19 @@ class GameMasterAgent(Plugin):
     async def flag(self, ctx, flag, value=None):
         server = await utils.get_server(self, ctx)
         if server and server['status'] in [Status.RUNNING, Status.PAUSED]:
-            self.bot.sendtoDCS(server, {
-                "command": "setFlag",
-                "channel": ctx.channel.id,
-                "flag": flag,
-                "value": value
-            })
-            await ctx.send('Flag set.')
+            if value:
+                self.bot.sendtoDCS(server, {
+                    "command": "setFlag",
+                    "channel": ctx.channel.id,
+                    "flag": flag,
+                    "value": value
+                })
+                await ctx.send(f"Flag {flag} set to {value}.")
+            else:
+                data = await self.bot.sendtoDCSSync(server, {"command": "getFlag", "flag": flag})
+                await ctx.send(f"Flag {flag} has value {data['value']}.")
         else:
-            await ctx.send(f"Mission is {server['status'].name.lower()}, can't set flag.")
+            await ctx.send(f"Mission is {server['status'].name.lower()}, can't set/get flag.")
 
     @commands.command(description='Calls any function inside the mission environment', usage='<script>', hidden=True)
     @utils.has_roles(['DCS Admin', 'GameMaster'])

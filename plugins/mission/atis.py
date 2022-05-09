@@ -6,9 +6,9 @@ from core import report, utils, const
 class Main(report.EmbedElement):
     def render(self, airbase: dict, data: dict):
         d, m, s, f = utils.dd_to_dms(airbase['lat'])
-        lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
+        lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(abs(m)), int(abs(s)))
         d, m, s, f = utils.dd_to_dms(airbase['lng'])
-        lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
+        lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(abs(m)), int(abs(s)))
         self.add_field(name='Code', value=airbase['code'])
         self.add_field(name='Position', value=f'{lat}\n{lng}')
         self.add_field(name='Altitude', value='{} ft'.format(
