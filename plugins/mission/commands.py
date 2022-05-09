@@ -433,13 +433,13 @@ class Mission(Plugin):
             stopped = False
             if path.exists(filename):
                 ctx = utils.ContextWrapper(message)
-                if not await utils.yn_question(self, ctx, 'File exists. Do you want to overwrite it?'):
+                if await utils.yn_question(self, ctx, 'File exists. Do you want to overwrite it?') is False:
                     await message.channel.send('Upload aborted.')
                     return
-                if server['status'] in [Status.RUNNING, Status.PAUSED]:
-                    if path.normpath(server['filename']) == path.normpath(filename) and \
-                        await utils.yn_question(self, ctx, 'Mission is currently active.\nDo you want me to stop '
-                                                           'the DCS Server to replace it?'):
+                if server['status'] in [Status.RUNNING, Status.PAUSED] and \
+                        path.normpath(server['filename']) == path.normpath(filename):
+                    if await utils.yn_question(self, ctx, 'Mission is currently active.\nDo you want me to stop the '
+                                                          'DCS Server to replace it?') is True:
                         self.bot.sendtoDCS(server, {"command": "stop_server"})
                         for i in range(0, 30):
                             await asyncio.sleep(1)
