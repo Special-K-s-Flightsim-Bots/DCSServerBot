@@ -127,7 +127,7 @@ class Scheduler(Plugin):
 
     async def launch(self, server: dict, config: dict):
         # change the weather in the mission if provided
-        if 'settings' in config['restart']:
+        if 'restart' in config and 'settings' in config['restart']:
             if 'filename' not in server:
                 server['filename'] = utils.getServerSetting(server, utils.getServerSetting(server, 'listStartIndex'))
             self.change_mizfile(server, config)
