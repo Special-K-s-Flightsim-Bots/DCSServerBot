@@ -50,8 +50,8 @@ class TopMissionPerServer(report.EmbedElement):
                                       'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
                                       'playtime DESC) AS rn FROM ( '
         sql_inner = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', " \
-                    f"'g')) AS server_name, trim(regexp_replace(m.mis" \
-                    f"sion_name, '{self.bot.config['FILTER']['MISSION_FILTER']}', ' ', 'g')) AS mission_name, " \
+                    f"'g')) AS server_name, trim(regexp_replace(m.mission_name, " \
+                    f"'{self.bot.config['FILTER']['MISSION_FILTER']}', ' ', 'g')) AS mission_name, " \
                     f"ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime FROM missions m, " \
                     f"statistics s WHERE m.id = s.mission_id AND s.hop_off IS NOT NULL "
         sql_right = ') AS x) AS y WHERE rn {} ORDER BY 3 DESC'

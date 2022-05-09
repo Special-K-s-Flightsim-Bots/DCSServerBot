@@ -1,3 +1,4 @@
+import asyncio
 import psycopg2
 from contextlib import closing
 from core import utils, EventListener, Plugin, PersistentReport
@@ -29,15 +30,26 @@ class MissionStatisticsEventListener(EventListener):
         else:
             self.filter = []
 
-    async def registerDCSServer(self, data):
+    async def toggleMissionStats(self, data):
         server = self.globals[data['server_name']]
         if self.config.getboolean(server['installation'], 'MISSION_STATISTICS'):
             self.bot.sendtoDCS(server, {"command": "enableMissionStats"})
-            data = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"})
-            self.mission_stats[data['server_name']] = data
-            await self.displayMissionStats(data)
+            try:
+                response = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"}, 10)
+            except asyncio.TimeoutError as ex:
+                self.log.exception(ex)
+                response = {}
+            self.mission_stats[data['server_name']] = response
+            await self.displayMissionStats(response)
         else:
             self.bot.sendtoDCS(server, {"command": "disableMissionStats"})
+
+    async def registerDCSServer(self, data):
+        if data['channel'].startswith('sync'):
+            await self.toggleMissionStats(data)
+
+    async def onMissionLoadEnd(self, data):
+        await self.toggleMissionStats(data)
 
     async def displayMissionStats(self, data):
         server = self.globals[data['server_name']]

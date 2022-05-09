@@ -1,18 +1,16 @@
+import aiohttp
 import asyncio
 import discord
-import itertools
 import psutil
 import psycopg2
 import re
 from contextlib import closing
-from core import utils, const, DCSServerBot, Plugin, Report
+from core import utils, DCSServerBot, Plugin, Report
 from core.const import Status
 from discord.ext import commands, tasks
+from os import path
 from typing import Optional
 from .listener import MissionEventListener
-
-
-MAX_HUNG_MINUTES = 3
 
 
 class Mission(Plugin):
@@ -117,7 +115,7 @@ class Mission(Plugin):
         env = await report.render(mission_info=mission_info, server_name=server['server_name'], message=ctx.message)
         await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
-    @commands.command(description='Shows information of a specific airport', aliases=['weather', 'airport', 'airfield', 'ap'])
+    @commands.command(description='Shows information of a specific airport', aliases=['weather'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def atis(self, ctx, *args):
@@ -129,54 +127,14 @@ class Mission(Plugin):
                 if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
                     data = await self.bot.sendtoDCSSync(server, {
                         "command": "getWeatherInfo",
-                        "channel": ctx.message.id,
                         "lat": airbase['lat'],
                         "lng": airbase['lng'],
                         "alt": airbase['alt']
                     })
-                    embed = discord.Embed(
-                        title=f'{server_name}\nReport for "{airbase["name"]}"', color=discord.Color.blue())
-                    d, m, s, f = utils.dd_to_dms(airbase['lat'])
-                    lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
-                    d, m, s, f = utils.dd_to_dms(airbase['lng'])
-                    lng = ('E' if d > 0 else 'W') + '{:03d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(m), int(s))
-                    embed.add_field(name='Code', value=airbase['code'])
-                    embed.add_field(name='Position', value=f'{lat}\n{lng}')
-                    embed.add_field(name='Altitude', value='{} ft'.format(
-                        int(airbase['alt'] * const.METER_IN_FEET)))
-                    embed.add_field(name='▬' * 30, value='_ _', inline=False)
-                    embed.add_field(name='Tower Frequencies', value='\n'.join(
-                        '{:.3f} MHz'.format(x/1000000) for x in airbase['frequencyList']))
-                    embed.add_field(name='Runways', value='\n'.join(airbase['runwayList']))
-                    embed.add_field(name='Heading', value='{}°\n{}°'.format(
-                        (airbase['rwy_heading'] + 180) % 360, airbase['rwy_heading']))
-                    embed.add_field(name='▬' * 30, value='_ _', inline=False)
-                    weather = data['weather']
-                    embed.add_field(name='Active Runways', value='\n'.join(utils.get_active_runways(
-                        airbase['runwayList'], weather['wind']['atGround'])))
-                    embed.add_field(name='Surface Wind', value='{}° @ {} kts'.format(int(weather['wind']['atGround']['dir'] + 180) % 360, int(
-                        weather['wind']['atGround']['speed'])))
-                    visibility = weather['visibility']['distance']
-                    if weather['enable_fog'] is True:
-                        visibility = weather['fog']['visibility']
-                    embed.add_field(name='Visibility', value='{:,} m'.format(
-                        int(visibility)) if visibility < 10000 else '10 km (+)')
-                    if 'clouds' in data:
-                        if 'preset' in data['clouds']:
-                            readable_name = data['clouds']['preset']['readableName']
-                            metar = readable_name[readable_name.find('METAR:') + 6:]
-                            embed.add_field(name='Cloud Cover',
-                                            value=re.sub(' ', lambda m, c=itertools.count(): m.group() if not next(c) % 2 else '\n', metar))
-                        else:
-                            embed.add_field(name='Clouds', value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nThickness: {:,} ft'.format(
-                                int(data['clouds']['base'] * const.METER_IN_FEET + 0.5), int(data['clouds']['thickness'] * const.METER_IN_FEET + 0.5)))
-                    else:
-                        embed.add_field(name='Clouds', value='n/a')
-                    embed.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']))
-                    embed.add_field(name='QFE', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
-                        int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])))
+                    report = Report(self.bot, self.plugin_name, 'atis.json')
+                    env = await report.render(airbase=airbase, data=data)
                     timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-                    await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
+                    await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
                     break
 
     @commands.command(description='List the current players on this server')
@@ -389,9 +347,10 @@ class Mission(Plugin):
                     server['status'] = Status.SHUTDOWN
                 continue
             try:
+                # we set a 10s timeout in here because, we don't want to risk false restarts
                 data = await self.bot.sendtoDCSSync(server, {
                     "command": "getMissionUpdate"
-                })
+                }, 10)
                 # remove any hung flag, if the server has responded
                 if 'hung' in server:
                     del server['hung']
@@ -402,15 +361,18 @@ class Mission(Plugin):
                 await self.eventlistener.displayMissionEmbed(data)
             except asyncio.TimeoutError:
                 # check if the server process is still existent
-                if 'PID' not in server or psutil.pid_exists(server['PID']):
+                max_hung_minutes = int(self.config['DCS']['MAX_HUNG_MINUTES'])
+                if max_hung_minutes > 0 and ('PID' not in server or psutil.pid_exists(server['PID'])):
                     self.log.warning(f"Server \"{server['server_name']}\" is not responding.")
                     # process might be in a hung state, so try again for a specified amount of times
-                    if 'hung' in server and server['hung'] >= (MAX_HUNG_MINUTES - 1):
+                    if 'hung' in server and server['hung'] >= (max_hung_minutes - 1):
                         if 'PID' in server:
-                            self.log.warning(f"Killing server \"{server['server_name']}\" after {MAX_HUNG_MINUTES} retries")
+                            self.log.warning(f"Killing server \"{server['server_name']}\" after {max_hung_minutes} retries")
                             psutil.Process(server['PID']).kill()
+                            await self.bot.audit("Server killed due to a hung state.", server=server)
                         else:
-                            self.log.warning(f"Server \"{server['server_name']}\" considered dead after {MAX_HUNG_MINUTES} retries")
+                            self.log.warning(f"Server \"{server['server_name']}\" considered dead after {max_hung_minutes} retries")
+                            await self.bot.audit("Server set to SHUTDOWN due to a hung state.", server=server)
                         del server['hung']
                         server['status'] = Status.SHUTDOWN
                     elif 'hung' not in server:
@@ -420,6 +382,8 @@ class Mission(Plugin):
                 else:
                     self.log.warning(f"Server \"{server['server_name']}\" died. Setting state to SHUTDOWN.")
                     server['status'] = Status.SHUTDOWN
+            except Exception as ex:
+                self.log.warning("Exception in update_mission_status(): " + str(ex))
 
     @update_mission_status.before_loop
     async def before_update(self):
@@ -449,7 +413,55 @@ class Mission(Plugin):
                         name = name + f'［{current}／{max_players}］'
                     else:
                         name = re.sub('［.*］', f'［{current}／{max_players}］', name)
-                await channel.edit(name=name)
+                try:
+                    await channel.edit(name=name)
+                except Exception as ex:
+                    self.log.warning("Exception in update_channel_name(): " + str(ex))
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        # ignore bot messages or messages that does not contain miz attachments
+        if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.miz'):
+            return
+        server = await utils.get_server(self, message)
+        # only DCS Admin role is allowed to upload missions in the servers admin channel
+        if not server or not utils.check_roles([self.config['ROLES']['DCS Admin']], message.author):
+            return
+        att = message.attachments[0]
+        filename = path.expandvars(self.config[server['installation']]['DCS_HOME']) + '\\Missions\\' + att.filename
+        try:
+            stopped = False
+            if path.exists(filename):
+                ctx = utils.ContextWrapper(message)
+                if not await utils.yn_question(self, ctx, 'File exists. Do you want to overwrite it?'):
+                    await message.channel.send('Upload aborted.')
+                    return
+                if server['status'] in [Status.RUNNING, Status.PAUSED]:
+                    if path.normpath(server['filename']) == path.normpath(filename) and \
+                        await utils.yn_question(self, ctx, 'Mission is currently active.\nDo you want me to stop '
+                                                           'the DCS Server to replace it?'):
+                        self.bot.sendtoDCS(server, {"command": "stop_server"})
+                        for i in range(0, 30):
+                            await asyncio.sleep(1)
+                            if server['status'] == Status.STOPPED:
+                                break
+                        stopped = True
+                    else:
+                        await message.channel.send('Upload aborted.')
+                        return
+            async with aiohttp.ClientSession() as session:
+                async with session.get(att.url) as response:
+                    if response.status == 200:
+                        with open(filename, 'wb') as outfile:
+                            outfile.write(await response.read())
+                    else:
+                        await message.channel.send(f'Error {response.status} while reading MIZ file!')
+            if stopped:
+                self.bot.sendtoDCS(server, {"command": "start_server"})
+            await message.channel.send(f"Mission uploaded.\nIf not already in the list, use the "
+                                       f"{self.config['BOT']['COMMAND_PREFIX']}add command to add it.")
+        finally:
+            await message.delete()
 
 
 def setup(bot: DCSServerBot):

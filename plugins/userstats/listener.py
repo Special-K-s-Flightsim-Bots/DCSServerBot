@@ -215,10 +215,9 @@ class UserStatisticsEventListener(EventListener):
                 await self.bot.get_bot_channel(data, 'admin_channel').send(
                     'Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
         else:
-            name = discord_user.nick if discord_user.nick else discord_user.name
             self.bot.sendtoDCS(server, {
                 "command": "sendChatMessage",
-                "message": self.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(name, data['server_name']),
+                "message": self.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(data['name'], data['server_name']),
                 "to": int(data['id'])
             })
 
@@ -308,8 +307,12 @@ class UserStatisticsEventListener(EventListener):
                         else:
                             kill_type = 'kill_other'  # Static objects
                         if kill_type in self.SQL_EVENT_UPDATES.keys():
-                            for player in utils.get_crew_members(self, data['server_name'], data['arg1']):
-                                cursor.execute(self.SQL_EVENT_UPDATES[kill_type], (mission_id, player['ucid']))
+                            players = utils.get_crew_members(self, data['server_name'], data['arg1'])
+                            if players:
+                                for player in players:
+                                    cursor.execute(self.SQL_EVENT_UPDATES[kill_type], (mission_id, player['ucid']))
+                            else:
+                                self.log.debug(f"Can't find data for player id={data['arg1']}!")
                         else:
                             self.log.debug(f'No SQL for kill_type {kill_type} found!.')
 
@@ -398,7 +401,7 @@ class UserStatisticsEventListener(EventListener):
                             discord_id = cursor.fetchone()[0]
                             cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (discord_id, player['ucid']))
                             cursor.execute('DELETE FROM players WHERE ucid = %s', (token, ))
-                            utils.sendChatMessage(self, data['server_name'], data['from_id'], 'Your user has been linked!')
+                            utils.sendChatMessage(self, data['server_name'], data['from_id'], 'Your user has been linked! You must reconnect once for the settings to be applied.')
                             with suppress(Exception):
                                 member = self.bot.guilds[0].get_member(discord_id)
                                 await self.bot.audit(f"self-linked to DCS user \"{player['name']}\" (ucid={player['ucid']}).",

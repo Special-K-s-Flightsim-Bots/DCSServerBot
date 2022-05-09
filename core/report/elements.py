@@ -34,8 +34,8 @@ class EmbedElement(ReportElement):
         self.embed = env.embed
 
     def add_field(self, *, name, value, inline=True):
-        return self.embed.add_field(name=name[:256],
-                                    value=value[:1024] if isinstance(value, str) else value,
+        return self.embed.add_field(name=name[:256] or '_ _',
+                                    value=(value[:1024] if isinstance(value, str) else value) or '_ _',
                                     inline=inline)
 
     def set_image(self, *, url):

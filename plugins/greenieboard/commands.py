@@ -22,7 +22,8 @@ class GreenieBoard(Plugin):
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
             landings += f"{data[i]['time']:%y-%m-%d %H:%M:%S} - {data[i]['unit_type']}@{data[i]['place']}\n"
-            grades += f"{data[i]['grade']}\n"
+            grade = data[i]['grade'].replace('_', '\\_')
+            grades += f"{grade}\n"
         embed.add_field(name='ID', value=ids)
         embed.add_field(name='Landing', value=landings)
         embed.add_field(name='Grade', value=grades)
@@ -69,7 +70,8 @@ class GreenieBoard(Plugin):
             grade = landings[n]['grade']
             comment = get_element(landings[n]['comment'], 'comment').replace('_', '\\_')
             wire = get_element(landings[n]['comment'], 'wire')
-            env = await report.render(landing=landings[n], grade=GRADES[grade], comment=comment, wire=wire)
+            env = await report.render(landing=landings[n], grade=GRADES[grade].replace('_', '\\_'), comment=comment,
+                                      wire=wire)
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     def render_board(self):

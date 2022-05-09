@@ -14,6 +14,13 @@ Examples:
       "warn": {
         "times": [ 600, 300, 60, 10],         -- warn users at 10 mins, 5 mins, 1 min and 10 sec before the event
         "text": "!!! Server will {what} in {when} !!!"
+      },
+      "presets": {                            -- Weather presets (see below)
+          "Winter Nighttime": {"start_time": "03:00", "date": "2016-01-10", "temperature": -10, "clouds": "RainyPreset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
+          "Winter Daytime": {"start_time": "08:00", "date": "2016-01-10", "temperature": -12, "clouds": "TweakedPreset11LowerAlt", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 5, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
+          "Summer Nighttime": {"start_time": "03:00", "date": "2016-07-26", "temperature": 18, "clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
+          "Summer Daytime": {"start_time": "10:00", "date": "2016-07-26", "temperature": 22, "clouds": "Preset2", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
+          "Heavy Storm": {"start_time": "16:00", "temperature": 16, "clouds": "RainyPreset3", "clouds": "Preset2", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}}
       }
     },
     {
@@ -39,7 +46,13 @@ Examples:
       "extensions": [ "SRS" ],                -- which extensions should be started / stopped with the server
       "restart": {                            -- missions rotate every 4 hrs
         "method": "rotate",
-        "local_times": [ "00:00", "04:00", "08:00" ],
+        "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
+        "settings": {                         -- shall the weather change in the mission?
+          "00:00-07:59": "Winter Nighttime",
+          "08:00-11:59": "Winter Daytime",
+          "12:00-19:59": "Summer Daytime",
+          "20:00-23:59": "Summer Nighttime"
+        }
       },
      "onMissionEnd": "load:Scripts/net/persist.lua", -- load a specific lua on restart 
      "onShutdown": "run:shutdown /s"                 -- shutdown the PC when DCS is shut down
@@ -56,21 +69,24 @@ Examples:
 }
 ```
 
-### Section "restart"
-
-| Parameter    | Description                                                                                                                                                                                                                                                    |
-|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| method       | One of **restart**, **restart_with_shutdown** or **rotate**.<br/>- "restart" will restart the current mission,<br/>- "restart_with_shutdown" will do the same but shutdown the whole server<br/>- "rotate" will take the next mission out of the mission list. |
-| mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                   |
-| local_times  | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                              |
- | populated    | If **false**, the mission will be restarted / rotated only, if no player is in.                                                                                                                                                                                |
-
 ### Section "warn"
 
-| Parameter       | Description                                                                                                                     |
-|-----------------|---------------------------------------------------------------------------------------------------------------------------------|
-| times           | List of seconds, when a warning should be issued.                                                                               |
-| text            | A customizable message that will be sent to the users when a restart is pending.<br/>{} will be replaced with the time to wait. |
+| Parameter       | Description                                                                                                                                                                                                        |
+|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| times           | List of seconds, when a warning should be issued.                                                                                                                                                                  |
+| text            | A customizable message that will be sent to the users when a restart is pending.<br/>{what} will be replaced with what is happening (restart, shutdown, rotate)<br/>{when} will be replaced with the time to wait. |
+
+### Section "preset"
+
+| Parameter   | Description                                |
+|-------------|--------------------------------------------|
+|             | First parameter is the name of the preset. |
+| date        | The missions date.                         |
+| start_time  | The missions start time in seconds.        |
+| temperature | Temperature in °C.                         |
+| clouds      | Name of a DCS cloud preset.                |
+| wind        | Wind atGround, at2000 (m) and at8000 (m).  |
+
 
 ### Section "schedule"
 
@@ -84,6 +100,19 @@ See the above examples for a better understanding on how it works.
 
 A list of extensions that should be started / stopped with the server. Currently, only SRS is supported.
 If SRS is listed as an extension, a configured SRS server will be started with the DCS server.
+
+### Section "restart"
+
+| Parameter    | Description                                                                                                                                                                                                                                                    |
+|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| method       | One of **restart**, **restart_with_shutdown** or **rotate**.<br/>- "restart" will restart the current mission,<br/>- "restart_with_shutdown" will do the same but shutdown the whole server<br/>- "rotate" will take the next mission out of the mission list. |
+| mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                   |
+| local_times  | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                              |
+ | populated    | If **false**, the mission will be restarted / rotated only, if no player is in.                                                                                                                                                                                |
+| settings     | Timeframes in which which preset is valid. If not provided, the mission will run as is.                                                                                                                                                                        |
+
+**Attention!**<br/>
+If using the presets / settings, your missions will be amended automatically by the bot. You might want to create safety copies upfront.
 
 ### on-commands
 
@@ -107,6 +136,7 @@ Commands can be executed in different ways:
 If a server gets started or stopped manually (using .startup / .shutdown), it will be put in "maintenance" mode.
 To clear this and give the control back to the scheduler, use the following command.
 
-| Command | Parameter | Channel | Role      | Description                               |
-|---------|-----------|---------|-----------|-------------------------------------------|
-| .clear  |           | all     | DCS Admin | Clears the maintenance state of a server. |
+| Command | Parameter | Channel       | Role      | Description                                          |
+|---------|-----------|---------------|-----------|------------------------------------------------------|
+| .clear  |           | admin-channel | DCS Admin | Clears the maintenance state of a server.            |
+| .preset |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. |

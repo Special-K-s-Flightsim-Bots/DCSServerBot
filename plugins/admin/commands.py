@@ -1,7 +1,6 @@
 import aiohttp
 import asyncio
 import discord
-import json
 import os
 import platform
 import psycopg2
@@ -410,7 +409,7 @@ class Agent(Plugin):
     @commands.guild_only()
     async def status(self, ctx):
         server = await utils.get_server(self, ctx)
-        embed = discord.Embed(title='Server Status', color=discord.Color.blue())
+        embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
         names = []
         status = []
         if server:
@@ -429,21 +428,27 @@ class Agent(Plugin):
     async def update_bot_status(self):
         for server_name, server in self.globals.items():
             if server['status'] in const.STATUS_EMOJI.keys():
-                await self.bot.change_presence(
-                    activity=discord.Game(const.STATUS_EMOJI[server['status']] + ' ' +
-                                          re.sub(self.config['FILTER']['SERVER_FILTER'], '', server_name).strip()))
-                await asyncio.sleep(10)
+                try:
+                    await self.bot.change_presence(
+                        activity=discord.Game(const.STATUS_EMOJI[server['status']] + ' ' +
+                                              re.sub(self.config['FILTER']['SERVER_FILTER'], '', server_name).strip()))
+                    await asyncio.sleep(10)
+                except Exception as ex:
+                    self.log.warning("Exception in update_bot_status(): " + str(ex))
 
     @tasks.loop(minutes=5.0)
     async def check_for_dcs_update(self):
         # don't run, if an update is currently running
         if self.update_pending:
             return
-        branch, old_version = utils.getInstalledVersion(self.config['DCS']['DCS_INSTALLATION'])
-        new_version = await utils.getLatestVersion(branch)
-        if new_version and old_version != new_version:
-            self.log.info('A new version of DCS World is available. Auto-updating ...')
-            await self.do_update([120, 60])
+        try:
+            branch, old_version = utils.getInstalledVersion(self.config['DCS']['DCS_INSTALLATION'])
+            new_version = await utils.getLatestVersion(branch)
+            if new_version and old_version != new_version:
+                self.log.info('A new version of DCS World is available. Auto-updating ...')
+                await self.do_update([120, 60])
+        except Exception as ex:
+            self.log.warning("Exception in check_for_dcs_update(): " + str(ex))
 
     @check_for_dcs_update.before_loop
     async def before_check(self):
@@ -637,31 +642,30 @@ class Master(Agent):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        # ignore bot messages
-        if message.author.bot:
+        # ignore bot messages or messages that does not contain json attachments
+        if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.json'):
             return
-        if message.attachments:
-            roles = [x.strip() for x in self.config['ROLES']['Admin'].split(',')]
-            for role in message.author.roles:
-                if role.name in roles:
-                    att = message.attachments[0]
-                    if att.filename.endswith('.json'):
-                        try:
-                            async with aiohttp.ClientSession() as session:
-                                async with session.get(att.url) as response:
-                                    data = json.loads(await response.text())
-                                    embed = utils.format_embed(data)
-                                    msg = None
-                                    if 'message_id' in data:
-                                        with suppress(discord.errors.NotFound):
-                                            msg = await message.channel.fetch_message(int(data['message_id']))
-                                    if msg:
-                                        await msg.edit(embed=embed)
-                                    else:
-                                        await message.channel.send(embed=embed)
-                        finally:
-                            await message.delete()
-                    break
+        # only Admin role is allowed to upload json files in channels
+        if not utils.check_roles([self.config['ROLES']['Admin']], message.author):
+            return
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(message.attachments[0].url) as response:
+                    if response.status == 200:
+                        data = await response.json(encoding='utf-8')
+                        embed = utils.format_embed(data)
+                        msg = None
+                        if 'message_id' in data:
+                            with suppress(discord.errors.NotFound):
+                                msg = await message.channel.fetch_message(int(data['message_id']))
+                        if msg:
+                            await msg.edit(embed=embed)
+                        else:
+                            await message.channel.send(embed=embed)
+                    else:
+                        await message.channel.send(f'Error {response.status} while reading JSON file!')
+        finally:
+            await message.delete()
 
 
 def setup(bot: DCSServerBot):

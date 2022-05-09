@@ -4,6 +4,13 @@
       "warn": {
         "times": [ 600, 300, 60, 10],
         "text": "!!! Server will {what} in {when} !!!"
+      },
+      "presets": {
+          "Winter Nighttime": {"start_time": "03:00", "date": "2016-01-10", "temperature": -10, "clouds": "RainyPreset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
+          "Winter Daytime": {"start_time": "08:00", "date": "2016-01-10", "temperature": -12, "clouds": "TweakedPreset11LowerAlt", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 5, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
+          "Summer Nighttime": {"start_time": "03:00", "date": "2016-07-26", "temperature": 18, "clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
+          "Summer Daytime": {"start_time": "10:00", "date": "2016-07-26", "temperature": 22, "clouds": "Preset2", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
+          "Heavy Storm": {"start_time": "16:00", "temperature": 16, "clouds": "RainyPreset3", "clouds": "Preset2", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}}
       }
     },
     {
@@ -21,7 +28,13 @@
       "restart": {
         "method": "rotate",
         "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
-        "populated": true
+        "populated": true,
+        "settings": {
+          "00:00-07:59": "Winter Nighttime",
+          "08:00-11:59": "Winter Daytime",
+          "12:00-19:59": "Summer Daytime",
+          "20:00-23:59": "Summer Nighttime"
+        }
       },
       "onMissionStart": "load:Scripts/net/start.lua",
       "onMissionEnd": "load:Scripts/net/end.lua",

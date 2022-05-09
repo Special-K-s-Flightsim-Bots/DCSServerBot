@@ -1,8 +1,9 @@
 import asyncio
+import discord
 import json
 import psutil
 import string
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status
+from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile
 from datetime import datetime, timedelta
 from discord.ext import tasks, commands
 from os import path
@@ -125,6 +126,11 @@ class Scheduler(Plugin):
                 await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS-SRS server", server=server)
 
     async def launch(self, server: dict, config: dict):
+        # change the weather in the mission if provided
+        if 'settings' in config['restart']:
+            if 'filename' not in server:
+                server['filename'] = utils.getServerSetting(server, utils.getServerSetting(server, 'listStartIndex'))
+            self.change_mizfile(server, config)
         self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by "
                       f"{string.capwords(self.plugin_name)} ...")
         utils.start_dcs(self, server)
@@ -180,15 +186,15 @@ class Scheduler(Plugin):
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) else 0
             if restart_in > 0 and populated:
-                self.log.info(f"  => DCS server \"{server['server_name']}\" will be stopped "
+                self.log.info(f"  => DCS server \"{server['server_name']}\" will be shut down "
                               f"by {string.capwords(self.plugin_name)} in {restart_in} seconds ...")
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} will stop DCS server in {utils.format_time(restart_in)}",
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} will shut down DCS server in {utils.format_time(restart_in)}",
                                      server=server)
                 await self.warn_users(server, config, 'shutdown')
             else:
                 self.log.info(
-                    f"  => Stopping DCS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} stopped DCS server", server=server)
+                    f"  => Shutting DCS server \"{server['server_name']}\" down by {string.capwords(self.plugin_name)} ...")
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} shut down DCS server", server=server)
             self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
             await asyncio.sleep(1)
             self.bot.sendtoBot({"command": "onShutdown", "server_name": server['server_name']})
@@ -196,6 +202,28 @@ class Scheduler(Plugin):
             utils.stop_dcs(self, server)
             if 'extensions' in config:
                 await self.shutdown_extensions(server, config)
+
+    def change_mizfile(self, server: dict, config: dict, preset: Optional[str] = None):
+        now = datetime.now()
+        if not preset:
+            for key, preset in config['restart']['settings'].items():
+                if utils.is_in_timeframe(now, key):
+                    value = config['presets'][preset]
+                    break
+        else:
+            value = config['presets'][preset]
+        miz = MizFile(server['filename'])
+        if 'start_time' in value:
+            miz.start_time = value['start_time']
+        if 'date' in value:
+            miz.date = datetime.strptime(value['date'], '%Y-%m-%d')
+        if 'temperature' in value:
+            miz.temperature = value['temperature']
+        if 'clouds' in value:
+            miz.preset = value['clouds']
+        if 'wind' in value:
+            miz.wind = value['wind']
+        miz.save()
 
     async def restart_mission(self, server: dict, config: dict):
         # check if the mission is still populated
@@ -211,12 +239,26 @@ class Scheduler(Plugin):
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
                 utils.stop_dcs(self, server)
-                await asyncio.sleep(30)
+                for i in range(0, 30):
+                    await asyncio.sleep(1)
+                    if server['status'] == Status.SHUTDOWN:
+                        break
+                if 'settings' in config['restart']:
+                    self.change_mizfile(server, config)
                 utils.start_dcs(self, server)
             elif method == 'restart':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
-                self.bot.sendtoDCS(server, {"command": "restartMission"})
+                if 'settings' in config['restart']:
+                    self.bot.sendtoDCS(server, {"command": "stop_server"})
+                    for i in range(0, 30):
+                        await asyncio.sleep(1)
+                        if server['status'] == Status.STOPPED:
+                            break
+                    self.change_mizfile(server, config)
+                    self.bot.sendtoDCS(server, {"command": "start_server"})
+                else:
+                    self.bot.sendtoDCS(server, {"command": "restartMission"})
             elif method == 'rotate':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
@@ -255,16 +297,19 @@ class Scheduler(Plugin):
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
             if config:
-                if server['status'] == Status.RUNNING and 'affinity' in config:
-                    self.check_affinity(server, config)
-                target_state = self.check_server_state(server, config)
-                if server['status'] != target_state:
-                    if target_state == Status.RUNNING:
-                        asyncio.create_task(self.launch(server, config))
-                    elif target_state == Status.SHUTDOWN:
-                        asyncio.create_task(self.shutdown(server, config))
-                elif server['status'] in [Status.RUNNING, Status.PAUSED]:
-                    await self.check_mission_state(server, config)
+                try:
+                    if server['status'] == Status.RUNNING and 'affinity' in config:
+                        self.check_affinity(server, config)
+                    target_state = self.check_server_state(server, config)
+                    if server['status'] != target_state:
+                        if target_state == Status.RUNNING:
+                            asyncio.create_task(self.launch(server, config))
+                        elif target_state == Status.SHUTDOWN:
+                            asyncio.create_task(self.shutdown(server, config))
+                    elif server['status'] in [Status.RUNNING, Status.PAUSED]:
+                        await self.check_mission_state(server, config)
+                except Exception as ex:
+                    self.log.warning("Exception in check_state(): " + str(ex))
 
     @check_state.before_loop
     async def before_check(self):
@@ -283,6 +328,32 @@ class Scheduler(Plugin):
                 await self.bot.audit("cleared maintenance flag", user=ctx.message.author, server=server)
             else:
                 await ctx.send(f"Server {server['server_name']} is not in maintenance mode.")
+
+    @staticmethod
+    def format_presets(data: list[str], marker, marker_emoji):
+        embed = discord.Embed(title='Mission Presets', color=discord.Color.blue())
+        embed.add_field(name='ID', value='\n'.join([chr(0x31 + x) + '\u20E3' for x in range(0, len(data))]))
+        embed.add_field(name='Preset', value='\n'.join(data))
+        embed.add_field(name='_ _', value='_ _')
+        embed.set_footer(text='Press a number to select a preset.')
+        return embed
+
+    @commands.command(description='Change mission preset', aliases=['presets'])
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def preset(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
+                await ctx.send('You need to stop / shutdown the server to change the mission preset.')
+                return
+            config = self.get_config(server)
+            presets = list(config['presets'].keys())
+            n = await utils.selection_list(self, ctx, presets, self.format_presets)
+            if n < 0:
+                return
+            self.change_mizfile(server, config, presets[n])
+            await ctx.send('Preset changed.')
 
 
 def setup(bot: DCSServerBot):

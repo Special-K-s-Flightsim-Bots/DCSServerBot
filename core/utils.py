@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import aiohttp
 import asyncio
 import discord
@@ -51,7 +53,7 @@ def findDCSInstallations(server_name=None):
     return installations
 
 
-def changeServerSettings(server_name, name: str, value: Union[str, int, bool]):
+def changeServerSettings(server_name: str, name: str, value: Union[str, int, bool]):
     assert name in ['listStartIndex', 'password', 'name', 'maxPlayers', 'listLoop'], "Value can't be changed."
     if isinstance(value, str):
         value = '"' + value + '"'
@@ -74,6 +76,27 @@ def changeServerSettings(server_name, name: str, value: Union[str, int, bool]):
         outfile.writelines(outlines)
     os.remove(server_settings)
     os.rename(tmp_settings, server_settings)
+
+
+def getServerSetting(server: dict, name: Union[str, int]):
+    if isinstance(name, str):
+        name = '"' + name + '"'
+    exp = re.compile(r'\[{}\] = (?P<value>.*),'.format(name))
+    _, installation = findDCSInstallations(server['server_name'])[0]
+    server_settings = os.path.join(SAVED_GAMES, installation, 'Config\\serverSettings.lua')
+    with open(server_settings, encoding='utf8') as infile:
+        for line in infile.readlines():
+            match = exp.search(line)
+            if match:
+                retval = match.group('value')
+                if retval.startswith('"'):
+                    return retval.replace('"', '')
+                elif retval == 'false':
+                    return False
+                elif retval == 'true':
+                    return True
+                else:
+                    return int(retval)
 
 
 def getInstalledVersion(path: str) -> Tuple[Optional[str], Optional[str]]:
@@ -381,9 +404,9 @@ async def yn_question(self, ctx, question: str, msg: Optional[str] = None) -> bo
     return react.emoji == '🇾'
 
 
-async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]):
+async def get_server(self, ctx: Union[discord.ext.commands.context.Context, discord.Message, str]):
     for server_name, server in self.globals.items():
-        if isinstance(ctx, discord.ext.commands.context.Context):
+        if isinstance(ctx, discord.ext.commands.context.Context) or isinstance(ctx, discord.Message):
             if server['status'] == Status.UNREGISTERED:
                 continue
             channels = ['status_channel', 'chat_channel', 'admin_channel']
@@ -400,62 +423,43 @@ async def get_server(self, ctx: Union[discord.ext.commands.context.Context, str]
     return None
 
 
+def check_roles(roles: list[str], author: discord.Member) -> bool:
+    valid_roles = []
+    for role in roles:
+        if 'ROLES' not in config or role not in config['ROLES']:
+            valid_roles.append(role)
+        else:
+            valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
+    for role in author.roles:
+        if role.name in valid_roles:
+            return True
+    return False
+
+
 def has_roles(roles: list[str]):
     def predicate(ctx):
-        valid_roles = []
-        for role in roles:
-            if 'ROLES' not in config or role not in config['ROLES']:
-                valid_roles.append(role)
-            else:
-                valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
-        for role in ctx.author.roles:
-            if role.name in valid_roles:
-                return True
-        return False
+        return check_roles(roles, ctx.author)
 
     return commands.check(predicate)
 
 
 def has_not_roles(roles: list[str]):
     def predicate(ctx):
-        valid_roles = []
-        for role in roles:
-            if 'ROLES' not in config or role not in config['ROLES']:
-                valid_roles.append(role)
-            else:
-                valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
-        for role in ctx.author.roles:
-            if role.name in valid_roles:
-                return False
-        return True
+        return not check_roles(roles, ctx.author)
 
     return commands.check(predicate)
 
 
-def has_role(item: str):
+def has_role(role: str):
     def predicate(ctx):
-        if 'ROLES' not in config or item not in config['ROLES']:
-            valid_roles = [item]
-        else:
-            valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
-        for role in ctx.author.roles:
-            if role.name in valid_roles:
-                return True
-        return False
+        return check_roles([role], ctx.author)
 
     return commands.check(predicate)
 
 
-def has_not_role(item: str):
+def has_not_role(role: str):
     def predicate(ctx):
-        if 'ROLES' not in config or item not in config['ROLES']:
-            valid_roles = [item]
-        else:
-            valid_roles = [x.strip() for x in config['ROLES'][item].split(',')]
-        for role in ctx.author.roles:
-            if role.name in valid_roles:
-                return False
-        return True
+        return not check_roles([role], ctx.author)
 
     return commands.check(predicate)
 
@@ -665,12 +669,32 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
     return string_
 
 
-def sendChatMessage(self, server_name: str, player: int, message: str):
+def sendChatMessage(self, server_name: str, player_id: int, message: str):
     self.bot.sendtoDCS(self.globals[server_name], {
         "command": "sendChatMessage",
-        "to": player,
+        "to": player_id,
         "message": message
     })
+
+
+def sendPopupMessage(self, server: dict, unit_id: str, message: str, timeout: Optional[int] = -1):
+    if timeout == -1:
+        timeout = config['BOT']['MESSAGE_TIMEOUT']
+    self.bot.sendtoDCS(server, {
+        "command": "sendPopupMessage",
+        "to": unit_id,
+        "message": message,
+        "time": timeout
+    })
+
+
+def sendUserMessage(self, server: dict, player_id: int, message: str, timeout: Optional[int] = -1):
+    player = get_player(self, server['server_name'], id=player_id)
+    if player:
+        if player['side'] == 0:
+            [sendChatMessage(self, server['server_name'], player_id, msg) for msg in message.splitlines()]
+        else:
+            sendPopupMessage(self, server, player['slot'], message, timeout)
 
 
 def convert_time(seconds: int):
@@ -781,7 +805,7 @@ def get_sides(message: discord.Message, server: dict) -> list[str]:
     return sides
 
 
-def format_embed(data):
+def format_embed(data: dict) -> discord.Embed:
     embed = discord.Embed(color=discord.Color.blue())
     if 'title' in data and len(data['title']) > 0:
         embed.title = data['title']
@@ -797,8 +821,87 @@ def format_embed(data):
     return embed
 
 
-def format_period(period: str):
+def format_period(period: str) -> str:
     if period == 'day':
         return 'Daily'
     else:
         return string.capwords(period) + 'ly'
+
+
+def embed_to_text(embed: discord.Embed) -> str:
+    def rows(line: str) -> list[str]:
+        return line.splitlines()
+
+    message = []
+    if len(embed.title):
+        message.append(embed.title.upper())
+    if len(embed.description):
+        message.append(embed.description)
+    message.append('')
+    row = len(message)
+    message.append('')
+    col = 0
+    pos = [0, 0]
+    for field in embed.fields:
+        name = field.name if field.name != '_ _' else ''
+        if not field.inline:
+            if len(message[row]) > 0:
+                message.append('')
+            message[row] += name
+            col = 0
+            pos = [0, 0]
+            row = len(message)
+            message.append('')
+            continue
+        if col > 0:
+            message[row] += ' ' * (pos[col - 1] - len(message[row])) + '| '
+        message[row] += name
+        if col < 2:
+            pos[col] = len(message[row]) + 1
+        value = field.value if field.value != '_ _' else ''
+        lines = rows(value)
+        if len(message) < (row + len(lines) + 1):
+            for i in range(len(message), row + len(lines) + 1):
+                message.append('')
+        for j in range(0, len(lines)):
+            if col > 0:
+                message[row + 1 + j] += ' ' * (pos[col - 1] - len(message[row + 1 + j])) + '| '
+            message[row + 1 + j] += lines[j]
+            if col < 2 and (len(message[row + 1 + j]) + 1) > pos[col]:
+                pos[col] = len(message[row + 1 + j]) + 1
+        if field.inline:
+            col += 1
+            if col == 3:
+                row = len(message)
+                col = 0
+                pos = [0, 0]
+                message.append('')
+    return '\n'.join(message)
+
+
+def embed_to_simpletext(embed: discord.Embed) -> str:
+    message = ''
+    if len(embed.title):
+        message += embed.title.upper() + '\n'
+    if len(embed.description):
+        message += embed.description + '\n'
+    message += '\n'
+    for field in embed.fields:
+        value = field.value if field.value != '_ _' else ''
+        if len(value):
+            message += field.name + ': '
+            message += ' | '.join(value.splitlines())
+            message += '\n'
+    return message
+
+
+@dataclass
+class ContextWrapper:
+    message: discord.Message
+
+    async def send(self, content=None, *, tts=False, embed=None, file=None, files=None, delete_after=None, nonce=None,
+                   allowed_mentions=None, reference=None, mention_author=None):
+        return await self.message.channel.send(content, tts=tts, embed=embed, file=file, files=files,
+                                               delete_after=delete_after, nonce=nonce,
+                                               allowed_mentions=allowed_mentions, reference=reference,
+                                               mention_author=mention_author)

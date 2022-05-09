@@ -27,7 +27,7 @@ These commands can be used to administrate the bot itself.
 | Plugin       | Scope                                                               | Optional | Dependent on          | Documentation                              |
 |--------------|---------------------------------------------------------------------|----------|-----------------------|--------------------------------------------|
 | Admin        | Admin commands to manage your DCS server.                           | no       |                       | [README](./plugins/admin/README.md)        |
-| Mission      | Handling of mission, compared to the WebGUI.                        | no       |                       | [README](./plugins/mission/README.md)      |
+| Mission      | Handling of missions, compared to the WebGUI.                       | no       |                       | [README](./plugins/mission/README.md)      |
 | Scheduler    | Autostart / -stop of servers or missions.                           | no       | Mission               | [README](./plugins/scheduler/README.md)    |
 | Userstats    | Users statistics system.                                            | yes*     | Mission               | [README](./plugins/userstats/README.md)    |
 | Missionstats | Detailed users statistics / mission statistics.                     | yes*     | Userstats             | [README](./plugins/missionstats/README.md) |
@@ -124,14 +124,15 @@ c) __FILTER Section__ (Optional)
 
 d) __DCS Section__
 
-| Parameter                  | Description                                                                                                              |
-|----------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| DCS_INSTALLATION           | The installation directory of DCS World.                                                                                 |
-| AUTOUPDATE                 | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                               |
-| SRS_INSTALLATION           | The installation directory of DCS-SRS (optional).                                                                        |
-| GREETING_MESSAGE_MEMBERS   | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord. |
-| GREETING_MESSAGE_UNMATCHED | A greeting message, that people will receive in DCS chat, if they are unmatched.                                         |
-| SERVER_USER                | The username to display as user no. 1 in the server (aka "Observer")                                                     |
+| Parameter                  | Description                                                                                                                                   |
+|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| DCS_INSTALLATION           | The installation directory of DCS World.                                                                                                      |
+| AUTOUPDATE                 | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                                                    |
+| SRS_INSTALLATION           | The installation directory of DCS-SRS (optional).                                                                                             |
+| GREETING_MESSAGE_MEMBERS   | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord.                      |
+| GREETING_MESSAGE_UNMATCHED | A greeting message, that people will receive in DCS chat, if they are unmatched.                                                              |
+| SERVER_USER                | The username to display as user no. 1 in the server (aka "Observer")                                                                          |
+| MAX_HUNG_MINUTES           | The maximum amount in minutes the server is allowed to not respond to the bot until considered dead (default = 3). Set it to 0 to disable it. |
 
 e) __Server Specific Sections__
 

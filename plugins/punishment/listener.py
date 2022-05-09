@@ -5,16 +5,10 @@ from core import utils, EventListener, Plugin
 from enum import Enum, auto
 
 
-class StatsType(Enum):
-    USER_STATS = auto(),
-    MISSION_STATS = auto()
-
-
 class PunishmentEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.stats_type: StatsType = StatsType.USER_STATS
         self.lock = asyncio.Lock()
 
     async def registerDCSServer(self, data: dict):
@@ -115,31 +109,30 @@ class PunishmentEventListener(EventListener):
                         self.pool.putconn(conn)
 
     async def onGameEvent(self, data: dict):
-        if self.stats_type == StatsType.USER_STATS:
-            server = self.globals[data['server_name']]
-            if self.plugin_name in server:
-                if data['eventName'] == 'friendly_fire':
-                    if data['arg1'] != -1 and data['arg1'] != data['arg3']:
-                        initiator = utils.get_player(self, data['server_name'], id=data['arg1'])
-                        target = utils.get_player(self, data['server_name'], id=data['arg3']) if data['arg3'] != -1 else None
-                        data['initiator'] = initiator['name']
-                        if target:
-                            data['target'] = target['name']
-                        # check collision
-                        if data['arg2'] == initiator['unit_type']:
-                            data['eventName'] = 'collision_hit'
-                        await self.punish(data)
-                elif data['eventName'] == 'kill':
-                    if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
-                        initiator = utils.get_player(self, data['server_name'], id=data['arg1'])
-                        target = utils.get_player(self, data['server_name'], id=data['arg4']) if data['arg4'] != -1 else None
-                        data['initiator'] = initiator['name']
-                        if target:
-                            data['target'] = target['name']
-                        # check collision
-                        if data['arg7'] == initiator['unit_type']:
-                            data['eventName'] = 'collision_kill'
-                        await self.punish(data)
+        server = self.globals[data['server_name']]
+        if self.plugin_name in server:
+            if data['eventName'] == 'friendly_fire':
+                if data['arg1'] != -1 and data['arg1'] != data['arg3']:
+                    initiator = utils.get_player(self, data['server_name'], id=data['arg1'])
+                    target = utils.get_player(self, data['server_name'], id=data['arg3']) if data['arg3'] != -1 else None
+                    data['initiator'] = initiator['name']
+                    if target:
+                        data['target'] = target['name']
+                    # check collision
+                    if data['arg2'] == initiator['unit_type']:
+                        data['eventName'] = 'collision_hit'
+                    await self.punish(data)
+            elif data['eventName'] == 'kill':
+                if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
+                    initiator = utils.get_player(self, data['server_name'], id=data['arg1'])
+                    target = utils.get_player(self, data['server_name'], id=data['arg4']) if data['arg4'] != -1 else None
+                    data['initiator'] = initiator['name']
+                    if target:
+                        data['target'] = target['name']
+                    # check collision
+                    if data['arg7'] == initiator['unit_type']:
+                        data['eventName'] = 'collision_kill'
+                    await self.punish(data)
 
     async def onChatCommand(self, data: dict) -> None:
         if data['subcommand'] == 'forgive' and self.plugin_name in self.globals[data['server_name']]:

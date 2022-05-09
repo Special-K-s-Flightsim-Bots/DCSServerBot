@@ -10,6 +10,11 @@ function dcsbot.setFlag(json)
 	end
 end
 
+function dcsbot.getFlag(json)
+    log.write('DCSServerBot', log.DEBUG, 'GameMaster: getFlag()')
+    net.dostring_in('mission', 'a_do_script("dcsbot.getFlag(' .. json.flag ..', \\"' .. json.channel .. '\\")")')
+end
+
 function dcsbot.clearFlag(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: clearFlag()')
 	net.dostring_in('mission', 'a_clear_flag(' .. json.flag .. ')')
