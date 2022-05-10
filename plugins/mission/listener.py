@@ -103,9 +103,8 @@ class MissionEventListener(EventListener):
             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
             'group_id', 'group_name'])
         self.bot.player_data[data['server_name']].set_index('id')
-        if data['channel'].startswith('sync'):
-            await self.displayMissionEmbed(data)
-            await self.displayPlayerEmbed(data)
+        await self.displayMissionEmbed(data)
+        await self.displayPlayerEmbed(data)
 
     async def onMissionLoadBegin(self, data):
         server = self.globals[data['server_name']]

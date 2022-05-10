@@ -122,7 +122,7 @@ class Scheduler(Plugin):
         for extension in config['extensions']:
             if extension == 'SRS' and not utils.check_srs(self, server):
                 self.log.info(f"  => Launching DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
-                utils.start_srs(self, server)
+                utils.startup_srs(self, server)
                 await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS-SRS server", server=server)
 
     async def launch(self, server: dict, config: dict):
@@ -133,7 +133,7 @@ class Scheduler(Plugin):
             self.change_mizfile(server, config)
         self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by "
                       f"{string.capwords(self.plugin_name)} ...")
-        utils.start_dcs(self, server)
+        utils.startup_dcs(self, server)
         await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS server", server=server)
         if 'extensions' in config:
             await self.launch_extensions(server, config)
@@ -171,10 +171,10 @@ class Scheduler(Plugin):
     async def shutdown_extensions(self, server: dict, config: dict):
         for extension in config['extensions']:
             if extension == 'SRS' and utils.check_srs(self, server):
-                self.log.info(f"  => Stopping DCS-SRS server \"{server['server_name']}\" by "
+                self.log.info(f"  => Shutting down DCS-SRS server \"{server['server_name']}\" by "
                               f"{string.capwords(self.plugin_name)} ...")
-                utils.stop_srs(self, server)
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} stopped DCS-SRS server", server=server)
+                await utils.shutdown_srs(self, server)
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} shut DCS-SRS server down", server=server)
 
     async def shutdown(self, server: dict, config: dict):
         # if we should not restart populated servers, wait for it to be unpopulated
@@ -199,17 +199,20 @@ class Scheduler(Plugin):
             await asyncio.sleep(1)
             self.bot.sendtoBot({"command": "onShutdown", "server_name": server['server_name']})
             await asyncio.sleep(1)
-            utils.stop_dcs(self, server)
+            await utils.shutdown_dcs(self, server)
             if 'extensions' in config:
                 await self.shutdown_extensions(server, config)
 
     def change_mizfile(self, server: dict, config: dict, preset: Optional[str] = None):
         now = datetime.now()
+        value = None
         if not preset:
             for key, preset in config['restart']['settings'].items():
                 if utils.is_in_timeframe(now, key):
                     value = config['presets'][preset]
                     break
+            if not value:
+                raise ValueError("No preset found for the current time.")
         else:
             value = config['presets'][preset]
         miz = MizFile(server['filename'])
@@ -238,14 +241,10 @@ class Scheduler(Plugin):
             if method == 'restart_with_shutdown':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
-                utils.stop_dcs(self, server)
-                for i in range(0, 30):
-                    await asyncio.sleep(1)
-                    if server['status'] == Status.SHUTDOWN:
-                        break
+                await utils.shutdown_dcs(self, server)
                 if 'settings' in config['restart']:
                     self.change_mizfile(server, config)
-                utils.start_dcs(self, server)
+                utils.startup_dcs(self, server)
             elif method == 'restart':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
