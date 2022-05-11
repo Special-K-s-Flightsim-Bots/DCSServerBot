@@ -16,7 +16,8 @@ class MissionEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.bot.player_data = {}
+        if not self.bot.player_data:
+            self.bot.player_data = {}
 
     # Add or update a player from the internal list.
     def updatePlayer(self, data):

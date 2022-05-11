@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 import aiohttp
 import asyncio
 import discord
@@ -18,6 +16,7 @@ import xmltodict
 from core.const import Status
 from configparser import ConfigParser
 from contextlib import closing, suppress
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from discord.ext import commands
 from typing import Union, Optional, Tuple

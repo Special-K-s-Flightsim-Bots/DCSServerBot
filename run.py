@@ -211,6 +211,16 @@ class Main:
             else:
                 await ctx.send('All plugins reloaded.')
 
+        @self.bot.command(description='Lists all installed plugins')
+        @utils.has_role('Admin')
+        @commands.guild_only()
+        async def plugins(ctx):
+            embed = discord.Embed(color=discord.Color.blue())
+            embed.add_field(name=f'The following plugins are installed on node {platform.node()}:',
+                            value='\n'.join([string.capwords(x) for x in self.bot.plugins]))
+            embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
+            await ctx.send(embed=embed)
+
         @self.bot.command(description='Rename a server')
         @utils.has_role('Admin')
         @commands.guild_only()
