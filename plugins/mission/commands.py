@@ -425,7 +425,7 @@ class Mission(Plugin):
             return
         server = await utils.get_server(self, message)
         # only DCS Admin role is allowed to upload missions in the servers admin channel
-        if not server or not utils.check_roles([self.config['ROLES']['DCS Admin']], message.author):
+        if not server or not utils.check_roles([x.strip() for x in self.config['ROLES']['DCS Admin'].split(',')], message.author):
             return
         att = message.attachments[0]
         filename = path.expandvars(self.config[server['installation']]['DCS_HOME']) + '\\Missions\\' + att.filename
