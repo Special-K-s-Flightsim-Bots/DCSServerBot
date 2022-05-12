@@ -139,10 +139,13 @@ class Main:
 
     def install_hooks(self):
         self.log.info('- Configure DCS installations ...')
-        for _, installation in utils.findDCSInstallations():
+        for server_name, installation in utils.findDCSInstallations():
             if installation not in self.config:
                 continue
             self.log.info(f'  => {installation}')
+            if self.config.getboolean(installation, 'COALITIONS'):
+                self.log.debug('  - Updating serverSettings.lua ...')
+                utils.changeServerSettings(server_name, 'allow_players_pool', False)
             dcs_path = os.path.expandvars(self.config[installation]['DCS_HOME'] + '\\Scripts')
             if not path.exists(dcs_path):
                 os.mkdir(dcs_path)

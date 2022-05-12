@@ -53,7 +53,7 @@ def findDCSInstallations(server_name=None):
 
 
 def changeServerSettings(server_name: str, name: str, value: Union[str, int, bool]):
-    assert name in ['listStartIndex', 'password', 'name', 'maxPlayers', 'listLoop'], "Value can't be changed."
+    assert name in ['listStartIndex', 'password', 'name', 'maxPlayers', 'listLoop', 'allow_players_pool'], "Value can't be changed."
     if isinstance(value, str):
         value = '"' + value + '"'
     elif isinstance(value, bool):
