@@ -24,7 +24,8 @@ class MissionStatisticsEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.mission_stats = dict()
+        if not self.bot.mission_stats:
+            self.bot.mission_stats = dict()
         if 'EVENT_FILTER' in self.config['FILTER']:
             self.filter = [x.strip() for x in self.config['FILTER']['EVENT_FILTER'].split(',')]
         else:
@@ -35,11 +36,11 @@ class MissionStatisticsEventListener(EventListener):
         if self.config.getboolean(server['installation'], 'MISSION_STATISTICS'):
             self.bot.sendtoDCS(server, {"command": "enableMissionStats"})
             try:
-                response = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"}, 10)
+                response = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"}, 60)
             except asyncio.TimeoutError as ex:
                 self.log.exception(ex)
                 response = {}
-            self.mission_stats[data['server_name']] = response
+            self.bot.mission_stats[data['server_name']] = response
             await self.displayMissionStats(response)
         else:
             self.bot.sendtoDCS(server, {"command": "disableMissionStats"})
@@ -56,7 +57,7 @@ class MissionStatisticsEventListener(EventListener):
         # Hide the mission statistics embed, if coalitions are enabled
         if self.config.getboolean(server['installation'], 'DISPLAY_MISSION_STATISTICS') and \
                 not self.config.getboolean(server['installation'], 'COALITIONS'):
-            stats = self.mission_stats[data['server_name']]
+            stats = self.bot.mission_stats[data['server_name']]
             report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server, 'stats_embed')
             await report.render(stats=stats, mission_id=server['mission_id'], sides=['Blue', 'Red'])
 
@@ -110,8 +111,8 @@ class MissionStatisticsEventListener(EventListener):
         server = self.globals[data['server_name']]
         if self.config.getboolean(server['installation'], 'PERSIST_MISSION_STATISTICS'):
             self.update_database(data)
-        if data['server_name'] in self.mission_stats:
-            stats = self.mission_stats[data['server_name']]
+        if data['server_name'] in self.bot.mission_stats:
+            stats = self.bot.mission_stats[data['server_name']]
             update = False
             if data['eventName'] == 'S_EVENT_BIRTH':
                 initiator = data['initiator']

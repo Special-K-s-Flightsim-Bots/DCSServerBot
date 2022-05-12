@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 import aiohttp
 import asyncio
 import discord
@@ -18,6 +16,7 @@ import xmltodict
 from core.const import Status
 from configparser import ConfigParser
 from contextlib import closing, suppress
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from discord.ext import commands
 from typing import Union, Optional, Tuple
@@ -535,7 +534,7 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
     return start_time <= check_time <= end_time
 
 
-def start_dcs(self, server: dict):
+def startup_dcs(self, server: dict):
     self.log.debug(r'Launching DCS server with: "{}\bin\dcs.exe" --server --norender -w {}'.format(
         os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']), server['installation']))
     p = subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', server['installation']],
@@ -545,11 +544,24 @@ def start_dcs(self, server: dict):
     return p
 
 
-def stop_dcs(self, server: dict):
+async def shutdown_dcs(self, server: dict, timeout: int = 30):
     self.bot.sendtoDCS(server, {"command": "shutdown"})
+    for i in range(0, timeout):
+        await asyncio.sleep(1)
+        if server['status'] == Status.STOPPED:
+            break
+    p = find_process('DCS.exe', server['installation'])
+    if p:
+        try:
+            p.wait(timeout)
+        except TimeoutError:
+            p.kill()
+    if 'PID' in server:
+        del server['PID']
+    server['status'] = Status.SHUTDOWN
 
 
-def start_srs(self, server: dict):
+def startup_srs(self, server: dict):
     self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
         os.path.expandvars(self.config['DCS']['SRS_INSTALLATION']),
         os.path.expandvars(self.config[server['installation']]['SRS_CONFIG'])))
@@ -562,7 +574,7 @@ def check_srs(self, server: dict) -> bool:
     return is_open(self.config[server['installation']]['SRS_HOST'], self.config[server['installation']]['SRS_PORT'])
 
 
-def stop_srs(self, server: dict) -> bool:
+async def shutdown_srs(self, server: dict) -> bool:
     p = find_process('SR-Server.exe', server['installation'])
     if p:
         p.kill()

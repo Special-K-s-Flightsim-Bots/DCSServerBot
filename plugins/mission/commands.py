@@ -21,7 +21,7 @@ class Mission(Plugin):
         self.update_channel_name.start()
 
     def cog_unload(self):
-        self.update_channel_name.stop()
+        self.update_channel_name.cancel()
         self.update_mission_status.cancel()
         super().cog_unload()
 
@@ -345,12 +345,11 @@ class Mission(Plugin):
             elif server['status'] in [Status.LOADING, Status.STOPPED]:
                 if 'PID' in server and not psutil.pid_exists(server['PID']):
                     server['status'] = Status.SHUTDOWN
+                    del server['PID']
                 continue
             try:
                 # we set a 10s timeout in here because, we don't want to risk false restarts
-                data = await self.bot.sendtoDCSSync(server, {
-                    "command": "getMissionUpdate"
-                }, 10)
+                data = await self.bot.sendtoDCSSync(server, {"command": "getMissionUpdate"}, 10)
                 # remove any hung flag, if the server has responded
                 if 'hung' in server:
                     del server['hung']
@@ -369,6 +368,7 @@ class Mission(Plugin):
                         if 'PID' in server:
                             self.log.warning(f"Killing server \"{server['server_name']}\" after {max_hung_minutes} retries")
                             psutil.Process(server['PID']).kill()
+                            del server['PID']
                             await self.bot.audit("Server killed due to a hung state.", server=server)
                         else:
                             self.log.warning(f"Server \"{server['server_name']}\" considered dead after {max_hung_minutes} retries")

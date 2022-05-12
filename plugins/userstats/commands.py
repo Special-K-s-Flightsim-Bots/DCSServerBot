@@ -23,7 +23,7 @@ class UserStatisticsMaster(Plugin):
         self.expire_token.start()
 
     def cog_unload(self):
-        self.expire_token.stop()
+        self.expire_token.cancel()
         super().cog_unload()
 
     @commands.command(description='Shows player statistics', usage='[member] [period]', aliases=['stats'])

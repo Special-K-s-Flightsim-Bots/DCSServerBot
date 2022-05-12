@@ -56,7 +56,7 @@ class Agent(Plugin):
             installation = server['installation']
             if server['status'] == Status.SHUTDOWN:
                 await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
-                utils.start_dcs(self, server)
+                utils.startup_dcs(self, server)
                 server['status'] = Status.LOADING
                 # set maintenance flag to prevent auto-stops of this server
                 server['maintenance'] = True
@@ -69,7 +69,7 @@ class Agent(Plugin):
                 if not utils.is_open(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT']):
                     if await utils.yn_question(self, ctx, 'Do you want to start the DCS-SRS server "{}"?'.format(server['server_name'])) is True:
                         await ctx.send('DCS-SRS server "{}" starting up ...'.format(server['server_name']))
-                        utils.start_srs(self, server)
+                        utils.startup_srs(self, server)
                         await self.bot.audit(f"started DCS-SRS server", user=ctx.message.author, server=server)
                 else:
                     await ctx.send('DCS-SRS server "{}" is already started.'.format(server['server_name']))
@@ -88,12 +88,8 @@ class Agent(Plugin):
                                                       'DCS server "{}"?'.format(server['server_name'])) is True:
                     # set maintenance flag to prevent auto-starts of this server
                     server['maintenance'] = True
-                    utils.stop_dcs(self, server)
-                    # wait for the server to shut down
-                    while server['status'] in [Status.RUNNING, Status.PAUSED]:
-                        await asyncio.sleep(1)
+                    await utils.shutdown_dcs(self, server)
                     await ctx.send('DCS server "{}" shut down.'.format(server['server_name']))
-                    server['status'] = Status.SHUTDOWN
                     await self.bot.audit(f"shut DCS server down", user=ctx.message.author, server=server)
             else:
                 await ctx.send('DCS server {} is already shut down.'.format(server['server_name']))
@@ -101,15 +97,15 @@ class Agent(Plugin):
                 if utils.check_srs(self, server):
                     if await utils.yn_question(self, ctx, 'Do you want to shut down the '
                                                           'DCS-SRS server "{}"?'.format(server['server_name'])) is True:
-                        if utils.stop_srs(self, server):
-                            await ctx.send('DCS-SRS server "{}" shutdown.'.format(server['server_name']))
+                        if await utils.shutdown_srs(self, server):
+                            await ctx.send('DCS-SRS server "{}" shut down.'.format(server['server_name']))
                             await self.bot.audit(f"shut DCS-SRS server down", user=ctx.message.author, server=server)
                         else:
                             await ctx.send('Shutdown of DCS-SRS server "{}" failed.'.format(server['server_name']))
                 else:
                     await ctx.send('DCS-SRS server {} is already shut down.'.format(server['server_name']))
 
-    async def do_update(self, warntimes: List[int], ctx=None):
+    async def do_update(self, warn_times: List[int], ctx=None):
         self.update_pending = True
         if ctx:
             await ctx.send('Shutting down DCS servers, warning users before ...')
@@ -121,20 +117,20 @@ class Agent(Plugin):
                 servers.append(server)
             else:
                 server['maintenance'] = True
-            shutdown_in = 0
             if server['status'] in [Status.RUNNING, Status.PAUSED]:
-                shutdown_in = max(warntimes)
-                for warntime in warntimes:
-                    self.loop.call_later(shutdown_in - warntime, self.bot.sendtoDCS,
-                                         server, {
-                                             'command': 'sendPopupMessage',
-                                             'message': f'Server is going down for a DCS update in {utils.format_time(warntime)}!',
-                                             'to': 'all',
-                                             'time': self.config['BOT']['MESSAGE_TIMEOUT']
-                                         })
-            self.loop.call_later(shutdown_in, utils.stop_dcs, self, server)
-            # give the DCS servers some time to shut down.
-            await asyncio.sleep(shutdown_in + 30)
+                shutdown_in = max(warn_times) if len(warn_times) else 0
+                while shutdown_in > 0:
+                    for warn_time in warn_times:
+                        if warn_time == shutdown_in:
+                            self.bot.sendtoDCS(server, {
+                                'command': 'sendPopupMessage',
+                                'message': f'Server is going down for a DCS update in {utils.format_time(warn_time)}!',
+                                'to': 'all',
+                                'time': self.config['BOT']['MESSAGE_TIMEOUT']
+                             })
+                    await asyncio.sleep(1)
+                    shutdown_in -= 1
+            await utils.shutdown_dcs(self, server)
         if ctx:
             await ctx.send('Updating DCS World. Please wait, this might take some time ...')
         else:
@@ -152,7 +148,7 @@ class Agent(Plugin):
                 del server['maintenance']
             else:
                 # the server was running before (being in maintenance mode), so start it again
-                utils.start_dcs(self, server)
+                utils.startup_dcs(self, server)
         self.update_pending = False
 
     @commands.command(description='Update a DCS Installation')

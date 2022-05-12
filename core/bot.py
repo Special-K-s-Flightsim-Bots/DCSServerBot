@@ -41,6 +41,7 @@ class DCSServerBot(commands.Bot):
         self.plugins = [p.strip() for p in plugins.split(',')]
         self.audit_channel = None
         self.player_data = None
+        self.mission_stats = None
         self.executor = ThreadPoolExecutor(max_workers=10)
 
     async def close(self):
