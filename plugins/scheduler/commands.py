@@ -237,14 +237,12 @@ class Scheduler(Plugin):
             server['restart_pending'] = True
             method = config['restart']['method']
             if populated:
-                await self.warn_users(server, config, 'restart' if method == 'restart_and_shutdown' else method)
+                await self.warn_users(server, config, 'restart' if method == 'restart_with_shutdown' else method)
             if method == 'restart_with_shutdown':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
                 await utils.shutdown_dcs(self, server)
-                if 'settings' in config['restart']:
-                    self.change_mizfile(server, config)
-                utils.startup_dcs(self, server)
+                await self.launch(server, config)
             elif method == 'restart':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
@@ -268,7 +266,7 @@ class Scheduler(Plugin):
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) and utils.is_populated(self, server) else 0
             if 'mission_time' in config['restart'] and \
-                    (server['mission_time'] - restart_in) >= (int(config['restart']['mission_time']) * 60):
+                    (server['mission_time'] + restart_in) >= (int(config['restart']['mission_time']) * 60):
                 asyncio.create_task(self.restart_mission(server, config))
             elif 'local_times' in config['restart']:
                 now = datetime.now() + timedelta(seconds=restart_in)
@@ -300,11 +298,10 @@ class Scheduler(Plugin):
                     if server['status'] == Status.RUNNING and 'affinity' in config:
                         self.check_affinity(server, config)
                     target_state = self.check_server_state(server, config)
-                    if server['status'] != target_state:
-                        if target_state == Status.RUNNING:
-                            asyncio.create_task(self.launch(server, config))
-                        elif target_state == Status.SHUTDOWN:
-                            asyncio.create_task(self.shutdown(server, config))
+                    if target_state == Status.RUNNING and server['status'] == Status.SHUTDOWN:
+                        asyncio.create_task(self.launch(server, config))
+                    elif target_state == Status.SHUTDOWN and server['status'] in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
+                        asyncio.create_task(self.shutdown(server, config))
                     elif server['status'] in [Status.RUNNING, Status.PAUSED]:
                         await self.check_mission_state(server, config)
                 except Exception as ex:

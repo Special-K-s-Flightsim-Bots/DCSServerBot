@@ -36,7 +36,7 @@ class MissionStatisticsEventListener(EventListener):
         if self.config.getboolean(server['installation'], 'MISSION_STATISTICS'):
             self.bot.sendtoDCS(server, {"command": "enableMissionStats"})
             try:
-                response = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"}, 10)
+                response = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"}, 60)
             except asyncio.TimeoutError as ex:
                 self.log.exception(ex)
                 response = {}
