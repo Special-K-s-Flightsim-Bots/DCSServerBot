@@ -383,7 +383,7 @@ class Mission(Plugin):
                     self.log.warning(f"Server \"{server['server_name']}\" died. Setting state to SHUTDOWN.")
                     server['status'] = Status.SHUTDOWN
             except Exception as ex:
-                self.log.warning("Exception in update_mission_status(): " + str(ex))
+                self.log.debug("Exception in update_mission_status(): " + str(ex))
 
     @update_mission_status.before_loop
     async def before_update(self):
@@ -416,7 +416,7 @@ class Mission(Plugin):
                 try:
                     await channel.edit(name=name)
                 except Exception as ex:
-                    self.log.warning("Exception in update_channel_name(): " + str(ex))
+                    self.log.debug("Exception in update_channel_name(): " + str(ex))
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
