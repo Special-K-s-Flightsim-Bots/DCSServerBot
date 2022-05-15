@@ -19,11 +19,11 @@ class MissionStatisticsAgent(Plugin):
         mission_id = server['mission_id'] if 'mission_id' in server else -1
         if server['status'] not in [Status.RUNNING, Status.PAUSED]:
             await ctx.send(f"Server {server['server_name']} is not running.")
-        elif server['server_name'] not in self.eventlistener.mission_stats:
+        elif server['server_name'] not in self.bot.mission_stats:
             await ctx.send("Mission statistics not initialized yet or not active for this server.")
         else:
             timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-            stats = self.eventlistener.mission_stats[server['server_name']]
+            stats = self.bot.mission_stats[server['server_name']]
             report = Report(self.bot, self.plugin_name, 'missionstats.json')
             env = await report.render(stats=stats, mission_id=mission_id, sides=utils.get_sides(ctx.message, server))
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
