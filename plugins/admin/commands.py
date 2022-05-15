@@ -430,7 +430,7 @@ class Agent(Plugin):
                                               re.sub(self.config['FILTER']['SERVER_FILTER'], '', server_name).strip()))
                     await asyncio.sleep(10)
                 except Exception as ex:
-                    self.log.warning("Exception in update_bot_status(): " + str(ex))
+                    self.log.debug("Exception in update_bot_status(): " + str(ex))
 
     @tasks.loop(minutes=5.0)
     async def check_for_dcs_update(self):
@@ -442,9 +442,9 @@ class Agent(Plugin):
             new_version = await utils.getLatestVersion(branch)
             if new_version and old_version != new_version:
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
-                await self.do_update([120, 60])
+                await self.do_update([300, 120, 60])
         except Exception as ex:
-            self.log.warning("Exception in check_for_dcs_update(): " + str(ex))
+            self.log.debug("Exception in check_for_dcs_update(): " + str(ex))
 
     @check_for_dcs_update.before_loop
     async def before_check(self):

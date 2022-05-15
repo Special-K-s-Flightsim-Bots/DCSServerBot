@@ -57,7 +57,7 @@ class WeatherInfo(report.EmbedElement):
     def render(self, server: dict):
         if 'weather' in server:
             if 'clouds' in server and 'preset' in server['clouds']:
-                self.add_field(name='Preset', value=server['clouds']['preset']['readableNameShort'])
+                self.add_field(name='Clouds', value=server['clouds']['preset']['readableName'][5:].split('\n')[0])
             else:
                 self.add_field(name='Weather', value='Dynamic')
             weather = server['weather']
