@@ -19,7 +19,7 @@ from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from discord.ext import commands
-from typing import Union, Optional, Tuple
+from typing import Union, Optional, Tuple, List
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
 REGEXP = {
@@ -34,7 +34,7 @@ config.read('config/default.ini')
 config.read('config/dcsserverbot.ini')
 
 
-def findDCSInstallations(server_name=None):
+def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, str]]:
     installations = []
     for dirname in os.listdir(SAVED_GAMES):
         if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):

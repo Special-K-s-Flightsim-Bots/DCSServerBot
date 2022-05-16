@@ -3,7 +3,7 @@ import discord
 import json
 import psutil
 import string
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile
+from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile, Autoexec
 from datetime import datetime, timedelta
 from discord.ext import tasks, commands
 from os import path
@@ -20,6 +20,17 @@ class Scheduler(Plugin):
     def cog_unload(self):
         self.check_state.cancel()
         super().cog_unload()
+
+    def install(self):
+        super().install()
+        for _, installation in utils.findDCSInstallations():
+            cfg = Autoexec(bot=self.bot, installation=installation)
+            if cfg.crash_report_mode is None:
+                self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
+                cfg.crash_report_mode = 'silent'
+            elif cfg.crash_report_mode != 'silent':
+                self.log.warning('  => crash_report_mode is NOT silent! The Scheduler will not work properly on DCS '
+                                 'crashes.')
 
     # TODO: remove in a later version
     def migrate(self, filename: str) -> dict:
