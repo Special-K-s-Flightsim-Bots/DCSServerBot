@@ -1,7 +1,7 @@
 import asyncio
 import psycopg2
 from contextlib import closing
-from core import utils, EventListener, Plugin, PersistentReport
+from core import utils, EventListener, Plugin, PersistentReport, Status
 
 
 class MissionStatisticsEventListener(EventListener):
@@ -46,7 +46,8 @@ class MissionStatisticsEventListener(EventListener):
             self.bot.sendtoDCS(server, {"command": "disableMissionStats"})
 
     async def registerDCSServer(self, data):
-        if data['channel'].startswith('sync'):
+        server = self.globals[data['server_name']]
+        if data['channel'].startswith('sync') and server['status'] in [Status.RUNNING, Status.PAUSED]:
             await self.toggleMissionStats(data)
 
     async def onMissionLoadEnd(self, data):

@@ -23,7 +23,7 @@ If the AUTOMATCH is disabled or was not successful, users can generate a unique 
 | .info                  | @member / ucid / DCS name             | all     | DCS Admin | Displays information about that user and let you (un)ban, kick or unlink them.                      |  
 | .linkcheck             |                                       | all     | DCS Admin | Checks if a DCS user could be matched to a member.                                                  |
 | .mislinks / .mislinked |                                       | all     | DCS Admin | Checks if a DCS user is possibly mismatched with the wrong member (might still be correct though!). |
-| .reset                 |                                       | all     | Admin     | Attention: Resets the statistics for this server.                                                   |
+| .reset_statistics      |                                       | all     | Admin     | Resets the statistics for this server.                                                              |
 | .linkme                |                                       | all     | DCS       | Link a discord user to a DCS user (user self-service).                                              |
 
 ## How to disable Userstats inside of missions

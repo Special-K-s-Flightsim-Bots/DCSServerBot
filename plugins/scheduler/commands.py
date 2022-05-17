@@ -370,6 +370,29 @@ class Scheduler(Plugin):
             self.change_mizfile(server, config, presets[n])
             await ctx.send('Preset changed.')
 
+    @commands.command(description='Reset a mission')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def reset(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
+                await ctx.send('You need to stop / shutdown the server to reset the mission.')
+                return
+            config = self.get_config(server)
+            if 'reset' not in config:
+                await ctx.send(f"No \"reset\" parameter found for server {server['server_name']}.")
+                return
+            reset = config['reset']
+            if isinstance(reset, list):
+                for cmd in reset:
+                    self.eventlistener.run(server, utils.format_string(cmd, config=self.config, server=server))
+            elif isinstance(reset, str):
+                self.eventlistener.run(server, reset)
+            else:
+                await ctx.send('Incorrect format of "reset" parameter in scheduler.json')
+            await ctx.send('Mission reset.')
+
 
 def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:

@@ -1,5 +1,7 @@
+import shlex
 import subprocess
-from core import EventListener
+from core import EventListener, utils
+from os import path
 
 
 class SchedulerListener(EventListener):
@@ -20,8 +22,12 @@ class SchedulerListener(EventListener):
                 "command": method[5:]
             })
         elif method.startswith('run:'):
-            self.log.debug('Launching command: ' + method[4:])
-            subprocess.run(method[4:].split(' '), shell=True)
+            cmd = method[4:]
+            dcs_installation = path.normpath(path.expandvars(self.config['DCS']['DCS_INSTALLATION']))
+            dcs_home = path.normpath(path.expandvars(self.config[server['installation']]['DCS_HOME']))
+            cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home, server=server)
+            self.log.debug('Launching command: ' + cmd)
+            subprocess.run(shlex.split(cmd), shell=True)
 
     async def onSimulationStart(self, data):
         server = self.globals[data['server_name']]

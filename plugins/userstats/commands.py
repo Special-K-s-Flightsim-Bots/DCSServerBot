@@ -121,7 +121,7 @@ class UserStatisticsMaster(Plugin):
     @commands.command(description='Deletes the statistics of a server')
     @utils.has_role('Admin')
     @commands.guild_only()
-    async def reset(self, ctx):
+    async def reset_statistics(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
             server_name = server['server_name']

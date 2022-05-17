@@ -4,6 +4,7 @@ Tasks that can be achieved with this solution are:
 * Have a server rotate a mission every 4 hrs.
 * Restart the mission before it gets dark.
 * Have two servers run alternately, maybe one with password, one public
+* Change time and weather in your mission on specific times or randomly
 
 ## Configuration
 Examples:
@@ -35,7 +36,8 @@ Examples:
         "method": "restart_with_shutdown",    -- restarts the whole server instead only the mission
         "mission_time": 480,                  -- restart the mission after 8 hrs (480 minutes)
         "populated": false                    -- no restart of the mission (!), as long as people are in
-      }
+      },
+      "reset": "run:del \"{dcs_installation}\\SnowfoxMkII*.lua\""   -- delete files (persistency) on .reset command
     },
     {
       "installation": "instance2",
@@ -134,6 +136,12 @@ Commands can be executed in different ways:
 | lua              | Run this lua script inside the mission environment (do_script). | lua:dcsbot.restartMission()                                           |
 | call             | Send a DCSServerBot command to DCS.                             | call:shutdown()                                                       | 
 | run              | Run a Windows command (via cmd.exe).                            | run:shutdown /s                                                       |
+
+## Section "reset"
+
+| Parameter | Description                                                          |
+|-----------|----------------------------------------------------------------------|
+|           | Command / Script to be run at .reset. The on-command syntax applies. |
 
 ## Discord Commands
 
