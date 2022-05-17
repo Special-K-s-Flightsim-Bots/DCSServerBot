@@ -30,8 +30,9 @@ class Scheduler(Plugin):
                     self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
                     cfg.crash_report_mode = 'silent'
                 elif cfg.crash_report_mode != 'silent':
-                    self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! The Scheduler will not '
-                                     'work properly on DCS crashes, please change it manually to "silent" to avoid that.')
+                    self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! The Scheduler will '
+                                     'not work properly on DCS crashes, please change it manually to "silent" to '
+                                     'avoid that.')
 
     # TODO: remove in a later version
     def migrate(self, filename: str) -> dict:
