@@ -6,6 +6,7 @@ import platform
 import psycopg2
 import psycopg2.extras
 import re
+import shlex
 import string
 import subprocess
 from contextlib import closing, suppress
@@ -359,9 +360,9 @@ class Agent(Plugin):
     async def shell(self, ctx, *params):
         server = await utils.get_server(self, ctx)
         if server:
-            await self.bot.audit('executed a shell command: ```' + ' '.join(params) + '```', server=server,
-                                 user=ctx.message.author)
-            subprocess.run(params, shell=True)
+            cmd = ' '.join(params)
+            await self.bot.audit(f"executed a shell command: ```{cmd}```", server=server, user=ctx.message.author)
+            subprocess.run(shlex.split(cmd), shell=True)
 
     @commands.command(description='Starts a stopped DCS server')
     @utils.has_role('DCS Admin')

@@ -1,9 +1,8 @@
 import asyncio
-import random
-
 import discord
 import json
 import psutil
+import random
 import string
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile, Autoexec
 from datetime import datetime, timedelta
