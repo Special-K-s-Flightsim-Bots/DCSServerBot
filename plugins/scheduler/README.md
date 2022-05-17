@@ -47,7 +47,7 @@ Examples:
       "restart": {                            -- missions rotate every 4 hrs
         "method": "rotate",
         "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
-        "settings": {                         -- shall the weather change in the mission?
+        "settings": {                         -- Weather will change on a time basis
           "00:00-07:59": "Winter Nighttime",
           "08:00-11:59": "Winter Daytime",
           "12:00-19:59": "Summer Daytime",
@@ -61,7 +61,11 @@ Examples:
       "installation": "missions",
       "schedule": {
         "21:30": "NNNNNYN",                   -- Missions start on Saturdays at 21:30, so start the server there
-        "23:00-00:00": "NNNNNPN"              -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated        
+        "23:00-00:00": "NNNNNPN",             -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated        
+        "settings": [                         -- Weather will change randomly
+          "Winter Daytime",
+          "Summer Daytime"
+        ]
       },
      "onMissionStart": "load:Script/net/f10menu.lua"  -- load some lua in the mission on mission start
     }
@@ -108,8 +112,8 @@ If SRS is listed as an extension, a configured SRS server will be started with t
 | method       | One of **restart**, **restart_with_shutdown** or **rotate**.<br/>- "restart" will restart the current mission,<br/>- "restart_with_shutdown" will do the same but shutdown the whole server<br/>- "rotate" will take the next mission out of the mission list. |
 | mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                   |
 | local_times  | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                              |
- | populated    | If **false**, the mission will be restarted / rotated only, if no player is in.                                                                                                                                                                                |
-| settings     | Timeframes in which which preset is valid. If not provided, the mission will run as is.                                                                                                                                                                        |
+| populated    | If **false**, the mission will be restarted / rotated only, if no player is in.                                                                                                                                                                                |
+| settings     | Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is.                                                                                                                   |
 
 **Attention!**<br/>
 If using the presets / settings, your missions will be amended automatically by the bot. You might want to create safety copies upfront.

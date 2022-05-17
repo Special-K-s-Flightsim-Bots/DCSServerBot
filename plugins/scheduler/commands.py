@@ -1,4 +1,6 @@
 import asyncio
+import random
+
 import discord
 import json
 import psutil
@@ -220,10 +222,14 @@ class Scheduler(Plugin):
         now = datetime.now()
         value = None
         if not preset:
-            for key, preset in config['restart']['settings'].items():
-                if utils.is_in_timeframe(now, key):
-                    value = config['presets'][preset]
-                    break
+            if isinstance(config['restart']['settings'], dict):
+                for key, preset in config['restart']['settings'].items():
+                    if utils.is_in_timeframe(now, key):
+                        value = config['presets'][preset]
+                        break
+            elif isinstance(config['restart']['settings'], list):
+                r = random.randrange(0, len(config['restart']['settings']))
+                value = config['presets'][config['restart']['settings'][r]]
             if not value:
                 raise ValueError("No preset found for the current time.")
         else:
