@@ -213,6 +213,8 @@ class UserStatisticsEventListener(EventListener):
             self.pool.putconn(conn)
 
     async def onPlayerStart(self, data: dict) -> None:
+        if data['id'] == 1:
+            return
         discord_user = await self.match_user(data)
         server = self.globals[data['server_name']]
         if discord_user is None:
