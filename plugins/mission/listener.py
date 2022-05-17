@@ -102,7 +102,7 @@ class MissionEventListener(EventListener):
             self.globals[data['server_name']]['status'] = Status.STOPPED
         self.bot.player_data[data['server_name']] = pd.DataFrame(data['players'], columns=[
             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
-            'group_id', 'group_name'])
+            'group_id', 'group_name', 'ipaddr'])
         self.bot.player_data[data['server_name']].set_index('id')
         await self.displayMissionEmbed(data)
         await self.displayPlayerEmbed(data)

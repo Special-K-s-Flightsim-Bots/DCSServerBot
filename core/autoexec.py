@@ -18,7 +18,7 @@ class Autoexec:
         exp = re.compile('(?P<key>.*) = (?P<value>.*)')
         mydict = dict()
         with open(file, 'r') as cfg:
-            for line in cfg.readlines():
+            for line in [x.strip() for x in cfg.readlines()]:
                 if line.startswith('if ') or line.startswith('--'):
                     continue
                 match = exp.search(line)

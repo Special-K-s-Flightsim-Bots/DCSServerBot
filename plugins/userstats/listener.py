@@ -1,9 +1,10 @@
 # listener.py
+import discord
 import psycopg2
 from contextlib import closing, suppress
 from core import const, EventListener, Plugin, utils
 from core.const import Status
-from typing import Union, Any
+from typing import Union, Any, Optional
 
 
 class UserStatisticsEventListener(EventListener):
@@ -40,6 +41,9 @@ class UserStatisticsEventListener(EventListener):
         'close_mission': 'UPDATE missions SET mission_end = NOW() WHERE id = %s',
         'close_all_missions': 'UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL',
         'check_player': 'SELECT slot FROM statistics WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
+        'add_player': 'INSERT INTO players (ucid, discord_id, name, ipaddr, last_seen) VALUES (%s, %s, %s, %s, '
+                      'NOW()) ON CONFLICT (ucid) DO UPDATE SET discord_id = EXCLUDED.discord_id, '
+                      'name = EXCLUDED.name, ipaddr = EXCLUDED.ipaddr, last_seen = NOW()',
         'start_player': 'INSERT INTO statistics (mission_id, player_ucid, slot, side) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING',
         'stop_player': 'UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'all_players': 'SELECT player_ucid FROM statistics WHERE mission_id = %s AND hop_off IS NULL'
@@ -62,6 +66,36 @@ class UserStatisticsEventListener(EventListener):
         if int(data['sub_slot']) not in [-1, 0]:
             unit_type += ' (Crew)'
         return unit_type
+
+    async def match_user(self, data: dict) -> Optional[discord.Member]:
+        if data['id'] == 1:
+            return None
+        if self.config.getboolean('BOT', 'AUTOMATCH'):
+            # if automatch is enabled, try to match the user
+            discord_user = utils.match_user(self, data)
+        else:
+            # else only true matches will return a member
+            discord_user = utils.get_member_by_ucid(self, data['ucid'])
+        discord_id = discord_user.id if discord_user else -1
+        # update the database
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                if discord_id != -1:
+                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
+                    # if this is a new match
+                    if cursor.rowcount == 0:
+                        await self.bot.audit(f"auto-linked to DCS user \"{data['name']}\" (ucid={data['ucid']}).",
+                                             user=discord_user)
+                cursor.execute(self.SQL_MISSION_HANDLING['add_player'],
+                               (data['ucid'], discord_id, data['name'], data['ipaddr']))
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+        return discord_user
 
     async def registerDCSServer(self, data):
         if data['statistics'] and self.globals[data['server_name']]['status'] != Status.STOPPED:
@@ -117,6 +151,13 @@ class UserStatisticsEventListener(EventListener):
                                         # session will be kept
                                         player_started = True
                                 if not player_started and player['side'] != const.SIDE_SPECTATOR:
+                                    discord_user = await self.match_user(player.to_dict())
+                                    # only warn for unknown users if it is a non-public server and automatch is on
+                                    if discord_user is None and self.config.getboolean('BOT', 'AUTOMATCH') and len(
+                                            self.globals[data['server_name']]['serverSettings']['password']) > 0:
+                                        await self.bot.get_bot_channel(data, 'admin_channel').send(
+                                            'Player {} (ucid={}) can\'t be matched to a discord user.'.format(
+                                                data['name'], data['ucid']))
                                     cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
                                                    (mission_id, player['ucid'], self.get_unit_type(player),
                                                     player['side']))
@@ -172,35 +213,7 @@ class UserStatisticsEventListener(EventListener):
             self.pool.putconn(conn)
 
     async def onPlayerStart(self, data: dict) -> None:
-        if data['id'] == 1:
-            return
-        if self.config.getboolean('BOT', 'AUTOMATCH'):
-            # if automatch is enabled, try to match the user
-            discord_user = utils.match_user(self, data)
-        else:
-            # else only true matches will return a member
-            discord_user = utils.get_member_by_ucid(self, data['ucid'])
-        discord_id = discord_user.id if discord_user else -1
-        # update the database
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if discord_id != -1:
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (discord_id, ))
-                    # if this is a new match
-                    if cursor.rowcount == 0:
-                        await self.bot.audit(f"auto-linked to DCS user \"{data['name']}\" (ucid={data['ucid']}).",
-                                             user=discord_user)
-                cursor.execute('INSERT INTO players (ucid, discord_id, name, ipaddr, last_seen) VALUES (%s, %s, %s, '
-                               '%s, NOW()) ON CONFLICT (ucid) DO UPDATE SET discord_id = EXCLUDED.discord_id, '
-                               'name = EXCLUDED.name, ipaddr = EXCLUDED.ipaddr, last_seen = NOW()',
-                               (data['ucid'], discord_id, data['name'], data['ipaddr']))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        discord_user = await self.match_user(data)
         server = self.globals[data['server_name']]
         if discord_user is None:
             self.bot.sendtoDCS(server, {
@@ -210,8 +223,7 @@ class UserStatisticsEventListener(EventListener):
                 "to": data['id']
             })
             # only warn for unknown users if it is a non-public server and automatch is on
-            if self.config.getboolean('BOT', 'AUTOMATCH') and \
-                    len(self.globals[data['server_name']]['serverSettings']['password']) > 0:
+            if self.config.getboolean('BOT', 'AUTOMATCH') and len(server['serverSettings']['password']) > 0:
                 await self.bot.get_bot_channel(data, 'admin_channel').send(
                     'Player {} (ucid={}) can\'t be matched to a discord user.'.format(data['name'], data['ucid']))
         else:
