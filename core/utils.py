@@ -554,7 +554,7 @@ async def shutdown_dcs(self, server: dict, timeout: int = 30):
     if p:
         try:
             p.wait(timeout)
-        except TimeoutError:
+        except subprocess.TimeoutExpired:
             p.kill()
     if 'PID' in server:
         del server['PID']
