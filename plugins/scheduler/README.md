@@ -137,11 +137,21 @@ Commands can be executed in different ways:
 | call             | Send a DCSServerBot command to DCS.                             | call:shutdown()                                                       | 
 | run              | Run a Windows command (via cmd.exe).                            | run:shutdown /s                                                       |
 
+The following environment variables can be used in the "run" command:
+
+| Variable         | Meaning                         |
+|------------------|---------------------------------|
+| dcs_installation | DCS installation path           |
+| dcs_home         | Saved Games directory           |
+| server           | internal server datastructure   |
+| config           | dcsserverbot.ini representation |
+
+
 ## Section "reset"
 
-| Parameter | Description                                                          |
-|-----------|----------------------------------------------------------------------|
-|           | Command / Script to be run at .reset. The on-command syntax applies. |
+| Parameter | Description                                                           |
+|-----------|-----------------------------------------------------------------------|
+|           | Command / Script to be run at .reset. The on-command syntax applies.  |
 
 ## Discord Commands
 
@@ -152,3 +162,4 @@ To clear this and give the control back to the scheduler, use the following comm
 |---------|-----------|---------------|-----------|------------------------------------------------------|
 | .clear  |           | admin-channel | DCS Admin | Clears the maintenance state of a server.            |
 | .preset |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. |
+| .reset  |           | admin-channel | DCS Admin | Calls a configurable reset command.                  |

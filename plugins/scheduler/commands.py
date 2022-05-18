@@ -372,7 +372,7 @@ class Scheduler(Plugin):
     @commands.command(description='Reset a mission')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def reset(self, ctx, *args):
+    async def reset(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
             if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
@@ -385,8 +385,7 @@ class Scheduler(Plugin):
             reset = config['reset']
             if isinstance(reset, list):
                 for cmd in reset:
-                    self.eventlistener.run(server, utils.format_string(cmd, args=' '.join(args), config=self.config,
-                                                                       server=server))
+                    self.eventlistener.run(server, cmd)
             elif isinstance(reset, str):
                 self.eventlistener.run(server, reset)
             else:

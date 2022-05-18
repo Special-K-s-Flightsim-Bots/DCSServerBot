@@ -25,7 +25,8 @@ class SchedulerListener(EventListener):
             cmd = method[4:]
             dcs_installation = path.normpath(path.expandvars(self.config['DCS']['DCS_INSTALLATION']))
             dcs_home = path.normpath(path.expandvars(self.config[server['installation']]['DCS_HOME']))
-            cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home, server=server)
+            cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home,
+                                      server=server, config=self.config)
             self.log.debug('Launching command: ' + cmd)
             subprocess.run(shlex.split(cmd), shell=True)
 
