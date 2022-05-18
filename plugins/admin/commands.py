@@ -354,7 +354,7 @@ class Agent(Plugin):
             if filename.endswith('.zip'):
                 os.remove(filename)
 
-    @commands.command(description='Runs a shell command')
+    @commands.command(description='Runs a shell command', hidden=True)
     @utils.has_role('Admin')
     @commands.guild_only()
     async def shell(self, ctx, *params):

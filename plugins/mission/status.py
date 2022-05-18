@@ -66,27 +66,27 @@ class WeatherInfo(report.EmbedElement):
             self.add_field(name='Wind',
                            value='\u2002Ground: {}° / {} kts\n\u20026600 ft: {}° / {} kts\n26000 ft: {}° / {} kts'.format(
                                 int(weather['wind']['atGround']['dir'] + 180) % 360,
-                                int(weather['wind']['atGround']['speed']),
+                                int(weather['wind']['atGround']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5),
                                 int(weather['wind']['at2000']['dir'] + 180) % 360,
-                                int(weather['wind']['at2000']['speed']),
+                                int(weather['wind']['at2000']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5),
                                 int(weather['wind']['at8000']['dir'] + 180) % 360,
-                                int(weather['wind']['at8000']['speed'])))
+                                int(weather['wind']['at8000']['speed'] * const.METER_PER_SECOND_IN_KNOTS + 0.5)))
             if 'clouds' in server:
                 if 'preset' in server['clouds']:
                     self.add_field(name='Cloudbase',
-                                   value=f'{int(server["clouds"]["base"] * const.METER_IN_FEET):,} ft')
+                                   value=f'{int(server["clouds"]["base"] * const.METER_IN_FEET + 0.5):,} ft')
                 else:
                     self.add_field(name='Clouds',
                                    value='Base:\u2002\u2002\u2002\u2002 {:,} ft\nDensity:\u2002\u2002 {}/10\nThickness: {:,} ft'.format(
-                                        int(server['clouds']['base'] * const.METER_IN_FEET),
+                                        int(server['clouds']['base'] * const.METER_IN_FEET + 0.5),
                                         server['clouds']['density'],
-                                        int(server['clouds']['thickness'] * const.METER_IN_FEET)))
+                                        int(server['clouds']['thickness'] * const.METER_IN_FEET + 0.5)))
             else:
                 self.add_field(name='Clouds', value='n/a')
             visibility = weather['visibility']['distance']
             if weather['enable_fog'] is True:
-                visibility = weather['fog']['visibility'] * const.METER_IN_FEET
-            self.add_field(name='Visibility', value=f'{int(visibility):,} ft')
+                visibility = int(weather['fog']['visibility'] * const.METER_IN_FEET + 0.5)
+            self.add_field(name='Visibility', value=f'{visibility:,} ft')
             report.Ruler(self.env).render()
 
 

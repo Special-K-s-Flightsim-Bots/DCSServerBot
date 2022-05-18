@@ -217,7 +217,8 @@ class Scheduler(Plugin):
             if 'extensions' in config:
                 await self.shutdown_extensions(server, config)
 
-    def change_mizfile(self, server: dict, config: dict, preset: Optional[str] = None):
+    @staticmethod
+    def change_mizfile(server: dict, config: dict, preset: Optional[str] = None):
         now = datetime.now()
         value = None
         if not preset:
@@ -227,8 +228,7 @@ class Scheduler(Plugin):
                         value = config['presets'][preset]
                         break
             elif isinstance(config['restart']['settings'], list):
-                r = random.randrange(0, len(config['restart']['settings']))
-                value = config['presets'][config['restart']['settings'][r]]
+                value = config['presets'][random.choice(config['restart']['settings'])]
             if not value:
                 raise ValueError("No preset found for the current time.")
         else:
@@ -372,7 +372,7 @@ class Scheduler(Plugin):
     @commands.command(description='Reset a mission')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def reset(self, ctx):
+    async def reset(self, ctx, *args):
         server = await utils.get_server(self, ctx)
         if server:
             if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
@@ -385,7 +385,8 @@ class Scheduler(Plugin):
             reset = config['reset']
             if isinstance(reset, list):
                 for cmd in reset:
-                    self.eventlistener.run(server, utils.format_string(cmd, config=self.config, server=server))
+                    self.eventlistener.run(server, utils.format_string(cmd, args=' '.join(args), config=self.config,
+                                                                       server=server))
             elif isinstance(reset, str):
                 self.eventlistener.run(server, reset)
             else:
