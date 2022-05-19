@@ -85,26 +85,27 @@ class Agent(Plugin):
             if server['status'] in [Status.UNREGISTERED, Status.LOADING]:
                 await ctx.send('Server is currently starting up. Please wait and try again.')
             elif server['status'] != Status.SHUTDOWN:
-                if await utils.yn_question(self, ctx, 'Do you want to shut down the '
-                                                      'DCS server "{}"?'.format(server['server_name'])) is True:
+                if await utils.yn_question(self, ctx, f"Do you want to shut down the "
+                                                      f"DCS server \"{server['server_name']}\"?") is True:
                     # set maintenance flag to prevent auto-starts of this server
                     server['maintenance'] = True
+                    await ctx.send(f"Shutting down DCS server \"{server['server_name']}\", please wait ...")
                     await utils.shutdown_dcs(self, server)
-                    await ctx.send('DCS server "{}" shut down.'.format(server['server_name']))
+                    await ctx.send(f"DCS server \"{server['server_name']}\" shut down.")
                     await self.bot.audit(f"shut DCS server down", user=ctx.message.author, server=server)
             else:
-                await ctx.send('DCS server {} is already shut down.'.format(server['server_name']))
+                await ctx.send(f"DCS server \"{server['server_name']}\" is already shut down.")
             if 'SRS_CONFIG' in self.config[installation]:
                 if utils.check_srs(self, server):
-                    if await utils.yn_question(self, ctx, 'Do you want to shut down the '
-                                                          'DCS-SRS server "{}"?'.format(server['server_name'])) is True:
+                    if await utils.yn_question(self, ctx, f"Do you want to shut down the "
+                                                          f"DCS-SRS server \"{server['server_name']}\"?") is True:
                         if await utils.shutdown_srs(self, server):
-                            await ctx.send('DCS-SRS server "{}" shut down.'.format(server['server_name']))
-                            await self.bot.audit(f"shut DCS-SRS server down", user=ctx.message.author, server=server)
+                            await ctx.send(f"DCS-SRS server \"{server['server_name']}\" shut down.")
+                            await self.bot.audit("shut DCS-SRS server down", user=ctx.message.author, server=server)
                         else:
-                            await ctx.send('Shutdown of DCS-SRS server "{}" failed.'.format(server['server_name']))
+                            await ctx.send(f"Shutdown of DCS-SRS server \"{server['server_name']}\" failed.")
                 else:
-                    await ctx.send('DCS-SRS server {} is already shut down.'.format(server['server_name']))
+                    await ctx.send(f"DCS-SRS server \"{server['server_name']}\" is already shut down.")
 
     async def do_update(self, warn_times: List[int], ctx=None):
         self.update_pending = True

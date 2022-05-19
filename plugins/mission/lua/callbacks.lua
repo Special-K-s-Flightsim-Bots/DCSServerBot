@@ -258,7 +258,9 @@ function mission.onPlayerTrySendChat(from, message, to)
         msg.from_id = net.get_player_info(from, 'id')
         msg.from_name = net.get_player_info(from, 'name')
         msg.to = to
-        utils.sendBotTable(msg)
+        if msg.from_id ~= 1 then
+            utils.sendBotTable(msg)
+        end
     end
     return message
 end

@@ -1,7 +1,6 @@
 # listener.py
-import asyncio
-import platform
 import psycopg2
+import shlex
 from contextlib import closing
 from core import utils, EventListener, Status
 
@@ -47,3 +46,27 @@ class AdminEventListener(EventListener):
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
+
+    async def onChatCommand(self, data: dict) -> None:
+        server = self.globals[data['server_name']]
+        if data['subcommand'] == 'kick' and utils.is_admin(self, server, data['from_id']):
+            if len(data['params']) == 0:
+                utils.sendChatMessage(self, data['server_name'], data['from_id'], "Usage: -kick <name> [reason]")
+                return
+            params = shlex.split(' '.join(data['params']))
+            name = params[0]
+            if len(params) > 1:
+                reason = ' '.join(params[1:])
+            else:
+                reason = 'n/a'
+            delinquent = utils.get_player(self, server['server_name'], name=name)
+            if not delinquent:
+                utils.sendChatMessage(self, data['server_name'], data['from_id'], f"Player {name} not found. Use \"\" "
+                                                                                  f"around names with blanks.")
+                return
+            self.bot.sendtoDCS(server, {"command": "kick", "name": name, "reason": reason})
+            utils.sendChatMessage(self, data['server_name'], data['from_id'], f"User {name} kicked.")
+            player = utils.get_player(self, server['server_name'], id=data['from_id'])
+            member = utils.get_member_by_ucid(self, player['ucid'], True)
+            await self.bot.audit(f'kicked player {name}' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                                 user=member)

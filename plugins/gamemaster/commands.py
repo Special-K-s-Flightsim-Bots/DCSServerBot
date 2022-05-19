@@ -95,7 +95,7 @@ class GameMasterAgent(Plugin):
             else:
                 await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}popup all|red|blue|user [time] <message>")
 
-    @commands.command(description='Set or clear a flag inside the mission environment', usage='<flag> [value]', hidden=True)
+    @commands.command(description='Set or clear a flag inside the mission environment', usage='<flag> [value]')
     @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
     async def flag(self, ctx, flag: int, value: int = None):
@@ -115,7 +115,7 @@ class GameMasterAgent(Plugin):
         else:
             await ctx.send(f"Mission is {server['status'].name.lower()}, can't set/get flag.")
 
-    @commands.command(description='Calls any function inside the mission environment', usage='<script>', hidden=True)
+    @commands.command(description='Calls any function inside the mission environment', usage='<script>')
     @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
     async def do_script(self, ctx, *script):
@@ -129,7 +129,7 @@ class GameMasterAgent(Plugin):
         else:
             await ctx.send(f"Mission is {server['status'].name.lower()}, command discarded.")
 
-    @commands.command(description='Loads a lua file into the mission environment', usage='<file>', hidden=True)
+    @commands.command(description='Loads a lua file into the mission environment', usage='<file>')
     @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
     async def do_script_file(self, ctx, filename):

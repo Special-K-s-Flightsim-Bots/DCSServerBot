@@ -269,11 +269,14 @@ def get_ucid_by_name(self, name: str) -> Optional[str]:
         self.pool.putconn(conn)
 
 
-def get_member_by_ucid(self, ucid: str) -> Optional[discord.Member]:
+def get_member_by_ucid(self, ucid: str, verified: Optional[bool] = False) -> Optional[discord.Member]:
     conn = self.pool.getconn()
     try:
         with closing(conn.cursor()) as cursor:
-            cursor.execute('SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1', (ucid, ))
+            sql = 'SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1'
+            if verified:
+                sql += ' AND manual IS TRUE'
+            cursor.execute(sql, (ucid, ))
             if cursor.rowcount == 1:
                 return self.bot.guilds[0].get_member(cursor.fetchone()[0])
             else:
@@ -544,7 +547,7 @@ def startup_dcs(self, server: dict):
     return p
 
 
-async def shutdown_dcs(self, server: dict, timeout: int = 30):
+async def shutdown_dcs(self, server: dict, timeout: int = 120):
     self.bot.sendtoDCS(server, {"command": "shutdown"})
     for i in range(0, timeout):
         await asyncio.sleep(1)
@@ -905,6 +908,12 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
             message += ' | '.join(value.splitlines())
             message += '\n'
     return message
+
+
+def is_admin(self, server: dict, player_id: int) -> bool:
+    player = get_player(self, server['server_name'], id=player_id)
+    member = get_member_by_ucid(self, player['ucid'], True)
+    return member is not None and check_roles(['DCS Admin'], member)
 
 
 @dataclass
