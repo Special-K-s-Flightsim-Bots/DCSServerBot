@@ -49,7 +49,7 @@ class AdminEventListener(EventListener):
 
     async def onChatCommand(self, data: dict) -> None:
         server = self.globals[data['server_name']]
-        if data['subcommand'] == 'kick' and utils.is_admin(self, server, data['from_id']):
+        if data['subcommand'] == 'kick' and utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin']):
             if len(data['params']) == 0:
                 utils.sendChatMessage(self, data['server_name'], data['from_id'], "Usage: -kick <name> [reason]")
                 return
@@ -59,7 +59,7 @@ class AdminEventListener(EventListener):
                 reason = ' '.join(params[1:])
             else:
                 reason = 'n/a'
-            delinquent = utils.get_player(self, server['server_name'], name=name)
+            delinquent = utils.get_player(self, server['server_name'], name=name, active=True)
             if not delinquent:
                 utils.sendChatMessage(self, data['server_name'], data['from_id'], f"Player {name} not found. Use \"\" "
                                                                                   f"around names with blanks.")

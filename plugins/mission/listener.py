@@ -269,7 +269,7 @@ class MissionEventListener(EventListener):
                     utils.sendUserMessage(self, server, data['from_id'], message, 30)
                     return
             utils.sendChatMessage(self, data['server_name'], data['from_id'], f"No ATIS information found for {name}.")
-        elif data['subcommand'] == 'restart' and utils.is_admin(self, server, data['from_id']):
+        elif data['subcommand'] == 'restart' and utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin']):
             delay = data['params'][0] if len(data['params']) > 0 else 0
             if delay > 0:
                 message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
@@ -282,7 +282,7 @@ class MissionEventListener(EventListener):
                 "time": self.config['BOT']['MESSAGE_TIMEOUT']
             })
             self.bot.sendtoDCS(server, {"command": "restartMission"})
-        elif data['subcommand'] == 'list' and utils.is_admin(self, server, data['from_id']):
+        elif data['subcommand'] == 'list' and utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin']):
             response = await self.bot.sendtoDCSSync(server, {"command": "listMissions"})
             missions = response['missionList']
             message = 'The following missions are available:\n'
@@ -292,5 +292,5 @@ class MissionEventListener(EventListener):
                 message += f"{i+1} {mission}\n"
             message += "\nUse -load <number> to load that mission"
             utils.sendUserMessage(self, server, data['from_id'], message, 30)
-        elif data['subcommand'] == 'load' and utils.is_admin(self, server, data['from_id']):
+        elif data['subcommand'] == 'load' and utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin']):
             self.bot.sendtoDCS(server, {"command": "startMission", "id": data['params'][0]})

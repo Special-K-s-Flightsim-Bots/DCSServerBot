@@ -296,7 +296,7 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             reason = ' '.join(args) if len(args) > 0 else None
-            player = utils.get_player(self, server['server_name'], name=name)
+            player = utils.get_player(self, server['server_name'], name=name, active=True)
             if player:
                 self.bot.sendtoDCS(server, {
                     "command": "force_player_slot",

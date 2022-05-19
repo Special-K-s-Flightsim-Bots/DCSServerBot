@@ -597,13 +597,15 @@ def str_to_class(name):
 # Return a player from the internal list
 def get_player(self, server_name: str, **kwargs):
     if server_name in self.bot.player_data:
-        df = self.bot.player_data[server_name]
+        players = self.bot.player_data[server_name]
+        if 'active' in kwargs:
+            players = players[players['active'] == kwargs['active']]
         if 'id' in kwargs:
-            row = df[df['id'] == kwargs['id']]
+            row = players[players['id'] == kwargs['id']]
         elif 'name' in kwargs:
-            row = df[df['name'] == kwargs['name']]
+            row = players[players['name'] == kwargs['name']]
         elif 'ucid' in kwargs:
-            row = df[df['ucid'] == kwargs['ucid']]
+            row = players[players['ucid'] == kwargs['ucid']]
         else:
             return None
         if not row.empty:
@@ -613,7 +615,7 @@ def get_player(self, server_name: str, **kwargs):
 
 def get_crew_members(self, server_name: str, player_id: int):
     # get the pilot
-    pilot = get_player(self, server_name, id=player_id)
+    pilot = get_player(self, server_name, id=player_id, active=True)
     if pilot:
         # now find players that have the same slot
         df = self.bot.player_data[server_name]
@@ -704,7 +706,7 @@ def sendPopupMessage(self, server: dict, unit_id: str, message: str, timeout: Op
 
 
 def sendUserMessage(self, server: dict, player_id: int, message: str, timeout: Optional[int] = -1):
-    player = get_player(self, server['server_name'], id=player_id)
+    player = get_player(self, server['server_name'], id=player_id, active=True)
     if player:
         if player['side'] == 0:
             [sendChatMessage(self, server['server_name'], player_id, msg) for msg in message.splitlines()]
@@ -910,10 +912,10 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
     return message
 
 
-def is_admin(self, server: dict, player_id: int) -> bool:
-    player = get_player(self, server['server_name'], id=player_id)
+def has_discord_roles(self, server: dict, player_id: int, roles: list[str]) -> bool:
+    player = get_player(self, server['server_name'], id=player_id, active=True)
     member = get_member_by_ucid(self, player['ucid'], True)
-    return member is not None and check_roles(['DCS Admin'], member)
+    return member is not None and check_roles(roles, member)
 
 
 @dataclass

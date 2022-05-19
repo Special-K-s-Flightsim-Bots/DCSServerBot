@@ -77,7 +77,7 @@ class GameMasterAgent(Plugin):
                     time = self.config['BOT']['MESSAGE_TIMEOUT']
                     i = 0
                 if to not in ['all', 'red', 'blue']:
-                    player = utils.get_player(self, server['server_name'], name=to)
+                    player = utils.get_player(self, server['server_name'], name=to, active=True)
                     if player and 'slot' in player and len(player['slot']) > 0:
                         to = player['slot']
                     else:
