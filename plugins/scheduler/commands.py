@@ -2,8 +2,9 @@ import asyncio
 import discord
 import json
 import psutil
+import random
 import string
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile
+from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile, Autoexec
 from datetime import datetime, timedelta
 from discord.ext import tasks, commands
 from os import path
@@ -20,6 +21,19 @@ class Scheduler(Plugin):
     def cog_unload(self):
         self.check_state.cancel()
         super().cog_unload()
+
+    def install(self):
+        super().install()
+        for _, installation in utils.findDCSInstallations():
+            if installation in self.config:
+                cfg = Autoexec(bot=self.bot, installation=installation)
+                if cfg.crash_report_mode is None:
+                    self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
+                    cfg.crash_report_mode = 'silent'
+                elif cfg.crash_report_mode != 'silent':
+                    self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! The Scheduler will '
+                                     'not work properly on DCS crashes, please change it manually to "silent" to '
+                                     'avoid that.')
 
     # TODO: remove in a later version
     def migrate(self, filename: str) -> dict:
@@ -203,14 +217,18 @@ class Scheduler(Plugin):
             if 'extensions' in config:
                 await self.shutdown_extensions(server, config)
 
-    def change_mizfile(self, server: dict, config: dict, preset: Optional[str] = None):
+    @staticmethod
+    def change_mizfile(server: dict, config: dict, preset: Optional[str] = None):
         now = datetime.now()
         value = None
         if not preset:
-            for key, preset in config['restart']['settings'].items():
-                if utils.is_in_timeframe(now, key):
-                    value = config['presets'][preset]
-                    break
+            if isinstance(config['restart']['settings'], dict):
+                for key, preset in config['restart']['settings'].items():
+                    if utils.is_in_timeframe(now, key):
+                        value = config['presets'][preset]
+                        break
+            elif isinstance(config['restart']['settings'], list):
+                value = config['presets'][random.choice(config['restart']['settings'])]
             if not value:
                 raise ValueError("No preset found for the current time.")
         else:
@@ -226,6 +244,12 @@ class Scheduler(Plugin):
             miz.preset = value['clouds']
         if 'wind' in value:
             miz.wind = value['wind']
+        if 'groundTurbulence' in value:
+            miz.groundTurbulence = value['groundTurbulence']
+        if 'dust_density' in value:
+            miz.dust_density = value['dust_density']
+        if 'qnh' in value:
+            miz.qnh = value['qnh']
         miz.save()
 
     async def restart_mission(self, server: dict, config: dict):
@@ -350,6 +374,29 @@ class Scheduler(Plugin):
                 return
             self.change_mizfile(server, config, presets[n])
             await ctx.send('Preset changed.')
+
+    @commands.command(description='Reset a mission')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def reset(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
+                await ctx.send('You need to stop / shutdown the server to reset the mission.')
+                return
+            config = self.get_config(server)
+            if 'reset' not in config:
+                await ctx.send(f"No \"reset\" parameter found for server {server['server_name']}.")
+                return
+            reset = config['reset']
+            if isinstance(reset, list):
+                for cmd in reset:
+                    self.eventlistener.run(server, cmd)
+            elif isinstance(reset, str):
+                self.eventlistener.run(server, reset)
+            else:
+                await ctx.send('Incorrect format of "reset" parameter in scheduler.json')
+            await ctx.send('Mission reset.')
 
 
 def setup(bot: DCSServerBot):

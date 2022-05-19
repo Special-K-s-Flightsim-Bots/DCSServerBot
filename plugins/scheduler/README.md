@@ -4,6 +4,7 @@ Tasks that can be achieved with this solution are:
 * Have a server rotate a mission every 4 hrs.
 * Restart the mission before it gets dark.
 * Have two servers run alternately, maybe one with password, one public
+* Change time and weather in your mission on specific times or randomly
 
 ## Configuration
 Examples:
@@ -35,7 +36,8 @@ Examples:
         "method": "restart_with_shutdown",    -- restarts the whole server instead only the mission
         "mission_time": 480,                  -- restart the mission after 8 hrs (480 minutes)
         "populated": false                    -- no restart of the mission (!), as long as people are in
-      }
+      },
+      "reset": "run:del \"{dcs_installation}\\SnowfoxMkII*.lua\""   -- delete files (persistency) on .reset command
     },
     {
       "installation": "instance2",
@@ -47,7 +49,7 @@ Examples:
       "restart": {                            -- missions rotate every 4 hrs
         "method": "rotate",
         "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
-        "settings": {                         -- shall the weather change in the mission?
+        "settings": {                         -- Weather will change on a time basis
           "00:00-07:59": "Winter Nighttime",
           "08:00-11:59": "Winter Daytime",
           "12:00-19:59": "Summer Daytime",
@@ -61,7 +63,11 @@ Examples:
       "installation": "missions",
       "schedule": {
         "21:30": "NNNNNYN",                   -- Missions start on Saturdays at 21:30, so start the server there
-        "23:00-00:00": "NNNNNPN"              -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated        
+        "23:00-00:00": "NNNNNPN",             -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated        
+        "settings": [                         -- Weather will change randomly
+          "Winter Daytime",
+          "Summer Daytime"
+        ]
       },
      "onMissionStart": "load:Script/net/f10menu.lua"  -- load some lua in the mission on mission start
     }
@@ -78,14 +84,17 @@ Examples:
 
 ### Section "preset"
 
-| Parameter   | Description                                |
-|-------------|--------------------------------------------|
-|             | First parameter is the name of the preset. |
-| date        | The missions date.                         |
-| start_time  | The missions start time in seconds.        |
-| temperature | Temperature in °C.                         |
-| clouds      | Name of a DCS cloud preset.                |
-| wind        | Wind atGround, at2000 (m) and at8000 (m).  |
+| Parameter        | Description                                     |
+|------------------|-------------------------------------------------|
+|                  | First parameter is the name of the preset.      |
+| date             | The missions date.                              |
+| start_time       | The missions start time in seconds.             |
+| temperature      | Temperature in °C.                              |
+| clouds           | Name of a DCS cloud preset.                     |
+| wind             | Wind atGround, at2000 (m) and at8000 (m) in m/s |
+| qnh              | Pressure at sea level in mmHg                   |
+| groundTurbulence | Ground turbulence in 0.1 * meters               |
+| dust_density     | Dust density in meters, 0 = off                 |
 
 
 ### Section "schedule"
@@ -108,8 +117,8 @@ If SRS is listed as an extension, a configured SRS server will be started with t
 | method       | One of **restart**, **restart_with_shutdown** or **rotate**.<br/>- "restart" will restart the current mission,<br/>- "restart_with_shutdown" will do the same but shutdown the whole server<br/>- "rotate" will take the next mission out of the mission list. |
 | mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                   |
 | local_times  | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                              |
- | populated    | If **false**, the mission will be restarted / rotated only, if no player is in.                                                                                                                                                                                |
-| settings     | Timeframes in which which preset is valid. If not provided, the mission will run as is.                                                                                                                                                                        |
+| populated    | If **false**, the mission will be restarted / rotated only, if no player is in.                                                                                                                                                                                |
+| settings     | Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is.                                                                                                                   |
 
 **Attention!**<br/>
 If using the presets / settings, your missions will be amended automatically by the bot. You might want to create safety copies upfront.
@@ -131,6 +140,22 @@ Commands can be executed in different ways:
 | call             | Send a DCSServerBot command to DCS.                             | call:shutdown()                                                       | 
 | run              | Run a Windows command (via cmd.exe).                            | run:shutdown /s                                                       |
 
+The following environment variables can be used in the "run" command:
+
+| Variable         | Meaning                         |
+|------------------|---------------------------------|
+| dcs_installation | DCS installation path           |
+| dcs_home         | Saved Games directory           |
+| server           | internal server datastructure   |
+| config           | dcsserverbot.ini representation |
+
+
+## Section "reset"
+
+| Parameter | Description                                                           |
+|-----------|-----------------------------------------------------------------------|
+|           | Command / Script to be run at .reset. The on-command syntax applies.  |
+
 ## Discord Commands
 
 If a server gets started or stopped manually (using .startup / .shutdown), it will be put in "maintenance" mode.
@@ -140,3 +165,4 @@ To clear this and give the control back to the scheduler, use the following comm
 |---------|-----------|---------------|-----------|------------------------------------------------------|
 | .clear  |           | admin-channel | DCS Admin | Clears the maintenance state of a server.            |
 | .preset |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. |
+| .reset  |           | admin-channel | DCS Admin | Calls a configurable reset command.                  |

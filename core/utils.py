@@ -19,7 +19,7 @@ from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from discord.ext import commands
-from typing import Union, Optional, Tuple
+from typing import Union, Optional, Tuple, List
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
 REGEXP = {
@@ -34,7 +34,7 @@ config.read('config/default.ini')
 config.read('config/dcsserverbot.ini')
 
 
-def findDCSInstallations(server_name=None):
+def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, str]]:
     installations = []
     for dirname in os.listdir(SAVED_GAMES):
         if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):
@@ -269,11 +269,14 @@ def get_ucid_by_name(self, name: str) -> Optional[str]:
         self.pool.putconn(conn)
 
 
-def get_member_by_ucid(self, ucid: str) -> Optional[discord.Member]:
+def get_member_by_ucid(self, ucid: str, verified: Optional[bool] = False) -> Optional[discord.Member]:
     conn = self.pool.getconn()
     try:
         with closing(conn.cursor()) as cursor:
-            cursor.execute('SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1', (ucid, ))
+            sql = 'SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1'
+            if verified:
+                sql += ' AND manual IS TRUE'
+            cursor.execute(sql, (ucid, ))
             if cursor.rowcount == 1:
                 return self.bot.guilds[0].get_member(cursor.fetchone()[0])
             else:
@@ -544,7 +547,7 @@ def startup_dcs(self, server: dict):
     return p
 
 
-async def shutdown_dcs(self, server: dict, timeout: int = 30):
+async def shutdown_dcs(self, server: dict, timeout: int = 120):
     self.bot.sendtoDCS(server, {"command": "shutdown"})
     for i in range(0, timeout):
         await asyncio.sleep(1)
@@ -554,7 +557,7 @@ async def shutdown_dcs(self, server: dict, timeout: int = 30):
     if p:
         try:
             p.wait(timeout)
-        except TimeoutError:
+        except subprocess.TimeoutExpired:
             p.kill()
     if 'PID' in server:
         del server['PID']
@@ -594,13 +597,15 @@ def str_to_class(name):
 # Return a player from the internal list
 def get_player(self, server_name: str, **kwargs):
     if server_name in self.bot.player_data:
-        df = self.bot.player_data[server_name]
+        players = self.bot.player_data[server_name]
+        if 'active' in kwargs:
+            players = players[players['active'] == kwargs['active']]
         if 'id' in kwargs:
-            row = df[df['id'] == kwargs['id']]
+            row = players[players['id'] == kwargs['id']]
         elif 'name' in kwargs:
-            row = df[df['name'] == kwargs['name']]
+            row = players[players['name'] == kwargs['name']]
         elif 'ucid' in kwargs:
-            row = df[df['ucid'] == kwargs['ucid']]
+            row = players[players['ucid'] == kwargs['ucid']]
         else:
             return None
         if not row.empty:
@@ -610,7 +615,7 @@ def get_player(self, server_name: str, **kwargs):
 
 def get_crew_members(self, server_name: str, player_id: int):
     # get the pilot
-    pilot = get_player(self, server_name, id=player_id)
+    pilot = get_player(self, server_name, id=player_id, active=True)
     if pilot:
         # now find players that have the same slot
         df = self.bot.player_data[server_name]
@@ -701,7 +706,7 @@ def sendPopupMessage(self, server: dict, unit_id: str, message: str, timeout: Op
 
 
 def sendUserMessage(self, server: dict, player_id: int, message: str, timeout: Optional[int] = -1):
-    player = get_player(self, server['server_name'], id=player_id)
+    player = get_player(self, server['server_name'], id=player_id, active=True)
     if player:
         if player['side'] == 0:
             [sendChatMessage(self, server['server_name'], player_id, msg) for msg in message.splitlines()]
@@ -905,6 +910,12 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
             message += ' | '.join(value.splitlines())
             message += '\n'
     return message
+
+
+def has_discord_roles(self, server: dict, player_id: int, roles: list[str]) -> bool:
+    player = get_player(self, server['server_name'], id=player_id, active=True)
+    member = get_member_by_ucid(self, player['ucid'], True)
+    return member is not None and check_roles(roles, member)
 
 
 @dataclass

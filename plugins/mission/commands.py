@@ -37,7 +37,7 @@ class Mission(Plugin):
         finally:
             self.pool.putconn(conn)
 
-    @commands.command(description='Shows the active DCS mission', hidden=True)
+    @commands.command(description='Shows the active DCS mission')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def mission(self, ctx):

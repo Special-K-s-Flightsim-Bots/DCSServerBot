@@ -46,7 +46,11 @@
       "restart": {
         "method": "restart_with_shutdown",
         "mission_time": 480,
-        "populated": false
+        "populated": false,
+        "settings": [
+          "Winter Daytime",
+          "Summer Daytime"
+        ]
       }
     }
   ]

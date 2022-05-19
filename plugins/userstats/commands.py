@@ -121,7 +121,7 @@ class UserStatisticsMaster(Plugin):
     @commands.command(description='Deletes the statistics of a server')
     @utils.has_role('Admin')
     @commands.guild_only()
-    async def reset(self, ctx):
+    async def reset_statistics(self, ctx):
         server = await utils.get_server(self, ctx)
         if server:
             server_name = server['server_name']
@@ -149,7 +149,7 @@ class UserStatisticsMaster(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def info(self, ctx, member: Union[discord.Member, str], *params):
-        sql = 'SELECT p.discord_id, p.ucid, p.last_seen, COALESCE(p.name, \'?\') AS NAME, ' \
+        sql = 'SELECT p.discord_id, p.ucid, p.last_seen, p.manual, COALESCE(p.name, \'?\') AS NAME, ' \
               'COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS playtime, ' \
               'CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned ' \
               'FROM players p ' \
@@ -191,6 +191,10 @@ class UserStatisticsMaster(Plugin):
                         embed.add_field(name='Last seen:', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
                     if banned:
                         embed.add_field(name='Status', value='Banned')
+                    elif row['manual']:
+                        embed.add_field(name='Status', value='Approved')
+                    else:
+                        embed.add_field(name='Status', value='Not approved')
                     embed.add_field(name='▬' * 32, value='_ _', inline=False)
                     ucids = []
                     names = []
@@ -220,7 +224,7 @@ class UserStatisticsMaster(Plugin):
                     for server_name in self.globals.keys():
                         if server_name in self.bot.player_data:
                             for i in range(0, len(ucids)):
-                                if utils.get_player(self, server_name, ucid=ucids[i]) is not None:
+                                if utils.get_player(self, server_name, ucid=ucids[i], active=True) is not None:
                                     servers.append(server_name)
                                     dcs_names.append(names[i])
                                     break
@@ -231,6 +235,8 @@ class UserStatisticsMaster(Plugin):
                         embed.add_field(name='▬' * 32, value='_ _', inline=False)
                     footer = '🔀 Unlink all DCS players from this user\n' if isinstance(member, discord.Member) else ''
                     footer += f'🔄 Relink ucid(s) to the correct user\n' if not match else ''
+                    if not row['manual']:
+                        footer += '💯 Approve this link to be correct\n'
                     footer += '⏏️ Kick this user from the active server\n' if len(servers) > 0 else ''
                     footer += '✅ Unban this user\n' if banned else '⛔ Ban this user (DCS only)\n'
                     footer += '⏹️Cancel'
@@ -238,6 +244,8 @@ class UserStatisticsMaster(Plugin):
                     message = await ctx.send(embed=embed)
                     if isinstance(member, discord.Member):
                         await message.add_reaction('🔀')
+                        if not row['manual']:
+                            await message.add_reaction('💯')
                     if not match:
                         await message.add_reaction('🔄')
                     if len(servers) > 0:
@@ -247,6 +255,9 @@ class UserStatisticsMaster(Plugin):
                     react = await utils.wait_for_single_reaction(self, ctx, message)
                     if react.emoji == '🔀':
                         await self.unlink(ctx, member)
+                    elif react.emoji == '💯':
+                        cursor.execute('UPDATE players SET manual = TRUE WHERE discord_id = %s', (member.id, ))
+                        await ctx.send('Discord/DCS-link approved.')
                     elif react.emoji == '🔄':
                         for match in mismatched_members:
                             cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
@@ -369,7 +380,8 @@ class UserStatisticsMaster(Plugin):
                 # check all matched members
                 suspicious = []
                 for member in self.bot.get_all_members():
-                    cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL AND manual = FALSE ORDER BY last_seen DESC', (member.id, ))
+                    cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL AND '
+                                   'manual = FALSE ORDER BY last_seen DESC', (member.id, ))
                     for row in cursor.fetchall():
                         matched_member = utils.match_user(self, dict(row), True)
                         if not matched_member:
@@ -420,7 +432,8 @@ class UserStatisticsMaster(Plugin):
                         # resend the TOKEN, if there is one already
                         await send_token(ucid)
                         return
-                    elif not await utils.yn_question(self, ctx, 'You have a valid user mapping.\nDo you want to continue and re-link your user?'):
+                    elif not await utils.yn_question(self, ctx, 'You have a valid user mapping.\nDo you want to '
+                                                                'continue and re-link your user?'):
                         return
                     else:
                         cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s', (ctx.message.author.id,))

@@ -6,6 +6,7 @@ import platform
 import psycopg2
 import psycopg2.extras
 import re
+import shlex
 import string
 import subprocess
 from contextlib import closing, suppress
@@ -84,26 +85,27 @@ class Agent(Plugin):
             if server['status'] in [Status.UNREGISTERED, Status.LOADING]:
                 await ctx.send('Server is currently starting up. Please wait and try again.')
             elif server['status'] != Status.SHUTDOWN:
-                if await utils.yn_question(self, ctx, 'Do you want to shut down the '
-                                                      'DCS server "{}"?'.format(server['server_name'])) is True:
+                if await utils.yn_question(self, ctx, f"Do you want to shut down the "
+                                                      f"DCS server \"{server['server_name']}\"?") is True:
                     # set maintenance flag to prevent auto-starts of this server
                     server['maintenance'] = True
+                    await ctx.send(f"Shutting down DCS server \"{server['server_name']}\", please wait ...")
                     await utils.shutdown_dcs(self, server)
-                    await ctx.send('DCS server "{}" shut down.'.format(server['server_name']))
+                    await ctx.send(f"DCS server \"{server['server_name']}\" shut down.")
                     await self.bot.audit(f"shut DCS server down", user=ctx.message.author, server=server)
             else:
-                await ctx.send('DCS server {} is already shut down.'.format(server['server_name']))
+                await ctx.send(f"DCS server \"{server['server_name']}\" is already shut down.")
             if 'SRS_CONFIG' in self.config[installation]:
                 if utils.check_srs(self, server):
-                    if await utils.yn_question(self, ctx, 'Do you want to shut down the '
-                                                          'DCS-SRS server "{}"?'.format(server['server_name'])) is True:
+                    if await utils.yn_question(self, ctx, f"Do you want to shut down the "
+                                                          f"DCS-SRS server \"{server['server_name']}\"?") is True:
                         if await utils.shutdown_srs(self, server):
-                            await ctx.send('DCS-SRS server "{}" shut down.'.format(server['server_name']))
-                            await self.bot.audit(f"shut DCS-SRS server down", user=ctx.message.author, server=server)
+                            await ctx.send(f"DCS-SRS server \"{server['server_name']}\" shut down.")
+                            await self.bot.audit("shut DCS-SRS server down", user=ctx.message.author, server=server)
                         else:
-                            await ctx.send('Shutdown of DCS-SRS server "{}" failed.'.format(server['server_name']))
+                            await ctx.send(f"Shutdown of DCS-SRS server \"{server['server_name']}\" failed.")
                 else:
-                    await ctx.send('DCS-SRS server {} is already shut down.'.format(server['server_name']))
+                    await ctx.send(f"DCS-SRS server \"{server['server_name']}\" is already shut down.")
 
     async def do_update(self, warn_times: List[int], ctx=None):
         self.update_pending = True
@@ -294,7 +296,7 @@ class Agent(Plugin):
         server = await utils.get_server(self, ctx)
         if server:
             reason = ' '.join(args) if len(args) > 0 else None
-            player = utils.get_player(self, server['server_name'], name=name)
+            player = utils.get_player(self, server['server_name'], name=name, active=True)
             if player:
                 self.bot.sendtoDCS(server, {
                     "command": "force_player_slot",
@@ -353,15 +355,15 @@ class Agent(Plugin):
             if filename.endswith('.zip'):
                 os.remove(filename)
 
-    @commands.command(description='Runs a shell command')
+    @commands.command(description='Runs a shell command', hidden=True)
     @utils.has_role('Admin')
     @commands.guild_only()
     async def shell(self, ctx, *params):
         server = await utils.get_server(self, ctx)
         if server:
-            await self.bot.audit('executed a shell command: ```' + ' '.join(params) + '```', server=server,
-                                 user=ctx.message.author)
-            subprocess.run(params, shell=True)
+            cmd = ' '.join(params)
+            await self.bot.audit(f"executed a shell command: ```{cmd}```", server=server, user=ctx.message.author)
+            subprocess.run(shlex.split(cmd), shell=True)
 
     @commands.command(description='Starts a stopped DCS server')
     @utils.has_role('DCS Admin')

@@ -61,7 +61,7 @@ class GameMasterEventListener(EventListener):
         if coalition.casefold() not in ['blue', 'red']:
             utils.sendChatMessage(self, data['server_name'], data['from_id'], 'Usage: -join <blue|red>')
             return
-        player = utils.get_player(self, data['server_name'], id=data['from_id'])
+        player = utils.get_player(self, data['server_name'], id=data['from_id'], active=True)
         if self.get_coalition(player) == coalition:
             utils.sendChatMessage(self, data['server_name'], data['from_id'],
                                   f"You are a member of coalition {coalition} already.")
@@ -100,7 +100,7 @@ class GameMasterEventListener(EventListener):
             self.bot.pool.putconn(conn)
 
     async def leave(self, data):
-        player = utils.get_player(self, data['server_name'], id=data['from_id'])
+        player = utils.get_player(self, data['server_name'], id=data['from_id'], active=True)
         coalition = self.get_coalition(player)
         if not coalition:
             utils.sendChatMessage(self, data['server_name'], data['from_id'],

@@ -102,7 +102,7 @@ class MissionEventListener(EventListener):
             self.globals[data['server_name']]['status'] = Status.STOPPED
         self.bot.player_data[data['server_name']] = pd.DataFrame(data['players'], columns=[
             'id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name', 'unit_type',
-            'group_id', 'group_name'])
+            'group_id', 'group_name', 'ipaddr'])
         self.bot.player_data[data['server_name']].set_index('id')
         await self.displayMissionEmbed(data)
         await self.displayPlayerEmbed(data)
@@ -265,8 +265,32 @@ class MissionEventListener(EventListener):
                     })
                     report = Report(self.bot, self.plugin_name, 'atis-ingame.json')
                     env = await report.render(airbase=airbase, data=response)
-                    player = utils.get_player(self, server['server_name'], id=data['from_id'])
                     message = utils.embed_to_simpletext(env.embed)
                     utils.sendUserMessage(self, server, data['from_id'], message, 30)
                     return
             utils.sendChatMessage(self, data['server_name'], data['from_id'], f"No ATIS information found for {name}.")
+        elif data['subcommand'] == 'restart' and utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin']):
+            delay = data['params'][0] if len(data['params']) > 0 else 0
+            if delay > 0:
+                message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
+            else:
+                message = '!!! Server will be restarted NOW !!!'
+            self.bot.sendtoDCS(server, {
+                "command": "sendPopupMessage",
+                "message": message,
+                "to": "all",
+                "time": self.config['BOT']['MESSAGE_TIMEOUT']
+            })
+            self.bot.sendtoDCS(server, {"command": "restartMission"})
+        elif data['subcommand'] == 'list' and utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin']):
+            response = await self.bot.sendtoDCSSync(server, {"command": "listMissions"})
+            missions = response['missionList']
+            message = 'The following missions are available:\n'
+            for i in range(0, len(missions)):
+                mission = missions[i]
+                mission = mission[(mission.rfind('\\') + 1):-4]
+                message += f"{i+1} {mission}\n"
+            message += "\nUse -load <number> to load that mission"
+            utils.sendUserMessage(self, server, data['from_id'], message, 30)
+        elif data['subcommand'] == 'load' and utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin']):
+            self.bot.sendtoDCS(server, {"command": "startMission", "id": data['params'][0]})
