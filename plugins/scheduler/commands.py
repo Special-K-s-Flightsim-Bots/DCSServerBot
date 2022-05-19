@@ -244,6 +244,12 @@ class Scheduler(Plugin):
             miz.preset = value['clouds']
         if 'wind' in value:
             miz.wind = value['wind']
+        if 'groundTurbulence' in value:
+            miz.groundTurbulence = value['groundTurbulence']
+        if 'dust_density' in value:
+            miz.dust_density = value['dust_density']
+        if 'qnh' in value:
+            miz.qnh = value['qnh']
         miz.save()
 
     async def restart_mission(self, server: dict, config: dict):

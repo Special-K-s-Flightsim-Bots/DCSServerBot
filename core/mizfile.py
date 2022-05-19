@@ -4,7 +4,7 @@ import re
 import tempfile
 import zipfile
 from datetime import datetime
-from typing import Union
+from typing import Union, Any
 
 
 class MizFile:
@@ -36,6 +36,26 @@ class MizFile:
                         zout.writestr(item, ''.join(self.mission))
         os.remove(self.filename)
         os.rename(tmpname, self.filename)
+
+    @staticmethod
+    def parse(value: str) -> Any:
+        if value.startswith('"'):
+            return value.strip('"')
+        elif value == 'true':
+            return True
+        elif value == 'false':
+            return False
+        else:
+            return int(value)
+
+    @staticmethod
+    def unparse(value: Any) -> str:
+        if isinstance(value, bool):
+            return value.__repr__().lower()
+        elif isinstance(value, str):
+            return '"' + value + '"'
+        else:
+            return value
 
     @property
     def start_time(self) -> int:
@@ -168,3 +188,83 @@ class MizFile:
                     if 'dir' in value:
                         self.mission[i + 3] = re.sub(' = ([^,]*)', ' = {}'.format(value['dir']), self.mission[i + 3])
                     break
+
+    @property
+    def groundTurbulence(self) -> int:
+        exp = re.compile(self.re_exp['key_value'].format(key='groundTurbulence'))
+        for i in range(len(self.mission), 0):
+            match = exp.search(self.mission[i])
+            if match:
+                return int(match.group('value'))
+
+    @groundTurbulence.setter
+    def groundTurbulence(self, value: int) -> None:
+        exp = re.compile(self.re_exp['key_value'].format(key='groundTurbulence'))
+        for i in range(0, len(self.mission)):
+            match = exp.search(self.mission[i])
+            if match:
+                self.mission[i] = re.sub(' = ([^,]*)', ' = {}'.format(value), self.mission[i])
+                break
+
+    @property
+    def enable_dust(self) -> bool:
+        exp = re.compile(self.re_exp['key_value'].format(key='enable_dust'))
+        for i in range(len(self.mission), 0):
+            match = exp.search(self.mission[i])
+            if match:
+                return self.parse(match.group('value'))
+
+    @enable_dust.setter
+    def enable_dust(self, value: bool) -> None:
+        exp = re.compile(self.re_exp['key_value'].format(key='enable_dust'))
+        for i in range(0, len(self.mission)):
+            match = exp.search(self.mission[i])
+            if match:
+                self.mission[i] = re.sub(' = ([^,]*)', ' = {}'.format(self.unparse(value)), self.mission[i])
+                break
+
+    @property
+    def dust_density(self) -> int:
+        if not self.enable_dust:
+            return -1
+        exp = re.compile(self.re_exp['key_value'].format(key='dust_density'))
+        for i in range(len(self.mission), 0):
+            match = exp.search(self.mission[i])
+            if match:
+                return int(match.group('value'))
+
+    @dust_density.setter
+    def dust_density(self, value: int) -> None:
+        if value <= 0:
+            self.enable_dust = False
+        else:
+            self.enable_dust = True
+        exp = re.compile(self.re_exp['key_value'].format(key='dust_density'))
+        for i in range(0, len(self.mission)):
+            match = exp.search(self.mission[i])
+            if match:
+                self.mission[i] = re.sub(' = ([^,]*)', ' = {}'.format(value), self.mission[i])
+                break
+
+    @property
+    def qnh(self) -> int:
+        if not self.enable_dust:
+            return -1
+        exp = re.compile(self.re_exp['key_value'].format(key='qnh'))
+        for i in range(len(self.mission), 0):
+            match = exp.search(self.mission[i])
+            if match:
+                return int(match.group('value'))
+
+    @qnh.setter
+    def qnh(self, value: int) -> None:
+        if value <= 0:
+            self.enable_dust = False
+        else:
+            self.enable_dust = True
+        exp = re.compile(self.re_exp['key_value'].format(key='qnh'))
+        for i in range(0, len(self.mission)):
+            match = exp.search(self.mission[i])
+            if match:
+                self.mission[i] = re.sub(' = ([^,]*)', ' = {}'.format(value), self.mission[i])
+                break

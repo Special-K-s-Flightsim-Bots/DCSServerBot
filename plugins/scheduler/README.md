@@ -84,14 +84,17 @@ Examples:
 
 ### Section "preset"
 
-| Parameter   | Description                                |
-|-------------|--------------------------------------------|
-|             | First parameter is the name of the preset. |
-| date        | The missions date.                         |
-| start_time  | The missions start time in seconds.        |
-| temperature | Temperature in °C.                         |
-| clouds      | Name of a DCS cloud preset.                |
-| wind        | Wind atGround, at2000 (m) and at8000 (m).  |
+| Parameter        | Description                                     |
+|------------------|-------------------------------------------------|
+|                  | First parameter is the name of the preset.      |
+| date             | The missions date.                              |
+| start_time       | The missions start time in seconds.             |
+| temperature      | Temperature in °C.                              |
+| clouds           | Name of a DCS cloud preset.                     |
+| wind             | Wind atGround, at2000 (m) and at8000 (m) in m/s |
+| qnh              | Pressure at sea level in mmHg                   |
+| groundTurbulence | Ground turbulence in 0.1 * meters               |
+| dust_density     | Dust density in meters, 0 = off                 |
 
 
 ### Section "schedule"
