@@ -10,15 +10,14 @@
 OWNER = <tbd>
 TOKEN = <tbd>
 DATABASE_URL = postgres://user:pass@hostname/dbname
-COMMAND_PREFIX = .
-HOST = 0.0.0.0
-PORT = 10081
+; MASTER = false in case this is an agent installation
 MASTER = true
 AUTOUPDATE = true
-AUTOBAN = true
+; Recommended for better error analysis
 LOGLEVEL = DEBUG
-; Optional, audit channel for special events
+; Optional, a DM to be sent to new members
 GREETING_DM = {name}, welcome to {guild}!\nWe have a coalition system running, which means, that you have to chose, which side you want to belong to. Make yourself comfortable on our Discord and join one of the available coalitions by using the command .join <blue|red>.\nOnce you have chosen a coalition, you can't change it for the next 24h, so chose wisely!
+; Optional, audit channel for special events
 AUDIT_CHANNEL = 123456789012345678
 ; Optional, load optional plugins
 OPT_PLUGINS = slotblocking, punishment, serverstats, greenieboard
@@ -27,42 +26,43 @@ OPT_PLUGINS = slotblocking, punishment, serverstats, greenieboard
 Admin = Admin
 DCS Admin = DCS Admin
 DCS = DCS
-
-[FILTER]
-; EXAMPLE: Remove "MyGroup |" as a tag from the user names before matching.
-;          The matching algorithm can tackle usual tags like [Tag], <Tag> or =Tag= already.
-TAG_FILTER = '^MyGroup |'
-; EXAMPLE: Remove "My Servers" from the start of each server name.
-SERVER_FILTER = ^My Servers
-; EXAMPLE: Remove all in brackets from the mission name.
-MISSION_FILTER = \(.*\)
-; Events that should **not** be gathered. Some functions might not work if the dedicated event is not present!
-; Value is a selection of:
-;   S_EVENT_SHOT, S_EVENT_HIT, S_EVENT_TAKEOFF, S_EVENT_LAND, S_EVENT_CRASH, S_EVENT_EJECTION, S_EVENT_DEAD,
-;   S_EVENT_PILOT_DEAD, S_EVENT_BASE_CAPTURED, S_EVENT_TOOK_CONTROL, S_EVENT_REFUELING_STOP, S_EVENT_BIRTH,
-;   S_EVENT_HUMAN_FAILURE, S_EVENT_DETAILED_FAILURE, S_EVENT_ENGINE_STARTUP, S_EVENT_ENGINE_SHUTDOWN,
-;   S_EVENT_PLAYER_LEAVE_UNIT, S_EVENT_SHOOTING_START, S_EVENT_SHOOTING_END, S_EVENT_KILL, S_EVENT_UNIT_LOST,
-;   S_EVENT_LANDING_AFTER_EJECTION, S_EVENT_PARATROOPER_LENDING, S_EVENT_TRIGGER_ZONE, S_EVENT_LANDING_QUALITY_MARK,
-;   S_EVENT_BDA, S_EVENT_MAX
-EVENT_FILTER = S_EVENT_TOOK_CONTROL, S_EVENT_BDA, S_EVENT_MAX
+GameMaster = GameMaster
 
 [DCS]
-DCS_INSTALLATION = %%ProgramFiles%%\\Eagle Dynamics\\DCS World OpenBeta
+DCS_INSTALLATION = %%ProgramFiles%%\\Eagle Dynamics\\DCS World OpenBeta Server
 ; SRS_INSTALLATION = %%ProgramFiles%%\\DCS-SimpleRadio-Standalone
 
 ; Only needed if your installation is not named DCS (stable installation).
 ; If you use stable, just add DCS_HOME and the other parameters to the
 ; DCS-category above.
-[DCS.OpenBeta]
+[DCS.openbeta_server]
 DCS_HOST = 127.0.0.1
 DCS_PORT = 6666
-DCS_HOME = %%USERPROFILE%%\\Saved Games\\DCS.OpenBeta
-; SRS_CONFIG = %%ProgramFiles%%\\DCS-SimpleRadio-Standalone\\server.cfg
-; SRS_HOST = 127.0.0.1
-; SRS_PORT = 5002
+DCS_HOME = %%USERPROFILE%%\\Saved Games\\DCS.openbeta_server
+; You need to move the server.cfg into your Saved Games folder. I would recommend to rename it to SRS.cfg.
+SRS_CONFIG = %%USERPROFILE%%\\Saved Games\\DCS.openbeta_server\\SRS.cfg
+SRS_HOST = 127.0.0.1
+SRS_PORT = 5002
 STATISTICS = true
 MISSION_STATISTICS = true
 ; These channels have to be replaced with the dedicated discord channel IDs (see README)
 CHAT_CHANNEL = 123456789012345678
 STATUS_CHANNEL = 123456789012345678
 ADMIN_CHANNEL = 123456789012345678
+
+; Only needed if you have more than one server to be controlled by the bot
+; "instance2" is in this example the instance name of the server that you would use with -w
+[instance2]
+DCS_HOST = 127.0.0.1
+DCS_PORT = 6667
+DCS_HOME = %%USERPROFILE%%\\Saved Games\\instance2
+; You need to move the server.cfg into your Saved Games folder. I would recommend to rename it to SRS.cfg.
+SRS_CONFIG = %%USERPROFILE%%\\Saved Games\\instance2\\SRS.cfg
+SRS_HOST = 127.0.0.1
+SRS_PORT = 5004
+STATISTICS = true
+MISSION_STATISTICS = true
+; These channels have to be replaced with the dedicated discord channel IDs (see README)
+CHAT_CHANNEL = 876543210987654321
+STATUS_CHANNEL = 876543210987654321
+ADMIN_CHANNEL = 876543210987654321
