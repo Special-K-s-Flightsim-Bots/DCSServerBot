@@ -22,14 +22,15 @@ from psycopg2 import pool
 
 # Set the bot version (not externally configurable)
 BOT_VERSION = '2.6.1'
-SUB_VERSION = 3
+SUB_VERSION = 4
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
     'INFO': logging.INFO,
     'WARNING': logging.WARNING,
     'ERROR': logging.ERROR,
-    'CRITICAL': logging.CRITICAL
+    'CRITICAL': logging.CRITICAL,
+    'FATAL': logging.FATAL
 }
 
 # git repository

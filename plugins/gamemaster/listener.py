@@ -154,3 +154,21 @@ class GameMasterEventListener(EventListener):
             else:
                 utils.sendChatMessage(self, data['server_name'], data['from_id'],
                                       "There is no password set for your coalition.")
+        elif data['subcommand'] == 'flag' and \
+                utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin', 'GameMaster']):
+            if len(data['params']) == 0:
+                utils.sendChatMessage(self, data['server_name'], data['from_id'], f"Usage: -flag <flag> [value]")
+                return
+            flag = int(data['params'][0])
+            if len(data['params']) > 1:
+                value = int(data['params'][1])
+                self.bot.sendtoDCS(server, {
+                    "command": "setFlag",
+                    "flag": flag,
+                    "value": value
+                })
+                utils.sendChatMessage(self, data['server_name'], data['from_id'], f"Flag {flag} set to {value}.")
+            else:
+                response = await self.bot.sendtoDCSSync(server, {"command": "getFlag", "flag": flag})
+                utils.sendChatMessage(self, data['server_name'], data['from_id'],
+                                      f"Flag {flag} has value {response['value']}.")

@@ -18,6 +18,10 @@ class HelpListener(EventListener):
                 messages.append('"-restart time" restart the running mission')
                 messages.append('"-list"         list available missions')
                 messages.append('"-load number"  load a specific mission')
+                messages.append('"-preset"       load a specific weather preset')
+            game_master = member is not None and utils.check_roles(['GameMaster'], member)
+            if dcs_admin or game_master:
+                messages.append('"-flag"         reads or sets a flag')
             if 'punishment' in self.bot.plugins:
                 messages.append('"-penalty"      displays your penalty points')
                 messages.append('"-forgive"      forgive another user for teamhits/-kills')

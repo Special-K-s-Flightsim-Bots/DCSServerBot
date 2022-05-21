@@ -37,8 +37,9 @@ class MissionStatisticsEventListener(EventListener):
             self.bot.sendtoDCS(server, {"command": "enableMissionStats"})
             try:
                 response = await self.bot.sendtoDCSSync(server, {"command": "getMissionSituation"}, 60)
-            except asyncio.TimeoutError as ex:
-                self.log.exception(ex)
+            except asyncio.TimeoutError:
+                self.log.warning('Mission Statistics could not be initialized due to the server not responding to the '
+                                 'request.')
                 response = {}
             self.bot.mission_stats[data['server_name']] = response
             await self.displayMissionStats(response)
@@ -59,8 +60,9 @@ class MissionStatisticsEventListener(EventListener):
         if self.config.getboolean(server['installation'], 'DISPLAY_MISSION_STATISTICS') and \
                 not self.config.getboolean(server['installation'], 'COALITIONS'):
             stats = self.bot.mission_stats[data['server_name']]
-            report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server, 'stats_embed')
-            await report.render(stats=stats, mission_id=server['mission_id'], sides=['Blue', 'Red'])
+            if 'coalitions' in stats:
+                report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server, 'stats_embed')
+                await report.render(stats=stats, mission_id=server['mission_id'], sides=['Blue', 'Red'])
 
     def update_database(self, data):
         if data['eventName'] in self.filter:
@@ -80,7 +82,8 @@ class MissionStatisticsEventListener(EventListener):
                 init_player = utils.get_player(self, server['server_name'], name=player) if player else None
                 player = get_value(data, 'target', 'name')
                 target_player = utils.get_player(self, server['server_name'], name=player) if player else None
-                if self.config.getboolean(server['installation'], 'PERSIST_AI_STATISTICS') or init_player or target_player:
+                if self.config.getboolean(server['installation'], 'PERSIST_AI_STATISTICS') or init_player or \
+                        target_player:
                     dataset = {
                         'mission_id': server['mission_id'],
                         'event': data['eventName'],
@@ -159,7 +162,8 @@ class MissionStatisticsEventListener(EventListener):
                         else:
                             stats['coalitions'][coalition]['kills']['Static'] += 1
                     update = True
-            elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT'] and 'initiator' in data and len(data['initiator']) > 0:
+            elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT'] and \
+                    'initiator' in data and len(data['initiator']) > 0:
                 initiator = data['initiator']
                 category = self.UNIT_CATEGORY[initiator['category']]
                 coalition = self.COALITION[initiator['coalition']]
