@@ -1,16 +1,24 @@
 {
   "configs": [
     {
-      "message": "{player[name]}, welcome to {server[server_name]}!\n",
-      "on_event": "birth",
-      "display_type": "popup",
-      "display_time": 20
+      "on_birth": {
+        "message": "{player[name]}, welcome to {server[server_name]}!",
+        "display_type": "popup",
+        "display_time": 20
+      },
+      "nudge": {
+        "delay": 600,
+        "message": "This awesome server is presented to you by http://discord.gg/myfancylink.\nCome and join us!",
+        "recipients": "!@everyone",
+        "display_type": "popup",
+        "display_time": 20
+      }
     },
     {
       "installation": "DCS.openbeta_server",
-      "message": "Welcome to our public server! Teamkills will be punished.",
-      "on_event": "join",
-      "display_type": "chat"
+      "on_join": {
+        "message": "Welcome to our public server! Teamkills will be punished.\n"
+      }
     }
   ]
 }
