@@ -80,7 +80,6 @@ class Install:
                     'DCS_HOST=127.0.0.1\n',
                     f'DCS_PORT={dcs_port}\n',
                     r'DCS_HOME = %%USERPROFILE%%\\Saved Games\\' + f'{installation}\n',
-                    'AUTOSTART_DCS=false\n',
                     'ADMIN_CHANNEL=<see documentation>\n',
                     'STATUS_CHANNEL=<see documentation>\n',
                     'CHAT_CHANNEL=<see documentation>\n',
