@@ -27,18 +27,16 @@
       "schedule": {"00-12": "YYYYYYY", "12-24": "NNNNNNN"},
       "restart": {
         "method": "rotate",
-        "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
+        "local_times": ["00:00", "04:00", "08:00"],
         "populated": true,
         "settings": {
           "00:00-07:59": "Winter Nighttime",
-          "08:00-11:59": "Winter Daytime",
-          "12:00-19:59": "Summer Daytime",
-          "20:00-23:59": "Summer Nighttime"
+          "08:00-11:59": "Winter Daytime"
         }
       },
       "onMissionStart": "load:Scripts/net/start.lua",
       "onMissionEnd": "load:Scripts/net/end.lua",
-      "onShutdown": "run:start cmd.exe"
+      "onShutdown": "run:shutdown /r"
     },
     {
       "installation": "instance3",

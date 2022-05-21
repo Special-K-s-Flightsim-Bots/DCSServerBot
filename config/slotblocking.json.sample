@@ -10,6 +10,7 @@
     },
     {
       "installation": "DCS.openbeta_server",
+      "use_reservations": true,
       "restricted": [
         { "group_name": "Rookie", "points": 10, "costs": 10 },
         { "group_name": "Veteran", "points": 20, "costs": 10 },
