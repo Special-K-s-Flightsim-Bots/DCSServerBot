@@ -18,6 +18,7 @@ The slot blocking is configured with a file named config\slotblocking.json. You'
     },
     { -- this is a server specific section for the instance "DCS.openbeta_server" in this case
       "installation": "DCS.openbeta_server",
+      "initial_points": 1,      -- You can give people points from the beginning (aka lifes). Default is 0.
       "use_reservations": true, -- if true, points will be credited on hop-on and payed out on RTB, otherwise points will be credited on death 
       "restricted": [           -- restriction for specific groups of planes, based on a points system
         { "group_name": "^Rookie", "points": 10, "costs": 10 },
@@ -88,3 +89,61 @@ If you want to change user points based on any mission achievements, you are goo
 | #campaign_id | SERIAL                     | ID of this campaign.              |
 | #player_ucid | TEXT NOT NULL              | The UCID of the player            |
 | points       | INTEGER NOT NULL DEFAULT 0 | The earned credits of this player |
+
+## More Sample Use Case
+Here are some sample use cases that show how the plugin can be used.
+### One Life per User 
+You die, you can't hop in again.
+```json
+{
+  "configs": [
+    {
+      "initial_points": 1,
+      "restricted": [
+        { "group_name": ".+", "points":  1, "costs": 1, "message": "You ran out of lifes."}
+      ],
+      "points_per_kill": [
+        { "default": 0 }
+      ]
+    }
+  ]
+}
+```
+
+### One Life per User (get new lifes per pvp kills)
+```json
+{
+  "configs": [
+    {
+      "initial_points": 1,
+      "restricted": [
+        { "group_name": ".+", "points":  1, "costs": 1, "message": "You ran out of lifes."}
+      ],
+      "points_per_kill": [
+        { "default": 0 },
+        { "category": "Planes", "type": "Player", "points": 1 }
+      ]
+    }
+  ]
+}
+```
+
+### One Life per User (hard version)
+Life will be taken if you hop in your plane already. You get it back, if you land properly on another airport, only then
+you can select another slot.
+```json
+{
+  "configs": [
+    {
+      "initial_points": 1,
+      "use_reservations": true, 
+      "restricted": [
+        { "group_name": ".+", "points":  1, "costs": 1, "message": "You ran out of lifes."}
+      ],
+      "points_per_kill": [
+        { "default": 0 }
+      ]
+    }
+  ]
+}
+```

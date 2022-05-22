@@ -1,4 +1,5 @@
 import psycopg2
+import re
 from contextlib import closing
 from core import utils, EventListener, const, Plugin
 from typing import Optional, Union
@@ -24,9 +25,9 @@ class SlotBlockingListener(EventListener):
     def get_costs(self, server: dict, player: dict) -> int:
         if 'restricted' in server[self.plugin_name]:
             for unit in server[self.plugin_name]['restricted']:
-                if ('unit_type' in unit and unit['unit_type'] == player['unit_type']) or \
-                        ('unit_name' in unit and unit['unit_name'] in player['unit_name']) or \
-                        ('group_name' in unit and unit['group_name'] in player['group_name']):
+                if ('unit_type' in unit and re.match(unit['unit_type'], player['unit_type'])) or \
+                        ('unit_name' in unit and re.match(unit['unit_name'], player['unit_name'])) or \
+                        ('group_name' in unit and re.match(unit['group_name'], player['group_name'])):
                     if 'costs' in unit:
                         return unit['costs']
         return 0
@@ -109,13 +110,15 @@ class SlotBlockingListener(EventListener):
         if self.plugin_name in server:
             if data['id'] == 1 or 'ucid' not in data:
                 return
+            config = server[self.plugin_name]
+            initial_points = config['initial_points'] if 'initial_points' in config else 0
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
                     # Initialize the player with a value of 0 if a campaign is active
                     cursor.execute('INSERT INTO sb_points (campaign_id, player_ucid, points) SELECT campaign_id, %s, '
-                                   '0 FROM campaigns WHERE server_name = %s ON CONFLICT DO NOTHING', (data['ucid'],
-                                                                                                      data['server_name']))
+                                   '%s FROM campaigns WHERE server_name = %s ON CONFLICT DO NOTHING',
+                                   (data['ucid'], initial_points, data['server_name']))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
