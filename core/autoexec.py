@@ -21,6 +21,8 @@ class Autoexec:
             for line in [x.strip() for x in cfg.readlines()]:
                 if line.startswith('if ') or line.startswith('--'):
                     continue
+                if '--' in line:
+                    line = line[0:line.find('--')].strip()
                 match = exp.search(line)
                 if match:
                     key = match.group('key')
