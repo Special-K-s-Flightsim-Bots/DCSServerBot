@@ -426,12 +426,12 @@ async def get_server(self, ctx: Union[discord.ext.commands.context.Context, disc
 
 
 def check_roles(roles: list[str], author: discord.Member) -> bool:
-    valid_roles = []
+    valid_roles = set()
     for role in roles:
         if 'ROLES' not in config or role not in config['ROLES']:
-            valid_roles.append(role)
+            valid_roles.add(role)
         else:
-            valid_roles.extend([x.strip() for x in config['ROLES'][role].split(',')])
+            valid_roles |= set([x.strip() for x in config['ROLES'][role].split(',')])
     for role in author.roles:
         if role.name in valid_roles:
             return True
