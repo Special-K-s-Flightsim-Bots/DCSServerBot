@@ -130,31 +130,30 @@ class GameMasterEventListener(EventListener):
 
     async def onChatCommand(self, data):
         server = self.globals[data['server_name']]
-        if not self.config.getboolean(server['installation'], 'COALITIONS'):
-            return
-        if data['subcommand'] == 'join':
-            await self.join(data)
-        elif data['subcommand'] == 'leave':
-            await self.leave(data)
-        elif data['subcommand'] == 'coalition':
-            coalition = self.get_coalition(utils.get_player(self, data['server_name'], id=data['from_id']))
-            utils.sendChatMessage(self, data['server_name'], data['from_id'],
-                                  f"You are a member of the {coalition} coalition." if coalition
-                                  else "You are not a member of any coalition. You can join one with -join <blue|red>.")
-        elif data['subcommand'] in ['password', 'passwd']:
-            coalition = self.get_coalition(utils.get_player(self, data['server_name'], id=data['from_id']))
-            if not coalition:
+        if self.config.getboolean(server['installation'], 'COALITIONS'):
+            if data['subcommand'] == 'join':
+                await self.join(data)
+            elif data['subcommand'] == 'leave':
+                await self.leave(data)
+            elif data['subcommand'] == 'coalition':
+                coalition = self.get_coalition(utils.get_player(self, data['server_name'], id=data['from_id']))
                 utils.sendChatMessage(self, data['server_name'], data['from_id'],
-                                      f"You are not a member of any coalition. You can join one with -join <blue|red>.")
-                return
-            password = self.get_coalition_password(data['server_name'], coalition)
-            if password:
-                utils.sendChatMessage(self, data['server_name'], data['from_id'],
-                                      f"Your coalition password is {password}.")
-            else:
-                utils.sendChatMessage(self, data['server_name'], data['from_id'],
-                                      "There is no password set for your coalition.")
-        elif data['subcommand'] == 'flag' and \
+                                      f"You are a member of the {coalition} coalition." if coalition
+                                      else "You are not a member of any coalition. You can join one with -join <blue|red>.")
+            elif data['subcommand'] in ['password', 'passwd']:
+                coalition = self.get_coalition(utils.get_player(self, data['server_name'], id=data['from_id']))
+                if not coalition:
+                    utils.sendChatMessage(self, data['server_name'], data['from_id'],
+                                          f"You are not a member of any coalition. You can join one with -join <blue|red>.")
+                    return
+                password = self.get_coalition_password(data['server_name'], coalition)
+                if password:
+                    utils.sendChatMessage(self, data['server_name'], data['from_id'],
+                                          f"Your coalition password is {password}.")
+                else:
+                    utils.sendChatMessage(self, data['server_name'], data['from_id'],
+                                          "There is no password set for your coalition.")
+        if data['subcommand'] == 'flag' and \
                 utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin', 'GameMaster']):
             if len(data['params']) == 0:
                 utils.sendChatMessage(self, data['server_name'], data['from_id'], f"Usage: -flag <flag> [value]")
