@@ -239,17 +239,17 @@ class Scheduler(Plugin):
         if 'date' in value:
             miz.date = datetime.strptime(value['date'], '%Y-%m-%d')
         if 'temperature' in value:
-            miz.temperature = value['temperature']
+            miz.temperature = int(value['temperature'])
         if 'clouds' in value:
             miz.preset = value['clouds']
         if 'wind' in value:
             miz.wind = value['wind']
         if 'groundTurbulence' in value:
-            miz.groundTurbulence = value['groundTurbulence']
+            miz.groundTurbulence = int(value['groundTurbulence'])
         if 'dust_density' in value:
-            miz.dust_density = value['dust_density']
+            miz.dust_density = int(value['dust_density'])
         if 'qnh' in value:
-            miz.qnh = value['qnh']
+            miz.qnh = int(value['qnh'])
         miz.save()
 
     async def restart_mission(self, server: dict, config: dict):

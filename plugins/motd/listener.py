@@ -24,11 +24,11 @@ class MessageOfTheDayListener(EventListener):
             return
         server = self.globals[data['server_name']]
         config = server[self.plugin_name] if self.plugin_name in server else None
-        if config and config['on_event'].lower() == 'join':
+        if config and 'on_join' in config:
             player = utils.get_player(self, data['server_name'], id=data['id'])
             self.bot.sendtoDCS(server, {
                 "command": "sendChatMessage",
-                "message": utils.format_string(config['message'], server=server, player=player),
+                "message": utils.format_string(config['on_join']['message'], server=server, player=player),
                 "to": data['id']
             })
 
@@ -37,27 +37,23 @@ class MessageOfTheDayListener(EventListener):
         config = server[self.plugin_name] if self.plugin_name in server else None
         if not config:
             return
-        if config['on_event'].lower() == 'birth' and data['eventName'] == 'S_EVENT_BIRTH':
-            # check if it is a player that was "born"
-            if 'name' not in data['initiator']:
-                return
-            player = utils.get_player(self, data['server_name'], name=data['initiator']['name'])
-            if config['display_type'].lower() == 'chat':
+        if data['eventName'] == 'S_EVENT_BIRTH' and 'name' in data['initiator'] and 'on_birth' in config:
+            player = utils.get_player(self, data['server_name'], name=data['initiator']['name'], active=True)
+            message = utils.format_string(config['on_birth']['message'], server=server, player=player, data=data)
+            if config['on_birth']['display_type'].lower() == 'chat':
                 self.bot.sendtoDCS(server, {
                     "command": "sendChatMessage",
-                    "message": utils.format_string(config['message'], server=server,
-                                                   player=player),
-                    "to": data['id']
+                    "message": message,
+                    "to": player['id']
                 })
-            elif config['display_type'].lower() == 'popup':
-                if 'display_time' in config:
-                    display_time = config['display_time']
+            elif config['on_birth']['display_type'].lower() == 'popup':
+                if 'display_time' in config['on_birth']:
+                    display_time = config['on_birth']['display_time']
                 else:
                     display_time = self.config['BOT']['MESSAGE_TIMEOUT']
                 self.bot.sendtoDCS(server, {
                     "command": "sendPopupMessage",
-                    "message": utils.format_string(config['message'], server=server,
-                                                   player=player, data=data),
+                    "message": message,
                     "time": display_time,
                     "to": player['slot']
                 })
