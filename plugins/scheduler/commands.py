@@ -1,4 +1,6 @@
 import asyncio
+import json
+
 import discord
 import psutil
 import random
@@ -294,6 +296,40 @@ class Scheduler(Plugin):
                 return
             self.change_mizfile(server, config, presets[n])
             await ctx.send('Preset changed.')
+
+    @commands.command(description='Add the weather of the mission as preset', usage='<name>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def add_preset(self, ctx, *args):
+        server = await utils.get_server(self, ctx)
+        if server:
+            if server['status'] not in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
+                await ctx.send(f"Server {server['server_name']} not running.")
+                return
+            name = ' '.join(args)
+            miz = MizFile(server['filename'])
+            if 'presets' not in self.locals['configs'][0]:
+                self.locals['configs'][0]['presets'] = dict()
+            if name in self.locals['configs'][0]['presets'] and \
+                    not await utils.yn_question(self, ctx, f'Do you want to overwrite the existing preset "{name}"?'):
+                await ctx.send('Aborted.')
+                return
+            self.locals['configs'][0]['presets'] |= {
+                name: {
+                    "start_time": miz.start_time,
+                    "date": miz.date.strftime('%Y-%m-%d'),
+                    "temperature": miz.temperature,
+                    "clouds": miz.preset,
+                    "wind": miz.wind,
+                    "groundTurbulence": miz.groundTurbulence,
+                    "enable_dust": miz.enable_dust,
+                    "dust_density": miz.dust_density if miz.enable_dust else 0,
+                    "qnh": miz.qnh
+                }
+            }
+            with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:
+                json.dump(self.locals, file, indent=2)
+            await ctx.send(f'Preset "{name}" added.')
 
     @commands.command(description='Reset a mission')
     @utils.has_role('DCS Admin')
