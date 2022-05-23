@@ -101,7 +101,7 @@ class GameMasterAgent(Plugin):
     async def flag(self, ctx, flag: int, value: int = None):
         server = await utils.get_server(self, ctx)
         if server and server['status'] in [Status.RUNNING, Status.PAUSED]:
-            if value:
+            if value is not None:
                 self.bot.sendtoDCS(server, {
                     "command": "setFlag",
                     "channel": ctx.channel.id,
