@@ -42,6 +42,11 @@ displayed (can be done by the Admin-Role only!). If you provide a valid message_
 
 *) DCS 2.7.12 or higher
 
+## Config File Uploads
+Every config file that either the bot uses for itself (dcsserverbot.ini) or the different plugins use (_<plugin>_.json)
+can be uploaded in any channel by a user belonging to the Admin group. The files will be replaced, the dedicated plugin
+will be reloaded or the bot will be restarted (security question applies), if you update the dcsserverbot.ini.
+
 ## Tables
 ### Bans
 | Column    | Type                             | Description                                          |
