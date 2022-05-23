@@ -4,7 +4,7 @@ The mission plugin adds commands for amending the mission list, scheduled restar
 ## Uploading of Missions
 You can upload .miz files in the configured admin channel of your server(s). You need the DCS Admin role for that.
 Existing missions will be replaced (with security question) and if the server is running with that mission, it will be
-restarted (another security question will apply).
+restarted (another security question will apply). Newly added missions will be auto-added to the mission list.
 
 ## Discord Commands
 
