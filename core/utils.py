@@ -29,9 +29,12 @@ REGEXP = {
 }
 PATCHNOTES_URL = 'https://www.digitalcombatsimulator.com/en/news/changelog/rss/'
 
-config = ConfigParser()
-config.read('config/default.ini')
-config.read('config/dcsserverbot.ini')
+
+def reload() -> ConfigParser:
+    cfg = ConfigParser()
+    cfg.read('config/default.ini')
+    cfg.read('config/dcsserverbot.ini')
+    return cfg
 
 
 def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, str]]:
@@ -928,3 +931,6 @@ class ContextWrapper:
                                                delete_after=delete_after, nonce=nonce,
                                                allowed_mentions=allowed_mentions, reference=reference,
                                                mention_author=mention_author)
+
+
+config = reload()

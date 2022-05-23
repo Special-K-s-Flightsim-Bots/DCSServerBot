@@ -158,7 +158,7 @@ function dcsbot.eventHandler:onEvent(event)
 			msg.target = {}
 			category = event.target:getCategory()
 		    -- work around DCS bug with static targets
-		    if category == Object.Category.STATIC and db_all_units[event.target:getID()] then
+		    if category == Object.Category.STATIC and event.target:isExist() and db_all_units[event.target:getID()] then
                 category = Object.Category.UNIT
 		    end
             -- end workaround

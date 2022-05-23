@@ -8,7 +8,7 @@ from contextlib import closing
 from discord.ext import commands
 from os import path
 from shutil import copytree
-from typing import Type
+from typing import Type, Optional
 from .bot import DCSServerBot
 from .listener import TEventListener
 
@@ -98,6 +98,27 @@ class Plugin(commands.Cog):
                 return json.load(file)
         else:
             return {}
+
+    def get_config(self, server: dict) -> Optional[dict]:
+        if self.plugin_name not in server:
+            if 'configs' in self.locals:
+                specific = default = None
+                for element in self.locals['configs']:
+                    if 'installation' in element or 'server_name' in element:
+                        if ('installation' in element and server['installation'] == element['installation']) or \
+                                ('server_name' in element and server['server_name'] == element['server_name']):
+                            specific = element.copy()
+                    else:
+                        default = element.copy()
+                if default and not specific:
+                    server[self.plugin_name] = default
+                elif specific and not default:
+                    server[self.plugin_name] = specific
+                elif default and specific:
+                    server[self.plugin_name] = default | specific
+            else:
+                return None
+        return server[self.plugin_name] if self.plugin_name in server else None
 
     def rename(self, old_name:str, new_name: str):
         # this function has to be implemented in your own plugins, if a server rename takes place
