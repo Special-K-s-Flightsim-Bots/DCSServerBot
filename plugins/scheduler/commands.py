@@ -1,7 +1,6 @@
 import asyncio
-import json
-
 import discord
+import json
 import psutil
 import random
 import string
@@ -36,7 +35,7 @@ class Scheduler(Plugin):
                                      'avoid that.')
 
     def check_server_state(self, server: dict, config: dict) -> Status:
-        if 'schedule' in config:
+        if 'schedule' in config and 'maintenance' not in server:
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) and utils.is_populated(self, server) else 0
             now = datetime.now()
@@ -65,8 +64,12 @@ class Scheduler(Plugin):
         # change the weather in the mission if provided
         if 'restart' in config and 'settings' in config['restart']:
             if 'filename' not in server:
-                server['filename'] = utils.getServerSetting(server, utils.getServerSetting(server, 'listStartIndex'))
-            self.change_mizfile(server, config)
+                for i in range(utils.getServerSetting(server, 'listStartIndex'), 0, -1):
+                    filename = utils.getServerSetting(server, i)
+                    if filename:
+                        server['filename'] = filename
+                        self.change_mizfile(server, config)
+                        break
         self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by "
                       f"{string.capwords(self.plugin_name)} ...")
         utils.startup_dcs(self, server)
@@ -234,8 +237,7 @@ class Scheduler(Plugin):
         # check all servers
         for server_name, server in self.globals.items():
             # only care about servers that are not in the startup phase
-            if server['status'] in [Status.UNREGISTERED, Status.LOADING] or \
-                    'maintenance' in server or 'restart_pending' in server:
+            if server['status'] in [Status.UNREGISTERED, Status.LOADING] or 'restart_pending' in server:
                 continue
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
