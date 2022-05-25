@@ -1,8 +1,7 @@
-import json
-
 import aiohttp
 import asyncio
 import discord
+import json
 import os
 import platform
 import psycopg2
@@ -454,6 +453,49 @@ class Agent(Plugin):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
+    async def process_message(self, message):
+        # ignore bot messages or messages that does not contain json attachments
+        if message.author.bot or not message.attachments or \
+                not (
+                        message.attachments[0].filename.endswith('.json') or
+                        message.attachments[0].filename == 'dcsserverbot.ini'
+                ):
+            return
+        # only Admin role is allowed to upload json files in channels
+        if not await utils.get_server(self, message) or not utils.check_roles(['Admin'], message.author):
+            return
+        async with aiohttp.ClientSession() as session:
+            async with session.get(message.attachments[0].url) as response:
+                if response.status == 200:
+                    if message.attachments[0].filename.endswith('.json'):
+                        data = await response.json(encoding="utf-8")
+                        if 'configs' in data:
+                            plugin = message.attachments[0].filename[:-5]
+                            if plugin not in self.bot.plugins:
+                                await message.channel.send(f"Plugin {string.capwords(plugin)} is not activated.")
+                                return
+                            with open(f"config/{plugin}.json", 'w', encoding="utf-8") as outfile:
+                                json.dump(data, outfile, indent=2)
+                            self.bot.reload(plugin)
+                            await message.channel.send(f"Plugin {string.capwords(plugin)} re-configured.")
+                    else:
+                        with open('config/dcsserverbot.ini', 'w', encoding='utf-8') as outfile:
+                            outfile.writelines('\n'.join((await response.text(encoding='utf-8')).splitlines()))
+                        self.bot.config = utils.config = utils.reload()
+                        await message.channel.send('dcsserverbot.ini updated.')
+                        ctx = utils.ContextWrapper(message=message)
+                        if await utils.yn_question(self, ctx, 'Do you want to restart the bot?'):
+                            exit(-1)
+                else:
+                    await message.channel.send(f'Error {response.status} while reading JSON file!')
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        try:
+            await self.process_message(message)
+        finally:
+            await message.delete()
+
 
 class Master(Agent):
 
@@ -642,12 +684,9 @@ class Master(Agent):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        await super().process_message(message)
         # ignore bot messages or messages that does not contain json attachments
-        if message.author.bot or not message.attachments or \
-                not (
-                        message.attachments[0].filename.endswith('.json') or
-                        message.attachments[0].filename == 'dcsserverbot.ini'
-                ):
+        if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.json'):
             return
         # only Admin role is allowed to upload json files in channels
         if not utils.check_roles(['Admin'], message.author):
@@ -656,35 +695,17 @@ class Master(Agent):
             async with aiohttp.ClientSession() as session:
                 async with session.get(message.attachments[0].url) as response:
                     if response.status == 200:
-                        if message.attachments[0].filename.endswith('.json'):
-                            data = await response.json(encoding="utf-8")
-                            if 'configs' in data:
-                                plugin = message.attachments[0].filename[:-5]
-                                if plugin not in self.bot.plugins:
-                                    await message.channel.send(f"Plugin {string.capwords(plugin)} is not activated.")
-                                    return
-                                with open(f"config/{plugin}.json", 'w', encoding="utf-8") as outfile:
-                                    json.dump(data, outfile, indent=2)
-                                self.bot.reload(plugin)
-                                await message.channel.send(f"Plugin {string.capwords(plugin)} re-configured.")
+                        data = await response.json(encoding="utf-8")
+                        if 'configs' not in data:
+                            embed = utils.format_embed(data)
+                            msg = None
+                            if 'message_id' in data:
+                                with suppress(discord.errors.NotFound):
+                                    msg = await message.channel.fetch_message(int(data['message_id']))
+                            if msg:
+                                await msg.edit(embed=embed)
                             else:
-                                embed = utils.format_embed(data)
-                                msg = None
-                                if 'message_id' in data:
-                                    with suppress(discord.errors.NotFound):
-                                        msg = await message.channel.fetch_message(int(data['message_id']))
-                                if msg:
-                                    await msg.edit(embed=embed)
-                                else:
-                                    await message.channel.send(embed=embed)
-                        else:
-                            with open('config/dcsserverbot.ini', 'w', encoding='utf-8') as outfile:
-                                outfile.writelines('\n'.join((await response.text(encoding='utf-8')).splitlines()))
-                            self.bot.config = utils.config = utils.reload()
-                            await message.channel.send('dcsserverbot.ini updated.')
-                            ctx = utils.ContextWrapper(message=message)
-                            if await utils.yn_question(self, ctx, 'Do you want to restart the bot?'):
-                                exit(-1)
+                                await message.channel.send(embed=embed)
                     else:
                         await message.channel.send(f'Error {response.status} while reading JSON file!')
         finally:
