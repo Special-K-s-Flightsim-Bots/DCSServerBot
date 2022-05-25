@@ -11,7 +11,6 @@ import subprocess
 import sys
 from core import utils, DCSServerBot
 from core.const import Status
-from configparser import ConfigParser
 from contextlib import closing, suppress
 from discord.ext import commands
 from install import Install
