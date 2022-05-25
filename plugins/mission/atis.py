@@ -48,6 +48,6 @@ class Main(report.EmbedElement):
         self.add_field(name='QFE', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
             int(data['pressureHPA']), data['pressureIN'], int(data['pressureMM'])))
         self.add_field(name='QNH', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
-            int(data['pressureHPA'] - const.QFE_TO_QNH_MB * alt + 0.5),
-            data['pressureIN'] - const.QFE_TO_QNH_INHG * alt,
-            int(data['pressureMM'] - const.QFE_TO_QNH_MB * alt + 0.5)))
+            int(data['pressureHPA'] + alt * const.QFE_TO_QNH_MB + 0.5),
+            data['pressureIN'] + alt * const.QFE_TO_QNH_INHG,
+            int(data['pressureMM'] + alt * const.QFE_TO_QNH_MB + 0.5)))

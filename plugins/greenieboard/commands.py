@@ -12,7 +12,7 @@ from .listener import GreenieBoardEventListener
 
 class GreenieBoard(Plugin):
 
-    def get_config(self):
+    def get_config(self, server: Optional[dict] = None):
         return self.locals['configs'][0]
 
     @staticmethod

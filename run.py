@@ -22,7 +22,7 @@ from psycopg2 import pool
 
 # Set the bot version (not externally configurable)
 BOT_VERSION = '2.6.1'
-SUB_VERSION = 4
+SUB_VERSION = 5
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -80,9 +80,7 @@ class Main:
 
     @staticmethod
     def read_config():
-        config = ConfigParser()
-        config.read('config/default.ini')
-        config.read('config/dcsserverbot.ini')
+        config = utils.reload()
         config['BOT']['VERSION'] = BOT_VERSION
         config['BOT']['SUB_VERSION'] = str(SUB_VERSION)
         return config

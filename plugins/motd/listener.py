@@ -3,27 +3,11 @@ from core import EventListener, utils
 
 class MessageOfTheDayListener(EventListener):
 
-    async def registerDCSServer(self, data: dict):
-        server = self.globals[data['server_name']]
-        if 'configs' in self.locals:
-            specific = default = None
-            for element in self.locals['configs']:
-                if 'installation' in element or 'server_name' in element:
-                    if ('installation' in element and server['installation'] == element['installation']) or \
-                            ('server_name' in element and server['server_name'] == element['server_name']):
-                        specific = element
-                else:
-                    default = element
-            if specific:
-                server[self.plugin_name] = specific
-            elif default:
-                server[self.plugin_name] = default
-
     async def onPlayerStart(self, data: dict) -> None:
         if data['id'] == 1:
             return
         server = self.globals[data['server_name']]
-        config = server[self.plugin_name] if self.plugin_name in server else None
+        config = self.plugin.get_config(server)
         if config and 'on_join' in config:
             player = utils.get_player(self, data['server_name'], id=data['id'])
             self.bot.sendtoDCS(server, {
@@ -34,7 +18,7 @@ class MessageOfTheDayListener(EventListener):
 
     async def onMissionEvent(self, data):
         server = self.globals[data['server_name']]
-        config = server[self.plugin_name] if self.plugin_name in server else None
+        config = self.plugin.get_config(server)
         if not config:
             return
         if data['eventName'] == 'S_EVENT_BIRTH' and 'name' in data['initiator'] and 'on_birth' in config:

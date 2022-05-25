@@ -70,73 +70,45 @@ class SlotBlockingListener(EventListener):
 
     async def registerDCSServer(self, data: dict) -> None:
         server = self.globals[data['server_name']]
-        if 'configs' in self.locals:
-            specific = default = None
-            for element in self.locals['configs']:
-                if 'installation' in element or 'server_name' in element:
-                    if ('installation' in element and server['installation'] == element['installation']) or \
-                            ('server_name' in element and server['server_name'] == element['server_name']):
-                        specific = element
-                else:
-                    default = element
-            if default and not specific:
-                server[self.plugin_name] = default
-            elif specific and not default:
-                server[self.plugin_name] = specific
-            elif default and specific:
-                merged = {}
-                if 'use_reservations' in specific:
-                    merged['use_reservations'] = specific['use_reservations']
-                elif 'use_reservations' in default:
-                    merged['use_reservations'] = default['use_reservations']
-                if 'restricted' in default and 'restricted' not in specific:
-                    merged['restricted'] = default['restricted']
-                elif 'restricted' not in default and 'restricted' in specific:
-                    merged['restricted'] = specific['restricted']
-                elif 'restricted' in default and 'restricted' in specific:
-                    merged['restricted'] = default['restricted'] + specific['restricted']
-                if 'points_per_kill' in default and 'points_per_kill' not in specific:
-                    merged['points_per_kill'] = default['points_per_kill']
-                elif 'points_per_kill' not in default and 'points_per_kill' in specific:
-                    merged['points_per_kill'] = specific['points_per_kill']
-                elif 'points_per_kill' in default and 'points_per_kill' in specific:
-                    merged['points_per_kill'] = default['points_per_kill'] + specific['points_per_kill']
-                server[self.plugin_name] = merged
-            if default or specific:
-                self.bot.sendtoDCS(server, {'command': 'loadParams', 'plugin': self.plugin_name, 'params': server[self.plugin_name]})
+        update = True
+        if self.plugin_name not in server:
+            update = False
+        config = self.plugin.get_config(server)
+        # only send to DCS, if not already sent by get_config()
+        if update:
+            self.bot.sendtoDCS(server, {'command': 'loadParams', 'plugin': self.plugin_name, 'params': config})
 
     async def onPlayerStart(self, data: dict) -> None:
         server = self.globals[data['server_name']]
-        if self.plugin_name in server:
-            if data['id'] == 1 or 'ucid' not in data:
-                return
-            config = server[self.plugin_name]
-            initial_points = config['initial_points'] if 'initial_points' in config else 0
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    # Initialize the player with a value of 0 if a campaign is active
-                    cursor.execute('INSERT INTO sb_points (campaign_id, player_ucid, points) SELECT campaign_id, %s, '
-                                   '%s FROM campaigns WHERE server_name = %s ON CONFLICT DO NOTHING',
-                                   (data['ucid'], initial_points, data['server_name']))
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                conn.rollback()
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
-            player = self.get_player_points(data['server_name'], data['id'])
-            points = player['points'] if player else 0
-            user = utils.get_member_by_ucid(self, player['ucid'])
-            roles = [x.name for x in user.roles] if user else []
-            self.bot.sendtoDCS(self.globals[data['server_name']],
-                               {
-                                   'command': 'uploadUserInfo',
-                                   'id': data['id'],
-                                   'ucid': data['ucid'],
-                                   'points': points,
-                                   'roles': roles
-                               })
+        config = self.plugin.get_config(server)
+        if not config or data['id'] == 1 or 'ucid' not in data:
+            return
+        initial_points = config['initial_points'] if 'initial_points' in config else 0
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                # Initialize the player with a value of 0 if a campaign is active
+                cursor.execute('INSERT INTO sb_points (campaign_id, player_ucid, points) SELECT campaign_id, %s, '
+                               '%s FROM campaigns WHERE server_name = %s ON CONFLICT DO NOTHING',
+                               (data['ucid'], initial_points, data['server_name']))
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            conn.rollback()
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+        player = self.get_player_points(data['server_name'], data['id'])
+        points = player['points'] if player else 0
+        user = utils.get_member_by_ucid(self, player['ucid'])
+        roles = [x.name for x in user.roles] if user else []
+        self.bot.sendtoDCS(self.globals[data['server_name']],
+                           {
+                               'command': 'uploadUserInfo',
+                               'id': data['id'],
+                               'ucid': data['ucid'],
+                               'points': points,
+                               'roles': roles
+                           })
 
     def update_user_points(self, server_name: str, player: dict) -> None:
         conn = self.pool.getconn()
@@ -168,97 +140,99 @@ class SlotBlockingListener(EventListener):
 
     async def onPlayerChangeSlot(self, data: dict) -> None:
         server = self.globals[data['server_name']]
-        if self.plugin_name in server:
-            config = server[self.plugin_name]
-            if 'side' in data and 'use_reservations' in config and config['use_reservations']:
-                player = self.get_player_points(data['server_name'],
-                                                utils.get_player(self, data['server_name'], ucid=data['ucid']))
-                if data['side'] != const.SIDE_SPECTATOR:
-                    # only pilots have to "pay" for their plane
-                    if int(data['sub_slot']) == 0:
-                        # slot change - credit will be taken
-                        costs = self.get_costs(server, data)
-                        if costs > 0:
-                            self.credits[player['ucid']] = costs
-                            player['points'] -= costs
-                            self.update_user_points(data['server_name'], player)
-                elif player['ucid'] in self.credits:
-                    # back to spectator removes any credit
-                    del self.credits[player['ucid']]
+        config = self.plugin.get_config(server)
+        if not config:
+            return
+        if 'side' in data and 'use_reservations' in config and config['use_reservations']:
+            player = self.get_player_points(data['server_name'],
+                                            utils.get_player(self, data['server_name'], ucid=data['ucid']))
+            if data['side'] != const.SIDE_SPECTATOR:
+                # only pilots have to "pay" for their plane
+                if int(data['sub_slot']) == 0:
+                    # slot change - credit will be taken
+                    costs = self.get_costs(server, data)
+                    if costs > 0:
+                        self.credits[player['ucid']] = costs
+                        player['points'] -= costs
+                        self.update_user_points(data['server_name'], player)
+            elif player['ucid'] in self.credits:
+                # back to spectator removes any credit
+                del self.credits[player['ucid']]
 
     async def onGameEvent(self, data: dict) -> None:
         server = self.globals[data['server_name']]
-        if self.plugin_name in server:
-            config = server[self.plugin_name]
-            if data['eventName'] == 'kill':
-                # players gain points only, if they don't kill themselves and no teamkills
-                if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
-                    # Multicrew - pilot and all crew members gain points
-                    for player in utils.get_crew_members(self, data['server_name'], data['arg1']):
-                        player = self.get_player_points(data['server_name'], player)
-                        player['points'] += self.get_points_per_kill(server, data)
-                        self.update_user_points(data['server_name'], player)
-                # players only lose points if they weren't killed as a teamkill
-                if data['arg4'] != -1 and data['arg3'] != data['arg6']:
-                    # if we don't use reservations, credit will be taken on kill
-                    player = self.get_player_points(data['server_name'], data['arg4'])
-                    if 'use_reservations' not in config or not config['use_reservations']:
-                        player['points'] -= self.get_costs(server, player)
-                        if player['points'] < 0:
-                            player['points'] = 0
-                        self.update_user_points(data['server_name'], player)
-                    elif player['ucid'] in self.credits:
-                        # back to spectator removes any credit
-                        del self.credits[player['ucid']]
-                    # if the remaining points are not enough to stay in this plane, move them back to spectators
-                    if player['points'] < self.get_points(server, player):
-                        self.move_to_spectators(server, player)
-            elif data['eventName'] == 'crash':
-                # if we don't use reservations, credit will be taken on crash
-                player = self.get_player_points(data['server_name'], data['arg1'])
+        config = self.plugin.get_config(server)
+        if not config:
+            return
+        if data['eventName'] == 'kill':
+            # players gain points only, if they don't kill themselves and no teamkills
+            if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
+                # Multicrew - pilot and all crew members gain points
+                for player in utils.get_crew_members(self, data['server_name'], data['arg1']):
+                    player = self.get_player_points(data['server_name'], player)
+                    player['points'] += self.get_points_per_kill(server, data)
+                    self.update_user_points(data['server_name'], player)
+            # players only lose points if they weren't killed as a teamkill
+            if data['arg4'] != -1 and data['arg3'] != data['arg6']:
+                # if we don't use reservations, credit will be taken on kill
+                player = self.get_player_points(data['server_name'], data['arg4'])
                 if 'use_reservations' not in config or not config['use_reservations']:
                     player['points'] -= self.get_costs(server, player)
                     if player['points'] < 0:
                         player['points'] = 0
                     self.update_user_points(data['server_name'], player)
-                    # if the remaining points are not enough to stay in this plane, move them back to spectators
                 elif player['ucid'] in self.credits:
                     # back to spectator removes any credit
                     del self.credits[player['ucid']]
+                # if the remaining points are not enough to stay in this plane, move them back to spectators
                 if player['points'] < self.get_points(server, player):
                     self.move_to_spectators(server, player)
-            elif data['eventName'] == 'landing':
-                # pay back on landing
-                player = self.get_player_points(data['server_name'], data['arg1'])
-                if player['ucid'] in self.credits:
-                    player['points'] += self.credits[player['ucid']]
-                    self.update_user_points(data['server_name'], player)
-                    del self.credits[player['ucid']]
-            elif data['eventName'] == 'takeoff':
-                # credit on takeoff but don't move back to spectators
-                if 'use_reservations' in config and config['use_reservations']:
-                    player = self.get_player_points(data['server_name'],
-                                                    utils.get_player(self, data['server_name'], id=data['arg1']))
-                    if player['ucid'] not in self.credits and int(player['sub_slot']) == 0:
-                        costs = self.get_costs(server, player)
-                        if costs > 0:
-                            self.credits[player['ucid']] = costs
-                            player['points'] -= costs
-                            self.update_user_points(data['server_name'], player)
-            elif data['eventName'] == 'disconnect':
+        elif data['eventName'] == 'crash':
+            # if we don't use reservations, credit will be taken on crash
+            player = self.get_player_points(data['server_name'], data['arg1'])
+            if 'use_reservations' not in config or not config['use_reservations']:
+                player['points'] -= self.get_costs(server, player)
+                if player['points'] < 0:
+                    player['points'] = 0
+                self.update_user_points(data['server_name'], player)
+                # if the remaining points are not enough to stay in this plane, move them back to spectators
+            elif player['ucid'] in self.credits:
+                # back to spectator removes any credit
+                del self.credits[player['ucid']]
+            if player['points'] < self.get_points(server, player):
+                self.move_to_spectators(server, player)
+        elif data['eventName'] == 'landing':
+            # pay back on landing
+            player = self.get_player_points(data['server_name'], data['arg1'])
+            if player['ucid'] in self.credits:
+                player['points'] += self.credits[player['ucid']]
+                self.update_user_points(data['server_name'], player)
+                del self.credits[player['ucid']]
+        elif data['eventName'] == 'takeoff':
+            # credit on takeoff but don't move back to spectators
+            if 'use_reservations' in config and config['use_reservations']:
                 player = self.get_player_points(data['server_name'],
                                                 utils.get_player(self, data['server_name'], id=data['arg1']))
-                if player['ucid'] in self.credits:
-                    del self.credits[player['ucid']]
-            elif data['eventName'] == 'mission_end':
-                # give all players their credit back, if the mission ends and they are still airborne
-                for ucid, points in self.credits.items():
-                    player = utils.get_player(self, data['server_name'], ucid=ucid)
-                    if player:
-                        player = self.get_player_points(data['server_name'], player)
-                        player['points'] += points
+                if player['ucid'] not in self.credits and int(player['sub_slot']) == 0:
+                    costs = self.get_costs(server, player)
+                    if costs > 0:
+                        self.credits[player['ucid']] = costs
+                        player['points'] -= costs
                         self.update_user_points(data['server_name'], player)
-                self.credits = {}
+        elif data['eventName'] == 'disconnect':
+            player = self.get_player_points(data['server_name'],
+                                            utils.get_player(self, data['server_name'], id=data['arg1']))
+            if player['ucid'] in self.credits:
+                del self.credits[player['ucid']]
+        elif data['eventName'] == 'mission_end':
+            # give all players their credit back, if the mission ends and they are still airborne
+            for ucid, points in self.credits.items():
+                player = utils.get_player(self, data['server_name'], ucid=ucid)
+                if player:
+                    player = self.get_player_points(data['server_name'], player)
+                    player['points'] += points
+                    self.update_user_points(data['server_name'], player)
+            self.credits = {}
 
     def campaign(self, command: str, server: dict) -> None:
         conn = self.pool.getconn()

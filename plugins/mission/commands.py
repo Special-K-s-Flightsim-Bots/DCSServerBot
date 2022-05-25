@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import discord
+import os
 import psutil
 import psycopg2
 import re
@@ -303,7 +304,11 @@ class Mission(Plugin):
                 mission = missions[n]
                 mission = mission[(mission.rfind('\\') + 1):-4]
                 self.bot.sendtoDCS(server, {"command": "deleteMission", "id": n + 1, "channel": ctx.channel.id})
-                await ctx.send(f'Mission "{mission}" deleted.')
+                if await utils.yn_question(self, ctx, "Do you want to delete the file from disk?"):
+                    os.remove(missions[n])
+                    await ctx.send(f'Mission "{mission}" deleted.')
+                else:
+                    await ctx.send(f'Mission "{mission}" removed from list.')
         else:
             return await ctx.send('Server ' + server['server_name'] + ' is not running.')
 
@@ -431,7 +436,9 @@ class Mission(Plugin):
         filename = path.expandvars(self.config[server['installation']]['DCS_HOME']) + '\\Missions\\' + att.filename
         try:
             stopped = False
+            exists = False
             if path.exists(filename):
+                exists = True
                 ctx = utils.ContextWrapper(message)
                 if await utils.yn_question(self, ctx, 'File exists. Do you want to overwrite it?') is False:
                     await message.channel.send('Upload aborted.')
@@ -456,10 +463,11 @@ class Mission(Plugin):
                             outfile.write(await response.read())
                     else:
                         await message.channel.send(f'Error {response.status} while reading MIZ file!')
+            if not exists:
+                self.bot.sendtoDCS(server, {"command": "addMission", "path": filename[(filename.rfind('\\') + 1):]})
             if stopped:
                 self.bot.sendtoDCS(server, {"command": "start_server"})
-            await message.channel.send(f"Mission uploaded.\nIf not already in the list, use the "
-                                       f"{self.config['BOT']['COMMAND_PREFIX']}add command to add it.")
+            await message.channel.send("Mission uploaded and added." if not exists else "Mission replaced.")
         finally:
             await message.delete()
 

@@ -60,7 +60,7 @@ class MizFile:
     @property
     def start_time(self) -> int:
         exp = re.compile(self.re_exp['start_time'])
-        for i in range(len(self.mission), 0):
+        for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
                 return int(match.group('start_time'))
@@ -106,7 +106,7 @@ class MizFile:
     @property
     def temperature(self) -> int:
         exp = re.compile(self.re_exp['key_value'].format(key='temperature'))
-        for i in range(len(self.mission), 0):
+        for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
                 return int(match.group('value'))
@@ -123,7 +123,7 @@ class MizFile:
     @property
     def atmosphere_type(self) -> int:
         exp = re.compile(self.re_exp['key_value'].format(key='atmosphere_type'))
-        for i in range(len(self.mission), 0):
+        for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
                 return int(match.group('value'))
@@ -140,7 +140,7 @@ class MizFile:
     @property
     def preset(self) -> str:
         exp = re.compile(self.re_exp['key_value'].format(key='preset'))
-        for i in range(len(self.mission), 0):
+        for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
                 return match.group('value').replace('"', '')
@@ -168,11 +168,9 @@ class MizFile:
         exp_dir = re.compile(self.re_exp['key_value'].format(key='dir'))
         wind = {}
         for key in ['atGround', 'at2000', 'at8000']:
-            exp = re.compile(self.re_exp['key_value'].format(key=key))
             for i in range(0, len(self.mission)):
-                match = exp.search(self.mission[i])
-                if match:
-                    wind['key'] = {
+                if f'["{key}"] =' in self.mission[i]:
+                    wind[key] = {
                         "speed": exp_speed.search(self.mission[i + 2]).group('value'),
                         "dir": exp_dir.search(self.mission[i + 3]).group('value')
                     }
@@ -192,7 +190,7 @@ class MizFile:
     @property
     def groundTurbulence(self) -> int:
         exp = re.compile(self.re_exp['key_value'].format(key='groundTurbulence'))
-        for i in range(len(self.mission), 0):
+        for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
                 return int(match.group('value'))
@@ -209,7 +207,7 @@ class MizFile:
     @property
     def enable_dust(self) -> bool:
         exp = re.compile(self.re_exp['key_value'].format(key='enable_dust'))
-        for i in range(len(self.mission), 0):
+        for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
                 return self.parse(match.group('value'))
@@ -228,7 +226,7 @@ class MizFile:
         if not self.enable_dust:
             return -1
         exp = re.compile(self.re_exp['key_value'].format(key='dust_density'))
-        for i in range(len(self.mission), 0):
+        for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
                 return int(match.group('value'))
@@ -248,10 +246,8 @@ class MizFile:
 
     @property
     def qnh(self) -> int:
-        if not self.enable_dust:
-            return -1
         exp = re.compile(self.re_exp['key_value'].format(key='qnh'))
-        for i in range(len(self.mission), 0):
+        for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
                 return int(match.group('value'))

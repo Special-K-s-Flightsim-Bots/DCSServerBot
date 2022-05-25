@@ -7,7 +7,6 @@ import string
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile, Autoexec
 from datetime import datetime, timedelta
 from discord.ext import tasks, commands
-from os import path
 from typing import Type, Optional, List
 from .listener import SchedulerListener
 
@@ -35,86 +34,8 @@ class Scheduler(Plugin):
                                      'not work properly on DCS crashes, please change it manually to "silent" to '
                                      'avoid that.')
 
-    # TODO: remove in a later version
-    def migrate(self, filename: str) -> dict:
-        # check all server configurations for possible restart settings
-        locals = {
-            'configs': []
-        }
-        for _, installation in utils.findDCSInstallations():
-            if installation in self.config:
-                config = self.config[installation]
-                settings = {
-                    'installation': installation,
-                }
-                if 'RESTART_METHOD' in self.config[installation]:
-                    settings['restart'] = {
-                        "method": config['RESTART_METHOD']
-                    }
-                    if 'RESTART_LOCAL_TIMES' in config:
-                        settings['restart']['local_times'] = \
-                            [x.strip() for x in config['RESTART_LOCAL_TIMES'].split(',')]
-                    elif 'RESTART_MISSION_TIME' in config:
-                        settings['restart']['mission_time'] = int(config['RESTART_MISSION_TIME'])
-                    if 'RESTART_OPTIONS' in config:
-                        if 'NOT_POPULATED' in config['RESTART_OPTIONS']:
-                            settings['restart']['populated'] = False
-                        if 'RESTART_SERVER' in config['RESTART_OPTIONS']:
-                            settings['restart']['method'] = 'restart_with_shutdown'
-                    if 'RESTART_WARN_TIMES' in config:
-                        settings['warn'] = {
-                            "times": [int(x) for x in config['RESTART_WARN_TIMES'].split(',')]
-                        }
-                        if 'RESTART_WARN_TEXT' in config:
-                            settings['warn']['text'] = config['RESTART_WARN_TEXT']
-                if 'AUTOSTART_DCS' in self.config[installation] and \
-                        self.config.getboolean(installation, 'AUTOSTART_DCS') is True:
-                    settings['schedule'] = {"00:00-23:59": "YYYYYYY"}
-                if 'AUTOSTART_SRS' in self.config[installation] and \
-                        self.config.getboolean(installation, 'AUTOSTART_SRS') is True:
-                    settings['extensions'] = ["SRS"]
-                locals['configs'].append(settings)
-        with open(filename, 'w') as outfile:
-            json.dump(locals, outfile, indent=2)
-        self.log.info(f'  => Migrated data from dcsserverbot.ini into {filename}.\n     You can remove the '
-                      f'AUTOSTART and RESTART options now from your dcsserverbot.ini.\n     Please check the newly '
-                      f'created {filename} for any needed amendments.')
-        return locals
-
-    def read_locals(self):
-        filename = f'./config/{self.plugin_name}.json'
-        if not path.exists(filename):
-            return self.migrate(filename)
-        else:
-            return super().read_locals()
-
-    def get_config(self, server: dict) -> Optional[dict]:
-        if self.plugin_name not in server:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server['installation'] == element['installation']) or \
-                                ('server_name' in element and server['server_name'] == element['server_name']):
-                            specific = element
-                    else:
-                        default = element
-                if default and not specific:
-                    server[self.plugin_name] = default
-                elif specific and not default:
-                    server[self.plugin_name] = specific
-                elif default and specific:
-                    merged = default.copy()
-                    # specific settings will always overwrite default settings
-                    for key, value in specific.items():
-                        merged[key] = value
-                    server[self.plugin_name] = merged
-            else:
-                return None
-        return server[self.plugin_name] if self.plugin_name in server else None
-
     def check_server_state(self, server: dict, config: dict) -> Status:
-        if 'schedule' in config:
+        if 'schedule' in config and 'maintenance' not in server:
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) and utils.is_populated(self, server) else 0
             now = datetime.now()
@@ -143,8 +64,12 @@ class Scheduler(Plugin):
         # change the weather in the mission if provided
         if 'restart' in config and 'settings' in config['restart']:
             if 'filename' not in server:
-                server['filename'] = utils.getServerSetting(server, utils.getServerSetting(server, 'listStartIndex'))
-            self.change_mizfile(server, config)
+                for i in range(utils.getServerSetting(server, 'listStartIndex'), 0, -1):
+                    filename = utils.getServerSetting(server, i)
+                    if filename:
+                        server['filename'] = filename
+                        self.change_mizfile(server, config)
+                        break
         self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by "
                       f"{string.capwords(self.plugin_name)} ...")
         utils.startup_dcs(self, server)
@@ -312,8 +237,7 @@ class Scheduler(Plugin):
         # check all servers
         for server_name, server in self.globals.items():
             # only care about servers that are not in the startup phase
-            if server['status'] in [Status.UNREGISTERED, Status.LOADING] or \
-                    'maintenance' in server or 'restart_pending' in server:
+            if server['status'] in [Status.UNREGISTERED, Status.LOADING] or 'restart_pending' in server:
                 continue
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
@@ -374,6 +298,40 @@ class Scheduler(Plugin):
                 return
             self.change_mizfile(server, config, presets[n])
             await ctx.send('Preset changed.')
+
+    @commands.command(description='Add the weather of the mission as preset', usage='<name>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def add_preset(self, ctx, *args):
+        server = await utils.get_server(self, ctx)
+        if server:
+            if server['status'] not in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
+                await ctx.send(f"Server {server['server_name']} not running.")
+                return
+            name = ' '.join(args)
+            miz = MizFile(server['filename'])
+            if 'presets' not in self.locals['configs'][0]:
+                self.locals['configs'][0]['presets'] = dict()
+            if name in self.locals['configs'][0]['presets'] and \
+                    not await utils.yn_question(self, ctx, f'Do you want to overwrite the existing preset "{name}"?'):
+                await ctx.send('Aborted.')
+                return
+            self.locals['configs'][0]['presets'] |= {
+                name: {
+                    "start_time": miz.start_time,
+                    "date": miz.date.strftime('%Y-%m-%d'),
+                    "temperature": miz.temperature,
+                    "clouds": miz.preset,
+                    "wind": miz.wind,
+                    "groundTurbulence": miz.groundTurbulence,
+                    "enable_dust": miz.enable_dust,
+                    "dust_density": miz.dust_density if miz.enable_dust else 0,
+                    "qnh": miz.qnh
+                }
+            }
+            with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:
+                json.dump(self.locals, file, indent=2)
+            await ctx.send(f'Preset "{name}" added.')
 
     @commands.command(description='Reset a mission')
     @utils.has_role('DCS Admin')

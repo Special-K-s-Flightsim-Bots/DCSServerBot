@@ -1,3 +1,5 @@
+import json
+
 import aiohttp
 import asyncio
 import discord
@@ -641,25 +643,48 @@ class Master(Agent):
     @commands.Cog.listener()
     async def on_message(self, message):
         # ignore bot messages or messages that does not contain json attachments
-        if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.json'):
+        if message.author.bot or not message.attachments or \
+                not (
+                        message.attachments[0].filename.endswith('.json') or
+                        message.attachments[0].filename == 'dcsserverbot.ini'
+                ):
             return
         # only Admin role is allowed to upload json files in channels
-        if not utils.check_roles([self.config['ROLES']['Admin']], message.author):
+        if not utils.check_roles(['Admin'], message.author):
             return
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(message.attachments[0].url) as response:
                     if response.status == 200:
-                        data = await response.json(encoding='utf-8')
-                        embed = utils.format_embed(data)
-                        msg = None
-                        if 'message_id' in data:
-                            with suppress(discord.errors.NotFound):
-                                msg = await message.channel.fetch_message(int(data['message_id']))
-                        if msg:
-                            await msg.edit(embed=embed)
+                        if message.attachments[0].filename.endswith('.json'):
+                            data = await response.json(encoding="utf-8")
+                            if 'configs' in data:
+                                plugin = message.attachments[0].filename[:-5]
+                                if plugin not in self.bot.plugins:
+                                    await message.channel.send(f"Plugin {string.capwords(plugin)} is not activated.")
+                                    return
+                                with open(f"config/{plugin}.json", 'w', encoding="utf-8") as outfile:
+                                    json.dump(data, outfile, indent=2)
+                                self.bot.reload(plugin)
+                                await message.channel.send(f"Plugin {string.capwords(plugin)} re-configured.")
+                            else:
+                                embed = utils.format_embed(data)
+                                msg = None
+                                if 'message_id' in data:
+                                    with suppress(discord.errors.NotFound):
+                                        msg = await message.channel.fetch_message(int(data['message_id']))
+                                if msg:
+                                    await msg.edit(embed=embed)
+                                else:
+                                    await message.channel.send(embed=embed)
                         else:
-                            await message.channel.send(embed=embed)
+                            with open('config/dcsserverbot.ini', 'w', encoding='utf-8') as outfile:
+                                outfile.writelines('\n'.join((await response.text(encoding='utf-8')).splitlines()))
+                            self.bot.config = utils.config = utils.reload()
+                            await message.channel.send('dcsserverbot.ini updated.')
+                            ctx = utils.ContextWrapper(message=message)
+                            if await utils.yn_question(self, ctx, 'Do you want to restart the bot?'):
+                                exit(-1)
                     else:
                         await message.channel.send(f'Error {response.status} while reading JSON file!')
         finally:

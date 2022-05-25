@@ -32,10 +32,9 @@ class SchedulerListener(EventListener):
 
     async def onSimulationStart(self, data):
         server = self.globals[data['server_name']]
-        if self.plugin_name in server:
-            config = server[self.plugin_name]
-            if 'onMissionStart' in config:
-                self.run(server, config['onMissionStart'])
+        config = self.plugin.get_config(server)
+        if config and 'onMissionStart' in config:
+            self.run(server, config['onMissionStart'])
 
     async def onMissionLoadEnd(self, data):
         server = self.globals[data['server_name']]
@@ -44,33 +43,35 @@ class SchedulerListener(EventListener):
 
     async def onMissionEnd(self, data):
         server = self.globals[data['server_name']]
-        if self.plugin_name in server:
-            config = server[self.plugin_name]
-            if 'onMissionEnd' in config:
-                self.run(server, config['onMissionEnd'])
+        config = self.plugin.get_config(server)
+        if config and 'onMissionEnd' in config:
+            self.run(server, config['onMissionEnd'])
 
     async def onShutdown(self, data):
         server = self.globals[data['server_name']]
-        if self.plugin_name in server:
-            config = server[self.plugin_name]
-            if 'onShutdown' in config:
-                self.run(server, config['onShutdown'])
+        config = self.plugin.get_config(server)
+        if config and 'onShutdown' in config:
+            self.run(server, config['onShutdown'])
 
     async def onChatCommand(self, data: dict) -> None:
         server = self.globals[data['server_name']]
         if data['subcommand'] in ['preset', 'presets'] and \
                 utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin']):
             config = self.plugin.get_config(server)
-            presets = list(config['presets'].keys())
-            if len(data['params']) == 0:
-                message = 'The following presets are available:\n'
-                for i in range(0, len(presets)):
-                    preset = presets[i]
-                    message += f"{i+1} {preset}\n"
-                message += f"\nUse -{data['subcommand']} <number> to load that preset (mission will be restarted!)"
-                utils.sendUserMessage(self, server, data['from_id'], message, 30)
+            if config and 'presets' in config:
+                presets = list(config['presets'].keys())
+                if len(data['params']) == 0:
+                    message = 'The following presets are available:\n'
+                    for i in range(0, len(presets)):
+                        preset = presets[i]
+                        message += f"{i+1} {preset}\n"
+                    message += f"\nUse -{data['subcommand']} <number> to load that preset (mission will be restarted!)"
+                    utils.sendUserMessage(self, server, data['from_id'], message, 30)
+                else:
+                    n = int(data['params'][0]) - 1
+                    self.bot.sendtoDCS(server, {"command": "stop_server"})
+                    self.plugin.change_mizfile(server, config, presets[n])
+                    self.bot.sendtoDCS(server, {"command": "start_server"})
             else:
-                n = int(data['params'][0]) - 1
-                self.bot.sendtoDCS(server, {"command": "stop_server"})
-                self.plugin.change_mizfile(server, config, presets[n])
-                self.bot.sendtoDCS(server, {"command": "start_server"})
+                utils.sendChatMessage(self, data['server_name'], data['from_id'],
+                                      f"There are no presets available to select.")
