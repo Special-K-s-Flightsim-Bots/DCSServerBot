@@ -454,16 +454,6 @@ class Agent(Plugin):
         await self.bot.wait_until_ready()
 
     async def process_message(self, message):
-        # ignore bot messages or messages that does not contain json attachments
-        if message.author.bot or not message.attachments or \
-                not (
-                        message.attachments[0].filename.endswith('.json') or
-                        message.attachments[0].filename == 'dcsserverbot.ini'
-                ):
-            return
-        # only Admin role is allowed to upload json files in channels
-        if not await utils.get_server(self, message) or not utils.check_roles(['Admin'], message.author):
-            return
         async with aiohttp.ClientSession() as session:
             async with session.get(message.attachments[0].url) as response:
                 if response.status == 200:
@@ -491,6 +481,16 @@ class Agent(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        # ignore bot messages or messages that does not contain json attachments
+        if message.author.bot or not message.attachments or \
+                not (
+                        message.attachments[0].filename.endswith('.json') or
+                        message.attachments[0].filename == 'dcsserverbot.ini'
+                ):
+            return
+        # only Admin role is allowed to upload json files in channels
+        if not await utils.get_server(self, message) or not utils.check_roles(['Admin'], message.author):
+            return
         try:
             await self.process_message(message)
         finally:
@@ -684,14 +684,18 @@ class Master(Agent):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        await super().process_message(message)
         # ignore bot messages or messages that does not contain json attachments
-        if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.json'):
+        if message.author.bot or not message.attachments or \
+                not (
+                        message.attachments[0].filename.endswith('.json') or
+                        message.attachments[0].filename == 'dcsserverbot.ini'
+                ):
             return
         # only Admin role is allowed to upload json files in channels
         if not utils.check_roles(['Admin'], message.author):
             return
         try:
+            await super().process_message(message)
             async with aiohttp.ClientSession() as session:
                 async with session.get(message.attachments[0].url) as response:
                     if response.status == 200:
