@@ -300,7 +300,7 @@ class Scheduler(Plugin):
             self.change_mizfile(server, config, presets[n])
             await ctx.send('Preset changed.')
 
-    @commands.command(description='Add the weather of the mission as preset', usage='<name>')
+    @commands.command(description='Create preset from running mission', usage='<name>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def add_preset(self, ctx, *args):
