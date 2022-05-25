@@ -141,6 +141,7 @@ class Scheduler(Plugin):
             await utils.shutdown_dcs(self, server)
             if 'extensions' in config:
                 await self.shutdown_extensions(server, config)
+            del server['restart_pending']
 
     @staticmethod
     def change_mizfile(server: dict, config: dict, preset: Optional[str] = None):
