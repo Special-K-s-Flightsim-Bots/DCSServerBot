@@ -6,3 +6,4 @@ psycopg2-binary
 GitPython
 xmltodict
 psutil
+pypiwin32
