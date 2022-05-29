@@ -15,11 +15,11 @@
       "class": "plugins.mission.status.WeatherInfo"
     },
     {
-      "class": "plugins.mission.status.PluginsInfo",
+      "class": "plugins.mission.status.ExtensionsInfo",
       "params": [
-        {"plugin": "SRS" },
-        {"plugin": "LotAtc" },
-        {"plugin":  "Tacview", "show_password":  false }
+        {"extension": "SRS" },
+        {"extension": "LotAtc" },
+        {"extension":  "Tacview", "show_password":  false }
       ]
     },
     "Ruler",

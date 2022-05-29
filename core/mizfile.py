@@ -10,7 +10,8 @@ from typing import Union, Any
 class MizFile:
     re_exp = {
         'start_time': r'^    \["start_time"\] = (?P<start_time>.*),',
-        'key_value': r'\["{key}"\] = (?P<value>.*),'
+        'key_value': r'\["{key}"\] = (?P<value>.*),',
+        'genkey_value': r'\["(?P<key>.*)"\] = (?P<value>.*),'
     }
 
     def __init__(self, filename: str):
@@ -45,6 +46,8 @@ class MizFile:
             return True
         elif value == 'false':
             return False
+        elif '.' in value:
+            return float(value)
         else:
             return int(value)
 
@@ -104,15 +107,15 @@ class MizFile:
                     self.mission[i] = re.sub(' = ([^,]*)', ' = {}'.format(date[x]), self.mission[i])
 
     @property
-    def temperature(self) -> int:
+    def temperature(self) -> float:
         exp = re.compile(self.re_exp['key_value'].format(key='temperature'))
         for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
-                return int(match.group('value'))
+                return self.parse(match.group('value'))
 
     @temperature.setter
-    def temperature(self, value: int) -> None:
+    def temperature(self, value: float) -> None:
         exp = re.compile(self.re_exp['key_value'].format(key='temperature'))
         for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
@@ -138,31 +141,6 @@ class MizFile:
                 break
 
     @property
-    def preset(self) -> str:
-        exp = re.compile(self.re_exp['key_value'].format(key='preset'))
-        for i in range(0, len(self.mission)):
-            match = exp.search(self.mission[i])
-            if match:
-                return match.group('value').replace('"', '')
-
-    @preset.setter
-    def preset(self, value) -> None:
-        # We're using a preset, so disable dynamic weather
-        if self.atmosphere_type == 1:
-            self.atmosphere_type = 0
-        exp = re.compile(self.re_exp['key_value'].format(key='preset'))
-        for i in range(0, len(self.mission)):
-            match = exp.search(self.mission[i])
-            if match:
-                self.mission[i] = re.sub(' = ([^,]*)', ' = "{}"'.format(value), self.mission[i])
-                return
-        # If we are here, no preset was set
-        for i in range(0, len(self.mission)):
-            if '["clouds"] =' in self.mission[i]:
-                self.mission.insert(i + 4, f'            ["preset"] = "{value}",\n')
-                break
-
-    @property
     def wind(self) -> dict:
         exp_speed = re.compile(self.re_exp['key_value'].format(key='speed'))
         exp_dir = re.compile(self.re_exp['key_value'].format(key='dir'))
@@ -171,8 +149,8 @@ class MizFile:
             for i in range(0, len(self.mission)):
                 if f'["{key}"] =' in self.mission[i]:
                     wind[key] = {
-                        "speed": exp_speed.search(self.mission[i + 2]).group('value'),
-                        "dir": exp_dir.search(self.mission[i + 3]).group('value')
+                        "speed": self.parse(exp_speed.search(self.mission[i + 2]).group('value')),
+                        "dir": self.parse(exp_dir.search(self.mission[i + 3]).group('value'))
                     }
         return wind
 
@@ -188,15 +166,15 @@ class MizFile:
                     break
 
     @property
-    def groundTurbulence(self) -> int:
+    def groundTurbulence(self) -> float:
         exp = re.compile(self.re_exp['key_value'].format(key='groundTurbulence'))
         for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
-                return int(match.group('value'))
+                return self.parse(match.group('value'))
 
     @groundTurbulence.setter
-    def groundTurbulence(self, value: int) -> None:
+    def groundTurbulence(self, value: float) -> None:
         exp = re.compile(self.re_exp['key_value'].format(key='groundTurbulence'))
         for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
@@ -263,4 +241,44 @@ class MizFile:
             match = exp.search(self.mission[i])
             if match:
                 self.mission[i] = re.sub(' = ([^,]*)', ' = {}'.format(value), self.mission[i])
+                break
+
+    @property
+    def clouds(self) -> dict:
+        exp = re.compile(self.re_exp['genkey_value'])
+        clouds = dict()
+        for i in range(0, len(self.mission)):
+            if '["clouds"] =' in self.mission[i]:
+                j = 2
+                while '}' not in self.mission[i + j]:
+                    match = exp.search(self.mission[i + j])
+                    if match:
+                        clouds[match.group('key')] = self.parse(match.group('value'))
+                        j += 1
+                    else:
+                        break
+                break
+        return clouds
+
+    @clouds.setter
+    def clouds(self, values: dict) -> None:
+        elements = list(values.keys())
+        # If we're using a preset, disable dynamic weather
+        if self.atmosphere_type == 1 and 'preset' in values:
+            self.atmosphere_type = 0
+        for i in range(0, len(self.mission)):
+            if '["clouds"] = ' in self.mission[i]:
+                j = 2
+                while '}' not in self.mission[i + j]:
+                    for e in elements:
+                        if e in self.mission[i + j] and e in values:
+                            self.mission[i + j] = re.sub(' = ([^,]*)', ' = {}'.format(self.unparse(values[e])),
+                                                         self.mission[i + j])
+                            j += 1
+                            elements.remove(e)
+                    j += 1
+                # check for remaining elements
+                for e in elements:
+                    if e in values:
+                        self.mission.insert(i + j - 1, f'            ["{e}"] = {self.unparse(values[e])},\n')
                 break

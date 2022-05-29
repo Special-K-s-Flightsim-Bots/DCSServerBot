@@ -4,7 +4,7 @@ import json
 import psutil
 import random
 import string
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile, Autoexec
+from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile, Autoexec, Extension
 from datetime import datetime, timedelta
 from discord.ext import tasks, commands
 from typing import Type, Optional, List
@@ -55,10 +55,16 @@ class Scheduler(Plugin):
 
     async def launch_extensions(self, server: dict, config: dict):
         for extension in config['extensions']:
-            if extension == 'SRS' and not utils.check_srs(self, server):
-                self.log.info(f"  => Launching DCS-SRS server \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
-                utils.startup_srs(self, server)
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS-SRS server", server=server)
+            ext: Extension = server['extensions'][extension] if 'extensions' in server else None
+            if not ext:
+                if '.' not in extension:
+                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server)
+                else:
+                    ext = utils.str_to_class(extension)(self.bot, server)
+            if not await ext.check():
+                self.log.info(f"  => Launching {ext.name} v{ext.version} for \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
+                await ext.startup()
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} started {ext.name}", server=server)
 
     async def launch(self, server: dict, config: dict):
         # change the weather in the mission if provided
@@ -109,11 +115,17 @@ class Scheduler(Plugin):
 
     async def shutdown_extensions(self, server: dict, config: dict):
         for extension in config['extensions']:
-            if extension == 'SRS' and utils.check_srs(self, server):
-                self.log.info(f"  => Shutting down DCS-SRS server \"{server['server_name']}\" by "
+            ext: Extension = server['extensions'][extension] if 'extensions' in server else None
+            if not ext:
+                if '.' not in extension:
+                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server)
+                else:
+                    ext = utils.str_to_class(extension)(self.bot, server)
+            if await ext.check():
+                self.log.info(f"  => Shutting down {ext.name} for \"{server['server_name']}\" by "
                               f"{string.capwords(self.plugin_name)} ...")
-                await utils.shutdown_srs(self, server)
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} shut DCS-SRS server down", server=server)
+                await ext.shutdown()
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} shut {ext.name} down", server=server)
 
     async def shutdown(self, server: dict, config: dict):
         # if we should not restart populated servers, wait for it to be unpopulated
@@ -141,6 +153,7 @@ class Scheduler(Plugin):
             await utils.shutdown_dcs(self, server)
             if 'extensions' in config:
                 await self.shutdown_extensions(server, config)
+            del server['restart_pending']
 
     @staticmethod
     def change_mizfile(server: dict, config: dict, preset: Optional[str] = None):
@@ -166,7 +179,10 @@ class Scheduler(Plugin):
         if 'temperature' in value:
             miz.temperature = int(value['temperature'])
         if 'clouds' in value:
-            miz.preset = value['clouds']
+            if isinstance(value['clouds'], str):
+                miz.clouds = {"preset": value['clouds']}
+            else:
+                miz.clouds = value['clouds']
         if 'wind' in value:
             miz.wind = value['wind']
         if 'groundTurbulence' in value:
@@ -299,7 +315,7 @@ class Scheduler(Plugin):
             self.change_mizfile(server, config, presets[n])
             await ctx.send('Preset changed.')
 
-    @commands.command(description='Add the weather of the mission as preset', usage='<name>')
+    @commands.command(description='Create preset from running mission', usage='<name>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def add_preset(self, ctx, *args):
@@ -321,7 +337,7 @@ class Scheduler(Plugin):
                     "start_time": miz.start_time,
                     "date": miz.date.strftime('%Y-%m-%d'),
                     "temperature": miz.temperature,
-                    "clouds": miz.preset,
+                    "clouds": miz.clouds,
                     "wind": miz.wind,
                     "groundTurbulence": miz.groundTurbulence,
                     "enable_dust": miz.enable_dust,

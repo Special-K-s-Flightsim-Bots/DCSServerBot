@@ -56,13 +56,13 @@ class WeatherInfo(report.EmbedElement):
 
     def render(self, server: dict):
         if 'weather' in server:
-            if 'clouds' in server and 'preset' in server['clouds']:
-                self.add_field(name='Clouds', value=server['clouds']['preset']['readableName'][5:].split('\n')[0])
-            else:
-                self.add_field(name='Weather', value='Dynamic')
             weather = server['weather']
             self.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
             self.add_field(name='QNH', value='{:.2f} inHg'.format(weather['qnh'] * const.MMHG_IN_INHG))
+            if 'clouds' in server and 'preset' in server['clouds']:
+                self.add_field(name='Clouds', value=server['clouds']['preset']['readableName'][5:].split('\n')[0].replace('/', '/\n'))
+            else:
+                self.add_field(name='Weather', value='Dynamic')
             self.add_field(name='Wind',
                            value='\u2002Ground: {}° / {} kts\n\u20026600 ft: {}° / {} kts\n26000 ft: {}° / {} kts'.format(
                                 int(weather['wind']['atGround']['dir'] + 180) % 360,
@@ -90,7 +90,7 @@ class WeatherInfo(report.EmbedElement):
             report.Ruler(self.env).render()
 
 
-class PluginsInfo(report.EmbedElement):
+class ExtensionsInfo(report.EmbedElement):
 
     def render_srs(self, server: dict, param: dict) -> bool:
         if 'SRSSettings' in server:
@@ -161,23 +161,23 @@ class PluginsInfo(report.EmbedElement):
             return retval
 
     def render(self, server: dict, params: List[dict]):
-        plugins = []
+        extensions = []
         for param in params:
-            if param['plugin'] == 'SRS':
+            if param['extension'] == 'SRS':
                 if self.render_srs(server, param):
-                    plugins.append('SRS')
-            elif param['plugin'] == 'LotAtc':
+                    extensions.append('SRS')
+            elif param['extension'] == 'LotAtc':
                 if self.render_lotatc(server, param):
-                    plugins.append('LotAtc')
-            elif param['plugin'] == 'Tacview':
+                    extensions.append('LotAtc')
+            elif param['extension'] == 'Tacview':
                 if self.render_tacview(server, param):
-                    plugins.append('Tacview')
-        if len(plugins) > 0:
+                    extensions.append('Tacview')
+        if len(extensions) > 0:
             footer = '- The IP address of '
-            if len(plugins) == 1:
-                footer += plugins[0]
+            if len(extensions) == 1:
+                footer += extensions[0]
             else:
-                footer += ', '.join(plugins[0:len(plugins) - 1]) + ' and ' + plugins[len(plugins) - 1]
+                footer += ', '.join(extensions[0:len(extensions) - 1]) + ' and ' + extensions[len(extensions) - 1]
             footer += ' is the same as the server.\n'
             self.embed.set_footer(text=self.embed.footer.text + footer)
 
