@@ -111,16 +111,25 @@ function dcsbot.getWeatherInfo(json)
 	local msg = {}
 	msg.command = 'getWeatherInfo'
 	local position = {
-		x = json.lat,
-		y = json.alt,
-		z = json.lng,
+		x = json.x,
+		y = json.y,
+		z = json.z
 	}
 	local temp, pressure = Weather.getTemperatureAndPressureAtPoint({position = position})
 	local weather = DCS.getCurrentMission().mission.weather
 	msg.temp = temp
-	msg.pressureHPA = pressure/100
-	msg.pressureMM = pressure * 0.007500637554192
-	msg.pressureIN = pressure * 0.000295300586467
+	local pressureQFE = pressure / 100
+	msg.qfe = {
+		pressureHPA = pressureQFE,
+		pressureMM = pressureQFE * 0.7500637554192,
+		pressureIN = pressureQFE * 0.0295300586467
+	}
+	local pressureQNH = pressureQFE + pressureQFE * (10^(position.y / (18429.1 + 67.53 * temp + 0.003 * position.y)) - 1)
+	msg.qnh = {
+		pressureHPA = pressureQNH,
+		pressureMM = pressureQNH * 0.7500637554192,
+		pressureIN = pressureQNH * 0.0295300586467
+	}
 	msg.weather = weather
 	local clouds = msg.weather.clouds
 	if clouds.preset ~= nil then

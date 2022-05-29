@@ -259,9 +259,9 @@ class MissionEventListener(EventListener):
                 if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
                     response = await self.bot.sendtoDCSSync(server, {
                         "command": "getWeatherInfo",
-                        "lat": airbase['lat'],
-                        "lng": airbase['lng'],
-                        "alt": airbase['alt']
+                        "x": airbase['position']['x'],
+                        "y": airbase['position']['y'],
+                        "z": airbase['position']['z']
                     })
                     report = Report(self.bot, self.plugin_name, 'atis-ingame.json')
                     env = await report.render(airbase=airbase, data=response)

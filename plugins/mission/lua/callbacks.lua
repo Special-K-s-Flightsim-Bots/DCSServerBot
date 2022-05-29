@@ -72,6 +72,10 @@ function mission.onMissionLoadEnd()
             airbase.id = airdrome.id
             airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
             airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
+            airbase.position = {}
+            airbase.position.x = airdrome.reference_point.x
+            airbase.position.y = airbase.alt
+            airbase.position.z = airdrome.reference_point.y
             local frequencyList = {}
             if airdrome.frequency then
                 frequencyList	= airdrome.frequency
