@@ -58,6 +58,9 @@ class Plugin(commands.Cog):
             if not path.exists(target_path):
                 os.makedirs(target_path)
 
+    def migrate(self, version: str):
+        pass
+
     def init_db(self):
         tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
         if path.exists(tables_file):
@@ -75,9 +78,11 @@ class Plugin(commands.Cog):
                                     self.log.debug(query.rstrip())
                                     cursor.execute(query.rstrip())
                             cursor.execute('SELECT version FROM plugins WHERE plugin = %s', (self.plugin_name,))
+                            old_version = self.plugin_version
                             self.plugin_version = cursor.fetchone()[0]
-                            self.log.info(f'  => {string.capwords(self.plugin_name)} updated to version {self.plugin_version}.')
+                            self.log.info(f'  => {string.capwords(self.plugin_name)} migrated to version {self.plugin_version}.')
                             updates_file = f'./plugins/{self.plugin_name}/db/update_{self.plugin_version}.sql'
+                            self.migrate(self.plugin_version)
                     else:
                         with open(tables_file) as tables_sql:
                             for query in tables_sql.readlines():

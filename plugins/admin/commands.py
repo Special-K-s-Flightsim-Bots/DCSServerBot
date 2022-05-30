@@ -49,65 +49,6 @@ class Agent(Plugin):
         else:
             await ctx.send('No server running on host {}'.format(platform.node()))
 
-    @commands.command(description='Starts a DCS/DCS-SRS server')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def startup(self, ctx):
-        server = await utils.get_server(self, ctx)
-        if server:
-            installation = server['installation']
-            if server['status'] == Status.SHUTDOWN:
-                await ctx.send('DCS server "{}" starting up ...'.format(server['server_name']))
-                utils.startup_dcs(self, server)
-                server['status'] = Status.LOADING
-                # set maintenance flag to prevent auto-stops of this server
-                server['maintenance'] = True
-                await self.bot.audit(f"started DCS server", user=ctx.message.author, server=server)
-            elif server['status'] == Status.STOPPED:
-                await self.start(ctx)
-            else:
-                await ctx.send('DCS server "{}" is already started.'.format(server['server_name']))
-            if 'SRS_CONFIG' in self.config[installation]:
-                if not utils.is_open(self.config[installation]['SRS_HOST'], self.config[installation]['SRS_PORT']):
-                    if await utils.yn_question(self, ctx, 'Do you want to start the DCS-SRS server "{}"?'.format(server['server_name'])) is True:
-                        await ctx.send('DCS-SRS server "{}" starting up ...'.format(server['server_name']))
-                        utils.startup_srs(self, server)
-                        await self.bot.audit(f"started DCS-SRS server", user=ctx.message.author, server=server)
-                else:
-                    await ctx.send('DCS-SRS server "{}" is already started.'.format(server['server_name']))
-
-    @commands.command(description='Shutdown a DCS/DCS-SRS server')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def shutdown(self, ctx):
-        server = await utils.get_server(self, ctx)
-        if server:
-            installation = server['installation']
-            if server['status'] in [Status.UNREGISTERED, Status.LOADING]:
-                await ctx.send('Server is currently starting up. Please wait and try again.')
-            elif server['status'] != Status.SHUTDOWN:
-                if await utils.yn_question(self, ctx, f"Do you want to shut down the "
-                                                      f"DCS server \"{server['server_name']}\"?") is True:
-                    # set maintenance flag to prevent auto-starts of this server
-                    server['maintenance'] = True
-                    await ctx.send(f"Shutting down DCS server \"{server['server_name']}\", please wait ...")
-                    await utils.shutdown_dcs(self, server)
-                    await ctx.send(f"DCS server \"{server['server_name']}\" shut down.")
-                    await self.bot.audit(f"shut DCS server down", user=ctx.message.author, server=server)
-            else:
-                await ctx.send(f"DCS server \"{server['server_name']}\" is already shut down.")
-            if 'SRS_CONFIG' in self.config[installation]:
-                if utils.check_srs(self, server):
-                    if await utils.yn_question(self, ctx, f"Do you want to shut down the "
-                                                          f"DCS-SRS server \"{server['server_name']}\"?") is True:
-                        if await utils.shutdown_srs(self, server):
-                            await ctx.send(f"DCS-SRS server \"{server['server_name']}\" shut down.")
-                            await self.bot.audit("shut DCS-SRS server down", user=ctx.message.author, server=server)
-                        else:
-                            await ctx.send(f"Shutdown of DCS-SRS server \"{server['server_name']}\" failed.")
-                else:
-                    await ctx.send(f"DCS-SRS server \"{server['server_name']}\" is already shut down.")
-
     async def do_update(self, warn_times: List[int], ctx=None):
         self.update_pending = True
         if ctx:

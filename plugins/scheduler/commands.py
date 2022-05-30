@@ -1,6 +1,7 @@
 import asyncio
 import discord
 import json
+import os
 import psutil
 import random
 import string
@@ -34,6 +35,67 @@ class Scheduler(Plugin):
                                      'not work properly on DCS crashes, please change it manually to "silent" to '
                                      'avoid that.')
 
+    def migrate(self, version: str):
+        if version != 'v1.1' or 'SRS_INSTALLATION' not in self.config['DCS']:
+            return
+        with open('config/scheduler.json') as file:
+            old: dict = json.load(file)
+        new = old.copy()
+        # search the default config or create one
+        c = -1
+        for i in range(0, len(old['configs'])):
+            if 'installation' not in old['configs'][i]:
+                c = i
+                break
+        if c == -1:
+            new['configs'].append(dict())
+            c = len(new['configs']) - 1
+        new['configs'][c]['extensions'] = {
+            "SRS": {"installation": self.config['DCS']['SRS_INSTALLATION']}
+        }
+        # migrate the SRS configuration
+        for c in range(0, len(old['configs'])):
+            if 'installation' not in old['configs'][c] or \
+                    'extensions' not in old['configs'][c] or \
+                    'SRS' not in old['configs'][c]['extensions']:
+                continue
+            new['configs'][c]['extensions'] = {
+                "SRS": {"config": self.config[old['configs'][c]['installation']]['SRS_CONFIG']}
+            }
+        os.rename('config/scheduler.json', 'config/scheduler.bak')
+        with open('config/scheduler.json', 'w') as file:
+            json.dump(new, file, indent=2)
+            self.log.info('  => config/scheduler.json migrated to new format.')
+
+    def get_config(self, server: dict) -> Optional[dict]:
+        if self.plugin_name not in server:
+            if 'configs' in self.locals:
+                specific = default = None
+                for element in self.locals['configs']:
+                    if 'installation' in element or 'server_name' in element:
+                        if ('installation' in element and server['installation'] == element['installation']) or \
+                                ('server_name' in element and server['server_name'] == element['server_name']):
+                            specific = element.copy()
+                    else:
+                        default = element.copy()
+                if default and not specific:
+                    server[self.plugin_name] = default
+                elif specific and not default:
+                    server[self.plugin_name] = specific
+                elif default and specific:
+                    server[self.plugin_name] = default | specific
+                    if 'extensions' in default and 'extensions' in specific:
+                        server[self.plugin_name]['extensions'] = default['extensions']
+                        for key, value in specific['extensions'].items():
+                            if key in default['extensions']:
+                                server[self.plugin_name]['extensions'][key] = \
+                                    default['extensions'][key] | specific['extensions'][key]
+                            else:
+                                server[self.plugin_name]['extensions'][key] = specific['extensions'][key]
+            else:
+                return None
+        return server[self.plugin_name] if self.plugin_name in server else None
+
     def check_server_state(self, server: dict, config: dict) -> Status:
         if 'schedule' in config and 'maintenance' not in server:
             warn_times = Scheduler.get_warn_times(config)
@@ -53,20 +115,27 @@ class Scheduler(Plugin):
                     return Status.SHUTDOWN
         return server['status']
 
-    async def launch_extensions(self, server: dict, config: dict):
+    async def launch_extensions(self, server: dict, config: dict, member: Optional[discord.Member] = None) -> list:
+        retval = []
         for extension in config['extensions']:
-            ext: Extension = server['extensions'][extension] if 'extensions' in server else None
+            ext: Extension = server['extensions'][extension] if 'extensions' in server and extension in server['extensions'] else None
             if not ext:
                 if '.' not in extension:
-                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server)
+                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server, config['extensions'][extension])
                 else:
-                    ext = utils.str_to_class(extension)(self.bot, server)
+                    ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
             if not await ext.check():
-                self.log.info(f"  => Launching {ext.name} v{ext.version} for \"{server['server_name']}\" by {string.capwords(self.plugin_name)} ...")
                 await ext.startup()
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} started {ext.name}", server=server)
+                retval.append(ext.name)
+                if not member:
+                    self.log.info(f"  => {ext.name} v{ext.version} launched for \"{server['server_name']}\" by {string.capwords(self.plugin_name)}.")
+                    await self.bot.audit(f"{string.capwords(self.plugin_name)} started {ext.name}", server=server)
+                else:
+                    self.log.info(f"  => {ext.name} v{ext.version} launched for \"{server['server_name']}\" by {member.display_name} ...")
+                    await self.bot.audit(f"started {ext.name}", server=server, user=member)
+        return retval
 
-    async def launch(self, server: dict, config: dict):
+    async def launch_dcs(self, server: dict, config: dict, member: Optional[discord.Member] = None):
         # change the weather in the mission if provided
         if 'restart' in config and 'settings' in config['restart']:
             if 'filename' not in server:
@@ -76,12 +145,15 @@ class Scheduler(Plugin):
                         server['filename'] = filename
                         self.change_mizfile(server, config)
                         break
-        self.log.info(f"  => Launching DCS server \"{server['server_name']}\" by "
-                      f"{string.capwords(self.plugin_name)} ...")
         utils.startup_dcs(self, server)
-        await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS server", server=server)
-        if 'extensions' in config:
-            await self.launch_extensions(server, config)
+        if not member:
+            self.log.info(f"  => DCS server \"{server['server_name']}\" started by "
+                          f"{string.capwords(self.plugin_name)}.")
+            await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS server", server=server)
+        else:
+            self.log.info(f"  => DCS server \"{server['server_name']}\" started by "
+                          f"{member.display_name}.")
+            await self.bot.audit(f"started DCS server", user=member, server=server)
 
     @staticmethod
     def get_warn_times(config: dict) -> List[int]:
@@ -113,21 +185,43 @@ class Scheduler(Plugin):
                 await asyncio.sleep(1)
                 restart_in -= 1
 
-    async def shutdown_extensions(self, server: dict, config: dict):
+    async def teardown_extensions(self, server: dict, config: dict, member: Optional[discord.Member] = None) -> list:
+        retval = []
         for extension in config['extensions']:
             ext: Extension = server['extensions'][extension] if 'extensions' in server else None
             if not ext:
                 if '.' not in extension:
-                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server)
+                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server, config['extensions'][extension])
                 else:
-                    ext = utils.str_to_class(extension)(self.bot, server)
-            if await ext.check():
-                self.log.info(f"  => Shutting down {ext.name} for \"{server['server_name']}\" by "
-                              f"{string.capwords(self.plugin_name)} ...")
-                await ext.shutdown()
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} shut {ext.name} down", server=server)
+                    ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
+            if await ext.check() and await ext.shutdown():
+                retval.append(ext.name)
+                if not member:
+                    self.log.info(f"  => {ext.name} shut down for \"{server['server_name']}\" by "
+                                  f"{string.capwords(self.plugin_name)}.")
+                    await self.bot.audit(f"{string.capwords(self.plugin_name)} shut {ext.name} down", server=server)
+                else:
+                    self.log.info(f"  => {ext.name} shut down for \"{server['server_name']}\" by "
+                                  f"{member.display_name}.")
+                    await self.bot.audit(f"shut {ext.name} down", server=server, user=member)
+        return retval
 
-    async def shutdown(self, server: dict, config: dict):
+    async def teardown_dcs(self, server: dict, config: dict, member: Optional[discord.Member] = None):
+        self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
+        await asyncio.sleep(1)
+        self.bot.sendtoBot({"command": "onShutdown", "server_name": server['server_name']})
+        await asyncio.sleep(1)
+        await utils.shutdown_dcs(self, server)
+        if not member:
+            self.log.info(
+                f"  => DCS server \"{server['server_name']}\" shut down by {string.capwords(self.plugin_name)}.")
+            await self.bot.audit(f"{string.capwords(self.plugin_name)} shut down DCS server", server=server)
+        else:
+            self.log.info(
+                f"  => DCS server \"{server['server_name']}\" shut down by {member.display_name}.")
+            await self.bot.audit(f"shut down DCS server", server=server, user=member)
+
+    async def teardown(self, server: dict, config: dict):
         # if we should not restart populated servers, wait for it to be unpopulated
         populated = utils.is_populated(self, server)
         if 'populated' in config and not config['populated'] and populated:
@@ -142,17 +236,9 @@ class Scheduler(Plugin):
                 await self.bot.audit(f"{string.capwords(self.plugin_name)} will shut down DCS server in {utils.format_time(restart_in)}",
                                      server=server)
                 await self.warn_users(server, config, 'shutdown')
-            else:
-                self.log.info(
-                    f"  => Shutting DCS server \"{server['server_name']}\" down by {string.capwords(self.plugin_name)} ...")
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} shut down DCS server", server=server)
-            self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
-            await asyncio.sleep(1)
-            self.bot.sendtoBot({"command": "onShutdown", "server_name": server['server_name']})
-            await asyncio.sleep(1)
-            await utils.shutdown_dcs(self, server)
+            await self.teardown_dcs(server, config)
             if 'extensions' in config:
-                await self.shutdown_extensions(server, config)
+                await self.teardown_extensions(server, config)
             del server['restart_pending']
 
     @staticmethod
@@ -207,7 +293,7 @@ class Scheduler(Plugin):
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
                 await utils.shutdown_dcs(self, server)
-                await self.launch(server, config)
+                await self.launch_dcs(server, config)
             elif method == 'restart':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server['server_name']})
                 await asyncio.sleep(1)
@@ -263,9 +349,9 @@ class Scheduler(Plugin):
                         self.check_affinity(server, config)
                     target_state = self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server['status'] == Status.SHUTDOWN:
-                        asyncio.create_task(self.launch(server, config))
+                        asyncio.create_task(self.launch_dcs(server, config))
                     elif target_state == Status.SHUTDOWN and server['status'] in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
-                        asyncio.create_task(self.shutdown(server, config))
+                        asyncio.create_task(self.teardown(server, config))
                     elif server['status'] in [Status.RUNNING, Status.PAUSED]:
                         await self.check_mission_state(server, config)
                 except Exception as ex:
@@ -274,6 +360,51 @@ class Scheduler(Plugin):
     @check_state.before_loop
     async def before_check(self):
         await self.bot.wait_until_ready()
+
+    @commands.command(description='Starts a DCS/DCS-SRS server')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def startup(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            config = self.get_config(server)
+            if server['status'] == Status.STOPPED:
+                await ctx.send(f"DCS server \"{server['server_name']}\" is stopped.\n"
+                               f"Please use {self.config['DCS']['COMMAND_PREFIX']}start instead.")
+                return
+            if server['status'] == Status.SHUTDOWN:
+                await ctx.send(f"DCS server \"{server['server_name']}\" starting up ...")
+                # set maintenance flag to prevent auto-stops of this server
+                server['maintenance'] = True
+                await self.launch_dcs(server, config, ctx.message.author)
+            else:
+                await ctx.send(f"DCS server \"{server['server_name']}\" is already started.")
+
+    @commands.command(description='Shutdown a DCS/DCS-SRS server')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def shutdown(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            config = self.get_config(server)
+            if server['status'] in [Status.UNREGISTERED, Status.LOADING]:
+                await ctx.send('Server is currently starting up. Please wait and try again.')
+                return
+            elif server['status'] != Status.SHUTDOWN:
+                if await utils.yn_question(self, ctx, f"Do you want to shut down the "
+                                                      f"DCS server \"{server['server_name']}\"?") is True:
+                    await ctx.send(f"Shutting down DCS server \"{server['server_name']}\", please wait ...")
+                    # set maintenance flag to prevent auto-starts of this server
+                    server['maintenance'] = True
+                    server['restart_pending'] = True
+                    await self.teardown_dcs(server, config, ctx.message.author)
+                    await ctx.send(f"DCS server \"{server['server_name']}\" shut down.")
+                    del server['restart_pending']
+            else:
+                await ctx.send(f"DCS server \"{server['server_name']}\" is already shut down.")
+            if 'extensions' in config:
+                for ext in await self.teardown_extensions(server, config, ctx.message.author):
+                    await ctx.send(f"{ext} shut down for server \"{server['server_name']}\".")
 
     @commands.command(description='Clears the servers maintenance flag')
     @utils.has_role('DCS Admin')

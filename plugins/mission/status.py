@@ -49,7 +49,7 @@ class ServerInfo(report.EmbedElement):
                 self.add_field(name='Avail. Slots', value='🔹 {}  |  {} 🔸'.format(server['num_slots_blue'] if 'num_slots_blue' in server else '-', server['num_slots_red'] if 'num_slots_red' in server else '-'))
             else:
                 self.add_field(name='Coalitions', value='Yes')
-        self.embed.set_footer(text='- Server is running DCS {}\n'.format(server['dcs_version']))
+        self.embed.set_footer(text='- Server is running DCS {}'.format(server['dcs_version']))
 
 
 class WeatherInfo(report.EmbedElement):
@@ -92,94 +92,26 @@ class WeatherInfo(report.EmbedElement):
 
 class ExtensionsInfo(report.EmbedElement):
 
-    def render_srs(self, server: dict, param: dict) -> bool:
-        if 'SRSSettings' in server:
-            show_password = param['show_password'] if 'show_password' in param else True
-            if show_password and 'EXTERNAL_AWACS_MODE' in server['SRSSettings'] and \
-                    'EXTERNAL_AWACS_MODE_BLUE_PASSWORD' in server['SRSSettings'] and \
-                    'EXTERNAL_AWACS_MODE_RED_PASSWORD' in server['SRSSettings'] and \
-                    server['SRSSettings']['EXTERNAL_AWACS_MODE'] is True:
-                value = '🔹 Pass: {}\n🔸 Pass: {}'.format(
-                    server['SRSSettings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'],
-                    server['SRSSettings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'])
-            else:
-                value = '_ _'
-            self.add_field(name='SRS [{}]'.format(
-                server['SRSSettings']['SERVER_SRS_PORT']), value=value)
-            return True
-        else:
-            return False
-
-    def render_lotatc(self, server: dict, param: dict) -> bool:
-        if 'lotAtcSettings' in server:
-            show_password = param['show_password'] if 'show_password' in param else True
-            if show_password and 'blue_password' in server['lotAtcSettings'] \
-                    and 'red_password' in server['lotAtcSettings']:
-                value = '🔹 Pass: {}\n🔸 Pass: {}'.format(
-                                server['lotAtcSettings']['blue_password'], server['lotAtcSettings']['red_password'])
-            else:
-                value = '_ _'
-            # TODO: something has changed with 2.2.5?
-            if 'port' in server['lotAtcSettings']:
-                self.add_field(name='LotAtc [{}]'.format(server['lotAtcSettings']['port']), value=value)
-            else:
-                self.add_field(name='LotAtc', value=value)
-            return True
-        else:
-            return False
-
-    def render_tacview(self, server: dict, param: dict) -> bool:
-        retval = False
-        if 'Tacview' in server['options']['plugins']:
-            name = 'Tacview'
-            if ('tacviewModuleEnabled' in server['options']['plugins']['Tacview'] and
-                server['options']['plugins']['Tacview']['tacviewModuleEnabled'] is False) or (
-                    'tacviewFlightDataRecordingEnabled' in server['options']['plugins']['Tacview'] and
-                    server['options']['plugins']['Tacview']['tacviewFlightDataRecordingEnabled'] is False):
-                value = 'disabled'
-            else:
-                show_password = param['show_password'] if 'show_password' in param else True
-                value = ''
-                tacview = server['options']['plugins']['Tacview']
-                if 'tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled'] is True:
-                    name += ' RT'
-                    if show_password and 'tacviewRealTimeTelemetryPassword' in tacview and len(
-                            tacview['tacviewRealTimeTelemetryPassword']) > 0:
-                        value += 'Password: {}\n'.format(tacview['tacviewRealTimeTelemetryPassword'])
-                elif show_password and 'tacviewHostTelemetryPassword' in tacview and len(tacview['tacviewHostTelemetryPassword']) > 0:
-                    value += 'Password: "{}"\n'.format(tacview['tacviewHostTelemetryPassword'])
-                if 'tacviewRealTimeTelemetryPort' in tacview and len(tacview['tacviewRealTimeTelemetryPort']) > 0:
-                    name += ' [{}]'.format(tacview['tacviewRealTimeTelemetryPort'])
-                if 'tacviewRemoteControlEnabled' in tacview and tacview['tacviewRemoteControlEnabled'] is True:
-                    value += '**Remote Ctrl [{}]**\n'.format(tacview['tacviewRemoteControlPort'])
-                    if show_password and 'tacviewRemoteControlPassword' in tacview and len(tacview['tacviewRemoteControlPassword']) > 0:
-                        value += 'Password: {}'.format(tacview['tacviewRemoteControlPassword'])
-                if len(value) == 0:
-                    value = 'enabled'
-                    retval = True
-            self.add_field(name=name, value=value)
-            return retval
-
     def render(self, server: dict, params: List[dict]):
-        extensions = []
+        # we don't have any extensions loaded (yet)
+        if 'extensions' not in server:
+            return
+        extensions = server['extensions']
         for param in params:
-            if param['extension'] == 'SRS':
-                if self.render_srs(server, param):
-                    extensions.append('SRS')
-            elif param['extension'] == 'LotAtc':
-                if self.render_lotatc(server, param):
-                    extensions.append('LotAtc')
-            elif param['extension'] == 'Tacview':
-                if self.render_tacview(server, param):
-                    extensions.append('Tacview')
+            if param['extension'] in extensions:
+                extensions[param['extension']].render(self, param)
         if len(extensions) > 0:
-            footer = '- The IP address of '
-            if len(extensions) == 1:
-                footer += extensions[0]
+            footer = self.embed.footer.text
+            for ext in extensions.values():
+                footer += f", {ext.name} {ext.version}"
+            ext_names = list(extensions.keys())
+            footer += '\n- The IP address of '
+            if len(ext_names) == 1:
+                footer += ext_names[0]
             else:
-                footer += ', '.join(extensions[0:len(extensions) - 1]) + ' and ' + extensions[len(extensions) - 1]
+                footer += ', '.join(ext_names[0:-1]) + ' and ' + ext_names[-1]
             footer += ' is the same as the server.\n'
-            self.embed.set_footer(text=self.embed.footer.text + footer)
+            self.embed.set_footer(text=footer)
 
 
 class Footer(report.EmbedElement):

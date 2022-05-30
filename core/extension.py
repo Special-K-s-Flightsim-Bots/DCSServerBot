@@ -1,28 +1,30 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from core import report
+from typing import Any, Optional
 
 
 class Extension(ABC):
 
-    def __init__(self, bot: Any, server: dict):
+    def __init__(self, bot: Any, server: dict, config: dict):
         self.bot = bot
         self.log = bot.log
         self.pool = bot.pool
-        self.config = bot.config
+        self.config = config
         self.globals = bot.globals
         self.server = server
         if 'extensions' not in self.server:
             self.server['extensions'] = dict()
         self.server['extensions'][self.name] = self
+        self.locals = self.load_config()
 
-    def load_config(self):
-        pass
+    def load_config(self) -> Optional[dict]:
+        return dict()
 
     async def startup(self) -> bool:
-        return True
+        return False
 
     async def shutdown(self) -> bool:
-        return True
+        return False
 
     async def check(self) -> bool:
         return True
@@ -34,4 +36,7 @@ class Extension(ABC):
     @property
     @abstractmethod
     def version(self) -> str:
-        pass
+        raise NotImplementedError()
+
+    def render(self, embed: report.EmbedElement, param: dict):
+        raise NotImplementedError()

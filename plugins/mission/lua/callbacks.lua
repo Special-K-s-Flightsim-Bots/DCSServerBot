@@ -18,9 +18,6 @@ function mission.onMissionLoadBegin()
         msg.current_mission = DCS.getMissionName()
         msg.current_map = DCS.getCurrentMission().mission.theatre
         msg.mission_time = 0
-        if (lotatc_inst ~= nil) then
-            msg.lotAtcSettings = lotatc_inst.options
-        end
         utils.sendBotTable(msg)
     end
 end

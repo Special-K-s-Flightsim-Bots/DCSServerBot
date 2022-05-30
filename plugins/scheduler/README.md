@@ -22,6 +22,11 @@ Examples:
           "Summer Nighttime": {"start_time": "03:00", "date": "2016-07-26", "temperature": 18, "clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
           "Summer Daytime": {"start_time": "10:00", "date": "2016-07-26", "temperature": 22, "clouds": "Preset2", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
           "Heavy Storm": {"start_time": "16:00", "temperature": 16, "clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}}
+      },
+      "extensions": {
+        "SRS": {
+          "installation": "%ProgramFiles%\\DCS-SimpleRadio-Standalone"
+        }
       }
     },
     {
@@ -31,7 +36,11 @@ Examples:
         "00-12": "NNNNNNN",                   -- instance1 will run everyday from 12 to 24 hrs, besides Sundays.
         "12-24": "YYYYYYN"
       },
-      "extensions": [ "SRS" ],                -- which extensions should be started / stopped with the server
+      "extensions": {
+        "SRS": {
+          "config": "%USERPROFILE%\\Saved Games\\instance1\\Config\\SRS.cfg"
+        }
+      },
       "restart": {
         "method": "restart_with_shutdown",    -- restarts the whole server instead only the mission
         "mission_time": 480,                  -- restart the mission after 8 hrs (480 minutes)
@@ -45,7 +54,11 @@ Examples:
         "00-12:30": "YYYYYYY",                -- instance2 runs Sunday all day, rest of the week between 00 and 12:30 hrs
         "12:30-24": "NNNNNNY"
       },
-      "extensions": [ "SRS" ],                -- which extensions should be started / stopped with the server
+      "extensions": {
+        "SRS": {
+          "config": "%USERPROFILE%\\Saved Games\\instance2\\Config\\SRS.cfg"
+        }
+      },
       "restart": {                            -- missions rotate every 4 hrs
         "method": "rotate",
         "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
@@ -109,6 +122,14 @@ See the above examples for a better understanding on how it works.
 
 A list of extensions that should be started / stopped with the server. Currently, only SRS is supported.
 If SRS is listed as an extension, a configured SRS server will be started with the DCS server.
+
+| Parameter    | Description                         |
+|--------------|-------------------------------------|
+| installation | Directory where SRS is installed.   |
+| config       | The server specific configuration.  |
+
+If you want to use different versions of SRS, you can overwrite the installation path on each server. Otherwise specify
+it in the default section.
 
 ### Section "restart"
 
