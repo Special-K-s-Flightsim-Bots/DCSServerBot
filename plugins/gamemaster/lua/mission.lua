@@ -1,6 +1,4 @@
 local base		= _G
-local config	= require('DCSServerBotConfig')
-
 dcsbot 			= base.dcsbot
 
 function dcsbot.getFlag(flag, channel)

@@ -5,6 +5,7 @@ import psycopg2
 import psycopg2.extras
 import string
 from contextlib import closing
+from copy import deepcopy
 from discord.ext import commands
 from os import path
 from shutil import copytree
@@ -112,9 +113,9 @@ class Plugin(commands.Cog):
                     if 'installation' in element or 'server_name' in element:
                         if ('installation' in element and server['installation'] == element['installation']) or \
                                 ('server_name' in element and server['server_name'] == element['server_name']):
-                            specific = element.copy()
+                            specific = deepcopy(element)
                     else:
-                        default = element.copy()
+                        default = deepcopy(element)
                 if default and not specific:
                     server[self.plugin_name] = default
                 elif specific and not default:
@@ -131,6 +132,10 @@ class Plugin(commands.Cog):
 
 
 class PluginRequiredError(Exception):
-
-    def __init__(self, plugin):
+    def __init__(self, plugin: str):
         super().__init__(f'Required plugin "{string.capwords(plugin)}" is missing!')
+
+
+class PluginConflictError(Exception):
+    def __init__(self, plugin1: str, plugin2: str):
+        super().__init__(f'Plugin "{string.capwords(plugin1)}" conflicts with plugin "{string.capwords(plugin2)}"!')

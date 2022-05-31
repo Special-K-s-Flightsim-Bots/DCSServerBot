@@ -1,6 +1,3 @@
-import io
-from asyncio.subprocess import Process
-
 import aiohttp
 import asyncio
 import discord

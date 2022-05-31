@@ -2,8 +2,7 @@ import asyncio
 import psycopg2
 from contextlib import closing
 from core import utils, EventListener, Plugin
-from enum import Enum, auto
-
+from copy import deepcopy
 
 class PunishmentEventListener(EventListener):
 
@@ -19,15 +18,15 @@ class PunishmentEventListener(EventListener):
                 if 'installation' in element or 'server_name' in element:
                     if ('installation' in element and server['installation'] == element['installation']) or \
                             ('server_name' in element and server['server_name'] == element['server_name']):
-                        specific = element
+                        specific = deepcopy(element)
                 else:
-                    default = element
+                    default = deepcopy(element)
             if default and not specific:
                 server[self.plugin_name] = default
             elif specific and not default:
                 server[self.plugin_name] = specific
             elif default and specific:
-                merged = default.copy()
+                merged = default
                 # specific settings will always overwrite default settings
                 for key, value in specific.items():
                     merged[key] = value

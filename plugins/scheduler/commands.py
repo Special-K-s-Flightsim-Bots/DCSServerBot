@@ -5,6 +5,7 @@ import os
 import psutil
 import random
 import string
+from copy import deepcopy
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, TEventListener, Status, MizFile, Autoexec, Extension
 from datetime import datetime, timedelta
 from discord.ext import tasks, commands
@@ -78,9 +79,9 @@ class Scheduler(Plugin):
                     if 'installation' in element or 'server_name' in element:
                         if ('installation' in element and server['installation'] == element['installation']) or \
                                 ('server_name' in element and server['server_name'] == element['server_name']):
-                            specific = element.copy()
+                            specific = deepcopy(element)
                     else:
-                        default = element.copy()
+                        default = deepcopy(element)
                 if default and not specific:
                     server[self.plugin_name] = default
                 elif specific and not default:

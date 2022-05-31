@@ -1,6 +1,7 @@
 import discord
 import psycopg2
 from contextlib import closing
+from copy import deepcopy
 from core import DCSServerBot, Plugin, utils, PluginRequiredError
 from discord.ext import commands
 from typing import Optional
@@ -54,9 +55,9 @@ class SlotBlockingAgent(Plugin):
                     if 'installation' in element or 'server_name' in element:
                         if ('installation' in element and server['installation'] == element['installation']) or \
                                 ('server_name' in element and server['server_name'] == element['server_name']):
-                            specific = element.copy()
+                            specific = deepcopy(element)
                     else:
-                        default = element.copy()
+                        default = deepcopy(element)
                 if default and not specific:
                     server[self.plugin_name] = default
                 elif specific and not default:
