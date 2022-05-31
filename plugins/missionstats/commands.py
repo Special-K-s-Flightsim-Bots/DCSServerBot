@@ -1,7 +1,7 @@
 import discord
 import psycopg2
 from contextlib import closing
-from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report
+from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report, PaginationReport
 from core.const import Status
 from discord.ext import commands
 from typing import Optional, Union
@@ -68,10 +68,10 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
     @staticmethod
     def format_modules(data, marker, marker_emoji):
         embed = discord.Embed(title=f"Select one of your modules from the list", color=discord.Color.blue())
-        ids = modules  = ''
+        ids = modules = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            modules += f"{data[i]['slot']}\n"
+            modules += f"{data[i]}\n"
         embed.add_field(name='ID', value=ids)
         embed.add_field(name='Module', value=modules)
         embed.add_field(name='_ _', value='_ _')
@@ -92,18 +92,18 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
         conn = self.pool.getconn()
         try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+            with closing(conn.cursor()) as cursor:
                 if isinstance(member, discord.Member):
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC LIMIT 1',
                                    (member.id, ))
-                    ucid = cursor.fetchone()['ucid']
+                    ucid = cursor.fetchone()[0]
                 cursor.execute("SELECT DISTINCT slot, COUNT(*) FROM statistics WHERE player_ucid =  %s AND slot NOT "
                                "IN ('forward_observer', 'instructor', 'observer', 'artillery_commander') GROUP BY 1 "
                                "ORDER BY 2 DESC", (ucid, ))
                 if cursor.rowcount == 0:
                     await ctx.send('No statistics found for this user.', delete_after=timeout if timeout > 0 else None)
                     return
-                modules = [dict(row) for row in cursor.fetchall()]
+                modules = [row[0] for row in cursor.fetchall()]
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
@@ -111,10 +111,10 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         await ctx.message.delete()
         n = await utils.selection_list(self, ctx, modules, self.format_modules)
         if n != -1:
-            report = Report(self.bot, self.plugin_name, 'modulestats.json')
-            env = await report.render(member_name=member.display_name if isinstance(member, discord.Member) else name,
-                                      ucid=ucid, module=modules[n]['slot'], period=None)
-            await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'modulestats.json', timeout if timeout > 0 else None)
+            await report.render(member=member,
+                                member_name=member.display_name if isinstance(member, discord.Member) else name,
+                                ucid=ucid, period=None, start_index=n, modules=modules)
 
     @commands.command(description='Refuelling statistics', usage='[member] [period]')
     @utils.has_role('DCS')

@@ -9,6 +9,14 @@
       "range": ["", "day", "week", "month", "year"]
     }
   ],
+  "pagination":
+  {
+    "param":
+    {
+      "name": "module",
+      "obj": "modules"
+    }
+  },
   "elements":
   [
     {

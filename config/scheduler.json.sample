@@ -11,6 +11,15 @@
           "Summer Nighttime": {"start_time": "03:00", "date": "2016-07-26", "temperature": 18, "clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
           "Summer Daytime": {"start_time": "10:00", "date": "2016-07-26", "temperature": 22, "clouds": "Preset2", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
           "Heavy Storm": {"start_time": "16:00", "temperature": 16, "clouds": "RainyPreset3", "clouds": "Preset2", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}}
+      },
+      "extensions": {
+        "SRS": {
+          "installation": "%ProgramFiles%\\DCS-SimpleRadio-Standalone"
+        },
+        "Tacview": {
+          "path": "%USERPROFILE%\\Documents\\Tacview",
+          "delete_after": 30
+        }
       }
     },
     {
@@ -21,6 +30,14 @@
     {
       "installation": "mission",
       "schedule": {"18:00": "NNNNNNY"}
+      "extensions": {
+        "SRS": {
+          "config": "%USERPROFILE%\\Saved Games\\mission\\Config\\SRS.cfg"
+        },
+        "Tacview": {
+          "show_passwords": false
+        }
+      }
     },
     {
       "installation": "instance2",
@@ -34,6 +51,11 @@
           "08:00-11:59": "Winter Daytime"
         }
       },
+      "extensions": {
+        "SRS": {
+          "config": "%USERPROFILE%\\Saved Games\\instance2\\Config\\SRS.cfg"
+        }
+      }
       "onMissionStart": "load:Scripts/net/start.lua",
       "onMissionEnd": "load:Scripts/net/end.lua",
       "onShutdown": "run:shutdown /r"
@@ -49,6 +71,11 @@
           "Winter Daytime",
           "Summer Daytime"
         ]
+      },
+      "extensions": {
+        "SRS": {
+          "config": "%USERPROFILE%\\Saved Games\\instance3\\Config\\SRS.cfg"
+        }
       }
     }
   ]

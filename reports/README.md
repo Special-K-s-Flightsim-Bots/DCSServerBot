@@ -313,6 +313,9 @@ async def test(self, ctx, period: Optional[str] = None, server_name: Optional[st
     report = PaginationReport(self.bot, ctx, self.plugin_name, 'mytest.json')
     await report.render(period=period, server_name=server_name)
 ```
+Providing None to the pagination value (here server_name) will result in None being the first element to allow aggregated
+displays. If you provide a strict value, this will be the first to be displayed out of the pagination list.
+
 
 In your report though, you have to specify a pagination section:
 ```json

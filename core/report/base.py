@@ -119,7 +119,7 @@ class PaginationReport(Report):
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute(param['sql'])
+                    cursor.execute(param['sql'], kwargs)
                     values = list(x[0] for x in cursor.fetchall())
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
@@ -137,15 +137,21 @@ class PaginationReport(Report):
 
     async def render(self, *args, **kwargs) -> ReportEnv:
         name, values = self.read_param(self.report_def['pagination']['param'], **kwargs)
-        if name in kwargs and kwargs[name] is not None:
-            values = [kwargs[name]]
+        start_index = 0
+        if 'start_index' in kwargs:
+            start_index = kwargs['start_index']
+        elif name in kwargs:
+            if kwargs[name] in values:
+                start_index = values.index(kwargs[name])
+            else:
+                values.insert(0, kwargs[name])
         func = super().render
 
-        async def pagination(value=None):
+        async def pagination(index=0):
             try:
                 message = None
                 try:
-                    kwargs[name] = value
+                    kwargs[name] = values[index]
                     env = await func(*args, **kwargs)
                     file = discord.File(env.filename) if env.filename else None
                     with suppress(Exception):
@@ -163,36 +169,18 @@ class PaginationReport(Report):
                     await message.add_reaction('⏹️')
                     await message.add_reaction('▶️')
                     react = await utils.wait_for_single_reaction(self, self.ctx, message)
-                    if value is None:
-                        prev = values[-1]
-                        nxt = values[0]
-                    else:
-                        i = 0
-                        prev = nxt = None
-                        for s in values:
-                            if s == value:
-                                break
-                            i += 1
-                        if i < len(values) - 1:
-                            nxt = values[i + 1]
-                        if i > 0:
-                            prev = values[i - 1]
-
                     if react.emoji == '◀️':
                         await message.delete()
-                        await pagination(prev)
+                        await pagination((index - 1) if index > 0 else len(values) - 1)
                     elif react.emoji == '⏹️':
                         raise asyncio.TimeoutError
                     elif react.emoji == '▶️':
                         await message.delete()
-                        await pagination(nxt)
+                        await pagination((index + 1) if index < (len(values) - 1) else 0)
             except asyncio.TimeoutError:
                 await message.clear_reactions()
 
-        if len(values) == 1:
-            await pagination(values[0])
-        else:
-            await pagination()
+        await pagination(start_index)
         return self.env
 
 

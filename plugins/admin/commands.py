@@ -394,31 +394,44 @@ class Agent(Plugin):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
-    async def process_message(self, message):
+    async def process_message(self, message) -> bool:
         async with aiohttp.ClientSession() as session:
             async with session.get(message.attachments[0].url) as response:
                 if response.status == 200:
+                    ctx = utils.ContextWrapper(message=message)
                     if message.attachments[0].filename.endswith('.json'):
                         data = await response.json(encoding="utf-8")
                         if 'configs' in data:
                             plugin = message.attachments[0].filename[:-5]
                             if plugin not in self.bot.plugins:
                                 await message.channel.send(f"Plugin {string.capwords(plugin)} is not activated.")
-                                return
-                            with open(f"config/{plugin}.json", 'w', encoding="utf-8") as outfile:
+                                return True
+                            filename = f"config/{plugin}.json"
+                            if os.path.exists(filename) and not \
+                                    await utils.yn_question(self, ctx, f'Do you want to overwrite {filename}?'):
+                                await message.channel.send('Aborted.')
+                                return True
+                            with open(filename, 'w', encoding="utf-8") as outfile:
                                 json.dump(data, outfile, indent=2)
                             self.bot.reload(plugin)
                             await message.channel.send(f"Plugin {string.capwords(plugin)} re-configured.")
+                            return True
+                        else:
+                            return False
                     else:
-                        with open('config/dcsserverbot.ini', 'w', encoding='utf-8') as outfile:
-                            outfile.writelines('\n'.join((await response.text(encoding='utf-8')).splitlines()))
-                        self.bot.config = utils.config = utils.reload()
-                        await message.channel.send('dcsserverbot.ini updated.')
-                        ctx = utils.ContextWrapper(message=message)
-                        if await utils.yn_question(self, ctx, 'Do you want to restart the bot?'):
-                            exit(-1)
+                        if await utils.yn_question(self, ctx, f'Do you want to overwrite dcsserverbot.ini?'):
+                            with open('config/dcsserverbot.ini', 'w', encoding='utf-8') as outfile:
+                                outfile.writelines('\n'.join((await response.text(encoding='utf-8')).splitlines()))
+                            self.bot.config = utils.config = utils.reload()
+                            await message.channel.send('dcsserverbot.ini updated.')
+                            if await utils.yn_question(self, ctx, 'Do you want to restart the bot?'):
+                                exit(-1)
+                        else:
+                            await message.channel.send('Aborted.')
+                        return True
                 else:
                     await message.channel.send(f'Error {response.status} while reading JSON file!')
+                    return True
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -432,9 +445,7 @@ class Agent(Plugin):
         # only Admin role is allowed to upload json files in channels
         if not await utils.get_server(self, message) or not utils.check_roles(['Admin'], message.author):
             return
-        try:
-            await self.process_message(message)
-        finally:
+        if await self.process_message(message):
             await message.delete()
 
 
@@ -636,7 +647,8 @@ class Master(Agent):
         if not utils.check_roles(['Admin'], message.author):
             return
         try:
-            await super().process_message(message)
+            if await super().process_message(message):
+                return
             async with aiohttp.ClientSession() as session:
                 async with session.get(message.attachments[0].url) as response:
                     if response.status == 200:
