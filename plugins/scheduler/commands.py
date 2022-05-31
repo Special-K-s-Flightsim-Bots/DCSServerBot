@@ -17,8 +17,11 @@ class Scheduler(Plugin):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
         self.check_state.start()
+        self.lastrun = None
+        self.schedule_extensions.start()
 
     def cog_unload(self):
+        self.schedule_extensions.cancel()
         self.check_state.cancel()
         super().cog_unload()
 
@@ -65,7 +68,7 @@ class Scheduler(Plugin):
         os.rename('config/scheduler.json', 'config/scheduler.bak')
         with open('config/scheduler.json', 'w') as file:
             json.dump(new, file, indent=2)
-            self.log.info('  => config/scheduler.json migrated to new format.')
+            self.log.info('  => config/scheduler.json migrated to new format, please verify!')
 
     def get_config(self, server: dict) -> Optional[dict]:
         if self.plugin_name not in server:
@@ -114,26 +117,6 @@ class Scheduler(Plugin):
                 elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and server['status'] in [Status.PAUSED, Status.STOPPED]:
                     return Status.SHUTDOWN
         return server['status']
-
-    async def launch_extensions(self, server: dict, config: dict, member: Optional[discord.Member] = None) -> list:
-        retval = []
-        for extension in config['extensions']:
-            ext: Extension = server['extensions'][extension] if 'extensions' in server and extension in server['extensions'] else None
-            if not ext:
-                if '.' not in extension:
-                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server, config['extensions'][extension])
-                else:
-                    ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
-            if not await ext.check():
-                await ext.startup()
-                retval.append(ext.name)
-                if not member:
-                    self.log.info(f"  => {ext.name} v{ext.version} launched for \"{server['server_name']}\" by {string.capwords(self.plugin_name)}.")
-                    await self.bot.audit(f"{string.capwords(self.plugin_name)} started {ext.name}", server=server)
-                else:
-                    self.log.info(f"  => {ext.name} v{ext.version} launched for \"{server['server_name']}\" by {member.display_name} ...")
-                    await self.bot.audit(f"started {ext.name}", server=server, user=member)
-        return retval
 
     async def launch_dcs(self, server: dict, config: dict, member: Optional[discord.Member] = None):
         # change the weather in the mission if provided
@@ -360,6 +343,18 @@ class Scheduler(Plugin):
     @check_state.before_loop
     async def before_check(self):
         await self.bot.wait_until_ready()
+
+    @tasks.loop(minutes=1.0)
+    async def schedule_extensions(self):
+        if 'extensions' not in self.locals['configs'][0]:
+            return
+        for extension, config in self.locals['configs'][0]['extensions'].items():
+            if '.' not in extension:
+                ext: Extension = utils.str_to_class('extensions.builtin.' + extension)
+            else:
+                ext: Extension = utils.str_to_class(extension)
+            ext.schedule(config, self.lastrun)
+        self.lastrun = datetime.now()
 
     @commands.command(description='Starts a DCS/DCS-SRS server')
     @utils.has_role('DCS Admin')

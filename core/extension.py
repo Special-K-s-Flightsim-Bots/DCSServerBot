@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from core import report
+from datetime import datetime
 from typing import Any, Optional
 
 
@@ -38,5 +39,9 @@ class Extension(ABC):
     def version(self) -> str:
         raise NotImplementedError()
 
-    def render(self, embed: report.EmbedElement, param: dict):
+    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         raise NotImplementedError()
+
+    @staticmethod
+    def schedule(config: dict, lastrun: Optional[datetime] = None):
+        pass

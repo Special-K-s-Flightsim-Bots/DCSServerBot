@@ -1,9 +1,11 @@
 import os
 import re
 import subprocess
+import time
 import win32api
 from configparser import ConfigParser
 from core import Extension, DCSServerBot, utils, report
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 
@@ -52,9 +54,9 @@ class SRS(Extension):
                                    info['FileVersionLS'] % 65536)
         return version
 
-    def render(self, embed: report.EmbedElement, param: dict):
-        show_password = param['show_password'] if 'show_password' in param else True
-        if show_password and self.locals['General Settings']['EXTERNAL_AWACS_MODE'.lower()] and \
+    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+        show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
+        if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'.lower()] and \
                 'External AWACS Mode Settings' in self.locals:
             blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'.lower()]
             red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'.lower()]
@@ -107,9 +109,9 @@ class LotAtc(Extension):
                                 info['FileVersionLS'] / 65536)
         return version
 
-    def render(self, embed: report.EmbedElement, param: dict):
-        show_password = param['show_password'] if 'show_password' in param else True
-        if show_password and 'blue_password' in self.locals and 'red_password' in self.locals:
+    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+        show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
+        if show_passwords and 'blue_password' in self.locals and 'red_password' in self.locals:
             value = f"🔹 Pass: {self.locals['blue_password']}\n🔸 Pass: {self.locals['red_password']}"
         else:
             value = '_ _'
@@ -122,7 +124,14 @@ class LotAtc(Extension):
 class Tacview(Extension):
     def _load_config(self) -> dict:
         if 'Tacview' in self.server['options']['plugins']:
-            return self.server['options']['plugins']['Tacview']
+            # check config for errors
+            tacview = self.server['options']['plugins']['Tacview']
+            if 'tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled']:
+                if 'tacviewPlaybackDelay' in tacview and tacview['tacviewPlaybackDelay'] > 0:
+                    self.log.warning('  => Tacview: Realtime Telemetry is enabled but Playback Delay is set!')
+            elif 'tacviewPlaybackDelay' not in tacview or tacview['tacviewPlaybackDelay'] == 0:
+                self.log.warning('  => Tacview: Playback Delay is not set!')
+            return tacview
         else:
             return dict()
 
@@ -142,7 +151,7 @@ class Tacview(Extension):
                                 info['FileVersionLS'] / 65536)
         return version
 
-    def render(self, embed: report.EmbedElement, param: dict):
+    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         if not self.locals:
             self.server = self.globals[self.server['server_name']]
             self.locals = self._load_config()
@@ -152,23 +161,40 @@ class Tacview(Extension):
                  not self.locals['tacviewFlightDataRecordingEnabled']):
             value = 'disabled'
         else:
-            show_password = param['show_password'] if 'show_password' in param else True
+            show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
             value = ''
             if 'tacviewRealTimeTelemetryEnabled' in self.locals and self.locals['tacviewRealTimeTelemetryEnabled']:
                 name += ' RT'
-                if show_password and 'tacviewRealTimeTelemetryPassword' in self.locals and \
+                if show_passwords and 'tacviewRealTimeTelemetryPassword' in self.locals and \
                         len(self.locals['tacviewRealTimeTelemetryPassword']) > 0:
                     value += f"Password: {self.locals['tacviewRealTimeTelemetryPassword']}\n"
-            elif show_password and 'tacviewHostTelemetryPassword' in self.locals \
+            elif show_passwords and 'tacviewHostTelemetryPassword' in self.locals \
                     and len(self.locals['tacviewHostTelemetryPassword']) > 0:
                 value += f"Password: {self.locals['tacviewHostTelemetryPassword']}\n"
             if 'tacviewRealTimeTelemetryPort' in self.locals and len(self.locals['tacviewRealTimeTelemetryPort']) > 0:
                 name += f" [{self.locals['tacviewRealTimeTelemetryPort']}]"
             if 'tacviewRemoteControlEnabled' in self.locals and self.locals['tacviewRemoteControlEnabled']:
                 value += f"**Remote Ctrl [{self.locals['tacviewRemoteControlPort']}]**\n"
-                if show_password and 'tacviewRemoteControlPassword' in self.locals and \
+                if show_passwords and 'tacviewRemoteControlPassword' in self.locals and \
                         len(self.locals['tacviewRemoteControlPassword']) > 0:
                     value += f"Password: {self.locals['tacviewRemoteControlPassword']}"
             if len(value) == 0:
                 value = 'enabled'
         embed.add_field(name=name, value=value)
+
+    @staticmethod
+    def schedule(config: dict, lastrun: Optional[datetime] = None):
+        DEFAULT_DIR = r"%USERPROFILE%\Documents\Tacview"
+
+        # check if autodelete is configured
+        if 'delete_after' not in config:
+            return
+        # only run once a day
+        if lastrun and lastrun > (datetime.now() - timedelta(days=1)):
+            return
+        now = time.time()
+        path = os.path.expandvars(config['path']) if 'path' in config else os.path.expandvars(DEFAULT_DIR)
+        for f in [os.path.join(path, x) for x in os.listdir(path)]:
+            if os.stat(f).st_mtime < (now - config['delete_after'] * 86400):
+                if os.path.isfile(f):
+                    os.remove(f)

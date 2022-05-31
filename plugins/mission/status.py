@@ -92,18 +92,16 @@ class WeatherInfo(report.EmbedElement):
 
 class ExtensionsInfo(report.EmbedElement):
 
-    def render(self, server: dict, params: List[dict]):
+    def render(self, server: dict):
         # we don't have any extensions loaded (yet)
         if 'extensions' not in server:
             return
         extensions = server['extensions']
-        for param in params:
-            if param['extension'] in extensions:
-                extensions[param['extension']].render(self, param)
-        if len(extensions) > 0:
-            footer = self.embed.footer.text
-            for ext in extensions.values():
-                footer += f", {ext.name} {ext.version}"
+        footer = self.embed.footer.text
+        for ext in extensions.values():
+            ext.render(self)
+            footer += f", {ext.name} {ext.version}"
+        if len(extensions):
             ext_names = list(extensions.keys())
             footer += '\n- The IP address of '
             if len(ext_names) == 1:
@@ -111,7 +109,7 @@ class ExtensionsInfo(report.EmbedElement):
             else:
                 footer += ', '.join(ext_names[0:-1]) + ' and ' + ext_names[-1]
             footer += ' is the same as the server.\n'
-            self.embed.set_footer(text=footer)
+        self.embed.set_footer(text=footer)
 
 
 class Footer(report.EmbedElement):
