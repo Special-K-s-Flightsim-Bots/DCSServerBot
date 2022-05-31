@@ -1,3 +1,6 @@
+import io
+from asyncio.subprocess import Process
+
 import aiohttp
 import asyncio
 import discord
@@ -303,9 +306,16 @@ class Agent(Plugin):
     async def shell(self, ctx, *params):
         server = await utils.get_server(self, ctx)
         if server:
-            cmd = ' '.join(params)
-            await self.bot.audit(f"executed a shell command: ```{cmd}```", server=server, user=ctx.message.author)
-            subprocess.run(shlex.split(cmd), shell=True)
+            if len(params):
+                cmd = shlex.split(' '.join(params))
+                await self.bot.audit("executed a shell command: ```{}```".format(' '.join(cmd)), server=server, user=ctx.message.author)
+                try:
+                    p = subprocess.run(cmd, shell=True, capture_output=True, timeout=300)
+                    await ctx.send('```' + p.stdout.decode('cp1252', 'ignore') + '```')
+                except subprocess.TimeoutExpired:
+                    await ctx.send('Timeout.')
+            else:
+                await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}shell <command>")
 
     @commands.command(description='Starts a stopped DCS server')
     @utils.has_role('DCS Admin')
