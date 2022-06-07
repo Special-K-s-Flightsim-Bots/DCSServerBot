@@ -9,11 +9,12 @@ from core import report, utils
 from matplotlib.axes import Axes
 from matplotlib.patches import ConnectionPatch
 from typing import Union
+from .filter import StatisticsFilter
 
 
 class PlaytimesPerPlane(report.GraphElement):
 
-    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
         sql = 'SELECT s.slot, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM ' \
               'statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
               's.hop_off IS NOT NULL AND s.mission_id = m.id '
@@ -24,8 +25,8 @@ class PlaytimesPerPlane(report.GraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            self.env.embed.title = utils.format_period(period) + ' ' + self.env.embed.title
-            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
+            sql += ' AND ' + flt.filter()
         sql += 'GROUP BY s.slot ORDER BY 2'
 
         conn = self.pool.getconn()
@@ -57,7 +58,7 @@ class PlaytimesPerPlane(report.GraphElement):
 
 class PlaytimesPerServer(report.GraphElement):
 
-    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
         sql = f"SELECT regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g') AS " \
               f"server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, " \
               f"players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND " \
@@ -69,7 +70,7 @@ class PlaytimesPerServer(report.GraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += ' AND ' + flt.filter()
         sql += 'GROUP BY 1'
 
         conn = self.pool.getconn()
@@ -101,7 +102,7 @@ class PlaytimesPerServer(report.GraphElement):
 
 class PlaytimesPerMap(report.GraphElement):
 
-    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
         sql = 'SELECT m.mission_theatre, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS ' \
               'playtime FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
               'm.id = s.mission_id AND s.hop_off IS NOT NULL '
@@ -112,7 +113,7 @@ class PlaytimesPerMap(report.GraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += ' AND ' + flt.filter()
         sql += 'GROUP BY m.mission_theatre'
 
         conn = self.pool.getconn()
@@ -144,11 +145,11 @@ class PlaytimesPerMap(report.GraphElement):
 
 class RecentActivities(report.GraphElement):
 
-    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
         sql = 'SELECT TO_CHAR(s.hop_on, \'MM/DD\') as day, ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(' \
-                         's.hop_off, NOW()) - s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE ' \
-                         's.player_ucid = p.ucid AND s.hop_on > (DATE(NOW()) - integer \'7\') ' \
-                         'AND s.mission_id = m.id '
+              's.hop_off, NOW()) - s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE ' \
+              's.player_ucid = p.ucid AND s.hop_on > (DATE(NOW()) - integer \'7\') ' \
+              'AND s.mission_id = m.id '
         if isinstance(member, discord.Member):
             sql += 'AND p.discord_id = %s '
         else:
@@ -156,7 +157,7 @@ class RecentActivities(report.GraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += ' AND ' + flt.filter()
         sql += 'GROUP BY day'
 
         conn = self.pool.getconn()
@@ -185,7 +186,7 @@ class RecentActivities(report.GraphElement):
 
 class FlightPerformance(report.GraphElement):
 
-    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
         sql = 'SELECT SUM(ejections) as "Ejections", SUM(crashes-ejections) as "Crashes\n(Pilot dead)", ' \
               'SUM(landings) as "Landings" FROM statistics s, ' \
               'players p, missions m WHERE s.player_ucid = p.ucid ' \
@@ -197,7 +198,7 @@ class FlightPerformance(report.GraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\''
         if period:
-            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += ' AND ' + flt.filter()
 
         conn = self.pool.getconn()
         try:
@@ -215,8 +216,9 @@ class FlightPerformance(report.GraphElement):
                             labels.append(name)
                             values.append(value)
                     if len(values) > 0:
-                        patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
-                                                        wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+                        patches, texts, pcts = \
+                            self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
+                                          wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
                         plt.setp(pcts, color='black', fontweight='bold')
                         self.axes.set_title('Flying', color='white', fontsize=25)
                         self.axes.axis('equal')
@@ -232,7 +234,8 @@ class FlightPerformance(report.GraphElement):
 
 class KDRatio(report.MultiGraphElement):
 
-    def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str):
+    def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
+                              flt: StatisticsFilter):
         sql = 'SELECT COALESCE(SUM(kills - pvp), 0) as "AI Kills", COALESCE(SUM(pvp), 0) as "Player Kills", ' \
               'COALESCE(SUM(deaths_planes + deaths_helicopters + deaths_ships + deaths_sams + deaths_ground - ' \
               'deaths_pvp), 0) as "Deaths by AI", COALESCE(SUM(deaths_pvp),0) as "Deaths by Player", COALESCE(SUM(' \
@@ -246,7 +249,7 @@ class KDRatio(report.MultiGraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            sql += f'AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += ' AND ' + flt.filter()
 
         retval = []
         conn = self.pool.getconn()
@@ -296,7 +299,8 @@ class KDRatio(report.MultiGraphElement):
             self.pool.putconn(conn)
         return retval
 
-    def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str):
+    def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
+                        flt: StatisticsFilter):
         sql = 'SELECT COALESCE(SUM(kills_planes), 0) as planes, COALESCE(SUM(kills_helicopters), 0) helicopters, ' \
               'COALESCE(SUM(kills_ships), 0) as ships, COALESCE(SUM(kills_sams), 0) as air_defence, COALESCE(SUM(' \
               'kills_ground), 0) as ground FROM statistics s, players p, missions m WHERE s.player_ucid = p.ucid AND ' \
@@ -308,7 +312,7 @@ class KDRatio(report.MultiGraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            sql += f'AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += ' AND ' + flt.filter()
 
         retval = False
         conn = self.pool.getconn()
@@ -349,7 +353,8 @@ class KDRatio(report.MultiGraphElement):
             self.pool.putconn(conn)
         return retval
 
-    def draw_death_types(self, ax: Axes, legend: bool, member: Union[discord.Member, str], server_name: str, period: str):
+    def draw_death_types(self, ax: Axes, legend: bool, member: Union[discord.Member, str], server_name: str,
+                         period: str, flt: StatisticsFilter):
         sql = 'SELECT SUM(deaths_planes) as planes, SUM(deaths_helicopters) helicopters, SUM(deaths_ships) as ships, ' \
               'SUM(deaths_sams) as air_defence, SUM(deaths_ground) as ground FROM statistics s, players p, ' \
               'missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id '
@@ -360,7 +365,7 @@ class KDRatio(report.MultiGraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         if period:
-            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += ' AND ' + flt.filter()
 
         retval = False
         conn = self.pool.getconn()
@@ -394,7 +399,7 @@ class KDRatio(report.MultiGraphElement):
                         ax.set_xlim(- 2.5 * width, 2.5 * width)
                         if legend is True:
                             ax.legend(labels, fontsize=15, loc=3, ncol=6, mode='expand',
-                                        bbox_to_anchor=(0.6, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
+                                      bbox_to_anchor=(0.6, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
                         # Chart was drawn, return True
                         retval = True
         except (Exception, psycopg2.DatabaseError) as error:
@@ -403,11 +408,11 @@ class KDRatio(report.MultiGraphElement):
             self.pool.putconn(conn)
         return retval
 
-    def render(self, member: Union[discord.Member, str], server_name: str, period: str):
-        retval = self.draw_kill_performance(self.axes[1], member, server_name, period)
+    def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
+        retval = self.draw_kill_performance(self.axes[1], member, server_name, period, flt)
         i = 0
         if ('AI Kills' in retval or 'Player Kills' in retval) and \
-                (self.draw_kill_types(self.axes[2], member, server_name, period) is True):
+                (self.draw_kill_types(self.axes[2], member, server_name, period, flt) is True):
             # use ConnectionPatch to draw lines between the two plots
             # get the wedge data
             theta1 = self.axes[1].patches[i].theta1
@@ -440,7 +445,7 @@ class KDRatio(report.MultiGraphElement):
         else:
             self.axes[2].set_visible(False)
         if ('Deaths by AI' in retval or 'Deaths by Player' in retval) and \
-                (self.draw_death_types(self.axes[0], (i == 0), member, server_name, period) is True):
+                (self.draw_death_types(self.axes[0], (i == 0), member, server_name, period, flt) is True):
             # use ConnectionPatch to draw lines between the two plots
             # get the wedge data
             theta1 = self.axes[1].patches[i].theta1

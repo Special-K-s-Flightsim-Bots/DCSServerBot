@@ -8,8 +8,30 @@ from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, Pagin
 from core.const import Status
 from datetime import datetime
 from discord.ext import commands, tasks
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
+from .filter import StatisticsFilter
 from .listener import UserStatisticsEventListener
+
+
+def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *params) -> Tuple[Union[discord.Member, str], str]:
+    num = len(params)
+    if not member:
+        member = ctx.message.author
+        period = None
+    elif isinstance(member, discord.Member):
+        period = params[0] if num > 0 else None
+    elif StatisticsFilter.detect(self.bot, member):
+        period = member
+        member = ctx.message.author
+    else:
+        i = 0
+        name = member
+        while i < num and not StatisticsFilter.detect(self.bot, params[i]):
+            name += ' ' + params[i]
+            i += 1
+        member = name
+        period = params[i] if i < num else None
+    return member, period
 
 
 class UserStatisticsAgent(Plugin):
@@ -32,30 +54,18 @@ class UserStatisticsMaster(Plugin):
     async def statistics(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         try:
             timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-            num = len(params)
+            member, period = parse_params(self, ctx, member, *params)
             if not member:
-                member = ctx.message.author
-                period = None
-            elif isinstance(member, discord.Member):
-                period = params[0] if num > 0 else None
-            elif member in ['day', 'week', 'month', 'year']:
-                period = member
-                member = ctx.message.author
-            else:
-                i = 0
-                name = member
-                while i < num and params[i] not in ['day', 'week', 'month', 'year']:
-                    name += ' ' + params[i]
-                    i += 1
-                member = utils.get_ucid_by_name(self, name)
-                if not member:
-                    await ctx.send('No players found with that nickname.', delete_after=timeout if timeout > 0 else None)
-                    return
-                period = params[i] if i < num else None
+                await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
+                return
+            flt = StatisticsFilter.detect(self.bot, period)
+            if period and not flt:
+                await ctx.send('Please provide a valid period or campaign name.')
+                return
             report = PaginationReport(self.bot, ctx, self.plugin_name, 'userstats.json', timeout if timeout > 0 else None)
-            await report.render(member=member,
-                                member_name=member.display_name if isinstance(member, discord.Member) else name,
-                                period=period, server_name=None)
+            await report.render(member=member if isinstance(member, discord.Member) else utils.get_ucid_by_name(self, member),
+                                member_name=member.display_name if isinstance(member, discord.Member) else member,
+                                period=period, server_name=None, flt=flt)
         finally:
             await ctx.message.delete()
 
@@ -66,12 +76,16 @@ class UserStatisticsMaster(Plugin):
         try:
             timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
             server = await utils.get_server(self, ctx)
+            flt = StatisticsFilter.detect(self.bot, period)
+            if period and not flt:
+                await ctx.send('Please provide a valid period or campaign name.')
+                return
             if not server:
                 report = PaginationReport(self.bot, ctx, self.plugin_name, 'highscore.json', timeout if timeout > 0 else None)
-                await report.render(period=period, message=ctx.message)
+                await report.render(period=period, message=ctx.message, flt=flt)
             else:
                 report = Report(self.bot, self.plugin_name, 'highscore.json')
-                env = await report.render(period=period, message=ctx.message, server_name=server['server_name'])
+                env = await report.render(period=period, message=ctx.message, server_name=server['server_name'], flt=flt)
                 file = discord.File(env.filename)
                 await ctx.send(embed=env.embed, file=file, delete_after=timeout if timeout > 0 else None)
                 if file:

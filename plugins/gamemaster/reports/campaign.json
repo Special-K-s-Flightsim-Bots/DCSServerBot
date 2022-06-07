@@ -1,0 +1,27 @@
+{
+  "color": "blue",
+  "title": "{title}",
+  "elements":
+  [
+    {
+      "type": "Table",
+      "params": {
+        "values": [
+          {
+            "Name": "{campaign[name]}",
+            "Starttime": "{campaign[start]:%y-%m-%d %H:%M:%S}",
+            "Endtime": "{campaign[stop]:%y-%m-%d %H:%M:%S}"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Field",
+      "params": {
+        "name": "Description",
+        "value": "{campaign[description]}",
+        "inline": false
+      }
+    }
+  ]
+}

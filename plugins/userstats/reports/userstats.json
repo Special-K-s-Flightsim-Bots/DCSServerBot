@@ -2,13 +2,6 @@
   "color": "blue",
   "title": "Statistics for {member_name}",
   "description": "{server_name}",
-  "input":
-  [
-    {
-      "name": "period",
-      "range": ["", "day", "week", "month", "year"]
-    }
-  ],
   "pagination":
   {
     "param":

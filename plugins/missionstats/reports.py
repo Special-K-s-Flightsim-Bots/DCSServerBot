@@ -6,6 +6,7 @@ from contextlib import closing
 from core import report, ReportEnv, utils, const
 from dataclasses import dataclass
 from datetime import datetime
+from plugins.userstats.filter import StatisticsFilter
 from typing import Optional, Union
 
 
@@ -27,12 +28,12 @@ class Sorties(report.EmbedElement):
             self.sorties.loc[len(self.sorties.index)] = [flight.plane, flight.end - flight.start]
         return Flight()
 
-    def render(self, member: Union[discord.Member, str], period: Optional[str] = None) -> None:
+    def render(self, member: Union[discord.Member, str], period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT mission_id, init_type, init_cat, event, place, time FROM missionstats WHERE event IN " \
               "('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
         if period:
-            self.env.embed.title = utils.format_period(period) + ' ' + self.env.embed.title
-            sql += f" AND DATE(time) > (DATE(NOW()) - interval '1 {period}')"
+            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
+            sql += ' AND ' + flt.filter()
         if isinstance(member, discord.Member):
             sql += " AND init_id IN (SELECT ucid FROM players WHERE discord_id = %s)"
         else:
@@ -135,13 +136,20 @@ class MissionStats(report.EmbedElement):
 
 
 class ModuleStats1(report.EmbedElement):
-    def render(self, sql: str, ucid: str, module: str, period: Optional[str] = None) -> None:
+    def render(self, ucid: str, module: str, period: str, flt: StatisticsFilter) -> None:
+        sql = "SELECT COUNT(*) as num, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) as total, " \
+              "ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS average FROM statistics s " \
+              "WHERE s.player_ucid = %(ucid)s AND s.slot = %(module)s"
+        if period:
+            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
+            sql += ' AND ' + flt.filter()
+
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
                 cursor.execute(sql, self.env.params)
                 row = cursor.fetchone()
-                self.add_field(name='Usages', value=row['num'])
+                self.add_field(name='Usages', value=str(row['num']))
                 self.add_field(name='Total Playtime', value=utils.convert_time(row['total'] or 0))
                 self.add_field(name='Average Playtime', value=utils.convert_time(row['average'] or 0))
         except (Exception, psycopg2.DatabaseError) as error:
@@ -151,7 +159,21 @@ class ModuleStats1(report.EmbedElement):
 
 
 class ModuleStats2(report.EmbedElement):
-    def render(self, sql: str, ucid: str, module: str, period: Optional[str] = None) -> None:
+    def render(self, ucid: str, module: str, period: str, flt: StatisticsFilter) -> None:
+        sql = "SELECT init_type, MAX(target_cat) AS target_cat, weapon, MAX(shots) AS shots, MAX(hits) AS hits, " \
+              "MAX(kills) AS kills FROM (SELECT m.init_type, CASE WHEN m.target_cat IN ('Airplanes', 'Helicopters') " \
+              "THEN 'Air' WHEN m.target_cat IN ('Ground Units', 'Ships', 'Structures') THEN 'Ground' END AS " \
+              "target_cat, COALESCE(CASE WHEN m.weapon = '' OR m.event = 'S_EVENT_SHOOTING_START' THEN NULL ELSE " \
+              "m.weapon END, 'Gun') AS weapon, COALESCE(SUM(CASE WHEN m.event IN ('S_EVENT_SHOT', " \
+              "'S_EVENT_SHOOTING_START') THEN 1 ELSE 0 END), 0) AS shots, COALESCE(SUM(CASE WHEN m.event = " \
+              "'S_EVENT_HIT' THEN 1 ELSE 0 END), 0) AS hits, COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_KILL' THEN 1 " \
+              "ELSE 0 END), 0) AS kills FROM missionstats m, statistics s WHERE m.mission_id = s.mission_id AND " \
+              "m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) "
+        if period:
+            sql += 'AND ' + flt.filter()
+        sql += "AND m.init_id = %(ucid)s AND m.init_type = %(module)s GROUP BY 1, 2, 3) x WHERE weapon <> 'Gun' GROUP " \
+               "BY 1, 3 HAVING MAX(shots) > 0 AND MAX(target_cat) IS NOT NULL ORDER BY 2,3,4 "
+
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
@@ -189,11 +211,11 @@ class ModuleStats2(report.EmbedElement):
 
 
 class Refuellings(report.EmbedElement):
-    def render(self, member: Union[discord.Member, str], period: Optional[str] = None) -> None:
+    def render(self, member: Union[discord.Member, str], period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT init_type, COUNT(*) FROM missionstats WHERE EVENT = 'S_EVENT_REFUELING_STOP'"
         if period:
-            self.env.embed.title = utils.format_period(period) + ' ' + self.env.embed.title
-            sql += f" AND DATE(time) > (DATE(NOW()) - interval '1 {period}')"
+            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
+            sql += ' AND ' + flt.filter()
         if isinstance(member, discord.Member):
             sql += " AND init_id IN (SELECT ucid FROM players WHERE discord_id = %s)"
         else:
