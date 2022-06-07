@@ -94,6 +94,8 @@ class LotAtc(Extension):
                     match = exp.match(line)
                     if match:
                         key = match.group('key').strip()
+                        if key.startswith('--'):
+                            continue
                         value = match.group('value').strip(' ,')
                         cfg[key] = self.parse(value)
         if os.path.exists(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
@@ -104,6 +106,8 @@ class LotAtc(Extension):
                     match = exp.match(line)
                     if match:
                         key = match.group('key').strip()
+                        if key.startswith('--'):
+                            continue
                         value = match.group('value').strip(' ,')
                         cfg[key] = self.parse(value)
         return cfg
