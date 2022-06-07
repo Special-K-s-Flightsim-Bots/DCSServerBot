@@ -1,7 +1,7 @@
 from core import const, report
 from core.const import Status
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Optional
 
 
 class Init(report.EmbedElement):

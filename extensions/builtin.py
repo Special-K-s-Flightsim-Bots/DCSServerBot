@@ -69,7 +69,9 @@ class SRS(Extension):
 class LotAtc(Extension):
     @staticmethod
     def parse(value: str) -> Any:
-        if value.startswith('"'):
+        if value.startswith('{'):
+            return value[1:-1].split(',')
+        elif value.startswith('"'):
             return value.strip('"')
         elif value == 'true':
             return True
