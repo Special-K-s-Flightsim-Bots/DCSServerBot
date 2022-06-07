@@ -86,19 +86,26 @@ class LotAtc(Extension):
         exp = re.compile(r'(?P<key>.*) = (?P<value>.*)')
         cfg = dict()
         installation = self.server['installation']
-        if os.path.exists(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + '/Mods/services/LotAtc/config.lua'):
-            with open(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + '/Mods/services/LotAtc/config.lua', 'r') as file:
+        if os.path.exists(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
+                          '/Mods/services/LotAtc/config.lua'):
+            with open(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
+                      '/Mods/services/LotAtc/config.lua', 'r') as file:
                 for line in file.readlines():
                     match = exp.match(line)
                     if match:
-                        cfg[match.group('key')] = self.parse(match.group('value'))
-        if os.path.exists(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + '/Mods/services/LotAtc/config.custom.lua'):
-            with open(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + '/Mods/services/LotAtc/config.custom.lua',
-                      'r') as file:
+                        key = match.group('key').strip()
+                        value = match.group('value').strip(' ,')
+                        cfg[key] = self.parse(value)
+        if os.path.exists(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
+                          '/Mods/services/LotAtc/config.custom.lua'):
+            with open(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
+                      '/Mods/services/LotAtc/config.custom.lua', 'r') as file:
                 for line in file.readlines():
                     match = exp.match(line)
                     if match:
-                        cfg[match.group('key')] = self.parse(match.group('value'))
+                        key = match.group('key').strip()
+                        value = match.group('value').strip(' ,')
+                        cfg[key] = self.parse(value)
         return cfg
 
     @property
