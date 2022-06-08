@@ -55,7 +55,7 @@ class SlotBlockingListener(EventListener):
                 conn = self.pool.getconn()
                 try:
                     with closing(conn.cursor()) as cursor:
-                        cursor.execute('SELECT points FROM credits WHERE campaign_id = (SELECT campaign_id FROM '
+                        cursor.execute('SELECT points FROM credits WHERE campaign_id = (SELECT id FROM '
                                        'campaigns WHERE server_name = %s AND NOW() BETWEEN start AND COALESCE(stop, '
                                        'NOW()) AND player_ucid = %s',
                                        (server_name, player['ucid']))
@@ -90,8 +90,8 @@ class SlotBlockingListener(EventListener):
         try:
             with closing(conn.cursor()) as cursor:
                 # Initialize the player with a value of 0 if a campaign is active
-                cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) SELECT campaign_id, %s, '
-                               '%s FROM campaigns WHERE server_name = %s AND NOW() BETWEEN start AND COALESCE(stop, '
+                cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) SELECT id, %s, %s FROM '
+                               'campaigns WHERE server_name = %s AND NOW() BETWEEN start AND COALESCE(stop, '
                                'NOW()) ON CONFLICT DO NOTHING',
                                (data['ucid'], initial_points, data['server_name']))
                 conn.commit()
@@ -118,7 +118,7 @@ class SlotBlockingListener(EventListener):
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('UPDATE credits SET points = %s WHERE player_ucid = %s AND campaign_id = (SELECT '
-                               'campaign_id FROM campaigns WHERE server_name = %s AND NOW() BETWEEN start AND '
+                               'id FROM campaigns WHERE server_name = %s AND NOW() BETWEEN start AND '
                                'COALESCE(stop, NOW())',
                                (player['points'], player['ucid'], server_name))
                 self.bot.sendtoDCS(self.globals[server_name],

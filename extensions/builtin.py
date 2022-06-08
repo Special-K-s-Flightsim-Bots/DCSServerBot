@@ -115,11 +115,14 @@ class LotAtc(Extension):
     @property
     def version(self) -> str:
         installation = self.server['installation']
-        info = win32api.GetFileVersionInfo(
-            os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + r'\Mods\services\LotAtc\bin\lotatc.dll', '\\')
-        version = "%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                info['FileVersionMS'] % 65536,
-                                info['FileVersionLS'] / 65536)
+        path = os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + r'\Mods\services\LotAtc\bin\lotatc.dll'
+        if os.path.exists(path):
+            info = win32api.GetFileVersionInfo(path, '\\')
+            version = "%d.%d.%d" % (info['FileVersionMS'] / 65536,
+                                    info['FileVersionMS'] % 65536,
+                                    info['FileVersionLS'] / 65536)
+        else:
+            version = 'n/a'
         return version
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):

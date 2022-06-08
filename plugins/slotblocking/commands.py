@@ -64,7 +64,7 @@ class SlotBlockingMaster(SlotBlockingAgent):
                 cursor.execute(f"SELECT trim(regexp_replace(c.server_name, '"
                                f"{self.config['FILTER']['SERVER_FILTER']}', '', 'g')), p.name, COALESCE(SUM("
                                f"s.points), 0) AS credits FROM credits s, players p, campaigns c WHERE "
-                               f"s.player_ucid = p.ucid AND p.discord_id = %s AND s.campaign_id = c.campaign_id AND "
+                               f"s.player_ucid = p.ucid AND p.discord_id = %s AND s.campaign_id = c.id AND "
                                f"NOW() BETWEEN c.start AND COALESCE(c.stop, NOW()) GROUP BY 1, 2",
                                (ctx.message.author.id, ))
                 if cursor.rowcount == 0:
