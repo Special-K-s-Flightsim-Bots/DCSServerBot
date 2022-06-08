@@ -13,9 +13,6 @@ class Extension(ABC):
         self.config = config
         self.globals = bot.globals
         self.server = server
-        if 'extensions' not in self.server:
-            self.server['extensions'] = dict()
-        self.server['extensions'][self.name] = self
         self.locals = self.load_config()
 
     def load_config(self) -> Optional[dict]:
