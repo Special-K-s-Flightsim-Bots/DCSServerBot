@@ -99,7 +99,11 @@ class ExtensionsInfo(report.EmbedElement):
         extensions = server['extensions']
         footer = self.embed.footer.text
         for ext in extensions.values():
-            ext.render(self)
+            # TODO: TEMP BUGFIX
+            try:
+                ext.render(self)
+            except Exception:
+                pass
             footer += f", {ext.name} {ext.version}"
         if len(extensions):
             ext_names = list(extensions.keys())
