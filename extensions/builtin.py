@@ -16,8 +16,12 @@ class SRS(Extension):
 
     def load_config(self) -> Optional[dict]:
         cfg = ConfigParser()
-        cfg.read(os.path.expandvars(self.config['config']))
-        return {s: dict(cfg.items(s)) for s in cfg.sections()}
+        path = os.path.expandvars(self.config['config'])
+        if os.path.exists(path):
+            cfg.read(path)
+            return {s: dict(cfg.items(s)) for s in cfg.sections()}
+        else:
+            self.log.warning(f"Can't load SRS config from {path}!")
 
     async def startup(self) -> bool:
         self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
@@ -55,15 +59,16 @@ class SRS(Extension):
         return version
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
-        if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'.lower()] and \
-                'External AWACS Mode Settings' in self.locals:
-            blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'.lower()]
-            red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'.lower()]
-            value = f'🔹 Pass: {blue}\n🔸 Pass: {red}'
-        else:
-            value = '_ _'
-        embed.add_field(name=f"SRS [{self.locals['Server Settings']['server_port']}]", value=value)
+        if self.locals:
+            show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
+            if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'.lower()] and \
+                    'External AWACS Mode Settings' in self.locals:
+                blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'.lower()]
+                red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'.lower()]
+                value = f'🔹 Pass: {blue}\n🔸 Pass: {red}'
+            else:
+                value = '_ _'
+            embed.add_field(name=f"SRS [{self.locals['Server Settings']['server_port']}]", value=value)
 
 
 class LotAtc(Extension):
@@ -126,15 +131,16 @@ class LotAtc(Extension):
         return version
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
-        if show_passwords and 'blue_password' in self.locals and 'red_password' in self.locals:
-            value = f"🔹 Pass: {self.locals['blue_password']}\n🔸 Pass: {self.locals['red_password']}"
-        else:
-            value = '_ _'
-        if 'port' in self.locals:
-            embed.add_field(name=f"LotAtc [{self.locals['port']}]", value=value)
-        else:
-            embed.add_field(name='LotAtc', value=value)
+        if self.locals:
+            show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
+            if show_passwords and 'blue_password' in self.locals and 'red_password' in self.locals:
+                value = f"🔹 Pass: {self.locals['blue_password']}\n🔸 Pass: {self.locals['red_password']}"
+            else:
+                value = '_ _'
+            if 'port' in self.locals:
+                embed.add_field(name=f"LotAtc [{self.locals['port']}]", value=value)
+            else:
+                embed.add_field(name='LotAtc', value=value)
 
 
 class Tacview(Extension):
