@@ -164,6 +164,20 @@ class Agent(Plugin):
             else:
                 await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}password [red|blue]")
 
+    @staticmethod
+    def format_player_list(data, marker, marker_emoji):
+        embed = discord.Embed(title='Mission List', color=discord.Color.blue())
+        ids = names = ucids = ''
+        for i in range(0, len(data)):
+            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+            names += data[i]['name'] + '\n'
+            ucids += data[i]['ucid'] + '\n'
+        embed.add_field(name='ID', value=ids)
+        embed.add_field(name='Name', value=names)
+        embed.add_field(name='UCID', value=ucids)
+        embed.set_footer(text='Press a number to kick this user.')
+        return embed
+
     @commands.command(description='Kick a user by name', usage='<name>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
@@ -174,10 +188,27 @@ class Agent(Plugin):
                 reason = ' '.join(args)
             else:
                 reason = 'n/a'
-            self.bot.sendtoDCS(server, {"command": "kick", "name": name, "reason": reason})
-            await ctx.send(f'User "{name}" kicked.')
-            await self.bot.audit(f'kicked player {name}' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
-                                 user=ctx.message.author)
+            # find that player
+            if server['status'] != Status.RUNNING or server['server_name'] not in self.bot.player_data:
+                await ctx.send('Server is not running or no players on this server atm.')
+                return
+            players = self.bot.player_data[server['server_name']]
+            players = players[(players['active'] == True) & (players['name'].str.contains(name, case=False))]
+            if len(players) > 1:
+                num = await utils.selection_list(self, ctx, players.to_dict('records'), self.format_player_list)
+            elif len(players) == 1:
+                num = 0
+            else:
+                await ctx.send(f"No player \"{name}\" found.")
+                return
+            if num >= 0:
+                player = players.to_dict('records')[num]
+                self.bot.sendtoDCS(server, {"command": "kick", "ucid": player['ucid'], "reason": reason})
+                await ctx.send(f"User \"{player['name']}\" kicked.")
+                await self.bot.audit(f"kicked player {player['name']}" + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                                     user=ctx.message.author)
+            else:
+                await ctx.send('Aborted.')
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
     @utils.has_role('DCS Admin')

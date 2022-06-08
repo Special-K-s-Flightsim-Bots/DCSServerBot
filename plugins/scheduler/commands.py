@@ -344,6 +344,13 @@ class Scheduler(Plugin):
     @check_state.before_loop
     async def before_check(self):
         await self.bot.wait_until_ready()
+        initialized = 0
+        while initialized < len(self.globals):
+            initialized = 0
+            for server_name, server in self.globals.items():
+                if server['status'] != Status.UNREGISTERED:
+                    initialized += 1
+            await asyncio.sleep(1)
 
     @tasks.loop(minutes=1.0)
     async def schedule_extensions(self):
