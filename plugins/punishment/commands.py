@@ -187,7 +187,7 @@ class PunishmentMaster(PunishmentAgent):
             finally:
                 self.pool.putconn(conn)
 
-    @commands.command(description='Set punishment to 0 for a user', usage='<member / ucid>')
+    @commands.command(description='Set punishment to 0 for a user', usage='<member|ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def forgive(self, ctx, user: Union[discord.Member, str]):

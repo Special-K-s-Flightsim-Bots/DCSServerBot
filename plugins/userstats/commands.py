@@ -110,7 +110,7 @@ class UserStatisticsMaster(Plugin):
         finally:
             self.pool.putconn(conn)
 
-    @commands.command(description='Unlinks a member', usage='<member> / <ucid>')
+    @commands.command(description='Unlinks a member', usage='<member|ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unlink(self, ctx, member: Union[discord.Member, str]):
