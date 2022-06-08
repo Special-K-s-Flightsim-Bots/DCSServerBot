@@ -57,7 +57,7 @@ class SlotBlockingListener(EventListener):
                     with closing(conn.cursor()) as cursor:
                         cursor.execute('SELECT points FROM credits WHERE campaign_id = (SELECT id FROM '
                                        'campaigns WHERE server_name = %s AND NOW() BETWEEN start AND COALESCE(stop, '
-                                       'NOW()) AND player_ucid = %s',
+                                       'NOW())) AND player_ucid = %s',
                                        (server_name, player['ucid']))
                         if cursor.rowcount > 0:
                             player['points'] = cursor.fetchone()[0]
@@ -119,7 +119,7 @@ class SlotBlockingListener(EventListener):
             with closing(conn.cursor()) as cursor:
                 cursor.execute('UPDATE credits SET points = %s WHERE player_ucid = %s AND campaign_id = (SELECT '
                                'id FROM campaigns WHERE server_name = %s AND NOW() BETWEEN start AND '
-                               'COALESCE(stop, NOW())',
+                               'COALESCE(stop, NOW()))',
                                (player['points'], player['ucid'], server_name))
                 self.bot.sendtoDCS(self.globals[server_name],
                                    {
