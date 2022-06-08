@@ -166,7 +166,7 @@ class Mission(Plugin):
             return
         if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
             server['restart_pending'] = True
-            if server['status'] == Status.RUNNING and utils.is_populated(server):
+            if server['status'] == Status.RUNNING and utils.is_populated(self, server):
                 if delay > 0:
                     message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
                 else:

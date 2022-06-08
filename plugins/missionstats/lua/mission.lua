@@ -100,6 +100,7 @@ function dcsbot.eventHandler:onEvent(event)
 			category = event.initiator:getCategory()
 		    -- work around DCS bug with static targets
 		    if category == Object.Category.STATIC and db_all_units[event.initiator:getID()] then
+				env.info('Fixed wrong unit category.')
                 category = Object.Category.UNIT
 		    end
             -- end workaround
@@ -159,6 +160,7 @@ function dcsbot.eventHandler:onEvent(event)
 			category = event.target:getCategory()
 		    -- work around DCS bug with static targets
 		    if category == Object.Category.STATIC and event.target:isExist() and db_all_units[event.target:getID()] then
+				env.info('Fixed wrong unit category.')
                 category = Object.Category.UNIT
 		    end
             -- end workaround
