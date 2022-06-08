@@ -26,9 +26,6 @@ class Help(Plugin):
                         if not check:
                             continue
                         cmd = f'{ctx.prefix}{command.name}'
-                        # Also add aliases, if there are any
-                        if len(command.aliases) > 0:
-                            cmd += f' / {" / ".join(command.aliases)}'
                         if command.usage is not None:
                             cmd += ' ' + command.usage
                         cmds.append(cmd)

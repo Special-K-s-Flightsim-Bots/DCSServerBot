@@ -172,7 +172,7 @@ class GameMasterAgent(Plugin):
         return embed
 
     @commands.command(description='Campaign Management',
-                      usage='<add / start / stop / delete / list>',
+                      usage='<add|start|stop|delete|list>',
                       aliases=['season'])
     @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()

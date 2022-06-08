@@ -210,7 +210,7 @@ class Agent(Plugin):
             else:
                 await ctx.send('Aborted.')
 
-    @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
+    @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [reason]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user: Union[discord.Member, str], *args):
@@ -240,7 +240,7 @@ class Agent(Plugin):
         finally:
             self.pool.putconn(conn)
 
-    @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
+    @commands.command(description='Unbans a user by ucid or discord id', usage='<member|ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unban(self, ctx, user: Union[discord.Member, str]):
@@ -515,7 +515,7 @@ class Master(Agent):
         finally:
             self.bot.pool.putconn(conn)
 
-    @commands.command(description='Bans a user by ucid or discord id', usage='<member / ucid> [reason]')
+    @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [reason]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user: Union[discord.Member, str], *args):
@@ -549,7 +549,7 @@ class Master(Agent):
         finally:
             self.bot.pool.putconn(conn)
 
-    @commands.command(description='Unbans a user by ucid or discord id', usage='<member / ucid>')
+    @commands.command(description='Unbans a user by ucid or discord id', usage='<member|ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unban(self, ctx, user: Union[discord.Member, str]):
