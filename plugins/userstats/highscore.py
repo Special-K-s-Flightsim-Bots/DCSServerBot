@@ -1,14 +1,14 @@
 import discord
 import psycopg2
 import psycopg2.extras
-import string
 from contextlib import closing
 from core import report, utils, const
+from .filter import StatisticsFilter
 
 
 class HighscorePlaytime(report.GraphElement):
 
-    def render(self, server_name: str, period: str, limit: int, message: discord.Message):
+    def render(self, server_name: str, period: str, limit: int, message: discord.Message, flt: StatisticsFilter):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - " \
               "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
@@ -27,8 +27,8 @@ class HighscorePlaytime(report.GraphElement):
                     sides = [0, 1, 2]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         if period:
-            self.env.embed.title = utils.format_period(period) + ' ' + self.env.embed.title
-            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
+            sql += ' AND ' + flt.filter()
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
 
         conn = self.pool.getconn()
@@ -58,7 +58,7 @@ class HighscorePlaytime(report.GraphElement):
 
 class HighscoreElement(report.GraphElement):
 
-    def render(self, server_name: str, period: str, limit: int, kill_type: str, message: discord.Message):
+    def render(self, server_name: str, period: str, limit: int, kill_type: str, message: discord.Message, flt: StatisticsFilter):
         sql_parts = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',
@@ -100,7 +100,7 @@ class HighscoreElement(report.GraphElement):
                     sides = [0, 1, 2]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         if period:
-            sql += f' AND DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            sql += ' AND ' + flt.filter()
         sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0 ORDER BY 3 DESC LIMIT {limit}'
 
         conn = self.pool.getconn()

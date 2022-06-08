@@ -18,16 +18,13 @@ class MessageOfTheDay(Plugin):
         self.nudge.cancel()
         super().cog_unload()
 
-    def install(self):
-        super().install()
-        if not path.exists('config/motd.json'):
+    def migrate(self, version: str):
+        if version != 'v1.1' or not path.exists('config/motd.json'):
             return
         with open('config/motd.json') as file:
-            config = json.load(file)
-            if 'on_event' in config['configs'][0]:
-                self.migrate(config)
-
-    def migrate(self, old: dict):
+            old = json.load(file)
+            if 'on_event' not in old['configs'][0]:
+                return
         new = {
             "configs": []
         }

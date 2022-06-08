@@ -30,7 +30,6 @@ GameMaster = GameMaster
 
 [DCS]
 DCS_INSTALLATION = %%ProgramFiles%%\\Eagle Dynamics\\DCS World OpenBeta Server
-; SRS_INSTALLATION = %%ProgramFiles%%\\DCS-SimpleRadio-Standalone
 
 ; Only needed if your installation is not named DCS (stable installation).
 ; If you use stable, just add DCS_HOME and the other parameters to the
@@ -39,10 +38,6 @@ DCS_INSTALLATION = %%ProgramFiles%%\\Eagle Dynamics\\DCS World OpenBeta Server
 DCS_HOST = 127.0.0.1
 DCS_PORT = 6666
 DCS_HOME = %%USERPROFILE%%\\Saved Games\\DCS.openbeta_server
-; You need to move the server.cfg into your Saved Games folder. I would recommend to rename it to SRS.cfg.
-SRS_CONFIG = %%USERPROFILE%%\\Saved Games\\DCS.openbeta_server\\SRS.cfg
-SRS_HOST = 127.0.0.1
-SRS_PORT = 5002
 STATISTICS = true
 MISSION_STATISTICS = true
 ; These channels have to be replaced with the dedicated discord channel IDs (see README)

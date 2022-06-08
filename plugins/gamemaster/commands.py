@@ -1,13 +1,27 @@
+import dateparser
 import discord
 import psycopg2
 from contextlib import closing
-from core import DCSServerBot, Plugin, utils
+from core import DCSServerBot, Plugin, utils, Report
 from core.const import Status
 from discord.ext import commands
+from typing import Optional
 from .listener import GameMasterEventListener
 
 
 class GameMasterAgent(Plugin):
+
+    def rename(self, old_name: str, new_name: str):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE campaigns SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -142,6 +156,111 @@ class GameMasterAgent(Plugin):
             await ctx.send('Command sent.')
         else:
             await ctx.send(f"Mission is {server['status'].name.lower()}, command discarded.")
+
+    @staticmethod
+    def format_campaigns(data, marker, marker_emoji):
+        embed = discord.Embed(title="Active & Upcoming Campaigns", color=discord.Color.blue())
+        names = start_times = end_times = ''
+        for i in range(0, len(data)):
+            names += data[i]['name'] + '\n'
+            start_times += f"{data[i]['start']:%y-%m-%d %H:%M:%S}\n"
+            end_times += f"{data[i]['stop']:%y-%m-%d %H:%M:%S}\n" if data[i]['stop'] else '-\n'
+        embed.add_field(name='Name', value=names)
+        embed.add_field(name='Start', value=start_times)
+        embed.add_field(name='End', value=end_times)
+        embed.set_footer(text='Press a number to display details about that specific campaign.')
+        return embed
+
+    @commands.command(description='Campaign Management',
+                      usage='<add / start / stop / delete / list>',
+                      aliases=['season'])
+    @utils.has_roles(['DCS Admin', 'GameMaster'])
+    @commands.guild_only()
+    async def campaign(self, ctx, command: Optional[str], name: Optional[str], start_time: Optional[str], end_time: Optional[str]):
+        server = await utils.get_server(self, ctx)
+        if not command:
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+                    cursor.execute('SELECT * FROM campaigns WHERE NOW() BETWEEN start AND COALESCE(stop, NOW())')
+                    if cursor.rowcount > 0:
+                        report = Report(self.bot, self.plugin_name, 'campaign.json')
+                        env = await report.render(campaign=dict(cursor.fetchone()), title='Active Campaign')
+                        await ctx.send(embed=env.embed)
+                    else:
+                        await ctx.send('No running campaign found.')
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+            finally:
+                self.pool.putconn(conn)
+        elif command.lower() == 'add':
+            if not name:
+                await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}.campaign add <name> <start> [stop]")
+                return
+            if not start_time:
+                await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}.campaign add <name> <start> [stop]")
+                return
+            description = await utils.input_value(self, ctx, 'Please enter a short description for this campaign '
+                                                             '(. for none):')
+            try:
+                self.eventlistener.campaign('add', server, name, description,
+                                            dateparser.parse(start_time, settings={'TIMEZONE': 'UTC'}) if start_time else None,
+                                            dateparser.parse(end_time, settings={'TIMEZONE': 'UTC'}) if end_time else None)
+                await ctx.send(f"Campaign {name} added on server {server['server_name']}")
+            except psycopg2.errors.ExclusionViolation:
+                await ctx.send(f"A campaign is already configured for this timeframe on server {server['server_name']}!")
+            except psycopg2.errors.UniqueViolation:
+                await ctx.send(f"A campaign with this name already exists on server {server['server_name']}!")
+        elif command.lower() == 'start':
+            try:
+                if not name:
+                    await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}.campaign start <name>")
+                    return
+                self.eventlistener.campaign('start', server, name)
+                await ctx.send(f"Campaign {name} started on server {server['server_name']}")
+            except psycopg2.errors.ExclusionViolation:
+                await ctx.send(f"There is a campaign already running on server {server['server_name']}!")
+            except psycopg2.errors.UniqueViolation:
+                await ctx.send(f"A campaign with this name already exists on server {server['server_name']}!")
+        elif command.lower() == 'stop':
+            warn_text = f"Do you want to stop the running campaign on server \"{server['server_name']}\"?"
+            if await utils.yn_question(self, ctx, warn_text) is True:
+                self.eventlistener.campaign('stop', server)
+                await ctx.send(f"Campaign stopped.")
+            else:
+                await ctx.send('Aborted.')
+        elif command.lower() in ['del', 'delete']:
+            if name:
+                warn_text = f"Do you want to delete campaign \"{name}\" on server \"{server['server_name']}\"?"
+            else:
+                warn_text = f"Do you want to delete the current running campaign on server \"{server['server_name']}\"?"
+            if await utils.yn_question(self, ctx, warn_text) is True:
+                self.eventlistener.campaign('delete', server, name)
+                await ctx.send(f"Campaign deleted.")
+            else:
+                await ctx.send('Aborted.')
+        elif command.lower() == 'list':
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+                    if name != "-all":
+                        cursor.execute('SELECT * FROM campaigns WHERE COALESCE(stop, NOW()) >= NOW() ORDER BY start '
+                                       'DESC')
+                    else:
+                        cursor.execute('SELECT * FROM campaigns ORDER BY start DESC')
+                    if cursor.rowcount > 0:
+                        campaigns = [dict(row) for row in cursor.fetchall()]
+                        n = await utils.selection_list(self, ctx, campaigns, self.format_campaigns)
+                        if n != -1:
+                            report = Report(self.bot, self.plugin_name, 'campaign.json')
+                            env = await report.render(campaign=campaigns[n], title='Campaign Overview')
+                            await ctx.send(embed=env.embed)
+                    else:
+                        await ctx.send('No upcoming campaigns found.')
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+            finally:
+                self.pool.putconn(conn)
 
 
 class GameMasterMaster(GameMasterAgent):

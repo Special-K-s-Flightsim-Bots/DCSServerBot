@@ -1,27 +1,22 @@
 {
   "color": "blue",
-  "title": "Usage Details for {member_name}",
+  "title": "Usage Details for user {member_name}",
   "description": "Module: {module}",
-  "input":
-  [
+  "pagination":
+  {
+    "param":
     {
-      "name": "period",
-      "range": ["", "day", "week", "month", "year"]
+      "name": "module",
+      "obj": "modules"
     }
-  ],
+  },
   "elements":
   [
     {
-      "class": "plugins.missionstats.reports.ModuleStats1",
-      "params": {
-        "sql": "SELECT COUNT(*) as num, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) as total, ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS average FROM statistics s WHERE s.player_ucid = %(ucid)s AND s.slot = %(module)s"
-      }
+      "class": "plugins.missionstats.reports.ModuleStats1"
     },
     {
-      "class": "plugins.missionstats.reports.ModuleStats2",
-      "params": {
-        "sql": "SELECT init_type, MAX(target_cat) AS target_cat, weapon, MAX(shots) AS shots, MAX(hits) AS hits, MAX(kills) AS kills FROM (SELECT init_type, CASE WHEN target_cat IN ('Airplanes', 'Helicopters') THEN 'Air' WHEN target_cat IN ('Ground Units', 'Ships', 'Structures') THEN 'Ground' END AS target_cat, COALESCE(CASE WHEN weapon = '' OR event = 'S_EVENT_SHOOTING_START' THEN NULL ELSE weapon END, 'Gun') AS weapon, COALESCE(SUM(CASE WHEN event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START') THEN 1 ELSE 0 END), 0) AS shots, COALESCE(SUM(CASE WHEN event = 'S_EVENT_HIT' THEN 1 ELSE 0 END), 0) AS hits, COALESCE(SUM(CASE WHEN event = 'S_EVENT_KILL' THEN 1 ELSE 0 END), 0) AS kills FROM missionstats WHERE init_id = %(ucid)s AND init_type = %(module)s GROUP BY 1, 2, 3) x WHERE weapon <> 'Gun' GROUP BY 1, 3 HAVING MAX(shots) > 0 AND MAX(target_cat) IS NOT NULL ORDER BY 2,3,4"
-      }
+      "class": "plugins.missionstats.reports.ModuleStats2"
     }
   ],
   "footer": "Display is WIP, Guns for instance yet to come.\nValues > 100% might be splash damage or incorrectly reported by DCS."

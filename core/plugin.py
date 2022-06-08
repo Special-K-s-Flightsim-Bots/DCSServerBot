@@ -5,6 +5,7 @@ import psycopg2
 import psycopg2.extras
 import string
 from contextlib import closing
+from copy import deepcopy
 from discord.ext import commands
 from os import path
 from shutil import copytree
@@ -58,6 +59,9 @@ class Plugin(commands.Cog):
             if not path.exists(target_path):
                 os.makedirs(target_path)
 
+    def migrate(self, version: str):
+        pass
+
     def init_db(self):
         tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
         if path.exists(tables_file):
@@ -75,9 +79,11 @@ class Plugin(commands.Cog):
                                     self.log.debug(query.rstrip())
                                     cursor.execute(query.rstrip())
                             cursor.execute('SELECT version FROM plugins WHERE plugin = %s', (self.plugin_name,))
+                            old_version = self.plugin_version
                             self.plugin_version = cursor.fetchone()[0]
-                            self.log.info(f'  => {string.capwords(self.plugin_name)} updated to version {self.plugin_version}.')
+                            self.log.info(f'  => {string.capwords(self.plugin_name)} migrated to version {self.plugin_version}.')
                             updates_file = f'./plugins/{self.plugin_name}/db/update_{self.plugin_version}.sql'
+                            self.migrate(self.plugin_version)
                     else:
                         with open(tables_file) as tables_sql:
                             for query in tables_sql.readlines():
@@ -107,9 +113,9 @@ class Plugin(commands.Cog):
                     if 'installation' in element or 'server_name' in element:
                         if ('installation' in element and server['installation'] == element['installation']) or \
                                 ('server_name' in element and server['server_name'] == element['server_name']):
-                            specific = element.copy()
+                            specific = deepcopy(element)
                     else:
-                        default = element.copy()
+                        default = deepcopy(element)
                 if default and not specific:
                     server[self.plugin_name] = default
                 elif specific and not default:
@@ -126,6 +132,10 @@ class Plugin(commands.Cog):
 
 
 class PluginRequiredError(Exception):
-
-    def __init__(self, plugin):
+    def __init__(self, plugin: str):
         super().__init__(f'Required plugin "{string.capwords(plugin)}" is missing!')
+
+
+class PluginConflictError(Exception):
+    def __init__(self, plugin1: str, plugin2: str):
+        super().__init__(f'Plugin "{string.capwords(plugin1)}" conflicts with plugin "{string.capwords(plugin2)}"!')

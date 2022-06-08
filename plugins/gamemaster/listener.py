@@ -2,6 +2,7 @@ import discord
 import psycopg2
 from contextlib import closing
 from core import EventListener, utils, const
+from datetime import datetime
 from typing import Optional
 
 
@@ -10,6 +11,7 @@ class GameMasterEventListener(EventListener):
     async def onChatMessage(self, data) -> None:
         server = self.globals[data['server_name']]
         player = utils.get_player(self, data['server_name'], id=data['from_id'])
+        chat_channel = None
         if self.config.getboolean(server['installation'], 'COALITIONS') \
                 and data['to'] == -2 and player['side'] in [const.SIDE_BLUE, const.SIDE_RED]:
             if player['side'] == const.SIDE_BLUE:
@@ -127,6 +129,51 @@ class GameMasterEventListener(EventListener):
             conn.rollback()
         finally:
             self.bot.pool.putconn(conn)
+
+    def campaign(self, command: str, server: dict, name: Optional[str] = None, description: Optional[str] = None,
+                 start: Optional[datetime] = None, end: Optional[datetime] = None):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                if command == 'add':
+                    cursor.execute('INSERT INTO campaigns (name, description, server_name, start, stop) VALUES (%s, '
+                                   '%s, %s, %s, %s)', (name, description, server['server_name'], start, end))
+                elif command == 'start':
+                    cursor.execute('INSERT INTO campaigns (name, server_name) VALUES (%s, %s)',
+                                   (name, server['server_name']))
+                elif command == 'stop':
+                    cursor.execute('UPDATE campaigns SET stop = NOW() WHERE server_name = %s AND NOW() BETWEEN start '
+                                   'AND COALESCE(stop, NOW())', (server['server_name'], ))
+                elif command == 'delete':
+                    if name:
+                        cursor.execute('DELETE FROM campaigns WHERE server_name = %s AND name = %s',
+                                       (server['server_name'], name))
+                    else:
+                        cursor.execute('DELETE FROM campaigns WHERE server_name = %s AND NOW() BETWEEN start AND '
+                                       'COALESCE(stop, NOW())', (server['server_name'], ))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError):
+            conn.rollback()
+            raise
+        finally:
+            self.pool.putconn(conn)
+
+    async def startCampaign(self, data: dict) -> None:
+        server = self.globals[data['server_name']]
+        name = data['name'] or '_internal_'
+        try:
+            self.campaign('start', server, name)
+        except psycopg2.errors.UniqueViolation:
+            await self.resetCampaign(data)
+
+    async def stopCampaign(self, data: dict) -> None:
+        server = self.globals[data['server_name']]
+        self.campaign('delete', server)
+
+    async def resetCampaign(self, data: dict) -> None:
+        server = self.globals[data['server_name']]
+        self.campaign('delete', server)
+        self.campaign('start', server)
 
     async def onChatCommand(self, data):
         server = self.globals[data['server_name']]

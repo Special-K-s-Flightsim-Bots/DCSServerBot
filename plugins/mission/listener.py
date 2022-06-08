@@ -110,9 +110,6 @@ class MissionEventListener(EventListener):
     async def onMissionLoadBegin(self, data):
         server = self.globals[data['server_name']]
         server['status'] = Status.LOADING
-        # LotATC is initialized correctly on mission load
-        if 'lotAtcSettings' in data:
-            server['lotAtcSettings'] = data['lotAtcSettings']
         self.bot.player_data[data['server_name']] = pd.DataFrame(
             columns=['id', 'name', 'active', 'side', 'slot', 'sub_slot', 'ucid', 'unit_callsign', 'unit_name',
                      'unit_type', 'group_name'])
@@ -254,14 +251,14 @@ class MissionEventListener(EventListener):
             if len(data['params']) == 0:
                 utils.sendChatMessage(self, data['server_name'], data['from_id'], f"Usage: -atis <airbase/code>")
                 return
-            name = data['params'][0]
+            name = ' '.join(data['params'])
             for airbase in server['airbases']:
                 if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
                     response = await self.bot.sendtoDCSSync(server, {
                         "command": "getWeatherInfo",
-                        "lat": airbase['lat'],
-                        "lng": airbase['lng'],
-                        "alt": airbase['alt']
+                        "x": airbase['position']['x'],
+                        "y": airbase['position']['y'],
+                        "z": airbase['position']['z']
                     })
                     report = Report(self.bot, self.plugin_name, 'atis-ingame.json')
                     env = await report.render(airbase=airbase, data=response)

@@ -39,7 +39,8 @@ class SlotBlockingListener(EventListener):
                 if 'category' in unit and data['victimCategory'] == unit['category']:
                     if 'unit_type' in unit and unit['unit_type'] != data['arg5']:
                         continue
-                    if 'type' in unit and ((unit['type'] == 'AI' and data['arg4'] != "-1") or (unit['type'] == 'Player' and data['arg4'] == "-1")):
+                    if 'type' in unit and ((unit['type'] == 'AI' and data['arg4'] != "-1") or
+                                           (unit['type'] == 'Player' and data['arg4'] == "-1")):
                         continue
                     return unit['points']
                 elif 'default' in unit:
@@ -54,8 +55,9 @@ class SlotBlockingListener(EventListener):
                 conn = self.pool.getconn()
                 try:
                     with closing(conn.cursor()) as cursor:
-                        cursor.execute('SELECT points AS points FROM sb_points WHERE campaign_id = (SELECT '
-                                       'campaign_id FROM campaigns WHERE server_name = %s) AND player_ucid = %s',
+                        cursor.execute('SELECT points FROM credits WHERE campaign_id = (SELECT campaign_id FROM '
+                                       'campaigns WHERE server_name = %s AND NOW() BETWEEN start AND COALESCE(stop, '
+                                       'NOW()) AND player_ucid = %s',
                                        (server_name, player['ucid']))
                         if cursor.rowcount > 0:
                             player['points'] = cursor.fetchone()[0]
@@ -88,8 +90,9 @@ class SlotBlockingListener(EventListener):
         try:
             with closing(conn.cursor()) as cursor:
                 # Initialize the player with a value of 0 if a campaign is active
-                cursor.execute('INSERT INTO sb_points (campaign_id, player_ucid, points) SELECT campaign_id, %s, '
-                               '%s FROM campaigns WHERE server_name = %s ON CONFLICT DO NOTHING',
+                cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) SELECT campaign_id, %s, '
+                               '%s FROM campaigns WHERE server_name = %s AND NOW() BETWEEN start AND COALESCE(stop, '
+                               'NOW()) ON CONFLICT DO NOTHING',
                                (data['ucid'], initial_points, data['server_name']))
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
@@ -114,8 +117,9 @@ class SlotBlockingListener(EventListener):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE sb_points SET points = %s WHERE player_ucid = %s AND '
-                               'campaign_id = (SELECT campaign_id FROM campaigns WHERE server_name = %s)',
+                cursor.execute('UPDATE credits SET points = %s WHERE player_ucid = %s AND campaign_id = (SELECT '
+                               'campaign_id FROM campaigns WHERE server_name = %s AND NOW() BETWEEN start AND '
+                               'COALESCE(stop, NOW())',
                                (player['points'], player['ucid'], server_name))
                 self.bot.sendtoDCS(self.globals[server_name],
                                    {
@@ -233,37 +237,6 @@ class SlotBlockingListener(EventListener):
                     player['points'] += points
                     self.update_user_points(data['server_name'], player)
             self.credits = {}
-
-    def campaign(self, command: str, server: dict) -> None:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if command == 'start':
-                    cursor.execute('INSERT INTO campaigns (server_name) VALUES (%s) ON CONFLICT DO NOTHING',
-                                   (server['server_name'],))
-                elif command == 'stop' or command == 'reset':
-                    cursor.execute('DELETE FROM sb_points WHERE campaign_id = (SELECT campaign_id FROM '
-                                   'campaigns WHERE server_name = %s)', (server['server_name'],))
-                    if command == 'stop':
-                        cursor.execute('DELETE FROM campaigns WHERE server_name = %s', (server['server_name'],))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-
-    async def startCampaign(self, data: dict) -> None:
-        server = self.globals[data['server_name']]
-        self.campaign('start', server)
-
-    async def stopCampaign(self, data: dict) -> None:
-        server = self.globals[data['server_name']]
-        self.campaign('stop', server)
-
-    async def resetCampaign(self, data: dict) -> None:
-        server = self.globals[data['server_name']]
-        self.campaign('reset', server)
 
     async def addUserPoints(self, data: dict) -> None:
         player = self.get_player_points(data['server_name'],

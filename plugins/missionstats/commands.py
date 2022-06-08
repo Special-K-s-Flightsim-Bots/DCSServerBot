@@ -1,9 +1,11 @@
 import discord
 import psycopg2
 from contextlib import closing
-from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report
+from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report, PaginationReport
 from core.const import Status
 from discord.ext import commands
+from plugins.userstats.commands import parse_params
+from plugins.userstats.filter import StatisticsFilter
 from typing import Optional, Union
 from .listener import MissionStatisticsEventListener
 
@@ -31,79 +33,70 @@ class MissionStatisticsAgent(Plugin):
 
 class MissionStatisticsMaster(MissionStatisticsAgent):
 
-    @commands.command(description='Display statistics about sorties', usage='[member] [period]')
+    @commands.command(description='Display statistics about sorties', usage='[user] [period]')
     @utils.has_role('DCS')
     @commands.guild_only()
     async def sorties(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         try:
             timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-            num = len(params)
+            member, period = parse_params(self, ctx, member, *params)
             if not member:
-                member = ctx.message.author
-                period = None
-            elif isinstance(member, discord.Member):
-                period = params[0] if num > 0 else None
-            elif member in ['day', 'week', 'month', 'year']:
-                period = member
-                member = ctx.message.author
-            else:
-                i = 0
-                name = member
-                while i < num and params[i] not in ['day', 'week', 'month', 'year']:
-                    name += ' ' + params[i]
-                    i += 1
-                member = utils.get_ucid_by_name(self, name)
-                if not member:
-                    await ctx.send('No players found with that nickname.', delete_after=timeout if timeout > 0 else None)
-                    return
-                period = params[i] if i < num else None
+                await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
+                return
+            flt = StatisticsFilter.detect(self.bot, period)
+            if period and not flt:
+                await ctx.send('Please provide a valid period or campaign name.')
+                return
             report = Report(self.bot, self.plugin_name, 'sorties.json')
-            env = await report.render(member=member,
-                                      member_name=member.display_name if isinstance(member, discord.Member) else name,
-                                      period=period)
+            env = await report.render(member=member if isinstance(member, discord.Member) else utils.get_ucid_by_name(self, member),
+                                      member_name=member.display_name if isinstance(member, discord.Member) else member,
+                                      period=period, flt=flt)
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
         finally:
             await ctx.message.delete()
 
     @staticmethod
     def format_modules(data, marker, marker_emoji):
-        embed = discord.Embed(title=f"Select one of your modules from the list", color=discord.Color.blue())
-        ids = modules  = ''
+        embed = discord.Embed(title=f"Select a module from the list", color=discord.Color.blue())
+        ids = modules = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            modules += f"{data[i]['slot']}\n"
+            modules += f"{data[i]}\n"
         embed.add_field(name='ID', value=ids)
         embed.add_field(name='Module', value=modules)
         embed.add_field(name='_ _', value='_ _')
         embed.set_footer(text='Press a number to display detailed stats about that specific module.')
         return embed
 
-    @commands.command(description='Module statistics', usage='[user]', aliases=['modstats'])
+    @commands.command(description='Module statistics', usage='[user] [period]', aliases=['modstats'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def modulestats(self, ctx, member: Optional[Union[discord.Member, str]], *params):
-        if not member:
-            member = ctx.message.author
-        elif isinstance(member, str):
-            name = member
-            if len(params) > 0:
-                name += ' ' + ' '.join(params)
-            ucid = utils.get_ucid_by_name(self, name)
         timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+        member, period = parse_params(self, ctx, member, *params)
+        if not member:
+            await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
+            return
+        flt = StatisticsFilter.detect(self.bot, period)
+        if period and not flt:
+            await ctx.send('Please provide a valid period or campaign name.')
+            return
         conn = self.pool.getconn()
         try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+            with closing(conn.cursor()) as cursor:
                 if isinstance(member, discord.Member):
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC LIMIT 1',
                                    (member.id, ))
-                    ucid = cursor.fetchone()['ucid']
+                    ucid = cursor.fetchone()[0]
+                else:
+                    ucid = utils.get_ucid_by_name(self, member)
                 cursor.execute("SELECT DISTINCT slot, COUNT(*) FROM statistics WHERE player_ucid =  %s AND slot NOT "
                                "IN ('forward_observer', 'instructor', 'observer', 'artillery_commander') GROUP BY 1 "
                                "ORDER BY 2 DESC", (ucid, ))
                 if cursor.rowcount == 0:
                     await ctx.send('No statistics found for this user.', delete_after=timeout if timeout > 0 else None)
                     return
-                modules = [dict(row) for row in cursor.fetchall()]
+                modules = [row[0] for row in cursor.fetchall()]
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
@@ -111,10 +104,9 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         await ctx.message.delete()
         n = await utils.selection_list(self, ctx, modules, self.format_modules)
         if n != -1:
-            report = Report(self.bot, self.plugin_name, 'modulestats.json')
-            env = await report.render(member_name=member.display_name if isinstance(member, discord.Member) else name,
-                                      ucid=ucid, module=modules[n]['slot'], period=None)
-            await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'modulestats.json', timeout if timeout > 0 else None)
+            await report.render(member_name=member.display_name if isinstance(member, discord.Member) else member,
+                                ucid=ucid, period=period, start_index=n, modules=modules, flt=flt)
 
     @commands.command(description='Refuelling statistics', usage='[member] [period]')
     @utils.has_role('DCS')
@@ -122,30 +114,18 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
     async def refuellings(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         try:
             timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-            num = len(params)
+            member, period = parse_params(self, ctx, member, *params)
             if not member:
-                member = ctx.message.author
-                period = None
-            elif isinstance(member, discord.Member):
-                period = params[0] if num > 0 else None
-            elif member in ['day', 'week', 'month', 'year']:
-                period = member
-                member = ctx.message.author
-            else:
-                i = 0
-                name = member
-                while i < num and params[i] not in ['day', 'week', 'month', 'year']:
-                    name += ' ' + params[i]
-                    i += 1
-                member = utils.get_ucid_by_name(self, name)
-                if not member:
-                    await ctx.send('No players found with that nickname.', delete_after=timeout if timeout > 0 else None)
-                    return
-                period = params[i] if i < num else None
+                await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
+                return
+            flt = StatisticsFilter.detect(self.bot, period)
+            if period and not flt:
+                await ctx.send('Please provide a valid period or campaign name.')
+                return
             report = Report(self.bot, self.plugin_name, 'refuellings.json')
-            env = await report.render(member=member,
-                                      member_name=member.display_name if isinstance(member, discord.Member) else name,
-                                      period=period)
+            env = await report.render(member=member if isinstance(member, discord.Member) else utils.get_ucid_by_name(self, member),
+                                      member_name=member.display_name if isinstance(member, discord.Member) else member,
+                                      period=period, flt=flt)
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
         finally:
             await ctx.message.delete()

@@ -1,6 +1,6 @@
 import shlex
 import subprocess
-from core import EventListener, utils
+from core import EventListener, utils, Extension
 from os import path
 
 
@@ -29,6 +29,20 @@ class SchedulerListener(EventListener):
                                       server=server, config=self.config)
             self.log.debug('Launching command: ' + cmd)
             subprocess.run(shlex.split(cmd), shell=True)
+
+    async def registerDCSServer(self, data):
+        server = self.globals[data['server_name']]
+        config = self.plugin.get_config(server)
+        for extension in config['extensions']:
+            ext: Extension = server['extensions'][extension] if 'extensions' in server and extension in server['extensions'] else None
+            if not ext:
+                if '.' not in extension:
+                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server, config['extensions'][extension])
+                else:
+                    ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
+            if not await ext.check() and await ext.startup():
+                self.log.info(f"  => {ext.name} v{ext.version} launched for \"{server['server_name']}\".")
+                await self.bot.audit(f"{ext.name} started", server=server)
 
     async def onSimulationStart(self, data):
         server = self.globals[data['server_name']]

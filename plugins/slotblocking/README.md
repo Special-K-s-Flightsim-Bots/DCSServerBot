@@ -46,26 +46,13 @@ If you use multiple entries for points_to_kill, please make sure, that you order
 That means, in the above example you need to specify the plane with the unit_type first, then the planes without.
 So this list will be evaluated **exactly in the order the items are listed** and the first match will count! 
 
-To enable the points system, you need to start a "Campaign" on the specific server. To handle campaigns, you have the following commands:
+To enable the points system, you need to start a "Campaign" on the specific server (see [Gamemaster](../gamemaster/README.md)).
 
 | Command   | Parameter | Role      | Description                                                                                     |
 |-----------|-----------|-----------|-------------------------------------------------------------------------------------------------|
-| .campaign | start     | DCS Admin | Starts a new campaign. All previous campaigns will be closed and their points will get deleted. |
-| .campaign | stop      | DCS Admin | Stops the current campaign. All points for this campaign will get deleted.                      |
-| .campaign | reset     | DCS Admin | Deletes all points for the running campaign on this server.                                     |
 | .credits  |           | DCS       | Displays the players campaign credits.                                                          |
 
 ## Usage inside of Missions (Scripting API)
-You can enable, disable and reset the plugin base slot blocking system (aka campaigns) inside of missions, too. 
-So if you want to use the system and for instance reset it on every mission start, you just need to put in the following
-lines in one of your triggers that fire after a mission load:
-```lua
-  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
-  [...]
-  dcsbot.resetCampaign() -- remove, if you want to keep the points for players
-  dcsbot.startCampaign() -- starts a new campaign (if there is not one started already)
-```
-This can for instance be used for some arena based game, which should start all over again after being restarted.
 If you want to change user points based on any mission achievements, you are good to go:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
@@ -74,16 +61,7 @@ If you want to change user points based on any mission achievements, you are goo
 ```
 
 ## Tables
-### Campaigns*
-| Column       | Type                             | Description                                              |
-|--------------|----------------------------------|----------------------------------------------------------|
-| #campaign_id | SERIAL                           | Auto-incrementing unique ID of this campaign.            |
-| server_name  | TEXT NOT NULL                    | The server name the campaign is valid for.               |
-| mission_name | TEXT                             | The mission name the campaign is valid for (unused atm). |
-
-*) Campaigns will be moved to the Gamemaster plugin in a bit and reworked.
-
-### sb_points
+### CREDITS
 | Column       | Type                       | Description                       |
 |--------------|----------------------------|-----------------------------------|
 | #campaign_id | SERIAL                     | ID of this campaign.              |

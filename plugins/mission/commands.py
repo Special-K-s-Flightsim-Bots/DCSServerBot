@@ -128,9 +128,9 @@ class Mission(Plugin):
                 if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
                     data = await self.bot.sendtoDCSSync(server, {
                         "command": "getWeatherInfo",
-                        "lat": airbase['lat'],
-                        "lng": airbase['lng'],
-                        "alt": airbase['alt']
+                        "x": airbase['position']['x'],
+                        "y": airbase['position']['y'],
+                        "z": airbase['position']['z']
                     })
                     report = Report(self.bot, self.plugin_name, 'atis.json')
                     env = await report.render(airbase=airbase, data=data)
@@ -166,7 +166,7 @@ class Mission(Plugin):
             return
         if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
             server['restart_pending'] = True
-            if server['status'] == Status.RUNNING:
+            if server['status'] == Status.RUNNING and utils.is_populated(server):
                 if delay > 0:
                     message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
                 else:
@@ -225,7 +225,7 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if not server:
             return
-        if server['status'] in [Status.RUNNING, Status.PAUSED]:
+        if server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
             missions = data['missionList']
             if len(missions) == 0:
@@ -239,6 +239,8 @@ class Mission(Plugin):
                 server['restart_pending'] = True
                 self.bot.sendtoDCS(server, {"command": "startMission", "id": num + 1, "channel": ctx.channel.id})
                 await ctx.send(f'Loading mission "{mission}" ...')
+                if server['status'] == Status.STOPPED:
+                    self.bot.sendtoDCS(server, {"command": "start_server"})
         else:
             return await ctx.send(f"Server {server['server_name']} is {server['status'].name}.")
 

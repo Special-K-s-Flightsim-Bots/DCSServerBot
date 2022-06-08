@@ -42,33 +42,6 @@ end
 
 function dcsbot.registerDCSServer(json)
     log.write('DCSServerBot', log.DEBUG, 'Admin: registerDCSServer()')
-	-- load the servers configuration (SRS, et al)
-	local f = io.open(lfs.writedir() .. 'Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua', 'r')
-	if f then
-		local content = f:read("*all")
-		data = string.gsub(content, 'local SRSAuto = {}', 'SRSAuto = {}')
-		data = string.gsub(data, '-- DO NOT EDIT BELOW HERE --(.*)$', '')
-		loadstring(data)()
-		f:close()
-	end
-	if (SRSAuto ~= nil) then
-		local config_path = string.gsub(SRSAuto.SRS_NUDGE_PATH, 'clients.list.json', 'server.cfg')
-		local f = io.open(config_path, 'r')
-		if f then
-			for line in f:lines() do
-				k,v = line:match('^([^=]+)=(.+)$')
-			  if k ~= nil then
-						if (string.upper(v) == 'FALSE') then
-							v = false
-						elseif (string.upper(v) == 'TRUE') then
-							v = true
-						end
-				SRSAuto[k] = v
-				end
-			  end
-			f:close()
-		end
-	end
 	local msg = {}
 	msg.command = 'registerDCSServer'
 	msg.hook_version = config.VERSION
@@ -87,10 +60,6 @@ function dcsbot.registerDCSServer(json)
     -- settings
 	msg.serverSettings = utils.loadSettingsRaw()
 	msg.options = DCS.getUserOptions()
-	msg.SRSSettings = SRSAuto
-	if (lotatc_inst ~= nil) then
-		msg.lotAtcSettings = lotatc_inst.options
-	end
     -- airbases
     msg.airbases = {}
     local airdromes = Terrain.GetTerrainConfig("Airdromes")
@@ -107,6 +76,11 @@ function dcsbot.registerDCSServer(json)
                 airbase.id = airdrome.id
                 airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
                 airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
+                airbase.position = {}
+                airbase.position.x = airdrome.reference_point.x
+                airbase.position.y = airbase.alt
+                airbase.position.z = airdrome.reference_point.y
+
                 local frequencyList = {}
                 if airdrome.frequency then
                     frequencyList	= airdrome.frequency

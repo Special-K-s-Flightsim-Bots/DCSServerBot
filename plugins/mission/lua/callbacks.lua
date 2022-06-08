@@ -18,9 +18,6 @@ function mission.onMissionLoadBegin()
         msg.current_mission = DCS.getMissionName()
         msg.current_map = DCS.getCurrentMission().mission.theatre
         msg.mission_time = 0
-        if (lotatc_inst ~= nil) then
-            msg.lotAtcSettings = lotatc_inst.options
-        end
         utils.sendBotTable(msg)
     end
 end
@@ -72,6 +69,10 @@ function mission.onMissionLoadEnd()
             airbase.id = airdrome.id
             airbase.lat, airbase.lng = Terrain.convertMetersToLatLon(airdrome.reference_point.x, airdrome.reference_point.y)
             airbase.alt = Terrain.GetHeight(airdrome.reference_point.x, airdrome.reference_point.y)
+            airbase.position = {}
+            airbase.position.x = airdrome.reference_point.x
+            airbase.position.y = airbase.alt
+            airbase.position.z = airdrome.reference_point.y
             local frequencyList = {}
             if airdrome.frequency then
                 frequencyList	= airdrome.frequency

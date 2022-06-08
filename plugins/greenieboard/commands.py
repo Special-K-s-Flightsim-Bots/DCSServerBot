@@ -2,11 +2,11 @@ import discord
 import psycopg2
 import shutil
 from contextlib import closing
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, Report
+from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport
 from discord.ext import commands
 from os import path
 from typing import Optional, Union, List
-from . import get_element, GRADES, const
+from . import const
 from .listener import GreenieBoardEventListener
 
 
@@ -66,13 +66,8 @@ class GreenieBoard(Plugin):
         await ctx.message.delete()
         n = await utils.selection_list(self, ctx, landings, self.format_comments)
         if n != -1:
-            report = Report(self.bot, self.plugin_name, 'lsoRating.json')
-            grade = landings[n]['grade']
-            comment = get_element(landings[n]['comment'], 'comment').replace('_', '\\_')
-            wire = get_element(landings[n]['comment'], 'wire')
-            env = await report.render(landing=landings[n], grade=GRADES[grade].replace('_', '\\_'), comment=comment,
-                                      wire=wire)
-            await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'lsoRating.json', timeout if timeout > 0 else None)
+            await report.render(landings=landings, start_index=n)
 
     def render_board(self):
         conn = self.pool.getconn()

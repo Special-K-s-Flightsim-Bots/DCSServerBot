@@ -677,6 +677,7 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
     class NoneFormatter(string.Formatter):
         def format_field(self, value, spec):
             if value is None:
+                spec = ''
                 if default_:
                     value = default_
                 else:

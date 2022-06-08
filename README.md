@@ -128,7 +128,6 @@ d) __DCS Section__
 |----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
 | DCS_INSTALLATION           | The installation directory of DCS World.                                                                                                      |
 | AUTOUPDATE                 | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                                                    |
-| SRS_INSTALLATION           | The installation directory of DCS-SRS (optional).                                                                                             |
 | GREETING_MESSAGE_MEMBERS   | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord.                      |
 | GREETING_MESSAGE_UNMATCHED | A greeting message, that people will receive in DCS chat, if they are unmatched.                                                              |
 | SERVER_USER                | The username to display as user no. 1 in the server (aka "Observer")                                                                          |
@@ -144,9 +143,6 @@ If your directory is named DCS instead (stable version), just add these fields t
 | DCS_HOST                   | The internal (!) IP of the machine, DCS is running onto. If the DCS server is running on the same machine as the bot (default), this should be 127.0.0.1.                                  |
 | DCS_PORT                   | Must be a unique value > 1024 of an unused port in your system. This is **NOT** the DCS tcp/udp port (10308), that is used by DCS but a unique different one. Keep the default, if unsure. |
 | DCS_HOME                   | The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.                                        |
-| SRS_CONFIG                 | The configuration file to use for the dedicated DCS-SRS server (optional).                                                                                                                 |
-| SRS_HOST                   | The IP-address the DCS-SRS server is listening on (optional, default: 127.0.0.1).                                                                                                          |
-| SRS_PORT                   | The port the DCS-SRS server uses (optional, default: 5002).                                                                                                                                |
 | STATISTICS                 | If false, no statistics will be generated for this server. Default is true (see [Userstats](./plugins/userstats/README.md)).                                                               |
 | MISSION_STATISTICS         | If true, mission statistics will be generated for all missions loaded in this server (see [Missionstats](./plugins/missionstats/README.md)).                                               | 
 | DISPLAY_MISSION_STATISTICS | If true, the persistent mission stats embed is displayed in the servers stats channel (default = true).                                                                                    |
