@@ -550,8 +550,10 @@ def startup_dcs(self, server: dict):
     return p
 
 
-async def shutdown_dcs(self, server: dict, timeout: int = 120):
+async def shutdown_dcs(self, server: dict, timeout: int = -1):
     self.bot.sendtoDCS(server, {"command": "shutdown"})
+    if timeout == -1:
+        timeout = 300 if config['BOT']['SLOW_SYSTEM'] else 120
     for i in range(0, timeout):
         await asyncio.sleep(1)
         if server['status'] == Status.STOPPED:

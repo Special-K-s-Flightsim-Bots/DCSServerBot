@@ -70,6 +70,16 @@ class SRS(Extension):
                 value = '_ _'
             embed.add_field(name=f"SRS [{self.locals['Server Settings']['server_port']}]", value=value)
 
+    def verify(self) -> bool:
+        # check if SRS is installed
+        if 'installation' not in self.config or \
+                not os.path.exists(os.path.expandvars(self.config['installation']) + r'\SR-Server.exe'):
+            return False
+        # do we have a proper config file?
+        if 'config' not in self.config or not os.path.exists(os.path.expandvars(self.config['config'])):
+            return False
+        return True
+
 
 class LotAtc(Extension):
     @staticmethod
@@ -141,6 +151,15 @@ class LotAtc(Extension):
                 embed.add_field(name=f"LotAtc [{self.locals['port']}]", value=value)
             else:
                 embed.add_field(name='LotAtc', value=value)
+
+    def verify(self) -> bool:
+        if not os.path.exists(os.path.expandvars(self.bot.config[self.server['installation']]['DCS_HOME']) +
+                              '/Mods/services/LotAtc/bin/lotatc.dll'):
+            return False
+        if not os.path.exists(os.path.expandvars(self.bot.config[self.server['installation']]['DCS_HOME']) +
+                              '/Mods/services/LotAtc/config.lua'):
+            return False
+        return True
 
 
 class Tacview(Extension):
@@ -223,3 +242,7 @@ class Tacview(Extension):
             if os.stat(f).st_mtime < (now - config['delete_after'] * 86400):
                 if os.path.isfile(f):
                     os.remove(f)
+
+    def verify(self) -> bool:
+        return os.path.exists(os.path.expandvars(self.bot.config[self.server['installation']]['DCS_HOME']) +
+                              r'\Mods\tech\Tacview\bin\tacview.dll')

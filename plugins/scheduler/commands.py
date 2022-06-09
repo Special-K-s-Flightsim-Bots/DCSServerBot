@@ -180,7 +180,8 @@ class Scheduler(Plugin):
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
                 if 'extensions' not in server:
                     server['extensions'] = dict()
-                server['extensions'][extension] = ext
+                if ext.verify():
+                    server['extensions'][extension] = ext
             if await ext.check() and await ext.shutdown():
                 retval.append(ext.name)
                 if not member:

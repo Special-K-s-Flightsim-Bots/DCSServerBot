@@ -79,7 +79,6 @@ class Plugin(commands.Cog):
                                     self.log.debug(query.rstrip())
                                     cursor.execute(query.rstrip())
                             cursor.execute('SELECT version FROM plugins WHERE plugin = %s', (self.plugin_name,))
-                            old_version = self.plugin_version
                             self.plugin_version = cursor.fetchone()[0]
                             self.log.info(f'  => {string.capwords(self.plugin_name)} migrated to version {self.plugin_version}.')
                             updates_file = f'./plugins/{self.plugin_name}/db/update_{self.plugin_version}.sql'
