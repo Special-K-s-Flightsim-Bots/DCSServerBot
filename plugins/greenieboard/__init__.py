@@ -1,5 +1,6 @@
 import re
 from .const import *
+from .version import __version__
 
 
 def get_element(comment, element):

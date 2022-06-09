@@ -17,11 +17,11 @@ from install import Install
 from logging.handlers import RotatingFileHandler
 from os import path
 from psycopg2 import pool
-
+from version import __version__
 
 # Set the bot version (not externally configurable)
-BOT_VERSION = '2.6.2'
-SUB_VERSION = 1
+BOT_VERSION = __version__[:__version__.rfind('.')]
+SUB_VERSION = int(__version__[__version__.rfind('.') + 1:])
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,

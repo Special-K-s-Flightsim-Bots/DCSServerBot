@@ -40,7 +40,7 @@ class Scheduler(Plugin):
                                      'avoid that.')
 
     def migrate(self, version: str):
-        if version != 'v1.1' or 'SRS_INSTALLATION' not in self.config['DCS']:
+        if version != '1.1' or 'SRS_INSTALLATION' not in self.config['DCS']:
             return
         with open('config/scheduler.json') as file:
             old: dict = json.load(file)
