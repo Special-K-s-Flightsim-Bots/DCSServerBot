@@ -131,7 +131,7 @@ class Plugin(commands.Cog):
         finally:
             self.pool.putconn(conn)
 
-    def read_locals(self):
+    def read_locals(self) -> dict:
         filename = f'./config/{self.plugin_name}.json'
         if path.exists(filename):
             self.log.debug(f'  => Reading plugin configuration from {filename} ...')

@@ -26,6 +26,20 @@ class Scheduler(Plugin):
         self.check_state.cancel()
         super().cog_unload()
 
+    def read_locals(self) -> dict:
+        # create a base scheduler.json if non exists
+        file = 'config/scheduler.json'
+        if not os.path.exists(file):
+            configs = []
+            for _, installation in utils.findDCSInstallations():
+                configs.append({"installation": installation})
+            cfg = {"configs": configs}
+            with open(file, 'w') as f:
+                json.dump(cfg, f, indent=2)
+            return cfg
+        else:
+            return super().read_locals()
+
     def install(self):
         super().install()
         for _, installation in utils.findDCSInstallations():

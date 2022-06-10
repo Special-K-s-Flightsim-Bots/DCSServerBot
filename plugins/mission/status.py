@@ -112,7 +112,7 @@ class ExtensionsInfo(report.EmbedElement):
                 footer += ext_names[0]
             else:
                 footer += ', '.join(ext_names[0:-1]) + ' and ' + ext_names[-1]
-            footer += ' is the same as the server.\n'
+            footer += ' is the same as the server.'
         self.embed.set_footer(text=footer)
 
 
@@ -121,4 +121,5 @@ class Footer(report.EmbedElement):
         for listener in self.bot.eventListeners:
             if (type(listener).__name__ == 'UserStatisticsEventListener') and \
                     (server['server_name'] in listener.statistics):
-                self.embed.set_footer(text=self.embed.footer.text + '- User statistics are enabled for this server.')
+                self.embed.set_footer(text=self.embed.footer.text + '\n- User statistics are enabled for this server.')
+                break
