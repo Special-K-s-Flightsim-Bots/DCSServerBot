@@ -394,6 +394,9 @@ class UserStatisticsMaster(Plugin):
                 # check all matched members
                 suspicious = []
                 for member in self.bot.get_all_members():
+                    # ignore bots
+                    if member.bot:
+                        continue
                     cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL AND '
                                    'manual = FALSE ORDER BY last_seen DESC', (member.id, ))
                     for row in cursor.fetchall():

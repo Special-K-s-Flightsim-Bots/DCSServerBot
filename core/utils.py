@@ -201,6 +201,9 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Option
         max_weight = 3
         best_fit = []
         for member in self.bot.get_all_members():
+            # don't match bot users
+            if member.bot:
+                continue
             name = re.sub(tag_filter, '', member.name).strip() if tag_filter else member.name
             if member.nick:
                 nickname = re.sub(tag_filter, '', member.nick).strip() if tag_filter else member.nick

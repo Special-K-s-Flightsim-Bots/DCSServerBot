@@ -281,8 +281,7 @@ class Main:
                         if server['status'] != Status.SHUTDOWN:
                             running = True
                     if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
-                                                                      'servers.\nWould you like to shut them down now ('
-                                                                      'Y/N)?') is True:
+                                                                      'servers.\nWould you like to shut them down now?'):
                         for server_name, server in self.bot.globals.items():
                             self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
                         await asyncio.sleep(5)
@@ -291,6 +290,14 @@ class Main:
                     exit(-1)
                 else:
                     await ctx.send('No bot upgrade found.')
+
+        @self.bot.command(description='Terminates the bot process', aliases=['exit'])
+        @utils.has_role('Admin')
+        @commands.guild_only()
+        async def terminate(ctx):
+            if await utils.yn_question(self, ctx, 'Do you really want to terminate the bot?'):
+                await ctx.send('Bot will terminate now (and restart automatically, if started by run.cmd).')
+                exit(-1)
 
     def upgrade(self) -> bool:
         try:
