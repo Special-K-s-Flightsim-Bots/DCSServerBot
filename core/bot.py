@@ -186,13 +186,12 @@ class DCSServerBot(commands.Bot):
 
     def rename_server(self, old_name: str, new_name: str, update_settings: bool = False) -> None:
         if new_name not in self.globals:
-            self.globals[new_name] = deepcopy(self.globals[old_name])
+            self.globals[new_name] = self.globals.pop(old_name)
             self.globals[new_name]['server_name'] = new_name
         if old_name in self.globals:
             del self.globals[old_name]
         if old_name in self.embeds:
-            self.embeds[new_name] = self.embeds[old_name].copy()
-            del self.embeds[old_name]
+            self.embeds[new_name] = self.embeds.pop(old_name)
         # call rename() in all Plugins
         for plugin in self.cogs.values():
             plugin.rename(old_name, new_name)
