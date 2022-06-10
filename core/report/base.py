@@ -143,8 +143,10 @@ class PaginationReport(Report):
         elif name in kwargs:
             if kwargs[name] in values:
                 start_index = values.index(kwargs[name])
-            else:
+            elif kwargs[name] or len(values) != 1:
                 values.insert(0, kwargs[name])
+        elif len(values) == 0:
+            values = [None]
         func = super().render
 
         async def pagination(index=0):
