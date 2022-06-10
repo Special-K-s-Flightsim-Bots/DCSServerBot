@@ -19,7 +19,7 @@ class MessageOfTheDay(Plugin):
         super().cog_unload()
 
     def migrate(self, version: str):
-        if version != 'v1.1' or not path.exists('config/motd.json'):
+        if version != '1.1' or not path.exists('config/motd.json'):
             return
         with open('config/motd.json') as file:
             old = json.load(file)

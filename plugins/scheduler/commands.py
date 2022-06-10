@@ -26,6 +26,20 @@ class Scheduler(Plugin):
         self.check_state.cancel()
         super().cog_unload()
 
+    def read_locals(self) -> dict:
+        # create a base scheduler.json if non exists
+        file = 'config/scheduler.json'
+        if not os.path.exists(file):
+            configs = []
+            for _, installation in utils.findDCSInstallations():
+                configs.append({"installation": installation})
+            cfg = {"configs": configs}
+            with open(file, 'w') as f:
+                json.dump(cfg, f, indent=2)
+            return cfg
+        else:
+            return super().read_locals()
+
     def install(self):
         super().install()
         for _, installation in utils.findDCSInstallations():
@@ -40,7 +54,7 @@ class Scheduler(Plugin):
                                      'avoid that.')
 
     def migrate(self, version: str):
-        if version != 'v1.1' or 'SRS_INSTALLATION' not in self.config['DCS']:
+        if version != '1.1' or 'SRS_INSTALLATION' not in self.config['DCS']:
             return
         with open('config/scheduler.json') as file:
             old: dict = json.load(file)
@@ -180,7 +194,8 @@ class Scheduler(Plugin):
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
                 if 'extensions' not in server:
                     server['extensions'] = dict()
-                server['extensions'][extension] = ext
+                if ext.verify():
+                    server['extensions'][extension] = ext
             if await ext.check() and await ext.shutdown():
                 retval.append(ext.name)
                 if not member:

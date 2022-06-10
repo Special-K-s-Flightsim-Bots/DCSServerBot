@@ -42,3 +42,6 @@ class Extension(ABC):
     @staticmethod
     def schedule(config: dict, lastrun: Optional[datetime] = None):
         pass
+
+    def verify(self) -> bool:
+        pass

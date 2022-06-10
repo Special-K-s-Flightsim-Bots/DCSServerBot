@@ -1,1 +1,1 @@
-UPDATE plugins SET version = 'v1.1' WHERE plugin = 'sample';
+ALTER TABLE sample ADD COLUMN time TIMESTAMP DEFAULT NOW();

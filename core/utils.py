@@ -1,3 +1,5 @@
+import json
+
 import aiohttp
 import asyncio
 import discord
@@ -199,6 +201,9 @@ def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Option
         max_weight = 3
         best_fit = []
         for member in self.bot.get_all_members():
+            # don't match bot users
+            if member.bot:
+                continue
             name = re.sub(tag_filter, '', member.name).strip() if tag_filter else member.name
             if member.nick:
                 nickname = re.sub(tag_filter, '', member.nick).strip() if tag_filter else member.nick
@@ -550,8 +555,10 @@ def startup_dcs(self, server: dict):
     return p
 
 
-async def shutdown_dcs(self, server: dict, timeout: int = 120):
+async def shutdown_dcs(self, server: dict, timeout: int = -1):
     self.bot.sendtoDCS(server, {"command": "shutdown"})
+    if timeout == -1:
+        timeout = 300 if config['BOT']['SLOW_SYSTEM'] else 120
     for i in range(0, timeout):
         await asyncio.sleep(1)
         if server['status'] == Status.STOPPED:

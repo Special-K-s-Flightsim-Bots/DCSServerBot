@@ -355,8 +355,9 @@ class Mission(Plugin):
                     del server['PID']
                 continue
             try:
-                # we set a 10s timeout in here because, we don't want to risk false restarts
-                data = await self.bot.sendtoDCSSync(server, {"command": "getMissionUpdate"}, 10)
+                # we set a longer timeout in here because, we don't want to risk false restarts
+                timeout = 20 if self.config['BOT']['SLOW_SYSTEM'] else 10
+                data = await self.bot.sendtoDCSSync(server, {"command": "getMissionUpdate"}, timeout)
                 # remove any hung flag, if the server has responded
                 if 'hung' in server:
                     del server['hung']
