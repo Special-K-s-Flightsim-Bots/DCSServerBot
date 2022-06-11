@@ -446,7 +446,7 @@ class Agent(Plugin):
                                 return True
                             filename = f"config/{plugin}.json"
                             if os.path.exists(filename) and not \
-                                    await utils.yn_question(self, ctx, f'Do you want to overwrite {filename}?'):
+                                    await utils.yn_question(self, ctx, f'Do you want to overwrite {filename} on node {platform.node()}?'):
                                 await message.channel.send('Aborted.')
                                 return True
                             with open(filename, 'w', encoding="utf-8") as outfile:
@@ -685,7 +685,7 @@ class Master(Agent):
         if not utils.check_roles(['Admin'], message.author):
             return
         try:
-            if await super().process_message(message):
+            if await utils.get_server(self, message) and await super().process_message(message):
                 return
             async with aiohttp.ClientSession() as session:
                 async with session.get(message.attachments[0].url) as response:
