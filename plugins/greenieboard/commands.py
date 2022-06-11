@@ -1,4 +1,5 @@
-import datetime
+from datetime import datetime
+
 import discord
 import psycopg2
 import shutil
@@ -83,7 +84,7 @@ class GreenieBoard(Plugin):
                     embed = discord.Embed(title=f"Greenieboard (TOP {self.get_config()['num_rows']})",
                                           color=discord.Color.blue())
                     pilots = points = landings = ''
-                    max_time = datetime.date(1970, 1, 1)
+                    max_time = datetime.fromisocalendar(1970, 1, 1)
                     for row in cursor.fetchall():
                         pilots += row['name'] + '\n'
                         points += f"{row['points']:.2f}\n"
