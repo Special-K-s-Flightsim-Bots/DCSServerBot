@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import discord
 import psycopg2
 import shutil
@@ -66,20 +68,23 @@ class GreenieBoard(Plugin):
         await ctx.message.delete()
         n = await utils.selection_list(self, ctx, landings, self.format_comments)
         if n != -1:
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'lsoRating.json', timeout if timeout > 0 else None)
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'lsoRating.json',
+                                      timeout if timeout > 0 else None)
             await report.render(landings=landings, start_index=n)
 
     def render_board(self):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute('SELECT g.player_ucid, p.name, AVG(g.points) AS points FROM greenieboard g, players p '
-                               'WHERE g.player_ucid = p.ucid GROUP BY 1, 2 ORDER BY 3 DESC LIMIT %s',
+                cursor.execute('SELECT g.player_ucid, p.name, AVG(g.points) AS points, MAX(time) AS time FROM '
+                               'greenieboard g, players p WHERE g.player_ucid = p.ucid GROUP BY 1, 2 ORDER BY 3 DESC '
+                               'LIMIT %s',
                                (self.get_config()['num_rows'], ))
                 if cursor.rowcount > 0:
                     embed = discord.Embed(title=f"Greenieboard (TOP {self.get_config()['num_rows']})",
                                           color=discord.Color.blue())
                     pilots = points = landings = ''
+                    max_time = datetime.fromisocalendar(1970, 1, 1)
                     for row in cursor.fetchall():
                         pilots += row['name'] + '\n'
                         points += f"{row['points']:.2f}\n"
@@ -96,6 +101,8 @@ class GreenieBoard(Plugin):
                         for i in range(i, 10):
                             landings += const.DAY_EMOJIS[None] + '|'
                         landings += '**\n'
+                        if row['time'] > max_time:
+                            max_time = row['time']
                     embed.add_field(name='Pilot', value=pilots)
                     embed.add_field(name='Avg', value=points)
                     embed.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|',
@@ -104,7 +111,9 @@ class GreenieBoard(Plugin):
                     for grade, text in const.GRADES.items():
                         footer += const.DAY_EMOJIS[grade] + ' ' + text + '\n'
                     footer += '\nLandings are added at the front, meaning 1 is your latest landing.\nNight landings ' \
-                              'shown by round markers. '
+                              'shown by round markers.'
+                    if max_time:
+                        footer += f'\nLast update: {max_time:%y-%m-%d %H:%M:%S}'
                     embed.set_footer(text=footer)
                     return embed
                 else:

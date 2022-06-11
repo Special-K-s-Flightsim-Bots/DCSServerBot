@@ -457,7 +457,7 @@ class Agent(Plugin):
                         else:
                             return False
                     else:
-                        if await utils.yn_question(self, ctx, f'Do you want to overwrite dcsserverbot.ini?'):
+                        if await utils.yn_question(self, ctx, f'Do you want to overwrite dcsserverbot.ini on node {platform.node()}?'):
                             with open('config/dcsserverbot.ini', 'w', encoding='utf-8') as outfile:
                                 outfile.writelines('\n'.join((await response.text(encoding='utf-8')).splitlines()))
                             self.bot.config = utils.config = utils.reload()
@@ -684,27 +684,28 @@ class Master(Agent):
         # only Admin role is allowed to upload json files in channels
         if not utils.check_roles(['Admin'], message.author):
             return
-        try:
-            if await utils.get_server(self, message) and await super().process_message(message):
-                return
-            async with aiohttp.ClientSession() as session:
-                async with session.get(message.attachments[0].url) as response:
-                    if response.status == 200:
-                        data = await response.json(encoding="utf-8")
-                        if 'configs' not in data:
-                            embed = utils.format_embed(data)
-                            msg = None
-                            if 'message_id' in data:
-                                with suppress(discord.errors.NotFound):
-                                    msg = await message.channel.fetch_message(int(data['message_id']))
-                            if msg:
-                                await msg.edit(embed=embed)
-                            else:
-                                await message.channel.send(embed=embed)
-                    else:
-                        await message.channel.send(f'Error {response.status} while reading JSON file!')
-        finally:
+        if await utils.get_server(self, message) and await super().process_message(message):
             await message.delete()
+            return
+        if not message.attachments[0].filename.endswith('.json'):
+            return
+        async with aiohttp.ClientSession() as session:
+            async with session.get(message.attachments[0].url) as response:
+                if response.status == 200:
+                    data = await response.json(encoding="utf-8")
+                    if 'configs' not in data:
+                        embed = utils.format_embed(data)
+                        msg = None
+                        if 'message_id' in data:
+                            with suppress(discord.errors.NotFound):
+                                msg = await message.channel.fetch_message(int(data['message_id']))
+                        if msg:
+                            await msg.edit(embed=embed)
+                        else:
+                            await message.channel.send(embed=embed)
+                        await message.delete()
+                else:
+                    await message.channel.send(f'Error {response.status} while reading JSON file!')
 
 
 def setup(bot: DCSServerBot):
