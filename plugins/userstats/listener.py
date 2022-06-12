@@ -413,9 +413,12 @@ class UserStatisticsEventListener(EventListener):
                                     player['name'], player['ucid']))
                         else:
                             discord_id = cursor.fetchone()[0]
-                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (discord_id, player['ucid']))
+                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s ON '
+                                           'CONFLICT DO NOTHING', (discord_id, player['ucid']))
                             cursor.execute('DELETE FROM players WHERE ucid = %s', (token, ))
-                            utils.sendChatMessage(self, data['server_name'], data['from_id'], 'Your user has been linked! You must reconnect once for the settings to be applied.')
+                            utils.sendChatMessage(self, data['server_name'], data['from_id'],
+                                                  'Your user has been linked! You must reconnect once for the '
+                                                  'settings to be applied.')
                             with suppress(Exception):
                                 member = self.bot.guilds[0].get_member(discord_id)
                                 await self.bot.audit(f"self-linked to DCS user \"{player['name']}\" (ucid={player['ucid']}).",
@@ -427,4 +430,6 @@ class UserStatisticsEventListener(EventListener):
                 finally:
                     self.pool.putconn(conn)
             else:
-                utils.sendChatMessage(self, data['server_name'], data['from_id'], 'Syntax: -linkme token\nYou get the token with {}linkme in our Discord.'.format(self.config['BOT']['COMMAND_PREFIX']))
+                utils.sendChatMessage(self, data['server_name'], data['from_id'],
+                                      'Syntax: -linkme token\nYou get the token with {}linkme in our '
+                                      'Discord.'.format(self.config['BOT']['COMMAND_PREFIX']))
