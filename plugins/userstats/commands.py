@@ -442,18 +442,25 @@ class UserStatisticsMaster(Plugin):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (ctx.message.author.id, ))
+                cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s', (ctx.message.author.id, ))
                 if cursor.rowcount >= 1:
-                    ucid = cursor.fetchone()[0]
+                    row = cursor.fetchone()
+                    ucid = row[0]
+                    manual = row[1]
                     if len(ucid) == 4:
                         # resend the TOKEN, if there is one already
                         await send_token(ucid)
                         return
-                    elif not await utils.yn_question(self, ctx, 'You have a valid user mapping.\nDo you want to '
-                                                                'continue and re-link your user?'):
+                    elif not manual:
+                        if not await utils.yn_question(self, ctx, 'You have an automatic user mapping already.\nDo '
+                                                                  'you want to continue and re-link your user?'):
+                            return
+                        else:
+                            cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE',
+                                           (ctx.message.author.id,))
+                    elif not await utils.yn_question(self, ctx, 'You have a __verified__ user mapping already.\nHave '
+                                                                'you switched from Steam to Standalone or your PC?\n'):
                         return
-                    else:
-                        cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s', (ctx.message.author.id,))
                 # in the very unlikely event that we have generated the very same random number twice
                 while True:
                     try:
