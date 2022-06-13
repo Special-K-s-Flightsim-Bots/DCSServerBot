@@ -12,24 +12,19 @@ class Help(Plugin):
         help_embed.title = f'{self.bot.member.name} Commands'
         cmds = []
         descriptions = []
-        for plugin in self.bot.plugins:
-            # Get a list of all commands for the specified plugin
-            for cog in self.bot.cogs.values():
-                if f'.{plugin}.' in type(cog).__module__:
-                    commands_list = self.bot.get_cog(type(cog).__name__).get_commands()
-                    for command in commands_list:
-                        if command.hidden:
-                            continue
-                        check = True
-                        for f in command.checks:
-                            check &= f(ctx)
-                        if not check:
-                            continue
-                        cmd = f'{ctx.prefix}{command.name}'
-                        if command.usage is not None:
-                            cmd += ' ' + command.usage
-                        cmds.append(cmd)
-                        descriptions.append(f'{command.description}')
+        for command in self.bot.commands:
+            if command.hidden:
+                continue
+            check = True
+            for f in command.checks:
+                check &= f(ctx)
+            if not check:
+                continue
+            cmd = f'{ctx.prefix}{command.name}'
+            if command.usage is not None:
+                cmd += ' ' + command.usage
+            cmds.append(cmd)
+            descriptions.append(f'{command.description}')
         name = ''
         value = ''
         for i in range(0, len(cmds)):

@@ -246,7 +246,7 @@ class Main:
                 else:
                     await ctx.send('Please stop server "{}" before renaming!'.format(old_name))
 
-        @self.bot.command(description='Unregisters the server from this instance')
+        @self.bot.command(description='Unregisters a server from this node')
         @utils.has_role('Admin')
         @commands.guild_only()
         async def unregister(ctx):
