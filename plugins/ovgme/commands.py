@@ -251,10 +251,13 @@ class OvGME(Plugin):
         server = await utils.get_server(self, ctx)
         if not server:
             return
+        config = self.get_config(server)
+        if not config:
+            await ctx.send(f"No plugin configuration found for server {server['server_name']}.")
+            return
         n = await utils.selection_list(self, ctx, OVGME_FOLDERS, self.format_folders)
         if n == -1:
             return
-        config = self.get_config(server)
         folder = OVGME_FOLDERS[n]
         path = os.path.expandvars(config[folder])
         available = [self.parse_filename(x) for x in os.listdir(path) if not x.startswith('.')] or []
@@ -277,6 +280,9 @@ class OvGME(Plugin):
     async def remove_package(self, ctx):
         server = await utils.get_server(self, ctx)
         if not server:
+            return
+        if not self.get_config(server):
+            await ctx.send(f"No plugin configuration found for server {server['server_name']}.")
             return
         n = await utils.selection_list(self, ctx, OVGME_FOLDERS, self.format_folders)
         if n == -1:
