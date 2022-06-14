@@ -38,6 +38,7 @@ These commands can be used to administrate the bot itself.
 | Greenieboard | Greenieboard and LSO quality mark analysis (SC only)                | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
 | MOTD         | Generates a message of the day.                                     | yes      | Mission, Missionstats | [README](./plugins/motd/README.md)         |
 | DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
+| OvGME        | Install or update mods into your DCS server.                        | yes      |                       | [README](./plugins/ovgme/README.md)        |
 
 *) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot.
 

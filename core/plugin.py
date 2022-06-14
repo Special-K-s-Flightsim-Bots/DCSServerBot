@@ -91,6 +91,9 @@ class Plugin(commands.Cog):
     def migrate(self, version: str):
         pass
 
+    async def after_upgrade(self):
+        pass
+
     def init_db(self):
         conn = self.pool.getconn()
         try:
@@ -174,3 +177,8 @@ class PluginRequiredError(Exception):
 class PluginConflictError(Exception):
     def __init__(self, plugin1: str, plugin2: str):
         super().__init__(f'Plugin "{string.capwords(plugin1)}" conflicts with plugin "{string.capwords(plugin2)}"!')
+
+
+class PluginConfigurationError(Exception):
+    def __init__(self, plugin: str, option: str):
+        super().__init__(f'Option "{option}" missing in {plugin}.json!')

@@ -82,6 +82,9 @@ class Agent(Plugin):
         subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
             self.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
         utils.sanitize(self)
+        # run after_update() in all plugins
+        for plugin in self.bot.cogs:
+            await plugin.after_update(self)
         if ctx:
             await ctx.send('DCS World updated to the latest version.\nStarting up DCS servers again ...')
         else:
