@@ -137,7 +137,7 @@ class Scheduler(Plugin):
         # change the weather in the mission if provided
         if 'restart' in config and 'settings' in config['restart']:
             if 'filename' not in server:
-                for i in range(utils.getServerSetting(server, 'listStartIndex'), 0, -1):
+                for i in range(int(utils.getServerSetting(server, 'listStartIndex')), 0, -1):
                     filename = utils.getServerSetting(server, i)
                     if filename:
                         server['filename'] = filename
