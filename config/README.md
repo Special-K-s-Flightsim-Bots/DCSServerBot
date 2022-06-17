@@ -64,3 +64,8 @@ There is deposit-like system included, that reserves points when you use a plane
 they bring back the plane intact (landing). Another takeoff will create another deposit. If they crash or get killed, 
 the deposit is gone and they'll finally lose their points. This can be enabled with "use_reservations": true like in 
 the example.
+
+## ovgme.json.sample
+With the OvGME plugin you can install OvGME like packages automatically into your DCS servers. The sample shows two
+possible ways, by either providing a strict version (2.0.1) or by using the term "latest", to get the latest available
+version that is provided in one of the installation directories.

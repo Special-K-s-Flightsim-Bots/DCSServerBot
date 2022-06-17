@@ -331,10 +331,12 @@ class Scheduler(Plugin):
     def check_affinity(server, config):
         if 'PID' not in server:
             p = utils.find_process('DCS.exe', server['installation'])
-            server['PID'] = p.pid
-        pid = server['PID']
-        ps = psutil.Process(pid)
-        ps.cpu_affinity(config['affinity'])
+            if p:
+                server['PID'] = p.pid
+        if 'PID' in server:
+            pid = server['PID']
+            ps = psutil.Process(pid)
+            ps.cpu_affinity(config['affinity'])
 
     @tasks.loop(minutes=1.0)
     async def check_state(self):

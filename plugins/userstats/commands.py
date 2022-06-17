@@ -35,10 +35,35 @@ def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *param
 
 
 class UserStatisticsAgent(Plugin):
-    pass
+    @commands.command(description='Deletes the statistics of a server')
+    @utils.has_role('Admin')
+    @commands.guild_only()
+    async def reset_statistics(self, ctx):
+        server = await utils.get_server(self, ctx)
+        if server:
+            server_name = server['server_name']
+            if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
+                conn = self.pool.getconn()
+                try:
+                    if await utils.yn_question(self, ctx, 'I\'m going to **DELETE ALL STATISTICS**\nof server "{}".\n\nAre you sure?'.format(server_name)) is True:
+                        with closing(conn.cursor()) as cursor:
+                            cursor.execute(
+                                'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE '
+                                'server_name = %s)', (server_name, ))
+                            cursor.execute('DELETE FROM missions WHERE server_name = %s', (server_name, ))
+                            conn.commit()
+                        await ctx.send('Statistics for server "{}" have been wiped.'.format(server_name))
+                        await self.bot.audit('reset statistics', user=ctx.message.author, server=server)
+                except (Exception, psycopg2.DatabaseError) as error:
+                    self.log.exception(error)
+                    conn.rollback()
+                finally:
+                    self.pool.putconn(conn)
+            else:
+                await ctx.send('Please stop server "{}" before deleteing the statistics!'.format(server_name))
 
 
-class UserStatisticsMaster(Plugin):
+class UserStatisticsMaster(UserStatisticsAgent):
 
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
@@ -82,7 +107,7 @@ class UserStatisticsMaster(Plugin):
                 return
             if not server:
                 report = PaginationReport(self.bot, ctx, self.plugin_name, 'highscore.json', timeout if timeout > 0 else None)
-                await report.render(period=period, message=ctx.message, flt=flt)
+                await report.render(period=period, message=ctx.message, flt=flt, server_name=None)
             else:
                 report = Report(self.bot, self.plugin_name, 'highscore.json')
                 env = await report.render(period=period, message=ctx.message, server_name=server['server_name'], flt=flt)
@@ -131,33 +156,6 @@ class UserStatisticsMaster(Plugin):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
-
-    @commands.command(description='Deletes the statistics of a server')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def reset_statistics(self, ctx):
-        server = await utils.get_server(self, ctx)
-        if server:
-            server_name = server['server_name']
-            if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
-                conn = self.pool.getconn()
-                try:
-                    if await utils.yn_question(self, ctx, 'I\'m going to **DELETE ALL STATISTICS**\nof server "{}".\n\nAre you sure?'.format(server_name)) is True:
-                        with closing(conn.cursor()) as cursor:
-                            cursor.execute(
-                                'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE '
-                                'server_name = %s)', (server_name, ))
-                            cursor.execute('DELETE FROM missions WHERE server_name = %s', (server_name, ))
-                            conn.commit()
-                        await ctx.send('Statistics for server "{}" have been wiped.'.format(server_name))
-                        await self.bot.audit('reset statistics', user=ctx.message.author, server=server)
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
-            else:
-                await ctx.send('Please stop server "{}" before deleteing the statistics!'.format(server_name))
 
     @commands.command(description='Shows player information', usage='<@member / ucid>')
     @utils.has_role('DCS Admin')

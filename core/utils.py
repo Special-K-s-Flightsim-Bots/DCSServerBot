@@ -338,21 +338,28 @@ async def pagination(self, ctx, data, embed_formatter, num=10):
             max_i = (len(data) % num) if (len(data) - j * num) < num else num
             embed = embed_formatter(data[j * num:j * num + max_i])
             message = await ctx.send(embed=embed)
+            wait = False
             if j > 0:
                 await message.add_reaction('◀️')
-            await message.add_reaction('⏹️')
+                wait = True
+            if j > 0 or ((j + 1) * num) < len(data):
+                await message.add_reaction('⏹️')
             if ((j + 1) * num) < len(data):
                 await message.add_reaction('▶️')
-            react = await wait_for_single_reaction(self, ctx, message)
-            await message.delete()
-            if react.emoji == '◀️':
-                j -= 1
-                message = None
-            elif react.emoji == '▶️':
-                j += 1
-                message = None
-            elif react.emoji == '⏹️':
-                return -1
+                wait = True
+            if wait:
+                react = await wait_for_single_reaction(self, ctx, message)
+                await message.delete()
+                if react.emoji == '◀️':
+                    j -= 1
+                    message = None
+                elif react.emoji == '▶️':
+                    j += 1
+                    message = None
+                elif react.emoji == '⏹️':
+                    return -1
+            else:
+                return
     except asyncio.TimeoutError:
         if message:
             await message.delete()
