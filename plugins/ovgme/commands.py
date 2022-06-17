@@ -22,7 +22,13 @@ class OvGME(Plugin):
                     raise PluginConfigurationError(self.plugin_name, folder)
             self.install_packages()
 
-    async def after_upgrade(self):
+    async def before_dcs_update(self):
+        # uninstall all RootFolder-packages
+        for server_name, server in self.globals.items():
+            for package_name, version in self.get_installed_packages(server, 'RootFolder'):
+                self.uninstall_package(server, 'RootFolder', package_name, version)
+
+    async def after_dcs_update(self):
         self.install_packages()
 
     @staticmethod
@@ -36,6 +42,15 @@ class OvGME(Plugin):
         else:
             return None
 
+    @staticmethod
+    def is_greater(v1: str, v2: str):
+        parts1 = [int(x) for x in v1.split('.')]
+        parts2 = [int(x) for x in v2.split('.')]
+        for i in range(0, max(len(parts1), len(parts2))):
+            if parts1[i] > parts2[i]:
+                return True
+        return False
+
     def install_packages(self):
         if not self.locals or 'configs' not in self.locals:
             return
@@ -45,45 +60,46 @@ class OvGME(Plugin):
                 return
             for package in config['packages']:
                 version = package['version'] if package['version'] != 'latest' \
-                    else self.get_latest_version(server, package['source'], package['name'])
+                    else self.get_latest_version(package['source'], package['name'])
                 installed = self.check_package(server, package['source'], package['name'])
-                if (not installed or installed != version) and server['status'] != Status.SHUTDOWN:
+                # If the bot is still starting up (default), we're trying to figure out the state of the DCS process
+                p = utils.find_process('DCS.exe', server['installation'])
+                if (not installed or installed != version) and \
+                        (p or server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED]):
                     self.log.warning(f"  - Server {server['server_name']} needs to be shutdown to install packages.")
-                    return
+                    break
                 maintenance = server['maintenance'] if 'maintenance' in server else None
                 server['maintenance'] = True
-                if not installed:
-                    if self.install_package(server, package['source'], package['name'], version):
-                        self.log.info(f"  - Package {package['name']}_v{version} installed.")
+                try:
+                    if not installed:
+                        if self.install_package(server, package['source'], package['name'], version):
+                            self.log.info(f"  - Package {package['name']}_v{version} installed.")
+                        else:
+                            self.log.warning(f"  - Package {package['name']}_v{version} not found!")
+                    elif installed != version:
+                        if self.is_greater(installed, version):
+                            self.log.warning(f"  - Installed package {package['name']}_v{installed} is newer than the "
+                                             f"configured version. Skipping.")
+                            continue
+                        if not self.uninstall_package(server, package['source'], package['name'], installed):
+                            self.log.warning(f"  - Package {package['name']}_v{installed} could not be uninstalled!")
+                        elif not self.install_package(server, package['source'], package['name'], version):
+                            self.log.warning(f"  - Package {package['name']}_v{version} could not be installed!")
+                        else:
+                            self.log.info(f"  - Package {package['name']}_v{installed} updated to v{version}.")
+                finally:
+                    if maintenance:
+                        server['maintenance'] = maintenance
                     else:
-                        self.log.warning(f"  - Package {package['name']}_v{version} not found!")
-                elif installed != version:
-                    if not self.uninstall_package(server, package['source'], package['name'], installed):
-                        self.log.warning(f"  - Package {package['name']}_v{installed} could not be uninstalled!")
-                    elif not self.install_package(server, package['source'], package['name'], version):
-                        self.log.warning(f"  - Package {package['name']}_v{version} could not be installed!")
-                    else:
-                        self.log.info(f"  - Package {package['name']}_v{installed} updated to v{version}.")
-                if maintenance:
-                    server['maintenance'] = maintenance
-                else:
-                    del server['maintenance']
+                        del server['maintenance']
 
-    def get_latest_version(self, server: dict, folder: str, package: str) -> str:
-        def is_greater(v1: str, v2: str):
-            parts1 = [int(x) for x in v1.split('.')]
-            parts2 = [int(x) for x in v2.split('.')]
-            for i in range(0, max(len(parts1), len(parts2))):
-                if parts1[i] > parts2[i]:
-                    return True
-            return False
-
-        config = self.get_config(server)
+    def get_latest_version(self, folder: str, package: str) -> str:
+        config = self.locals['configs'][0]
         path = os.path.expandvars(config[folder])
         available = [self.parse_filename(x) for x in os.listdir(path) if package in x]
         max_version = None
         for _, version in available:
-            if not max_version or is_greater(version, max_version):
+            if not max_version or self.is_greater(version, max_version):
                 max_version = version
         return max_version
 
@@ -187,12 +203,28 @@ class OvGME(Plugin):
             self.pool.putconn(conn)
         return True
 
-    @staticmethod
-    def format_packages(rows):
+    def format_packages(self, data, marker, marker_emoji):
         embed = discord.Embed(title="List of installed Packages", color=discord.Color.blue())
-        embed.add_field(name='Folder', value='\n'.join(x[0] for x in rows))
-        embed.add_field(name='Package', value='\n'.join(x[1] for x in rows))
-        embed.add_field(name='Version', value='\n'.join(x[2] for x in rows))
+        ids = packages = versions = ''
+        flag = False
+        for i in range(0, len(data)):
+            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+            packages += data[i][1] + '\n'
+            versions += data[i][2]
+            latest = self.get_latest_version(data[i][0], data[i][1])
+            if latest != data[i][2]:
+                flag = True
+                versions += ' ' + marker_emoji + '\n'
+            else:
+                versions += '\n'
+        embed.add_field(name='ID', value=ids)
+        embed.add_field(name='Package', value=packages)
+        embed.add_field(name='Version', value=versions)
+        if flag:
+            footer = 'Press a number to update or uninstall.\n' + marker_emoji + ' update available'
+        else:
+            footer = 'Press a number to uninstall.'
+        embed.set_footer(text=footer)
         return embed
 
     def get_installed_packages(self, server: dict, folder: str) -> list[Tuple[str, str]]:
@@ -216,7 +248,33 @@ class OvGME(Plugin):
         for folder in OVGME_FOLDERS:
             packages.extend([(folder, x, y) for x, y in self.get_installed_packages(server, folder)])
         if len(packages) > 0:
-            await utils.pagination(self, ctx, packages, self.format_packages, 20)
+            n = await utils.selection_list(self, ctx, packages, self.format_packages, 5, -1, '🆕')
+            if n == -1:
+                return
+            latest = self.get_latest_version(packages[n][0], packages[n][1])
+            if latest != packages[n][2] and \
+                    await utils.yn_question(self, ctx, f"Would you like to update package {packages[n][1]}?"):
+                msg = await ctx.send('Updating ...')
+                try:
+                    if not self.uninstall_package(server, packages[n][0], packages[n][1], packages[n][2]):
+                        await ctx.send(f"Package {packages[n][1]}_v{packages[n][2]} could not be uninstalled!")
+                        return
+                    elif not self.install_package(server, packages[n][0], packages[n][1], latest):
+                        await ctx.send(f"Package {packages[n][1]}_v{latest} could not be installed!")
+                        return
+                    await ctx.send(f"Package {packages[n][1]} updated from version v{packages[n][2]} to v{latest}.")
+                    return
+                finally:
+                    await msg.delete()
+            elif await utils.yn_question(self, ctx, f"Would you like to uninstall package {packages[n][1]}?"):
+                msg = await ctx.send('Uninstalling ...')
+                try:
+                    if self.uninstall_package(server, packages[n][0], packages[n][1], packages[n][2]):
+                        await ctx.send(f"Package {packages[n][1]} uninstalled.")
+                    else:
+                        await ctx.send(f"Package {packages[n][1]} could not be uninstalled.")
+                finally:
+                    await msg.delete()
         else:
             await ctx.send(f"No packages installed on {server['server_name']}.")
 
@@ -269,33 +327,14 @@ class OvGME(Plugin):
         n = await utils.selection_list(self, ctx, files, self.format_files)
         if n == -1:
             return
-        if self.install_package(server, folder, files[n][0], files[n][1]):
-            await ctx.send('Package installed.')
-        else:
-            await ctx.send('Package could not be installed.')
-
-    @commands.command(description='Uninstall an OvGME package')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def remove_package(self, ctx):
-        server = await utils.get_server(self, ctx)
-        if not server:
-            return
-        if not self.get_config(server):
-            await ctx.send(f"No plugin configuration found for server {server['server_name']}.")
-            return
-        n = await utils.selection_list(self, ctx, OVGME_FOLDERS, self.format_folders)
-        if n == -1:
-            return
-        folder = OVGME_FOLDERS[n]
-        installed = self.get_installed_packages(server, folder)
-        n = await utils.selection_list(self, ctx, installed, self.format_files)
-        if n == -1:
-            return
-        if self.uninstall_package(server, folder, installed[n][0], installed[n][1]):
-            await ctx.send(f"Package {installed[n][0]} uninstalled.")
-        else:
-            await ctx.send(f"Package {installed[n][0]} could not be uninstalled.")
+        msg = await ctx.send('Installing ...')
+        try:
+            if self.install_package(server, folder, files[n][0], files[n][1]):
+                await ctx.send(f"Package {files[n][0]} installed.")
+            else:
+                await ctx.send(f"Package {files[n][0]} could not be installed.")
+        finally:
+            await msg.delete()
 
 
 def setup(bot: DCSServerBot):

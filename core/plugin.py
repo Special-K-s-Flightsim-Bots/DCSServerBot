@@ -91,7 +91,10 @@ class Plugin(commands.Cog):
     def migrate(self, version: str):
         pass
 
-    async def after_upgrade(self):
+    async def before_dcs_update(self):
+        pass
+
+    async def after_dcs_update(self):
         pass
 
     def init_db(self):

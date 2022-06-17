@@ -79,12 +79,14 @@ class Agent(Plugin):
             await ctx.send('Updating DCS World. Please wait, this might take some time ...')
         else:
             self.log.info('Updating DCS World ...')
+        for plugin in self.bot.cogs:
+            await plugin.before_dcs_update(self)
         subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
             self.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
         utils.sanitize(self)
-        # run after_update() in all plugins
+        # run after_dcs_update() in all plugins
         for plugin in self.bot.cogs:
-            await plugin.after_update(self)
+            await plugin.after_dcs_update(self)
         if ctx:
             await ctx.send('DCS World updated to the latest version.\nStarting up DCS servers again ...')
         else:
