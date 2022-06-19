@@ -1,10 +1,9 @@
-from datetime import datetime
-
 import discord
 import psycopg2
 import shutil
 from contextlib import closing
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport
+from datetime import datetime
 from discord.ext import commands
 from os import path
 from typing import Optional, Union, List

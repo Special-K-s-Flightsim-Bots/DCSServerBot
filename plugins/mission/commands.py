@@ -161,8 +161,9 @@ class Mission(Plugin):
         server = await utils.get_server(self, ctx)
         if not server:
             return
-        if 'restart_pending' in server:
-            await ctx.send('A restart is currently pending. Ignored.')
+        if 'restart_pending' in server and not await utils.yn_question(self, ctx, 'A restart is currently '
+                                                                                  'pending.\nWould you still like to '
+                                                                                  'restart the mission?'):
             return
         if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
             server['restart_pending'] = True
@@ -306,7 +307,7 @@ class Mission(Plugin):
                 mission = missions[n]
                 mission = mission[(mission.rfind('\\') + 1):-4]
                 self.bot.sendtoDCS(server, {"command": "deleteMission", "id": n + 1, "channel": ctx.channel.id})
-                if await utils.yn_question(self, ctx, "Do you want to delete the file from disk?"):
+                if await utils.yn_question(self, ctx, f"Do you want to delete {missions[n]} from disk?"):
                     os.remove(missions[n])
                     await ctx.send(f'Mission "{mission}" deleted.')
                 else:
