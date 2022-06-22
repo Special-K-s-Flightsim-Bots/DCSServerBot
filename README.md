@@ -77,8 +77,9 @@ over to PostgreSQL with version 2.0 already and never regret it.<br/>
 Just install PostgreSQL from the above mentioned website (current version at the time of writing is somewhat about 14, 
 but will run with any newer version than that, too). Once you started pgadmin4, navigate to "Login Group/Role" and create
 a new login for the bot user. Name it "dcsseverbot" or whatever you desire. Set a password on the "Definition"-tab
-(I honestly have no idea why it is not just in the "Security"-tab). Then navigate to "Databases" and create a new
-database. Name that again maybe "dcsserverbot" and set the user you've created earlier as the owner of that database.<br/>
+(I honestly have no idea why it is not just in the "Security"-tab) and enable "Can login?" on the "Privileges" tab. 
+Then navigate to "Databases" and create a new database. Name that again maybe "dcsserverbot" and set the user you've 
+created earlier as the owner of that database.<br/>
 The URL line you configure in the bot would look like this, if you followed my example:
 
 DATABASE_URL = postgres://dcsserverbot:<password>@localhost:5432/dcsserverbot
