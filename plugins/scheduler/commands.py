@@ -69,7 +69,7 @@ class Scheduler(Plugin):
             new['configs'].append(dict())
             c = len(new['configs']) - 1
         new['configs'][c]['extensions'] = {
-            "SRS": {"installation": self.config['DCS']['SRS_INSTALLATION']}
+            "SRS": {"installation": self.config['DCS']['SRS_INSTALLATION'].replace('%%', '%')}
         }
         # migrate the SRS configuration
         for c in range(0, len(old['configs'])):
@@ -78,7 +78,7 @@ class Scheduler(Plugin):
                     'SRS' not in old['configs'][c]['extensions']:
                 continue
             new['configs'][c]['extensions'] = {
-                "SRS": {"config": self.config[old['configs'][c]['installation']]['SRS_CONFIG']}
+                "SRS": {"config": self.config[old['configs'][c]['installation']]['SRS_CONFIG'].replace('%%', '%')}
             }
         os.rename('config/scheduler.json', 'config/scheduler.bak')
         with open('config/scheduler.json', 'w') as file:

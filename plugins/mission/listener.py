@@ -144,10 +144,12 @@ class MissionEventListener(EventListener):
         if data['id'] == 1:
             self.globals[data['server_name']]['status'] = Status.LOADING
             return
-        chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
-        if chat_channel is not None:
-            await chat_channel.send('{} connected to server'.format(data['name']))
-        self.updatePlayer(data)
+        try:
+            chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
+            if chat_channel is not None:
+                await chat_channel.send('{} connected to server'.format(data['name']))
+        finally:
+            self.updatePlayer(data)
 
     async def onPlayerStart(self, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
@@ -164,7 +166,9 @@ class MissionEventListener(EventListener):
             await self.displayPlayerEmbed(data)
 
     async def onPlayerChangeSlot(self, data: dict) -> None:
-        if 'side' in data:
+        if 'side' not in data:
+            return
+        try:
             player = utils.get_player(self, data['server_name'], id=data['id'])
             if data['side'] != const.SIDE_SPECTATOR:
                 if player is not None:
@@ -178,6 +182,7 @@ class MissionEventListener(EventListener):
                 if chat_channel is not None:
                     await chat_channel.send('{} player {} returned to Spectators'.format(
                         const.PLAYER_SIDES[player['side']], data['name']))
+        finally:
             self.updatePlayer(data)
             await self.displayPlayerEmbed(data)
 
@@ -191,7 +196,9 @@ class MissionEventListener(EventListener):
         elif data['eventName'] in ['connect', 'change_slot']:  # these events are handled differently
             return None
         elif data['eventName'] == 'disconnect':
-            if data['arg1'] != 1:
+            if data['arg1'] == 1:
+                return
+            try:
                 player = utils.get_player(self, server_name, id=data['arg1'])
                 chat_channel = self.bot.get_bot_channel(data, 'chat_channel')
                 if chat_channel:
@@ -200,10 +207,11 @@ class MissionEventListener(EventListener):
                     else:
                         await chat_channel.send('{} player {} disconnected'.format(
                             const.PLAYER_SIDES[player['side']], player['name']))
+            finally:
                 self.removePlayer(data)
                 await self.displayMissionEmbed(data)
                 await self.displayPlayerEmbed(data)
-        elif data['eventName'] == 'friendly_fire':
+        elif data['eventName'] == 'friendly_fire' and data['arg1'] != data['arg3']:
             player1 = utils.get_player(self, server_name, id=data['arg1'])
             if data['arg3'] != -1:
                 player2 = utils.get_player(self, server_name, id=data['arg3'])
