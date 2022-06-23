@@ -413,8 +413,8 @@ class UserStatisticsEventListener(EventListener):
                                     player['name'], player['ucid']))
                         else:
                             discord_id = cursor.fetchone()[0]
-                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s ON '
-                                           'CONFLICT DO NOTHING', (discord_id, player['ucid']))
+                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
+                                           (discord_id, player['ucid']))
                             cursor.execute('DELETE FROM players WHERE ucid = %s', (token, ))
                             utils.sendChatMessage(self, data['server_name'], data['from_id'],
                                                   'Your user has been linked! You must reconnect once for the '
