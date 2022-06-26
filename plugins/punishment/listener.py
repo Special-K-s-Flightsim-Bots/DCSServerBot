@@ -164,6 +164,8 @@ class PunishmentEventListener(EventListener):
                                   f"{player['name']}, you currently have {points} penalty points.")
 
     async def onPlayerConnect(self, data):
+        if data['id'] == 1:
+            return
         # check if someone was banned on server A and tries to sneak into server B on another node
         conn = self.pool.getconn()
         try:
@@ -183,7 +185,6 @@ class PunishmentEventListener(EventListener):
             self.pool.putconn(conn)
 
     async def onPlayerStart(self, data):
-        # the server owner don't need to get an update of their stats
         if data['id'] == 1:
             return
         points = self.get_punishment_points(data)
