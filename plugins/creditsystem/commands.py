@@ -8,7 +8,7 @@ from typing import Optional
 from .listener import CreditSystemListener
 
 
-class CreditSystem(Plugin):
+class CreditSystemAgent(Plugin):
 
     def get_config(self, server: Server) -> Optional[dict]:
         if server.name not in self._config:
@@ -42,6 +42,9 @@ class CreditSystem(Plugin):
             else:
                 return None
         return self._config[server.name] if server.name in self._config else None
+
+
+class CreditSystemMaster(CreditSystemAgent):
 
     @commands.command(description='Displays your current credits')
     @utils.has_role('DCS')
@@ -81,4 +84,7 @@ class CreditSystem(Plugin):
 def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-    bot.add_cog(CreditSystem(bot, CreditSystemListener))
+    if bot.config.getboolean('BOT', 'MASTER') is True:
+        bot.add_cog(CreditSystemMaster(bot, CreditSystemListener))
+    else:
+        bot.add_cog(CreditSystemAgent(bot, CreditSystemListener))

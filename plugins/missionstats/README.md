@@ -1,4 +1,4 @@
-# Plugin "Missionstats"
+# Plugin "MissionStats"
 When enabled, this plugin will generate a persistent mission statistics embed to be displayed in the status channels and detailed statistics from the ingame event system. 
 The global DCSServerBot.lua and a plugin specific mission.lua will automatically be loaded into any mission running on that specific server.
 

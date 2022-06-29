@@ -1,0 +1,17 @@
+{
+  "configs": [
+    {
+      "initial_points": 10,
+      "max_points": 100,
+      "points_per_kill": [
+        { "default": 1 },
+        { "category": "Ships", "points": 2 },
+        { "category": "Air Defence", "points": 3 },
+        { "category": "Planes", "type": "AI", "points": 3 },
+        { "category": "Helicopters", "points": 3 },
+        { "category": "Planes", "type": "Player", "points": 4 },
+        { "category": "Planes", "unit_type": "F-14B", "type": "Player", "points": 5 }
+      ]
+    }
+  ]
+}

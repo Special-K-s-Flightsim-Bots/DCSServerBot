@@ -1,3 +1,5 @@
+import json
+import os
 from copy import deepcopy
 from core import DCSServerBot, Plugin, PluginRequiredError, Server
 from typing import Optional
@@ -5,6 +7,36 @@ from .listener import SlotBlockingListener
 
 
 class SlotBlocking(Plugin):
+
+    def migrate(self, version: str):
+        if version != '1.3' or \
+                not os.path.exists('config/slotblocking.json') or \
+                os.path.exists('config/creditsystem.json'):
+            return
+        with open('config/slotblocking.json') as file:
+            old: dict = json.load(file)
+        new = deepcopy(old)
+        dirty = False
+        for i in range(0, len(old['configs'])):
+            # delete stuff from the slotblocking config
+            if 'points_per_kill' in old['configs'][i]:
+                dirty = True
+                del old['configs'][i]['points_per_kill']
+            if 'initial_points' in old['configs'][i]:
+                dirty = True
+                del old['configs'][i]['initial_points']
+            # delete stuff from the new creditsystem config
+            if 'use_reservations' in new['configs'][i]:
+                del new['configs'][i]['use_reservations']
+            if 'restricted' in new['configs'][i]:
+                del new['configs'][i]['restricted']
+        if dirty:
+            os.rename('config/slotblocking.json', 'config/slotblocking.bak')
+            with open('config/slotblocking.json', 'w') as file:
+                json.dump(old, file, indent=2)
+            with open('config/creditsystem.json', 'w') as file:
+                json.dump(new, file, indent=2)
+            self.log.info('  => config/slotblocking.json partly migrated to config/creditsystem.json, please verify!')
 
     def get_config(self, server: Server) -> Optional[dict]:
         if server.name not in self._config:

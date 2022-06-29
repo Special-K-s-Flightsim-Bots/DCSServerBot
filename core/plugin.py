@@ -115,19 +115,20 @@ class Plugin(commands.Cog):
                     self.log.info(f'  => {string.capwords(self.plugin_name)} installed.')
                 else:
                     installed = cursor.fetchone()[0]
-                    updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
-                    if not path.exists(updates_file) and not installed.startswith('v'):
-                        return
-                    while path.exists(updates_file):
-                        with open(updates_file) as updates_sql:
-                            for query in updates_sql.readlines():
-                                self.log.debug(query.rstrip())
-                                cursor.execute(query.rstrip())
+                    # old variant, to be migrated
+                    if installed.startswith('v'):
+                        installed = installed[1:]
+                    while installed != self.plugin_version:
+                        updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
+                        if path.exists(updates_file):
+                            with open(updates_file) as updates_sql:
+                                for query in updates_sql.readlines():
+                                    self.log.debug(query.rstrip())
+                                    cursor.execute(query.rstrip())
                         ver, rev = installed.split('.')
                         installed = ver + '.' + str(int(rev) + 1)
-                        self.log.info(f'  => {string.capwords(self.plugin_name)} migrated to version {installed}.')
-                        updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
                         self.migrate(installed)
+                        self.log.info(f'  => {string.capwords(self.plugin_name)} migrated to version {installed}.')
                     cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
                                    (self.plugin_version, self.plugin_name))
             conn.commit()

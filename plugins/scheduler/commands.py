@@ -62,7 +62,7 @@ class Scheduler(Plugin):
             return
         with open('config/scheduler.json') as file:
             old: dict = json.load(file)
-        new = old.copy()
+        new = deepcopy(old)
         # search the default config or create one
         c = -1
         for i in range(0, len(old['configs'])):

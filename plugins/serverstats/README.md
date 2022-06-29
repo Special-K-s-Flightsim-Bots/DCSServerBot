@@ -1,4 +1,4 @@
-# Plugin Serverstats
+# Plugin ServerStats
 If you enable this plugin you will gather statistics for your DCS servers.<br/>
 
 ## Configuration
