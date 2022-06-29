@@ -1,13 +1,11 @@
 import os
 import psycopg2
 import socket
-import webbrowser
 import winreg
 from configparser import ConfigParser
 from core import utils
 from os import path
 from typing import Optional
-from webgui import create_app
 
 
 class InvalidParameter(Exception):
@@ -41,13 +39,11 @@ class Install:
             elif num_dcs_installs > 1:
                 print('I\'ve found multiple installations of DCS World on this PC:')
                 for i in range(0, num_dcs_installs):
-                    print(f'{i + 1}: {winreg.EnumKey(key, i)}')
+                    print(f'{i+1}: {winreg.EnumKey(key, i)}')
                 num = int(input('\nPlease specify, which installation you want the bot to use: '))
-                skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
-                                      f"Software\\Eagle Dynamics\\{winreg.EnumKey(key, num - 1)}", 0)
+                skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Eagle Dynamics\\{winreg.EnumKey(key, num-1)}", 0)
             else:
-                skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Eagle Dynamics\\{winreg.EnumKey(key, 0)}",
-                                      0)
+                skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Eagle Dynamics\\{winreg.EnumKey(key, 0)}", 0)
             if skey:
                 dcs_installation = winreg.QueryValueEx(skey, 'Path')[0]
                 if not path.exists(dcs_installation):
@@ -92,12 +88,6 @@ class Install:
                 dcs_port += 1
         print('Please check config/dcsserverbot.ini and edit it according to the installation documentation before '
               'you restart the bot.')
-
-    @staticmethod
-    def launch_gui():
-        app = create_app()
-        webbrowser.open('http://localhost:8888/install')
-        app.run(port=8888, debug=True)
 
     @staticmethod
     def verify():
@@ -149,7 +139,7 @@ class Install:
         except KeyError as key:
             raise MissingParameter('DCS', str(key))
         num_installs = 0
-        ports = set(config['BOT']['PORT'])
+        ports = set()
         for _, installation in utils.findDCSInstallations():
             try:
                 if installation not in config:
@@ -164,11 +154,7 @@ class Install:
                                                                      'default: 6666).')
                 else:
                     if config[installation]['DCS_PORT'] in ports:
-                        raise InvalidParameter(installation, 'DCS_PORT', 'Ports have to be unique for all servers!')
-                    elif config[installation]['DCS_PORT'] in [8088, 10308, 10309]:
-                        raise InvalidParameter(installation, 'DCS_PORT',
-                                               "Don't use the port of your DCS server (""10308), webgui_port (8088) or "
-                                               "webrtc_port (""10309)!")
+                        raise InvalidParameter(installation, 'DCS_PORT', 'Port has to be unique for all servers!')
                     ports.add(config[installation]['DCS_PORT'])
                 if not path.exists(os.path.expandvars(config[installation]['DCS_HOME'])):
                     raise InvalidParameter(installation, 'DCS_HOME', 'Path does not exist.')
@@ -182,10 +168,6 @@ class Install:
                     if not config[installation]['SRS_PORT'].isnumeric():
                         raise InvalidParameter(installation, 'SRS_PORT', 'Please enter a number from 1024 to 65535 ('
                                                                          'default: 5002).')
-                    else:
-                        if config[installation]['SRS_PORT'] in ports:
-                            raise InvalidParameter(installation, 'SRS_PORT', 'Ports have to be unique for all servers!')
-                        ports.add(config[installation]['SRS_PORT'])
                 for channel in ['CHAT_CHANNEL', 'ADMIN_CHANNEL', 'STATUS_CHANNEL']:
                     if not check_channel(config[installation][channel]):
                         raise InvalidParameter(installation, channel, 'Invalid channel.')
