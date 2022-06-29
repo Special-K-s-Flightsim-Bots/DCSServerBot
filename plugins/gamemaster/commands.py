@@ -37,7 +37,7 @@ class GameMasterAgent(Plugin):
         for server in self.bot.servers.values():
             if server.status != Status.RUNNING:
                 continue
-            if self.bot.config[server.installation]['COALITIONS']:
+            if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 sides = utils.get_sides(message, server)
                 if Coalition.BLUE in sides and server.get_channel(Channel.COALITION_BLUE).id == message.channel.id:
                     # TODO: ignore messages for now, as DCS does not understand the coalitions yet
