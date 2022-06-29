@@ -129,6 +129,7 @@ function mission.onPlayerConnect(id)
     else
         msg.active = true
     end
+    dcsbot.userInfo[msg.ucid] = {}
 	utils.sendBotTable(msg)
 end
 

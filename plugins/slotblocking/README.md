@@ -19,7 +19,7 @@ The slot blocking is configured with a file named config\slotblocking.json. You'
     { -- this is a server specific section for the instance "DCS.openbeta_server" in this case
       "installation": "DCS.openbeta_server",
       "initial_points": 1,      -- You can give people points from the beginning (aka lifes). Default is 0.
-      "use_reservations": true, -- if true, points will be credited on hop-on and payed out on RTB, otherwise points will be credited on death 
+      "use_reservations": true, -- if true, a "deposit" will be taken on hop-on and payed out on RTB, otherwise points will be credited on death 
       "restricted": [           -- restriction for specific groups of planes, based on a points system
         { "group_name": "^Rookie", "points": 10, "costs": 10 },
         { "group_name": "^Veteran", "points": 20, "crew": 5, "costs": 10 }, -- a multicrew seat (aka RIO) costs 5 points here

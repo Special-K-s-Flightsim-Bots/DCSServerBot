@@ -1,25 +1,29 @@
-from core import EventListener, utils
+from __future__ import annotations
+from core import EventListener
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core import Server, Player
 
 
 class HelpListener(EventListener):
     async def onChatCommand(self, data: dict) -> None:
-        server = self.globals[data['server_name']]
+        server: Server = self.bot.servers[data['server_name']]
         if data['subcommand'] == 'help':
             messages = [
                 'You can use the following commands:\n',
                 '"-linkme token" link your user to Discord',
                 '"-atis airport" display ATIS information'
             ]
-            player = utils.get_player(self, server['server_name'], id=data['from_id'])
-            member = utils.get_member_by_ucid(self, player['ucid'], True)
-            dcs_admin = member is not None and utils.check_roles(['DCS Admin'], member)
+            player = server.get_player(id=data['from_id'])
+            dcs_admin = player.has_discord_roles(['DCS Admin'])
             if dcs_admin:
                 messages.append('"-kick \'name\'"  kick a user')
                 messages.append('"-restart time" restart the running mission')
                 messages.append('"-list"         list available missions')
                 messages.append('"-load number"  load a specific mission')
                 messages.append('"-preset"       load a specific weather preset')
-            game_master = member is not None and utils.check_roles(['GameMaster'], member)
+            game_master = player.has_discord_roles(['GameMaster'])
             if dcs_admin or game_master:
                 messages.append('"-flag"         reads or sets a flag')
             if 'punishment' in self.bot.plugins:
@@ -27,13 +31,16 @@ class HelpListener(EventListener):
                 messages.append('"-forgive"      forgive another user for teamhits/-kills')
             if 'slotblocking' in self.bot.plugins:
                 messages.append('"-credits"      displays your credits')
-            if self.config.getboolean(server['installation'], 'COALITIONS'):
+            if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 messages.append('"-join coal."   join a coalition')
                 messages.append('"-leave"        leave a coalition')
                 messages.append('"-password"     shows coalition password')
                 messages.append('"-coalition"    shows your current coalition')
-            utils.sendUserMessage(self, server, data['from_id'], '\n'.join(messages), 30)
+            player.sendUserMessage('\n'.join(messages), 30)
 
     async def onPlayerStart(self, data: dict) -> None:
-        if data['id'] != 1:
-            utils.sendChatMessage(self, data['server_name'], data['id'], 'Use "-help" for commands.')
+        if data['id'] == 1:
+            return
+        server: Server = self.bot.servers[data['server_name']]
+        player: Player = server.get_player(id=data['id'])
+        player.sendChatMessage('Use "-help" for commands.')

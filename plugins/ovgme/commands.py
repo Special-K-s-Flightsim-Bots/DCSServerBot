@@ -5,7 +5,7 @@ import re
 import shutil
 import zipfile
 from contextlib import closing, suppress
-from core import Status, Plugin, DCSServerBot, PluginConfigurationError, utils
+from core import Status, Plugin, DCSServerBot, PluginConfigurationError, utils, Server
 from discord.ext import commands
 from typing import Optional, Tuple
 
@@ -24,12 +24,25 @@ class OvGME(Plugin):
 
     async def before_dcs_update(self):
         # uninstall all RootFolder-packages
-        for server_name, server in self.globals.items():
+        for server_name, server in self.bot.servers.items():
             for package_name, version in self.get_installed_packages(server, 'RootFolder'):
                 self.uninstall_package(server, 'RootFolder', package_name, version)
 
     async def after_dcs_update(self):
         self.install_packages()
+
+    def rename(self, old_name: str, new_name: str):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s',
+                               (new_name, old_name))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
     @staticmethod
     def parse_filename(filename: str) -> Optional[Tuple[str, str]]:
@@ -54,7 +67,7 @@ class OvGME(Plugin):
     def install_packages(self):
         if not self.locals or 'configs' not in self.locals:
             return
-        for server_name, server in self.globals.items():
+        for server_name, server in self.bot.servers.items():
             config = self.get_config(server)
             if 'packages' not in config:
                 return
@@ -63,13 +76,13 @@ class OvGME(Plugin):
                     else self.get_latest_version(package['source'], package['name'])
                 installed = self.check_package(server, package['source'], package['name'])
                 # If the bot is still starting up (default), we're trying to figure out the state of the DCS process
-                p = utils.find_process('DCS.exe', server['installation'])
+                p = utils.find_process('DCS.exe', server.installation)
                 if (not installed or installed != version) and \
-                        (p or server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED]):
-                    self.log.warning(f"  - Server {server['server_name']} needs to be shutdown to install packages.")
+                        (p or server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]):
+                    self.log.warning(f"  - Server {server.name} needs to be shutdown to install packages.")
                     break
-                maintenance = server['maintenance'] if 'maintenance' in server else None
-                server['maintenance'] = True
+                maintenance = server.maintenance
+                server.maintenance = True
                 try:
                     if not installed:
                         if self.install_package(server, package['source'], package['name'], version):
@@ -89,9 +102,9 @@ class OvGME(Plugin):
                             self.log.info(f"  - Package {package['name']}_v{installed} updated to v{version}.")
                 finally:
                     if maintenance:
-                        server['maintenance'] = maintenance
+                        server.maintenance = maintenance
                     else:
-                        del server['maintenance']
+                        server.maintenance = False
 
     def get_latest_version(self, folder: str, package: str) -> str:
         config = self.locals['configs'][0]
@@ -103,27 +116,27 @@ class OvGME(Plugin):
                 max_version = version
         return max_version
 
-    def check_package(self, server: dict, folder: str, package_name: str) -> Optional[str]:
+    def check_package(self, server: Server, folder: str, package_name: str) -> Optional[str]:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT version FROM ovgme_packages WHERE server_name = %s AND package_name = %s AND '
-                               'folder = %s', (server['server_name'], package_name, folder))
+                               'folder = %s', (server.name, package_name, folder))
                 return cursor.fetchone()[0] if cursor.rowcount == 1 else None
         finally:
             self.pool.putconn(conn)
 
-    def install_package(self, server: dict, folder: str, package_name: str, version: str, backup: Optional[bool] = True) -> bool:
+    def install_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
-        os.makedirs(os.path.join(path, '.' + server['installation']), exist_ok=True)
-        target = os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) if folder == 'RootFolder' else \
-            os.path.expandvars(self.config[server['installation']]['DCS_HOME'])
+        os.makedirs(os.path.join(path, '.' + server.installation), exist_ok=True)
+        target = os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) if folder == 'RootFolder' else \
+            os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
         for file in os.listdir(path):
             filename = os.path.join(path, file)
             if (os.path.isfile(filename) and file == package_name + '_v' + version + '.zip') or \
                     (os.path.isdir(filename) and file == package_name + '_v' + version):
-                ovgme_path = os.path.join(path, '.' + server['installation'], package_name + '_v' + version)
+                ovgme_path = os.path.join(path, '.' + server.installation, package_name + '_v' + version)
                 os.makedirs(ovgme_path, exist_ok=True)
                 if os.path.isfile(filename) and file == package_name + '_v' + version + '.zip':
                     with open(os.path.join(ovgme_path, 'install.log'), 'w') as log:
@@ -156,7 +169,7 @@ class OvGME(Plugin):
                 try:
                     with closing(conn.cursor()) as cursor:
                         cursor.execute('INSERT INTO ovgme_packages (server_name, package_name, version, folder) '
-                                       'VALUES (%s, %s, %s, %s)', (server['server_name'], package_name, version,
+                                       'VALUES (%s, %s, %s, %s)', (server.name, package_name, version,
                                                                    folder))
                     conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
@@ -167,12 +180,12 @@ class OvGME(Plugin):
                 return True
         return False
 
-    def uninstall_package(self, server: dict, folder: str, package_name: str, version: str) -> bool:
+    def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
-        ovgme_path = os.path.join(path, '.' + server['installation'], package_name + '_v' + version)
-        target = os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) if folder == 'RootFolder' else \
-            os.path.expandvars(self.config[server['installation']]['DCS_HOME'])
+        ovgme_path = os.path.join(path, '.' + server.installation, package_name + '_v' + version)
+        target = os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) if folder == 'RootFolder' else \
+            os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
         if not os.path.exists(os.path.join(ovgme_path, 'install.log')):
             return False
         with open(os.path.join(ovgme_path, 'install.log')) as log:
@@ -194,7 +207,7 @@ class OvGME(Plugin):
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('DELETE FROM ovgme_packages WHERE server_name = %s AND folder = %s AND package_name = '
-                               '%s AND version = %s', (server['server_name'], folder, package_name, version))
+                               '%s AND version = %s', (server.name, folder, package_name, version))
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -227,12 +240,12 @@ class OvGME(Plugin):
         embed.set_footer(text=footer)
         return embed
 
-    def get_installed_packages(self, server: dict, folder: str) -> list[Tuple[str, str]]:
+    def get_installed_packages(self, server: Server, folder: str) -> list[Tuple[str, str]]:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute('SELECT * FROM ovgme_packages WHERE server_name = %s AND folder = %s',
-                               (server['server_name'], folder))
+                               (server.name, folder))
                 return [(x['package_name'], x['version']) for x in cursor.fetchall()]
         finally:
             self.pool.putconn(conn)
@@ -241,7 +254,7 @@ class OvGME(Plugin):
     @utils.has_roles(['Admin', 'DCS Admin'])
     @commands.guild_only()
     async def packages(self, ctx):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
         packages = []
@@ -276,7 +289,7 @@ class OvGME(Plugin):
                 finally:
                     await msg.delete()
         else:
-            await ctx.send(f"No packages installed on {server['server_name']}.")
+            await ctx.send(f"No packages installed on {server.name}.")
 
     @staticmethod
     def format_folders(data, marker, marker_emoji):
@@ -306,12 +319,12 @@ class OvGME(Plugin):
     @utils.has_role('Admin')
     @commands.guild_only()
     async def add_package(self, ctx):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
         config = self.get_config(server)
         if not config:
-            await ctx.send(f"No plugin configuration found for server {server['server_name']}.")
+            await ctx.send(f"No plugin configuration found for server {server.name}.")
             return
         n = await utils.selection_list(self, ctx, OVGME_FOLDERS, self.format_folders)
         if n == -1:

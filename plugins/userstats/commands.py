@@ -4,8 +4,7 @@ import os
 import psycopg2
 import random
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport
-from core.const import Status
+from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server
 from datetime import datetime
 from discord.ext import commands, tasks
 from typing import Union, Optional, Tuple
@@ -39,20 +38,19 @@ class UserStatisticsAgent(Plugin):
     @utils.has_role('Admin')
     @commands.guild_only()
     async def reset_statistics(self, ctx):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if server:
-            server_name = server['server_name']
-            if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
+            if server.status in [Status.STOPPED, Status.SHUTDOWN]:
                 conn = self.pool.getconn()
                 try:
-                    if await utils.yn_question(self, ctx, 'I\'m going to **DELETE ALL STATISTICS**\nof server "{}".\n\nAre you sure?'.format(server_name)) is True:
+                    if await utils.yn_question(self, ctx, f'I\'m going to **DELETE ALL STATISTICS**\nof server "{server.name}".\n\nAre you sure?'):
                         with closing(conn.cursor()) as cursor:
                             cursor.execute(
                                 'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE '
-                                'server_name = %s)', (server_name, ))
-                            cursor.execute('DELETE FROM missions WHERE server_name = %s', (server_name, ))
+                                'server_name = %s)', (server.name, ))
+                            cursor.execute('DELETE FROM missions WHERE server_name = %s', (server.name, ))
                             conn.commit()
-                        await ctx.send('Statistics for server "{}" have been wiped.'.format(server_name))
+                        await ctx.send(f'Statistics for server "{server.name}" have been wiped.')
                         await self.bot.audit('reset statistics', user=ctx.message.author, server=server)
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.log.exception(error)
@@ -60,7 +58,7 @@ class UserStatisticsAgent(Plugin):
                 finally:
                     self.pool.putconn(conn)
             else:
-                await ctx.send('Please stop server "{}" before deleteing the statistics!'.format(server_name))
+                await ctx.send(f'Please stop server "{server.name}" before deleteing the statistics!')
 
 
 class UserStatisticsMaster(UserStatisticsAgent):
@@ -78,7 +76,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @commands.guild_only()
     async def statistics(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         try:
-            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
             member, period = parse_params(self, ctx, member, *params)
             if not member:
                 await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
@@ -88,7 +86,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 await ctx.send('Please provide a valid period or campaign name.')
                 return
             report = PaginationReport(self.bot, ctx, self.plugin_name, 'userstats.json', timeout if timeout > 0 else None)
-            await report.render(member=member if isinstance(member, discord.Member) else utils.get_ucid_by_name(self, member),
+            await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
                                 member_name=member.display_name if isinstance(member, discord.Member) else member,
                                 period=period, server_name=None, flt=flt)
         finally:
@@ -99,8 +97,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @commands.guild_only()
     async def highscore(self, ctx, period: Optional[str]):
         try:
-            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-            server = await utils.get_server(self, ctx)
+            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+            server: Server = await self.bot.get_server(ctx)
             flt = StatisticsFilter.detect(self.bot, period)
             if period and not flt:
                 await ctx.send('Please provide a valid period or campaign name.')
@@ -110,7 +108,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 await report.render(period=period, message=ctx.message, flt=flt, server_name=None)
             else:
                 report = Report(self.bot, self.plugin_name, 'highscore.json')
-                env = await report.render(period=period, message=ctx.message, server_name=server['server_name'], flt=flt)
+                env = await report.render(period=period, message=ctx.message, server_name=server.name, flt=flt)
                 file = discord.File(env.filename)
                 await ctx.send(embed=env.embed, file=file, delete_after=timeout if timeout > 0 else None)
                 if file:
@@ -218,7 +216,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                         names.append(row['name'])
                         playtimes.append('{:.0f}'.format(row['playtime']))
                         # check if the match should be updated
-                        matched_member = utils.match_user(self, dict(row), True)
+                        matched_member = self.bot.match_user(dict(row), True)
                         if matched_member:
                             if isinstance(member, discord.Member):
                                 if member.id != matched_member.id:
@@ -233,13 +231,13 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     embed.add_field(name='▬' * 32, value='_ _', inline=False)
                     servers = []
                     dcs_names = []
-                    for server_name in self.globals.keys():
-                        if server_name in self.bot.player_data:
-                            for i in range(0, len(ucids)):
-                                if utils.get_player(self, server_name, ucid=ucids[i], active=True) is not None:
-                                    servers.append(server_name)
-                                    dcs_names.append(names[i])
-                                    break
+                    for server_name, server in self.bot.servers.items():
+                        for i in range(0, len(ucids)):
+                            player = server.get_player(ucid=ucids[i], active=True)
+                            if player is not None:
+                                servers.append(server_name)
+                                dcs_names.append(names[i])
+                                break
                     if len(servers):
                         embed.add_field(name='Active on Server', value='\n'.join(servers))
                         embed.add_field(name='DCS Name', value='\n'.join(dcs_names))
@@ -278,18 +276,16 @@ class UserStatisticsMaster(UserStatisticsAgent):
                                                  f"{match['member'].display_name}.", user=ctx.message.author)
                         await ctx.send(f"DCS player {match['name']} has been relinked to member {match['member'].display_name}.")
                     elif react.emoji == '⏏️':
-                        for server in self.globals.values():
-                            for ucid in ucids:
-                                self.bot.sendtoDCS(server, {"command": "kick", "ucid": ucid, "reason": "Kicked by admin."})
-                        await ctx.send(f"User has been kicked from server \"{server['server_name']}\".")
+                        server.kick(player, "Kicked by admin.")
+                        await ctx.send(f"User has been kicked from server \"{server.name}\".")
                         await self.bot.audit(f' kicked ' + (f'user {member.display_name}.' if isinstance(member, discord.Member) else f'ucid {member}'),
                                              user=ctx.message.author)
                     elif react.emoji == '⛔':
                         for ucid in ucids:
                             cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
                                            (ucid, ctx.message.author.display_name, 'n/a'))
-                            for server in self.globals.values():
-                                self.bot.sendtoDCS(server, {
+                            for server in self.bot.servers.values():
+                                server.sendtoDCS({
                                     "command": "ban",
                                     "ucid": ucid,
                                     "reason": "Banned by admin."
@@ -300,8 +296,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     elif react.emoji == '✅':
                         for ucid in ucids:
                             cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
-                            for server in self.globals.values():
-                                self.bot.sendtoDCS(server, {
+                            for server in self.bot.servers.values():
+                                server.sendtoDCS({
                                     "command": "unban",
                                     "ucid": ucid
                                 })
@@ -347,7 +343,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 unmatched = []
                 cursor.execute('SELECT ucid, name FROM players WHERE discord_id = -1 AND name IS NOT NULL ORDER BY last_seen DESC')
                 for row in cursor.fetchall():
-                    matched_member = utils.match_user(self, dict(row), True)
+                    matched_member = self.bot.match_user(dict(row), True)
                     if matched_member:
                         unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
                 if len(unmatched) == 0:
@@ -398,7 +394,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL AND '
                                    'manual = FALSE ORDER BY last_seen DESC', (member.id, ))
                     for row in cursor.fetchall():
-                        matched_member = utils.match_user(self, dict(row), True)
+                        matched_member = self.bot.match_user(dict(row), True)
                         if not matched_member:
                             suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member})
                         elif matched_member.id != member.id:

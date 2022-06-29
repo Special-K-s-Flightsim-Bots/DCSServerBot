@@ -2,18 +2,18 @@ from typing import List, Any
 
 
 class UnknownReportElement(Exception):
-    def __init__(self, classname: str):
-        super().__init__(f'The class {classname} is not a ReportElement.')
+    def __init__(self, class_name: str):
+        super().__init__(f'The class {class_name} is not a ReportElement.')
 
 
 class UnknownGraphElement(Exception):
-    def __init__(self, classname: str):
-        super().__init__(f'The class {classname} is not a GraphElement or MultiGraphElement.')
+    def __init__(self, class_name: str):
+        super().__init__(f'The class {class_name} is not a GraphElement or MultiGraphElement.')
 
 
 class ClassNotFound(Exception):
-    def __init__(self, classname: str):
-        super().__init__(f'The class {classname} could not be found.')
+    def __init__(self, class_name: str):
+        super().__init__(f'The class {class_name} could not be found.')
 
 
 class ValueNotInRange(Exception):
@@ -29,4 +29,4 @@ class TooManyElements(Exception):
 
 class UnknownValue(Exception):
     def __init__(self, name: str, value: str):
-        super().__init__(f'The value {str} is unknown for parameter {name}.')
+        super().__init__(f'The value {value} is unknown for parameter {name}.')

@@ -1,17 +1,18 @@
-# listener.py
-from typing import List, Union, TypeVar, Any
+from __future__ import annotations
+from typing import List, Union, TypeVar, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core import DCSServerBot, Plugin
 
 
 class EventListener:
 
     def __init__(self, plugin):
-        self.plugin = plugin
+        self.plugin: Plugin = plugin
         self.plugin_name = type(self).__module__.split('.')[-2]
-        self.bot = plugin.bot
+        self.bot: DCSServerBot = plugin.bot
         self.log = plugin.log
         self.pool = plugin.pool
-        self.config = plugin.config
-        self.globals = plugin.globals
         self.locals = plugin.locals
         self.loop = plugin.loop
 

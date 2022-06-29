@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import json
 import os
@@ -10,9 +11,11 @@ from copy import deepcopy
 from discord.ext import commands
 from os import path
 from shutil import copytree
-from typing import Type, Optional
-from .bot import DCSServerBot
+from typing import Type, Optional, TYPE_CHECKING
 from .listener import TEventListener
+
+if TYPE_CHECKING:
+    from core import DCSServerBot, Server
 
 
 class Plugin(commands.Cog):
@@ -20,13 +23,12 @@ class Plugin(commands.Cog):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         self.plugin_name = type(self).__module__.split('.')[-2]
         self.plugin_version = getattr(sys.modules['plugins.' + self.plugin_name], '__version__')
-        self.bot = bot
+        self.bot: DCSServerBot = bot
         self.log = bot.log
-        self.config = bot.config
         self.pool = bot.pool
         self.loop = asyncio.get_event_loop()
-        self.globals = bot.globals
         self.locals = self.read_locals()
+        self._config = dict[str, dict]()
         self.eventlistener = eventlistener(self) if eventlistener else None
         self.install()
         if self.eventlistener:
@@ -37,8 +39,7 @@ class Plugin(commands.Cog):
         if self.eventlistener:
             self.bot.unregister_eventListener(self.eventlistener)
         # delete a possible configuration
-        for server in self.bot.globals.values():
-            del server[self.plugin_name]
+        self._config.clear()
         self.log.debug(f'- Plugin {type(self).__name__} unloaded.')
 
     @staticmethod
@@ -64,7 +65,7 @@ class Plugin(commands.Cog):
 
     def install(self):
         # don't init the DB on agents, whole DB handling is a master task
-        if self.config.getboolean('BOT', 'MASTER') is True:
+        if self.bot.config.getboolean('BOT', 'MASTER') is True:
             self.init_db()
         else:
             version = self.get_installed_version(self.plugin_name)
@@ -73,14 +74,13 @@ class Plugin(commands.Cog):
             elif version != self.plugin_version:
                 self.migrate(self.plugin_version)
                 self.set_installed_version(self.plugin_name, self.plugin_version)
-        for server in self.globals.values():
-            installation = server['installation']
+        for server in self.bot.servers.values():
             source_path = f'./plugins/{self.plugin_name}/lua'
             if path.exists(source_path):
-                target_path = path.expandvars(self.config[installation]['DCS_HOME'] +
+                target_path = path.expandvars(self.bot.config[server.installation]['DCS_HOME'] +
                                               f'\\Scripts\\net\\DCSServerBot\\{self.plugin_name}\\')
                 copytree(source_path, target_path, dirs_exist_ok=True)
-                self.log.debug(f'  => Luas installed into {installation}')
+                self.log.debug(f'  => Luas installed into {server.installation}')
         # create report directories for convenience
         source_path = f'./plugins/{self.plugin_name}/reports'
         if path.exists(source_path):
@@ -146,28 +146,28 @@ class Plugin(commands.Cog):
         else:
             return {}
 
-    def get_config(self, server: dict) -> Optional[dict]:
-        if self.plugin_name not in server:
+    def get_config(self, server: Server) -> Optional[dict]:
+        if server.name not in self._config:
             if 'configs' in self.locals:
                 specific = default = None
                 for element in self.locals['configs']:
                     if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server['installation'] == element['installation']) or \
-                                ('server_name' in element and server['server_name'] == element['server_name']):
+                        if ('installation' in element and server.installation == element['installation']) or \
+                                ('server_name' in element and server.name == element['server_name']):
                             specific = deepcopy(element)
                     else:
                         default = deepcopy(element)
                 if default and not specific:
-                    server[self.plugin_name] = default
+                    self._config[server.name] = default
                 elif specific and not default:
-                    server[self.plugin_name] = specific
+                    self._config[server.name] = specific
                 elif default and specific:
-                    server[self.plugin_name] = default | specific
+                    self._config[server.name] = default | specific
             else:
                 return None
-        return server[self.plugin_name] if self.plugin_name in server else None
+        return self._config[server.name] if server.name in self._config else None
 
-    def rename(self, old_name:str, new_name: str):
+    def rename(self, old_name: str, new_name: str):
         # this function has to be implemented in your own plugins, if a server rename takes place
         pass
 

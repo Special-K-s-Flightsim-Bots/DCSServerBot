@@ -41,9 +41,9 @@ class GreenieBoard(Plugin):
             name = member
             if len(params) > 0:
                 name += ' ' + ' '.join(params)
-            ucid = utils.get_ucid_by_name(self, name)
+            ucid = self.bot.get_ucid_by_name(name)
         landings = List[dict]
-        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
@@ -127,7 +127,7 @@ class GreenieBoard(Plugin):
     @commands.guild_only()
     async def greenieboard(self, ctx):
         try:
-            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
             embed = self.render_board()
             if embed:
                 await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)

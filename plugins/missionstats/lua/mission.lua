@@ -227,56 +227,56 @@ function dcsbot.getMissionSituation(channel)
 	local msg = {}
 	msg.command = 'getMissionSituation'
 	msg.coalitions = {}
-	msg.coalitions['Blue'] = {}
-	msg.coalitions['Red'] = {}
+	msg.coalitions['BLUE'] = {}
+	msg.coalitions['RED'] = {}
 
-	msg.coalitions['Blue'].airbases = {}
+	msg.coalitions['BLUE'].airbases = {}
 	for id, airbase in pairs(coalition.getAirbases(coalition.side.BLUE)) do
-		table.insert(msg.coalitions['Blue'].airbases, airbase:getName())
+		table.insert(msg.coalitions['BLUE'].airbases, airbase:getName())
 	end
-	msg.coalitions['Red'].airbases = {}
+	msg.coalitions['RED'].airbases = {}
 	for id, airbase in pairs(coalition.getAirbases(coalition.side.RED)) do
-		table.insert(msg.coalitions['Red'].airbases, airbase:getName())
+		table.insert(msg.coalitions['RED'].airbases, airbase:getName())
 	end
-	msg.coalitions['Blue'].units = {}
+	msg.coalitions['BLUE'].units = {}
 	for i, group in pairs(coalition.getGroups(coalition.side.BLUE)) do
 		category = GROUP_CATEGORY[group:getCategory()]
 		if category ~= nil then
-			if (msg.coalitions['Blue'].units[category] == nil) then
-				msg.coalitions['Blue'].units[category] = {}
+			if (msg.coalitions['BLUE'].units[category] == nil) then
+				msg.coalitions['BLUE'].units[category] = {}
 			end
 			for j, unit in pairs(Group.getUnits(group)) do
 				if unit:isActive() then
-					table.insert(msg.coalitions['Blue'].units[category], unit:getName())
+					table.insert(msg.coalitions['BLUE'].units[category], unit:getName())
 				end
 			end
 		else
 			env.warning('Category not in table: ' .. group:getCategory(), false)
 		end
 	end
-	msg.coalitions['Red'].units = {}
+	msg.coalitions['RED'].units = {}
 	for i, group in pairs(coalition.getGroups(coalition.side.RED)) do
 		category = GROUP_CATEGORY[group:getCategory()]
 		if category ~= nil then
-			if (msg.coalitions['Red'].units[category] == nil) then
-				msg.coalitions['Red'].units[category] = {}
+			if (msg.coalitions['RED'].units[category] == nil) then
+				msg.coalitions['RED'].units[category] = {}
 			end
 			for j, unit in pairs(Group.getUnits(group)) do
 				if unit:isActive() then
-					table.insert(msg.coalitions['Red'].units[category], unit:getName())
+					table.insert(msg.coalitions['RED'].units[category], unit:getName())
 				end
 			end
 		else
 			env.warning('Category not in table: ' .. group:getCategory(), false)
 		end
 	end
-	msg.coalitions['Blue'].statics = {}
+	msg.coalitions['BLUE'].statics = {}
 	for id, static in pairs(coalition.getStaticObjects(coalition.side.BLUE)) do
-		table.insert(msg.coalitions['Blue'].statics, static:getName())
+		table.insert(msg.coalitions['BLUE'].statics, static:getName())
 	end
-	msg.coalitions['Red'].statics = {}
+	msg.coalitions['RED'].statics = {}
 	for id, static in pairs(coalition.getStaticObjects(coalition.side.RED)) do
-		table.insert(msg.coalitions['Red'].statics, static:getName())
+		table.insert(msg.coalitions['RED'].statics, static:getName())
 	end
 	dcsbot.sendBotTable(msg, channel)
 end

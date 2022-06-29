@@ -2,7 +2,7 @@
   "configs": [
     {
       "on_birth": {
-        "message": "{player[name]}, welcome to {server[server_name]}!",
+        "message": "{player.name}, welcome to {server.name}!",
         "display_type": "popup",
         "display_time": 20
       },
