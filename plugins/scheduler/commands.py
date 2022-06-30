@@ -148,6 +148,7 @@ class Scheduler(Plugin):
                         server.current_mission.filename = filename
                         self.change_mizfile(server, config)
                         break
+        self.log.info(f"  => DCS server \"{server.name}\" starting up ...")
         await server.startup()
         if not member:
             self.log.info(f"  => DCS server \"{server.name}\" started by "

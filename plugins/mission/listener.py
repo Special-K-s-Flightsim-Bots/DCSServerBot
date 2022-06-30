@@ -83,6 +83,7 @@ class MissionEventListener(EventListener):
                                                      unit_name=p['unit_name'], unit_type=p['unit_type'],
                                                      group_id=p['group_id'], group_name=p['group_name'], banned=False)
             server.add_player(player)
+        server.status = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
         await self.displayMissionEmbed(server)
         await self.displayPlayerEmbed(server)
 
