@@ -200,7 +200,11 @@ function dcsbot.eventHandler:onEvent(event)
 		if event.place and event.id ~= world.event.S_EVENT_LANDING_AFTER_EJECTION then
 			msg.place = {}
 			msg.place.id = event.place.id_
-			msg.place.name = event.place:getName()
+			if msg.place:isExist() then
+				msg.place.name = event.place:getName()
+			else
+				msg.place.name = 'Unknown'
+			end
 		end
 		if event.weapon_name then
 			msg.weapon = {}

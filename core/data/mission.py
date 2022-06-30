@@ -1,8 +1,10 @@
 from __future__ import annotations
+import asyncio
 from core.data.dataobject import DataObject, DataObjectFactory
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Union, TYPE_CHECKING
+from .. import Status
 
 if TYPE_CHECKING:
     from .server import Server
@@ -25,14 +27,26 @@ class Mission(DataObject):
     clouds: dict = field(repr=False, default_factory=dict)
     airbases: list = field(repr=False, default_factory=list)
 
-    def pause(self):
-        self.server.sendtoDCS({"command": "pauseMission"})
+    async def pause(self):
+        if self.server.status == Status.RUNNING:
+            self.server.sendtoDCS({"command": "pauseMission"})
+            await self.server.wait_for_status_change([Status.PAUSED])
 
-    def unpause(self):
-        self.server.sendtoDCS({"command": "unpauseMission"})
+    async def unpause(self):
+        if self.server.status == Status.PAUSED:
+            self.server.sendtoDCS({"command": "unpauseMission"})
+            await self.server.wait_for_status_change([Status.RUNNING])
 
-    def restart(self):
+    async def restart(self):
         self.server.sendtoDCS({"command": "restartMission"})
+        # wait for a status change (STOPPED or LOADING)
+        await self.server.wait_for_status_change([Status.STOPPED, Status.LOADING])
+        # wait until we are running again
+        try:
+            await self.server.wait_for_status_change([Status.RUNNING, Status.PAUSED])
+        except asyncio.TimeoutError:
+            self.log.debug(f'Trying to force start server "{self.server.name}" due to DCS bug.')
+            await self.server.start()
 
     def update(self, data: dict):
         if 'start_time' in data:

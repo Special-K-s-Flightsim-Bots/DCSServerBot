@@ -90,8 +90,8 @@ class SchedulerListener(EventListener):
                     player.sendUserMessage(message, 30)
                 else:
                     n = int(data['params'][0]) - 1
-                    server.stop()
+                    await server.stop()
                     cast(Scheduler, self.plugin).change_mizfile(server, config, presets[n])
-                    server.start()
+                    await server.start()
             else:
                 player.sendChatMessage(f"There are no presets available to select.")

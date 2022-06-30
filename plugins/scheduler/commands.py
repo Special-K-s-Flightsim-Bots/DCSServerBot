@@ -148,7 +148,7 @@ class Scheduler(Plugin):
                         server.current_mission.filename = filename
                         self.change_mizfile(server, config)
                         break
-        server.startup()
+        await server.startup()
         if not member:
             self.log.info(f"  => DCS server \"{server.name}\" started by "
                           f"{string.capwords(self.plugin_name)}.")
@@ -297,19 +297,15 @@ class Scheduler(Plugin):
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
                 await asyncio.sleep(1)
                 if 'settings' in config['restart']:
-                    server.stop()
-                    for i in range(0, 30):
-                        await asyncio.sleep(1)
-                        if server.status == Status.STOPPED:
-                            break
+                    await server.stop()
                     self.change_mizfile(server, config)
-                    server.start()
+                    await server.start()
                 else:
-                    server.current_mission.restart()
+                    await server.current_mission.restart()
             elif method == 'rotate':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
                 await asyncio.sleep(1)
-                server.loadNextMission()
+                await server.loadNextMission()
 
     async def check_mission_state(self, server: Server, config: dict):
         if 'restart' in config:
@@ -393,10 +389,12 @@ class Scheduler(Plugin):
                                f"Please use {self.bot.config['DCS']['COMMAND_PREFIX']}start instead.")
                 return
             if server.status == Status.SHUTDOWN:
-                await ctx.send(f"DCS server \"{server.name}\" starting up ...")
+                msg = await ctx.send(f"DCS server \"{server.name}\" starting up ...")
                 # set maintenance flag to prevent auto-stops of this server
                 server.maintenance = True
                 await self.launch_dcs(server, config, ctx.message.author)
+                await msg.delete()
+                msg = await ctx.send(f"DCS server \"{server.name}\" started.")
             else:
                 await ctx.send(f"DCS server \"{server.name}\" is already started.")
 
@@ -413,11 +411,12 @@ class Scheduler(Plugin):
             elif server.status != Status.SHUTDOWN:
                 if await utils.yn_question(self, ctx, f"Do you want to shut down the "
                                                       f"DCS server \"{server.name}\"?") is True:
-                    await ctx.send(f"Shutting down DCS server \"{server.name}\", please wait ...")
+                    msg = await ctx.send(f"Shutting down DCS server \"{server.name}\", please wait ...")
                     # set maintenance flag to prevent auto-starts of this server
                     server.maintenance = True
                     server.restart_pending = True
                     await self.teardown_dcs(server, ctx.message.author)
+                    await msg.delete()
                     await ctx.send(f"DCS server \"{server.name}\" shut down.")
                     server.restart_pending = False
             else:

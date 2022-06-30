@@ -99,7 +99,7 @@ class Agent(Plugin):
                 server.maintenance = False
             else:
                 # the server was running before (being in maintenance mode), so start it again
-                server.startup()
+                await server.startup()
         self.update_pending = False
 
     @commands.command(description='Update a DCS Installation')
@@ -160,10 +160,7 @@ class Agent(Plugin):
                     if server.status != Status.STOPPED and \
                             await utils.yn_question(self, ctx, "Password has been changed.\nDo you want the servers "
                                                                "to be restarted for the change to take effect?"):
-                        server.stop()
-                        while server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                            await asyncio.sleep(1)
-                        server.start()
+                        await server.restart()
                         await self.bot.audit('restarted the server', server=server, user=ctx.message.author)
                 else:
                     await ctx.send(f"Server \"{server.name}\" must not be shut down to change coalition "
@@ -351,8 +348,10 @@ class Agent(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             if server.status == Status.STOPPED:
-                server.sendtoDCS({"command": "start_server"})
-                await ctx.send(f"Starting server {server.name} ...")
+                msg = await ctx.send(f"Starting server {server.name} ...")
+                await server.start()
+                await msg.delete()
+                await ctx.send(f"Server {server.name} started.")
                 await self.bot.audit('started the server', server=server, user=ctx.message.author)
             elif server.status == Status.SHUTDOWN:
                 await ctx.send(f"Server {server.name} is shut down. Use {self.bot.config['BOT']['COMMAND_PREFIX']}startup to start it up.")
@@ -368,10 +367,8 @@ class Agent(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             if server.status in [Status.RUNNING, Status.PAUSED]:
-                server.sendtoDCS({"command": "stop_server"})
+                await server.stop()
                 await self.bot.audit('stopped the server', server=server, user=ctx.message.author)
-                while server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                    await asyncio.sleep(1)
                 await ctx.send(f"Server {server.name} stopped.")
             elif server.status == Status.STOPPED:
                 await ctx.send(

@@ -246,6 +246,8 @@ class GameMasterAgent(Plugin):
                 self.log.exception(error)
             finally:
                 self.pool.putconn(conn)
+        else:
+            await ctx.send(f"Usage: {self.bot.config['BOT']['COMMAND_PREFIX']}.campaign <add|start|stop|delete|list>")
 
 
 class GameMasterMaster(GameMasterAgent):

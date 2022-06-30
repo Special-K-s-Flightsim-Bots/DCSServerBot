@@ -40,14 +40,12 @@ end
 
 function dcsbot.startMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: startMission()')
-	net.stop_game()
---	net.missionlist_run(json.id)
+	net.missionlist_run(json.id)
 	local mission_list = net.missionlist_get()
 	utils.saveSettings({
 		missionList=mission_list["missionList"],
-		listStartIndex=json.id
+		listStartIndex=mission_list["listStartIndex"]
 	})
-    net.start_server(utils.loadSettingsRaw())
 end
 
 function dcsbot.startNextMission(json)

@@ -183,8 +183,10 @@ class Mission(Plugin):
                 server.sendPopupMessage(Coalition.ALL, message, sender=ctx.message.author.display_name)
                 await asyncio.sleep(delay)
                 await msg.delete()
-            server.current_mission.restart()
-            msg = await ctx.send('Restart command sent. Mission will restart now.')
+            msg = await ctx.send('Mission will restart now, please wait ...')
+            await server.current_mission.restart()
+            await msg.delete()
+            msg = await ctx.send('Mission restarted.')
         else:
             msg = await ctx.send('There is currently no mission running on server "' + server.name + '"')
         if (msg is not None) and (server.get_channel(Channel.STATUS).id == ctx.channel.id):
@@ -232,10 +234,10 @@ class Mission(Plugin):
                 mission = mission[(mission.rfind('\\') + 1):-4]
                 # make sure that the Scheduler doesn't interfere
                 server.restart_pending = True
-                server.loadMission(num + 1)
-                await ctx.send(f'Loading mission "{mission}" ...')
-                if server.status == Status.STOPPED:
-                    server.start()
+                msg = await ctx.send(f'Loading mission "{mission}" ...')
+                await server.loadMission(num + 1)
+                await msg.delete()
+                await ctx.send(f'Mission {mission} loaded.')
         else:
             return await ctx.send(f"Server {server.name} is {server.status.name}.")
 
@@ -317,7 +319,7 @@ class Mission(Plugin):
         if not server:
             return
         if server.status == Status.RUNNING:
-            server.current_mission.pause()
+            await server.current_mission.pause()
             await ctx.send('Server "{}" paused.'.format(server.name))
         else:
             await ctx.send('Server "{}" is not running.'.format(server.name))
@@ -330,7 +332,7 @@ class Mission(Plugin):
         if not server:
             return
         if server.status == Status.PAUSED:
-            server.current_mission.unpause()
+            await server.current_mission.unpause()
             await ctx.send('Server "{}" unpaused.'.format(server.name))
         elif server.status == Status.RUNNING:
             await ctx.send('Server "{}" is already running.'.format(server.name))
@@ -356,7 +358,10 @@ class Mission(Plugin):
                 # remove any hung flag, if the server has responded
                 if server.name in self.hung:
                     del self.hung[server.name]
-                server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
+                if data['pause'] and server.status != Status.PAUSED:
+                    server.status = Status.PAUSED
+                elif not data['pause'] and server.status != Status.RUNNING:
+                    server.status = Status.RUNNING
                 server.current_mission.mission_time = data['mission_time']
                 server.current_mission.real_time = data['real_time']
                 data['channel'] = server.get_channel(Channel.STATUS).id
@@ -444,11 +449,7 @@ class Mission(Plugin):
                         path.normpath(server.current_mission.filename) == path.normpath(filename):
                     if await utils.yn_question(self, ctx, 'Mission is currently active.\nDo you want me to stop the '
                                                           'DCS Server to replace it?') is True:
-                        server.stop()
-                        for i in range(0, 30):
-                            await asyncio.sleep(1)
-                            if server.status == Status.STOPPED:
-                                break
+                        await server.stop()
                         stopped = True
                     else:
                         await message.channel.send('Upload aborted.')
@@ -463,7 +464,7 @@ class Mission(Plugin):
             if not exists:
                 server.sendtoDCS({"command": "addMission", "path": filename[(filename.rfind('\\') + 1):]})
             if stopped:
-                server.start()
+                await server.start()
             await message.channel.send("Mission uploaded and added." if not exists else "Mission replaced.")
         finally:
             await message.delete()

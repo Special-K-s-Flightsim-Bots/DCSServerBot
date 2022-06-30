@@ -30,7 +30,8 @@ class Server(DataObject):
     port: int
     _channels: dict[Channel, discord.TextChannel] = field(default_factory=dict, compare=False)
     embeds: dict[str, Union[int, discord.Message]] = field(repr=False, default_factory=dict, compare=False)
-    status: Status = field(compare=False, default=Status.UNREGISTERED)
+    _status: Status = field(compare=False, default=Status.UNREGISTERED)
+    event: asyncio.Event = field(compare=False, init=False)
     options: dict = field(default_factory=dict, compare=False)
     settings: dict = field(default_factory=dict, compare=False)
     current_mission: Mission = field(default=None, compare=False)
@@ -41,11 +42,12 @@ class Server(DataObject):
     restart_pending: bool = field(default=False, compare=False)
     dcs_version: str = field(default=None, compare=False)
     extensions: dict[str, Extension] = field(default_factory=dict, compare=False)
-    lock: asyncio.Lock = field(init=False, compare=False)
+    _lock: asyncio.Lock = field(init=False, compare=False)
 
     def __post_init__(self):
         super().__post_init__()
-        self.lock = asyncio.Lock()
+        self._lock = asyncio.Lock()
+        self.event = asyncio.Event()
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -59,6 +61,17 @@ class Server(DataObject):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+
+    @property
+    def status(self) -> Status:
+        return self._status
+
+    @status.setter
+    def status(self, status: Status):
+        if status != self._status:
+            self._status = status
+            self.event.set()
+            self.event.clear()
 
     def add_player(self, player: Player):
         self.players[player.id] = player
@@ -111,7 +124,7 @@ class Server(DataObject):
     def kick(self, player: Player, reason: str = 'n/a'):
         self.sendtoDCS({
             "command": "kick",
-            "ucid": player.ucid,
+            "id": player.id,
             "reason": reason
         })
 
@@ -223,47 +236,69 @@ class Server(DataObject):
             self.changeServerSettings('name', new_name)
         self.name = new_name
 
-    def startup(self):
+    async def startup(self) -> None:
         self.log.debug(r'Launching DCS server with: "{}\bin\dcs.exe" --server --norender -w {}'.format(
             os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']), self.installation))
         p = subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', self.installation],
                              executable=os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) + r'\bin\dcs.exe')
         self.pid = p.pid
-        self.status = Status.LOADING
-        return p
+        timeout = 300 if self.bot.config['BOT']['SLOW_SYSTEM'] else 120
+        await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 
-    async def shutdown(self, timeout: int = -1):
+    async def shutdown(self) -> None:
+        timeout = 300 if self.bot.config['BOT']['SLOW_SYSTEM'] else 120
         self.sendtoDCS({"command": "shutdown"})
-        if timeout == -1:
-            timeout = 300 if self.bot.config['BOT']['SLOW_SYSTEM'] else 120
-        for i in range(0, timeout):
-            await asyncio.sleep(1)
-            if self.status == Status.STOPPED:
-                break
+        with suppress(asyncio.TimeoutError):
+            await self.wait_for_status_change([Status.STOPPED], timeout)
         p = utils.find_process('DCS.exe', self.installation)
         if p:
             try:
                 p.wait(timeout)
             except subprocess.TimeoutExpired:
                 p.kill()
+        if self.status != Status.SHUTDOWN:
+            self.status = Status.SHUTDOWN
         self.pid = -1
-        self.status = Status.SHUTDOWN
 
-    def stop(self):
-        self.sendtoDCS({"command": "stop_server"})
+    async def stop(self) -> None:
+        if self.status in [Status.PAUSED, Status.RUNNING]:
+            self.sendtoDCS({"command": "stop_server"})
+            await self.wait_for_status_change([Status.STOPPED])
 
-    def start(self):
-        self.sendtoDCS({"command": "start_server"})
+    async def start(self) -> None:
+        if self.status in [Status.STOPPED]:
+            self.sendtoDCS({"command": "start_server"})
+            await self.wait_for_status_change([Status.PAUSED, Status.RUNNING])
 
-    def loadMission(self, mission_id: int):
+    async def restart(self) -> None:
+        await self.stop()
+        await self.start()
+
+    async def loadMission(self, mission_id: int) -> None:
         self.sendtoDCS({"command": "startMission", "id": mission_id})
+        # wait for a status change (STOPPED or LOADING)
+        await self.wait_for_status_change([Status.STOPPED, Status.LOADING])
+        # wait until we are running again
+        try:
+            await self.wait_for_status_change([Status.RUNNING, Status.PAUSED])
+        except asyncio.TimeoutError:
+            self.log.debug(f'Trying to force start server "{self.name}" due to DCS bug.')
+            await self.start()
 
-    def loadNextMission(self):
+    async def loadNextMission(self) -> None:
         self.sendtoDCS({"command": "startNextMission"})
+        # wait for a status change (STOPPED or LOADING)
+        await self.wait_for_status_change([Status.STOPPED, Status.LOADING])
+        # wait until we are running again
+        try:
+            await self.wait_for_status_change([Status.RUNNING, Status.PAUSED])
+        except asyncio.TimeoutError:
+            self.log.debug(f'Trying to force start server "{self.name}" due to DCS bug.')
+            await self.start()
 
     async def setEmbed(self, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None,
-                       channel_id: Optional[Union[Channel, int]] = Channel.STATUS):
-        async with self.lock:
+                       channel_id: Optional[Union[Channel, int]] = Channel.STATUS) -> None:
+        async with self._lock:
             message = None
             channel = self.bot.get_channel(channel_id) if isinstance(channel_id, int) else self.get_channel(channel_id)
             if embed_name in self.embeds:
@@ -294,7 +329,14 @@ class Server(DataObject):
                 finally:
                     self.pool.putconn(conn)
 
-    def get_channel(self, channel: Channel):
+    def get_channel(self, channel: Channel) -> discord.TextChannel:
         if channel not in self._channels:
             self._channels[channel] = self.bot.get_channel(int(self.bot.config[self.installation][channel.value]))
         return self._channels[channel]
+
+    async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:
+        async def wait(s: list[Status]):
+            while self.status not in s:
+                await self.event.wait()
+
+        await asyncio.wait_for(wait(status), timeout)

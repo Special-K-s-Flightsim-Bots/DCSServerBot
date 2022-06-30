@@ -439,8 +439,6 @@ class DCSServerBot(commands.Bot):
             self.pool.putconn(conn)
         if data['channel'].startswith('sync-'):
             server.status = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
-        else:
-            server.status = Status.LOADING
         self.log.debug(f"Server {server.name} initialized")
         return True
 

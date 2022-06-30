@@ -94,7 +94,6 @@ class MissionEventListener(EventListener):
         mission.update(data)
         server.current_mission = mission
         server.players = dict[int, Player]()
-        # avoid race condition on server start
         if server.settings:
             await self.displayMissionEmbed(server)
         await self.displayPlayerEmbed(server)
@@ -123,9 +122,7 @@ class MissionEventListener(EventListener):
 
     async def onPlayerConnect(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
-        # The admin player connects only on an initial start of DCS
         if data['id'] == 1:
-            server.status = Status.LOADING
             return
         try:
             chat_channel = server.get_channel(Channel.CHAT)
@@ -293,7 +290,7 @@ class MissionEventListener(EventListener):
             else:
                 message = '!!! Server will be restarted NOW !!!'
             server.sendPopupMessage(Coalition.ALL, message)
-            server.current_mission.restart()
+            await server.current_mission.restart()
         elif data['subcommand'] == 'list' and player.has_discord_roles(['DCS Admin']):
             response = await server.sendtoDCSSync({"command": "listMissions"})
             missions = response['missionList']
@@ -305,4 +302,4 @@ class MissionEventListener(EventListener):
             message += "\nUse -load <number> to load that mission"
             player.sendUserMessage(message, 30)
         elif data['subcommand'] == 'load' and player.has_discord_roles(['DCS Admin']):
-            server.loadMission(data['params'][0])
+            await server.loadMission(data['params'][0])
