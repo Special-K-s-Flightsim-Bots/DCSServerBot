@@ -14,7 +14,7 @@ Examples:
     {
       "warn": {
         "times": [ 600, 300, 60, 10],         -- warn users at 10 mins, 5 mins, 1 min and 10 sec before the event
-        "text": "!!! Server will {what} in {when} !!!"
+        "text": "!!! {item} will {what} in {when} !!!"
       },
       "presets": {                            -- Weather presets (see below)
           "Winter Nighttime": {"start_time": "03:00", "date": "2016-01-10", "temperature": -10, "clouds": "RainyPreset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
@@ -90,10 +90,10 @@ Examples:
 
 ### Section "warn"
 
-| Parameter       | Description                                                                                                                                                                                                        |
-|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| times           | List of seconds, when a warning should be issued.                                                                                                                                                                  |
-| text            | A customizable message that will be sent to the users when a restart is pending.<br/>{what} will be replaced with what is happening (restart, shutdown, rotate)<br/>{when} will be replaced with the time to wait. |
+| Parameter       | Description                                                                                                                                                                                                                                                                                                      |
+|-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| times           | List of seconds, when a warning should be issued.                                                                                                                                                                                                                                                                |
+| text            | A customizable message that will be sent to the users when a restart is pending.<br/>{item} will be replaced with either "server" or "mission", depending on what's happening.<br/>{what} will be replaced with what is happening (restart, shutdown, rotate)<br/>{when} will be replaced with the time to wait. |
 
 ### Section "preset"
 

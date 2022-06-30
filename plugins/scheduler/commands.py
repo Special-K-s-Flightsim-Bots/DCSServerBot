@@ -170,16 +170,24 @@ class Scheduler(Plugin):
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) else 0
             warn_text = config['warn']['text'] if 'text' in config['warn'] \
-                else '!!! Server will {what} in {when} !!!'
+                else '!!! {item} will {what} in {when} !!!'
+            if what == 'restart_with_shutdown':
+                what = 'restart'
+                item = 'server'
+            elif what == 'shutdown':
+                item = 'server'
+            else:
+                item = 'mission'
             while restart_in > 0:
                 for warn_time in warn_times:
                     if warn_time == restart_in:
-                        server.sendPopupMessage(Coalition.ALL,
-                                                warn_text.format(what=what, when=utils.format_time(warn_time)),
+                        server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
+                                                                                when=utils.format_time(warn_time)),
                                                 self.bot.config['BOT']['MESSAGE_TIMEOUT'])
                         chat_channel = server.get_channel(Channel.CHAT)
                         if chat_channel:
-                            await chat_channel.send(warn_text.format(what=what, when=utils.format_time(warn_time)))
+                            await chat_channel.send(warn_text.format(item=item, what=what,
+                                                                     when=utils.format_time(warn_time)))
                 await asyncio.sleep(1)
                 restart_in -= 1
 
@@ -288,7 +296,7 @@ class Scheduler(Plugin):
             server.restart_pending = True
             method = config['restart']['method']
             if populated:
-                await self.warn_users(server, config, 'restart' if method == 'restart_with_shutdown' else method)
+                await self.warn_users(server, config, method)
             if method == 'restart_with_shutdown':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
                 await asyncio.sleep(1)

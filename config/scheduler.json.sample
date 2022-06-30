@@ -3,7 +3,7 @@
     {
       "warn": {
         "times": [ 600, 300, 60, 10],
-        "text": "!!! Server will {what} in {when} !!!"
+        "text": "!!! {item} will {what} in {when} !!!"
       },
       "presets": {
           "Winter Nighttime": {"start_time": "03:00", "date": "2016-01-10", "temperature": -10, "clouds": "RainyPreset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},

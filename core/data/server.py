@@ -31,7 +31,7 @@ class Server(DataObject):
     _channels: dict[Channel, discord.TextChannel] = field(default_factory=dict, compare=False)
     embeds: dict[str, Union[int, discord.Message]] = field(repr=False, default_factory=dict, compare=False)
     _status: Status = field(compare=False, default=Status.UNREGISTERED)
-    event: asyncio.Event = field(compare=False, init=False)
+    status_change: asyncio.Event = field(compare=False, init=False)
     options: dict = field(default_factory=dict, compare=False)
     settings: dict = field(default_factory=dict, compare=False)
     current_mission: Mission = field(default=None, compare=False)
@@ -47,7 +47,7 @@ class Server(DataObject):
     def __post_init__(self):
         super().__post_init__()
         self._lock = asyncio.Lock()
-        self.event = asyncio.Event()
+        self.status_change = asyncio.Event()
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -70,8 +70,8 @@ class Server(DataObject):
     def status(self, status: Status):
         if status != self._status:
             self._status = status
-            self.event.set()
-            self.event.clear()
+            self.status_change.set()
+            self.status_change.clear()
 
     def add_player(self, player: Player):
         self.players[player.id] = player
@@ -340,6 +340,6 @@ class Server(DataObject):
     async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:
         async def wait(s: list[Status]):
             while self.status not in s:
-                await self.event.wait()
+                await self.status_change.wait()
 
         await asyncio.wait_for(wait(status), timeout)
