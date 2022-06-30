@@ -10,8 +10,8 @@ The Creditsystem is configured with a file named config\creditsystem.json. You'l
 ```json
 {
   "configs": [
-    { -- this is a server specific section for the instance "DCS.openbeta_server" in this case
-      "initial_points": 1,      -- You can give people points from the beginning (aka lifes). Default is 0.
+    {
+      "initial_points": 1,      -- You can give people points from the beginning. Default is 0.
       "points_per_kill": [      -- How many points do we get per kill? If not set, default will be 1 point per kill
         { "default": 1 },
         { "category": "Ships", "points": 2 },
