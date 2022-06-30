@@ -7,6 +7,7 @@ import xml
 import xmltodict
 from core.const import SAVED_GAMES
 from typing import Optional, List, Tuple
+from . import config
 
 REGEXP = {
     'branch': re.compile(r'"branch": "(?P<branch>.*)"'),
@@ -65,7 +66,7 @@ async def getLatestVersion(branch: str) -> Optional[str]:
 
 def sanitize(self) -> None:
     # Sanitizing MissionScripting.lua
-    filename = os.path.expandvars(self.config['DCS']['DCS_INSTALLATION']) + r'\Scripts\MissionScripting.lua'
+    filename = os.path.expandvars(config['DCS']['DCS_INSTALLATION']) + r'\Scripts\MissionScripting.lua'
     backup = filename.replace('.lua', '.bak')
     if os.path.exists('./config/MissionScripting.lua'):
         self.log.info('- Sanitizing MissionScripting')
@@ -97,7 +98,7 @@ def sanitize(self) -> None:
             with open(filename, 'w') as outfile:
                 outfile.writelines(output)
     except (OSError, IOError) as e:
-        self.log.error(f"Can't access {filename}. Make sure, {self.config['DCS']['DCS_INSTALLATION']} is writable.")
+        self.log.error(f"Can't access {filename}. Make sure, {config['DCS']['DCS_INSTALLATION']} is writable.")
         raise e
 
 

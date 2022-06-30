@@ -1,7 +1,8 @@
+import discord
 import psycopg2
 import shlex
 from contextlib import closing
-from core import EventListener, Player, Server
+from core import EventListener, Player, Server, Channel
 
 
 class AdminEventListener(EventListener):
@@ -70,3 +71,12 @@ class AdminEventListener(EventListener):
             player.sendChatMessage(f"User {name} kicked.")
             await self.bot.audit(f'kicked player {name}' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
                                  user=player.member)
+        elif data['subcommand'] == '911':
+            mentions = ''
+            for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
+                role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
+                if role:
+                    mentions += role.mention
+            message = ' '.join(data['params'])
+            await server.get_channel(Channel.ADMIN).send(mentions + f" 911 call from player {player.name} "
+                                                                    f"(ucid={player.ucid}):```{message}```")

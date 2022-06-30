@@ -69,6 +69,7 @@ class Server(DataObject):
     @status.setter
     def status(self, status: Status):
         if status != self._status:
+            self.log.info(f'### Status changed from {self._status.name} to {status.name}')
             self._status = status
             self.event.set()
             self.event.clear()
@@ -108,6 +109,8 @@ class Server(DataObject):
         return members
 
     def is_populated(self) -> bool:
+        if self.status != Status.RUNNING:
+            return False
         for player in self.players.values():
             if player.active:
                 return True
@@ -267,8 +270,9 @@ class Server(DataObject):
 
     async def start(self) -> None:
         if self.status in [Status.STOPPED]:
+            timeout = 300 if self.bot.config['BOT']['SLOW_SYSTEM'] else 120
             self.sendtoDCS({"command": "start_server"})
-            await self.wait_for_status_change([Status.PAUSED, Status.RUNNING])
+            await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
 
     async def restart(self) -> None:
         await self.stop()

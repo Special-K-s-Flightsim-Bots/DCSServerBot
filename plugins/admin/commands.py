@@ -57,18 +57,8 @@ class Agent(Plugin):
             await ctx.send('No server running on host {}'.format(platform.node()))
 
     async def do_update(self, warn_times: List[int], ctx=None):
-        self.update_pending = True
-        if ctx:
-            await ctx.send('Shutting down DCS servers, warning users before ...')
-        else:
-            self.log.info('Shutting down DCS servers, warning users before ...')
-        servers = []
-        for server_name, server in self.bot.servers.items():
-            if 'maintenance' in server:
-                servers.append(server)
-            else:
-                server.maintenance = True
-            if server.status in [Status.RUNNING, Status.PAUSED]:
+        async def shutdown_with_warning(server: Server):
+            if server.is_populated():
                 shutdown_in = max(warn_times) if len(warn_times) else 0
                 while shutdown_in > 0:
                     for warn_time in warn_times:
@@ -77,18 +67,37 @@ class Agent(Plugin):
                     await asyncio.sleep(1)
                     shutdown_in -= 1
             await server.shutdown()
+
+        self.update_pending = True
+        if ctx:
+            await ctx.send('Shutting down DCS servers, warning users before ...')
+        else:
+            self.log.info('Shutting down DCS servers, warning users before ...')
+        servers = []
+        tasks = []
+        for server_name, server in self.bot.servers.items():
+            if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
+                continue
+            if server.maintenance:
+                servers.append(server)
+            else:
+                server.maintenance = True
+                tasks.append(asyncio.create_task(shutdown_with_warning(server)))
+        # wait for DCS servers to shut down
+        if len(tasks):
+            await asyncio.gather(*tasks)
         if ctx:
             await ctx.send('Updating DCS World. Please wait, this might take some time ...')
         else:
             self.log.info('Updating DCS World ...')
         for plugin in self.bot.cogs.values():
-            await plugin.before_dcs_update(self)
+            await plugin.before_dcs_update()
         subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
             self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
         utils.sanitize(self)
         # run after_dcs_update() in all plugins
         for plugin in self.bot.cogs.values():
-            await plugin.after_dcs_update(self)
+            await plugin.after_dcs_update()
         if ctx:
             await ctx.send('DCS World updated to the latest version.\nStarting up DCS servers again ...')
         else:
