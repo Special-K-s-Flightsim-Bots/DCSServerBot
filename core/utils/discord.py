@@ -277,4 +277,3 @@ class ContextWrapper:
                                                delete_after=delete_after, nonce=nonce,
                                                allowed_mentions=allowed_mentions, reference=reference,
                                                mention_author=mention_author)
-
