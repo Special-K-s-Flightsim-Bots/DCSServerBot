@@ -448,14 +448,11 @@ class DCSServerBot(commands.Bot):
                 channels = [Channel.ADMIN, Channel.STATUS]
                 if int(self.config[server.installation][Channel.CHAT.value]) != -1:
                     channels.append(Channel.CHAT)
-                if Channel.COALITION_BLUE.value in self.config[server.installation]:
+                if int(self.config[server.installation][Channel.COALITION_BLUE.value]) != -1:
                     channels.append(Channel.COALITION_BLUE)
-                if Channel.COALITION_RED.value in self.config[server.installation]:
+                if int(self.config[server.installation][Channel.COALITION_RED.value]) != -1:
                     channels.append(Channel.COALITION_RED)
                 for channel in channels:
-                    self.log.debug('### Channel: ' + channel.name)
-                    if server.get_channel(channel) is None:
-                        self.log.debug('### Not found!')
                     if server.get_channel(channel).id == ctx.channel.id:
                         return server
             else:
