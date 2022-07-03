@@ -15,22 +15,22 @@ class DBExporter(Plugin):
         if not path.exists('./export'):
             os.makedirs('./export')
         if 'config' in self.locals and 'autoexport' in self.locals['config'] and \
-                self.locals['config']['autoexport'] == True:
+                self.locals['config']['autoexport'] is True:
             self.schedule.start()
 
     def cog_unload(self):
         if 'config' in self.locals and 'autoexport' in self.locals['config'] and \
-                self.locals['configs']['autoexport'] == True:
+                self.locals['configs']['autoexport'] is True:
             self.schedule.cancel()
         super().cog_unload()
 
-    def do_export(self, tablefilter: List[str]):
+    def do_export(self, table_filter: List[str]):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND "
                                "table_name not in ('pu_events_sdw', 'servers', 'message_persistence')")
-                for table in (x[0] for x in cursor.fetchall() if x[0] not in tablefilter):
+                for table in (x[0] for x in cursor.fetchall() if x[0] not in table_filter):
                     cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t')
                     if cursor.rowcount > 0:
                         with open(f'export/{table}.json', 'w') as file:
@@ -40,7 +40,7 @@ class DBExporter(Plugin):
         finally:
             self.pool.putconn(conn)
 
-    @commands.command(description='Exports the database to the servers /export directory.')
+    @commands.command(description='Exports database tables as json.')
     @utils.has_role('Admin')
     @commands.guild_only()
     async def export(self, ctx):
@@ -49,8 +49,7 @@ class DBExporter(Plugin):
 
     @tasks.loop(hours=1.0)
     async def schedule(self):
-        self.do_export(self.locals['config']['tablefilter'] if ('config' in self.locals and
-                                                               'tablefilter' in self.locals['config']) else [])
+        self.do_export(self.locals['config']['tablefilter'] if ('config' in self.locals and 'tablefilter' in self.locals['config']) else [])
 
 
 def setup(bot: DCSServerBot):

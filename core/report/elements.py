@@ -1,3 +1,4 @@
+from __future__ import annotations
 import concurrent
 import discord
 import inspect
@@ -13,13 +14,16 @@ from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElemen
 from core.report.utils import parse_params
 from datetime import timedelta
 from matplotlib import pyplot as plt
-from typing import Optional, List, Any
+from typing import Optional, List, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core import DCSServerBot
 
 
 class ReportElement(ABC):
     def __init__(self, env: ReportEnv):
         self.env = env
-        self.bot = env.bot
+        self.bot: DCSServerBot = env.bot
         self.log = env.bot.log
         self.pool = env.bot.pool
 

@@ -2,7 +2,7 @@ import discord
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
-from core import report, utils, const
+from core import report, utils, Side, Coalition
 from .filter import StatisticsFilter
 
 
@@ -14,21 +14,20 @@ class HighscorePlaytime(report.GraphElement):
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
         if server_name:
             sql += f' AND m.server_name = \'{server_name}\' '
-            if server_name in self.bot.globals:
-                server = self.bot.globals[server_name]
+            if server_name in self.bot.servers:
+                server = self.bot.servers[server_name]
                 tmp = utils.get_sides(message, server)
                 sides = [0]
-                if 'Red' in tmp:
-                    sides.append(const.SIDE_RED)
-                if 'Blue' in tmp:
-                    sides.append(const.SIDE_BLUE)
+                if Coalition.RED in tmp:
+                    sides.append(Side.RED.value)
+                if Coalition.BLUE in tmp:
+                    sides.append(Side.BLUE.value)
                 # in this specific case, we want to display all data, if in public channels
                 if len(sides) == 0:
-                    sides = [0, 1, 2]
+                    sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
-        if period:
-            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
-            sql += ' AND ' + flt.filter()
+        self.env.embed.title = flt.format(self.env.bot, server_name, period) + ' ' + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot, server_name, period)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
 
         conn = self.pool.getconn()
@@ -87,20 +86,19 @@ class HighscoreElement(report.GraphElement):
               f"players p, statistics s, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id "
         if server_name:
             sql += f' AND m.server_name = \'{server_name}\' '
-            if server_name in self.bot.globals:
-                server = self.bot.globals[server_name]
+            if server_name in self.bot.servers:
+                server = self.bot.servers[server_name]
                 tmp = utils.get_sides(message, server)
                 sides = [0]
-                if 'Red' in tmp:
-                    sides.append(const.SIDE_RED)
-                if 'Blue' in tmp:
-                    sides.append(const.SIDE_BLUE)
+                if Coalition.RED in tmp:
+                    sides.append(Side.RED.value)
+                if Coalition.BLUE in tmp:
+                    sides.append(Side.BLUE.value)
                 # in this specific case, we want to display all data, if in public channels
                 if len(sides) == 0:
                     sides = [0, 1, 2]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
-        if period:
-            sql += ' AND ' + flt.filter()
+        sql += ' AND ' + flt.filter(self.env.bot, server_name, period)
         sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0 ORDER BY 3 DESC LIMIT {limit}'
 
         conn = self.pool.getconn()

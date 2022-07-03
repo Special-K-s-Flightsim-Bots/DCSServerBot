@@ -1,19 +1,22 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from core import report
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core import DCSServerBot, Server
 
 
 class Extension(ABC):
 
-    def __init__(self, bot: Any, server: dict, config: dict):
-        self.bot = bot
+    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
+        self.bot: DCSServerBot = bot
         self.log = bot.log
         self.pool = bot.pool
-        self.config = config
-        self.globals = bot.globals
-        self.server = server
-        self.locals = self.load_config()
+        self.config: dict = config
+        self.server: Server = server
+        self.locals: dict = self.load_config()
 
     def load_config(self) -> Optional[dict]:
         return dict()
@@ -24,7 +27,7 @@ class Extension(ABC):
     async def shutdown(self) -> bool:
         return False
 
-    async def check(self) -> bool:
+    async def is_running(self) -> bool:
         return True
 
     @property

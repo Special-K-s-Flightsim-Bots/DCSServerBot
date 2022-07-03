@@ -1,4 +1,4 @@
-from core import DCSServerBot, Plugin, utils
+from core import DCSServerBot, Plugin, utils, Server
 from discord.ext import commands
 from .listener import SampleEventListener
 
@@ -12,8 +12,6 @@ class Sample(Plugin):
 
     Attributes
     ----------
-    plugin : str
-        The name of this plugin. Must match the directory it is stored in.
     bot: DCSServerBot
         The discord bot instance.
     listener : EventListener
@@ -40,9 +38,9 @@ class Sample(Plugin):
     @commands.guild_only()
     async def sample(self, ctx, text):
         # the server to run the command on will be determined from the channel where you called the command in
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         # Calls can be done async (default) or synchronous, which means we will wait for a response from DCS
-        data = await self.bot.sendtoDCSSync(server, {
+        data = await server.sendtoDCSSync({
             "command": "sample",        # command name
             "message": text,            # the message to transfer
             "channel": ctx.channel.id   # the channel where the response should go to

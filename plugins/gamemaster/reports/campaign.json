@@ -8,9 +8,9 @@
       "params": {
         "values": [
           {
+            "Server": "{campaign[server_name]}",
             "Name": "{campaign[name]}",
-            "Starttime": "{campaign[start]:%y-%m-%d %H:%M:%S}",
-            "Endtime": "{campaign[stop]:%y-%m-%d %H:%M:%S}"
+            "Start/End": "{campaign[start]:%y-%m-%d} - {campaign[stop]:%y-%m-%d}"
           }
         ]
       }

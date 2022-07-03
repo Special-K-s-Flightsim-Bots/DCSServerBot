@@ -4,13 +4,13 @@ import subprocess
 import time
 import win32api
 from configparser import ConfigParser
-from core import Extension, DCSServerBot, utils, report
+from core import Extension, DCSServerBot, utils, report, Server
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
 
 class SRS(Extension):
-    def __init__(self, bot: DCSServerBot, server: dict, config: dict):
+    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
         super().__init__(bot, server, config)
         self.process = None
 
@@ -29,10 +29,10 @@ class SRS(Extension):
         self.process = subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(
             os.path.expandvars(self.config['config']))],
                                         executable=os.path.expandvars(self.config['installation']) + r'\SR-Server.exe')
-        return await self.check()
+        return await self.is_running()
 
     async def shutdown(self):
-        p = self.process or utils.find_process('SR-Server.exe', self.server['installation'])
+        p = self.process or utils.find_process('SR-Server.exe', self.server.installation)
         if p:
             p.kill()
             self.process = None
@@ -40,9 +40,9 @@ class SRS(Extension):
         else:
             return False
 
-    async def check(self) -> bool:
+    async def is_running(self) -> bool:
         if self.process:
-            return not self.process.poll()
+            return self.process.poll() is None
         server_ip = self.locals['Server Settings']['server_ip']
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'
@@ -100,7 +100,7 @@ class LotAtc(Extension):
     def load_config(self) -> Optional[dict]:
         exp = re.compile(r'(?P<key>.*) = (?P<value>.*)')
         cfg = dict()
-        installation = self.server['installation']
+        installation = self.server.installation
         if os.path.exists(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
                           '/Mods/services/LotAtc/config.lua'):
             with open(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
@@ -129,7 +129,7 @@ class LotAtc(Extension):
 
     @property
     def version(self) -> str:
-        installation = self.server['installation']
+        installation = self.server.installation
         path = os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + r'\Mods\services\LotAtc\bin\lotatc.dll'
         if os.path.exists(path):
             info = win32api.GetFileVersionInfo(path, '\\')
@@ -153,10 +153,10 @@ class LotAtc(Extension):
                 embed.add_field(name='LotAtc', value=value)
 
     def verify(self) -> bool:
-        if not os.path.exists(os.path.expandvars(self.bot.config[self.server['installation']]['DCS_HOME']) +
+        if not os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
                               '/Mods/services/LotAtc/bin/lotatc.dll'):
             return False
-        if not os.path.exists(os.path.expandvars(self.bot.config[self.server['installation']]['DCS_HOME']) +
+        if not os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
                               '/Mods/services/LotAtc/config.lua'):
             return False
         return True
@@ -164,27 +164,27 @@ class LotAtc(Extension):
 
 class Tacview(Extension):
     def _load_config(self) -> dict:
-        if 'Tacview' in self.server['options']['plugins']:
+        if 'Tacview' in self.server.options['plugins']:
             # check config for errors
-            tacview = self.server['options']['plugins']['Tacview']
+            tacview = self.server.options['plugins']['Tacview']
             if 'tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled']:
                 if 'tacviewPlaybackDelay' in tacview and tacview['tacviewPlaybackDelay'] > 0:
-                    self.log.warning('  => Realtime Telemetry is enabled but tacviewPlaybackDelay is set!')
+                    self.log.warning('  - Realtime Telemetry is enabled but tacviewPlaybackDelay is set!')
             elif 'tacviewPlaybackDelay' not in tacview or tacview['tacviewPlaybackDelay'] == 0:
-                self.log.warning('  => tacviewPlaybackDelay is not set, you might see performance issues!')
+                self.log.warning('  - tacviewPlaybackDelay is not set, you might see performance issues!')
             return tacview
         else:
             return dict()
 
     def load_config(self) -> Optional[dict]:
-        if 'options' in self.server:
+        if self.server.options:
             return self._load_config()
         else:
             return None
 
     @property
     def version(self) -> str:
-        installation = self.server['installation']
+        installation = self.server.installation
         path = os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + r'\Mods\tech\Tacview\bin\tacview.dll'
         if os.path.exists(path):
             info = win32api.GetFileVersionInfo(path, '\\')
@@ -197,7 +197,6 @@ class Tacview(Extension):
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         if not self.locals:
-            self.server = self.globals[self.server['server_name']]
             self.locals = self._load_config()
         name = 'Tacview'
         if ('tacviewModuleEnabled' in self.locals and not self.locals['tacviewModuleEnabled']) or \
@@ -244,5 +243,5 @@ class Tacview(Extension):
                     os.remove(f)
 
     def verify(self) -> bool:
-        return os.path.exists(os.path.expandvars(self.bot.config[self.server['installation']]['DCS_HOME']) +
+        return os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
                               r'\Mods\tech\Tacview\bin\tacview.dll')

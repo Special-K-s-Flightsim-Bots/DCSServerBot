@@ -4,7 +4,8 @@ import platform
 import psutil
 import psycopg2
 from contextlib import closing
-from core import utils, Plugin, DCSServerBot, TEventListener, Status, PluginRequiredError, Report, PaginationReport
+from core import utils, Plugin, DCSServerBot, TEventListener, Status, PluginRequiredError, Report, PaginationReport, \
+    Server
 from discord.ext import tasks, commands
 from typing import Type, Optional, Tuple
 from .listener import ServerStatsListener
@@ -37,7 +38,8 @@ class AgentServerStats(Plugin):
         finally:
             self.pool.putconn(conn)
 
-    def get_params(self, *params) -> Tuple[bool, Optional[str]]:
+    @staticmethod
+    def get_params(*params) -> Tuple[bool, Optional[str]]:
         all = False
         period = None
         if len(params):
@@ -61,35 +63,30 @@ class AgentServerStats(Plugin):
     @commands.guild_only()
     async def serverload(self, ctx, *params):
         all, period = self.get_params(*params)
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not all and server:
-            await self.display_report(ctx, 'serverload.json', period, server['server_name'])
+            await self.display_report(ctx, 'serverload.json', period, server.name)
 
     @commands.command(description='Shows servers statistics', usage='[period]')
     @utils.has_role('Admin')
     @commands.guild_only()
     async def serverstats(self, ctx, *params):
         all, period = self.get_params(*params)
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not all and server:
-            await self.display_report(ctx, 'serverstats.json', period, server['server_name'])
+            await self.display_report(ctx, 'serverstats.json', period, server.name)
 
     @tasks.loop(minutes=1.0)
     async def schedule(self):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                for server_name, server in self.globals.items():
-                    if server['status'] not in [Status.RUNNING, Status.PAUSED]:
+                for server_name, server in self.bot.servers.items():
+                    if server.status not in [Status.RUNNING, Status.PAUSED]:
                         continue
-                    if server['server_name'] in self.bot.player_data:
-                        players = self.bot.player_data[server['server_name']]
-                        users = len(players[players['active'] == True])
-                    else:
-                        users = 0
-                    mission_id = self.globals[server_name]['mission_id'] if 'mission_id' in server else -1
+                    users = len(server.get_active_players())
                     # don't use the PID in here as it creates a NEW process which we don't want to
-                    process = utils.find_process('DCS.exe', server['installation'])
+                    process = utils.find_process('DCS.exe', server.installation)
                     if not process:
                         self.log.warning(f"Could not find a running DCS instance for server {server_name}, skipping "
                                          f"server load gathering.")
@@ -114,7 +111,7 @@ class AgentServerStats(Plugin):
                         cursor.execute('INSERT INTO serverstats (server_name, agent_host, mission_id, users, status, '
                                        'cpu, mem_total, mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, '
                                        'fps) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                                       (server_name, platform.node(), mission_id, users, server['status'].name, cpu,
+                                       (server_name, platform.node(), server.mission_id, users, server.status.name, cpu,
                                         memory.private, memory.rss, read_bytes, write_bytes, bytes_sent, bytes_recv,
                                         self.eventlistener.fps[server_name]))
                         conn.commit()
@@ -145,10 +142,10 @@ class MasterServerStats(AgentServerStats):
     @commands.guild_only()
     async def serverload(self, ctx, *params):
         all, period = self.get_params(*params)
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not all:
             if server:
-                await self.display_report(ctx, 'serverload.json', period, server['server_name'])
+                await self.display_report(ctx, 'serverload.json', period, server.name)
         else:
             report = PaginationReport(self.bot, ctx, self.plugin_name, 'serverload.json')
             await report.render(period=period, server_name=None)
@@ -158,10 +155,10 @@ class MasterServerStats(AgentServerStats):
     @commands.guild_only()
     async def serverstats(self, ctx, *params):
         all, period = self.get_params(*params)
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not all:
             if server:
-                await self.display_report(ctx, 'serverstats.json', period, server['server_name'])
+                await self.display_report(ctx, 'serverstats.json', period, server.name)
         else:
             report = PaginationReport(self.bot, ctx, self.plugin_name, 'serverstats.json')
             await report.render(period=period, server_name=None)

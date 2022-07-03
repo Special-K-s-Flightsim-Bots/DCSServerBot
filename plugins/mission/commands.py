@@ -6,8 +6,7 @@ import psutil
 import psycopg2
 import re
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, Report
-from core.const import Status
+from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel
 from discord.ext import commands, tasks
 from os import path
 from typing import Optional
@@ -18,6 +17,7 @@ class Mission(Plugin):
 
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
+        self.hung = dict[str, int]()
         self.update_mission_status.start()
         self.update_channel_name.start()
 
@@ -42,21 +42,21 @@ class Mission(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def mission(self, ctx):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if int(server['status_channel']) != ctx.channel.id:
-            if server['status'] in [Status.RUNNING, Status.PAUSED]:
-                players = self.bot.player_data[server['server_name']]
-                num_players = len(players[players['active'] == True]) + 1
+        if server.get_channel(Channel.STATUS).id != ctx.channel.id:
+            if server.status in [Status.RUNNING, Status.PAUSED]:
+                players = server.get_active_players()
+                num_players = len(players) + 1
                 report = Report(self.bot, self.plugin_name, 'serverStatus.json')
                 env = await report.render(server=server, num_players=num_players)
                 await ctx.send(embed=env.embed)
             else:
-                await ctx.send('Server ' + server['server_name'] + ' is not running.')
+                await ctx.send('Server ' + server.name + ' is not running.')
                 return
         else:
-            self.bot.sendtoDCS(server, {"command": "getMissionUpdate", "channel": ctx.channel.id})
+            server.sendtoDCS({"command": "getMissionUpdate", "channel": ctx.channel.id})
 
     @staticmethod
     def format_briefing_list(data: list[dict], marker, marker_emoji):
@@ -89,12 +89,12 @@ class Mission(Plugin):
             finally:
                 self.pool.putconn(conn)
 
-        server = await utils.get_server(self, ctx)
-        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+        server: Server = await self.bot.get_server(ctx)
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         if not server:
             servers = []
-            for server_name, server in self.globals.items():
-                if server['status'] in [Status.RUNNING, Status.PAUSED]:
+            for server_name, server in self.bot.servers.items():
+                if server.status in [Status.RUNNING, Status.PAUSED]:
                     servers.append(server)
             if len(servers) == 0:
                 await ctx.send('No running mission found.', delete_after=timeout if timeout > 0 else None)
@@ -106,14 +106,16 @@ class Mission(Plugin):
                 if n < 0:
                     return
                 server = servers[n]
-        elif server['status'] not in [Status.RUNNING, Status.PAUSED]:
+        elif server.status not in [Status.RUNNING, Status.PAUSED]:
             await ctx.send('No running mission found.', delete_after=timeout if timeout > 0 else None)
             return
-        mission_info = await self.bot.sendtoDCSSync(server, {"command": "getMissionDetails",
-                                                             "channel": ctx.message.id})
-        mission_info['passwords'] = read_passwords(server['server_name'])
+        mission_info = await server.sendtoDCSSync({
+            "command": "getMissionDetails",
+            "channel": ctx.message.id
+        })
+        mission_info['passwords'] = read_passwords(server.name)
         report = Report(self.bot, self.plugin_name, 'briefing.json')
-        env = await report.render(mission_info=mission_info, server_name=server['server_name'], message=ctx.message)
+        env = await report.render(mission_info=mission_info, server_name=server.name, message=ctx.message)
         await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     @commands.command(description='Shows information of a specific airport', aliases=['weather'])
@@ -121,12 +123,12 @@ class Mission(Plugin):
     @commands.guild_only()
     async def atis(self, ctx, *args):
         name = ' '.join(args)
-        for server_name, server in self.globals.items():
-            if server['status'] not in [Status.RUNNING, Status.PAUSED]:
+        for server_name, server in self.bot.servers.items():
+            if server.status not in [Status.RUNNING, Status.PAUSED]:
                 continue
-            for airbase in server['airbases']:
+            for airbase in server.current_mission.airbases:
                 if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
-                    data = await self.bot.sendtoDCSSync(server, {
+                    data = await server.sendtoDCSSync({
                         "command": "getWeatherInfo",
                         "x": airbase['position']['x'],
                         "y": airbase['position']['y'],
@@ -134,7 +136,7 @@ class Mission(Plugin):
                     })
                     report = Report(self.bot, self.plugin_name, 'atis.json')
                     env = await report.render(airbase=airbase, data=data)
-                    timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+                    timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
                     await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
                     break
 
@@ -142,12 +144,12 @@ class Mission(Plugin):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def players(self, ctx):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-        if server['status'] not in [Status.RUNNING, Status.PAUSED]:
-            await ctx.send('Server ' + server['server_name'] + ' is not running.',
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await ctx.send('Server ' + server.name + ' is not running.',
                            delete_after=timeout if timeout > 0 else None)
             return
         report = Report(self.bot, self.plugin_name, 'players.json')
@@ -158,16 +160,15 @@ class Mission(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def restart(self, ctx, delay: Optional[int] = 120, *args):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if 'restart_pending' in server and not await utils.yn_question(self, ctx, 'A restart is currently '
-                                                                                  'pending.\nWould you still like to '
-                                                                                  'restart the mission?'):
+        if server.restart_pending and not await utils.yn_question(self, ctx, 'A restart is currently pending.\nWould '
+                                                                             'you still like to restart the mission?'):
             return
-        if server['status'] not in [Status.STOPPED, Status.SHUTDOWN]:
-            server['restart_pending'] = True
-            if server['status'] == Status.RUNNING and utils.is_populated(self, server):
+        if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+            server.restart_pending = True
+            if server.status == Status.RUNNING and server.is_populated():
                 if delay > 0:
                     message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
                 else:
@@ -176,24 +177,19 @@ class Mission(Plugin):
                 if len(args):
                     message += ' Reason: {}'.format(' '.join(args))
 
-                if int(server['status_channel']) == ctx.channel.id:
+                if server.get_channel(Channel.STATUS).id == ctx.channel.id:
                     await ctx.message.delete()
                 msg = await ctx.send(f'Restarting mission in {utils.format_time(delay)} (warning users before)...')
-                self.bot.sendtoDCS(server, {
-                    "command": "sendPopupMessage",
-                    "channel": ctx.channel.id,
-                    "message": message,
-                    "from": ctx.message.author.display_name,
-                    "to": "all",
-                    "time": self.config['BOT']['MESSAGE_TIMEOUT']
-                })
+                server.sendPopupMessage(Coalition.ALL, message, sender=ctx.message.author.display_name)
                 await asyncio.sleep(delay)
                 await msg.delete()
-            self.bot.sendtoDCS(server, {"command": "restartMission", "channel": ctx.channel.id})
-            msg = await ctx.send('Restart command sent. Mission will restart now.')
+            msg = await ctx.send('Mission will restart now, please wait ...')
+            await server.current_mission.restart()
+            await msg.delete()
+            msg = await ctx.send('Mission restarted.')
         else:
-            msg = await ctx.send('There is currently no mission running on server "' + server['server_name'] + '"')
-        if (msg is not None) and (int(server['status_channel']) == ctx.channel.id):
+            msg = await ctx.send('There is currently no mission running on server "' + server.name + '"')
+        if (msg is not None) and (server.get_channel(Channel.STATUS).id == ctx.channel.id):
             await asyncio.sleep(5)
             await msg.delete()
 
@@ -223,11 +219,11 @@ class Mission(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def list(self, ctx, num: Optional[int] = None):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
+        if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            data = await server.sendtoDCSSync({"command": "listMissions"})
             missions = data['missionList']
             if len(missions) == 0:
                 await ctx.send('No missions registered with this server, please add one.')
@@ -237,13 +233,13 @@ class Mission(Plugin):
                 mission = missions[num]
                 mission = mission[(mission.rfind('\\') + 1):-4]
                 # make sure that the Scheduler doesn't interfere
-                server['restart_pending'] = True
-                self.bot.sendtoDCS(server, {"command": "startMission", "id": num + 1, "channel": ctx.channel.id})
-                await ctx.send(f'Loading mission "{mission}" ...')
-                if server['status'] == Status.STOPPED:
-                    self.bot.sendtoDCS(server, {"command": "start_server"})
+                server.restart_pending = True
+                msg = await ctx.send(f'Loading mission "{mission}" ...')
+                await server.loadMission(num + 1)
+                await msg.delete()
+                await ctx.send(f'Mission {mission} loaded.')
         else:
-            return await ctx.send(f"Server {server['server_name']} is {server['status'].name}.")
+            return await ctx.send(f"Server {server.name} is {server.status.name}.")
 
     @staticmethod
     def format_file_list(data, marker, marker_emoji):
@@ -262,14 +258,14 @@ class Mission(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def add(self, ctx, *path):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+        if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             if len(path) == 0:
-                data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
+                data = await server.sendtoDCSSync({"command": "listMissions"})
                 installed = [mission[(mission.rfind('\\') + 1):] for mission in data['missionList']]
-                data = await self.bot.sendtoDCSSync(server, {"command": "listMizFiles", "channel": ctx.channel.id})
+                data = await server.sendtoDCSSync({"command": "listMizFiles"})
                 available = data['missions']
                 files = list(set(available) - set(installed))
                 if len(files) == 0:
@@ -283,22 +279,22 @@ class Mission(Plugin):
             else:
                 file = ' '.join(path)
             if file is not None:
-                self.bot.sendtoDCS(server, {"command": "addMission", "path": file, "channel": ctx.channel.id})
+                server.sendtoDCS({"command": "addMission", "path": file})
                 await ctx.send(f'Mission "{file[:-4]}" added.')
             else:
-                await ctx.send('There is no file in the Missions directory of server {}.'.format(server['server_name']))
+                await ctx.send('There is no file in the Missions directory of server {}.'.format(server.name))
         else:
-            return await ctx.send('Server ' + server['server_name'] + ' is not running.')
+            return await ctx.send('Server ' + server.name + ' is not running.')
 
     @commands.command(description='Deletes a mission from the list', aliases=['del'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def delete(self, ctx):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if server['status'] in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            data = await self.bot.sendtoDCSSync(server, {"command": "listMissions", "channel": ctx.message.id})
+        if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            data = await server.sendtoDCSSync({"command": "listMissions"})
             missions = data['missionList']
             n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '❌')
             if n == (data['listStartIndex'] - 1):
@@ -306,91 +302,94 @@ class Mission(Plugin):
             elif n >= 0:
                 mission = missions[n]
                 mission = mission[(mission.rfind('\\') + 1):-4]
-                self.bot.sendtoDCS(server, {"command": "deleteMission", "id": n + 1, "channel": ctx.channel.id})
+                server.sendtoDCS({"command": "deleteMission", "id": n + 1})
                 if await utils.yn_question(self, ctx, f"Do you want to delete {missions[n]} from disk?"):
                     os.remove(missions[n])
                     await ctx.send(f'Mission "{mission}" deleted.')
                 else:
                     await ctx.send(f'Mission "{mission}" removed from list.')
         else:
-            return await ctx.send('Server ' + server['server_name'] + ' is not running.')
+            return await ctx.send('Server ' + server.name + ' is not running.')
 
     @commands.command(description='Pauses the current running mission')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def pause(self, ctx):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if server['status'] == Status.RUNNING:
-            self.bot.sendtoDCS(server, {"command": "pauseMission", "channel": ctx.channel.id})
-            await ctx.send('Server "{}" paused.'.format(server['server_name']))
+        if server.status == Status.RUNNING:
+            await server.current_mission.pause()
+            await ctx.send('Server "{}" paused.'.format(server.name))
         else:
-            await ctx.send('Server "{}" is not running.'.format(server['server_name']))
+            await ctx.send('Server "{}" is not running.'.format(server.name))
 
     @commands.command(description='Unpauses the current running mission')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unpause(self, ctx):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if server['status'] == Status.PAUSED:
-            self.bot.sendtoDCS(server, {"command": "unpauseMission", "channel": ctx.channel.id})
-            await ctx.send('Server "{}" unpaused.'.format(server['server_name']))
-        elif server['status'] == Status.RUNNING:
-            await ctx.send('Server "{}" is already running.'.format(server['server_name']))
-        elif server['status'] == Status.LOADING:
-            await ctx.send('Server "{}" is still loading... please wait a bit and try again.'.format(server['server_name']))
+        if server.status == Status.PAUSED:
+            await server.current_mission.unpause()
+            await ctx.send('Server "{}" unpaused.'.format(server.name))
+        elif server.status == Status.RUNNING:
+            await ctx.send('Server "{}" is already running.'.format(server.name))
+        elif server.status == Status.LOADING:
+            await ctx.send('Server "{}" is still loading... please wait a bit and try again.'.format(server.name))
         else:
-            await ctx.send('Server "{}" is stopped or shut down. Please start the server first before unpausing.'.format(server['server_name']))
+            await ctx.send('Server "{}" is stopped or shut down. Please start the server first before unpausing.'.format(server.name))
 
     @tasks.loop(minutes=1.0)
     async def update_mission_status(self):
-        for server_name, server in self.globals.items():
-            if server['status'] in [Status.UNREGISTERED, Status.SHUTDOWN]:
+        for server_name, server in self.bot.servers.items():
+            if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
-            elif server['status'] in [Status.LOADING, Status.STOPPED]:
-                if 'PID' in server and not psutil.pid_exists(server['PID']):
-                    server['status'] = Status.SHUTDOWN
-                    del server['PID']
+            elif server.status in [Status.LOADING, Status.STOPPED]:
+                if server.pid != -1 and not psutil.pid_exists(server.pid):
+                    server.status = Status.SHUTDOWN
+                    server.pid = -1
                 continue
             try:
                 # we set a longer timeout in here because, we don't want to risk false restarts
-                timeout = 20 if self.config['BOT']['SLOW_SYSTEM'] else 10
-                data = await self.bot.sendtoDCSSync(server, {"command": "getMissionUpdate"}, timeout)
+                timeout = 20 if self.bot.config['BOT']['SLOW_SYSTEM'] else 10
+                data = await server.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
                 # remove any hung flag, if the server has responded
-                if 'hung' in server:
-                    del server['hung']
-                server['status'] = Status.PAUSED if data['pause'] is True else Status.RUNNING
-                server['mission_time'] = data['mission_time']
-                server['real_time'] = data['real_time']
-                data['channel'] = server['status_channel']
-                await self.eventlistener.displayMissionEmbed(data)
+                if server.name in self.hung:
+                    del self.hung[server.name]
+                if data['pause'] and server.status != Status.PAUSED:
+                    server.status = Status.PAUSED
+                elif not data['pause'] and server.status != Status.RUNNING:
+                    server.status = Status.RUNNING
+                server.current_mission.mission_time = data['mission_time']
+                server.current_mission.real_time = data['real_time']
+                data['channel'] = server.get_channel(Channel.STATUS).id
+                await self.eventlistener.displayMissionEmbed(server)
             except asyncio.TimeoutError:
                 # check if the server process is still existent
-                max_hung_minutes = int(self.config['DCS']['MAX_HUNG_MINUTES'])
-                if max_hung_minutes > 0 and ('PID' not in server or psutil.pid_exists(server['PID'])):
-                    self.log.warning(f"Server \"{server['server_name']}\" is not responding.")
+                max_hung_minutes = int(self.bot.config['DCS']['MAX_HUNG_MINUTES'])
+                if max_hung_minutes > 0 and ('PID' not in server or psutil.pid_exists(server.pid)):
+                    self.log.warning(f"Server \"{server.name}\" is not responding.")
                     # process might be in a hung state, so try again for a specified amount of times
-                    if 'hung' in server and server['hung'] >= (max_hung_minutes - 1):
-                        if 'PID' in server:
-                            self.log.warning(f"Killing server \"{server['server_name']}\" after {max_hung_minutes} retries")
-                            psutil.Process(server['PID']).kill()
-                            del server['PID']
+                    if server.name in self.hung and self.hung[server.name] >= (max_hung_minutes - 1):
+                        if server.pid != -1:
+                            self.log.warning(f"Killing server \"{server.name}\" after {max_hung_minutes} retries")
+                            psutil.Process(server.pid).kill()
+                            server.pid = -1
                             await self.bot.audit("Server killed due to a hung state.", server=server)
                         else:
-                            self.log.warning(f"Server \"{server['server_name']}\" considered dead after {max_hung_minutes} retries")
+                            self.log.warning(f"Server \"{server.name}\" considered dead after {max_hung_minutes} retries")
                             await self.bot.audit("Server set to SHUTDOWN due to a hung state.", server=server)
-                        del server['hung']
-                        server['status'] = Status.SHUTDOWN
-                    elif 'hung' not in server:
-                        server['hung'] = 1
+                        del self.hung[server.name]
+                        server.status = Status.SHUTDOWN
+                    elif server.name not in self.hung:
+                        self.hung[server.name] = 1
                     else:
-                        server['hung'] += 1
+                        self.hung[server.name] += 1
                 else:
-                    self.log.warning(f"Server \"{server['server_name']}\" died. Setting state to SHUTDOWN.")
-                    server['status'] = Status.SHUTDOWN
+                    self.log.warning(f"Server \"{server.name}\" died. Setting state to SHUTDOWN.")
+                    server.status = Status.SHUTDOWN
             except Exception as ex:
                 self.log.debug("Exception in update_mission_status(): " + str(ex))
 
@@ -400,24 +399,23 @@ class Mission(Plugin):
 
     @tasks.loop(minutes=5.0)
     async def update_channel_name(self):
-        for server_name, server in self.globals.items():
-            if server['status'] == Status.UNREGISTERED:
+        for server_name, server in self.bot.servers.items():
+            if server.status == Status.UNREGISTERED:
                 continue
-            channel = self.bot.get_channel(int(server['status_channel']))
+            channel = server.get_channel(Channel.STATUS)
             # name changes of the status channel will only happen with the correct permission
             if channel.permissions_for(self.bot.member).manage_channels:
                 name = channel.name
                 # if the server owner leaves, the server is shut down
-                if server['status'] in [Status.STOPPED, Status.SHUTDOWN, Status.LOADING]:
+                if server.status in [Status.STOPPED, Status.SHUTDOWN, Status.LOADING]:
                     if name.find('［') == -1:
                         name = name + '［-］'
                     else:
                         name = re.sub('［.*］', f'［-］', name)
-                elif server_name in self.bot.player_data:
-                    players = self.bot.player_data[server_name]
-                    players = players[players['active'] == True]
+                else:
+                    players = server.get_active_players()
                     current = len(players) + 1
-                    max_players = server['serverSettings']['maxPlayers']
+                    max_players = server.settings['maxPlayers']
                     if name.find('［') == -1:
                         name = name + f'［{current}／{max_players}］'
                     else:
@@ -432,12 +430,12 @@ class Mission(Plugin):
         # ignore bot messages or messages that does not contain miz attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.miz'):
             return
-        server = await utils.get_server(self, message)
+        server: Server = await self.bot.get_server(message)
         # only DCS Admin role is allowed to upload missions in the servers admin channel
-        if not server or not utils.check_roles([x.strip() for x in self.config['ROLES']['DCS Admin'].split(',')], message.author):
+        if not server or not utils.check_roles([x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')], message.author):
             return
         att = message.attachments[0]
-        filename = path.expandvars(self.config[server['installation']]['DCS_HOME']) + '\\Missions\\' + att.filename
+        filename = path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '\\Missions\\' + att.filename
         try:
             stopped = False
             exists = False
@@ -447,15 +445,11 @@ class Mission(Plugin):
                 if await utils.yn_question(self, ctx, 'File exists. Do you want to overwrite it?') is False:
                     await message.channel.send('Upload aborted.')
                     return
-                if server['status'] in [Status.RUNNING, Status.PAUSED] and \
-                        path.normpath(server['filename']) == path.normpath(filename):
+                if server.status in [Status.RUNNING, Status.PAUSED] and \
+                        path.normpath(server.current_mission.filename) == path.normpath(filename):
                     if await utils.yn_question(self, ctx, 'Mission is currently active.\nDo you want me to stop the '
                                                           'DCS Server to replace it?') is True:
-                        self.bot.sendtoDCS(server, {"command": "stop_server"})
-                        for i in range(0, 30):
-                            await asyncio.sleep(1)
-                            if server['status'] == Status.STOPPED:
-                                break
+                        await server.stop()
                         stopped = True
                     else:
                         await message.channel.send('Upload aborted.')
@@ -468,9 +462,9 @@ class Mission(Plugin):
                     else:
                         await message.channel.send(f'Error {response.status} while reading MIZ file!')
             if not exists:
-                self.bot.sendtoDCS(server, {"command": "addMission", "path": filename[(filename.rfind('\\') + 1):]})
+                server.sendtoDCS({"command": "addMission", "path": filename[(filename.rfind('\\') + 1):]})
             if stopped:
-                self.bot.sendtoDCS(server, {"command": "start_server"})
+                await server.start()
             await message.channel.send("Mission uploaded and added." if not exists else "Mission replaced.")
         finally:
             await message.delete()

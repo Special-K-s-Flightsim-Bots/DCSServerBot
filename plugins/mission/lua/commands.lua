@@ -5,6 +5,8 @@ local utils = base.require("DCSServerBotUtils")
 
 local mod_dictionary= require('dictionary')
 
+dcsbot.userInfo = {}
+
 function dcsbot.getMissionDetails(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionDetails()')
 	local msg = {}
@@ -38,14 +40,12 @@ end
 
 function dcsbot.startMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: startMission()')
-	net.stop_game()
---	net.missionlist_run(json.id)
+	net.missionlist_run(json.id)
 	local mission_list = net.missionlist_get()
 	utils.saveSettings({
 		missionList=mission_list["missionList"],
-		listStartIndex=json.id
+		listStartIndex=mission_list["listStartIndex"]
 	})
-    net.start_server(utils.loadSettingsRaw())
 end
 
 function dcsbot.startNextMission(json)
@@ -211,4 +211,9 @@ end
 function dcsbot.do_script_file(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: do_script_file()')
     net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. json.file .. '\\")")')
+end
+
+function dcsbot.uploadUserRoles(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: uploadUserRoles()')
+    dcsbot.userInfo[json.ucid].roles = json.roles
 end

@@ -1,4 +1,3 @@
-import asyncio
 import discord
 import logging
 import os
@@ -9,8 +8,7 @@ import shutil
 import string
 import subprocess
 import sys
-from core import utils, DCSServerBot
-from core.const import Status
+from core import utils, Server, DCSServerBot, Status
 from contextlib import closing, suppress
 from discord.ext import commands
 from install import Install
@@ -49,10 +47,11 @@ class Main:
         if self.config.getboolean('BOT', 'AUTOUPDATE') and self.upgrade():
             self.log.warning('- Restart needed => exiting.')
             exit(-1)
+        self.db_version = None
         self.pool = self.init_db()
-        utils.sanitize(self)
+        utils.dcs.sanitize(self)
         self.install_hooks()
-        self.bot = self.init_bot()
+        self.bot: DCSServerBot = self.init_bot()
         self.add_commands()
 
     def init_logger(self):
@@ -79,7 +78,7 @@ class Main:
 
     @staticmethod
     def read_config():
-        config = utils.reload()
+        config = utils.config
         config['BOT']['VERSION'] = BOT_VERSION
         config['BOT']['SUB_VERSION'] = str(SUB_VERSION)
         return config
@@ -112,16 +111,16 @@ class Main:
                                 cursor.execute("CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);"
                                                "INSERT INTO version (version) VALUES ('v1.4');")
                             cursor.execute('SELECT version FROM version')
-                            db_version = cursor.fetchone()[0]
-                            while path.exists(UPDATES_SQL.format(db_version)):
-                                self.log.info('Updating Database {} ...'.format(db_version))
-                                with open(UPDATES_SQL.format(db_version)) as tables_sql:
+                            self.db_version = cursor.fetchone()[0]
+                            while path.exists(UPDATES_SQL.format(self.db_version)):
+                                self.log.info('Updating Database {} ...'.format(self.db_version))
+                                with open(UPDATES_SQL.format(self.db_version)) as tables_sql:
                                     for query in tables_sql.readlines():
                                         self.log.debug(query.rstrip())
                                         cursor.execute(query.rstrip())
                                 cursor.execute('SELECT version FROM version')
-                                db_version = cursor.fetchone()[0]
-                                self.log.info(f"Database updated to {db_version}.")
+                                self.db_version = cursor.fetchone()[0]
+                                self.log.info(f"Database updated to {self.db_version}.")
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
@@ -143,9 +142,6 @@ class Main:
             if installation not in self.config:
                 continue
             self.log.info(f'  => {installation}')
-            if self.config.getboolean(installation, 'COALITIONS'):
-                self.log.debug('  - Updating serverSettings.lua ...')
-                utils.changeServerSettings(server_name, 'allow_players_pool', False)
             dcs_path = os.path.expandvars(self.config[installation]['DCS_HOME'] + '\\Scripts')
             if not path.exists(dcs_path):
                 os.mkdir(dcs_path)
@@ -214,31 +210,52 @@ class Main:
             else:
                 await ctx.send('All plugins reloaded.')
 
-        @self.bot.command(description='Lists all installed plugins')
+        def format_plugin_list(data, marker, marker_emoji):
+            embed = discord.Embed(title=f'Installed Plugins ({platform.node()})', color=discord.Color.blue())
+            ids = names = versions = ''
+            for i in range(0, len(data)):
+                ids += (chr(0x31 + i) + '\u20E3' + '\n')
+                names += data[i].plugin_name + '\n'
+                versions += data[i].plugin_version + '\n'
+            embed.add_field(name='ID', value=ids)
+            embed.add_field(name='Name', value=names)
+            embed.add_field(name='Version', value=versions)
+            embed.add_field(name='▬' * 20, value='_ _', inline=False)
+            embed.add_field(name='Bot Version', value=f"v{self.bot.version}.{self.bot.sub_version}")
+            embed.add_field(name='_ _', value='_ _')
+            embed.add_field(name='DB Version', value=f"{self.db_version}")
+            embed.set_footer(text='Press a number to reload this plugin')
+            return embed
+
+        @self.bot.command(description='Lists all installed plugins', aliases=['version', 'versions'])
         @utils.has_role('Admin')
         @commands.guild_only()
         async def plugins(ctx):
-            embed = discord.Embed(color=discord.Color.blue())
-            embed.add_field(name=f'The following plugins are installed on node {platform.node()}:',
-                            value='\n'.join([string.capwords(x) for x in self.bot.plugins]))
-            embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
-            await ctx.send(embed=embed)
+            installed = list(self.bot.cogs.values())
+            num = await utils.selection_list(self, ctx, installed, format_plugin_list, 9)
+            if num != -1:
+                self.read_config()
+                name = installed[num].plugin_name
+                self.bot.reload(name)
+                await ctx.send('Plugin {} reloaded.'.format(string.capwords(name)))
 
         @self.bot.command(description='Rename a server')
         @utils.has_role('Admin')
         @commands.guild_only()
         async def rename(ctx, *args):
-            server = await utils.get_server(self.bot, ctx)
+            server: Server = await self.bot.get_server(ctx)
             if server:
-                old_name = server['server_name']
+                old_name = server.name
                 new_name = ' '.join(args)
                 if len(new_name) == 0:
                     await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}rename <new server name>")
                     return
-                if server['status'] in [Status.STOPPED, Status.SHUTDOWN]:
+                if server.status in [Status.STOPPED, Status.SHUTDOWN]:
                     if await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" '
                                                           'to "{}"?'.format(old_name, new_name)) is True:
-                        self.bot.rename_server(old_name, new_name, True)
+                        server.rename(old_name, new_name, True)
+                        self.bot.servers[new_name] = server
+                        del self.bot.servers[old_name]
                         await ctx.send('Server has been renamed.')
                         await self.bot.audit(
                             f'User {ctx.message.author.display_name} renamed DCS server "{old_name}" to "{new_name}".',
@@ -250,41 +267,38 @@ class Main:
         @utils.has_role('Admin')
         @commands.guild_only()
         async def unregister(ctx):
-            server = await utils.get_server(self.bot, ctx)
+            server: Server = await self.bot.get_server(ctx)
             if server:
-                server_name = server['server_name']
-                if server['status'] == Status.SHUTDOWN:
+                if server.status == Status.SHUTDOWN:
                     if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from '
-                                                          'node "{}"?'.format(server_name, platform.node())) is True:
-                        del self.bot.globals[server_name]
-                        del self.bot.embeds[server_name]
-                        await ctx.send('Server {} unregistered.'.format(server_name))
+                                                          'node "{}"?'.format(server.name, platform.node())) is True:
+                        del self.bot.servers[server.name]
+                        await ctx.send('Server {} unregistered.'.format(server.name))
                         await self.bot.audit(f"User {ctx.message.author.display_name} unregistered DCS server "
-                                             f"\"{server['server_name']}\" from node {platform.node()}.",
+                                             f"\"{server.name}\" from node {platform.node()}.",
                                              user=ctx.message.author)
                     else:
                         await ctx.send('Aborted.')
                 else:
-                    await ctx.send('Please shut down server "{}" before unregistering!'.format(server_name))
+                    await ctx.send('Please shut down server "{}" before unregistering!'.format(server.name))
 
         @self.bot.command(description='Upgrades the bot')
         @utils.has_role('Admin')
         @commands.guild_only()
         async def upgrade(ctx):
             if await utils.yn_question(self, ctx, 'The bot will check and upgrade to the latest version, '
-                                                  'if available.\nAre you sure?') is True:
+                                                  'if available.\nAre you sure?'):
                 await ctx.send('Checking for a bot upgrade ...')
                 if self.upgrade():
                     await ctx.send('The bot has upgraded itself.')
                     running = False
-                    for server_name, server in self.bot.globals.items():
-                        if server['status'] != Status.SHUTDOWN:
+                    for server_name, server in self.bot.servers.items():
+                        if server.status != Status.SHUTDOWN:
                             running = True
                     if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
                                                                       'servers.\nWould you like to shut them down now?'):
-                        for server_name, server in self.bot.globals.items():
-                            self.bot.sendtoDCS(server, {"command": "shutdown", "channel": ctx.channel.id})
-                        await asyncio.sleep(5)
+                        for server_name, server in self.bot.servers.items():
+                            await server.shutdown()
                     await ctx.send('The bot is now restarting itself.\nAll servers will be launched according to their '
                                    'scheduler configuration on bot start.')
                     exit(-1)

@@ -3,11 +3,11 @@ import pandas as pd
 import psycopg2
 import string
 from contextlib import closing
-from core import report, ReportEnv, utils, const
+from core import report, ReportEnv, utils, Side, Coalition
 from dataclasses import dataclass
 from datetime import datetime
 from plugins.userstats.filter import StatisticsFilter
-from typing import Optional, Union
+from typing import Union
 
 
 @dataclass
@@ -91,7 +91,7 @@ class Sorties(report.EmbedElement):
 
 
 class MissionStats(report.EmbedElement):
-    def render(self, stats: dict, sql: str, mission_id: int, sides: list[str]) -> None:
+    def render(self, stats: dict, sql: str, mission_id: int, sides: list[Coalition]) -> None:
         if len(sides) == 0:
             self.embed.add_field(name='Data can only be displayed in a private coalition channel!', value='_ _')
             return
@@ -99,36 +99,36 @@ class MissionStats(report.EmbedElement):
         self.embed.add_field(
             name='_ _', value='Airbases / FARPs\nPlanes\nHelicopters\nGround Units\nShips\nStructures')
         for coalition in sides:
-            coalition_data = stats['coalitions'][coalition]
+            coalition_data = stats['coalitions'][coalition.name]
             value = '{}\n'.format(len(coalition_data['airbases']))
             for unit_type in ['Airplanes', 'Helicopters', 'Ground Units', 'Ships']:
                 value += '{}\n'.format(len(coalition_data['units'][unit_type])
                                        if unit_type in coalition_data['units'] else 0)
             value += '{}\n'.format(len(coalition_data['statics']))
-            self.embed.add_field(name=coalition, value=value)
+            self.embed.add_field(name=coalition.name, value=value)
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
                 cursor.execute(sql, self.env.params)
                 if cursor.rowcount > 0:
                     elements = {
-                        const.SIDE_BLUE: {},
-                        const.SIDE_RED: {}
+                        Side.BLUE: {},
+                        Side.RED: {}
                     }
                     self.embed.add_field(name='▬▬▬▬▬▬ Achievements ▬▬▬▬▬▬▬', value='_ _', inline=False)
                     for row in cursor.fetchall():
-                        s = int(row['init_side'])
+                        s = Side(int(row['init_side']))
                         for name, value in row.items():
                             if name == 'init_side':
                                 continue
                             elements[s][name] = value
-                    self.embed.add_field(name='_ _', value='\n'.join(elements[const.SIDE_BLUE].keys()) or '_ _')
-                    if 'Blue' in sides:
-                        self.embed.add_field(name=string.capwords(const.PLAYER_SIDES[const.SIDE_BLUE]),
-                                             value='\n'.join([str(x) for x in elements[const.SIDE_BLUE].values()]) or '_ _')
-                    if 'Red' in sides:
-                        self.embed.add_field(name=string.capwords(const.PLAYER_SIDES[const.SIDE_RED]),
-                                             value='\n'.join([str(x) for x in elements[const.SIDE_RED].values()]) or '_ _')
+                    self.embed.add_field(name='_ _', value='\n'.join(elements[Side.BLUE].keys()) or '_ _')
+                    if Coalition.BLUE in sides:
+                        self.embed.add_field(name=string.capwords(Side.BLUE.name),
+                                             value='\n'.join([str(x) for x in elements[Side.BLUE].values()]) or '_ _')
+                    if Coalition.RED in sides:
+                        self.embed.add_field(name=string.capwords(Side.RED.name),
+                                             value='\n'.join([str(x) for x in elements[Side.RED].values()]) or '_ _')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:

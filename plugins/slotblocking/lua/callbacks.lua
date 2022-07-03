@@ -2,13 +2,6 @@ local base 	    = _G
 local dcsbot    = base.dcsbot
 
 local slotblock = slotblock or {}
-dcsbot.userInfo = dcsbot.userInfo or {}
-
-function slotblock.onMissionLoadEnd()
-    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onMissionLoadEnd()')
-    net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. 'Scripts/net/DCSServerBot/DCSServerBot.lua' .. '\\")")')
-    net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. 'Scripts/net/DCSServerBot/slotblocking/mission.lua' .. '\\")")')
-end
 
 local function has_value(tab, val)
     for index, value in ipairs(tab) do

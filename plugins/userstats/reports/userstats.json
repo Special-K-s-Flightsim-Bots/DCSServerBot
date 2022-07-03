@@ -7,7 +7,7 @@
     "param":
     {
       "name": "server_name",
-      "sql": "SELECT DISTINCT server_name FROM missions"
+      "class": "plugins.userstats.filter.StatsPagination"
     }
   },
   "elements":

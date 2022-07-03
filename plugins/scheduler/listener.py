@@ -1,80 +1,83 @@
 import shlex
 import subprocess
-from core import EventListener, utils, Extension
+from core import EventListener, utils, Extension, Server
 from os import path
+from typing import cast, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .commands import Scheduler
 
 
 class SchedulerListener(EventListener):
 
-    def run(self, server, method):
+    def run(self, server: Server, method: str):
         if method.startswith('load:'):
-            self.bot.sendtoDCS(server, {
+            server.sendtoDCS({
                 "command": "do_script_file",
                 "file": method[5:].replace('\\', '/')
             })
         elif method.startswith('lua:'):
-            self.bot.sendtoDCS(server, {
+            server.sendtoDCS({
                 "command": "do_script",
                 "script": method[4:]
             })
         elif method.startswith('call:'):
-            self.bot.sendtoDCS(server, {
+            server.sendtoDCS({
                 "command": method[5:]
             })
         elif method.startswith('run:'):
             cmd = method[4:]
-            dcs_installation = path.normpath(path.expandvars(self.config['DCS']['DCS_INSTALLATION']))
-            dcs_home = path.normpath(path.expandvars(self.config[server['installation']]['DCS_HOME']))
+            dcs_installation = path.normpath(path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']))
+            dcs_home = path.normpath(path.expandvars(self.bot.config[server.installation]['DCS_HOME']))
             cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home,
-                                      server=server, config=self.config)
+                                      server=server, config=self.bot.config)
             self.log.debug('Launching command: ' + cmd)
             subprocess.run(shlex.split(cmd), shell=True)
 
     async def registerDCSServer(self, data):
-        server = self.globals[data['server_name']]
+        server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         for extension in config['extensions']:
-            ext: Extension = server['extensions'][extension] if 'extensions' in server and extension in server['extensions'] else None
+            ext: Extension = server.extensions[extension] if extension in server.extensions else None
             if not ext:
                 if '.' not in extension:
-                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server, config['extensions'][extension])
+                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server,
+                                                                                config['extensions'][extension])
                 else:
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
-                if 'extensions' not in server:
-                    server['extensions'] = dict()
                 if ext.verify():
-                    server['extensions'][extension] = ext
-            if not await ext.check() and await ext.startup():
-                self.log.info(f"  => {ext.name} v{ext.version} launched for \"{server['server_name']}\".")
+                    server.extensions[extension] = ext
+            if not await ext.is_running() and await ext.startup():
+                self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
                 await self.bot.audit(f"{ext.name} started", server=server)
 
     async def onSimulationStart(self, data):
-        server = self.globals[data['server_name']]
+        server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if config and 'onMissionStart' in config:
             self.run(server, config['onMissionStart'])
 
     async def onMissionLoadEnd(self, data):
-        server = self.globals[data['server_name']]
-        if 'restart_pending' in server:
-            del server['restart_pending']
+        server: Server = self.bot.servers[data['server_name']]
+        server.restart_pending = False
 
     async def onMissionEnd(self, data):
-        server = self.globals[data['server_name']]
+        server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if config and 'onMissionEnd' in config:
             self.run(server, config['onMissionEnd'])
 
     async def onShutdown(self, data):
-        server = self.globals[data['server_name']]
+        server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if config and 'onShutdown' in config:
             self.run(server, config['onShutdown'])
 
     async def onChatCommand(self, data: dict) -> None:
-        server = self.globals[data['server_name']]
+        server: Server = self.bot.servers[data['server_name']]
+        player = server.get_player(id=data['from_id'])
         if data['subcommand'] in ['preset', 'presets'] and \
-                utils.has_discord_roles(self, server, data['from_id'], ['DCS Admin']):
+                player.has_discord_roles(['DCS Admin']):
             config = self.plugin.get_config(server)
             if config and 'presets' in config:
                 presets = list(config['presets'].keys())
@@ -84,12 +87,11 @@ class SchedulerListener(EventListener):
                         preset = presets[i]
                         message += f"{i+1} {preset}\n"
                     message += f"\nUse -{data['subcommand']} <number> to load that preset (mission will be restarted!)"
-                    utils.sendUserMessage(self, server, data['from_id'], message, 30)
+                    player.sendUserMessage(message, 30)
                 else:
                     n = int(data['params'][0]) - 1
-                    self.bot.sendtoDCS(server, {"command": "stop_server"})
-                    self.plugin.change_mizfile(server, config, presets[n])
-                    self.bot.sendtoDCS(server, {"command": "start_server"})
+                    await server.stop()
+                    cast(Scheduler, self.plugin).change_mizfile(server, config, presets[n])
+                    await server.start()
             else:
-                utils.sendChatMessage(self, data['server_name'], data['from_id'],
-                                      f"There are no presets available to select.")
+                player.sendChatMessage(f"There are no presets available to select.")

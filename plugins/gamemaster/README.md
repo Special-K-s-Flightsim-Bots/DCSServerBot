@@ -1,4 +1,4 @@
-# Plugin "Gamemaster"
+# Plugin "GameMaster"
 The gamemaster plugin adds commands that help you to interact with a running mission by either different kinds of 
 messaging or setting and clearing flags. You can enable the campaign system in here, too, that can be used in different
 other plugins, like Slotblocking or Userstats.

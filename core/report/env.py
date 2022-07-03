@@ -1,7 +1,11 @@
+from __future__ import annotations
 import discord
-from core import DCSServerBot
 from dataclasses import dataclass
 from matplotlib.figure import Figure
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core import DCSServerBot
 
 
 @dataclass

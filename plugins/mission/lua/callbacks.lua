@@ -129,6 +129,7 @@ function mission.onPlayerConnect(id)
     else
         msg.active = true
     end
+    dcsbot.userInfo[msg.ucid] = {}
 	utils.sendBotTable(msg)
 end
 
@@ -243,7 +244,7 @@ end
 function mission.onPlayerTrySendChat(from, message, to)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTrySendChat()')
     local msg = {}
-    if string.sub(message, 1, 1) == '-' then
+    if string.sub(message, 1, 1) == config.CHAT_COMMAND_PREFIX then
         msg.command = 'onChatCommand'
         local elements = utils.split(message, ' ')
         msg.subcommand = string.sub(elements[1], 2)

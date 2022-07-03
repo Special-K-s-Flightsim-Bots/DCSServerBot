@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import discord
 import inspect
@@ -5,15 +6,16 @@ import json
 import os
 import psycopg2
 import sys
+from abc import ABC, abstractmethod
 from contextlib import closing, suppress
-from core import utils, DCSServerBot
-from core.report.env import ReportEnv
-from core.report.elements import ReportElement
-from core.report.errors import UnknownReportElement, ClassNotFound, ValueNotInRange
-from core.report.utils import parse_input, parse_params
 from discord.ext.commands import Context
 from os import path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast
+from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound, \
+    ValueNotInRange
+
+if TYPE_CHECKING:
+    from core import DCSServerBot, Server
 
 
 class Report:
@@ -99,6 +101,15 @@ class Report:
         return self.env
 
 
+class Pagination(ABC):
+    def __init__(self, env: ReportEnv):
+        self.env = env
+
+    @abstractmethod
+    def values(self, **kwargs) -> list[Any]:
+        pass
+
+
 class PaginationReport(Report):
 
     class NoPaginationInformation(Exception):
@@ -109,6 +120,7 @@ class PaginationReport(Report):
         super().__init__(bot, plugin, filename)
         self.ctx = ctx
         self.timeout = timeout
+        self.pagination = pagination
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
 
@@ -133,6 +145,10 @@ class PaginationReport(Report):
                 values = obj
             elif isinstance(obj, dict):
                 values = obj.keys()
+        elif 'class' in param:
+            values = cast(Pagination, utils.str_to_class(param['class'])(self.env)).values(**kwargs)
+        elif self.pagination:
+            values = self.pagination
         return name, values
 
     async def render(self, *args, **kwargs) -> ReportEnv:
@@ -188,7 +204,7 @@ class PaginationReport(Report):
 
 class PersistentReport(Report):
 
-    def __init__(self, bot: DCSServerBot, plugin: str, filename: str, server: dict, embed_name: str):
+    def __init__(self, bot: DCSServerBot, plugin: str, filename: str, server: Server, embed_name: str):
         super().__init__(bot, plugin, filename)
         self.server = server
         self.embed_name = embed_name
@@ -196,5 +212,5 @@ class PersistentReport(Report):
     async def render(self, *args, **kwargs) -> ReportEnv:
         env = await super().render(*args, **kwargs)
         file = discord.File(env.filename) if env.filename else None
-        await self.bot.setEmbed(self.server, self.embed_name, env.embed, file)
+        await self.server.setEmbed(self.embed_name, env.embed, file)
         return env

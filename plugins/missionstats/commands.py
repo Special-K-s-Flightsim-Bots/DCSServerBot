@@ -1,8 +1,7 @@
 import discord
 import psycopg2
 from contextlib import closing
-from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report, PaginationReport
-from core.const import Status
+from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report, PaginationReport, Status, Server
 from discord.ext import commands
 from plugins.userstats.commands import parse_params
 from plugins.userstats.filter import StatisticsFilter
@@ -15,19 +14,19 @@ class MissionStatisticsAgent(Plugin):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def missionstats(self, ctx):
-        server = await utils.get_server(self, ctx)
+        server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        mission_id = server['mission_id'] if 'mission_id' in server else -1
-        if server['status'] not in [Status.RUNNING, Status.PAUSED]:
-            await ctx.send(f"Server {server['server_name']} is not running.")
-        elif server['server_name'] not in self.bot.mission_stats:
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await ctx.send(f"Server {server.name} is not running.")
+        elif server.name not in self.bot.mission_stats:
             await ctx.send("Mission statistics not initialized yet or not active for this server.")
         else:
-            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
-            stats = self.bot.mission_stats[server['server_name']]
+            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+            stats = self.bot.mission_stats[server.name]
             report = Report(self.bot, self.plugin_name, 'missionstats.json')
-            env = await report.render(stats=stats, mission_id=mission_id, sides=utils.get_sides(ctx.message, server))
+            env = await report.render(stats=stats, mission_id=server.mission_id,
+                                      sides=utils.get_sides(ctx.message, server))
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
 
@@ -38,7 +37,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
     @commands.guild_only()
     async def sorties(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         try:
-            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
             member, period = parse_params(self, ctx, member, *params)
             if not member:
                 await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
@@ -48,7 +47,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
                 await ctx.send('Please provide a valid period or campaign name.')
                 return
             report = Report(self.bot, self.plugin_name, 'sorties.json')
-            env = await report.render(member=member if isinstance(member, discord.Member) else utils.get_ucid_by_name(self, member),
+            env = await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
                                       member_name=member.display_name if isinstance(member, discord.Member) else member,
                                       period=period, flt=flt)
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
@@ -72,7 +71,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def modulestats(self, ctx, member: Optional[Union[discord.Member, str]], *params):
-        timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         member, period = parse_params(self, ctx, member, *params)
         if not member:
             await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
@@ -89,7 +88,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
                                    (member.id, ))
                     ucid = cursor.fetchone()[0]
                 else:
-                    ucid = utils.get_ucid_by_name(self, member)
+                    ucid = self.bot.get_ucid_by_name(member)
                 cursor.execute("SELECT DISTINCT slot, COUNT(*) FROM statistics WHERE player_ucid =  %s AND slot NOT "
                                "IN ('forward_observer', 'instructor', 'observer', 'artillery_commander') GROUP BY 1 "
                                "ORDER BY 2 DESC", (ucid, ))
@@ -113,7 +112,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
     @commands.guild_only()
     async def refuellings(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         try:
-            timeout = int(self.config['BOT']['MESSAGE_AUTODELETE'])
+            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
             member, period = parse_params(self, ctx, member, *params)
             if not member:
                 await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
@@ -123,7 +122,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
                 await ctx.send('Please provide a valid period or campaign name.')
                 return
             report = Report(self.bot, self.plugin_name, 'refuellings.json')
-            env = await report.render(member=member if isinstance(member, discord.Member) else utils.get_ucid_by_name(self, member),
+            env = await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
                                       member_name=member.display_name if isinstance(member, discord.Member) else member,
                                       period=period, flt=flt)
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
