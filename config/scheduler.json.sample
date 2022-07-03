@@ -6,11 +6,16 @@
         "text": "!!! {item} will {what} in {when} !!!"
       },
       "presets": {
-          "Winter Nighttime": {"start_time": "03:00", "date": "2016-01-10", "temperature": -10, "clouds": "RainyPreset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
-          "Winter Daytime": {"start_time": "08:00", "date": "2016-01-10", "temperature": -12, "clouds": "Preset2", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 5, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
-          "Summer Nighttime": {"start_time": "03:00", "date": "2016-07-26", "temperature": 18, "clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
-          "Summer Daytime": {"start_time": "10:00", "date": "2016-07-26", "temperature": 22, "clouds": "Preset2", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
-          "Heavy Storm": {"start_time": "16:00", "temperature": 16, "clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}}
+        "Winter": {"date": "2016-01-10", "temperature": -10},
+        "Summer": {"date": "2016-07-26", "temperature": 22},
+        "Nighttime": {"start_time": "03:00"},
+        "Morning": {"start_time": "08:00"},
+        "Noon": {"start_time": "12:00"},
+        "Evening": {"start_time": "18:00"},
+        "Late Evening": {"start_time": "22:00"},
+        "Slight Breeze":  {"clouds": "Preset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
+        "Rainy":  {"clouds": "RainyPreset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
+        "Heavy Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}}
       },
       "extensions": {
         "SRS": {
@@ -47,8 +52,8 @@
         "local_times": ["00:00", "04:00", "08:00"],
         "populated": true,
         "settings": {
-          "00:00-07:59": "Winter Nighttime",
-          "08:00-11:59": "Winter Daytime"
+          "00:00-07:59": "Winter,Nighttime",
+          "08:00-11:59": "Summer,Noon"
         }
       },
       "extensions": {
@@ -68,8 +73,8 @@
         "mission_time": 480,
         "populated": false,
         "settings": [
-          "Winter Daytime",
-          "Summer Daytime"
+          "Winter,Late Evening,Heavy Storm",
+          "Summer,Morning,Slight Breeze"
         ]
       },
       "extensions": {

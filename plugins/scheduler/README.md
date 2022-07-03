@@ -139,7 +139,7 @@ it in the default section.
 | mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                   |
 | local_times  | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                              |
 | populated    | If **false**, the mission will be restarted / rotated only, if no player is in.                                                                                                                                                                                |
-| settings     | Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is.                                                                                                                   |
+| settings     | Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is. Presets can be stacked by comma-separating them.                                                                  |
 
 **Attention!**<br/>
 If using the presets / settings, your missions will be amended automatically by the bot. You might want to create safety copies upfront.
