@@ -146,9 +146,9 @@ class MissionEventListener(EventListener):
         player: Player = server.get_player(id=data['id'])
         # unlikely, but can happen if the bot was restarted during a mission restart
         if not player:
-            player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=data['id'],
-                                                     name=data['name'], active=data['active'], side=Side(data['side']),
-                                                     ucid=data['ucid'], ipaddr=data['ipaddr'], banned=False)
+            player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=data['id'],
+                                             name=data['name'], active=data['active'], side=Side(data['side']),
+                                             ucid=data['ucid'], ipaddr=data['ipaddr'], banned=False)
             server.add_player(player)
         else:
             player.update(data)
