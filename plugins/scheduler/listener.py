@@ -37,6 +37,8 @@ class SchedulerListener(EventListener):
     async def registerDCSServer(self, data):
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
+        if 'extensions' not in config:
+            return
         for extension in config['extensions']:
             ext: Extension = server.extensions[extension] if extension in server.extensions else None
             if not ext:
