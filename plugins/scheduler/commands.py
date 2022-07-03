@@ -93,7 +93,7 @@ class Scheduler(Plugin):
         if server.name not in self._config:
             if 'configs' in self.locals:
                 specific = default = None
-                for element in self.locals['configs']:
+                for element in self.locals['configs']:  # type: dict
                     if 'installation' in element or 'server_name' in element:
                         if ('installation' in element and server.installation == element['installation']) or \
                                 ('server_name' in element and server.name == element['server_name']):
@@ -121,11 +121,11 @@ class Scheduler(Plugin):
     @staticmethod
     def check_server_state(server: Server, config: dict) -> Status:
         if 'schedule' in config and not server.maintenance:
-            warn_times = Scheduler.get_warn_times(config)
-            restart_in = max(warn_times) if len(warn_times) and server.is_populated() else 0
-            now = datetime.now()
+            warn_times: list[int] = Scheduler.get_warn_times(config)
+            restart_in: int = max(warn_times) if len(warn_times) and server.is_populated() else 0
+            now: datetime = datetime.now()
             weekday = (now + timedelta(seconds=restart_in)).weekday()
-            for period, daystate in config['schedule'].items():
+            for period, daystate in config['schedule'].items():  # type: str, dict
                 state = daystate[weekday]
                 # check, if the server should be running
                 if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server.status == Status.SHUTDOWN:
@@ -141,13 +141,7 @@ class Scheduler(Plugin):
     async def launch_dcs(self, server: Server, config: dict, member: Optional[discord.Member] = None):
         # change the weather in the mission if provided
         if 'restart' in config and 'settings' in config['restart']:
-            if not server.current_mission.filename:
-                for i in range(int(server.getServerSetting('listStartIndex')), 0, -1):
-                    filename = server.getServerSetting(i)
-                    if filename:
-                        server.current_mission.filename = filename
-                        self.change_mizfile(server, config)
-                        break
+            self.change_mizfile(server, config)
         self.log.info(f"  => DCS server \"{server.name}\" starting up ...")
         await server.startup()
         if not member:
@@ -193,7 +187,7 @@ class Scheduler(Plugin):
 
     async def teardown_extensions(self, server: Server, config: dict, member: Optional[discord.Member] = None) -> list:
         retval = []
-        for extension in config['extensions']:
+        for extension in config['extensions']:  # type: str
             ext: Extension = server.extensions[extension] if 'extensions' in server.extensions else None
             if not ext:
                 if '.' not in extension:
@@ -202,7 +196,7 @@ class Scheduler(Plugin):
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
                 if ext.verify():
                     server.extensions[extension] = ext
-            if await ext.check() and await ext.shutdown():
+            if await ext.is_running() and await ext.shutdown():
                 retval.append(ext.name)
                 if not member:
                     self.log.info(f"  => {ext.name} shut down for \"{server.name}\" by "
@@ -250,41 +244,52 @@ class Scheduler(Plugin):
             server.restart_pending = False
 
     @staticmethod
-    def change_mizfile(server: Server, config: dict, preset: Optional[str] = None):
-        now = datetime.now()
-        value = None
-        if not preset:
-            if isinstance(config['restart']['settings'], dict):
-                for key, preset in config['restart']['settings'].items():
-                    if utils.is_in_timeframe(now, key):
-                        value = config['presets'][preset]
-                        break
-            elif isinstance(config['restart']['settings'], list):
-                value = config['presets'][random.choice(config['restart']['settings'])]
-            if not value:
-                raise ValueError("No preset found for the current time.")
+    def change_mizfile(server: Server, config: dict, presets: Optional[str] = None):
+        filename = None
+        if not server.current_mission or not server.current_mission.filename:
+            for i in range(int(server.getServerSetting('listStartIndex')), 0, -1):
+                filename = server.getServerSetting(i)
+                if server.current_mission:
+                    server.current_mission.filename = filename
+                break
         else:
+            filename = server.current_mission.filename
+        if not filename:
+            return
+        now = datetime.now()
+        if not presets:
+            if isinstance(config['restart']['settings'], dict):
+                for key, value in config['restart']['settings'].items():
+                    if utils.is_in_timeframe(now, key):
+                        presets = value
+                        break
+                if not presets:
+                    # no preset found for the current time, so don't change anything
+                    return
+            elif isinstance(config['restart']['settings'], list):
+                presets = random.choice(config['restart']['settings'])
+        miz = MizFile(filename)
+        for preset in [x.strip() for x in presets.split(',')]:
             value = config['presets'][preset]
-        miz = MizFile(server.current_mission.filename)
-        if 'start_time' in value:
-            miz.start_time = value['start_time']
-        if 'date' in value:
-            miz.date = datetime.strptime(value['date'], '%Y-%m-%d')
-        if 'temperature' in value:
-            miz.temperature = int(value['temperature'])
-        if 'clouds' in value:
-            if isinstance(value['clouds'], str):
-                miz.clouds = {"preset": value['clouds']}
-            else:
-                miz.clouds = value['clouds']
-        if 'wind' in value:
-            miz.wind = value['wind']
-        if 'groundTurbulence' in value:
-            miz.groundTurbulence = int(value['groundTurbulence'])
-        if 'dust_density' in value:
-            miz.dust_density = int(value['dust_density'])
-        if 'qnh' in value:
-            miz.qnh = int(value['qnh'])
+            if 'start_time' in value:
+                miz.start_time = value['start_time']
+            if 'date' in value:
+                miz.date = datetime.strptime(value['date'], '%Y-%m-%d')
+            if 'temperature' in value:
+                miz.temperature = int(value['temperature'])
+            if 'clouds' in value:
+                if isinstance(value['clouds'], str):
+                    miz.clouds = {"preset": value['clouds']}
+                else:
+                    miz.clouds = value['clouds']
+            if 'wind' in value:
+                miz.wind = value['wind']
+            if 'groundTurbulence' in value:
+                miz.groundTurbulence = int(value['groundTurbulence'])
+            if 'dust_density' in value:
+                miz.dust_density = int(value['dust_density'])
+            if 'qnh' in value:
+                miz.qnh = int(value['qnh'])
         miz.save()
 
     async def restart_mission(self, server: Server, config: dict):
@@ -360,6 +365,12 @@ class Scheduler(Plugin):
                         asyncio.create_task(self.teardown(server, config))
                     elif server.status in [Status.RUNNING, Status.PAUSED]:
                         await self.check_mission_state(server, config)
+                    # if the server is running, and should run, check if all the extensions are running, too
+                    if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and target_state == server.status:
+                        for ext in server.extensions.values():
+                            if not await ext.is_running() and await ext.startup():
+                                self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
+                                await self.bot.audit(f"{ext.name} started", server=server)
                 except Exception as ex:
                     self.log.warning("Exception in check_state(): " + str(ex))
 
@@ -378,7 +389,7 @@ class Scheduler(Plugin):
     async def schedule_extensions(self):
         if 'extensions' not in self.locals['configs'][0]:
             return
-        for extension, config in self.locals['configs'][0]['extensions'].items():
+        for extension, config in self.locals['configs'][0]['extensions'].items():  # type: str, dict
             if '.' not in extension:
                 ext: Extension = utils.str_to_class('extensions.builtin.' + extension)
             else:
@@ -403,7 +414,11 @@ class Scheduler(Plugin):
                 server.maintenance = True
                 await self.launch_dcs(server, config, ctx.message.author)
                 await msg.delete()
-                msg = await ctx.send(f"DCS server \"{server.name}\" started.")
+                await ctx.send(f"DCS server \"{server.name}\" started.")
+                for ext in server.extensions.values():
+                    if not await ext.is_running() and await ext.startup():
+                        self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
+                        await self.bot.audit(f"{ext.name} started", server=server)
             else:
                 await ctx.send(f"DCS server \"{server.name}\" is already started.")
 

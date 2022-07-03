@@ -30,7 +30,7 @@ class Player(DataObject):
     unit_type: str = field(compare=False, default='')
     group_id: int = field(compare=False, default=0)
     group_name: str = field(compare=False, default='')
-    member: discord.Member = field(compare=False, repr=False, default=None, init=False)
+    _member: discord.Member = field(compare=False, repr=False, default=None, init=False)
     coalition: Coalition = field(compare=False, default=None)
 
     def __post_init__(self):
@@ -78,6 +78,21 @@ class Player(DataObject):
 
     def is_banned(self):
         return self.banned
+
+    @property
+    def member(self) -> discord.Member:
+        return self._member
+
+    @member.setter
+    def member(self, member: discord.Member):
+        self._member = member
+        roles = [x.name for x in member.roles]
+        self.server.sendtoDCS({
+            'command': 'uploadUserRoles',
+            'id': self.id,
+            'ucid': self.ucid,
+            'roles': roles
+        })
 
     def update(self, data: dict):
         if 'side' in data:

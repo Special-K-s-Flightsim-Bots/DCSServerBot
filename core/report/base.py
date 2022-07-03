@@ -6,11 +6,13 @@ import json
 import os
 import psycopg2
 import sys
+from abc import ABC, abstractmethod
 from contextlib import closing, suppress
 from discord.ext.commands import Context
 from os import path
-from typing import List, Tuple, Optional, TYPE_CHECKING
-from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound, ValueNotInRange
+from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast
+from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound, \
+    ValueNotInRange
 
 if TYPE_CHECKING:
     from core import DCSServerBot, Server
@@ -99,6 +101,15 @@ class Report:
         return self.env
 
 
+class Pagination(ABC):
+    def __init__(self, env: ReportEnv):
+        self.env = env
+
+    @abstractmethod
+    def values(self, **kwargs) -> list[Any]:
+        pass
+
+
 class PaginationReport(Report):
 
     class NoPaginationInformation(Exception):
@@ -109,6 +120,7 @@ class PaginationReport(Report):
         super().__init__(bot, plugin, filename)
         self.ctx = ctx
         self.timeout = timeout
+        self.pagination = pagination
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
 
@@ -133,6 +145,10 @@ class PaginationReport(Report):
                 values = obj
             elif isinstance(obj, dict):
                 values = obj.keys()
+        elif 'class' in param:
+            values = cast(Pagination, utils.str_to_class(param['class'])(self.env)).values(**kwargs)
+        elif self.pagination:
+            values = self.pagination
         return name, values
 
     async def render(self, *args, **kwargs) -> ReportEnv:

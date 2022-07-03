@@ -156,7 +156,7 @@ class GameMasterEventListener(EventListener):
                                    'AND COALESCE(stop, NOW())', (server.name, ))
                 elif command == 'delete':
                     if name:
-                        cursor.execute('DELETE FROM campaigns WHERE server_name = %s AND name = %s',
+                        cursor.execute('DELETE FROM campaigns WHERE server_name = %s AND name ILIKE %s',
                                        (server.name, name))
                     else:
                         cursor.execute('DELETE FROM campaigns WHERE server_name = %s AND NOW() BETWEEN start AND '

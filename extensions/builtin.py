@@ -29,7 +29,7 @@ class SRS(Extension):
         self.process = subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(
             os.path.expandvars(self.config['config']))],
                                         executable=os.path.expandvars(self.config['installation']) + r'\SR-Server.exe')
-        return await self.check()
+        return await self.is_running()
 
     async def shutdown(self):
         p = self.process or utils.find_process('SR-Server.exe', self.server.installation)
@@ -40,9 +40,9 @@ class SRS(Extension):
         else:
             return False
 
-    async def check(self) -> bool:
+    async def is_running(self) -> bool:
         if self.process:
-            return not self.process.poll()
+            return self.process.poll() is None
         server_ip = self.locals['Server Settings']['server_ip']
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'
@@ -169,9 +169,9 @@ class Tacview(Extension):
             tacview = self.server.options['plugins']['Tacview']
             if 'tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled']:
                 if 'tacviewPlaybackDelay' in tacview and tacview['tacviewPlaybackDelay'] > 0:
-                    self.log.warning('  => Realtime Telemetry is enabled but tacviewPlaybackDelay is set!')
+                    self.log.warning('  - Realtime Telemetry is enabled but tacviewPlaybackDelay is set!')
             elif 'tacviewPlaybackDelay' not in tacview or tacview['tacviewPlaybackDelay'] == 0:
-                self.log.warning('  => tacviewPlaybackDelay is not set, you might see performance issues!')
+                self.log.warning('  - tacviewPlaybackDelay is not set, you might see performance issues!')
             return tacview
         else:
             return dict()

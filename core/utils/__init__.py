@@ -10,6 +10,7 @@ def reload() -> ConfigParser:
 
 config = reload()
 
+from .campaigns import *
 from .coalitions import *
 from .dcs import *
 from .discord import *

@@ -29,7 +29,7 @@
     },
     {
       "installation": "mission",
-      "schedule": {"18:00": "NNNNNNY"}
+      "schedule": {"18:00": "NNNNNNY"},
       "extensions": {
         "SRS": {
           "config": "%USERPROFILE%\\Saved Games\\mission\\Config\\SRS.cfg"

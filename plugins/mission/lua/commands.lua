@@ -5,7 +5,7 @@ local utils = base.require("DCSServerBotUtils")
 
 local mod_dictionary= require('dictionary')
 
-dcsbot.userInfo = dcsbot.userInfo or {}
+dcsbot.userInfo = {}
 
 function dcsbot.getMissionDetails(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionDetails()')
@@ -211,4 +211,9 @@ end
 function dcsbot.do_script_file(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: do_script_file()')
     net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. json.file .. '\\")")')
+end
+
+function dcsbot.uploadUserRoles(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: uploadUserRoles()')
+    dcsbot.userInfo[json.ucid].roles = json.roles
 end

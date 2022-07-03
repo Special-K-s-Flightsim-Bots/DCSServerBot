@@ -144,21 +144,21 @@ class GameMasterAgent(Plugin):
 
     @staticmethod
     def format_campaigns(data, marker, marker_emoji):
-        embed = discord.Embed(title="Active & Upcoming Campaigns", color=discord.Color.blue())
-        names = start_times = end_times = ''
+        embed = discord.Embed(title="List of Campaigns", color=discord.Color.blue())
+        ids = names = times = ''
         for i in range(0, len(data)):
-            names += data[i]['name'] + '\n'
-            start_times += f"{data[i]['start']:%y-%m-%d %H:%M:%S}\n"
-            end_times += f"{data[i]['stop']:%y-%m-%d %H:%M:%S}\n" if data[i]['stop'] else '-\n'
+            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+            names += data[i]['name'] + '@' + data[i]['server_name'] + '\n'
+            times += f"{data[i]['start']:%y-%m-%d} - " + (f"{data[i]['stop']:%y-%m-%d}" if data[i]['stop'] else '') + '\n'
+        embed.add_field(name='ID', value=ids)
         embed.add_field(name='Name', value=names)
-        embed.add_field(name='Start', value=start_times)
-        embed.add_field(name='End', value=end_times)
+        embed.add_field(name='Start/End', value=times)
         embed.set_footer(text='Press a number to display details about that specific campaign.')
         return embed
 
     @commands.command(description='Campaign Management',
                       usage='<add|start|stop|delete|list>',
-                      aliases=['season'])
+                      aliases=['season', 'campaigns', 'seasons'])
     @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
     async def campaign(self, ctx, command: Optional[str], name: Optional[str], start_time: Optional[str], end_time: Optional[str]):
@@ -167,7 +167,9 @@ class GameMasterAgent(Plugin):
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                    cursor.execute('SELECT * FROM campaigns WHERE NOW() BETWEEN start AND COALESCE(stop, NOW())')
+                    cursor.execute(f"SELECT TRIM(regexp_replace(server_name, "
+                                   f"'{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')) AS server_name, name, "
+                                   f"start, stop FROM campaigns WHERE NOW() BETWEEN start AND COALESCE(stop, NOW())")
                     if cursor.rowcount > 0:
                         report = Report(self.bot, self.plugin_name, 'campaign.json')
                         env = await report.render(campaign=dict(cursor.fetchone()), title='Active Campaign')
@@ -229,10 +231,14 @@ class GameMasterAgent(Plugin):
             try:
                 with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
                     if name != "-all":
-                        cursor.execute('SELECT * FROM campaigns WHERE COALESCE(stop, NOW()) >= NOW() ORDER BY start '
-                                       'DESC')
+                        cursor.execute(f"SELECT TRIM(regexp_replace(server_name, "
+                                       f"'{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')) AS server_name, "
+                                       f"name, start, stop FROM campaigns WHERE COALESCE(stop, NOW()) >= NOW() ORDER "
+                                       f"BY start DESC")
                     else:
-                        cursor.execute('SELECT * FROM campaigns ORDER BY start DESC')
+                        cursor.execute(f"SELECT TRIM(regexp_replace(server_name, "
+                                       f"'{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')) AS server_name, "
+                                       f"name, start, stop FROM campaigns ORDER BY start DESC")
                     if cursor.rowcount > 0:
                         campaigns = [dict(row) for row in cursor.fetchall()]
                         n = await utils.selection_list(self, ctx, campaigns, self.format_campaigns)

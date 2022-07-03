@@ -97,16 +97,3 @@ class SlotBlockingListener(EventListener):
             # give all players their credit back, if the mission ends and they are still airborne
             for player in server.players:
                 player.deposit = 0
-
-    async def onPlayerStart(self, data: dict) -> None:
-        if data['id'] == 1:
-            return
-        server: Server = self.bot.servers[data['server_name']]
-        player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['id']))
-        roles = [x.name for x in player.member.roles] if player.member else []
-        server.sendtoDCS({
-            'command': 'uploadUserRoles',
-            'id': player.id,
-            'ucid': player.ucid,
-            'roles': roles
-        })

@@ -5,6 +5,7 @@
 			{ "points": 100, "action": "ban", "delay": 10 },
 			{ "points": 60, "action": "kick", "delay": 10 },
 			{ "points": 40, "action": "move_to_spec", "delay": 10 },
+            { "points": 12, "action": "credits", "penalty": 10, "delay": 10 },
 			{ "points": 1, "action": "warn" }
 		],
 		"flightHoursWeight": [

@@ -355,12 +355,11 @@ class UserStatisticsEventListener(EventListener):
                             cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
                                            (discord_id, player.ucid))
                             cursor.execute('DELETE FROM players WHERE ucid = %s', (token, ))
-                            player.sendChatMessage('Your user has been linked! You must reconnect once for the '
-                                                   'settings to be applied.')
-                            with suppress(Exception):
-                                member = self.bot.guilds[0].get_member(discord_id)
-                                await self.bot.audit(f'self-linked to DCS user "{player.name}" (ucid={player.ucid}).',
-                                                     user=member)
+                            member = self.bot.guilds[0].get_member(discord_id)
+                            player.member = member
+                            await self.bot.audit(f'self-linked to DCS user "{player.name}" (ucid={player.ucid}).',
+                                                 user=member)
+                            player.sendChatMessage('Your user has been linked!')
                         conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.log.exception(error)

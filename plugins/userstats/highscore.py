@@ -24,11 +24,10 @@ class HighscorePlaytime(report.GraphElement):
                     sides.append(Side.BLUE.value)
                 # in this specific case, we want to display all data, if in public channels
                 if len(sides) == 0:
-                    sides = [0, 1, 2]
+                    sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
-        if period:
-            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
-            sql += ' AND ' + flt.filter()
+        self.env.embed.title = flt.format(self.env.bot, server_name, period) + ' ' + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot, server_name, period)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
 
         conn = self.pool.getconn()
@@ -99,8 +98,7 @@ class HighscoreElement(report.GraphElement):
                 if len(sides) == 0:
                     sides = [0, 1, 2]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
-        if period:
-            sql += ' AND ' + flt.filter()
+        sql += ' AND ' + flt.filter(self.env.bot, server_name, period)
         sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0 ORDER BY 3 DESC LIMIT {limit}'
 
         conn = self.pool.getconn()

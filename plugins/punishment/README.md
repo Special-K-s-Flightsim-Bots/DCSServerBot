@@ -19,6 +19,7 @@ The punishment is configured with a file named config\punishment.json. You'll fi
         { "points": 100, "action": "ban" },
         { "points": 60, "action": "kick" },
         { "points": 40, "action": "move_to_spec" },
+        { "points": 12, "action": "credits", "penalty": 10, "delay": 10 },
         { "points": 1, "action": "warn" }
       ],
       "exemptions": [
@@ -56,7 +57,10 @@ You can add own events that you can use from inside the mission environment (see
 ### Punishments
 Each point level can trigger a specific action. When the user hits this limit by gathering penalties, the specific action is being triggered.
 Actions are triggered at least every minute. So there might be a slight delay in being a bad pilot and getting punished. That allows victims to -forgive the dedicated act.
-A ban is temporary and punishment points can decay over time (see below). 
+A ban is temporary and punishment points can decay over time (see below).<br/>
+In conjunction with the [CreditSystem](../creditsystem/README.md) plugin, you can use "credits" as a punishment and take
+away credit points from players if they misbehave. You need to have "creditsystem" added to your OPT_PLUGINS though to
+use it.
 
 ### Exemptions
 User that should not be punished. Can be either ucids or discord groups.

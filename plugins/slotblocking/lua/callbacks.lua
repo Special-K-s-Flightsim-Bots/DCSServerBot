@@ -2,7 +2,6 @@ local base 	    = _G
 local dcsbot    = base.dcsbot
 
 local slotblock = slotblock or {}
-dcsbot.userInfo = dcsbot.userInfo or {}
 
 local function has_value(tab, val)
     for index, value in ipairs(tab) do
