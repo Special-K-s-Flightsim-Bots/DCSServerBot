@@ -49,7 +49,8 @@ class ServerInfo(report.EmbedElement):
                                        timedelta(seconds=server.current_mission.start_time + uptime))
             self.add_field(name='Date/Time in Mission', value=value)
             if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
-                self.add_field(name='Avail. Slots', value='🔹 {}  |  {} 🔸'.format(server.current_mission.num_slots_blue, server.current_mission.num_slots_red))
+                self.add_field(name='Avail. Slots', value='🔹 {}  |  {} 🔸'.format(server.current_mission.num_slots_blue,
+                                                                                   server.current_mission.num_slots_red))
             else:
                 self.add_field(name='Coalitions', value='Yes')
         self.embed.set_footer(text='- Server is running DCS {}'.format(server.dcs_version))

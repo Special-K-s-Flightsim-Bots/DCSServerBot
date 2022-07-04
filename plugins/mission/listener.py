@@ -65,25 +65,25 @@ class MissionEventListener(EventListener):
             server.sendtoDCS(data)
 
     async def registerDCSServer(self, data):
-        if not data['channel'].startswith('sync-'):
-            return
         server: Server = self.bot.servers[data['server_name']]
-        mission: Mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
-                                                   map=data['current_map'], name=data['current_mission'])
-        mission.update(data)
-        server.current_mission = mission
-        if 'players' not in data:
-            data['players'] = []
-            server.status = Status.STOPPED
-        for p in data['players']:
-            player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=p['id'],
-                                                     name=p['name'], active=p['active'], side=Side(p['side']),
-                                                     ucid=p['ucid'], ipaddr=p['ipaddr'], slot=p['slot'],
-                                                     sub_slot=p['sub_slot'], unit_callsign=p['unit_callsign'],
-                                                     unit_name=p['unit_name'], unit_type=p['unit_type'],
-                                                     group_id=p['group_id'], group_name=p['group_name'], banned=False)
-            server.add_player(player)
+        if not server.current_mission:
+            mission: Mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
+                                                       map=data['current_map'], name=data['current_mission'])
+            server.current_mission = mission
+        server.current_mission.update(data)
         server.status = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
+        if data['channel'].startswith('sync-'):
+            if 'players' not in data:
+                data['players'] = []
+                server.status = Status.STOPPED
+            for p in data['players']:
+                player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=p['id'],
+                                                         name=p['name'], active=p['active'], side=Side(p['side']),
+                                                         ucid=p['ucid'], ipaddr=p['ipaddr'], slot=p['slot'],
+                                                         sub_slot=p['sub_slot'], unit_callsign=p['unit_callsign'],
+                                                         unit_name=p['unit_name'], unit_type=p['unit_type'],
+                                                         group_id=p['group_id'], group_name=p['group_name'], banned=False)
+                server.add_player(player)
         await self.displayMissionEmbed(server)
         await self.displayPlayerEmbed(server)
 

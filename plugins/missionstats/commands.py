@@ -4,7 +4,7 @@ from contextlib import closing
 from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report, PaginationReport, Status, Server
 from discord.ext import commands
 from plugins.userstats.commands import parse_params
-from plugins.userstats.filter import StatisticsFilter
+from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter
 from typing import Optional, Union
 from .listener import MissionStatisticsEventListener
 
@@ -117,7 +117,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
             if not member:
                 await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
                 return
-            flt = StatisticsFilter.detect(self.bot, period)
+            flt = MissionStatisticsFilter()
             if period and not flt:
                 await ctx.send('Please provide a valid period or campaign name.')
                 return
