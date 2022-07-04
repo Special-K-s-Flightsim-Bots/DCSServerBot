@@ -312,8 +312,8 @@ class DCSServerBot(commands.Bot):
                 return None
             # a minimum of 3 characters have to match
             max_weight = 3
-            best_fit = []
-            for member in self.get_all_members():
+            best_fit = list[discord.Member]()
+            for member in self.get_all_members():  # type: discord.Member
                 # don't match bot users
                 if member.bot:
                     continue
@@ -338,7 +338,7 @@ class DCSServerBot(commands.Bot):
                 for m in best_fit:
                     if m.status != discord.Status.offline:
                         online_match.append(m)
-                        if isinstance(m.activiy, discord.Game) and 'DCS' in m.activity.name:
+                        if isinstance(m.activity, discord.Game) and 'DCS' in m.activity.name:
                             gaming_match.append(m)
                 if len(gaming_match) == 1:
                     return gaming_match[0]

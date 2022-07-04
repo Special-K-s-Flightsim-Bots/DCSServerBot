@@ -95,6 +95,23 @@ class MixedFilter(StatisticsFilter):
         return PeriodFilter.format(bot, server_name, period)
 
 
+class MissionStatisticsFilter(StatisticsFilter):
+    @staticmethod
+    def supports(bot: DCSServerBot, period: str) -> bool:
+        return PeriodFilter.supports(bot, period)
+
+    @staticmethod
+    def filter(bot: DCSServerBot, server_name: str, period: str) -> str:
+        if period in [None, 'all']:
+            return '1 = 1'
+        else:
+            return f'DATE(time) > (DATE(NOW()) - interval \'1 {period}\')'
+
+    @staticmethod
+    def format(bot: DCSServerBot, server_name: str, period: str) -> str:
+        return PeriodFilter.format(bot, server_name, period)
+
+
 class StatsPagination(Pagination):
     def __init__(self, env: ReportEnv):
         super().__init__(env)

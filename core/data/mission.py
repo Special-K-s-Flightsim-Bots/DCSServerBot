@@ -49,6 +49,10 @@ class Mission(DataObject):
             await self.server.start()
 
     def update(self, data: dict):
+        if 'current_map' in data:
+            self.map = data['current_map']
+        if 'current_mission' in data:
+            self.name = data['current_mission']
         if 'start_time' in data:
             self.start_time = data['start_time']
         if 'mission_time' in data:
@@ -57,6 +61,10 @@ class Mission(DataObject):
             self.real_time = data['real_time']
         if 'filename' in data:
             self.filename = data['filename']
+        if 'num_slots_blue' in data:
+            self.num_slots_blue = data['num_slots_blue']
+        if 'num_slots_red' in data:
+            self.num_slots_blue = data['num_slots_red']
         if 'date' in data:
             if data['date']['Year'] >= 1970:
                 self.date = datetime(data['date']['Year'], data['date']['Month'], data['date']['Day'], 0, 0)

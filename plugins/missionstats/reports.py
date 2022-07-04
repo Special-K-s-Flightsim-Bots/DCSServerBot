@@ -214,8 +214,8 @@ class Refuellings(report.EmbedElement):
     def render(self, member: Union[discord.Member, str], period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT init_type, COUNT(*) FROM missionstats WHERE EVENT = 'S_EVENT_REFUELING_STOP'"
         if period:
-            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
-            sql += ' AND ' + flt.filter()
+            self.env.embed.title = flt.format(self.env.bot, '', period) + ' ' + self.env.embed.title
+            sql += ' AND ' + flt.filter(self.env.bot, '', period)
         if isinstance(member, discord.Member):
             sql += " AND init_id IN (SELECT ucid FROM players WHERE discord_id = %s)"
         else:

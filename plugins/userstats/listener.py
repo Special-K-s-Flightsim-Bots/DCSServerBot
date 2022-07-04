@@ -1,5 +1,5 @@
 import psycopg2
-from contextlib import closing, suppress
+from contextlib import closing
 from core import EventListener, Plugin, Status, Server, Side, Player, Channel
 from typing import Union, Any
 
