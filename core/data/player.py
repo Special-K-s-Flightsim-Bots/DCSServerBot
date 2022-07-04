@@ -86,13 +86,14 @@ class Player(DataObject):
     @member.setter
     def member(self, member: discord.Member):
         self._member = member
-        roles = [x.name for x in member.roles]
-        self.server.sendtoDCS({
-            'command': 'uploadUserRoles',
-            'id': self.id,
-            'ucid': self.ucid,
-            'roles': roles
-        })
+        if member:
+            roles = [x.name for x in member.roles]
+            self.server.sendtoDCS({
+                'command': 'uploadUserRoles',
+                'id': self.id,
+                'ucid': self.ucid,
+                'roles': roles
+            })
 
     def update(self, data: dict):
         if 'side' in data:
