@@ -310,6 +310,8 @@ class Agent(Plugin):
             try:
                 await channel.send(content=f"This is the DCS logfile of server {server.name}",
                                    file=discord.File(filename))
+                await ctx.send('Current dcs.log sent as DM.')
+                await self.bot.audit(f'requested the dcs.log', server=server, user=ctx.message.author)
             finally:
                 if filename.endswith('.zip'):
                     os.remove(filename)
@@ -327,8 +329,10 @@ class Agent(Plugin):
         else:
             filename = path
         try:
-            await channel.send(content=f"This is the current DCSServerBot log of agent {platform.node()}",
+            await channel.send(content=f"This is the current DCSServerBot log of node {platform.node()}",
                                file=discord.File(filename))
+            await ctx.send('Current dcsserverbot.log sent as DM.')
+            await self.bot.audit(f'requested the dcsserverbot.log for node {platform.node()}', user=ctx.message.author)
         finally:
             if filename.endswith('.zip'):
                 os.remove(filename)

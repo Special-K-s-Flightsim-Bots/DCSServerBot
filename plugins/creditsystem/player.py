@@ -39,7 +39,11 @@ class CreditPlayer(Player):
 
     @points.setter
     def points(self, p: int) -> None:
-        if p < 0:
+        plugin = self.bot.cogs['CreditSystemMaster' if 'CreditSystemMaster' in self.bot.cogs else 'CreditSystemAgent']
+        config = plugin.get_config(self.server)
+        if 'max_points' in config and p > config['max_points']:
+            self._points = config['max_points']
+        elif p < 0:
             self._points = 0
         else:
             self._points = p

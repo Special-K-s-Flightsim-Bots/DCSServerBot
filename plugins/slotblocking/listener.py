@@ -8,6 +8,16 @@ class SlotBlockingListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
 
+    async def registerDCSServer(self, data: dict) -> None:
+        server: Server = self.bot.servers[data['server_name']]
+        config = self.plugin.get_config(server)
+        if config:
+            server.sendtoDCS({
+                'command': 'loadParams',
+                'plugin': self.plugin_name,
+                'params': config
+            })
+
     def get_points(self, server: Server, player: CreditPlayer) -> int:
         config = self.plugin.get_config(server)
         if 'restricted' in config:

@@ -5,6 +5,16 @@ from .player import CreditPlayer
 
 class CreditSystemListener(EventListener):
 
+    async def registerDCSServer(self, data: dict) -> None:
+        server: Server = self.bot.servers[data['server_name']]
+        config = self.plugin.get_config(server)
+        if config:
+            server.sendtoDCS({
+                'command': 'loadParams',
+                'plugin': self.plugin_name,
+                'params': config
+            })
+
     def get_points_per_kill(self, server: Server, data: dict) -> int:
         default = 1
         config = self.plugin.get_config(server)
@@ -63,3 +73,25 @@ class CreditSystemListener(EventListener):
             server: Server = self.bot.servers[data['server_name']]
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['from_id']))
             player.sendChatMessage(f"You currently have {player.points} credit points.")
+        elif data['subcommand'] == 'donate':
+            server: Server = self.bot.servers[data['server_name']]
+            player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['from_id']))
+            if len(data['params']) < 2:
+                player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}donate player points")
+                return
+            name = ' '.join(data['params'][:-1])
+            donation = int(data['params'][-1])
+            if donation > player.points:
+                player.sendChatMessage(f"You can't donate {donation} credit points as you only have {player.points}!")
+                return
+            elif donation <= 0:
+                player.sendChatMessage(f"Donation has to be a positive value.")
+                return
+            receiver: CreditPlayer = cast(CreditPlayer, server.get_player(name=name))
+            if not receiver:
+                player.sendChatMessage(f"Player {name} not found.")
+                return
+            player.points -= donation
+            receiver.points += donation
+            player.sendChatMessage(f"You've donated {donation} credit points to player {name}.")
+            receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")

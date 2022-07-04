@@ -12,6 +12,7 @@ The Creditsystem is configured with a file named config\creditsystem.json. You'l
   "configs": [
     {
       "initial_points": 1,      -- You can give people points from the beginning. Default is 0.
+      "max_points": 100,        -- People can not gather more than max_points (optional).
       "points_per_kill": [      -- How many points do we get per kill? If not set, default will be 1 point per kill
         { "default": 1 },
         { "category": "Ships", "points": 2 },
@@ -34,9 +35,11 @@ So this list will be evaluated **exactly in the order the items are listed** and
 
 To enable the points system, you need to start a "Campaign" on the specific server (see [Gamemaster](../gamemaster/README.md)).
 
-| Command   | Parameter | Role      | Description                                                                                     |
-|-----------|-----------|-----------|-------------------------------------------------------------------------------------------------|
-| .credits  |           | DCS       | Displays the players campaign credits.                                                          |
+## Discord Commands
+| Command  | Parameter          | Role | Description                                           |
+|----------|--------------------|------|-------------------------------------------------------|
+| .credits |                    | DCS  | Displays the players campaign credits.                |
+| .donate  | <@member> <points> | DCS  | Donate any of your campaign points to another member. |
 
 ## Usage inside of Missions (Scripting API)
 If you want to change user points based on any mission achievements, you are good to go:

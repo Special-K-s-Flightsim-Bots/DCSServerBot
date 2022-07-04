@@ -31,8 +31,9 @@ class HelpListener(EventListener):
             if 'punishment' in self.bot.plugins:
                 messages.append(f'"{prefix}penalty"      displays your penalty points')
                 messages.append(f'"{prefix}forgive"      forgive another user for teamhits/-kills')
-            if 'slotblocking' in self.bot.plugins:
+            if 'creditsystem' in self.bot.plugins:
                 messages.append(f'"{prefix}credits"      displays your credits')
+                messages.append(f'"{prefix}donate"       donate points to another player')
             if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 messages.append(f'"{prefix}join coal."   join a coalition')
                 messages.append(f'"{prefix}leave"        leave a coalition')
