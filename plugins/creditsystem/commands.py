@@ -42,11 +42,6 @@ class CreditSystemAgent(Plugin):
                     elif 'points_per_kill' in default and 'points_per_kill' in specific:
                         merged['points_per_kill'] = default['points_per_kill'] + specific['points_per_kill']
                     self._config[server.name] = merged
-                    server.sendtoDCS({
-                        'command': 'loadParams',
-                        'plugin': self.plugin_name,
-                        'params': self._config[server.name]
-                    })
             else:
                 return None
         return self._config[server.name] if server.name in self._config else None
@@ -86,7 +81,6 @@ class CreditSystemMaster(CreditSystemAgent):
         embed.add_field(name='Campaign', value=campaigns)
         embed.add_field(name='Points', value=points)
         embed.add_field(name='_ _', value='_ _')
-        embed.set_footer(text="If these points don't match what you expect, please contact an admin.")
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
 
@@ -110,6 +104,9 @@ class CreditSystemMaster(CreditSystemAgent):
     async def donate(self, ctx, to: discord.Member, donation: int):
         if ctx.message.author.id == to.id:
             await ctx.send("You can't donate to yourself.")
+            return
+        if donation <= 0:
+            await ctx.send("Donation has to be a positive value.")
             return
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:

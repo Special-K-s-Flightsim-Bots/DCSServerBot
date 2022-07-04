@@ -230,7 +230,7 @@ function dcsbot.force_player_slot(json)
 end
 
 function dcsbot.loadParams(json)
-    log.write('DCSServerBot', log.DEBUG, 'Admin: loadParams()')
+    log.write('DCSServerBot', log.DEBUG, 'Admin: loadParams(' .. json.plugin ..')')
     dcsbot.params = dcsbot.params or {}
     dcsbot.params[json.plugin] = json.params
 end

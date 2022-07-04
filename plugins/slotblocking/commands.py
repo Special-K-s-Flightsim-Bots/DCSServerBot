@@ -66,11 +66,6 @@ class SlotBlocking(Plugin):
                     elif 'restricted' in default and 'restricted' in specific:
                         merged['restricted'] = default['restricted'] + specific['restricted']
                     self._config[server.name] = merged
-                    server.sendtoDCS({
-                        'command': 'loadParams',
-                        'plugin': self.plugin_name,
-                        'params': self._config[server.name]
-                    })
             else:
                 return None
         return self._config[server.name] if server.name in self._config else None
