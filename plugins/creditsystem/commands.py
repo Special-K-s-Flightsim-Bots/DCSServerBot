@@ -46,39 +46,90 @@ class CreditSystemAgent(Plugin):
 
 class CreditSystemMaster(CreditSystemAgent):
 
-    @commands.command(description='Displays your current credits')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def credits(self, ctx):
+    def get_credits(self, user: discord.Member) -> list[dict]:
         conn = self.pool.getconn()
         try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute(f"SELECT trim(regexp_replace(c.server_name, '"
-                               f"{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')), p.name, COALESCE(SUM("
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute(f"SELECT c.id, c.name, p.ucid, COALESCE(SUM("
                                f"s.points), 0) AS credits FROM credits s, players p, campaigns c WHERE "
                                f"s.player_ucid = p.ucid AND p.discord_id = %s AND s.campaign_id = c.id AND "
-                               f"NOW() BETWEEN c.start AND COALESCE(c.stop, NOW()) GROUP BY 1, 2",
-                               (ctx.message.author.id, ))
-                if cursor.rowcount == 0:
-                    await ctx.send('You currently have 0 campaign credits.')
-                    return
-                embed = discord.Embed(title='Campaign Credits', color=discord.Color.blue())
-                embed.description = 'You currently have these credits:'
-                servers = names = points = ''
-                for row in cursor.fetchall():
-                    servers += row[0] + '\n'
-                    names += row[1] + '\n'
-                    points += f"{row[2]:.2f}\n"
-                embed.add_field(name='Server', value=servers)
-                embed.add_field(name='DCS Name', value=names)
-                embed.add_field(name='Points', value=points)
-                timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-                await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
+                               f"NOW() BETWEEN c.start AND COALESCE(c.stop, NOW()) GROUP BY 1, 2, 3",
+                               (user.id, ))
+                return list(cursor.fetchall())
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
-            await ctx.message.delete()
+
+    @commands.command(description='Displays your current credits')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def credits(self, ctx):
+        data = self.get_credits(ctx.message.author)
+        await ctx.message.delete()
+        if len(data) == 0:
+            await ctx.send('You currently have no campaign credits.')
+            return
+        embed = discord.Embed(title=f"Campaign Credits for {ctx.message.author.display_name}", color=discord.Color.blue())
+        campaigns = points = ''
+        for row in data:
+            campaigns += row[1] + '\n'
+            points += f"{row[3]}\n"
+        embed.add_field(name='Campaign', value=campaigns)
+        embed.add_field(name='Points', value=points)
+        embed.add_field(name='_ _', value='_ _')
+        embed.set_footer(text="If these points don't match what you expect, please contact an admin.")
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
+
+    @staticmethod
+    def format_credits(data, marker, marker_emoji):
+        embed = discord.Embed(title='Campaign Credits', color=discord.Color.blue())
+        ids = campaigns = credits = ''
+        for i in range(0, len(data)):
+            ids += (chr(0x31 + i) + '\u20E3' + '\n')
+            campaigns += f"{data[i][1]}\n"
+            credits += f"{data[i][3]}\n"
+        embed.add_field(name='ID', value=ids)
+        embed.add_field(name='Campaign', value=campaigns)
+        embed.add_field(name='Credits', value=credits)
+        embed.set_footer(text='Press a number to donate from these credits.')
+        return embed
+
+    @commands.command(description='Donate credits to another member', usage='<member> <credits>')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def donate(self, ctx, to: discord.Member, donation: int):
+        if ctx.message.author.id == to.id:
+            await ctx.send("You can't donate to yourself.")
+            return
+        receiver = self.bot.get_ucid_by_member(to)
+        if not receiver:
+            await ctx.send(f'{to.display_name} needs to properly link their DCS account to receive donations.')
+            return
+        data = self.get_credits(ctx.message.author)
+        if len(data) > 1:
+            n = await utils.selection_list(self, ctx, data, self.format_credits)
+        else:
+            n = 0
+        if data[n][3] < donation:
+            await ctx.send(f"You can't donate {donation} points, as you only have {data[n][3]} in total!")
+            return
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s',
+                               (donation, data[n][0], data[n][2]))
+                cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) VALUES (%s, %s, '
+                               '%s) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = credits.points + '
+                               'EXCLUDED.points', (data[n][0], receiver, donation))
+            conn.commit()
+            await ctx.send(to.mention + f' you just received {donation} credit points from {ctx.message.author.display_name}!')
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
 
 def setup(bot: DCSServerBot):

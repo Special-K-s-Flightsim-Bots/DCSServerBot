@@ -34,9 +34,11 @@ So this list will be evaluated **exactly in the order the items are listed** and
 
 To enable the points system, you need to start a "Campaign" on the specific server (see [Gamemaster](../gamemaster/README.md)).
 
-| Command   | Parameter | Role      | Description                                                                                     |
-|-----------|-----------|-----------|-------------------------------------------------------------------------------------------------|
-| .credits  |           | DCS       | Displays the players campaign credits.                                                          |
+## Discord Commands
+| Command  | Parameter          | Role | Description                                           |
+|----------|--------------------|------|-------------------------------------------------------|
+| .credits |                    | DCS  | Displays the players campaign credits.                |
+| .donate  | <@member> <points> | DCS  | Donate any of your campaign points to another member. |
 
 ## Usage inside of Missions (Scripting API)
 If you want to change user points based on any mission achievements, you are good to go:

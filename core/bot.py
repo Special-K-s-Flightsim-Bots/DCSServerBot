@@ -228,6 +228,20 @@ class DCSServerBot(commands.Bot):
         finally:
             self.pool.putconn(conn)
 
+    def get_ucid_by_member(self, member: discord.Member) -> Optional[str]:
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (member.id, ))
+                if cursor.rowcount == 1:
+                    return cursor.fetchone()[0]
+                else:
+                    return None
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
     def get_member_by_ucid(self, ucid: str, verified: Optional[bool] = False) -> Optional[discord.Member]:
         conn = self.pool.getconn()
         try:
