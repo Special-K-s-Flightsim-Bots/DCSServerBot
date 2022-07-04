@@ -12,6 +12,7 @@ The Creditsystem is configured with a file named config\creditsystem.json. You'l
   "configs": [
     {
       "initial_points": 1,      -- You can give people points from the beginning. Default is 0.
+      "max_points": 100,        -- People can not gather more than max_points (optional).
       "points_per_kill": [      -- How many points do we get per kill? If not set, default will be 1 point per kill
         { "default": 1 },
         { "category": "Ships", "points": 2 },

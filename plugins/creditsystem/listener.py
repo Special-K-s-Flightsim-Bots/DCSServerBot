@@ -78,7 +78,7 @@ class CreditSystemListener(EventListener):
             if not receiver:
                 player.sendChatMessage(f"Player {name} not found.")
                 return
-            receiver.points += donation
             player.points -= donation
+            receiver.points += donation
             player.sendChatMessage(f"You've donated {donation} credit points to player {name}.")
             receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")

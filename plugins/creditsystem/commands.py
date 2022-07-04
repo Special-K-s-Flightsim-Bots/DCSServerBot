@@ -27,6 +27,14 @@ class CreditSystemAgent(Plugin):
                     self._config[server.name] = specific
                 elif default and specific:
                     merged = {}
+                    if 'initial_points' in specific:
+                        merged['initial_points'] = specific['initial_points']
+                    elif 'initial_points' in default:
+                        merged['initial_points'] = default['initial_points']
+                    if 'max_points' in specific:
+                        merged['max_points'] = specific['max_points']
+                    elif 'max_points' in default:
+                        merged['max_points'] = default['max_points']
                     if 'points_per_kill' in default and 'points_per_kill' not in specific:
                         merged['points_per_kill'] = default['points_per_kill']
                     elif 'points_per_kill' not in default and 'points_per_kill' in specific:
@@ -85,14 +93,14 @@ class CreditSystemMaster(CreditSystemAgent):
     @staticmethod
     def format_credits(data, marker, marker_emoji):
         embed = discord.Embed(title='Campaign Credits', color=discord.Color.blue())
-        ids = campaigns = credits = ''
+        ids = campaigns = points = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
             campaigns += f"{data[i][1]}\n"
-            credits += f"{data[i][3]}\n"
+            points += f"{data[i][3]}\n"
         embed.add_field(name='ID', value=ids)
         embed.add_field(name='Campaign', value=campaigns)
-        embed.add_field(name='Credits', value=credits)
+        embed.add_field(name='Credits', value=points)
         embed.set_footer(text='Press a number to donate from these credits.')
         return embed
 
@@ -124,7 +132,8 @@ class CreditSystemMaster(CreditSystemAgent):
                                '%s) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = credits.points + '
                                'EXCLUDED.points', (data[n][0], receiver, donation))
             conn.commit()
-            await ctx.send(to.mention + f' you just received {donation} credit points from {ctx.message.author.display_name}!')
+            await ctx.send(to.mention + f' you just received {donation} credit points from '
+                                        f'{ctx.message.author.display_name}!')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()
