@@ -43,18 +43,11 @@ class CreditSystemListener(EventListener):
             player.points = config['initial_points'] if 'initial_points' in config else 0
         player.sendChatMessage(f"{player.name}, you currently have {player.points} credit points!")
 
-    @staticmethod
-    def add_credits(config: dict, player: CreditPlayer, inc: int):
-        if (player.points + inc) < 0:
-            player.points = 0
-        elif 'max_points' in config and (player.points + inc) > config['max_points']:
-            player.points = config['max_points']
-
     async def addUserPoints(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
         config = self.plugin.get_config(server)
-        self.add_credits(config, player, data['points'])
+        player.points += data['points']
 
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -66,7 +59,7 @@ class CreditSystemListener(EventListener):
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):
-                    self.add_credits(config, player, self.get_points_per_kill(server, data))
+                    player.points += self.get_points_per_kill(server, data)
 
     async def onChatCommand(self, data: dict) -> None:
         if data['subcommand'] == 'credits':
