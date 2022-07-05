@@ -96,6 +96,8 @@ class Player(DataObject):
             })
 
     def update(self, data: dict):
+        if 'active' in data:
+            self.active = data['active']
         if 'side' in data:
             self.side = Side(data['side'])
         if 'slot' in data:
