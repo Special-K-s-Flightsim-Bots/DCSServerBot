@@ -9,36 +9,7 @@ local config	= base.require("DCSServerBotConfig")
 
 dcsbot.registered = false
 dcsbot.banList = {}
-dcsbot.SlotsData = {}
 
--- from perun
-function dcsbot.updateSlots()
-	if dcsbot.SlotsData['coalitions'] == nil then
-		dcsbot.SlotsData['coalitions'] = DCS.getAvailableCoalitions()
-		dcsbot.SlotsData['slots'] = {}
-
-		-- Build up slot table
-		for _j, _i in pairs(dcsbot.SlotsData['coalitions']) do
-			dcsbot.SlotsData['slots'][_j]=DCS.getAvailableSlots(_j)
-
-			for _sj, _si in pairs(dcsbot.SlotsData['slots'][_j]) do
-				dcsbot.SlotsData['slots'][_j][_sj]['countryName']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['onboard_num']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['groupSize']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['groupName']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['callsign']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['task']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['airdromeId']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['helipadName']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['multicrew_place']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['role']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['helipadUnitType']= nil
-				dcsbot.SlotsData['slots'][_j][_sj]['action']= nil
-			end
-		end
-	end
-	return dcsbot.SlotsData
-end
 
 function dcsbot.registerDCSServer(json)
     log.write('DCSServerBot', log.DEBUG, 'Admin: registerDCSServer()')
@@ -149,12 +120,8 @@ function dcsbot.registerDCSServer(json)
             msg.clouds = clouds
         end
         -- slots
-        if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
-            msg.num_slots_blue = table.getn(dcsbot.updateSlots()['slots']['blue'])
-        end
-        if (dcsbot.updateSlots()['slots']['red'] ~= nil) then
-            msg.num_slots_red = table.getn(dcsbot.updateSlots()['slots']['red'])
-        end
+        msg.num_slots_blue = #DCS.getAvailableSlots('blue')
+        msg.num_slots_red = #DCS.getAvailableSlots('red')
         -- players
         plist = net.get_player_list()
         num_players = table.getn(plist)
