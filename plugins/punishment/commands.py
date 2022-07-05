@@ -2,7 +2,7 @@ import discord
 import psycopg2
 from contextlib import closing, suppress
 from copy import deepcopy
-from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Status, Player, Server
+from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server
 from discord.ext import tasks, commands
 from typing import Type, Union, Optional
 from .listener import PunishmentEventListener
@@ -42,6 +42,61 @@ class PunishmentAgent(Plugin):
                 return None
         return self._config[server.name] if server.name in self._config else None
 
+    async def punish(self, server: Server, player: Player, punishment: dict, reason: str):
+        if punishment['action'] == 'ban':
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, '
+                                   '%s, %s) ON CONFLICT DO NOTHING',
+                                   (player.ucid, self.plugin_name, reason))
+                    conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                conn.rollback()
+                self.log.exception(error)
+            finally:
+                self.pool.putconn(conn)
+            # ban them on all servers on this node
+            for s in self.bot.servers.values():
+                s.sendtoDCS({
+                    "command": "ban",
+                    "ucid": player.ucid,
+                    "reason": reason
+                })
+            if player:
+                if player.member:
+                    await self.bot.audit(
+                        f"Member {player.member.display_name} banned by {self.bot.member.name} for {reason}.")
+                    with suppress(Exception):
+                        guild = self.bot.guilds[0]
+                        channel = await player.member.create_dm()
+                        await channel.send(f"You have been banned from the DCS servers on {guild.name} for {reason}.\n"
+                                           f"To retrieve your current points, check out the "
+                                           f"{self.bot.config['BOT']['COMMAND_PREFIX']}penalty command.")
+                else:
+                    await self.bot.audit(f"Player {player.name}(ucid={player.ucid}) banned by {self.bot.member.name} "
+                                         f"for {reason}.")
+            else:
+                await self.bot.audit(f"Player (ucid={player.ucid}) banned by {self.bot.member.name} for {reason}.")
+        if punishment['action'] == 'kick' and player.active:
+            server.kick(player, reason)
+            await self.bot.audit(f"Player {player.name}(ucid={player.ucid}) kicked by {self.bot.member.name} for "
+                                 f"{reason}.")
+        elif punishment['action'] == 'move_to_spec':
+            server.move_to_spectators(player)
+            player.sendChatMessage(f"You've been kicked back to spectators because of: {reason}.")
+            await self.bot.audit(f"Player {player.name}(ucid={player.ucid}) moved to"
+                                 f" spectators by {self.bot.member.name} for {reason}.")
+        elif punishment['action'] == 'credits' and \
+                type(player).__name__ == 'CreditPlayer':
+            player.points -= punishment['penalty']
+            player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!\n"
+                                   f"Your current credit points are: {player.points}")
+            await self.bot.audit(f"Player {player.name}(ucid={player.ucid}) punished"
+                                 f" with credits by {self.bot.member.name} for {reason}.")
+        elif punishment['action'] == 'warn':
+            player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!")
+
     @tasks.loop(minutes=1.0)
     async def check_punishments(self):
         async with self.eventlistener.lock:
@@ -56,6 +111,8 @@ class PunishmentAgent(Plugin):
                             if not config:
                                 continue
                             player: Player = server.get_player(ucid=row['init_id'])
+                            if not player:
+                                continue
                             if 'punishments' in config:
                                 for punishment in config['punishments']:
                                     if row['points'] < punishment['points']:
@@ -66,62 +123,11 @@ class PunishmentAgent(Plugin):
                                             reason = penalty['reason'] if 'reason' in penalty else row['event']
                                             break
                                     if not reason:
-                                        self.log.warning(f"No penalty configured for event {row['event']}.")
+                                        self.log.warning(f"No penalty or reason configured for event {row['event']}.")
                                         reason = row['event']
-                                    if punishment['action'] == 'ban':
-                                        cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, '
-                                                       '%s, %s) ON CONFLICT DO NOTHING',
-                                                       (row['init_id'], self.plugin_name, reason))
-                                        # ban them on all servers on this node
-                                        for s in self.bot.servers.values():
-                                            s.sendtoDCS({
-                                                "command": "ban",
-                                                "ucid": row['init_id'],
-                                                "reason": reason
-                                            })
-                                        if player:
-                                            if player.member:
-                                                await self.bot.audit(f"Member {player.member.display_name} banned by {self.bot.member.name} for {reason}.")
-                                                with suppress(Exception):
-                                                    guild = self.bot.guilds[0]
-                                                    channel = await player.member.create_dm()
-                                                    await channel.send(f"You have been banned from the DCS servers on "
-                                                                       f"{guild.name} for {reason}.\nTo retrieve your "
-                                                                       f"current points, check out the "
-                                                                       f"{self.bot.config['BOT']['COMMAND_PREFIX']}penalty "
-                                                                       f"command.")
-                                            else:
-                                                await self.bot.audit(f"Player {player.name}(ucid={row['init_id']}) "
-                                                                     f"banned by {self.bot.member.name} for {reason}.")
-                                        else:
-                                            await self.bot.audit(f"Player (ucid={row['init_id']}) banned "
-                                                                 f"by {self.bot.member.name} for {reason}.")
-                                    # all other punishments only happen if the player is still in the server
-                                    elif player and player.active and server.status == Status.RUNNING:
-                                        if punishment['action'] == 'kick':
-                                            server.kick(player, reason)
-                                            await self.bot.audit(f"Player {player.name}(ucid={row['init_id']}) kicked "
-                                                                 f"by {self.bot.member.name} for {reason}.")
-                                        elif punishment['action'] == 'move_to_spec':
-                                            server.move_to_spectators(player)
-                                            player.sendChatMessage(f"You've been kicked back to spectators "
-                                                                   f"because of: {reason}.\nYour "
-                                                                   f"current punishment points are: "
-                                                                   f"{row['points']}")
-                                            await self.bot.audit(f"Player {player.name}(ucid={row['init_id']}) moved to"
-                                                                 f" spectators by {self.bot.member.name} for {reason}.")
-                                        elif punishment['action'] == 'credits' and \
-                                                type(player).__name__ == 'CreditPlayer':
-                                            player.points -= punishment['penalty']
-                                            player.sendUserMessage(f"{player.name}, you have been punished for: "
-                                                                   f"{reason}!\nYour current credit points are: "
-                                                                   f"{player.points}")
-                                            await self.bot.audit(f"Player {player.name}(ucid={row['init_id']}) punished"
-                                                                 f" with credits by {self.bot.member.name} for {reason}.")
-                                        elif punishment['action'] == 'warn':
-                                            player.sendUserMessage(f"{player.name}, you have been punished for: "
-                                                                   f"{reason}!\nYour current punishment points are: "
-                                                                   f"{row['points']}")
+                                    await self.punish(server, player, punishment, reason)
+                                    if player.active:
+                                        player.sendChatMessage("Your current punishment points are: {row['points']}")
                                     break
                             cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
                     conn.commit()

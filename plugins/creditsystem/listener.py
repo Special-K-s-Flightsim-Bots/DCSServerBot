@@ -91,6 +91,11 @@ class CreditSystemListener(EventListener):
             if not receiver:
                 player.sendChatMessage(f"Player {name} not found.")
                 return
+            config = self.plugin.get_config(server)
+            if 'max_points' in config and (receiver.points + donation) > config['max_points']:
+                player.sendChatMessage(f"Player {receiver} would overrun the configured maximum points with this "
+                                       f"donation. Aborted.")
+                return
             player.points -= donation
             receiver.points += donation
             player.sendChatMessage(f"You've donated {donation} credit points to player {name}.")

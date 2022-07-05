@@ -67,6 +67,11 @@ class PunishmentEventListener(EventListener):
                         if fhw['time'] <= hours:
                             weight = fhw['weight']
                     points = points * weight
+                # check if an action should be run immediately
+                if 'action' in penalty:
+                    await self.plugin.punish(server, initiator, penalty,
+                                             penalty['reason'] if 'reason' in penalty else penalty['event'])
+                # add the event to the database
                 async with self.lock:
                     conn = self.pool.getconn()
                     try:

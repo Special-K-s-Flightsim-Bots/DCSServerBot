@@ -4,8 +4,9 @@ from contextlib import closing
 from copy import deepcopy
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, Server
 from discord.ext import commands
-from typing import Optional
+from typing import Optional, cast
 from .listener import CreditSystemListener
+from .player import CreditPlayer
 
 
 class CreditSystemAgent(Plugin):
@@ -120,14 +121,42 @@ class CreditSystemMaster(CreditSystemAgent):
         if data[n][3] < donation:
             await ctx.send(f"You can't donate {donation} points, as you only have {data[n][3]} in total!")
             return
+        # now see, if one of the parties is an active player already...
+        p_donor: Optional[CreditPlayer] = None
+        for server in self.bot.servers.values():
+            p_donor = cast(CreditPlayer, server.get_player(ucid=data[n][2]))
+            if p_donor:
+                break
+        p_receiver: Optional[CreditPlayer] = None
+        for server in self.bot.servers.values():
+            p_receiver = cast(CreditPlayer, server.get_player(ucid=receiver))
+            if p_receiver:
+                break
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s',
-                               (donation, data[n][0], data[n][2]))
-                cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) VALUES (%s, %s, '
-                               '%s) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = credits.points + '
-                               'EXCLUDED.points', (data[n][0], receiver, donation))
+                if 'max_points' in self.locals['configs'][0]:
+                    if not p_receiver:
+                        cursor.execute('SELECT COALESCE(SUM(points), 0) FROM credits WHERE campaign_id = %s AND '
+                                       'player_ucid = %s', (data[n][0], receiver))
+                        current_points = cursor.fetchone()[0]
+                    else:
+                        current_points = p_receiver.points
+                    if (current_points + donation) > self.locals['configs'][0]['max_points']:
+                        await ctx.send(f'Member {to.display_name} would overrun the configured maximum points with '
+                                       f'this donation. Aborted.')
+                        return
+                if p_donor:
+                    p_donor.points -= donation
+                else:
+                    cursor.execute('UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s',
+                                   (donation, data[n][0], data[n][2]))
+                if p_receiver:
+                    p_receiver += donation
+                else:
+                    cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) VALUES (%s, %s, '
+                                   '%s) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = credits.points + '
+                                   'EXCLUDED.points', (data[n][0], receiver, donation))
             conn.commit()
             await ctx.send(to.mention + f' you just received {donation} credit points from '
                                         f'{ctx.message.author.display_name}!')
