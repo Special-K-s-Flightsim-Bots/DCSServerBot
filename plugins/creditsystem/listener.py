@@ -46,7 +46,6 @@ class CreditSystemListener(EventListener):
     async def addUserPoints(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
-        config = self.plugin.get_config(server)
         player.points += data['points']
 
     async def onGameEvent(self, data: dict) -> None:
