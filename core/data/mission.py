@@ -64,7 +64,7 @@ class Mission(DataObject):
         if 'num_slots_blue' in data:
             self.num_slots_blue = data['num_slots_blue']
         if 'num_slots_red' in data:
-            self.num_slots_blue = data['num_slots_red']
+            self.num_slots_red = data['num_slots_red']
         if 'date' in data:
             if data['date']['Year'] >= 1970:
                 self.date = datetime(data['date']['Year'], data['date']['Month'], data['date']['Day'], 0, 0)

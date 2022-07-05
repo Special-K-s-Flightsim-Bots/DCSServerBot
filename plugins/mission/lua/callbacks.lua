@@ -103,14 +103,6 @@ function mission.onMissionLoadEnd()
             table.insert(msg.airbases, airbase)
         end
     end
-    --[[
-    if (dcsbot.updateSlots()['slots']['blue'] ~= nil) then
-        msg.num_slots_blue = table.getn(dcsbot.updateSlots()['slots']['blue'])
-    end
-    if (dcsbot.updateSlots()['slots']['red'] ~= nil) then
-        msg.num_slots_red = table.getn(dcsbot.updateSlots()['slots']['red'])
-    end
-    ]]--
     utils.sendBotTable(msg)
 end
 

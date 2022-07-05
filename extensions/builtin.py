@@ -43,7 +43,7 @@ class SRS(Extension):
     async def is_running(self) -> bool:
         if self.process:
             return self.process.poll() is None
-        server_ip = self.locals['Server Settings']['server_ip']
+        server_ip = self.locals['Server Settings']['server_ip'] if 'server_ip' in self.locals['Server Settings'] else '127.0.0.1'
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'
         return utils.is_open(server_ip, self.locals['Server Settings']['server_port'])
