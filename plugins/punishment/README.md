@@ -9,17 +9,16 @@ The punishment is configured with a file named config\punishment.json. You'll fi
   "configs": [
     {
       "penalties": [
-        { "event": "kill", "reason": "Killing a team member", "human": 30, "AI": 18 },
+        { "event": "kill", "reason": "Killing a team member", "human": 30, "AI": 18, "action": "credits", "penalty": 10 },
         { "event": "collision_kill", "reason": "Killing a team member during a collision", "human": 20, "AI": 12 },
         { "event": "friendly_fire", "reason": "Friendly fire on a team member", "human": 12, "AI": 8 },
         { "event": "collision_hit", "reason": "Colliding with a team member", "human": 5, "AI": 1 },
-        { "event": "zone-bombing", "reason": "Bombing in a safe zone", "default": 50 }
+        { "event": "zone-bombing", "reason": "Bombing in a safe zone", "default": 50 }   -- example of a custom event
       ],
       "punishments": [
         { "points": 100, "action": "ban" },
         { "points": 60, "action": "kick" },
         { "points": 40, "action": "move_to_spec" },
-        { "points": 12, "action": "credits", "penalty": 10, "delay": 10 },
         { "points": 1, "action": "warn" }
       ],
       "exemptions": [
@@ -50,7 +49,9 @@ The punishment is configured with a file named config\punishment.json. You'll fi
 ```
 ### Penalties
 The number of penalty points that a player "earns", is configured here. Collisions are hits where the players aircraft is being used as a weapon.
-You can add own events that you can use from inside the mission environment (see below), like the example here with "zone-bombing".
+You can add own events that you can use from inside the mission environment (see below), like the example here with "zone-bombing".<br/>
+If you use the inline "action"-element, you can already trigger any action like a "move_to_spec" or "credits" when someone
+FFs or kills a team member.
 
 **ATTENTION:** Multiple events, that happen inbetween a minute, are calculated as a single event. This is on purpose, to avoid too many punishments when a user unintentionally dropped a CBU onto something.
 
