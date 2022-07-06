@@ -64,7 +64,11 @@ class CreditSystemListener(EventListener):
         if data['subcommand'] == 'credits':
             server: Server = self.bot.servers[data['server_name']]
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['from_id']))
-            player.sendChatMessage(f"You currently have {player.points} credit points.")
+            message = f"You currently have {player.points} credit points"
+            if player.deposit > 0:
+                message += f", {player.deposit} on deposit"
+            message += '.'
+            player.sendChatMessage(message)
         elif data['subcommand'] == 'donate':
             server: Server = self.bot.servers[data['server_name']]
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['from_id']))

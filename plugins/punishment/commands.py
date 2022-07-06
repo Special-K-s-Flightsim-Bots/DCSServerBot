@@ -110,7 +110,7 @@ class PunishmentAgent(Plugin):
                             # we are not initialized correctly yet
                             if not config:
                                 continue
-                            player: Player = server.get_player(ucid=row['init_id'])
+                            player: Player = server.get_player(ucid=row['init_id'], active=True)
                             if not player:
                                 continue
                             if 'punishments' in config:

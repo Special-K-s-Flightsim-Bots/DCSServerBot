@@ -1,7 +1,11 @@
+from __future__ import annotations
 import re
-from core import EventListener, Plugin, Server, Side, Status
-from typing import Union, cast
+from core import EventListener, Plugin, Server, Side, Status, utils
+from typing import Union, cast, TYPE_CHECKING
 from plugins.creditsystem.player import CreditPlayer
+
+if TYPE_CHECKING:
+    import discord
 
 
 class SlotBlockingListener(EventListener):
@@ -10,8 +14,25 @@ class SlotBlockingListener(EventListener):
 
     async def registerDCSServer(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
-        config = self.plugin.get_config(server)
+        config: dict = self.plugin.get_config(server)
         if config:
+            # migrate discord roles to ucids
+            if 'VIP' in config and 'discord' in config['VIP']:
+                if isinstance(config['VIP']['discord'], str):
+                    roles = [config['VIP']['discord']]
+                else:
+                    roles = config['VIP']['discord']
+                if 'ucid' in config['VIP']:
+                    ucids = set(config['VIP']['ucid'])
+                else:
+                    ucids = set[str]
+                for member in self.bot.get_all_members():  # type: discord.Member
+                    if member.bot:
+                        continue
+                    if utils.check_roles(roles, member):
+                        ucid = self.bot.get_ucid_by_member(member)
+                        ucids.add(ucid)
+                config['VIP']['ucid'] = list(ucids)
             server.sendtoDCS({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,
@@ -45,23 +66,51 @@ class SlotBlockingListener(EventListener):
                         return unit['costs']
         return 0
 
+    async def onPlayerConnect(self, data: dict) -> None:
+        server: Server = self.bot.servers[data['server_name']]
+        config = self.plugin.get_config(server)
+        if not config:
+            return
+        if 'VIP' in config and 'audit' in config['VIP'] and config['VIP']['audit'] and 'ucid' in config['VIP']:
+            ucid = config['VIP']['ucid']
+            if (isinstance(ucid, str) and data['ucid'] == ucid) or (isinstance(ucid, list) and data['ucid'] in ucid):
+                member = self.bot.get_member_by_ucid(data['ucid'])
+                if member:
+                    message = f"VIP member {member.display_name} joined"
+                else:
+                    message = f"VIP user {data['name']}(ucid={data['ucid']} joined"
+                await self.bot.audit(message, server=server)
+
     async def onPlayerChangeSlot(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if not config:
             return
         if 'side' in data and 'use_reservations' in config and config['use_reservations']:
-            player: CreditPlayer = cast(CreditPlayer, server.get_player(ucid=data['ucid']))
+            player: CreditPlayer = cast(CreditPlayer, server.get_player(ucid=data['ucid'], active=True))
             if player.deposit > 0:
                 player.points -= player.deposit
                 player.deposit = 0
-            if Side(data['side']) != Side.SPECTATOR:
+            # if mission statistics are enabled, use BIRTH events instead
+            if not self.bot.config.getboolean(server.installation, 'MISSION_STATISTICS') and \
+                    Side(data['side']) != Side.SPECTATOR:
                 # only pilots have to "pay" for their plane
                 if int(data['sub_slot']) == 0:
-                    # slot change - credit will be taken
-                    costs = self.get_costs(server, data)
-                    if costs > 0:
-                        player.deposit = costs
+                    player.deposit = self.get_costs(server, data)
+
+    async def onMissionEvent(self, data):
+        if data['eventName'] == 'S_EVENT_BIRTH':
+            initiator = data['initiator']
+            # check, if they are a human player
+            if 'name' not in initiator:
+                return
+            server: Server = self.bot.servers[data['server_name']]
+            config = self.plugin.get_config(server)
+            if 'use_reservations' in config and config['use_reservations']:
+                player: CreditPlayer = cast(CreditPlayer, server.get_player(name=initiator['name'], active=True))
+                # only pilots have to "pay" for their plane
+                if player.sub_slot == 0:
+                    player.deposit = self.get_costs(server, player)
 
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

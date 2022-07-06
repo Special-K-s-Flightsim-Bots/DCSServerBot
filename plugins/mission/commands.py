@@ -168,7 +168,12 @@ class Mission(Plugin):
             return
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
             server.restart_pending = True
-            if server.status == Status.RUNNING and server.is_populated():
+            if server.status == Status.RUNNING:
+                if server.is_populated() and not await utils.yn_question(self, ctx,
+                                                                         'People are flying on the server atm.\n'
+                                                                         'Do you really want to restart the mission?'):
+                    await ctx.send('Aborted.')
+                    return
                 if delay > 0:
                     message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
                 else:
@@ -230,6 +235,11 @@ class Mission(Plugin):
             if not num:
                 num = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '🔄')
             if num >= 0:
+                if server.is_populated() and not await utils.yn_question(self, ctx,
+                                                                         'People are flying on the server atm.\nDo you '
+                                                                         'really want to restart/change the mission?'):
+                    await ctx.send('Aborted.')
+                    return
                 mission = missions[num]
                 mission = mission[(mission.rfind('\\') + 1):-4]
                 # make sure that the Scheduler doesn't interfere
@@ -369,7 +379,7 @@ class Mission(Plugin):
             except asyncio.TimeoutError:
                 # check if the server process is still existent
                 max_hung_minutes = int(self.bot.config['DCS']['MAX_HUNG_MINUTES'])
-                if max_hung_minutes > 0 and ('PID' not in server or psutil.pid_exists(server.pid)):
+                if max_hung_minutes > 0 and (server.pid != -1 and psutil.pid_exists(server.pid)):
                     self.log.warning(f"Server \"{server.name}\" is not responding.")
                     # process might be in a hung state, so try again for a specified amount of times
                     if server.name in self.hung and self.hung[server.name] >= (max_hung_minutes - 1):

@@ -132,14 +132,14 @@ async def yn_question(self, ctx, question: str, msg: Optional[str] = None) -> bo
     return react.emoji == '🇾'
 
 
-def check_roles(roles: list[str], author: discord.Member) -> bool:
+def check_roles(roles: list[str], member: discord.Member) -> bool:
     valid_roles = set()
     for role in roles:
         if 'ROLES' not in config or role not in config['ROLES']:
             valid_roles.add(role)
         else:
             valid_roles |= set([x.strip() for x in config['ROLES'][role].split(',')])
-    for role in author.roles:
+    for role in member.roles:
         if role.name in valid_roles:
             return True
     return False

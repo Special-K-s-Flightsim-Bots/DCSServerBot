@@ -131,7 +131,7 @@ class MissionEventListener(EventListener):
                 await chat_channel.send('{} connected to server'.format(data['name']))
         finally:
             player: Player = server.get_player(ucid=data['ucid'])
-            if not player:
+            if not player or player.id == 1:
                 player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=data['id'],
                                                          name=data['name'], active=data['active'], side=Side(data['side']),
                                                          ucid=data['ucid'], ipaddr=data['ipaddr'], banned=False)

@@ -55,6 +55,10 @@ class SlotBlocking(Plugin):
                     self._config[server.name] = specific
                 elif default and specific:
                     merged = {}
+                    if 'VIP' in specific:
+                        merged['VIP'] = specific['VIP']
+                    elif 'VIP' in default:
+                        merged['VIP'] = default['VIP']
                     if 'use_reservations' in specific:
                         merged['use_reservations'] = specific['use_reservations']
                     elif 'use_reservations' in default:
