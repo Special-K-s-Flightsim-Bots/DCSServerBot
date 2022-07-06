@@ -369,7 +369,7 @@ class Mission(Plugin):
             except asyncio.TimeoutError:
                 # check if the server process is still existent
                 max_hung_minutes = int(self.bot.config['DCS']['MAX_HUNG_MINUTES'])
-                if max_hung_minutes > 0 and ('PID' not in server or psutil.pid_exists(server.pid)):
+                if max_hung_minutes > 0 and (server.pid != -1 and psutil.pid_exists(server.pid)):
                     self.log.warning(f"Server \"{server.name}\" is not responding.")
                     # process might be in a hung state, so try again for a specified amount of times
                     if server.name in self.hung and self.hung[server.name] >= (max_hung_minutes - 1):
