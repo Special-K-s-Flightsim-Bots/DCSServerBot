@@ -24,9 +24,8 @@ class PlaytimesPerPlane(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
-        if period:
-            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
-            sql += ' AND ' + flt.filter()
+        self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += 'GROUP BY s.slot ORDER BY 2'
 
         conn = self.pool.getconn()
@@ -69,8 +68,7 @@ class PlaytimesPerServer(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
-        if period:
-            sql += ' AND ' + flt.filter()
+        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += 'GROUP BY 1'
 
         conn = self.pool.getconn()
@@ -112,8 +110,7 @@ class PlaytimesPerMap(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
-        if period:
-            sql += ' AND ' + flt.filter()
+        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += 'GROUP BY m.mission_theatre'
 
         conn = self.pool.getconn()
@@ -156,8 +153,7 @@ class RecentActivities(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
-        if period:
-            sql += ' AND ' + flt.filter()
+        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += 'GROUP BY day'
 
         conn = self.pool.getconn()
@@ -197,8 +193,7 @@ class FlightPerformance(report.GraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\''
-        if period:
-            sql += ' AND ' + flt.filter()
+        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         conn = self.pool.getconn()
         try:
@@ -248,8 +243,7 @@ class KDRatio(report.MultiGraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
-        if period:
-            sql += ' AND ' + flt.filter()
+        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         retval = []
         conn = self.pool.getconn()
@@ -311,8 +305,7 @@ class KDRatio(report.MultiGraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
-        if period:
-            sql += ' AND ' + flt.filter()
+        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         retval = False
         conn = self.pool.getconn()
@@ -364,8 +357,7 @@ class KDRatio(report.MultiGraphElement):
             sql += 'AND p.ucid = %s '
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
-        if period:
-            sql += ' AND ' + flt.filter()
+        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         retval = False
         conn = self.pool.getconn()

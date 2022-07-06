@@ -3,7 +3,7 @@ import string
 from abc import ABC, abstractmethod
 from contextlib import closing
 from core import DCSServerBot, utils, Pagination, ReportEnv
-from typing import Any
+from typing import Any, Optional
 
 
 class StatisticsFilter(ABC):
@@ -14,12 +14,12 @@ class StatisticsFilter(ABC):
 
     @staticmethod
     @abstractmethod
-    def filter(bot: DCSServerBot, server_name: str, period: str) -> str:
+    def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         pass
 
     @staticmethod
     @abstractmethod
-    def format(bot: DCSServerBot, server_name: str, period: str) -> str:
+    def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         pass
 
     @staticmethod
@@ -39,14 +39,14 @@ class PeriodFilter(StatisticsFilter):
         return period in ['all', 'day', 'week', 'month', 'year']
 
     @staticmethod
-    def filter(bot: DCSServerBot, server_name: str, period: str) -> str:
+    def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         if period in [None, 'all']:
             return '1 = 1'
         else:
             return f'DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
 
     @staticmethod
-    def format(bot: DCSServerBot, server_name: str, period: str) -> str:
+    def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         if period in [None, 'all']:
             return 'Overall'
         elif period == 'day':
@@ -64,12 +64,12 @@ class CampaignFilter(StatisticsFilter):
         return period in [x[0] for x in utils.get_all_campaigns(bot)]
 
     @staticmethod
-    def filter(bot: DCSServerBot, server_name: str, period: str) -> str:
+    def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         return f"tsrange(s.hop_on, s.hop_off) && (SELECT tsrange(start, stop) FROM campaigns " \
                f"WHERE name='{period}')"
 
     @staticmethod
-    def format(bot: DCSServerBot, server_name: str, period: str) -> str:
+    def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         return f'Campaign "{period}"'
 
 
@@ -79,20 +79,28 @@ class MixedFilter(StatisticsFilter):
         return period is None
 
     @staticmethod
-    def filter(bot: DCSServerBot, server_name: str, period: str) -> str:
-        if server_name in bot.servers:
-            campaign = utils.get_running_campaign(bot.servers[server_name])
-            if campaign:
-                return CampaignFilter.filter(bot, server_name, campaign)
-        return PeriodFilter.filter(bot, server_name, period)
+    def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        if not server_name and len(bot.servers) == 1:
+            server = bot.servers.values()[0]
+        elif server_name in bot.servers:
+            server = bot.servers[server_name]
+        else:
+            return PeriodFilter.filter(bot, period)
+        campaign = utils.get_running_campaign(server)
+        if campaign:
+            return CampaignFilter.filter(bot, campaign, server_name)
 
     @staticmethod
-    def format(bot: DCSServerBot, server_name: str, period: str) -> str:
-        if server_name in bot.servers:
-            campaign = utils.get_running_campaign(bot.servers[server_name])
-            if campaign:
-                return CampaignFilter.format(bot, server_name, campaign)
-        return PeriodFilter.format(bot, server_name, period)
+    def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        if not server_name and len(bot.servers) == 1:
+            server = bot.servers.values()[0]
+        elif server_name in bot.servers:
+            server = bot.servers[server_name]
+        else:
+            return PeriodFilter.format(bot, period)
+        campaign = utils.get_running_campaign(server)
+        if campaign:
+            return CampaignFilter.format(bot, campaign, server_name)
 
 
 class MissionStatisticsFilter(StatisticsFilter):
@@ -101,14 +109,14 @@ class MissionStatisticsFilter(StatisticsFilter):
         return PeriodFilter.supports(bot, period)
 
     @staticmethod
-    def filter(bot: DCSServerBot, server_name: str, period: str) -> str:
-        if period in [None, 'all']:
+    def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        if period in [None, 'all', 'all']:
             return '1 = 1'
         else:
             return f'DATE(time) > (DATE(NOW()) - interval \'1 {period}\')'
 
     @staticmethod
-    def format(bot: DCSServerBot, server_name: str, period: str) -> str:
+    def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         return PeriodFilter.format(bot, server_name, period)
 
 
