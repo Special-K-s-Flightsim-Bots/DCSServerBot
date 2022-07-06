@@ -98,7 +98,7 @@ function dcsbot.registerDCSServer(json)
         msg.weather = weather
         local clouds = weather.clouds
         if clouds.preset ~= nil then
-            local presets = nil
+            local presets
             local func, err = loadfile(lfs.currentdir() .. '/Config/Effects/clouds.lua')
 
             local env = {
