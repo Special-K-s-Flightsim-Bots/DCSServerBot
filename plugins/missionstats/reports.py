@@ -31,9 +31,8 @@ class Sorties(report.EmbedElement):
     def render(self, member: Union[discord.Member, str], period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT mission_id, init_type, init_cat, event, place, time FROM missionstats WHERE event IN " \
               "('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
-        if period:
-            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
-            sql += ' AND ' + flt.filter()
+        self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot, period)
         if isinstance(member, discord.Member):
             sql += " AND init_id IN (SELECT ucid FROM players WHERE discord_id = %s)"
         else:
@@ -140,9 +139,8 @@ class ModuleStats1(report.EmbedElement):
         sql = "SELECT COUNT(*) as num, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) as total, " \
               "ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS average FROM statistics s " \
               "WHERE s.player_ucid = %(ucid)s AND s.slot = %(module)s"
-        if period:
-            self.env.embed.title = flt.format() + ' ' + self.env.embed.title
-            sql += ' AND ' + flt.filter()
+        self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot, period)
 
         conn = self.pool.getconn()
         try:
@@ -169,8 +167,7 @@ class ModuleStats2(report.EmbedElement):
               "'S_EVENT_HIT' THEN 1 ELSE 0 END), 0) AS hits, COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_KILL' THEN 1 " \
               "ELSE 0 END), 0) AS kills FROM missionstats m, statistics s WHERE m.mission_id = s.mission_id AND " \
               "m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) "
-        if period:
-            sql += 'AND ' + flt.filter()
+        sql += 'AND ' + flt.filter(self.env.bot, period)
         sql += "AND m.init_id = %(ucid)s AND m.init_type = %(module)s GROUP BY 1, 2, 3) x WHERE weapon <> 'Gun' GROUP " \
                "BY 1, 3 HAVING MAX(shots) > 0 AND MAX(target_cat) IS NOT NULL ORDER BY 2,3,4 "
 
@@ -214,8 +211,8 @@ class Refuellings(report.EmbedElement):
     def render(self, member: Union[discord.Member, str], period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT init_type, COUNT(*) FROM missionstats WHERE EVENT = 'S_EVENT_REFUELING_STOP'"
         if period:
-            self.env.embed.title = flt.format(self.env.bot, '', period) + ' ' + self.env.embed.title
-            sql += ' AND ' + flt.filter(self.env.bot, '', period)
+            self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
+            sql += ' AND ' + flt.filter(self.env.bot, period)
         if isinstance(member, discord.Member):
             sql += " AND init_id IN (SELECT ucid FROM players WHERE discord_id = %s)"
         else:
