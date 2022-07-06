@@ -148,10 +148,10 @@ class GameMasterAgent(Plugin):
         ids = names = times = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            names += data[i]['name'] + '@' + data[i]['server_name'] + '\n'
+            names += data[i]['name'] + ' / ' + data[i]['server_name'] + '\n'
             times += f"{data[i]['start']:%y-%m-%d} - " + (f"{data[i]['stop']:%y-%m-%d}" if data[i]['stop'] else '') + '\n'
         embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Name', value=names)
+        embed.add_field(name='Name / Server', value=names)
         embed.add_field(name='Start/End', value=times)
         embed.set_footer(text='Press a number to display details about that specific campaign.')
         return embed
