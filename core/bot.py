@@ -455,8 +455,6 @@ class DCSServerBot(commands.Bot):
         return True
 
     async def get_server(self, ctx: Union[Context, discord.Message, str]) -> Optional[Server]:
-        if len(self.servers) == 1:
-            return list(self.servers.values())[0]
         for server_name, server in self.servers.items():
             if isinstance(ctx, discord.ext.commands.context.Context) or isinstance(ctx, discord.Message):
                 if server.status == Status.UNREGISTERED:
