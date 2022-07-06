@@ -44,7 +44,7 @@ function dcsbot.startMission(json)
 	local mission_list = net.missionlist_get()
 	utils.saveSettings({
 		missionList=mission_list["missionList"],
-		listStartIndex=mission_list["listStartIndex"]
+		listStartIndex=json.id
 	})
 end
 

@@ -279,9 +279,13 @@ class Server(DataObject):
         await self.start()
 
     async def loadMission(self, mission_id: int) -> None:
+        stopped = self.status == Status.STOPPED
         self.sendtoDCS({"command": "startMission", "id": mission_id})
-        # wait for a status change (STOPPED or LOADING)
-        await self.wait_for_status_change([Status.STOPPED, Status.LOADING])
+        if not stopped:
+            # wait for a status change (STOPPED or LOADING)
+            await self.wait_for_status_change([Status.STOPPED, Status.LOADING])
+        else:
+            self.sendtoDCS({"command": "start_server"})
         # wait until we are running again
         try:
             await self.wait_for_status_change([Status.RUNNING, Status.PAUSED])
@@ -290,9 +294,13 @@ class Server(DataObject):
             await self.start()
 
     async def loadNextMission(self) -> None:
+        stopped = self.status == Status.STOPPED
         self.sendtoDCS({"command": "startNextMission"})
-        # wait for a status change (STOPPED or LOADING)
-        await self.wait_for_status_change([Status.STOPPED, Status.LOADING])
+        if not stopped:
+            # wait for a status change (STOPPED or LOADING)
+            await self.wait_for_status_change([Status.STOPPED, Status.LOADING])
+        else:
+            self.sendtoDCS({"command": "start_server"})
         # wait until we are running again
         try:
             await self.wait_for_status_change([Status.RUNNING, Status.PAUSED])
