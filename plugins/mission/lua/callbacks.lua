@@ -6,6 +6,8 @@ local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local config	= base.require("DCSServerBotConfig")
 
+dcsbot.userInfo = dcsbot.userInfo or {}
+
 local mission = mission or {}
 mission.last_to_landing = {}
 mission.last_change_slot = {}

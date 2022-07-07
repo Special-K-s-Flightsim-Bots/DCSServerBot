@@ -34,12 +34,14 @@ end
 
 function admin.onPlayerTryChangeSlot(playerID, side, slotID)
 	log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerTryChangeSlot()')
+	local msg = {}
 	groupname = DCS.getUnitProperty(slotID, DCS.UNIT_GROUPNAME)
 	if groupname == nil or groupname == '' then
-        msg.command = 'ban'
-		msg.ucid = net.get_player_info(playerID, 'ucid')
-        msg.reason = 'Hacking'
-    	utils.sendBotTable(msg)
+		ucid = net.get_player_info(playerID, 'ucid')
+		name = net.get_player_info(playerID, 'name')
+        msg.command = 'sendMessage'
+        msg.message = 'User ' .. name .. '(ucid=' .. ucid .. ') tried to use an empty slot (possible hacking)!'
+    	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
 		return false
 	end
 end

@@ -5,7 +5,7 @@ local utils = base.require("DCSServerBotUtils")
 
 local mod_dictionary= require('dictionary')
 
-dcsbot.userInfo = {}
+dcsbot.userInfo = dcsbot.userInfo or {}
 
 function dcsbot.getMissionDetails(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionDetails()')
