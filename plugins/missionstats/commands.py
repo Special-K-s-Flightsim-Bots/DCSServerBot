@@ -107,10 +107,10 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
             await report.render(member_name=member.display_name if isinstance(member, discord.Member) else member,
                                 ucid=ucid, period=period, start_index=n, modules=modules, flt=flt)
 
-    @commands.command(description='Refuelling statistics', usage='[member] [period]')
+    @commands.command(description='Refueling statistics', usage='[member] [period]')
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def refuellings(self, ctx, member: Optional[Union[discord.Member, str]], *params):
+    async def refuelings(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         try:
             timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
             member, period = parse_params(self, ctx, member, *params)
@@ -121,7 +121,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
             if period and not flt:
                 await ctx.send('Please provide a valid period or campaign name.')
                 return
-            report = Report(self.bot, self.plugin_name, 'refuellings.json')
+            report = Report(self.bot, self.plugin_name, 'refuelings.json')
             env = await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
                                       member_name=member.display_name if isinstance(member, discord.Member) else member,
                                       period=period, flt=flt)

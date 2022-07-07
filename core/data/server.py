@@ -83,6 +83,8 @@ class Server(DataObject):
             else:
                 return None
         for player in self.players.values():
+            if player.id == 1:
+                continue
             if 'active' in kwargs and player.active != kwargs['active']:
                 continue
             if 'ucid' in kwargs and player.ucid == kwargs['ucid']:

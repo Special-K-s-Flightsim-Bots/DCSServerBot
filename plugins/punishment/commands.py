@@ -1,5 +1,6 @@
 import discord
 import psycopg2
+import string
 from contextlib import closing, suppress
 from copy import deepcopy
 from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server
@@ -89,7 +90,9 @@ class PunishmentAgent(Plugin):
                                  f" spectators by {self.bot.member.name} for {reason}.")
         elif punishment['action'] == 'credits' and \
                 type(player).__name__ == 'CreditPlayer':
+            old_points = player.points
             player.points -= punishment['penalty']
+            player.audit('punishment', old_points, f"Punished for {reason}")
             player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!\n"
                                    f"Your current credit points are: {player.points}")
             await self.bot.audit(f"Player {player.name}(ucid={player.ucid}) punished"
@@ -257,31 +260,58 @@ class PunishmentMaster(PunishmentAgent):
     @commands.command(description='Displays your current penalty points')
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def penalty(self, ctx):
+    async def penalty(self, ctx, member: Optional[Union[discord.Member, str]]):
+        if member:
+            if not utils.check_roles(['DCS Admin'], ctx.message.author):
+                await ctx.send('You need the DCS Admin role to use this command.')
+                return
+            if isinstance(member, str):
+                ucid = member
+                member = self.bot.get_member_by_ucid(ucid) or ucid
+            else:
+                ucid = self.bot.get_ucid_by_member(member)
+                if not ucid:
+                    await ctx.send(f"Member {member.display_name} is not linked to any DCS user.")
+                    return
+        else:
+            member = ctx.message.author
+            ucid = self.bot.get_ucid_by_member(ctx.message.author)
+            if not ucid:
+                await ctx.send(f"Use {self.bot.config['BOT']['COMMAND_PREFIX']}linkme to link your account.")
+                return
         conn = self.pool.getconn()
         try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("SELECT p.name, COALESCE(SUM(e.points), 0) FROM pu_events e, players p WHERE e.init_id "
-                               "= p.ucid AND p.discord_id = %s GROUP BY p.name ORDER BY 2 DESC",
-                               (ctx.message.author.id, ))
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute("SELECT event, points, time FROM pu_events WHERE init_id = %s ORDER BY time DESC",
+                               (ucid, ))
                 if cursor.rowcount == 0:
-                    await ctx.send('You currently have 0 penalty points.')
+                    await ctx.send(f'{member.display_name} has no penalty points.')
                     return
-                embed = discord.Embed(title='Penalty Points', color=discord.Color.blue())
-                embed.description = 'You currently have these penalty points:'
-                names = points = ''
+                embed = discord.Embed(
+                    title="Penalty Points for {}".format(member.display_name if isinstance(member, discord.Member) else member),
+                    color=discord.Color.blue())
+                times = events = points = ''
+                total = 0.0
                 for row in cursor.fetchall():
-                    names += row[0] + '\n'
-                    points += f"{row[1]:.2f}\n"
-                embed.add_field(name='DCS Name', value=names)
+                    times += f"{row['time']:%m/%d %H:%M}\n"
+                    events += string.capwords(' '.join(row['event'].split('_'))) + '\n'
+                    points += f"{row['points']:.2f}\n"
+                    total += row['points']
+                embed.description = f"Total penalty points: {total:.2f}"
+                embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
+                embed.add_field(name='Time', value=times)
+                embed.add_field(name='Event', value=events)
                 embed.add_field(name='Points', value=points)
-                cursor.execute("SELECT COUNT(*) FROM bans b, players p WHERE p.discord_id = %s AND b.ucid = p.ucid",
-                               (ctx.message.author.id, ))
+                embed.set_footer(text='Points decay over time, you might see different results on different days.')
+                cursor.execute("SELECT COUNT(*) FROM bans b WHERE b.ucid = %s", (ucid, ))
                 if cursor.fetchone()[0] > 0:
                     unban = self.read_unban_config()
                     if unban:
                         embed.set_footer(text=f"You are currently banned.\nAutomatic unban will happen, if your "
                                               f"points decayed below {unban}.")
+                    else:
+                        embed.set_footer(text=f"You are currently banned.\n"
+                                              f"Please contact an admin if you want to get unbanned.")
                 timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
                 await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
         except (Exception, psycopg2.DatabaseError) as error:
