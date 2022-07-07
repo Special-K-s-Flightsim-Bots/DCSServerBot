@@ -89,6 +89,8 @@ class MixedFilter(StatisticsFilter):
         campaign = utils.get_running_campaign(server)
         if campaign:
             return CampaignFilter.filter(bot, campaign, server_name)
+        else:
+            return PeriodFilter.filter(bot, period, server_name)
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
@@ -101,6 +103,8 @@ class MixedFilter(StatisticsFilter):
         campaign = utils.get_running_campaign(server)
         if campaign:
             return CampaignFilter.format(bot, campaign, server_name)
+        else:
+            return PeriodFilter.format(bot, period, server_name)
 
 
 class MissionStatisticsFilter(StatisticsFilter):
