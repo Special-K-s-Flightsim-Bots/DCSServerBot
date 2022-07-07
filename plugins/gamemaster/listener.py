@@ -2,9 +2,6 @@ from __future__ import annotations
 import discord
 import psycopg2
 from contextlib import closing
-
-from discord import Message
-
 from core import EventListener, Side, Coalition, Channel
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
@@ -15,7 +12,7 @@ if TYPE_CHECKING:
 
 class GameMasterEventListener(EventListener):
 
-    async def onChatMessage(self, data) -> Message:
+    async def onChatMessage(self, data) -> None:
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['from_id'])
         chat_channel: Optional[discord.TextChannel] = None
@@ -29,7 +26,7 @@ class GameMasterEventListener(EventListener):
             chat_channel = server.get_channel(Channel.CHAT)
         if chat_channel:
             if 'from_id' in data and data['from_id'] != 1 and len(data['message']) > 0:
-                return await chat_channel.send(data['from_name'] + ': ' + data['message'])
+                await chat_channel.send(data['from_name'] + ': ' + data['message'])
 
     def get_coalition(self, player: Player) -> Optional[Coalition]:
         if not player.coalition:

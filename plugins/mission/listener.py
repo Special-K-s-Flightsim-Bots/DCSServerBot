@@ -9,13 +9,31 @@ if TYPE_CHECKING:
 
 class MissionEventListener(EventListener):
     EVENT_TEXTS = {
-        'takeoff': '{} player {} took off from {}.',
-        'landing': '{} player {} landed at {}.',
-        'eject': '{} player {} ejected.',
-        'crash': '{} player {} crashed.',
-        'pilot_death': '{} player {} died.',
-        'kill': '{} {} in {} killed {} {} in {} with {}.',
-        'friendly_fire': '**{} {} FRIENDLY FIRE onto {} with {}.**'
+        Side.BLUE: {
+            'takeoff': '```ini\n[BLUE player {} took off from {}.]```',
+            'landing': '```ini\n[BLUE player {} landed at {}.]```',
+            'eject': '```ini\n[BLUE player {} ejected.]```',
+            'crash': '```ini\n[BLUE player {} crashed.]```',
+            'pilot_death': '```ini\n[BLUE player {} died.]```',
+            'kill': '```ini\n[BLUE {} in {} killed {} {} in {} with {}.]```',
+            'friendly_fire': '```ini\n[BLUE {} FRIENDLY FIRE onto {} with {}.]```',
+            'change_slot': '```ini\n[{} player {} occupied {} {}]```',
+            'disconnect': '```ini\n[BLUE player {} disconnected]```'
+        },
+        Side.RED: {
+            'takeoff': '```css\n[RED player {} took off from {}.]```',
+            'landing': '```css\n[RED player {} landed at {}.]```',
+            'eject': '```css\n[RED player {} ejected.]```',
+            'crash': '```css\n[RED player {} crashed.]```',
+            'pilot_death': '```css\n[RED player {} died.]```',
+            'kill': '```css\n[RED {} in {} killed {} {} in {} with {}.]```',
+            'friendly_fire': '```css\n[RED {} FRIENDLY FIRE onto {} with {}.]```',
+            'change_slot': '```css\n[{} player {} occupied {} {}]```',
+            'disconnect': '```css\n[RED player {} disconnected]```'
+        },
+        Side.SPECTATOR: {
+            'spectators': '```[{} player {} returned to Spectators]```'
+        }
     }
 
     def __init__(self, plugin: Plugin):
@@ -128,7 +146,7 @@ class MissionEventListener(EventListener):
         try:
             chat_channel = server.get_channel(Channel.CHAT)
             if chat_channel is not None:
-                await chat_channel.send('{} connected to server'.format(data['name']))
+                await chat_channel.send('```{} connected to server```'.format(data['name']))
         finally:
             player: Player = server.get_player(ucid=data['ucid'])
             if not player or player.id == 1:
@@ -184,14 +202,14 @@ class MissionEventListener(EventListener):
                 if player is not None:
                     chat_channel = server.get_channel(Channel.CHAT)
                     if chat_channel is not None:
-                        await chat_channel.send('{} player {} occupied {} {}'.format(
-                            player.side.name if player.side != Side.SPECTATOR else Side.NEUTRAL.name, data['name'],
-                            Side(data['side']).name, data['unit_type']))
+                        await chat_channel.send(self.EVENT_TEXTS[Side(data['side'])]['change_slot'].format(
+                            player.side.name if player.side != Side.SPECTATOR else 'NEUTRAL',
+                            data['name'], Side(data['side']).name, data['unit_type']))
             elif player is not None:
                 chat_channel = server.get_channel(Channel.CHAT)
                 if chat_channel is not None:
-                    await chat_channel.send('{} player {} returned to Spectators'.format(
-                        player.side.name, data['name']))
+                    await chat_channel.send(self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
+                                                                                               data['name']))
         finally:
             player.update(data)
             await self.displayPlayerEmbed(server)
@@ -213,9 +231,9 @@ class MissionEventListener(EventListener):
                 chat_channel = server.get_channel(Channel.CHAT)
                 if chat_channel:
                     if player.side == Side.SPECTATOR:
-                        await chat_channel.send('Player {} disconnected'.format(player.name))
+                        await chat_channel.send('```Player {} disconnected```'.format(player.name))
                     else:
-                        await chat_channel.send('{} player {} disconnected'.format(player.side.name, player.name))
+                        await chat_channel.send(self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
             finally:
                 player.active = False
                 await self.displayMissionEmbed(server)
@@ -228,9 +246,8 @@ class MissionEventListener(EventListener):
                 player2 = None
             chat_channel = server.get_channel(Channel.CHAT)
             if chat_channel is not None:
-                await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
-                    player1.side.name, 'player ' + player1.name,
-                    ('player ' + player2.name) if player2 is not None else 'AI',
+                await chat_channel.send(self.EVENT_TEXTS[player1.side][data['eventName']].format(
+                    'player ' + player1.name, ('player ' + player2.name) if player2 is not None else 'AI',
                     data['arg2'] if (len(data['arg2']) > 0) else 'Cannon'))
         elif data['eventName'] == 'kill':
             # Player is not an AI
@@ -238,8 +255,7 @@ class MissionEventListener(EventListener):
             player2 = server.get_player(id=data['arg4']) if data['arg4'] != -1 else None
             chat_channel = server.get_channel(Channel.CHAT)
             if chat_channel is not None:
-                await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
-                    Side(data['arg3']).name,
+                await chat_channel.send(self.EVENT_TEXTS[Side(data['arg3'])][data['eventName']].format(
                     ('player ' + player1.name) if player1 is not None else 'AI',
                     data['arg2'], Side(data['arg6']).name,
                     ('player ' + player2.name) if player2 is not None else 'AI',
@@ -258,12 +274,10 @@ class MissionEventListener(EventListener):
                 chat_channel = server.get_channel(Channel.CHAT)
                 if chat_channel is not None:
                     if data['eventName'] in ['takeoff', 'landing']:
-                        await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
-                            player.side.name, player.name,
-                            data['arg3'] if len(data['arg3']) > 0 else 'ground'))
+                        await chat_channel.send(self.EVENT_TEXTS[player.side][data['eventName']].format(
+                            player.name, data['arg3'] if len(data['arg3']) > 0 else 'ground'))
                     else:
-                        await chat_channel.send(self.EVENT_TEXTS[data['eventName']].format(
-                            player.side.name, player.name))
+                        await chat_channel.send(self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
 
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
