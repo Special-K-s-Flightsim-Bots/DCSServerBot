@@ -246,12 +246,12 @@ class Server(DataObject):
         p = subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', self.installation],
                              executable=os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) + r'\bin\dcs.exe')
         self.pid = p.pid
-        timeout = 300 if self.bot.config['BOT']['SLOW_SYSTEM'] else 120
+        timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 120
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 
     async def shutdown(self) -> None:
-        timeout = 300 if self.bot.config['BOT']['SLOW_SYSTEM'] else 120
+        timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 120
         self.sendtoDCS({"command": "shutdown"})
         with suppress(asyncio.TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
@@ -272,7 +272,7 @@ class Server(DataObject):
 
     async def start(self) -> None:
         if self.status in [Status.STOPPED]:
-            timeout = 300 if self.bot.config['BOT']['SLOW_SYSTEM'] else 120
+            timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 120
             self.sendtoDCS({"command": "start_server"})
             await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
 

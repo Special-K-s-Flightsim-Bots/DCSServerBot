@@ -363,7 +363,7 @@ class Mission(Plugin):
                 continue
             try:
                 # we set a longer timeout in here because, we don't want to risk false restarts
-                timeout = 20 if self.bot.config['BOT']['SLOW_SYSTEM'] else 10
+                timeout = 20 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
                 data = await server.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
                 # remove any hung flag, if the server has responded
                 if server.name in self.hung:

@@ -32,7 +32,8 @@ class MissionEventListener(EventListener):
             'disconnect': '```css\n[RED player {} disconnected]```'
         },
         Side.SPECTATOR: {
-            'spectators': '```[{} player {} returned to Spectators]```'
+            'connect': '```\n{} connected to server```',
+            'spectators': '```\n[{} player {} returned to Spectators]```'
         }
     }
 
@@ -146,7 +147,7 @@ class MissionEventListener(EventListener):
         try:
             chat_channel = server.get_channel(Channel.CHAT)
             if chat_channel is not None:
-                await chat_channel.send('```{} connected to server```'.format(data['name']))
+                await chat_channel.send(self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(data['name']))
         finally:
             player: Player = server.get_player(ucid=data['ucid'])
             if not player or player.id == 1:
@@ -209,7 +210,7 @@ class MissionEventListener(EventListener):
                 chat_channel = server.get_channel(Channel.CHAT)
                 if chat_channel is not None:
                     await chat_channel.send(self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
-                                                                                               data['name']))
+                                                                                                  data['name']))
         finally:
             player.update(data)
             await self.displayPlayerEmbed(server)
