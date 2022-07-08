@@ -114,7 +114,7 @@ class Scheduler(Plugin):
                                 merged['extensions'][ext] = default['extensions'][ext] | specific['extensions'][ext]
                             elif ext in specific['extensions']:
                                 merged['extensions'][ext] = specific['extensions'][ext]
-                            else:
+                            elif ext in merged['extensions']:
                                 del merged['extensions'][ext]
                     self._config[server.name] = merged
             else:
