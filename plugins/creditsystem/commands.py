@@ -206,8 +206,8 @@ class CreditSystemMaster(CreditSystemAgent):
                                                                                f'Donation to member {to.display_name}'))
                 if p_receiver:
                     p_receiver.points += donation
-                    p_donor.audit('donation', old_points_receiver, f'Donation from member '
-                                                                   f'{ctx.message.author.display_name}')
+                    p_receiver.audit('donation', old_points_receiver, f'Donation from member '
+                                                                      f'{ctx.message.author.display_name}')
                 else:
                     cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) VALUES (%s, %s, '
                                    '%s) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = credits.points + '
