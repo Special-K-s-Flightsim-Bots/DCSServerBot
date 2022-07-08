@@ -152,7 +152,7 @@ class CreditSystemMaster(CreditSystemAgent):
                     cursor.execute('UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s',
                                    (donation, data[n][0], data[n][2]))
                 if p_receiver:
-                    p_receiver += donation
+                    p_receiver.points += donation
                 else:
                     cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) VALUES (%s, %s, '
                                    '%s) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = credits.points + '
