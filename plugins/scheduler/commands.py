@@ -105,15 +105,18 @@ class Scheduler(Plugin):
                 elif specific and not default:
                     self._config[server.name] = specific
                 elif default and specific:
-                    self._config[server.name] = default | specific
-                    if 'extensions' in default and 'extensions' in specific:
-                        self._config[server.name]['extensions'] = default['extensions']
-                        for key, value in specific['extensions'].items():
-                            if key in default['extensions']:
-                                self._config[server.name]['extensions'][key] = \
-                                    default['extensions'][key] | specific['extensions'][key]
+                    merged = default | specific
+                    if 'extensions' not in specific:
+                        del merged['extensions']
+                    elif 'extensions' in default and 'extensions' in specific:
+                        for ext in (default['extensions'] | specific['extensions']):
+                            if ext in default['extensions'] and ext in specific['extensions']:
+                                merged['extensions'][ext] = default['extensions'][ext] | specific['extensions'][ext]
+                            elif ext in specific['extensions']:
+                                merged['extensions'][ext] = specific['extensions'][ext]
                             else:
-                                self._config[server.name]['extensions'][key] = specific['extensions'][key]
+                                del merged['extensions'][ext]
+                    self._config[server.name] = merged
             else:
                 return None
         return self._config[server.name] if server.name in self._config else None
