@@ -91,8 +91,8 @@ class OvGME(Plugin):
                             self.log.warning(f"  - Package {package['name']}_v{version} not found!")
                     elif installed != version:
                         if self.is_greater(installed, version):
-                            self.log.warning(f"  - Installed package {package['name']}_v{installed} is newer than the "
-                                             f"configured version. Skipping.")
+                            self.log.debug(f"  - Installed package {package['name']}_v{installed} is newer than the "
+                                           f"configured version. Skipping.")
                             continue
                         if not self.uninstall_package(server, package['source'], package['name'], installed):
                             self.log.warning(f"  - Package {package['name']}_v{installed} could not be uninstalled!")

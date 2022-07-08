@@ -24,4 +24,3 @@ def find_process(proc, installation):
                     if installation in c.replace('\\', '/').split('/'):
                         return p
     return None
-

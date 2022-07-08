@@ -34,6 +34,9 @@ end
 
 function admin.onPlayerTryChangeSlot(playerID, side, slotID)
 	log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerTryChangeSlot()')
+	if side == 0 then
+		return
+	end
 	local msg = {}
 	groupname = DCS.getUnitProperty(slotID, DCS.UNIT_GROUPNAME)
 	if groupname == nil or groupname == '' then
@@ -48,21 +51,21 @@ end
 
 function admin.onMissionLoadBegin(id)
     log.write('DCSServerBot', log.DEBUG, 'Admin: onMissionLoadBegin()')
-	if (dcsbot.registered == false) then
+	if dcsbot.registered == false then
 		dcsbot.registerDCSServer()
 	end
 end
 
 function admin.onPlayerConnect(id)
     log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerConnect()')
-	if (dcsbot.registered == false) then
+	if id == 1 and dcsbot.registered == false then
 		dcsbot.registerDCSServer()
 	end
 end
 
 function admin.onPlayerStart(id)
     log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerStart()')
-	if (dcsbot.registered == false) then
+	if id == 1 and dcsbot.registered == false then
 		dcsbot.registerDCSServer()
 	end
 end

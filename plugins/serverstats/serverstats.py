@@ -189,7 +189,8 @@ class ServerLoad(report.MultiGraphElement):
               f"WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS \"Memory (paged)\", " \
               f"SUM(mem_ram)/(1024*1024) AS \"Memory (RAM)\", SUM(read_bytes)/1024 AS \"Read\", SUM(write_bytes)/1024 " \
               f"AS \"Write\", ROUND(AVG(bytes_sent)) AS \"Sent\", ROUND(AVG(bytes_recv)) AS \"Recv\", ROUND(AVG(fps), " \
-              f"2) AS \"FPS\" FROM serverstats WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}') "
+              f"2) AS \"FPS\", ROUND(AVG(ping), 2) AS \"Ping\" FROM serverstats " \
+              f"WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}') "
         if server_name:
             sql += f" AND server_name = '{server_name}' "
         if agent_host:
@@ -203,15 +204,18 @@ class ServerLoad(report.MultiGraphElement):
                     series = pd.DataFrame.from_dict(cursor.fetchall())
                     ax2 = self.axes[0].twinx()
                     series.plot(ax=self.axes[0], x='time', y=['FPS', 'CPU'], title='Users / CPU / FPS', xticks=[], xlabel='')
-                    self.axes[0].legend()
+                    self.axes[0].legend(['FPS', 'CPU'], loc='upper left')
                     series.plot(ax=ax2, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
-                    ax2.legend()
+                    ax2.legend(['Users'], loc='upper right')
                     series.plot(ax=self.axes[1], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
-                    self.axes[1].legend()
+                    self.axes[1].legend(loc='upper right')
                     series.plot(ax=self.axes[2], x='time', y=['Read', 'Write'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='KB', grid=True)
-                    self.axes[2].legend()
+                    self.axes[2].legend(loc='upper right')
+                    ax3 = self.axes[3].twinx()
                     series.plot(ax=self.axes[3], x='time', y=['Sent', 'Recv'], title='Network', logy=True, xlabel='', ylabel='KB/s', grid=True)
-                    self.axes[3].legend()
+                    self.axes[3].legend(['Sent', 'Recv'], loc='upper left')
+                    series.plot(ax=ax3, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')
+                    ax3.legend(['Ping'], loc='upper right')
                 else:
                     for i in range(0, 4):
                         self.axes[i].bar([], [])

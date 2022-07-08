@@ -22,6 +22,17 @@ class MissionStatisticsEventListener(EventListener):
         5: 'Unknown'
     }
 
+    EVENT_TEXTS = {
+        Coalition.BLUE: {
+            'capture': '```ini\n[BLUE coalition has captured {}.]```',
+            'capture_from': '```ini\n[BLUE coalition has captured {} from RED coalition.]```'
+        },
+        Coalition.RED: {
+            'capture': '```css\n[RED coalition has captured {}.]```',
+            'capture_from': '```css\n[RED coalition has captured {} from BLUE coalition.]```'
+        }
+    }
+
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         if not self.bot.mission_stats:
@@ -193,10 +204,11 @@ class MissionStatisticsEventListener(EventListener):
                         stats['coalitions'][win_coalition.name]['captures'] = 1
                     else:
                         stats['coalitions'][win_coalition.name]['captures'] += 1
-                    message = '{} coalition has captured {}'.format(win_coalition.name.upper(), name)
                     if name in stats['coalitions'][lose_coalition.name]['airbases']:
                         stats['coalitions'][lose_coalition.name]['airbases'].remove(name)
-                        message += ' from {} coalition'.format(lose_coalition.name.upper())
+                        message = self.EVENT_TEXTS[win_coalition]['capture_from'].format(name)
+                    else:
+                        message = self.EVENT_TEXTS[win_coalition]['capture'].format(name)
                     update = True
                     chat_channel = server.get_channel(Channel.CHAT)
                     if chat_channel:
