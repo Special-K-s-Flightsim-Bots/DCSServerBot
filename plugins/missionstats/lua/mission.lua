@@ -10,8 +10,6 @@ local GROUP_CATEGORY = {
 	[Group.Category.SHIP] = 'Ships'
 }
 
-local db_all_units = {}
-
 -- MOOSE
 world.event.S_EVENT_NEW_CARGO = world.event.S_EVENT_MAX + 1000
 world.event.S_EVENT_DELETE_CARGO = world.event.S_EVENT_MAX + 1001
@@ -99,7 +97,7 @@ function dcsbot.eventHandler:onEvent(event)
 			msg.initiator = {}
 			category = event.initiator:getCategory()
 		    -- work around DCS bug with static targets
-		    if category == Object.Category.STATIC and db_all_units[event.initiator:getID()] then
+		    if category == Object.Category.STATIC and event.initiator.getPlayerName then
 				env.info('Fixed wrong unit category.')
                 category = Object.Category.UNIT
 		    end
@@ -159,15 +157,12 @@ function dcsbot.eventHandler:onEvent(event)
 			msg.target = {}
 			category = event.target:getCategory()
 		    -- work around DCS bug with static targets
-		    if category == Object.Category.STATIC and event.target:isExist() and db_all_units[event.target:getID()] then
+		    if category == Object.Category.STATIC and event.target.getPlayerName then
 				env.info('Fixed wrong unit category.')
                 category = Object.Category.UNIT
 		    end
             -- end workaround
 			if category == Object.Category.UNIT then
-    		    -- work around DCS bug with static targets
-			    db_all_units[event.target:getID()] = event.target
-	            -- end workaround
 				msg.target.type = 'UNIT'
 				msg.target.unit = event.target
 				msg.target.unit_name = msg.target.unit:getName()
@@ -283,7 +278,7 @@ end
 
 function dcsbot.enableMissionStats()
 	if not dcsbot.mission_stats_enabled then
-        dcsbot.eventHandler = world.addEventHandler(dcsbot.eventHandler)
+        world.addEventHandler(dcsbot.eventHandler)
         env.info('DCSServerBot - Mission Statistics enabled.')
         dcsbot.mission_stats_enabled = true
     end
@@ -291,7 +286,7 @@ end
 
 function dcsbot.disableMissionStats()
 	if dcsbot.mission_stats_enabled then
-        dcsbot.eventHandler = world.removeEventHandler(dcsbot.eventHandler)
+        world.removeEventHandler(dcsbot.eventHandler)
         env.info('DCSServerBot - Mission Statistics disabled.')
         dcsbot.mission_stats_enabled = false
     end
