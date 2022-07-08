@@ -168,7 +168,12 @@ class Mission(Plugin):
             return
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
             server.restart_pending = True
-            if server.status == Status.RUNNING and server.is_populated():
+            if server.status == Status.RUNNING:
+                if server.is_populated() and not await utils.yn_question(self, ctx,
+                                                                         'People are flying on the server atm.\n'
+                                                                         'Do you really want to restart the mission?'):
+                    await ctx.send('Aborted.')
+                    return
                 if delay > 0:
                     message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
                 else:
@@ -230,6 +235,11 @@ class Mission(Plugin):
             if not num:
                 num = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '🔄')
             if num >= 0:
+                if server.is_populated() and not await utils.yn_question(self, ctx,
+                                                                         'People are flying on the server atm.\nDo you '
+                                                                         'really want to restart/change the mission?'):
+                    await ctx.send('Aborted.')
+                    return
                 mission = missions[num]
                 mission = mission[(mission.rfind('\\') + 1):-4]
                 # make sure that the Scheduler doesn't interfere
@@ -353,7 +363,7 @@ class Mission(Plugin):
                 continue
             try:
                 # we set a longer timeout in here because, we don't want to risk false restarts
-                timeout = 20 if self.bot.config['BOT']['SLOW_SYSTEM'] else 10
+                timeout = 20 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
                 data = await server.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
                 # remove any hung flag, if the server has responded
                 if server.name in self.hung:

@@ -207,7 +207,7 @@ class ModuleStats2(report.EmbedElement):
             self.pool.putconn(conn)
 
 
-class Refuellings(report.EmbedElement):
+class Refuelings(report.EmbedElement):
     def render(self, member: Union[discord.Member, str], period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT init_type, COUNT(*) FROM missionstats WHERE EVENT = 'S_EVENT_REFUELING_STOP'"
         if period:
@@ -230,9 +230,9 @@ class Refuellings(report.EmbedElement):
                     numbers.append(str(row[1]))
                 if len(modules):
                     self.add_field(name='Module', value='\n'.join(modules))
-                    self.add_field(name='Refuellings', value='\n'.join(numbers))
+                    self.add_field(name='Refuelings', value='\n'.join(numbers))
                 else:
-                    self.add_field(name='No refuellings found for this user.', value='_ _')
+                    self.add_field(name='No refuelings found for this user.', value='_ _')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:

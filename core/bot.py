@@ -70,7 +70,7 @@ class DCSServerBot(commands.Bot):
         for server_name, server in self.servers.items():
             try:
                 # check if there is a running server already
-                timeout = 10 if self.config['BOT']['SLOW_SYSTEM'] else 5
+                timeout = 10 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 5
                 await server.sendtoDCSSync({"command": "registerDCSServer"}, timeout)
                 self.log.info(f'  => Running DCS server "{server_name}" registered.')
             except asyncio.TimeoutError:
@@ -442,9 +442,9 @@ class DCSServerBot(commands.Bot):
                             del self.servers[data['server_name']]
                             return False
                 cursor.execute('INSERT INTO servers (server_name, agent_host, host, port) VALUES(%s, %s, %s, '
-                               '%s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s',
-                               (data['server_name'], platform.node(), data['host'], data['port'], platform.node(),
-                                data['host'], data['port']))
+                               '%s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, '
+                               'last_seen=NOW()', (data['server_name'], platform.node(), data['host'], data['port'],
+                                                   platform.node(), data['host'], data['port']))
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)

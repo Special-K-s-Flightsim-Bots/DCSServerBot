@@ -32,23 +32,40 @@ function admin.onPlayerTryConnect(addr, name, ucid, playerID)
 	end
 end
 
+function admin.onPlayerTryChangeSlot(playerID, side, slotID)
+	log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerTryChangeSlot()')
+	if side == 0 then
+		return
+	end
+	local msg = {}
+	groupname = DCS.getUnitProperty(slotID, DCS.UNIT_GROUPNAME)
+	if groupname == nil or groupname == '' then
+		ucid = net.get_player_info(playerID, 'ucid')
+		name = net.get_player_info(playerID, 'name')
+        msg.command = 'sendMessage'
+        msg.message = 'User ' .. name .. '(ucid=' .. ucid .. ') tried to use an empty slot (possible hacking)!'
+    	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
+		return false
+	end
+end
+
 function admin.onMissionLoadBegin(id)
     log.write('DCSServerBot', log.DEBUG, 'Admin: onMissionLoadBegin()')
-	if (dcsbot.registered == false) then
+	if dcsbot.registered == false then
 		dcsbot.registerDCSServer()
 	end
 end
 
 function admin.onPlayerConnect(id)
     log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerConnect()')
-	if (dcsbot.registered == false) then
+	if id == 1 and dcsbot.registered == false then
 		dcsbot.registerDCSServer()
 	end
 end
 
 function admin.onPlayerStart(id)
     log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerStart()')
-	if (dcsbot.registered == false) then
+	if id == 1 and dcsbot.registered == false then
 		dcsbot.registerDCSServer()
 	end
 end

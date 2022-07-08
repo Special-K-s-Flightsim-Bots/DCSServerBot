@@ -1,4 +1,5 @@
 import discord
+import icmplib
 import os
 import platform
 import psutil
@@ -107,13 +108,18 @@ class AgentServerStats(Plugin):
                         bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
                         bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
                     self.net_io_counters = net_io_counters
+                    net_ping = icmplib.ping('1.1.1.1', count=1, privileged=False)
+                    if not net_ping.packets_received:
+                        ping = None
+                    else:
+                        ping = net_ping.avg_rtt
                     if server_name in self.eventlistener.fps:
                         cursor.execute('INSERT INTO serverstats (server_name, agent_host, mission_id, users, status, '
                                        'cpu, mem_total, mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, '
-                                       'fps) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                                       'fps, ping) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
                                        (server_name, platform.node(), server.mission_id, users, server.status.name, cpu,
                                         memory.private, memory.rss, read_bytes, write_bytes, bytes_sent, bytes_recv,
-                                        self.eventlistener.fps[server_name]))
+                                        self.eventlistener.fps[server_name], ping))
                         conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()

@@ -36,12 +36,14 @@ class StatisticsFilter(ABC):
 class PeriodFilter(StatisticsFilter):
     @staticmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
-        return period in ['all', 'day', 'week', 'month', 'year']
+        return period in ['all', 'day', 'week', 'month', 'year', 'yesterday']
 
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         if period in [None, 'all']:
             return '1 = 1'
+        elif period == 'yesterday':
+            return "DATE_TRUNC('day', s.hop_on) = current_date - 1"
         else:
             return f'DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
 
@@ -51,6 +53,8 @@ class PeriodFilter(StatisticsFilter):
             return 'Overall'
         elif period == 'day':
             return 'Daily'
+        elif period == 'yesterday':
+            return 'Yesterdays'
         else:
             return string.capwords(period) + 'ly'
 

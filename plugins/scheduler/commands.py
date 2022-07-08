@@ -105,15 +105,18 @@ class Scheduler(Plugin):
                 elif specific and not default:
                     self._config[server.name] = specific
                 elif default and specific:
-                    self._config[server.name] = default | specific
-                    if 'extensions' in default and 'extensions' in specific:
-                        self._config[server.name]['extensions'] = default['extensions']
-                        for key, value in specific['extensions'].items():
-                            if key in default['extensions']:
-                                self._config[server.name]['extensions'][key] = \
-                                    default['extensions'][key] | specific['extensions'][key]
+                    merged = default | specific
+                    if 'extensions' not in specific:
+                        del merged['extensions']
+                    elif 'extensions' in default and 'extensions' in specific:
+                        for ext in (default['extensions'] | specific['extensions']):
+                            if ext in default['extensions'] and ext in specific['extensions']:
+                                merged['extensions'][ext] = default['extensions'][ext] | specific['extensions'][ext]
+                            elif ext in specific['extensions']:
+                                merged['extensions'][ext] = specific['extensions'][ext]
                             else:
-                                self._config[server.name]['extensions'][key] = specific['extensions'][key]
+                                del merged['extensions'][ext]
+                    self._config[server.name] = merged
             else:
                 return None
         return self._config[server.name] if server.name in self._config else None
@@ -433,16 +436,19 @@ class Scheduler(Plugin):
                 await ctx.send('Server is currently starting up. Please wait and try again.')
                 return
             elif server.status != Status.SHUTDOWN:
-                if await utils.yn_question(self, ctx, f"Do you want to shut down the "
-                                                      f"DCS server \"{server.name}\"?") is True:
-                    msg = await ctx.send(f"Shutting down DCS server \"{server.name}\", please wait ...")
-                    # set maintenance flag to prevent auto-starts of this server
-                    server.maintenance = True
-                    server.restart_pending = True
-                    await self.teardown_dcs(server, ctx.message.author)
-                    await msg.delete()
-                    await ctx.send(f"DCS server \"{server.name}\" shut down.")
-                    server.restart_pending = False
+                question = f"Do you want to shut down the DCS server \"{server.name}\"?"
+                if server.is_populated():
+                    question += '\nPeople are flying on this server atm!'
+                if not await utils.yn_question(self, ctx, question):
+                    return
+                msg = await ctx.send(f"Shutting down DCS server \"{server.name}\", please wait ...")
+                # set maintenance flag to prevent auto-starts of this server
+                server.maintenance = True
+                server.restart_pending = True
+                await self.teardown_dcs(server, ctx.message.author)
+                await msg.delete()
+                await ctx.send(f"DCS server \"{server.name}\" shut down.")
+                server.restart_pending = False
             else:
                 await ctx.send(f"DCS server \"{server.name}\" is already shut down.")
             if 'extensions' in config:

@@ -12,6 +12,8 @@ class CreditPlayer(Player):
 
     def __post_init__(self):
         super().__post_init__()
+        if not self.active:
+            return
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -62,6 +64,21 @@ class CreditPlayer(Player):
                 'ucid': self.ucid,
                 'points': self._points,
             })
+        except (Exception, psycopg2.DatabaseError) as error:
+            conn.rollback()
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
+    def audit(self, event: str, old_points: int, remark: str):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, '
+                               'remark) SELECT id, %s, %s, %s, %s, %s FROM campaigns WHERE server_name = %s AND NOW() '
+                               'BETWEEN start AND COALESCE(stop, NOW())',
+                               (event, self.ucid, old_points, self._points, remark, self.server.name))
+            conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.log.exception(error)

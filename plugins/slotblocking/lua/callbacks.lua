@@ -1,15 +1,52 @@
 local base 	    = _G
 local dcsbot    = base.dcsbot
+local utils 	= base.require("DCSServerBotUtils")
 
 local slotblock = slotblock or {}
 
-local function has_value(tab, val)
-    for index, value in ipairs(tab) do
-        if value == val then
-            return true
+
+local function has_value(tab, value)
+    for idx1, value1 in ipairs(tab) do
+        if type(value) == "table" then
+            for idx2, value2 in ipairs(value) do
+                if value1 == value2 then
+                    return true
+                end
+            end
+        else
+            if value1 == value then
+                return true
+            end
         end
     end
     return false
+end
+
+local function is_vip(ucid)
+    config = dcsbot.params['slotblocking']['VIP']
+    if not config then
+        return
+    end
+    if config['ucid'] and not has_value(config['ucid'], ucid) then
+        return false
+    end
+end
+
+function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
+    log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onPlayerTryConnect()')
+    config = dcsbot.params['slotblocking']['VIP']
+    if not config then
+        return
+    end
+    if config['slots'] then
+        max = utils.loadSettingsRaw()['maxPlayers']
+        current = #net.get_player_list()
+        if (current + 1) > (max - config['slots']) then
+            if not is_vip(ucid) then
+                return false, 'Server is full, please try again later!'
+            end
+        end
+    end
 end
 
 function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
@@ -35,8 +72,14 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
                     net.send_chat_to(message, playerID)
                     return false
                 end
+            end
             -- blocking slots by discord groups
-            elseif unit['discord'] and has_value(dcsbot.userInfo[player].roles, unit['discord']) == false then
+            if unit['discord'] and has_value(dcsbot.userInfo[player].roles, unit['discord']) == false then
+                local message = unit['message'] or 'This slot is restricted for a specific discord role.'
+                net.send_chat_to(message, playerID)
+                return false
+            end
+            if unit['VIP'] and not unit['VIP'] == is_vip(player) then
                 local message = unit['message'] or 'This slot is restricted for a specific discord role.'
                 net.send_chat_to(message, playerID)
                 return false

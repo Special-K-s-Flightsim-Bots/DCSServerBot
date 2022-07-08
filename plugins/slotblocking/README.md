@@ -11,6 +11,11 @@ The slot blocking is configured with a file named config\slotblocking.json. You'
 {
   "configs": [
     { -- this is the default section (no server name or instance name provided)
+      "VIP": {                  -- VIP slots
+        "slots": 2,             -- 2 slots will be blocked for VIP users
+        "discord": ["Admin", "DCS Admin"],
+        "audit": true           -- if true, a message will be provided in the audit channel, if a VIP joins
+      },
       "restricted": [           -- restrictions for CA slots, they can only be used by Discord group "Donators"
         { "unit_type": "artillery_commander", "discord": "Donators" },
         { "unit_type": "forward_observer", "discord": "Donators" },

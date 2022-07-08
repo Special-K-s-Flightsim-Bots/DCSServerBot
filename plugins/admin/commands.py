@@ -63,7 +63,8 @@ class Agent(Plugin):
                 while shutdown_in > 0:
                     for warn_time in warn_times:
                         if warn_time == shutdown_in:
-                            server.sendPopupMessage(Coalition.ALL, f'Server is going down for a DCS update in {utils.format_time(warn_time)}!')
+                            server.sendPopupMessage(Coalition.ALL, f'Server is going down for a DCS update in '
+                                                                   f'{utils.format_time(warn_time)}!')
                     await asyncio.sleep(1)
                     shutdown_in -= 1
             await server.shutdown()
@@ -345,7 +346,8 @@ class Agent(Plugin):
         if server:
             if len(params):
                 cmd = shlex.split(' '.join(params))
-                await self.bot.audit("executed a shell command: ```{}```".format(' '.join(cmd)), server=server, user=ctx.message.author)
+                await self.bot.audit("executed a shell command: ```{}```".format(' '.join(cmd)), server=server,
+                                     user=ctx.message.author)
                 try:
                     p = subprocess.run(cmd, shell=True, capture_output=True, timeout=300)
                     await ctx.send('```' + p.stdout.decode('cp1252', 'ignore') + '```')
@@ -367,7 +369,8 @@ class Agent(Plugin):
                 await ctx.send(f"Server {server.name} started.")
                 await self.bot.audit('started the server', server=server, user=ctx.message.author)
             elif server.status == Status.SHUTDOWN:
-                await ctx.send(f"Server {server.name} is shut down. Use {self.bot.config['BOT']['COMMAND_PREFIX']}startup to start it up.")
+                await ctx.send(f"Server {server.name} is shut down. Use "
+                               f"{self.bot.config['BOT']['COMMAND_PREFIX']}startup to start it up.")
             elif server.status in [Status.RUNNING, Status.PAUSED]:
                 await ctx.send(f"Server {server.name} is already started.")
             else:
@@ -380,12 +383,16 @@ class Agent(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             if server.status in [Status.RUNNING, Status.PAUSED]:
+                if server.is_populated() and \
+                        not await utils.yn_question(self, ctx, "People are flying on this server atm.\n"
+                                                               "Do you really want to stop it?"):
+                    return
                 await server.stop()
                 await self.bot.audit('stopped the server', server=server, user=ctx.message.author)
                 await ctx.send(f"Server {server.name} stopped.")
             elif server.status == Status.STOPPED:
-                await ctx.send(
-                    f"Server {server.name} is stopped already. Use {self.bot.config['BOT']['COMMAND_PREFIX']}shutdown to terminate the dcs.exe process.")
+                await ctx.send(f"Server {server.name} is stopped already. Use "
+                               f"{self.bot.config['BOT']['COMMAND_PREFIX']}shutdown to terminate the dcs.exe process.")
             elif server.status == Status.SHUTDOWN:
                 await ctx.send(f"Server {server.name} is shut down already.")
             else:

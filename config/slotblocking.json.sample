@@ -1,6 +1,11 @@
 {
   "configs": [
     {
+      "VIP": {
+        "slots": 2,
+        "discord": ["Admin", "DCS Admin"],
+        "audit": true
+      },
       "restricted": [
         { "unit_type": "artillery_commander", "discord": "Donators", "message": "This slot is reserved for Donators!" },
         { "unit_type": "forward_observer", "discord": "Donators", "message": "This slot is reserved for Donators!" },
