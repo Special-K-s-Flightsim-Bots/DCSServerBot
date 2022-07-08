@@ -205,7 +205,7 @@ class CreditSystemMaster(CreditSystemAgent):
                                                                                data[n][3], new_points_donor,
                                                                                f'Donation to member {to.display_name}'))
                 if p_receiver:
-                    p_receiver += donation
+                    p_receiver.points += donation
                     p_donor.audit('donation', old_points_receiver, f'Donation from member '
                                                                    f'{ctx.message.author.display_name}')
                 else:
