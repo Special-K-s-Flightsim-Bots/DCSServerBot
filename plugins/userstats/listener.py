@@ -264,8 +264,6 @@ class UserStatisticsEventListener(EventListener):
                             pilot = server.get_player(id=data['arg1'])
                             for crew_member in server.get_crew_members(pilot):
                                 cursor.execute(self.SQL_EVENT_UPDATES[kill_type], (server.mission_id, crew_member.ucid))
-                        else:
-                            self.log.debug(f'No SQL for kill_type {kill_type} found!.')
 
                     # Victim is not an AI
                     if data['arg4'] != -1:
