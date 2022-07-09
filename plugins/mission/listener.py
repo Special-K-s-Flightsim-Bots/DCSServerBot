@@ -16,7 +16,8 @@ class MissionEventListener(EventListener):
             'crash': '```ini\n[BLUE player {} crashed.]```',
             'pilot_death': '```ini\n[BLUE player {} died.]```',
             'kill': '```ini\n[BLUE {} in {} killed {} {} in {} with {}.]```',
-            'friendly_fire': '```ini\n[BLUE {} FRIENDLY FIRE onto {} with {}.]```',
+            'friendly_fire': '```fix\n[BLUE {} FRIENDLY FIRE onto {} with {}.]```',
+            'self_kill': '```ini\n[BLUE player {} killed themselves - Ooopsie!]```',
             'change_slot': '```ini\n[{} player {} occupied {} {}]```',
             'disconnect': '```ini\n[BLUE player {} disconnected]```'
         },
@@ -27,13 +28,19 @@ class MissionEventListener(EventListener):
             'crash': '```css\n[RED player {} crashed.]```',
             'pilot_death': '```css\n[RED player {} died.]```',
             'kill': '```css\n[RED {} in {} killed {} {} in {} with {}.]```',
-            'friendly_fire': '```css\n[RED {} FRIENDLY FIRE onto {} with {}.]```',
+            'friendly_fire': '```fix\n[RED {} FRIENDLY FIRE onto {} with {}.]```',
+            'self_kill': '```css\n[RED player {} killed themselves - Ooopsie!]```',
             'change_slot': '```css\n[{} player {} occupied {} {}]```',
             'disconnect': '```css\n[RED player {} disconnected]```'
         },
         Side.SPECTATOR: {
-            'connect': '```\n{} connected to server```',
-            'spectators': '```\n[{} player {} returned to Spectators]```'
+            'connect': '```\n[Player {} connected to server]```',
+            'disconnect': '```\n[Player {} disconnected]```',
+            'spectators': '```\n[{} player {} returned to Spectators]```',
+            'crash': '```ini\n[Player {} crashed.]```',
+            'pilot_death': '```ini\n[Player {} died.]```',
+            'kill': '```ini\n[{} in {} killed {} {} in {} with {}.]```',
+            'friendly_fire': '```fix\n[{} FRIENDLY FIRE onto {} with {}.]```'
         }
     }
 
@@ -212,7 +219,8 @@ class MissionEventListener(EventListener):
                     await chat_channel.send(self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
                                                                                                   data['name']))
         finally:
-            player.update(data)
+            if player:
+                player.update(data)
             await self.displayPlayerEmbed(server)
 
     async def onGameEvent(self, data: dict) -> None:
@@ -231,10 +239,7 @@ class MissionEventListener(EventListener):
             try:
                 chat_channel = server.get_channel(Channel.CHAT)
                 if chat_channel:
-                    if player.side == Side.SPECTATOR:
-                        await chat_channel.send('```Player {} disconnected```'.format(player.name))
-                    else:
-                        await chat_channel.send(self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
+                    await chat_channel.send(self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
             finally:
                 player.active = False
                 await self.displayMissionEmbed(server)
@@ -249,7 +254,12 @@ class MissionEventListener(EventListener):
             if chat_channel is not None:
                 await chat_channel.send(self.EVENT_TEXTS[player1.side][data['eventName']].format(
                     'player ' + player1.name, ('player ' + player2.name) if player2 is not None else 'AI',
-                    data['arg2'] if (len(data['arg2']) > 0) else 'Cannon'))
+                    data['arg2'] or 'Cannon'))
+        elif data['eventName'] == 'self_kill':
+            player = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
+            chat_channel = server.get_channel(Channel.CHAT)
+            if player and chat_channel:
+                await chat_channel.send(self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
         elif data['eventName'] == 'kill':
             # Player is not an AI
             player1 = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
@@ -260,7 +270,7 @@ class MissionEventListener(EventListener):
                     ('player ' + player1.name) if player1 is not None else 'AI',
                     data['arg2'], Side(data['arg6']).name,
                     ('player ' + player2.name) if player2 is not None else 'AI',
-                    data['arg5'], data['arg7']))
+                    data['arg5'], data['arg7'] or 'Cannon'))
             # report teamkills from players to admins
             if (player1 is not None) and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
                 if player1.member:
