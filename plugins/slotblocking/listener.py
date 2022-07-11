@@ -117,7 +117,7 @@ class SlotBlockingListener(EventListener):
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
-        if not config or server.status != Status.RUNNING:
+        if not config or 'restricted' not in config or server.status != Status.RUNNING:
             return
         if data['eventName'] == 'kill':
             # players only lose points if they weren't killed as a teamkill
