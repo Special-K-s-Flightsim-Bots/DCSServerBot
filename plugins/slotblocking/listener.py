@@ -25,7 +25,7 @@ class SlotBlockingListener(EventListener):
                 if 'ucid' in config['VIP']:
                     ucids = set(config['VIP']['ucid'])
                 else:
-                    ucids = set[str]
+                    ucids = set()
                 for member in self.bot.get_all_members():  # type: discord.Member
                     if member.bot:
                         continue
