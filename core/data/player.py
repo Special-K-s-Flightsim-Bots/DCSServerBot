@@ -96,6 +96,12 @@ class Player(DataObject):
             })
 
     def update(self, data: dict):
+        if 'id' in data:
+            # if the ID has changed (due to a reconnect), we need to update the server list
+            if self.id != data['id']:
+                del self.server.players[self.id]
+                self.server.players[data['id']] = self
+                self.id = data['id']
         if 'active' in data:
             self.active = data['active']
         if 'side' in data:
