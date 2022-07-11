@@ -71,6 +71,8 @@ class MissionEventListener(EventListener):
 
     async def displayMissionEmbed(self, server: Server):
         try:
+            if not len(server.settings):
+                return
             players = server.get_active_players()
             num_players = len(players) + 1
             report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', server, 'mission_embed')
