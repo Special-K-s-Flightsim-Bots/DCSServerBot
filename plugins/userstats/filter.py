@@ -70,7 +70,7 @@ class CampaignFilter(StatisticsFilter):
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         return f"tsrange(s.hop_on, s.hop_off) && (SELECT tsrange(start, stop) FROM campaigns " \
-               f"WHERE name='{period}')"
+               f"WHERE name='{period}' AND server_name = '{server_name}')"
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
