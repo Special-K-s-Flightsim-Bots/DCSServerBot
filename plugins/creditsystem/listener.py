@@ -61,9 +61,11 @@ class CreditSystemListener(EventListener):
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
-                    old_points = player.points
-                    player.points += self.get_points_per_kill(server, data)
-                    player.audit('kill', old_points, f"Killed an enemy {data['arg5']}")
+                    ppk = self.get_points_per_kill(server, data)
+                    if ppk:
+                        old_points = player.points
+                        player.points += ppk
+                        player.audit('kill', old_points, f"Killed an enemy {data['arg5']}")
 
     async def onChatCommand(self, data: dict) -> None:
         if data['subcommand'] == 'credits':
