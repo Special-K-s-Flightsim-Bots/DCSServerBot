@@ -6,8 +6,8 @@ from discord.ext import commands
 from . import config
 
 
-async def wait_for_single_reaction(self, ctx, message):
-    def check_press(react, user):
+async def wait_for_single_reaction(self, ctx, message: discord.Message) -> discord.Reaction:
+    def check_press(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.message.id == message.id)
 
     tasks = [self.bot.wait_for('reaction_add', check=check_press),
@@ -114,6 +114,30 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, mar
         if message:
             await message.delete()
         return -1
+
+
+async def multi_selection_list(self, ctx, data, embed_formatter) -> list[int]:
+    def check_ok(react: discord.Reaction, user: discord.Member):
+        return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.emoji == '🆗')
+
+    retval = list[int]()
+    message = None
+    try:
+        embed = embed_formatter(data)
+        message = await ctx.send(embed=embed)
+        for i in range(0, len(data)):
+            await message.add_reaction(chr(0x31 + i) + '\u20E3')
+        await message.add_reaction('🆗')
+        await self.bot.wait_for('reaction_add', check=check_ok, timeout=120.0)
+        cache_msg = await ctx.fetch_message(message.id)
+        for react in cache_msg.reactions:
+            if (react.emoji != '🆗') and (react.count > 1):
+                if (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x30, 0x40):
+                    retval.append(ord(react.emoji[0]) - 0x31)
+    finally:
+        if message:
+            await message.delete()
+    return retval
 
 
 async def yn_question(self, ctx, question: str, msg: Optional[str] = None) -> bool:

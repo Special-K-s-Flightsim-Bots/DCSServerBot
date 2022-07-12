@@ -23,7 +23,7 @@ local function has_value(tab, value)
 end
 
 local function is_vip(ucid)
-    config = dcsbot.params['slotblocking']['VIP']
+    local config = dcsbot.params['slotblocking']['VIP']
     if not config then
         return
     end
@@ -33,14 +33,17 @@ local function is_vip(ucid)
 end
 
 function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
+    if playerID == 1 then
+        return
+    end
     log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onPlayerTryConnect()')
-    config = dcsbot.params['slotblocking']['VIP']
+    local config = dcsbot.params['slotblocking']['VIP']
     if not config then
         return
     end
     if config['slots'] then
-        max = utils.loadSettingsRaw()['maxPlayers']
-        current = #net.get_player_list()
+        local max = utils.loadSettingsRaw()['maxPlayers']
+        local current = #net.get_player_list()
         if (current + 1) > (max - config['slots']) then
             if not is_vip(ucid) then
                 return false, 'Server is full, please try again later!'
@@ -51,10 +54,11 @@ end
 
 function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onPlayerTryChangeSlot()')
-    player = net.get_player_info(playerID, 'ucid')
-    unit_name = DCS.getUnitProperty(slotID, DCS.UNIT_NAME)
-    group_name = DCS.getUnitProperty(slotID, DCS.UNIT_GROUPNAME)
-    unit_type = DCS.getUnitType(slotID)
+    local player = net.get_player_info(playerID, 'ucid')
+    local unit_name = DCS.getUnitProperty(slotID, DCS.UNIT_NAME)
+    local group_name = DCS.getUnitProperty(slotID, DCS.UNIT_GROUPNAME)
+    local unit_type = DCS.getUnitType(slotID)
+    local points
     -- check levels if any
     for id, unit in pairs(dcsbot.params['slotblocking']['restricted']) do
         if (unit['unit_type'] and unit['unit_type'] == unit_type)

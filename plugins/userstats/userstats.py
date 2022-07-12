@@ -26,7 +26,7 @@ class PlaytimesPerPlane(report.GraphElement):
             sql += f'AND m.server_name = \'{server_name}\' '
         self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
-        sql += 'GROUP BY s.slot ORDER BY 2'
+        sql += ' GROUP BY s.slot ORDER BY 2'
 
         conn = self.pool.getconn()
         try:
@@ -69,7 +69,7 @@ class PlaytimesPerServer(report.GraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
-        sql += 'GROUP BY 1'
+        sql += ' GROUP BY 1'
 
         conn = self.pool.getconn()
         try:
@@ -111,7 +111,7 @@ class PlaytimesPerMap(report.GraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
-        sql += 'GROUP BY m.mission_theatre'
+        sql += ' GROUP BY m.mission_theatre'
 
         conn = self.pool.getconn()
         try:
@@ -154,7 +154,7 @@ class RecentActivities(report.GraphElement):
         if server_name:
             sql += f'AND m.server_name = \'{server_name}\' '
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
-        sql += 'GROUP BY day'
+        sql += ' GROUP BY day'
 
         conn = self.pool.getconn()
         try:

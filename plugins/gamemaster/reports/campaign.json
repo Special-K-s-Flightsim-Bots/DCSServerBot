@@ -8,9 +8,9 @@
       "params": {
         "values": [
           {
-            "Server": "{campaign[server_name]}",
             "Name": "{campaign[name]}",
-            "Start/End": "{campaign[start]:%y-%m-%d} - {campaign[stop]:%y-%m-%d}"
+            "Start": "{campaign[start]:%y-%m-%d}",
+            "End": "{campaign[stop]:%y-%m-%d}"
           }
         ]
       }
@@ -20,6 +20,14 @@
       "params": {
         "name": "Description",
         "value": "{campaign[description]}",
+        "inline": false
+      }
+    },
+    "Ruler",
+    {
+      "type": "SQLTable",
+      "params": {
+        "sql": "SELECT server_name AS \"Server Name\" FROM campaigns_servers WHERE campaign_id = {campaign[id]}",
         "inline": false
       }
     }

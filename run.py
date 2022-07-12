@@ -191,7 +191,8 @@ class Main:
                             intents=discord.Intents.all(),
                             log=self.log,
                             config=self.config,
-                            pool=self.pool)
+                            pool=self.pool,
+                            help_command=None)
 
     def run(self):
         self.log.info('- Starting {}-Node on {}'.format('Master' if self.config.getboolean(

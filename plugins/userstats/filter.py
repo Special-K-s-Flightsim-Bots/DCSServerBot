@@ -65,12 +65,12 @@ class CampaignFilter(StatisticsFilter):
 
     @staticmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
-        return period in [x[0] for x in utils.get_all_campaigns(bot)]
+        return period in utils.get_all_campaigns(bot)
 
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         return f"tsrange(s.hop_on, s.hop_off) && (SELECT tsrange(start, stop) FROM campaigns " \
-               f"WHERE name='{period}')"
+               f"WHERE name ILIKE '{period}')"
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
@@ -90,9 +90,9 @@ class MixedFilter(StatisticsFilter):
             server = bot.servers[server_name]
         else:
             return PeriodFilter.filter(bot, period)
-        campaign = utils.get_running_campaign(server)
-        if campaign:
-            return CampaignFilter.filter(bot, campaign, server_name)
+        _, name = utils.get_running_campaign(server)
+        if name:
+            return CampaignFilter.filter(bot, name, server_name)
         else:
             return PeriodFilter.filter(bot, period, server_name)
 
@@ -104,9 +104,9 @@ class MixedFilter(StatisticsFilter):
             server = bot.servers[server_name]
         else:
             return PeriodFilter.format(bot, period)
-        campaign = utils.get_running_campaign(server)
-        if campaign:
-            return CampaignFilter.format(bot, campaign, server_name)
+        _, name = utils.get_running_campaign(server)
+        if name:
+            return CampaignFilter.format(bot, name, server_name)
         else:
             return PeriodFilter.format(bot, period, server_name)
 
@@ -141,7 +141,8 @@ class StatsPagination(Pagination):
                 if period in [None, 'all', 'day', 'week', 'month', 'year']:
                     cursor.execute('SELECT DISTINCT server_name FROM missions')
                 else:
-                    cursor.execute('SELECT DISTINCT server_name FROM campaigns WHERE name ILIKE %s', (period,))
+                    cursor.execute('SELECT DISTINCT s.server_name FROM campaigns c, campaigns_servers s WHERE '
+                                   'c.id = s.campaign_id AND c.name ILIKE %s', (period,))
                 return [x[0] for x in cursor.fetchall()]
         except psycopg2.DatabaseError as error:
             self.log.exception(error)

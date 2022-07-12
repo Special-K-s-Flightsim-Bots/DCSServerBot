@@ -42,14 +42,15 @@ class CreditSystemListener(EventListener):
         if player.points == -1:
             player.points = config['initial_points'] if 'initial_points' in config else 0
             player.audit('init', 0, 'Initial points received')
-        player.sendChatMessage(f"{player.name}, you currently have {player.points} credit points!")
+        player.sendChatMessage(f"{player.name}, you currently have {player.points} credit points.")
 
     async def addUserPoints(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
-        old_points = player.points
-        player.points += data['points']
-        player.audit('mission', old_points, 'Unknown mission achievement')
+        if data['points'] != 0:
+            server: Server = self.bot.servers[data['server_name']]
+            player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
+            old_points = player.points
+            player.points += data['points']
+            player.audit('mission', old_points, 'Unknown mission achievement')
 
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -61,9 +62,11 @@ class CreditSystemListener(EventListener):
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
-                    old_points = player.points
-                    player.points += self.get_points_per_kill(server, data)
-                    player.audit('kill', old_points, f"Killed an enemy {data['arg5']}")
+                    ppk = self.get_points_per_kill(server, data)
+                    if ppk:
+                        old_points = player.points
+                        player.points += ppk
+                        player.audit('kill', old_points, f"Killed an enemy {data['arg5']}")
 
     async def onChatCommand(self, data: dict) -> None:
         if data['subcommand'] == 'credits':

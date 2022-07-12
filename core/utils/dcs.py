@@ -1,10 +1,12 @@
 import aiohttp
 import math
 import os
+import psycopg2
 import re
 import shutil
 import xml
 import xmltodict
+from contextlib import closing
 from core.const import SAVED_GAMES
 from typing import Optional, List, Tuple
 from . import config
@@ -49,6 +51,21 @@ def getInstalledVersion(path: str) -> Tuple[Optional[str], Optional[str]]:
             if match:
                 version = match.group('version')
     return branch, version
+
+
+def get_all_servers(self) -> list[str]:
+    retval: list[str] = list()
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute(f"SELECT server_name FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')")
+            for row in cursor.fetchall():
+                retval.append(row[0])
+        return retval
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
 
 
 async def getLatestVersion(branch: str) -> Optional[str]:

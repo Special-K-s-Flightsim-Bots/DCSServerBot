@@ -2,7 +2,7 @@ from __future__ import annotations
 import discord
 import psycopg2
 from contextlib import closing
-from core import EventListener, Side, Coalition, Channel
+from core import EventListener, Side, Coalition, Channel, utils
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
@@ -137,27 +137,42 @@ class GameMasterEventListener(EventListener):
         finally:
             self.bot.pool.putconn(conn)
 
-    def campaign(self, command: str, server: Server, name: Optional[str] = None, description: Optional[str] = None,
-                 start: Optional[datetime] = None, end: Optional[datetime] = None):
+    def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
+                 description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 if command == 'add':
-                    cursor.execute('INSERT INTO campaigns (name, description, server_name, start, stop) VALUES (%s, '
-                                   '%s, %s, %s, %s)', (name, description, server.name, start, end))
+                    cursor.execute('INSERT INTO campaigns (name, description, start, stop) VALUES (%s, %s, %s, %s)',
+                                   (name, description, start, end))
+                    if servers:
+                        cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
+                        campaign_id = cursor.fetchone()[0]
+                        for server in servers:
+                            # add this server to the server list
+                            cursor.execute('INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING',
+                                           (campaign_id, server.name))
                 elif command == 'start':
-                    cursor.execute('INSERT INTO campaigns (name, server_name) VALUES (%s, %s)',
-                                   (name, server.name))
+                    cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s AND NOW() BETWEEN start AND '
+                                   'COALESCE(stop, NOW())', (name,))
+                    if cursor.rowcount == 0:
+                        cursor.execute('INSERT INTO campaigns (name) VALUES (%s)', (name,))
+                    if servers:
+                        cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s AND NOW() BETWEEN start AND '
+                                       'COALESCE(stop, NOW())', (name,))
+                        # don't use currval() in here, as we can't rely on the sequence name
+                        campaign_id = cursor.fetchone()[0]
+                        for server in servers:
+                            cursor.execute("INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                                           (campaign_id, server.name,))
                 elif command == 'stop':
-                    cursor.execute('UPDATE campaigns SET stop = NOW() WHERE server_name = %s AND NOW() BETWEEN start '
-                                   'AND COALESCE(stop, NOW())', (server.name, ))
+                    cursor.execute('UPDATE campaigns SET stop = NOW() WHERE name ILIKE %s AND NOW() BETWEEN start AND '
+                                   'COALESCE(stop, NOW())', (name,))
                 elif command == 'delete':
-                    if name:
-                        cursor.execute('DELETE FROM campaigns WHERE server_name = %s AND name ILIKE %s',
-                                       (server.name, name))
-                    else:
-                        cursor.execute('DELETE FROM campaigns WHERE server_name = %s AND NOW() BETWEEN start AND '
-                                       'COALESCE(stop, NOW())', (server.name, ))
+                    cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
+                    campaign_id = cursor.fetchone()[0]
+                    cursor.execute('DELETE FROM campaigns_servers WHERE campaign_id = %s', (campaign_id,))
+                    cursor.execute('DELETE FROM campaigns WHERE id = %s', (campaign_id,))
             conn.commit()
         except (Exception, psycopg2.DatabaseError):
             conn.rollback()
@@ -169,18 +184,20 @@ class GameMasterEventListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         name = data['name'] or '_internal_'
         try:
-            self.campaign('start', server, name)
+            self.campaign('start', servers=[server], name=name)
         except psycopg2.errors.UniqueViolation:
             await self.resetCampaign(data)
 
     async def stopCampaign(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
-        self.campaign('delete', server)
+        _, name = utils.get_running_campaign(server)
+        self.campaign('delete', name=name)
 
     async def resetCampaign(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
-        self.campaign('delete', server)
-        self.campaign('start', server)
+        _, name = utils.get_running_campaign(server)
+        self.campaign('delete', name=name)
+        self.campaign('start', servers=[server])
 
     async def onChatCommand(self, data):
         server: Server = self.bot.servers[data['server_name']]

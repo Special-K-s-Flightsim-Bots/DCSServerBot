@@ -98,7 +98,7 @@ class CreditSystemMaster(CreditSystemAgent):
             member = ctx.message.author
             ucid = self.bot.get_ucid_by_member(ctx.message.author)
             if not ucid:
-                await ctx.send(f"Use {self.bot.config['BOT']['COMMAND_PREFIX']}linkme to link your account.")
+                await ctx.send(f"Use {ctx.prefix}linkme to link your account.")
                 return
         data = self.get_credits(ucid)
         await ctx.message.delete()
@@ -137,12 +137,68 @@ class CreditSystemMaster(CreditSystemAgent):
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
             campaigns += f"{data[i][1]}\n"
-            points += f"{data[i][3]}\n"
+            points += f"{data[i][2]}\n"
         embed.add_field(name='ID', value=ids)
         embed.add_field(name='Campaign', value=campaigns)
         embed.add_field(name='Credits', value=points)
         embed.set_footer(text='Press a number to donate from these credits.')
         return embed
+
+    async def admin_donate(self, ctx, to: discord.Member, donation: int):
+        receiver = self.bot.get_ucid_by_member(to)
+        if not receiver:
+            await ctx.send(f'{to.display_name} needs to properly link their DCS account to receive donations.')
+            return
+        data = self.get_credits(receiver)
+        if len(data) > 1:
+            n = await utils.selection_list(self, ctx, data, self.format_credits)
+        else:
+            n = 0
+        p_receiver: Optional[CreditPlayer] = None
+        for server in self.bot.servers.values():
+            p_receiver = cast(CreditPlayer, server.get_player(ucid=receiver))
+            if p_receiver:
+                break
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                if not p_receiver:
+                    cursor.execute('SELECT COALESCE(SUM(points), 0) FROM credits WHERE campaign_id = %s AND '
+                                   'player_ucid = %s', (data[n][0], receiver))
+                    old_points_receiver = cursor.fetchone()[0]
+                else:
+                    old_points_receiver = p_receiver.points
+                if 'max_points' in self.locals['configs'][0] and \
+                        (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
+                    await ctx.send(f'Member {to.display_name} would overrun the configured maximum points with '
+                                   f'this donation. Aborted.')
+                    return
+                if p_receiver:
+                    p_receiver.points += donation
+                    p_receiver.audit('donation', old_points_receiver, f'Donation from member '
+                                                                      f'{ctx.message.author.display_name}')
+                else:
+                    cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) VALUES (%s, %s, '
+                                   '%s) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = credits.points + '
+                                   'EXCLUDED.points', (data[n][0], receiver, donation))
+                    cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
+                                   (data[n][0], receiver))
+                    new_points_receiver = cursor.fetchone()[0]
+                    cursor.execute('INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, '
+                                   'remark) VALUES (%s, %s, %s, %s, %s, %s)', (data[n][0], 'donation', receiver,
+                                                                               old_points_receiver, new_points_receiver,
+                                                                               f'Credit points change by Admin '
+                                                                               f'{ctx.message.author.display_name}'))
+            conn.commit()
+            if donation > 0:
+                await ctx.send(to.mention + f' you just received {donation} credit points from an Admin.')
+            else:
+                await ctx.send(to.mention + f' your credits were decreased by {donation} credit points by an Admin.')
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
     @commands.command(description='Donate credits to another member', usage='<member> <credits>')
     @utils.has_role('DCS')
@@ -151,6 +207,9 @@ class CreditSystemMaster(CreditSystemAgent):
         if ctx.message.author.id == to.id:
             await ctx.send("You can't donate to yourself.")
             return
+        if utils.check_roles(['Admin', 'DCS Admin'], ctx.message.author):
+            await self.admin_donate(ctx, to, donation)
+            return
         if donation <= 0:
             await ctx.send("Donation has to be a positive value.")
             return
@@ -158,18 +217,25 @@ class CreditSystemMaster(CreditSystemAgent):
         if not receiver:
             await ctx.send(f'{to.display_name} needs to properly link their DCS account to receive donations.')
             return
-        data = self.get_credits(ctx.message.author)
-        if len(data) > 1:
+        donor = self.bot.get_ucid_by_member(ctx.message.author)
+        if not donor:
+            await ctx.send(f'You need to properly link your DCS account to give donations!')
+            return
+        data = self.get_credits(donor)
+        if not len(data):
+            await ctx.send(f"You can't donate credit points, as you don't have any.")
+            return
+        elif len(data) > 1:
             n = await utils.selection_list(self, ctx, data, self.format_credits)
         else:
             n = 0
-        if data[n][3] < donation:
-            await ctx.send(f"You can't donate {donation} points, as you only have {data[n][3]} in total!")
+        if data[n][2] < donation:
+            await ctx.send(f"You can't donate {donation} credit points, as you only have {data[n][2]} in total!")
             return
         # now see, if one of the parties is an active player already...
         p_donor: Optional[CreditPlayer] = None
         for server in self.bot.servers.values():
-            p_donor = cast(CreditPlayer, server.get_player(ucid=data[n][2]))
+            p_donor = cast(CreditPlayer, server.get_player(ucid=donor))
             if p_donor:
                 break
         p_receiver: Optional[CreditPlayer] = None
@@ -196,13 +262,13 @@ class CreditSystemMaster(CreditSystemAgent):
                     p_donor.audit('donation', data[n][3], f'Donation to member {to.display_name}')
                 else:
                     cursor.execute('UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s',
-                                   (donation, data[n][0], data[n][2]))
+                                   (donation, data[n][0], donor))
                     cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
-                                   (data[n][0], data[n][2]))
+                                   (data[n][0], donor))
                     new_points_donor = cursor.fetchone()[0]
                     cursor.execute('INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, '
-                                   'remark) VALUES (%s, %s, %s, %s, %s, %s)', (data[n][0], 'donation', data[n][2],
-                                                                               data[n][3], new_points_donor,
+                                   'remark) VALUES (%s, %s, %s, %s, %s, %s)', (data[n][0], 'donation', donor,
+                                                                               data[n][2], new_points_donor,
                                                                                f'Donation to member {to.display_name}'))
                 if p_receiver:
                     p_receiver.points += donation
