@@ -122,24 +122,28 @@ class SlotBlockingListener(EventListener):
         if data['eventName'] == 'kill':
             # players only lose points if they weren't killed as a teamkill
             if data['arg4'] != -1 and data['arg3'] != data['arg6']:
-                # if we don't use reservations, credit will be taken on kill
                 player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg4']))
+                if 'use_reservations' in config and config['use_reservations']:
+                    if player.deposit > 0:
+                        old_points = player.points
+                        player.points -= player.deposit
+                        player.audit('buy', old_points, 'Points taken for being killed in a reserved module')
+                        player.deposit = 0
+                        # if the remaining points are not enough to stay in this plane, move them back to spectators
+                        if player.points < self.get_points(server, player):
+                            server.move_to_spectators(player)
+        elif data['eventName'] == 'crash':
+            player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
+            if 'use_reservations' in config and config['use_reservations']:
+                if player.deposit > 0:
+                    old_points = player.points
+                    player.points -= player.deposit
+                    player.audit('buy', old_points, 'Points taken for crashing in a reserved module')
+                    player.deposit = 0
+            else:
                 old_points = player.points
                 player.points -= self.get_costs(server, player)
-                player.audit('buy', old_points, 'Points taken for being killed in a reserved module')
-                if player.deposit > 0:
-                    player.deposit = 0
-                # if the remaining points are not enough to stay in this plane, move them back to spectators
-                if player.points < self.get_points(server, player):
-                    server.move_to_spectators(player)
-        elif data['eventName'] == 'crash':
-            # if we don't use reservations, credit will be taken on crash
-            player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
-            old_points = player.points
-            player.points -= self.get_costs(server, player)
-            player.audit('buy', old_points, 'Points taken for crashing in a reserved module')
-            if player.deposit > 0:
-                player.deposit = 0
+                player.audit('buy', old_points, 'Points taken for crashing in a reserved module')
             if player.points < self.get_points(server, player):
                 server.move_to_spectators(player)
         elif data['eventName'] == 'landing':
@@ -155,12 +159,12 @@ class SlotBlockingListener(EventListener):
                     player.deposit = self.get_costs(server, player)
         elif data['eventName'] == 'disconnect':
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
-            if player.deposit > 0:
+            if player and player.deposit > 0:
                 old_points = player.points
                 player.points -= player.deposit
                 player.audit('buy', old_points, 'Points taken for using a reserved module')
                 player.deposit = 0
         elif data['eventName'] == 'mission_end':
-            # give all players their credit back, if the mission ends and they are still airborne
+            # give all players their credit back, if the mission ends, and they are still airborne
             for player in server.players:
                 player.deposit = 0
