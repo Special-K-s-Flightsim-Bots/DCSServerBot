@@ -231,7 +231,7 @@ class DCSServerBot(commands.Bot):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (member.id, ))
+                cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC', (member.id, ))
                 if cursor.rowcount == 1:
                     return cursor.fetchone()[0]
                 else:
