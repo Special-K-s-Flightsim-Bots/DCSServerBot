@@ -218,7 +218,7 @@ class DCSServerBot(commands.Bot):
                 search = f'%{name}%'
                 cursor.execute('SELECT ucid FROM players WHERE LOWER(name) like LOWER(%s) ORDER BY last_seen DESC '
                                'LIMIT 1', (search, ))
-                if cursor.rowcount == 1:
+                if cursor.rowcount >= 1:
                     return cursor.fetchone()[0]
                 else:
                     return None
@@ -232,7 +232,7 @@ class DCSServerBot(commands.Bot):
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC', (member.id, ))
-                if cursor.rowcount == 1:
+                if cursor.rowcount >= 1:
                     return cursor.fetchone()[0]
                 else:
                     return None
