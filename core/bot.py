@@ -232,7 +232,7 @@ class DCSServerBot(commands.Bot):
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC', (member.id, ))
-                if cursor.rowcount == 1:
+                if cursor.rowcount >= 1:
                     return cursor.fetchone()[0]
                 else:
                     return None
