@@ -101,13 +101,15 @@ class SlotBlockingListener(EventListener):
                     player.deposit = self.get_costs(server, data)
 
     async def onMissionEvent(self, data):
+        server: Server = self.bot.servers[data['server_name']]
+        config = self.plugin.get_config(server)
+        if not config:
+            return
         if data['eventName'] == 'S_EVENT_BIRTH':
             initiator = data['initiator']
             # check, if they are a human player
             if 'name' not in initiator:
                 return
-            server: Server = self.bot.servers[data['server_name']]
-            config = self.plugin.get_config(server)
             if 'use_reservations' in config and config['use_reservations']:
                 player: CreditPlayer = cast(CreditPlayer, server.get_player(name=initiator['name'], active=True))
                 # only pilots have to "pay" for their plane
