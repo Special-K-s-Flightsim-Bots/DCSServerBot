@@ -89,11 +89,11 @@ class Main:
             5 if self.config.getboolean('BOT', 'MASTER') is True else 2,
             10 if self.config.getboolean('BOT', 'MASTER') is True else 5,
             self.config['BOT']['DATABASE_URL'], sslmode='allow')
-        if self.config.getboolean('BOT', 'MASTER') is True:
-            conn = db_pool.getconn()
-            try:
-                with suppress(Exception):
-                    with closing(conn.cursor()) as cursor:
+        conn = db_pool.getconn()
+        try:
+            with suppress(Exception):
+                with closing(conn.cursor()) as cursor:
+                    if self.config.getboolean('BOT', 'MASTER') is True:
                         # check if there is an old database already
                         cursor.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('version', 'plugins')")
                         tables = [x[0] for x in cursor.fetchall()]
@@ -121,13 +121,18 @@ class Main:
                                 cursor.execute('SELECT version FROM version')
                                 self.db_version = cursor.fetchone()[0]
                                 self.log.info(f"Database updated to {self.db_version}.")
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                conn.rollback()
-                self.log.exception(error)
-                raise error
-            finally:
-                db_pool.putconn(conn)
+                    else:
+                        cursor.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE tablename = 'servers'")
+                        if cursor.rowcount == 0:
+                            self.log.error('No MASTER database found. Please check configuration!')
+                            exit(-1)
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            conn.rollback()
+            self.log.exception(error)
+            raise error
+        finally:
+            db_pool.putconn(conn)
         # Make sure we only get back floats, not Decimal
         dec2float = psycopg2.extensions.new_type(
             psycopg2.extensions.DECIMAL.values,
@@ -191,7 +196,8 @@ class Main:
                             intents=discord.Intents.all(),
                             log=self.log,
                             config=self.config,
-                            pool=self.pool)
+                            pool=self.pool,
+                            help_command=None)
 
     def run(self):
         self.log.info('- Starting {}-Node on {}'.format('Master' if self.config.getboolean(

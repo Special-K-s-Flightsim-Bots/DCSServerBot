@@ -77,7 +77,7 @@ class Table(EmbedElement):
             if not header:
                 header = list(row.keys())
             for i in range(0, elements):
-                cols[i] += utils.format_string(row[header[i]], '_ _', **self.env.params)
+                cols[i] += utils.format_string(row[header[i]], '_ _', **self.env.params) + '\n'
         for i in range(0, elements):
             self.add_field(name=header[i], value=cols[i])
         for i in range(elements, 3):
@@ -195,7 +195,7 @@ class SQLTable(EmbedElement):
                     if not header:
                         header = list(row.keys())
                     for i in range(0, elements):
-                        cols[i] += str(row[i])
+                        cols[i] += str(row[i]) + '\n'
                 for i in range(0, elements):
                     self.add_field(name=header[i], value=cols[i])
                 for i in range(elements, 3):

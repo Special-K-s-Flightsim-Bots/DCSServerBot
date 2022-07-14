@@ -176,7 +176,7 @@ class Agent(Plugin):
                     await ctx.send(f"Server \"{server.name}\" must not be shut down to change coalition "
                                    f"passwords.")
             else:
-                await ctx.send(f"Usage: {self.bot.config['BOT']['COMMAND_PREFIX']}password [red|blue]")
+                await ctx.send(f"Usage: {ctx.prefix}password [red|blue]")
 
     @staticmethod
     def format_player_list(data: list[Player], marker, marker_emoji):
@@ -354,7 +354,7 @@ class Agent(Plugin):
                 except subprocess.TimeoutExpired:
                     await ctx.send('Timeout.')
             else:
-                await ctx.send(f"Usage: {self.bot.config['BOT']['COMMAND_PREFIX']}shell <command>")
+                await ctx.send(f"Usage: {ctx.prefix}shell <command>")
 
     @commands.command(description='Starts a stopped DCS server')
     @utils.has_role('DCS Admin')
@@ -369,8 +369,7 @@ class Agent(Plugin):
                 await ctx.send(f"Server {server.name} started.")
                 await self.bot.audit('started the server', server=server, user=ctx.message.author)
             elif server.status == Status.SHUTDOWN:
-                await ctx.send(f"Server {server.name} is shut down. Use "
-                               f"{self.bot.config['BOT']['COMMAND_PREFIX']}startup to start it up.")
+                await ctx.send(f"Server {server.name} is shut down. Use {ctx.prefix}startup to start it up.")
             elif server.status in [Status.RUNNING, Status.PAUSED]:
                 await ctx.send(f"Server {server.name} is already started.")
             else:
@@ -391,8 +390,8 @@ class Agent(Plugin):
                 await self.bot.audit('stopped the server', server=server, user=ctx.message.author)
                 await ctx.send(f"Server {server.name} stopped.")
             elif server.status == Status.STOPPED:
-                await ctx.send(f"Server {server.name} is stopped already. Use "
-                               f"{self.bot.config['BOT']['COMMAND_PREFIX']}shutdown to terminate the dcs.exe process.")
+                await ctx.send(f"Server {server.name} is stopped already. Use {ctx.prefix}shutdown to terminate the "
+                               f"dcs.exe process.")
             elif server.status == Status.SHUTDOWN:
                 await ctx.send(f"Server {server.name} is shut down already.")
             else:

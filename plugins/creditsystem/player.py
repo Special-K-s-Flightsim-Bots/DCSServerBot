@@ -1,6 +1,6 @@
 import psycopg2
 from contextlib import closing
-from core import Player, DataObjectFactory
+from core import Player, DataObjectFactory, utils
 from dataclasses import field, dataclass
 
 
@@ -18,9 +18,11 @@ class CreditPlayer(Player):
         try:
             with closing(conn.cursor()) as cursor:
                 # load credit points
-                cursor.execute('SELECT points FROM credits WHERE campaign_id = (SELECT id FROM '
-                               'campaigns WHERE server_name = %s AND NOW() BETWEEN start AND COALESCE(stop, '
-                               'NOW())) AND player_ucid = %s', (self.server.name, self.ucid))
+                campaign_id, _ = utils.get_running_campaign(self.server)
+                if not campaign_id:
+                    return
+                cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
+                               (campaign_id, self.ucid))
                 if cursor.rowcount == 1:
                     self._points = cursor.fetchone()[0]
                     self.server.sendtoDCS({
@@ -28,10 +30,8 @@ class CreditPlayer(Player):
                         'ucid': self.ucid,
                         'points': self._points,
                     })
-                conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
-            conn.rollback()
         finally:
             self.pool.putconn(conn)
 
@@ -51,13 +51,15 @@ class CreditPlayer(Player):
             self._points = 0
         else:
             self._points = p
+        campaign_id, _ = utils.get_running_campaign(self.server)
+        if not campaign_id:
+            return
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) SELECT id, %s, %s FROM '
-                               'campaigns WHERE server_name = %s AND NOW() BETWEEN start AND COALESCE(stop, '
-                               'NOW()) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = EXCLUDED.points',
-                               (self.ucid, self._points, self.server.name))
+                cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) VALUES (%s, %s, '
+                               '%s) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = EXCLUDED.points',
+                               (campaign_id, self.ucid, self._points))
             conn.commit()
             self.server.sendtoDCS({
                 'command': 'updateUserPoints',
@@ -71,13 +73,15 @@ class CreditPlayer(Player):
             self.pool.putconn(conn)
 
     def audit(self, event: str, old_points: int, remark: str):
+        campaign_id, _ = utils.get_running_campaign(self.server)
+        if not campaign_id:
+            return
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, '
-                               'remark) SELECT id, %s, %s, %s, %s, %s FROM campaigns WHERE server_name = %s AND NOW() '
-                               'BETWEEN start AND COALESCE(stop, NOW())',
-                               (event, self.ucid, old_points, self._points, remark, self.server.name))
+                               'remark) VALUES (%s, %s, %s, %s, %s, %s)',
+                               (campaign_id, event, self.ucid, old_points, self._points, remark))
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()

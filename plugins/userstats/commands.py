@@ -71,7 +71,12 @@ class UserStatisticsMaster(UserStatisticsAgent):
         self.expire_token.cancel()
         super().cog_unload()
 
-    @commands.command(description='Shows player statistics', usage='[member] [period]', aliases=['stats'])
+    @commands.command(brief='Shows player statistics',
+                      description='Displays the users statistics, either for a specific period or for a running '
+                                  'campaign.\nPeriod might be one of _day, yesterday, month, week_ or _year_. Campaign '
+                                  'has to be one of your configured campaigns.\nIf no period is given, default is '
+                                  'everything, unless a campaign is configured. Then it\'s the running campaign.',
+                      usage='[member] [period]', aliases=['stats'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def statistics(self, ctx, member: Optional[Union[discord.Member, str]], *params):
@@ -92,7 +97,12 @@ class UserStatisticsMaster(UserStatisticsAgent):
         finally:
             await ctx.message.delete()
 
-    @commands.command(description='Shows actual highscores', usage='[period]', aliases=['hs'])
+    @commands.command(brief='Shows actual highscores',
+                      description='Displays the users highscore, either for a specific period or for a running '
+                                  'campaign.\nPeriod might be one of _day, yesterday, month, week_ or _year_. Campaign '
+                                  'has to be one of your configured campaigns.\nIf no period is given, default is '
+                                  'everything, unless a campaign is configured. Then it\'s the running campaign.',
+                      usage='[period]', aliases=['hs'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def highscore(self, ctx, period: Optional[str]):
@@ -116,7 +126,13 @@ class UserStatisticsMaster(UserStatisticsAgent):
         finally:
             await ctx.message.delete()
 
-    @commands.command(description='Links a member to a DCS user', usage='<member> <ucid>')
+    @commands.command(brief='Links a member to a DCS user',
+                      description="Used to link a Discord member to a DCS user by linking the Discord ID to the "
+                                  "respective UCID of that user.\nThe bot needs this information to be able to "
+                                  "display the statistics and other information for the user.\nIf a user is manually "
+                                  "linked, their link is approved, which means that they can use specific commands "
+                                  "in the in-game chat, if they belong to an elevated Discord role.",
+                      usage='<member> <ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def link(self, ctx, member: discord.Member, ucid: str):
@@ -133,7 +149,12 @@ class UserStatisticsMaster(UserStatisticsAgent):
         finally:
             self.pool.putconn(conn)
 
-    @commands.command(description='Unlinks a member', usage='<member|ucid>')
+    @commands.command(brief='Unlinks a member',
+                      description="Removes any link between this Discord member and a DCS users. Might be used, if a "
+                                  "mislink happend, either manually or due to the bots auto-link functionality not "
+                                  "having linked correctly.\n\nStatistics will not be deleted for this UCID, so "
+                                  "if you link the UCID to the correct member, they still see all their valuable data.",
+                      usage='<member|ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unlink(self, ctx, member: Union[discord.Member, str]):

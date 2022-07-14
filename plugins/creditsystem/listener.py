@@ -42,14 +42,15 @@ class CreditSystemListener(EventListener):
         if player.points == -1:
             player.points = config['initial_points'] if 'initial_points' in config else 0
             player.audit('init', 0, 'Initial points received')
-        player.sendChatMessage(f"{player.name}, you currently have {player.points} credit points!")
+        player.sendChatMessage(f"{player.name}, you currently have {player.points} credit points.")
 
     async def addUserPoints(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
-        old_points = player.points
-        player.points += data['points']
-        player.audit('mission', old_points, 'Unknown mission achievement')
+        if data['points'] != 0:
+            server: Server = self.bot.servers[data['server_name']]
+            player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
+            old_points = player.points
+            player.points += data['points']
+            player.audit('mission', old_points, 'Unknown mission achievement')
 
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

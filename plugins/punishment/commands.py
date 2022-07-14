@@ -277,7 +277,7 @@ class PunishmentMaster(PunishmentAgent):
             member = ctx.message.author
             ucid = self.bot.get_ucid_by_member(ctx.message.author)
             if not ucid:
-                await ctx.send(f"Use {self.bot.config['BOT']['COMMAND_PREFIX']}linkme to link your account.")
+                await ctx.send(f"Use {ctx.prefix}linkme to link your account.")
                 return
         conn = self.pool.getconn()
         try:

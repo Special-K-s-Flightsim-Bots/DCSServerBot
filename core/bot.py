@@ -139,7 +139,6 @@ class DCSServerBot(commands.Bot):
                 self.check_channels(server.installation)
             self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
             self.external_ip = await utils.get_external_ip()
-            self.remove_command('help')
             self.log.info('- Loading Plugins ...')
             for plugin in self.plugins:
                 self.load_plugin(plugin.lower())
