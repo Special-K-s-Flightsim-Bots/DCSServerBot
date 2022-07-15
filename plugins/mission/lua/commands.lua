@@ -90,7 +90,11 @@ function dcsbot.deleteMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: deleteMission()')
 	net.missionlist_delete(json.id)
 	local current_missions = net.missionlist_get()
-	result = utils.saveSettings({missionList = current_missions["missionList"]})
+	--result = utils.saveSettings({missionList = current_missions["missionList"]})
+	utils.saveSettings({
+		missionList=current_missions["missionList"],
+		listStartIndex=current_missions["listStartIndex"]
+	})
 	dcsbot.listMissions(json)
 end
 
