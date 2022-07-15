@@ -106,7 +106,7 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, mar
             elif react.emoji == '⏹️':
                 return -1
             elif react.emoji == marker_emoji:
-                return marker - j * num - 1
+                return marker - 1
             elif (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x31, 0x39):
                 return (ord(react.emoji[0]) - 0x31) + j * num
         return -1
