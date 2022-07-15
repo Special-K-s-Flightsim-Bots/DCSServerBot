@@ -31,7 +31,8 @@ class SlotBlockingListener(EventListener):
                         continue
                     if utils.check_roles(roles, member):
                         ucid = self.bot.get_ucid_by_member(member)
-                        ucids.add(ucid)
+                        if ucid:
+                            ucids.add(ucid)
                 config['VIP']['ucid'] = list(ucids)
             server.sendtoDCS({
                 'command': 'loadParams',
