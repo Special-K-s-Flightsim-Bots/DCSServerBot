@@ -5,18 +5,24 @@
 -----------------------------------------------------
 local base  	= _G
 
+-- Don't double load the lua
+if base.dcsbot ~= nil then
+	return
+end
+
 -- load the configuration
 dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBotConfig.lua')
 local config = require('DCSServerBotConfig')
 loadfile(lfs.writedir() .. 'Config/serverSettings.lua')()
-package.path  = package.path..";.\\LuaSocket\\?.lua;"
-package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
-local socket = require("socket")
-
 local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
 
 dcsbot = base.dcsbot or {}
-dcsbot.UDPSendSocket = dcsbot.UDPSendSocket or socket.udp()
+if dcsbot.UDPSendSocket == nil then
+	package.path  = package.path..";.\\LuaSocket\\?.lua;"
+	package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
+	local socket = require("socket")
+	dcsbot.UDPSendSocket = socket.udp()
+end
 
 dcsbot.sendBotMessage = dcsbot.sendBotMessage or function (msg, channel)
 	local messageTable = {}

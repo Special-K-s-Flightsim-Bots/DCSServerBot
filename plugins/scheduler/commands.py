@@ -409,7 +409,7 @@ class Scheduler(Plugin):
             config = self.get_config(server)
             if server.status == Status.STOPPED:
                 await ctx.send(f"DCS server \"{server.name}\" is stopped.\n"
-                               f"Please use {self.bot.config['DCS']['COMMAND_PREFIX']}start instead.")
+                               f"Please use {ctx.prefix}start instead.")
                 return
             if server.status == Status.SHUTDOWN:
                 msg = await ctx.send(f"DCS server \"{server.name}\" starting up ...")
