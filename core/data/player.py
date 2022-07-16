@@ -38,6 +38,7 @@ class Player(DataObject):
         if self.id == 1:
             self.active = False
             return
+        self.ipaddr = self.ipaddr[:self.ipaddr.find(':')]
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -70,13 +71,13 @@ class Player(DataObject):
         finally:
             self.pool.putconn(conn)
 
-    def is_active(self):
+    def is_active(self) -> bool:
         return self.active
 
-    def is_multicrew(self):
+    def is_multicrew(self) -> bool:
         return self.sub_slot != 0
 
-    def is_banned(self):
+    def is_banned(self) -> bool:
         return self.banned
 
     @property
@@ -84,7 +85,7 @@ class Player(DataObject):
         return self._member
 
     @member.setter
-    def member(self, member: discord.Member):
+    def member(self, member: discord.Member) -> None:
         self._member = member
         if member:
             roles = [x.name for x in member.roles]

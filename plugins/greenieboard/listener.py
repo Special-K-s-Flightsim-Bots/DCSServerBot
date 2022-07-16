@@ -1,10 +1,23 @@
 import psycopg2
 from contextlib import closing
-from core import EventListener, Server, Player, Channel
+from core import EventListener, Server, Player, Channel, Side
 from plugins.greenieboard import get_element
 
 
 class GreenieBoardEventListener(EventListener):
+
+    EVENT_TEXTS = {
+        Side.BLUE: {
+            'waveoff': '```ini\n[BLUE player {} waved off from carrier {}.]```',
+            'bolter': '```ini\n[BLUE player {} boltered from carrier {}.]```',
+            'landing': '```ini\n[BLUE player {} landed on carrier {} with grade {} / {}.]```'
+        },
+        Side.RED: {
+            'waveoff': '```css\n[RED player {} waved off from carrier {}.]```',
+            'bolter': '```css\n[RED player {} boltered from carrier {}.]```',
+            'landing': '```css\n[RED player {} landed on carrier {} with grade {} / {}.]```'
+        }
+    }
 
     async def update_greenieboard(self):
         if self.locals['configs'][0]['persistent_board']:
@@ -23,14 +36,13 @@ class GreenieBoardEventListener(EventListener):
         if chat_channel is not None:
             carrier = data['place']['name']
             if grade in ['WO', 'OWO']:
-                await chat_channel.send('{} player {} waved off from carrier {}.'.format(
-                    player.side.name, player.name, carrier))
+                await chat_channel.send(self.EVENT_TEXTS[player.side]['waveoff'].format(player.name, carrier))
             elif grade == 'B':
-                await chat_channel.send('{} player {} boltered from carrier {}.'.format(
-                    player.side.name, player.name, carrier))
+                await chat_channel.send(self.EVENT_TEXTS[player.side]['bolter'].format(player.name, carrier))
             else:
-                await chat_channel.send('{} player {} landed on carrier {} with grade {} / {}.'.format(
-                    player.side.name, player.name, carrier, grade.replace('_', '\\_'), comment))
+                await chat_channel.send(self.EVENT_TEXTS[player.side]['landing'].format(player.name, carrier,
+                                                                                        grade.replace('_', '\\_'),
+                                                                                        comment))
 
     async def registerDCSServer(self, data: dict):
         await self.update_greenieboard()

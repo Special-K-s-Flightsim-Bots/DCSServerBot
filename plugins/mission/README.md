@@ -29,10 +29,24 @@ restarted (another security question will apply). Newly added missions will be a
 | discord_id      | BIGINT                | Discord ID of this user (if matched) or -1 otherwise.    |
 | name            | TEXT                  | Last used DCS ingame-name of this user.                  |
 | ipaddr          | TEXT                  | Last used IP-address of this user.                       |
-| manual          | BOOLEAN DEFAULT FALSE | True if this user was manually matched, FALSE otherwise. |
 | coalition       | TEXT                  | The coalition the user belongs to.                       |
 | coalition_leave | TIMESTAMP             | The time that user last left their coalition.            |
+| manual          | BOOLEAN DEFAULT FALSE | True if this user was manually matched, FALSE otherwise. |
 | last_seen       | TIMESTAMP             | Time the user was last seen on the DCS servers.          |
+
+### Players_Hist
+This table keeps a history of all changes to the main player table.
+
+| Column     | Type                    | Description                                              |
+|------------|-------------------------|----------------------------------------------------------|
+| #id        | NUMBER                  | Unique ID (sequence)                                     |
+| ucid       | TEXT                    | Unique ID of this user (DCS ID).                         |
+| discord_id | BIGINT                  | Discord ID of this user (if matched) or -1 otherwise.    |
+| name       | TEXT                    | Last used DCS ingame-name of this user.                  |
+| ipaddr     | TEXT                    | Last used IP-address of this user.                       |
+| coalition  | TEXT                    | The coalition the user belongs to.                       |
+| manual     | BOOLEAN                 | True if this user was manually matched, FALSE otherwise. |
+| time       | TIMESTAMP DEFAULT NOW() | Time of the change.                                      |
 
 ### Missions
 | Column          | Type               | Description                                     |

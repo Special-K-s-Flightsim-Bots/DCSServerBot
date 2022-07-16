@@ -69,6 +69,12 @@ class MissionEventListener(EventListener):
             if channel:
                 await channel.send(embed=embed)
 
+    @staticmethod
+    async def sendChatMessage(server: Server, message: str) -> None:
+        chat_channel = server.get_channel(Channel.CHAT)
+        if chat_channel:
+            await chat_channel.send(message)
+
     async def displayMissionEmbed(self, server: Server):
         try:
             if not len(server.settings):
@@ -110,7 +116,8 @@ class MissionEventListener(EventListener):
                                                          ucid=p['ucid'], ipaddr=p['ipaddr'], slot=p['slot'],
                                                          sub_slot=p['sub_slot'], unit_callsign=p['unit_callsign'],
                                                          unit_name=p['unit_name'], unit_type=p['unit_type'],
-                                                         group_id=p['group_id'], group_name=p['group_name'], banned=False)
+                                                         group_id=p['group_id'], group_name=p['group_name'],
+                                                         banned=False)
                 server.add_player(player)
         await self.displayMissionEmbed(server)
         await self.displayPlayerEmbed(server)
@@ -154,15 +161,14 @@ class MissionEventListener(EventListener):
         if data['id'] == 1:
             return
         try:
-            chat_channel = server.get_channel(Channel.CHAT)
-            if chat_channel is not None:
-                await chat_channel.send(self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(data['name']))
+            await self.sendChatMessage(server, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(data['name']))
         finally:
             player: Player = server.get_player(ucid=data['ucid'])
             if not player or player.id == 1:
                 player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=data['id'],
-                                                         name=data['name'], active=data['active'], side=Side(data['side']),
-                                                         ucid=data['ucid'], ipaddr=data['ipaddr'], banned=False)
+                                                         name=data['name'], active=data['active'],
+                                                         side=Side(data['side']), ucid=data['ucid'],
+                                                         ipaddr=data['ipaddr'], banned=False)
                 server.add_player(player)
             else:
                 player.update(data)
@@ -210,16 +216,13 @@ class MissionEventListener(EventListener):
         try:
             if Side(data['side']) != Side.SPECTATOR:
                 if player is not None:
-                    chat_channel = server.get_channel(Channel.CHAT)
-                    if chat_channel is not None:
-                        await chat_channel.send(self.EVENT_TEXTS[Side(data['side'])]['change_slot'].format(
-                            player.side.name if player.side != Side.SPECTATOR else 'NEUTRAL',
-                            data['name'], Side(data['side']).name, data['unit_type']))
+                    await self.sendChatMessage(server, self.EVENT_TEXTS[Side(data['side'])]['change_slot'].format(
+                        player.side.name if player.side != Side.SPECTATOR else 'NEUTRAL',
+                        data['name'], Side(data['side']).name, data['unit_type']))
             elif player is not None:
-                chat_channel = server.get_channel(Channel.CHAT)
-                if chat_channel is not None:
-                    await chat_channel.send(self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
-                                                                                                  data['name']))
+                await self.sendChatMessage(server,
+                                           self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
+                                                                                                 data['name']))
         finally:
             if player:
                 player.update(data)
@@ -239,9 +242,7 @@ class MissionEventListener(EventListener):
             if not player:
                 return
             try:
-                chat_channel = server.get_channel(Channel.CHAT)
-                if chat_channel:
-                    await chat_channel.send(self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
+                await self.sendChatMessage(server, self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
             finally:
                 player.active = False
                 await self.displayMissionEmbed(server)
@@ -252,27 +253,21 @@ class MissionEventListener(EventListener):
                 player2 = server.get_player(id=data['arg3'])
             else:
                 player2 = None
-            chat_channel = server.get_channel(Channel.CHAT)
-            if chat_channel is not None:
-                await chat_channel.send(self.EVENT_TEXTS[player1.side][data['eventName']].format(
-                    'player ' + player1.name, ('player ' + player2.name) if player2 is not None else 'AI',
-                    data['arg2'] or 'Cannon'))
+            await self.sendChatMessage(server, self.EVENT_TEXTS[player1.side][data['eventName']].format(
+                'player ' + player1.name, ('player ' + player2.name) if player2 is not None else 'AI',
+                data['arg2'] or 'Cannon'))
         elif data['eventName'] == 'self_kill':
             player = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
-            chat_channel = server.get_channel(Channel.CHAT)
-            if player and chat_channel:
-                await chat_channel.send(self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
+            await self.sendChatMessage(server, self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
         elif data['eventName'] == 'kill':
             # Player is not an AI
             player1 = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
             player2 = server.get_player(id=data['arg4']) if data['arg4'] != -1 else None
-            chat_channel = server.get_channel(Channel.CHAT)
-            if chat_channel is not None:
-                await chat_channel.send(self.EVENT_TEXTS[Side(data['arg3'])][data['eventName']].format(
-                    ('player ' + player1.name) if player1 is not None else 'AI',
-                    data['arg2'], Side(data['arg6']).name,
-                    ('player ' + player2.name) if player2 is not None else 'AI',
-                    data['arg5'], data['arg7'] or 'Cannon'))
+            await self.sendChatMessage(server, self.EVENT_TEXTS[Side(data['arg3'])][data['eventName']].format(
+                ('player ' + player1.name) if player1 is not None else 'AI',
+                data['arg2'], Side(data['arg6']).name,
+                ('player ' + player2.name) if player2 is not None else 'AI',
+                data['arg5'], data['arg7'] or 'Cannon'))
             # report teamkills from players to admins
             if (player1 is not None) and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
                 if player1.member:
@@ -284,13 +279,12 @@ class MissionEventListener(EventListener):
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
             if data['arg1'] != -1:
                 player = server.get_player(id=data['arg1'])
-                chat_channel = server.get_channel(Channel.CHAT)
-                if chat_channel is not None:
-                    if data['eventName'] in ['takeoff', 'landing']:
-                        await chat_channel.send(self.EVENT_TEXTS[player.side][data['eventName']].format(
-                            player.name, data['arg3'] if len(data['arg3']) > 0 else 'ground'))
-                    else:
-                        await chat_channel.send(self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
+                if data['eventName'] in ['takeoff', 'landing']:
+                    await self.sendChatMessage(server, self.EVENT_TEXTS[player.side][data['eventName']].format(
+                        player.name, data['arg3'] if len(data['arg3']) > 0 else 'ground'))
+                else:
+                    await self.sendChatMessage(server,
+                                               self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
 
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
