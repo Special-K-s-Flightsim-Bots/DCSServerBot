@@ -55,7 +55,8 @@ class Player(DataObject):
                                    (self.name, self.ipaddr, self.ucid))
                 # no, add a new player
                 else:
-                    cursor.execute('INSERT INTO players (ucid, name, ipaddr, last_seen) VALUES (%s, %s, %s, NOW())',
+                    cursor.execute('INSERT INTO players (ucid, discord_id, name, ipaddr, last_seen) VALUES (%s, -1, '
+                                   '%s, %s, NOW())',
                                    (self.ucid, self.name, self.ipaddr))
                 # if automatch is enabled, try to match the user
                 if not self.member and self.bot.config.getboolean('BOT', 'AUTOMATCH'):

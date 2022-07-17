@@ -1,3 +1,9 @@
+DROP TRIGGER tgr_player_update ON players;
+DROP FUNCTION player_hist_change();
+DROP INDEX idx_players_hist_ucid;
+DROP INDEX idx_players_hist_discord_id;
+DROP TABLE players_hist;
+UPDATE players SET discord_id = -1 WHERE discord_id IS NULL;
 CREATE TABLE players_hist (id SERIAL PRIMARY KEY, ucid TEXT NOT NULL, discord_id BIGINT NOT NULL, name TEXT, ipaddr TEXT, coalition TEXT, manual BOOLEAN NOT NULL, time TIMESTAMP NOT NULL DEFAULT NOW());
 CREATE INDEX idx_players_hist_discord_id ON players_hist(discord_id);
 CREATE INDEX idx_players_hist_ucid ON players_hist(ucid);
