@@ -259,7 +259,7 @@ class CreditSystemMaster(CreditSystemAgent):
                     return
                 if p_donor:
                     p_donor.points -= donation
-                    p_donor.audit('donation', data[n][3], f'Donation to member {to.display_name}')
+                    p_donor.audit('donation', data[n][2], f'Donation to member {to.display_name}')
                 else:
                     cursor.execute('UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s',
                                    (donation, data[n][0], donor))
