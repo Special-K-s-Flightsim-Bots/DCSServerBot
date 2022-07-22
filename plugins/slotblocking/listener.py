@@ -169,5 +169,5 @@ class SlotBlockingListener(EventListener):
                 player.deposit = 0
         elif data['eventName'] == 'mission_end':
             # give all players their credit back, if the mission ends, and they are still airborne
-            for player in server.players:
+            for player in server.players.values():
                 player.deposit = 0

@@ -167,7 +167,6 @@ class PunishmentEventListener(EventListener):
             self.pool.putconn(conn)
 
     async def onPlayerStart(self, data):
-        # the server owner don't need to get an update of their stats
         if data['id'] == 1:
             return
         server: Server = self.bot.servers[data['server_name']]

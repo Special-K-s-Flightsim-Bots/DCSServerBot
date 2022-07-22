@@ -49,7 +49,7 @@ class MissionEventListener(EventListener):
 
     async def sendMessage(self, data):
         server: Server = self.bot.servers[data['server_name']]
-        if data['channel'] == -1:
+        if int(data['channel']) == -1:
             channel = server.get_channel(Channel.CHAT)
         else:
             channel = self.bot.get_channel(int(data['channel']))
@@ -62,7 +62,7 @@ class MissionEventListener(EventListener):
         if 'id' in data and len(data['id']) > 0:
             return await server.setEmbed(data['id'], embed)
         else:
-            if data['channel'] == -1:
+            if int(data['channel']) == -1:
                 channel = server.get_channel(Channel.CHAT)
             else:
                 channel = self.bot.get_channel(int(data['channel']))
