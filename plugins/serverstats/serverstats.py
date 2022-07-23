@@ -214,8 +214,9 @@ class ServerLoad(report.MultiGraphElement):
                     ax3 = self.axes[3].twinx()
                     series.plot(ax=self.axes[3], x='time', y=['Sent', 'Recv'], title='Network', logy=True, xlabel='', ylabel='KB/s', grid=True)
                     self.axes[3].legend(['Sent', 'Recv'], loc='upper left')
-                    series.plot(ax=ax3, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')
-                    ax3.legend(['Ping'], loc='upper right')
+                    if self.bot.config.getboolean('BOT', 'PING_MONITORING'):
+                        series.plot(ax=ax3, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')
+                        ax3.legend(['Ping'], loc='upper right')
                 else:
                     for i in range(0, 4):
                         self.axes[i].bar([], [])
