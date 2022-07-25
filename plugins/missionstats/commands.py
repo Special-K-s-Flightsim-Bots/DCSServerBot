@@ -119,7 +119,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
                 return
             flt = MissionStatisticsFilter()
             if period and not flt:
-                await ctx.send('Please provide a valid period or campaign name.')
+                await ctx.send('Please provide a valid period.')
                 return
             report = Report(self.bot, self.plugin_name, 'refuelings.json')
             env = await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),

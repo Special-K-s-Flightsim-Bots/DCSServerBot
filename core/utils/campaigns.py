@@ -29,7 +29,7 @@ def get_all_campaigns(self) -> list[str]:
     try:
         with closing(conn.cursor()) as cursor:
             cursor.execute('SELECT name FROM campaigns')
-            return [x[0] for x in cursor.fetchall()]
+            return [x[0].casefold() for x in cursor.fetchall()]
     except (Exception, psycopg2.DatabaseError) as error:
         self.log.exception(error)
     finally:

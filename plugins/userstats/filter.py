@@ -24,7 +24,9 @@ class StatisticsFilter(ABC):
 
     @staticmethod
     def detect(bot: DCSServerBot, period: str) -> Any:
-        if PeriodFilter.supports(bot, period):
+        if MissionFilter.supports(bot, period):
+            return MissionFilter
+        elif PeriodFilter.supports(bot, period):
             return PeriodFilter
         elif CampaignFilter.supports(bot, period):
             return CampaignFilter
@@ -36,10 +38,12 @@ class StatisticsFilter(ABC):
 class PeriodFilter(StatisticsFilter):
     @staticmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
-        return period in ['all', 'day', 'week', 'month', 'year', 'yesterday']
+        return (period and period.startswith('period:')) or period in ['all', 'day', 'week', 'month', 'year', 'yesterday']
 
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        if period and period.startswith('period:'):
+            period = period[7:]
         if period in [None, 'all']:
             return '1 = 1'
         elif period == 'yesterday':
@@ -49,6 +53,8 @@ class PeriodFilter(StatisticsFilter):
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        if period and period.startswith('period:'):
+            period = period[7:]
         if period in [None, 'all']:
             return 'Overall'
         elif period == 'day':
@@ -65,16 +71,20 @@ class CampaignFilter(StatisticsFilter):
 
     @staticmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
-        return period in utils.get_all_campaigns(bot)
+        return period and (period.startswith('campaign:') or period.casefold() in utils.get_all_campaigns(bot))
 
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        if period and period.startswith('campaign:'):
+            period = period[9:]
         return f"tsrange(s.hop_on, s.hop_off) && (SELECT tsrange(start, stop) FROM campaigns " \
                f"WHERE name ILIKE '{period}')"
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        return f'Campaign "{period}"'
+        if period and period.startswith('campaign:'):
+            period = period[9:]
+        return f'Campaign "{string.capwords(period)}"'
 
 
 class MixedFilter(StatisticsFilter):
@@ -109,6 +119,23 @@ class MixedFilter(StatisticsFilter):
             return CampaignFilter.format(bot, name, server_name)
         else:
             return PeriodFilter.format(bot, period, server_name)
+
+
+class MissionFilter(StatisticsFilter):
+    def __init__(self, campaign: str):
+        self.campaign = campaign
+
+    @staticmethod
+    def supports(bot: DCSServerBot, period: str) -> bool:
+        return period and period.startswith('mission:')
+
+    @staticmethod
+    def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        return f"m.mission_name ILIKE '%%{period[8:]}%%'"
+
+    @staticmethod
+    def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        return f'Missions containing "{string.capwords(period[8:])}"'
 
 
 class MissionStatisticsFilter(StatisticsFilter):

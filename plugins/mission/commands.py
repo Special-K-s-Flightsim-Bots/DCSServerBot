@@ -1,3 +1,4 @@
+# noinspection PyPackageRequirements
 import aiohttp
 import asyncio
 import discord

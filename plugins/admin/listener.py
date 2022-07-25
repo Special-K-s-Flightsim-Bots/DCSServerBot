@@ -53,6 +53,8 @@ class AdminEventListener(EventListener):
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['from_id'], active=True)
+        if not player:
+            return
         if data['subcommand'] == 'kick' and player and player.has_discord_roles(['DCS Admin']):
             if len(data['params']) == 0:
                 player.sendChatMessage("Usage: -kick <name> [reason]")

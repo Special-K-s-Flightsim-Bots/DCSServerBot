@@ -121,6 +121,8 @@ class PunishmentEventListener(EventListener):
         config = self.plugin.get_config(server)
         if data['subcommand'] == 'forgive' and self.plugin.get_config(server):
             target = server.get_player(id=data['from_id'])
+            if not target:
+                return
             if 'forgive' in config:
                 async with self.lock:
                     conn = self.pool.getconn()

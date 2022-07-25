@@ -1,7 +1,6 @@
 from core import EventListener, Server, Status
 from typing import cast
 from .player import CreditPlayer
-from core.data.const import Side, Coalition
 
 
 class CreditSystemListener(EventListener):
@@ -70,17 +69,18 @@ class CreditSystemListener(EventListener):
                         player.audit('kill', old_points, f"Killed an enemy {data['arg5']}")
 
     async def onChatCommand(self, data: dict) -> None:
+        server: Server = self.bot.servers[data['server_name']]
+        player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['from_id']))
+        if not player:
+            return
         if data['subcommand'] == 'credits':
-            server: Server = self.bot.servers[data['server_name']]
-            player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['from_id']))
             message = f"You currently have {player.points} credit points"
             if player.deposit > 0:
                 message += f", {player.deposit} on deposit"
             message += '.'
             player.sendChatMessage(message)
+
         elif data['subcommand'] == 'donate':
-            server: Server = self.bot.servers[data['server_name']]
-            player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['from_id']))
             if len(data['params']) < 2:
                 player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}donate player points")
                 return
@@ -109,45 +109,38 @@ class CreditSystemListener(EventListener):
             receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
             player.sendChatMessage(f"You've donated {donation} credit points to player {name}.")
             receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")
-        
+
         elif data['subcommand'] == 'tip':
             server: Server = self.bot.servers[data['server_name']]
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['from_id']))
 
-            if len(data['params']) < 1:
-                player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points")
+            if not len(data['params']):
+                player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points [gci_number]")
                 return
             
-            donation = 0
-            gci_index = -1
-            if len(data['params']) == 1:
-                donation = int(data['params'][0])
+            donation = int(data['params'][0])
+            if len(data['params']) > 1:
+                gci_index = int(data['params'][1]) - 1
             else:
-                donation = int(data['params'][0])
-                gci_index = int(data['params'][1])-1
+                gci_index = -1
 
-            active_gci = []
+            active_gci = list[CreditPlayer]()
             for p in server.get_active_players():
                 if player.side == p.side and p.unit_type == "forward_observer":
-                    active_gci.append(p)
-            
-            receiver = None
-            if gci_index == -1 and len(active_gci) > 1:
-                player.sendChatMessage(f"Too many active GCIs on, use {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points gci_number instead")
+                    active_gci.append(cast(CreditPlayer, p))
+            if not len(active_gci):
+                player.sendChatMessage(f"There is currently no {player.side.name} GCI active on this server.")
+                return
+            elif len(active_gci) == 1:
+                gci_index = 0
+
+            if gci_index not in range(0, len(active_gci)):
+                player.sendChatMessage(f"Multiple GCIs found, use \"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points GCI-number\".")
                 for i, gci in enumerate(active_gci):
                     player.sendChatMessage(f"{i+1}) {gci.name}")
                 return
-
-            elif gci_index == -1:
-                receiver = active_gci[0]
-            
             else:
-                if -1 < gci_index < len(active_gci):
-                    receiver = active_gci[gci_index]
-                else:
-                    player.sendChatMessage(f"There is no GCI at that number, use {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points gci_number instead")
-                for i, gci in enumerate(active_gci):
-                    player.sendChatMessage(f"{i+1}) {gci.name}")
+                receiver = active_gci[gci_index]
 
             old_points_player = player.points
             old_points_receiver = receiver.points
@@ -155,5 +148,5 @@ class CreditSystemListener(EventListener):
             player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
             receiver.points += donation
             receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
-            player.sendChatMessage(f"You've donated {donation} credit points to player {name}.")
+            player.sendChatMessage(f"You've donated {donation} credit points to GCI {receiver.name}.")
             receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")

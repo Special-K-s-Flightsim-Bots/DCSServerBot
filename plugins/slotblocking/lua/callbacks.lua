@@ -23,9 +23,12 @@ local function has_value(tab, value)
 end
 
 local function is_vip(ucid)
+    if not dcsbot.params then
+        return false
+    end
     local config = dcsbot.params['slotblocking']['VIP']
     if not config then
-        return
+        return false
     end
     if config['ucid'] and not has_value(config['ucid'], ucid) then
         return false
@@ -37,6 +40,9 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
         return
     end
     log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onPlayerTryConnect()')
+    if not dcsbot.params then
+        return
+    end
     local config = dcsbot.params['slotblocking']['VIP']
     if not config then
         return
@@ -59,6 +65,10 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     local group_name = DCS.getUnitProperty(slotID, DCS.UNIT_GROUPNAME)
     local unit_type = DCS.getUnitType(slotID)
     local points
+    if not dcsbot.params then
+        net.send_chat_to('Slot blocking is initializing, please wait and try again.', playerID)
+        return false
+    end
     -- check levels if any
     for id, unit in pairs(dcsbot.params['slotblocking']['restricted']) do
         if (unit['unit_type'] and unit['unit_type'] == unit_type)

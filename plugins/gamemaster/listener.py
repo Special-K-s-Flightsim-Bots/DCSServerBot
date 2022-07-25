@@ -202,6 +202,8 @@ class GameMasterEventListener(EventListener):
     async def onChatCommand(self, data):
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['from_id'])
+        if not player:
+            return
         coalition = self.get_coalition(player)
         if self.bot.config.getboolean(server.installation, 'COALITIONS'):
             if data['subcommand'] == 'join':

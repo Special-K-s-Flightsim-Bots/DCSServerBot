@@ -289,6 +289,8 @@ class MissionEventListener(EventListener):
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['from_id'])
+        if not player:
+            return
         if data['subcommand'] == 'atis':
             if len(data['params']) == 0:
                 player.sendChatMessage(f"Usage: -atis <airbase/code>")

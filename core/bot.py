@@ -76,14 +76,15 @@ class DCSServerBot(commands.Bot):
             except asyncio.TimeoutError:
                 server.status = Status.SHUTDOWN
 
-    def load_plugin(self, plugin: str):
+    def load_plugin(self, plugin: str) -> bool:
         try:
             self.load_extension(f'plugins.{plugin}.commands')
+            return True
         except commands.ExtensionNotFound:
-            self.log.error(f'- No commands.py found for plugin "{plugin}"')
+            self.log.error(f'  - No commands.py found for plugin "{plugin}"')
         except commands.ExtensionFailed as ex:
-            self.log.exception(ex)
-            self.log.error(f'- Error during initialisation of plugin "{plugin}": {ex.original if ex.original else ex}')
+            self.log.error(f'  - {ex.original if ex.original else ex}')
+        return False
 
     def unload_plugin(self, plugin: str):
         try:
@@ -141,8 +142,10 @@ class DCSServerBot(commands.Bot):
             self.external_ip = await utils.get_external_ip()
             self.log.info('- Loading Plugins ...')
             for plugin in self.plugins:
-                self.load_plugin(plugin.lower())
-                self.log.info(f'  => {string.capwords(plugin)} loaded.')
+                if self.load_plugin(plugin.lower()):
+                    self.log.info(f'  => {string.capwords(plugin)} loaded.')
+                else:
+                    self.log.info(f'  => {string.capwords(plugin)} NOT loaded.')
             # start the UDP listener to accept commands from DCS
             self.loop.create_task(self.start_udp_listener())
             await self.register_servers()

@@ -18,6 +18,8 @@ class HelpListener(EventListener):
                 f'"{prefix}911 <text>"   send an alert to admins (misuse will be punished!)'
             ]
             player = server.get_player(id=data['from_id'])
+            if not player:
+                return
             dcs_admin = player.has_discord_roles(['DCS Admin'])
             if dcs_admin:
                 messages.append(f'"{prefix}kick \'name\'"  kick a user')
@@ -34,6 +36,7 @@ class HelpListener(EventListener):
             if 'creditsystem' in self.bot.plugins:
                 messages.append(f'"{prefix}credits"      displays your credits')
                 messages.append(f'"{prefix}donate"       donate points to another player')
+                messages.append(f'"{prefix}tip"          tip a GCI with points')
             if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 messages.append(f'"{prefix}join coal."   join a coalition')
                 messages.append(f'"{prefix}leave"        leave a coalition')

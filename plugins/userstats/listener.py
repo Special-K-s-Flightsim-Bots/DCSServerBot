@@ -338,6 +338,8 @@ class UserStatisticsEventListener(EventListener):
         if data['subcommand'] == 'linkme':
             server: Server = self.bot.servers[data['server_name']]
             player = server.get_player(id=data['from_id'])
+            if not player:
+                return
             if len(data['params']):
                 token = data['params'][0]
                 conn = self.pool.getconn()

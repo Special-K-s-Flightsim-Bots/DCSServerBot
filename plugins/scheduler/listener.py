@@ -78,6 +78,8 @@ class SchedulerListener(EventListener):
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         player = server.get_player(id=data['from_id'])
+        if not player:
+            return
         if data['subcommand'] in ['preset', 'presets'] and \
                 player.has_discord_roles(['DCS Admin']):
             config = self.plugin.get_config(server)

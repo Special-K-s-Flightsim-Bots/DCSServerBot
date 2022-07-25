@@ -108,11 +108,14 @@ class AgentServerStats(Plugin):
                         bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
                         bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
                     self.net_io_counters = net_io_counters
-                    net_ping = icmplib.ping('1.1.1.1', count=1, privileged=False)
-                    if not net_ping.packets_received:
-                        ping = None
+                    if self.bot.config.getboolean('BOT', 'PING_MONITORING'):
+                        net_ping = icmplib.ping('1.1.1.1', count=1, privileged=False)
+                        if not net_ping.packets_received:
+                            ping = None
+                        else:
+                            ping = net_ping.avg_rtt
                     else:
-                        ping = net_ping.avg_rtt
+                        ping = None
                     if server_name in self.eventlistener.fps:
                         cursor.execute('INSERT INTO serverstats (server_name, agent_host, mission_id, users, status, '
                                        'cpu, mem_total, mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, '
