@@ -109,23 +109,26 @@ class CloudHandlerMaster(CloudHandlerAgent):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def cloudstats(self, ctx, member: Optional[discord.Member] = None):
-        if 'token' not in self.config:
-            await ctx.send('Cloud statistics are not activated on this server.')
-            return
-        if not member:
-            member = ctx.message.author
-        ucid = self.bot.get_ucid_by_member(member)
-        if not ucid:
-            await ctx.send(f'The account is not properly linked. Use {ctx.prefix}linkme to link your Discord and DCS accounts.')
-            return
-        response = await self.get(f'stats/{ucid}')
-        if not len(response):
-            await ctx.send('No cloud-based statistics found for this user.')
-            return
-        df = pd.DataFrame(response)
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-        report = PaginationReport(self.bot, ctx, self.plugin_name, 'cloudstats.json', timeout if timeout > 0 else None)
-        await report.render(member=member, data=df, guild=None)
+        try:
+            if 'token' not in self.config:
+                await ctx.send('Cloud statistics are not activated on this server.')
+                return
+            if not member:
+                member = ctx.message.author
+            ucid = self.bot.get_ucid_by_member(member)
+            if not ucid:
+                await ctx.send(f'The account is not properly linked. Use {ctx.prefix}linkme to link your Discord and DCS accounts.')
+                return
+            response = await self.get(f'stats/{ucid}')
+            if not len(response):
+                await ctx.send('No cloud-based statistics found for this user.')
+                return
+            df = pd.DataFrame(response)
+            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'cloudstats.json', timeout if timeout > 0 else None)
+            await report.render(member=member, data=df, guild=None)
+        finally:
+            await ctx.message.delete()
 
     @tasks.loop(minutes=1.0)
     async def cloud_sync(self):

@@ -399,20 +399,15 @@ class Agent(Plugin):
                 await ctx.send(f"Server {server.name} is {server.status.name}, please wait ...")
 
     @commands.command(description='Status of a DCS server')
-    @utils.has_role('DCS Admin')
+    @utils.has_role('DCS')
     @commands.guild_only()
     async def status(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
         embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
         names = []
         status = []
-        if server:
+        for server in self.bot.servers.values():
             names.append(server.name)
             status.append(string.capwords(server.status.name.lower()))
-        else:
-            for server in self.bot.servers.values():
-                names.append(server.name)
-                status.append(string.capwords(server.status.name.lower()))
         if len(names):
             embed.add_field(name='Server', value='\n'.join(names))
             embed.add_field(name='Status', value='\n'.join(status))
