@@ -1,7 +1,8 @@
 # Welcome to DCSServerBot!
 You've found a comprehensive solution that lets you administrate your DCS instances via Discord, has built in per-server
-and per-user statistics, [coalitions](./COALITIONS.md) support and much more! With its plugin system and reporting framework, DCSServerBot can be enhanced very
-easily to support whatever might come into your mind. 
+and per-user statistics, optional cloud-based statistics, [coalitions](./COALITIONS.md) support and much more! With its 
+plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come into your 
+mind. 
 
 This documentation will show you the main features, how to install and configure the bot and some more sophisticated stuff at the bottom, 
 if you for instance run multiple servers maybe even over multiple locations. 
@@ -34,6 +35,7 @@ These commands can be used to administrate the bot itself.
 | MissionStats | Detailed users statistics / mission statistics.                     | yes*     | Userstats             | [README](./plugins/missionstats/README.md) |
 | GameMaster   | Interaction with the running mission (inform users, set flags, etc) | yes*     |                       | [README](./plugins/gamemaster/README.md)   |
 | ServerStats  | Server statistics for your DCS servers.                             | yes      | Userstats             | [README](./plugins/serverstats/README.md)  |
+| Cloud        | Cloud-based statistics system.                                      | yes      | Userstats             | [README](./plugins/cloud/README.md)        |
 | Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission               | [README](./plugins/punishment/README.md)   |
 | SlotBlocking | Slotblocking either based on units or a point based system.         | yes      | Mission, Creditsystem | [README](./plugins/slotblocking/README.md) |
 | GreenieBoard | Greenieboard and LSO quality mark analysis (SC only)                | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
