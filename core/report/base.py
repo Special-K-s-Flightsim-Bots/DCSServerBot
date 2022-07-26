@@ -27,18 +27,18 @@ class Report:
         self.env = ReportEnv(bot)
         default = f'./plugins/{plugin}/reports/{filename}'
         overwrite = f'./reports/{plugin}/{filename}'
-        if not path.exists(default):
-            raise FileNotFoundError(default)
         if path.exists(overwrite):
             filename = overwrite
         else:
             filename = default
+        if not path.exists(filename):
+            raise FileNotFoundError(filename)
         with open(filename) as file:
             self.report_def = json.load(file)
 
     async def render(self, *args, **kwargs) -> ReportEnv:
         if 'input' in self.report_def:
-            self.env.params = parse_input(self, kwargs, self.report_def['input'])
+            self.env.params = await parse_input(self, kwargs, self.report_def['input'])
         else:
             self.env.params = kwargs.copy()
         # add the bot to be able to access the whole environment from inside the report

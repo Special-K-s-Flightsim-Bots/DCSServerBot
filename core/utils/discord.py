@@ -278,16 +278,26 @@ def embed_to_text(embed: discord.Embed) -> str:
 def embed_to_simpletext(embed: discord.Embed) -> str:
     message = ''
     if len(embed.title):
-        message += embed.title.upper() + '\n'
+        message += embed.title.upper() + '\n' + '=' * len(embed.title) + '\n'
     if len(embed.description):
         message += embed.description + '\n'
     message += '\n'
     for field in embed.fields:
+        name = field.name if field.name != '_ _' else ''
         value = field.value if field.value != '_ _' else ''
-        if len(value):
-            message += field.name + ': '
-            message += ' | '.join(value.splitlines())
+        if len(name) and len(value):
+            if field.inline:
+                message += name + ': ' + ' | '.join(value.splitlines()) + '\n'
+            else:
+                message += name + '\n' + value + '\n'
+        elif name.startswith('▬'):
+            message += name
+        else:
+            message += name + value + '\n'
+        if not field.inline:
             message += '\n'
+    if len(embed.footer):
+        message += '\n' + embed.footer.text
     return message
 
 

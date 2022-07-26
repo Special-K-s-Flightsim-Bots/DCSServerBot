@@ -1,0 +1,53 @@
+{
+  "color": "blue",
+  "title": "Cloud Statistics for {member.display_name}",
+  "description": "{guild}",
+  "pagination":
+  {
+    "param":
+    {
+      "name": "guild",
+      "class": "plugins.cloud.stats.GuildPagination"
+    }
+  },
+  "elements":
+  [
+    {
+      "type": "Graph",
+      "params":
+      {
+        "width": 20,
+        "height": 20,
+        "rows": 3,
+        "cols": 3,
+        "elements":
+         [
+            {
+              "class": "plugins.cloud.stats.PlaytimesPerPlane",
+              "params": { "row": 0, "col": 0, "colspan": 3 }
+            },
+            {
+              "class": "plugins.cloud.stats.PlaytimesPerGuild",
+              "params": { "row": 1, "col": 0 }
+            },
+            {
+              "class": "plugins.cloud.stats.PlaytimesPerMap",
+              "params": { "row": 1, "col": 1  }
+            },
+            {
+              "class": "plugins.cloud.stats.FlightPerformance",
+              "params": { "row": 1, "col": 2 }
+            },
+            {
+              "class": "plugins.cloud.stats.KDRatio",
+              "params": [
+                { "row": 2, "col": 0 },
+                { "row": 2, "col": 1 },
+                { "row": 2, "col": 2 }
+              ]
+            }
+         ]
+      }
+    }
+  ]
+}

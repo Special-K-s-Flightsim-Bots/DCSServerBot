@@ -12,12 +12,13 @@ To be able to create a message on "birth", MISSION_STATISTICS = true has to be e
   "configs": [
     {
       "on_birth": {                                                             -- whenever a user joins a plane
-        "message": "{player[name]}, welcome to {server[server_name]}!\n",
-        "display_type": "popup"                                                 -- chat or popup
+        "message": "{player[name]}, welcome to {server[server_name]}!",         -- OR
+        "report": "greetings.json",                                             -- report file, has to be placed in /reports/motd
+        "display_type": "popup",                                                -- chat or popup
         "display_time": 20                                                      -- only relevant for popup
       },
       "nudge": {
-        "delay": 600,
+        "delay": 600,                                                           -- every 10 mins
         "message": "This awesome server is presented to you by http://discord.gg/myfancylink.\nCome and join us!",
         "recipients": "!@everyone",                                             -- who should receive it?
         "display_type": "popup",

@@ -98,10 +98,13 @@ class UserStatisticsMaster(UserStatisticsAgent):
             await ctx.message.delete()
 
     @commands.command(brief='Shows actual highscores',
-                      description='Displays the users highscore, either for a specific period or for a running '
-                                  'campaign.\nPeriod might be one of _day, yesterday, month, week_ or _year_. Campaign '
-                                  'has to be one of your configured campaigns.\nIf no period is given, default is '
-                                  'everything, unless a campaign is configured. Then it\'s the running campaign.',
+                      description='Displays the highscore, either for a specific period, a set of missions matching a '
+                                  'pattern or for a running campaign:\n\n'
+                                  '```.hs period:day      - day, yesterday, month, week or year\n'
+                                  '.hs campaign:name   - configured campaign name\n'
+                                  '.hs mission:pattern - missions matching this pattern```\n\n'
+                                  'If no period is given, default is everything, unless a campaign is configured. '
+                                  'Then it\'s the running campaign.',
                       usage='[period]', aliases=['hs'])
     @utils.has_role('DCS')
     @commands.guild_only()

@@ -1,0 +1,9 @@
+{
+  "configs": [
+    {
+      "protocol": "https",
+      "host": "dcsserverbot-prod.herokuapp.com",
+      "port": 443
+    }
+  ]
+}

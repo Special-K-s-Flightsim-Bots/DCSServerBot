@@ -12,7 +12,7 @@ class AdminEventListener(EventListener):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT ucid FROM bans')
+                cursor.execute('SELECT ucid, reason FROM bans')
                 banlist = [dict(row) for row in cursor.fetchall()]
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -26,7 +26,8 @@ class AdminEventListener(EventListener):
             for ban in banlist:
                 server.sendtoDCS({
                     "command": "ban",
-                    "ucid": ban['ucid']
+                    "ucid": ban['ucid'],
+                    "reason": ban['reason']
                 })
 
     async def registerDCSServer(self, data):

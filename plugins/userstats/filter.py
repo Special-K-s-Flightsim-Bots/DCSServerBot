@@ -2,7 +2,7 @@ import psycopg2
 import string
 from abc import ABC, abstractmethod
 from contextlib import closing
-from core import DCSServerBot, utils, Pagination, ReportEnv
+from core import DCSServerBot, utils, Pagination, ReportEnv, const
 from typing import Any, Optional
 
 
@@ -26,6 +26,8 @@ class StatisticsFilter(ABC):
     def detect(bot: DCSServerBot, period: str) -> Any:
         if MissionFilter.supports(bot, period):
             return MissionFilter
+        elif MonthFilter.supports(bot, period):
+            return MonthFilter
         elif PeriodFilter.supports(bot, period):
             return PeriodFilter
         elif CampaignFilter.supports(bot, period):
@@ -136,6 +138,32 @@ class MissionFilter(StatisticsFilter):
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         return f'Missions containing "{string.capwords(period[8:])}"'
+
+
+class MonthFilter(StatisticsFilter):
+    def __init__(self, campaign: str):
+        self.campaign = campaign
+
+    @staticmethod
+    def get_month(period: str):
+        for i in range(1, 13):
+            if period.casefold() in const.MONTH[i].casefold():
+                return i
+        return -1
+
+    @staticmethod
+    def supports(bot: DCSServerBot, period: str) -> bool:
+        return period and period.startswith('month:')
+
+    @staticmethod
+    def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        month = MonthFilter.get_month(period[6:])
+        return f"DATE_PART('month', s.hop_on) = {month} AND DATE_PART('year', s.hop_on) = DATE_PART('year', CURRENT_DATE)"
+
+    @staticmethod
+    def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
+        month = MonthFilter.get_month(period[6:])
+        return f'Month "{const.MONTH[month]}"'
 
 
 class MissionStatisticsFilter(StatisticsFilter):

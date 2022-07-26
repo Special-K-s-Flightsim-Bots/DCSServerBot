@@ -58,6 +58,9 @@ Within the "input" section you can define variables that will be used inside the
     },
     {
       "sql": "SELECT ucid, name FROM players WHERE discord_id = %(discord_id)s"  -- read these parameters from the database
+    },
+    {
+      "callback": "MissionFocusString"                 -- read a mission variable from DCS with this name
     }
   ],
 ```

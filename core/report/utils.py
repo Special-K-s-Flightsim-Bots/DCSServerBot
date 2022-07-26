@@ -15,7 +15,7 @@ def parse_params(kwargs: dict, params: Tuple[dict, List]):
     return new_args
 
 
-def parse_input(self, kwargs: dict, params: List[Any]):
+async def parse_input(self, kwargs: dict, params: List[Any]):
     new_args = kwargs.copy()
     for param in params:
         if 'name' in param:
@@ -25,9 +25,11 @@ def parse_input(self, kwargs: dict, params: List[Any]):
                     if value not in param['range']:
                         raise ValueNotInRange(param['name'], value, param['range'])
                 elif 'value' in param:
-                    new_args[param['name']] = param['value']
+                    value = param['value']
+                    new_args[param['name']] = utils.format_string(value, '_ _', **kwargs) if isinstance(value, str) else value
             elif 'value' in param:
-                new_args[param['name']] = param['value']
+                value = param['value']
+                new_args[param['name']] = utils.format_string(value, '_ _', **kwargs) if isinstance(value, str) else value
             elif 'default' in param:
                 new_args[param['name']] = param['default']
         elif 'sql' in param:
@@ -43,4 +45,10 @@ def parse_input(self, kwargs: dict, params: List[Any]):
                 raise
             finally:
                 self.pool.putconn(conn)
+        elif 'callback' in param:
+            data: dict = await kwargs['server'].sendtoDCSSync({
+                "command": "getVariable", "name": param['callback']
+            })
+            if 'value' in data:
+                new_args[param['callback']] = data['value']
     return new_args

@@ -91,6 +91,8 @@ class Server(DataObject):
                 return player
             if 'name' in kwargs and player.name == kwargs['name']:
                 return player
+            if 'discord_id' in kwargs and player.member and player.member.id == kwargs['discord_id']:
+                return player
         return None
 
     def get_active_players(self) -> list[Player]:

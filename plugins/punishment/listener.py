@@ -154,14 +154,15 @@ class PunishmentEventListener(EventListener):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT COUNT(*) FROM bans WHERE ucid = %s', (data['ucid'], ))
-                if cursor.fetchone()[0] > 0:
+                cursor.execute('SELECT reason FROM bans WHERE ucid = %s', (data['ucid'], ))
+                if cursor.rowcount > 0:
+                    reason = cursor.fetchone()[0]
                     # ban them on all servers on this node as it wasn't populated yet
                     for s in self.bot.servers.values():
                         s.sendtoDCS({
                             "command": "ban",
                             "ucid": data['ucid'],
-                            "reason": "You are banned on this server."
+                            "reason": reason
                         })
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)

@@ -1,7 +1,8 @@
+import discord
 import json
-from core import DCSServerBot, Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status
+from core import DCSServerBot, Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition
 from datetime import datetime
-from discord.ext import tasks
+from discord.ext import tasks, commands
 from os import path
 from typing import Optional, TYPE_CHECKING, Type
 from .listener import MessageOfTheDayListener
@@ -49,12 +50,18 @@ class MessageOfTheDay(Plugin):
             json.dump(new, file, indent=2)
             self.log.info('  => config/motd.json migrated to new format.')
 
-    def sendMessage(self, server: Server, config: dict, player: Optional[Player] = None):
-        message = utils.format_string(config['message'], server=server)
+    def send_message(self, message: str, server: Server, config: dict, player: Optional[Player] = None):
         if config['display_type'].lower() == 'chat':
-            player.sendChatMessage(message)
+            if player:
+                player.sendChatMessage(message)
+            else:
+                server.sendChatMessage(Coalition.ALL, message)
         elif config['display_type'].lower() == 'popup':
-            player.sendPopupMessage(message, config['display_time'] if 'display_time' in config else self.bot.config['BOT']['MESSAGE_TIMEOUT'])
+            timeout = config['display_time'] if 'display_time' in config else self.bot.config['BOT']['MESSAGE_TIMEOUT']
+            if player:
+                player.sendPopupMessage(message, timeout)
+            else:
+                server.sendPopupMessage(Coalition.ALL, message, timeout)
 
     @staticmethod
     def get_recipients(server: Server, config: dict) -> list[Player]:
@@ -77,14 +84,44 @@ class MessageOfTheDay(Plugin):
             recp.append(player)
         return recp
 
+    @commands.command(description='Test MOTD', usage='[-join | -birth | -nudge]', hidden=True)
+    @utils.has_roles(['DCS Admin'])
+    @commands.guild_only()
+    async def motd(self, ctx, option: str, member: Optional[discord.Member] = None):
+        server: Server = await self.bot.get_server(ctx)
+        config = self.get_config(server)
+        if not config:
+            await ctx.send('No configuration for MOTD found.')
+            return
+        if server and server.status in [Status.RUNNING, Status.PAUSED]:
+            message = None
+            if 'join' in option:
+                message = self.eventlistener.on_join(config)
+            elif 'birth' in option:
+                if not member:
+                    await ctx.send(f'Usage: {ctx.prefix}{option} @member')
+                    return
+                player: Player = server.get_player(discord_id=member.id)
+                if not player:
+                    await ctx.send(f"Player {member.display_name} is currently not logged in.")
+                    return
+                message = await self.eventlistener.on_birth(config, server, player)
+            elif 'nudge' in option:
+                # TODO
+                pass
+            if message:
+                await ctx.send(f"```{message}```")
+        else:
+            await ctx.send(f"Mission is {server.status.name.lower()}, can't test MOTD.")
+
     @tasks.loop(minutes=1.0)
     async def nudge(self):
-        def process_message(config: dict):
+        def process_message(message: str, server: Server, config: dict):
             if 'recipients' in config:
                 for recp in self.get_recipients(server, config):
-                    self.sendMessage(server, config, recp)
+                    self.send_message(message, server, config, recp)
             else:
-                self.sendMessage(server, config)
+                self.send_message(message, server, config)
 
         for server_name, server in self.bot.servers.items():
             config = self.get_config(server)
@@ -95,10 +132,12 @@ class MessageOfTheDay(Plugin):
                 self.last_nudge[server.name] = server.current_mission.mission_time
             elif server.current_mission.mission_time - self.last_nudge[server.name] > config['delay']:
                 if 'message' in config:
-                    process_message(config)
+                    message = utils.format_string(config['message'], server=server)
+                    process_message(message, server, config)
                 elif 'messages' in config:
                     for cfg in config['messages']:
-                        process_message(cfg)
+                        message = utils.format_string(cfg['message'], server=server)
+                        process_message(message, server, cfg)
                 self.last_nudge[server.name] = server.current_mission.mission_time
 
 

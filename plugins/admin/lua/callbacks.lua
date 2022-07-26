@@ -28,7 +28,7 @@ function admin.onPlayerTryConnect(addr, name, ucid, playerID)
         msg.command = 'sendMessage'
         msg.message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
     	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
-	    return false, 'You are banned from this server.'
+	    return false, 'You are banned from this server. Reason: ' .. dcsbot.banList[ucid]
 	end
 end
 

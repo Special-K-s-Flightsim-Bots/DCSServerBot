@@ -114,6 +114,29 @@ class GameMasterAgent(Plugin):
         else:
             await ctx.send(f"Mission is {server.status.name.lower()}, can't set/get flag.")
 
+    @commands.command(description='Set or get a mission variable', usage='<name> [value]')
+    @utils.has_roles(['DCS Admin', 'GameMaster'])
+    @commands.guild_only()
+    async def variable(self, ctx, name: str, value: str = None):
+        server: Server = await self.bot.get_server(ctx)
+        if server and server.status in [Status.RUNNING, Status.PAUSED]:
+            if value is not None:
+                server.sendtoDCS({
+                    "command": "setVariable",
+                    "channel": ctx.channel.id,
+                    "name": name,
+                    "value": value
+                })
+                await ctx.send(f"Variable {name} set to {value}.")
+            else:
+                data = await server.sendtoDCSSync({"command": "getVariable", "name": name})
+                if 'value' in data:
+                    await ctx.send(f"Variable {name} has value {data['value']}.")
+                else:
+                    await ctx.send(f"Variable {name} is not set.")
+        else:
+            await ctx.send(f"Mission is {server.status.name.lower()}, can't set/get variable.")
+
     @commands.command(description='Calls any function inside the mission', usage='<script>')
     @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()

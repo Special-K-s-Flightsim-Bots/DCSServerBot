@@ -182,7 +182,7 @@ end
 
 function dcsbot.ban(json)
     log.write('DCSServerBot', log.DEBUG, 'Admin: ban()')
-    dcsbot.banList[json.ucid] = true
+    dcsbot.banList[json.ucid] = json.reason
     dcsbot.kick(json)
 end
 

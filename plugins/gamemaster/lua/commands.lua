@@ -19,3 +19,13 @@ function dcsbot.clearFlag(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: clearFlag()')
 	net.dostring_in('mission', 'a_clear_flag(' .. json.flag .. ')')
 end
+
+function dcsbot.getVariable(json)
+    log.write('DCSServerBot', log.DEBUG, 'GameMaster: getVariable()')
+    net.dostring_in('mission', 'a_do_script("dcsbot.getVariable(\\"' .. json.name ..'\\", \\"' .. json.channel .. '\\")")')
+end
+
+function dcsbot.setVariable(json)
+    log.write('DCSServerBot', log.DEBUG, 'GameMaster: setVariable()')
+    net.dostring_in('mission', 'a_do_script("dcsbot.setVariable(\\"' .. json.name ..'\\", \\"' .. json.value .. '\\")")')
+end
