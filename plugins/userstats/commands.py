@@ -193,11 +193,11 @@ class UserStatisticsMaster(UserStatisticsAgent):
         if isinstance(member, str):
             if len(params):
                 member += ' ' + ' '.join(params)
-            sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
-                   f"p.ucid = '{member}' OR LOWER(p.name) = '{member.casefold()}' "
+            substr = f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
+                     f"p.ucid = '{member}' OR LOWER(p.name) = '{member.casefold()}' "
         else:
-            sql += f"'{member.id}'"
-        sql += ' GROUP BY p.ucid, b.ucid'
+            substr = f"'{member.id}'"
+        sql += substr + ' GROUP BY p.ucid, b.ucid'
         message = None
         conn = self.bot.pool.getconn()
         try:
@@ -226,8 +226,10 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     if banned:
                         embed.add_field(name='Status', value='Banned')
                     elif row['manual']:
+                        approved = True
                         embed.add_field(name='Status', value='Approved')
                     else:
+                        approved = False
                         embed.add_field(name='Status', value='Not approved')
                     embed.add_field(name='▬' * 32, value='_ _', inline=False)
                     ucids = []
@@ -253,6 +255,21 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     embed.add_field(name='DCS Name', value='\n'.join(names))
                     embed.add_field(name='Playtime (h)', value='\n'.join(playtimes))
                     embed.add_field(name='▬' * 32, value='_ _', inline=False)
+                    cursor.execute(f'SELECT name, ipaddr, time FROM players_hist '
+                                   f'WHERE discord_id = {substr} ORDER BY time DESC LIMIT 10')
+                    if cursor.rowcount:
+                        names = []
+                        ipaddrs = []
+                        times = []
+                        for row in cursor.fetchall():
+                            names.append(row['name'])
+                            ipaddrs.append(row['ipaddr'])
+                            times.append(f"{row['time']:%y-%m-%d %H:%M:%S}")
+                        embed.add_field(name='DCS Name', value='\n'.join(names))
+                        embed.add_field(name='IP Addr', value='\n'.join(ipaddrs))
+                        embed.add_field(name='Time', value='\n'.join(times))
+                        embed.add_field(name='▬' * 32, value='_ _', inline=False)
+
                     servers = []
                     dcs_names = []
                     for server_name, server in self.bot.servers.items():
@@ -269,7 +286,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                         embed.add_field(name='▬' * 32, value='_ _', inline=False)
                     footer = '🔀 Unlink all DCS players from this user\n' if isinstance(member, discord.Member) else ''
                     footer += f'🔄 Relink ucid(s) to the correct user\n' if not match else ''
-                    if not row['manual']:
+                    if not approved:
                         footer += '💯 Approve this link to be correct\n'
                     footer += '⏏️ Kick this user from the active server\n' if len(servers) > 0 else ''
                     footer += '✅ Unban this user\n' if banned else '⛔ Ban this user (DCS only)\n'
@@ -278,7 +295,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     message = await ctx.send(embed=embed)
                     if isinstance(member, discord.Member):
                         await message.add_reaction('🔀')
-                        if not row['manual']:
+                        if not approved:
                             await message.add_reaction('💯')
                     if not match:
                         await message.add_reaction('🔄')
