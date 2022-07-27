@@ -405,12 +405,15 @@ class Agent(Plugin):
         embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
         names = []
         status = []
+        maintenance = []
         for server in self.bot.servers.values():
             names.append(server.name)
             status.append(string.capwords(server.status.name.lower()))
+            maintenance.append('Y' if server.maintenance else 'N')
         if len(names):
             embed.add_field(name='Server', value='\n'.join(names))
             embed.add_field(name='Status', value='\n'.join(status))
+            embed.add_field(name='Maint.', value='\n'.join(maintenance))
             await ctx.send(embed=embed)
 
     @tasks.loop(minutes=1.0)

@@ -97,7 +97,7 @@ class MixedFilter(StatisticsFilter):
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         if not server_name and len(bot.servers) == 1:
-            server = bot.servers.values()[0]
+            server = list(bot.servers.values())[0]
         elif server_name in bot.servers:
             server = bot.servers[server_name]
         else:

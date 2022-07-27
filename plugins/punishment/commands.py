@@ -3,7 +3,7 @@ import psycopg2
 import string
 from contextlib import closing, suppress
 from copy import deepcopy
-from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server
+from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel
 from discord.ext import tasks, commands
 from typing import Type, Union, Optional
 from .listener import PunishmentEventListener
@@ -64,39 +64,41 @@ class PunishmentAgent(Plugin):
                     "ucid": player.ucid,
                     "reason": reason
                 })
-            if player:
-                if player.member:
-                    await self.bot.audit(
-                        f"Member {player.member.display_name} banned by {self.bot.member.name} for {reason}.")
-                    with suppress(Exception):
-                        guild = self.bot.guilds[0]
-                        channel = await player.member.create_dm()
-                        await channel.send(f"You have been banned from the DCS servers on {guild.name} for {reason}.\n"
-                                           f"To retrieve your current points, check out the "
-                                           f"{self.bot.config['BOT']['COMMAND_PREFIX']}penalty command.")
-                else:
-                    await self.bot.audit(f"Player {player.name}(ucid={player.ucid}) banned by {self.bot.member.name} "
-                                         f"for {reason}.")
+            if player.member:
+                message = f"Member {player.member.display_name} banned by {self.bot.member.name} for {reason}."
+                await server.get_channel(Channel.ADMIN).send(message)
+                await self.bot.audit(message)
+                with suppress(Exception):
+                    guild = self.bot.guilds[0]
+                    channel = await player.member.create_dm()
+                    await channel.send(f"You have been banned from the DCS servers on {guild.name} for {reason}.\n"
+                                       f"To check your current penalty points, use the "
+                                       f"{self.bot.config['BOT']['COMMAND_PREFIX']}penalty command.")
             else:
-                await self.bot.audit(f"Player (ucid={player.ucid}) banned by {self.bot.member.name} for {reason}.")
+                message = f"Player {player.name}(ucid={player.ucid}) banned by {self.bot.member.name} for {reason}."
+                await server.get_channel(Channel.ADMIN).send(message)
+                await self.bot.audit(message)
+
         if punishment['action'] == 'kick' and player.active:
             server.kick(player, reason)
-            await self.bot.audit(f"Player {player.name}(ucid={player.ucid}) kicked by {self.bot.member.name} for "
-                                 f"{reason}.")
+            await server.get_channel(Channel.ADMIN).send(f"Player {player.name}(ucid={player.ucid}) kicked by "
+                                                         f"{self.bot.member.name} for {reason}.")
+
         elif punishment['action'] == 'move_to_spec':
             server.move_to_spectators(player)
             player.sendChatMessage(f"You've been kicked back to spectators because of: {reason}.")
-            await self.bot.audit(f"Player {player.name}(ucid={player.ucid}) moved to"
-                                 f" spectators by {self.bot.member.name} for {reason}.")
-        elif punishment['action'] == 'credits' and \
-                type(player).__name__ == 'CreditPlayer':
+            await server.get_channel(Channel.ADMIN).send(f"Player {player.name}(ucid={player.ucid}) moved to "
+                                                         f"spectators by {self.bot.member.name} for {reason}.")
+
+        elif punishment['action'] == 'credits' and type(player).__name__ == 'CreditPlayer':
             old_points = player.points
             player.points -= punishment['penalty']
             player.audit('punishment', old_points, f"Punished for {reason}")
             player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!\n"
                                    f"Your current credit points are: {player.points}")
-            await self.bot.audit(f"Player {player.name}(ucid={player.ucid}) punished"
-                                 f" with credits by {self.bot.member.name} for {reason}.")
+            await server.get_channel(Channel.ADMIN).send(f"Player {player.name}(ucid={player.ucid}) punished with "
+                                                         f"credits by {self.bot.member.name} for {reason}.")
+
         elif punishment['action'] == 'warn':
             player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!")
 

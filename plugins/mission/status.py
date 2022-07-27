@@ -53,7 +53,12 @@ class ServerInfo(report.EmbedElement):
                                                                                   server.current_mission.num_slots_red))
             else:
                 self.add_field(name='Coalitions', value='Yes')
-        self.embed.set_footer(text='- Server is running DCS {}'.format(server.dcs_version))
+        if server.maintenance:
+            footer = 'SERVER IS IN MAINTENANCE MODE, SCHEDULER WILL NOT WORK!\n\n'
+        else:
+            footer = ''
+        footer += f'- Server is running DCS {server.dcs_version}'
+        self.embed.set_footer(text=footer)
 
 
 class WeatherInfo(report.EmbedElement):
