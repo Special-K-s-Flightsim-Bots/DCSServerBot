@@ -41,6 +41,9 @@ class MissionEventListener(EventListener):
             'pilot_death': '```ini\n[Player {} died.]```',
             'kill': '```ini\n[{} in {} killed {} {} in {} with {}.]```',
             'friendly_fire': '```fix\n[{} FRIENDLY FIRE onto {} with {}.]```'
+        },
+        Side.UNKNOWN: {
+            'kill': '```ini\n[{} in {} killed {} {} in {} with {}.]```'
         }
     }
 
@@ -265,9 +268,9 @@ class MissionEventListener(EventListener):
             player2 = server.get_player(id=data['arg4']) if data['arg4'] != -1 else None
             await self.sendChatMessage(server, self.EVENT_TEXTS[Side(data['arg3'])][data['eventName']].format(
                 ('player ' + player1.name) if player1 is not None else 'AI',
-                data['arg2'], Side(data['arg6']).name,
+                data['arg2'] or 'SCENERY', Side(data['arg6']).name,
                 ('player ' + player2.name) if player2 is not None else 'AI',
-                data['arg5'], data['arg7'] or 'Cannon'))
+                data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon'))
             # report teamkills from players to admins
             if (player1 is not None) and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
                 if player1.member:
