@@ -42,9 +42,9 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
             if not member:
                 await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
                 return
-            flt = StatisticsFilter.detect(self.bot, period)
+            flt = MissionStatisticsFilter()
             if period and not flt:
-                await ctx.send('Please provide a valid period or campaign name.')
+                await ctx.send('Please provide a valid period.')
                 return
             report = Report(self.bot, self.plugin_name, 'sorties.json')
             env = await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
@@ -86,9 +86,12 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
                 if isinstance(member, discord.Member):
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC LIMIT 1',
                                    (member.id, ))
-                    ucid = cursor.fetchone()[0]
+                    ucid = cursor.fetchone()[0] if cursor.rowcount > 0 else None
                 else:
                     ucid = self.bot.get_ucid_by_name(member)
+                if not ucid:
+                    await ctx.send('This user is not linked correctly.')
+                    return
                 cursor.execute("SELECT DISTINCT slot, COUNT(*) FROM statistics WHERE player_ucid =  %s AND slot NOT "
                                "IN ('forward_observer', 'instructor', 'observer', 'artillery_commander') GROUP BY 1 "
                                "ORDER BY 2 DESC", (ucid, ))
