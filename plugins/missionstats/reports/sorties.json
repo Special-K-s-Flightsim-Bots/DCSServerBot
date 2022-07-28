@@ -1,13 +1,6 @@
 {
   "color": "blue",
   "title": "Sorties for {member_name}",
-  "input":
-  [
-    {
-      "name": "period",
-      "range": ["", "day", "week", "month", "year"]
-    }
-  ],
   "elements":
   [
     {

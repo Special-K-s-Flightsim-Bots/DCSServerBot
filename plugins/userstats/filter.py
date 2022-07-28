@@ -180,7 +180,7 @@ class MissionStatisticsFilter(StatisticsFilter):
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        return PeriodFilter.format(bot, server_name, period)
+        return PeriodFilter.format(bot, period, server_name)
 
 
 class StatsPagination(Pagination):
