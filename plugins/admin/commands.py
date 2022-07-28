@@ -116,7 +116,7 @@ class Agent(Plugin):
     @commands.command(description='Update a DCS Installation')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def update(self, ctx):
+    async def update(self, ctx, param: Optional[str] = None):
         if self.update_pending:
             await ctx.send('An update is already running, please wait ...')
             return
@@ -125,7 +125,7 @@ class Agent(Plugin):
         new_version = await utils.getLatestVersion(branch)
         if old_version == new_version:
             await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
-        elif new_version:
+        elif new_version or param and param == '-force':
             if await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?\nAll running '
                                                   'DCS servers will be shut down!'.format(old_version,
                                                                                           new_version)) is True:
