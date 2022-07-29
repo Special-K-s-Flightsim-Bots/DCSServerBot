@@ -13,7 +13,7 @@ class HighscorePlaytime(report.GraphElement):
               "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
         if server_name:
-            sql += f' AND m.server_name = \'{server_name}\' '
+            sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
             if server_name in self.bot.servers:
                 server = self.bot.servers[server_name]
                 tmp = utils.get_sides(message, server)
@@ -85,7 +85,7 @@ class HighscoreElement(report.GraphElement):
         sql = f"SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, {sql_parts[kill_type]} AS value FROM " \
               f"players p, statistics s, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id "
         if server_name:
-            sql += f' AND m.server_name = \'{server_name}\' '
+            sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
             if server_name in self.bot.servers:
                 server = self.bot.servers[server_name]
                 tmp = utils.get_sides(message, server)

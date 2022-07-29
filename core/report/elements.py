@@ -56,7 +56,7 @@ class Image(EmbedElement):
 
 
 class Ruler(EmbedElement):
-    def render(self, ruler_length: Optional[int] = 25):
+    def render(self, ruler_length: Optional[int] = 34):
         self.add_field(name='▬' * ruler_length, value='_ _', inline=False)
 
 

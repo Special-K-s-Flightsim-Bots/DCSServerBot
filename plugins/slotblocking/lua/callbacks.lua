@@ -66,8 +66,7 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     local unit_type = DCS.getUnitType(slotID)
     local points
     if not dcsbot.params then
-        net.send_chat_to('Slot blocking is initializing, please wait and try again.', playerID)
-        return false
+        return
     end
     -- check levels if any
     for id, unit in pairs(dcsbot.params['slotblocking']['restricted']) do

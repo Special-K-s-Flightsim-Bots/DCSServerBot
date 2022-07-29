@@ -94,14 +94,20 @@ class Agent(Plugin):
             self.log.info('Updating DCS World ...')
         for plugin in self.bot.cogs.values():
             await plugin.before_dcs_update()
+        # disable any popup on the remote machine
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
+        startupinfo.wShowWindow = subprocess.SW_HIDE
         subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
-            self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
+            self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
         utils.sanitize(self)
         # run after_dcs_update() in all plugins
         for plugin in self.bot.cogs.values():
             await plugin.after_dcs_update()
+        message = None
         if ctx:
-            await ctx.send('DCS World updated to the latest version.\nStarting up DCS servers again ...')
+            await ctx.send('DCS World updated to the latest version.')
+            message = await ctx.send('Starting up DCS servers again ...')
         else:
             self.log.info('DCS World updated to the latest version.\nStarting up DCS servers again ...')
         for server_name, server in self.bot.servers.items():
@@ -112,6 +118,9 @@ class Agent(Plugin):
                 # the server was running before (being in maintenance mode), so start it again
                 await server.startup()
         self.update_pending = False
+        if message:
+            await message.delete()
+            await ctx.send('DCS servers started.')
 
     @commands.command(description='Update a DCS Installation')
     @utils.has_role('DCS Admin')
@@ -249,6 +258,9 @@ class Agent(Plugin):
                             "ucid": ucid,
                             "reason": reason
                         })
+                        player = server.get_player(ucid=ucid)
+                        if player:
+                            player.banned = True
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
@@ -271,6 +283,9 @@ class Agent(Plugin):
                 for ucid in ucids:
                     for server in self.bot.servers.values():
                         server.sendtoDCS({"command": "unban", "ucid": ucid})
+                        player = server.get_player(ucid=ucid)
+                        if player:
+                            player.banned = False
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:

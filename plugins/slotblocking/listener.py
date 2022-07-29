@@ -30,7 +30,8 @@ class SlotBlockingListener(EventListener):
                     if member.bot:
                         continue
                     if utils.check_roles(roles, member):
-                        ucid = self.bot.get_ucid_by_member(member)
+                        # VIP users need to be verified
+                        ucid = self.bot.get_ucid_by_member(member, True)
                         if ucid:
                             ucids.add(ucid)
                 config['VIP']['ucid'] = list(ucids)

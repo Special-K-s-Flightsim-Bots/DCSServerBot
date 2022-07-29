@@ -1,11 +1,9 @@
-import asyncio
 import discord
 import os
 import psycopg2
 import random
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server
-from datetime import datetime
 from discord.ext import commands, tasks
 from typing import Union, Optional, Tuple
 from .filter import StatisticsFilter
@@ -43,10 +41,14 @@ class UserStatisticsAgent(Plugin):
             if server.status in [Status.STOPPED, Status.SHUTDOWN]:
                 conn = self.pool.getconn()
                 try:
-                    if await utils.yn_question(self, ctx, f'I\'m going to **DELETE ALL STATISTICS**\nof server "{server.name}".\n\nAre you sure?'):
+                    if await utils.yn_question(self, ctx, f'I\'m going to **DELETE ALL STATISTICS**\nof server '
+                                                          f'"{server.name}".\n\nAre you sure?'):
                         with closing(conn.cursor()) as cursor:
                             cursor.execute(
                                 'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE '
+                                'server_name = %s)', (server.name, ))
+                            cursor.execute(
+                                'DELETE FROM missionstats WHERE mission_id in (SELECT id FROM missions WHERE '
                                 'server_name = %s)', (server.name, ))
                             cursor.execute('DELETE FROM missions WHERE server_name = %s', (server.name, ))
                             conn.commit()
@@ -102,9 +104,10 @@ class UserStatisticsMaster(UserStatisticsAgent):
                                   'pattern or for a running campaign:\n\n'
                                   '```.hs period:day      - day, yesterday, month, week or year\n'
                                   '.hs campaign:name   - configured campaign name\n'
-                                  '.hs mission:pattern - missions matching this pattern```\n\n'
-                                  'If no period is given, default is everything, unless a campaign is configured. '
-                                  'Then it\'s the running campaign.',
+                                  '.hs mission:pattern - missions matching this pattern\n'
+                                  '.hs month:pattern   - month matching this pattern```\n\n'
+                                  'If no period is given, default is to display everything, unless a campaign is '
+                                  'configured. Then it\'s the running campaign.',
                       usage='[period]', aliases=['hs'])
     @utils.has_role('DCS')
     @commands.guild_only()
@@ -139,18 +142,28 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def link(self, ctx, member: discord.Member, ucid: str):
-        conn = self.pool.getconn()
         try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
-                conn.commit()
-                await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
-                await self.bot.audit(f'linked member {member.display_name} to ucid {ucid}.', user=ctx.message.author)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
+            # check if that player is online already
+            for server_name, server in self.bot.servers.items():
+                player = server.get_player(ucid=ucid)
+                if player:
+                    player.member = member
+                    player.verified = True
+                    return
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
+                                   (member.id, ucid))
+                    conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+                conn.rollback()
+            finally:
+                self.pool.putconn(conn)
         finally:
-            self.pool.putconn(conn)
+            await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
+            await self.bot.audit(f'linked member {member.display_name} to ucid {ucid}.', user=ctx.message.author)
 
     @commands.command(brief='Unlinks a member',
                       description="Removes any link between this Discord member and a DCS users. Might be used, if a "
@@ -165,13 +178,28 @@ class UserStatisticsMaster(UserStatisticsAgent):
         try:
             with closing(conn.cursor()) as cursor:
                 if isinstance(member, discord.Member):
+                    # check if we need to update a player
+                    for server_name, server in self.bot.servers.items():
+                        player = server.get_player(discord_id=member.id)
+                        if player:
+                            player.member = None
+                            player.verified = False
                     cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s', (member.id, ))
                     await ctx.send('Member {} unlinked.'.format(member.display_name))
                     await self.bot.audit(f'unlinked member {member.display_name}.', user=ctx.message.author)
                 else:
-                    cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (member, ))
-                    await ctx.send('ucid {} unlinked.'.format(member))
-                    await self.bot.audit(f'unlinked ucid {member}.', user=ctx.message.author)
+                    try:
+                        # check if we need to update a player
+                        for server_name, server in self.bot.servers.items():
+                            player = server.get_player(ucid=member)
+                            if player:
+                                player.member = None
+                                player.verified = False
+                                return
+                        cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (member, ))
+                    finally:
+                        await ctx.send('ucid {} unlinked.'.format(member))
+                        await self.bot.audit(f'unlinked ucid {member}.', user=ctx.message.author)
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -183,179 +211,13 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def info(self, ctx, member: Union[discord.Member, str], *params):
-        sql = 'SELECT p.discord_id, p.ucid, p.last_seen, p.manual, COALESCE(p.name, \'?\') AS NAME, ' \
-              'COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS playtime, ' \
-              'CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned ' \
-              'FROM players p ' \
-              'LEFT OUTER JOIN statistics s ON (s.player_ucid = p.ucid) ' \
-              'LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) ' \
-              'WHERE p.discord_id = '
         if isinstance(member, str):
             if len(params):
                 member += ' ' + ' '.join(params)
-            substr = f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
-                     f"p.ucid = '{member}' OR LOWER(p.name) = '{member.casefold()}' "
-        else:
-            substr = f"'{member.id}'"
-        sql += substr + ' GROUP BY p.ucid, b.ucid'
-        message = None
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql)
-                rows = list(cursor.fetchall())
-                if rows is not None and len(rows) > 0:
-                    embed = discord.Embed(title='User Information', color=discord.Color.blue())
-                    embed.description = f'Information about '
-                    if rows[0]['discord_id'] != -1:
-                        member = ctx.guild.get_member(rows[0]['discord_id'])
-                    if isinstance(member, discord.Member):
-                        embed.description += f'member **{member.display_name}**:'
-                        embed.add_field(name='Discord ID:', value=member.id)
-                    else:
-                        embed.description += 'a non-member user:'
-                    last_seen = datetime(1970, 1, 1)
-                    banned = False
-                    for row in rows:
-                        if row['last_seen'] and row['last_seen'] > last_seen:
-                            last_seen = row['last_seen']
-                        if row['banned'] == 1:
-                            banned = True
-                    if last_seen != datetime(1970, 1, 1):
-                        embed.add_field(name='Last seen:', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
-                    if banned:
-                        embed.add_field(name='Status', value='Banned')
-                    elif row['manual']:
-                        approved = True
-                        embed.add_field(name='Status', value='Approved')
-                    else:
-                        approved = False
-                        embed.add_field(name='Status', value='Not approved')
-                    embed.add_field(name='▬' * 32, value='_ _', inline=False)
-                    ucids = []
-                    names = []
-                    playtimes = []
-                    match = True
-                    mismatched_members = []
-                    for row in rows:
-                        ucids.append(row['ucid'])
-                        names.append(row['name'])
-                        playtimes.append('{:.0f}'.format(row['playtime']))
-                        # check if the match should be updated
-                        matched_member = self.bot.match_user(dict(row), True)
-                        if matched_member:
-                            if isinstance(member, discord.Member):
-                                if member.id != matched_member.id:
-                                    mismatched_members.append({"ucid": row['ucid'], "name": row['name'], "member": matched_member})
-                                    match = False
-                            else:
-                                mismatched_members.append({"ucid": row['ucid'], "name": row['name'], "member": matched_member})
-                                match = False
-                    embed.add_field(name='UCID', value='\n'.join(ucids))
-                    embed.add_field(name='DCS Name', value='\n'.join(names))
-                    embed.add_field(name='Playtime (h)', value='\n'.join(playtimes))
-                    embed.add_field(name='▬' * 32, value='_ _', inline=False)
-                    cursor.execute(f'SELECT name, ipaddr, time FROM players_hist '
-                                   f'WHERE discord_id = {substr} ORDER BY time DESC LIMIT 10')
-                    if cursor.rowcount:
-                        names = []
-                        ipaddrs = []
-                        times = []
-                        for row in cursor.fetchall():
-                            names.append(row['name'])
-                            ipaddrs.append(row['ipaddr'])
-                            times.append(f"{row['time']:%y-%m-%d %H:%M:%S}")
-                        embed.add_field(name='DCS Name', value='\n'.join(names))
-                        embed.add_field(name='IP Addr', value='\n'.join(ipaddrs))
-                        embed.add_field(name='Time', value='\n'.join(times))
-                        embed.add_field(name='▬' * 32, value='_ _', inline=False)
-
-                    servers = []
-                    dcs_names = []
-                    for server_name, server in self.bot.servers.items():
-                        for i in range(0, len(ucids)):
-                            player = server.get_player(ucid=ucids[i], active=True)
-                            if player is not None:
-                                servers.append(server_name)
-                                dcs_names.append(names[i])
-                                break
-                    if len(servers):
-                        embed.add_field(name='Active on Server', value='\n'.join(servers))
-                        embed.add_field(name='DCS Name', value='\n'.join(dcs_names))
-                        embed.add_field(name='_ _', value='_ _')
-                        embed.add_field(name='▬' * 32, value='_ _', inline=False)
-                    footer = '🔀 Unlink all DCS players from this user\n' if isinstance(member, discord.Member) else ''
-                    footer += f'🔄 Relink ucid(s) to the correct user\n' if not match else ''
-                    if not approved:
-                        footer += '💯 Approve this link to be correct\n'
-                    footer += '⏏️ Kick this user from the active server\n' if len(servers) > 0 else ''
-                    footer += '✅ Unban this user\n' if banned else '⛔ Ban this user (DCS only)\n'
-                    footer += '⏹️Cancel'
-                    embed.set_footer(text=footer)
-                    message = await ctx.send(embed=embed)
-                    if isinstance(member, discord.Member):
-                        await message.add_reaction('🔀')
-                        if not approved:
-                            await message.add_reaction('💯')
-                    if not match:
-                        await message.add_reaction('🔄')
-                    if len(servers) > 0:
-                        await message.add_reaction('⏏️')
-                    await message.add_reaction('✅' if banned else '⛔')
-                    await message.add_reaction('⏹️')
-                    react = await utils.wait_for_single_reaction(self, ctx, message)
-                    if react.emoji == '🔀':
-                        await self.unlink(ctx, member)
-                    elif react.emoji == '💯':
-                        cursor.execute('UPDATE players SET manual = TRUE WHERE discord_id = %s', (member.id, ))
-                        await ctx.send('Discord/DCS-link approved.')
-                    elif react.emoji == '🔄':
-                        for match in mismatched_members:
-                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
-                                           (match['member'].id, match['ucid']))
-                            await self.bot.audit(f"relinked DCS player {match['name']}(ucid={match['ucid']}) to member "
-                                                 f"{match['member'].display_name}.", user=ctx.message.author)
-                        await ctx.send(f"DCS player {match['name']} has been relinked to member {match['member'].display_name}.")
-                    elif react.emoji == '⏏️':
-                        server.kick(player, "Kicked by admin.")
-                        await ctx.send(f"User has been kicked from server \"{server.name}\".")
-                        await self.bot.audit(f' kicked ' + (f'user {member.display_name}.' if isinstance(member, discord.Member) else f'ucid {member}'),
-                                             user=ctx.message.author)
-                    elif react.emoji == '⛔':
-                        for ucid in ucids:
-                            cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
-                                           (ucid, ctx.message.author.display_name, 'n/a'))
-                            for server in self.bot.servers.values():
-                                server.sendtoDCS({
-                                    "command": "ban",
-                                    "ucid": ucid,
-                                    "reason": "Banned by admin."
-                                })
-                        await ctx.send('User has been banned from all DCS servers.')
-                        await self.bot.audit(f'banned ' + (f' user {member.display_name}.' if isinstance(member, discord.Member) else f' ucid {member}'),
-                                             user=ctx.message.author)
-                    elif react.emoji == '✅':
-                        for ucid in ucids:
-                            cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
-                            for server in self.bot.servers.values():
-                                server.sendtoDCS({
-                                    "command": "unban",
-                                    "ucid": ucid
-                                })
-                        await ctx.send('User has been unbanned from the DCS servers.')
-                        await self.bot.audit(f'unbanned ' + (f' user {member.display_name}.' if isinstance(member, discord.Member) else f' ucid {member}'),
-                                             user=ctx.message.author)
-                    conn.commit()
-                else:
-                    await ctx.send(f'No data found for user "{member if isinstance(member, str) else member.display_name}".')
-        except asyncio.TimeoutError:
-            pass
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-        finally:
-            self.bot.pool.putconn(conn)
-            if message:
-                await message.delete()
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        report = Report(self.bot, self.plugin_name, 'info.json')
+        env = await report.render(member=member)
+        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     @staticmethod
     def format_unmatched(data, marker, marker_emoji):
@@ -468,50 +330,54 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def linkme(self, ctx):
-        async def send_token(token):
-            channel = await ctx.message.author.create_dm()
-            await channel.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
-                               f"following into the DCS chat of one of our servers:```-linkme {token}```\n"
-                               f"**The TOKEN will expire in 2 days.**")
+        async def send_token(ctx, token: str):
+            try:
+                channel = await ctx.message.author.create_dm()
+                await channel.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
+                                   f"following into the DCS chat of one of our servers:"
+                                   f"```{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme {token}```\n"
+                                   f"**The TOKEN will expire in 2 days.**")
+            except discord.Forbidden:
+                await ctx.send("Please allow me to send you the secret TOKEN in a DM!", delete_after=10)
 
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s', (ctx.message.author.id, ))
-                if cursor.rowcount >= 1:
-                    row = cursor.fetchone()
-                    ucid = row[0]
-                    manual = row[1]
-                    if len(ucid) == 4:
-                        # resend the TOKEN, if there is one already
-                        await send_token(ucid)
+                cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s',
+                               (ctx.message.author.id, ))
+                if cursor.rowcount > 1:
+                    await ctx.send('Multiple mappings found. More than one question might come up.')
+                for row in cursor.fetchall():
+                    if len(row[0]) == 4:
+                        await send_token(ctx, row[0])
                         return
-                    elif not manual:
-                        if not await utils.yn_question(self, ctx, 'You have an automatic user mapping already.\nDo '
-                                                                  'you want to continue and re-link your user?'):
-                            return
+                    elif row[1] is False:
+                        if not await utils.yn_question(self, ctx, 'Automatic user mapping found.\n'
+                                                                  'Do you want to re-link your user?'):
+                            continue
                         else:
-                            cursor.execute('UPDATE players SET discord_id = -1 WHERE discord_id = %s AND manual = FALSE',
-                                           (ctx.message.author.id,))
-                    elif not await utils.yn_question(self, ctx, 'You have a __verified__ user mapping already.\nHave '
+                            for server in self.bot.servers.values():
+                                player = server.get_player(ucid=row[0])
+                                if player:
+                                    player.member = None
+                                    continue
+                            cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
+                    elif not await utils.yn_question(self, ctx, '__Verified__ user mapping found.\nHave '
                                                                 'you switched from Steam to Standalone or your PC?\n'):
-                        return
-                # in the very unlikely event that we have generated the very same random number twice
-                while True:
-                    try:
-                        token = random.randrange(1000, 9999)
-                        cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
-                                       (token, ctx.message.author.id))
-                        break
-                    except psycopg2.DatabaseError:
-                        pass
-                await send_token(token)
-            conn.commit()
+                        continue
+                    # in the very unlikely event that we have generated the very same random number twice
+                    while True:
+                        try:
+                            token = str(random.randrange(1000, 9999))
+                            cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
+                                           (token, ctx.message.author.id))
+                            break
+                        except psycopg2.DatabaseError:
+                            pass
+                    await send_token(ctx, token)
+                conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
-            if isinstance(error, discord.Forbidden):
-                await ctx.send("Please allow me to send you the secret TOKEN in a DM!", delete_after=10)
-            else:
-                self.log.exception(error)
+            self.log.exception(error)
             conn.rollback()
         finally:
             self.pool.putconn(conn)
@@ -522,7 +388,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute("DELETE FROM players WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(NOW()) - interval '2 days')")
+                cursor.execute("DELETE FROM players WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(NOW()) - interval '2 "
+                               "days')")
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)

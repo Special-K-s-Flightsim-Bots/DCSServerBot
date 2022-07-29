@@ -31,6 +31,7 @@ class Player(DataObject):
     group_id: int = field(compare=False, default=0)
     group_name: str = field(compare=False, default='')
     _member: discord.Member = field(compare=False, repr=False, default=None, init=False)
+    _verified: bool = field(compare=False, default=False)
     coalition: Coalition = field(compare=False, default=None)
 
     def __post_init__(self):
@@ -42,14 +43,15 @@ class Player(DataObject):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned '
-                               'FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid WHERE p.ucid = %s',
+                cursor.execute('SELECT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, '
+                               'manual FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid WHERE p.ucid = %s',
                                (self.ucid, ))
                 # existing member found?
                 if cursor.rowcount == 1:
                     row = cursor.fetchone()
                     if row[0] != -1:
-                        self.member = self.bot.guilds[0].get_member(row[0])
+                        self.member = self._member = self.bot.guilds[0].get_member(row[0])
+                        self._verified = row[2]
                     self.banned = row[1]
                     cursor.execute('UPDATE players SET name = %s, ipaddr = %s, last_seen = NOW() WHERE ucid = %s',
                                    (self.name, self.ipaddr, self.ucid))
@@ -63,8 +65,6 @@ class Player(DataObject):
                     discord_user = self.bot.match_user({"ucid": self.ucid, "name": self.name})
                     if discord_user:
                         self.member = discord_user
-                        cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
-                                       (discord_user.id, self.ucid))
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -87,7 +87,19 @@ class Player(DataObject):
 
     @member.setter
     def member(self, member: discord.Member) -> None:
-        self._member = member
+        if member != self._member:
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
+                                   (member.id if member else -1, self.ucid))
+                    conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+                conn.rollback()
+            finally:
+                self.pool.putconn(conn)
+            self._member = member
         if member:
             roles = [x.name for x in member.roles]
             self.server.sendtoDCS({
@@ -96,6 +108,23 @@ class Player(DataObject):
                 'ucid': self.ucid,
                 'roles': roles
             })
+
+    @property
+    def verified(self) -> bool:
+        return self._verified
+
+    @verified.setter
+    def verified(self, verified:bool) -> None:
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE players SET manual = %s WHERE ucid = %s', (verified, self.ucid))
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
     def update(self, data: dict):
         if 'id' in data:
@@ -124,7 +153,7 @@ class Player(DataObject):
             self.group_id = data['group_id']
 
     def has_discord_roles(self, roles: list[str]) -> bool:
-        return self.member is not None and utils.check_roles(roles, self.member)
+        return self.verified and self._member is not None and utils.check_roles(roles, self._member)
 
     def sendChatMessage(self, message: str, sender: str = None):
         self.server.sendtoDCS({

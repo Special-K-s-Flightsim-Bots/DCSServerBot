@@ -337,7 +337,7 @@ class UserStatisticsEventListener(EventListener):
     async def onChatCommand(self, data: dict) -> None:
         if data['subcommand'] == 'linkme':
             server: Server = self.bot.servers[data['server_name']]
-            player = server.get_player(id=data['from_id'])
+            player: Player = server.get_player(id=data['from_id'])
             if not player:
                 return
             if len(data['params']):
@@ -352,13 +352,11 @@ class UserStatisticsEventListener(EventListener):
                                 f'Player {player.name} (ucid={player.ucid}) entered a non-existent linking token.')
                         else:
                             discord_id = cursor.fetchone()[0]
-                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
-                                           (discord_id, player.ucid))
+                            player.member = self.bot.guilds[0].get_member(discord_id)
+                            player.verified = True
                             cursor.execute('DELETE FROM players WHERE ucid = %s', (token, ))
-                            member = self.bot.guilds[0].get_member(discord_id)
-                            player.member = member
                             await self.bot.audit(f'self-linked to DCS user "{player.name}" (ucid={player.ucid}).',
-                                                 user=member)
+                                                 user=player.member)
                             player.sendChatMessage('Your user has been linked!')
                         conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
@@ -367,5 +365,6 @@ class UserStatisticsEventListener(EventListener):
                 finally:
                     self.pool.putconn(conn)
             else:
-                player.sendChatMessage(f"Syntax: -linkme token\nYou get the token with "
-                                       f"{self.bot.config['BOT']['COMMAND_PREFIX']}linkme in our Discord.")
+                player.sendChatMessage(f"Syntax: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme token\n"
+                                       f"You get the token with {self.bot.config['BOT']['COMMAND_PREFIX']}linkme in "
+                                       f"our Discord.")
