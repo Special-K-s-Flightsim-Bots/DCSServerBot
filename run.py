@@ -85,10 +85,9 @@ class Main:
 
     def init_db(self):
         # Initialize the database
-        db_pool = pool.ThreadedConnectionPool(
-            5 if self.config.getboolean('BOT', 'MASTER') is True else 2,
-            10 if self.config.getboolean('BOT', 'MASTER') is True else 5,
-            self.config['BOT']['DATABASE_URL'], sslmode='allow')
+        pool_min = self.config['BOT']['MASTER_POOL_MIN'] if self.config.getboolean('BOT', 'MASTER') else self.config['BOT']['AGENT_POOL_MIN']
+        pool_max = self.config['BOT']['MASTER_POOL_MAX'] if self.config.getboolean('BOT', 'MASTER') else self.config['BOT']['AGENT_POOL_MAX']
+        db_pool = pool.ThreadedConnectionPool(pool_min, pool_max, self.config['BOT']['DATABASE_URL'], sslmode='allow')
         conn = db_pool.getconn()
         try:
             with suppress(Exception):
