@@ -214,7 +214,7 @@ class UserStatisticsEventListener(EventListener):
             return
         if data['eventName'] == 'disconnect':
             if data['arg1'] != 1:
-                player = server.get_player(id=data['arg1'])
+                player: Player = server.get_player(id=data['arg1'])
                 if not player:
                     self.log.warning(f"Player id={data['arg1']} not found. Can't close their statistics.")
                     return
@@ -261,7 +261,7 @@ class UserStatisticsEventListener(EventListener):
                         else:
                             kill_type = 'kill_other'  # Static objects
                         if kill_type in self.SQL_EVENT_UPDATES.keys():
-                            pilot = server.get_player(id=data['arg1'])
+                            pilot: Player = server.get_player(id=data['arg1'])
                             for crew_member in server.get_crew_members(pilot):
                                 cursor.execute(self.SQL_EVENT_UPDATES[kill_type], (server.mission_id, crew_member.ucid))
 
@@ -291,7 +291,7 @@ class UserStatisticsEventListener(EventListener):
                         else:
                             death_type = 'other'
                         if death_type in self.SQL_EVENT_UPDATES.keys():
-                            pilot = server.get_player(id=data['arg4'])
+                            pilot: Player = server.get_player(id=data['arg4'])
                             for crew_member in server.get_crew_members(pilot):
                                 cursor.execute(self.SQL_EVENT_UPDATES[death_type], (server.mission_id, crew_member.ucid))
                     conn.commit()
@@ -306,7 +306,7 @@ class UserStatisticsEventListener(EventListener):
                     conn = self.pool.getconn()
                     try:
                         with closing(conn.cursor()) as cursor:
-                            player = server.get_player(id=data['arg1'])
+                            player: Player = server.get_player(id=data['arg1'])
                             cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
                                            (server.mission_id, player.ucid))
                             conn.commit()
@@ -319,7 +319,7 @@ class UserStatisticsEventListener(EventListener):
             if data['arg1'] != -1:
                 if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
                     # TODO: when DCS bug wih multicrew eject gets fixed, change this to single player only
-                    pilot = server.get_player(id=data['arg1'])
+                    pilot: Player = server.get_player(id=data['arg1'])
                     crew_members = server.get_crew_members(pilot)
                     if len(crew_members) == 1:
                         conn = self.pool.getconn()

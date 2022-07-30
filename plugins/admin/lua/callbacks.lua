@@ -30,6 +30,18 @@ function admin.onPlayerTryConnect(addr, name, ucid, playerID)
     	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
 	    return false, 'You are banned from this server. Reason: ' .. dcsbot.banList[ucid]
 	end
+    plist = net.get_player_list()
+    num_players = table.getn(plist)
+    if num_players > 1 then
+        for i = 2, num_players do
+            if net.get_player_info(plist[i], 'ucid') == ucid then
+                msg.command = 'sendMessage'
+                msg.message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to account sharing.'
+                utils.sendBotTable(msg, config.ADMIN_CHANNEL)
+                return false, 'Rejected due to account sharing.'
+            end
+        end
+    end
 end
 
 function admin.onMissionLoadBegin(id)
