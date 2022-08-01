@@ -20,6 +20,9 @@
     },
     {
       "class": "plugins.userstats.info.ServerInfo"
+    },
+    {
+      "class": "plugins.userstats.info.Footer"
     }
   ]
 }

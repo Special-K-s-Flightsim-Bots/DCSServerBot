@@ -516,7 +516,7 @@ class DCSServerBot(commands.Bot):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
                 # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                 self.allow_reuse_address = True
-                self.max_packet_size = 65504
+                MyThreadingUDPServer.max_packet_size = 65504
                 super().__init__(server_address, request_handler)
 
         host = self.config['BOT']['HOST']

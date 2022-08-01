@@ -3,6 +3,7 @@ from .data.dataobject import *
 from .data.mission import *
 from .data.player import *
 from .data.server import *
+from .data.member import *
 
 from .autoexec import *
 from .bot import *

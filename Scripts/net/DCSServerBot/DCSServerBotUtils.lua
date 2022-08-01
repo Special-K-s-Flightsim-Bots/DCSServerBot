@@ -34,7 +34,7 @@ package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
 local socket = require("socket")
 UDPSendSocket = socket.udp()
 
-local server_name = nil
+local server_name
 
 function sendBotTable(tbl, channel)
 	if server_name == nil then
@@ -100,8 +100,8 @@ function getMulticrewAllParameters(PlayerId)
 	-- Gets all multicrew parameters
 	local _result = ""
 	local _master_type= "?"
-	local _master_slot = nil
-	local _sub_slot = nil
+	local _master_slot
+	local _sub_slot
 
 	local _player_slot = net.get_player_info(PlayerId, 'slot')
 

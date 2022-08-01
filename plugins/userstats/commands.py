@@ -1,9 +1,11 @@
+import asyncio
 import discord
 import os
 import psycopg2
 import random
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server
+from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
+    DataObjectFactory, Member
 from discord.ext import commands, tasks
 from typing import Union, Optional, Tuple
 from .filter import StatisticsFilter
@@ -61,6 +63,52 @@ class UserStatisticsAgent(Plugin):
                     self.pool.putconn(conn)
             else:
                 await ctx.send(f'Please stop server "{server.name}" before deleteing the statistics!')
+
+    # To allow super()._link() calls
+    async def _link(self, ctx, member: discord.Member, ucid: str):
+        # change the link status of that member if they are an active player
+        for server_name, server in self.bot.servers.items():
+            player = server.get_player(ucid=ucid)
+            if player:
+                player.member = member
+                player.verified = True
+                return
+
+    @commands.command(brief='Links a member to a DCS user',
+                      description="Used to link a Discord member to a DCS user by linking the Discord ID to the "
+                                  "respective UCID of that user.\nThe bot needs this information to be able to "
+                                  "display the statistics and other information for the user.\nIf a user is manually "
+                                  "linked, their link is approved, which means that they can use specific commands "
+                                  "in the in-game chat, if they belong to an elevated Discord role.",
+                      usage='<member> <ucid>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def link(self, ctx, member: discord.Member, ucid: str):
+        await self._link(ctx, member, ucid)
+
+    # To allow super()._unlink() calls
+    async def _unlink(self, ctx, member: Union[discord.Member, str]):
+        if isinstance(member, discord.Member):
+            ucid = self.bot.get_ucid_by_member(member)
+        else:
+            ucid = member
+        # change the link status of that member if they are an active player
+        for server_name, server in self.bot.servers.items():
+            player = server.get_player(ucid=ucid)
+            if player:
+                player.member = None
+                player.verified = False
+
+    @commands.command(brief='Unlinks a member',
+                      description="Removes any link between this Discord member and a DCS users. Might be used, if a "
+                                  "mislink happend, either manually or due to the bots auto-link functionality not "
+                                  "having linked correctly.\n\nStatistics will not be deleted for this UCID, so "
+                                  "if you link the UCID to the correct member, they still see all their valuable data.",
+                      usage='<member|ucid>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def unlink(self, ctx, member: Union[discord.Member, str]):
+        await self._unlink(ctx, member)
 
 
 class UserStatisticsMaster(UserStatisticsAgent):
@@ -142,28 +190,19 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def link(self, ctx, member: discord.Member, ucid: str):
+        await super()._link(ctx, member, ucid)
+        conn = self.pool.getconn()
         try:
-            # check if that player is online already
-            for server_name, server in self.bot.servers.items():
-                player = server.get_player(ucid=ucid)
-                if player:
-                    player.member = member
-                    player.verified = True
-                    return
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
-                                   (member.id, ucid))
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-                conn.rollback()
-            finally:
-                self.pool.putconn(conn)
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
         finally:
-            await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
-            await self.bot.audit(f'linked member {member.display_name} to ucid {ucid}.', user=ctx.message.author)
+            self.pool.putconn(conn)
+        await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
+        await self.bot.audit(f'linked member {member.display_name} to ucid {ucid}.', user=ctx.message.author)
 
     @commands.command(brief='Unlinks a member',
                       description="Removes any link between this Discord member and a DCS users. Might be used, if a "
@@ -174,50 +213,96 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unlink(self, ctx, member: Union[discord.Member, str]):
+        if isinstance(member, discord.Member):
+            ucid = self.bot.get_ucid_by_member(member)
+        else:
+            ucid = member
+        if not ucid:
+            await ctx.send('UCID/Member not linked.')
+            return
+        await super()._unlink(ctx, member)
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if isinstance(member, discord.Member):
-                    # check if we need to update a player
-                    for server_name, server in self.bot.servers.items():
-                        player = server.get_player(discord_id=member.id)
-                        if player:
-                            player.member = None
-                            player.verified = False
-                    cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s', (member.id, ))
-                    await ctx.send('Member {} unlinked.'.format(member.display_name))
-                    await self.bot.audit(f'unlinked member {member.display_name}.', user=ctx.message.author)
-                else:
-                    try:
-                        # check if we need to update a player
-                        for server_name, server in self.bot.servers.items():
-                            player = server.get_player(ucid=member)
-                            if player:
-                                player.member = None
-                                player.verified = False
-                                return
-                        cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (member, ))
-                    finally:
-                        await ctx.send('ucid {} unlinked.'.format(member))
-                        await self.bot.audit(f'unlinked ucid {member}.', user=ctx.message.author)
-                conn.commit()
+                cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
+            conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+        if isinstance(member, discord.Member):
+            await ctx.send(f'Member {member.display_name} unlinked.')
+            await self.bot.audit(f'unlinked member {member.display_name}.', user=ctx.message.author)
+        else:
+            await ctx.send(f'ucid {ucid} unlinked.')
+            await self.bot.audit(f'unlinked ucid {member}.', user=ctx.message.author)
 
     @commands.command(description='Shows player information', usage='<@member / ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def info(self, ctx, member: Union[discord.Member, str], *params):
         if isinstance(member, str):
+            name = member
             if len(params):
-                member += ' ' + ' '.join(params)
+                name += ' ' + ' '.join(params)
+            if len(name) == 32:
+                ucid = member
+            else:
+                ucid = self.bot.get_ucid_by_name(name)
+            if ucid:
+                member = self.bot.get_member_by_ucid(ucid)
+        else:
+            ucid = self.bot.get_ucid_by_member(member)
+
+        player: Optional[Player] = None
+        for server in self.bot.servers.values():
+            if isinstance(member, discord.Member):
+                player = server.get_player(discord_id=member.id, active=True)
+            elif ucid:
+                player = server.get_player(ucid=ucid, active=True)
+            else:
+                player = server.get_player(name=member, active=True)
+            if player:
+                break
+
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         report = Report(self.bot, self.plugin_name, 'info.json')
-        env = await report.render(member=member)
-        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        env = await report.render(member=member or ucid, player=player)
+        message = await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        try:
+            _member: Optional[Member] = None
+            if isinstance(member, discord.Member):
+                _member = DataObjectFactory().new('Member', bot=self.bot, member=member)
+                if len(_member.ucids):
+                    await message.add_reaction('🔀')
+                    if not _member.verified:
+                        await message.add_reaction('💯')
+                    await message.add_reaction('✅' if _member.banned else '⛔')
+            elif ucid:
+                await message.add_reaction('✅' if utils.is_banned(self, ucid) else '⛔')
+            if player:
+                await message.add_reaction('⏏️')
+            await message.add_reaction('⏹️')
+            react = await utils.wait_for_single_reaction(self, ctx, message)
+            if react.emoji == '🔀':
+                await self.unlink(ctx, member)
+            elif react.emoji == '💯':
+                _member.verify()
+                if player:
+                    player.verified = True
+            elif react.emoji == '✅':
+                await ctx.invoke(self.bot.get_command('unban'), user=member or ucid)
+                if player:
+                    player.banned = False
+            elif react.emoji == '⛔':
+                await ctx.invoke(self.bot.get_command('ban'), user=member or ucid)
+                if player:
+                    player.banned = True
+        except asyncio.TimeoutError:
+            pass
+        finally:
+            await message.delete()
 
     @staticmethod
     def format_unmatched(data, marker, marker_emoji):
@@ -238,7 +323,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def linkcheck(self, ctx):
-        await ctx.send('Please wait, this might take a bit ...')
+        message = await ctx.send('Please wait, this might take a bit ...')
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -249,6 +334,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     matched_member = self.bot.match_user(dict(row), True)
                     if matched_member:
                         unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
+                await message.delete()
                 if len(unmatched) == 0:
                     await ctx.send('No unmatched member could be matched.')
                     return

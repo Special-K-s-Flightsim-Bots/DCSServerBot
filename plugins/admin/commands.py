@@ -567,7 +567,10 @@ class Master(Agent):
                                    (ucid, ctx.message.author.display_name, reason))
                 conn.commit()
                 await super().ban(self, ctx, user, *args)
-            await ctx.send('Player {} banned.'.format(user))
+            if isinstance(user, discord.Member):
+                await ctx.send(f'Member {user.display_name} banned.')
+            else:
+                await ctx.send(f'Player {user} banned.')
             await self.bot.audit(f'banned ' +
                                  (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}') +
                                  (f' with reason "{reason}"' if reason != 'n/a' else ''),
@@ -596,7 +599,10 @@ class Master(Agent):
                     cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
                 conn.commit()
                 await super().unban(self, ctx, user)
-            await ctx.send('Player {} unbanned.'.format(user))
+            if isinstance(user, discord.Member):
+                await ctx.send(f'Member {user.display_name} unbanned.')
+            else:
+                await ctx.send(f'Player {user} unbanned.')
             await self.bot.audit(f'unbanned ' +
                                  (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}'),
                                  user=ctx.message.author)

@@ -138,3 +138,15 @@ def get_active_runways(runways, wind):
     if len(retval) == 0:
         retval = ['n/a']
     return retval
+
+
+def is_banned(self, ucid: str):
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute(f"SELECT COUNT(*) FROM bans WHERE ucid = %s", (ucid,))
+            return cursor.fetchone()[0] > 0
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)

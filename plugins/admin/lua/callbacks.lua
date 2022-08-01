@@ -38,7 +38,7 @@ function admin.onPlayerTryConnect(addr, name, ucid, playerID)
                 msg.command = 'sendMessage'
                 msg.message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to account sharing.'
                 utils.sendBotTable(msg, config.ADMIN_CHANNEL)
-                return false, 'Rejected due to account sharing.'
+                return false, 'Rejected and reported due to possible account sharing.'
             end
         end
     end
