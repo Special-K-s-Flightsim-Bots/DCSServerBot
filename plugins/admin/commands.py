@@ -94,14 +94,20 @@ class Agent(Plugin):
             self.log.info('Updating DCS World ...')
         for plugin in self.bot.cogs.values():
             await plugin.before_dcs_update()
+        # disable any popup on the remote machine
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
+        startupinfo.wShowWindow = subprocess.SW_HIDE
         subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
-            self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe')
+            self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
         utils.sanitize(self)
         # run after_dcs_update() in all plugins
         for plugin in self.bot.cogs.values():
             await plugin.after_dcs_update()
+        message = None
         if ctx:
-            await ctx.send('DCS World updated to the latest version.\nStarting up DCS servers again ...')
+            await ctx.send('DCS World updated to the latest version.')
+            message = await ctx.send('Starting up DCS servers again ...')
         else:
             self.log.info('DCS World updated to the latest version.\nStarting up DCS servers again ...')
         for server_name, server in self.bot.servers.items():
@@ -112,11 +118,14 @@ class Agent(Plugin):
                 # the server was running before (being in maintenance mode), so start it again
                 await server.startup()
         self.update_pending = False
+        if message:
+            await message.delete()
+            await ctx.send('DCS servers started.')
 
     @commands.command(description='Update a DCS Installation')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def update(self, ctx):
+    async def update(self, ctx, param: Optional[str] = None):
         if self.update_pending:
             await ctx.send('An update is already running, please wait ...')
             return
@@ -125,7 +134,7 @@ class Agent(Plugin):
         new_version = await utils.getLatestVersion(branch)
         if old_version == new_version:
             await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
-        elif new_version:
+        elif new_version or param and param == '-force':
             if await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?\nAll running '
                                                   'DCS servers will be shut down!'.format(old_version,
                                                                                           new_version)) is True:
@@ -249,6 +258,9 @@ class Agent(Plugin):
                             "ucid": ucid,
                             "reason": reason
                         })
+                        player = server.get_player(ucid=ucid)
+                        if player:
+                            player.banned = True
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
@@ -271,6 +283,9 @@ class Agent(Plugin):
                 for ucid in ucids:
                     for server in self.bot.servers.values():
                         server.sendtoDCS({"command": "unban", "ucid": ucid})
+                        player = server.get_player(ucid=ucid)
+                        if player:
+                            player.banned = False
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
@@ -552,7 +567,10 @@ class Master(Agent):
                                    (ucid, ctx.message.author.display_name, reason))
                 conn.commit()
                 await super().ban(self, ctx, user, *args)
-            await ctx.send('Player {} banned.'.format(user))
+            if isinstance(user, discord.Member):
+                await ctx.send(f'Member {user.display_name} banned.')
+            else:
+                await ctx.send(f'Player {user} banned.')
             await self.bot.audit(f'banned ' +
                                  (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}') +
                                  (f' with reason "{reason}"' if reason != 'n/a' else ''),
@@ -581,7 +599,10 @@ class Master(Agent):
                     cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
                 conn.commit()
                 await super().unban(self, ctx, user)
-            await ctx.send('Player {} unbanned.'.format(user))
+            if isinstance(user, discord.Member):
+                await ctx.send(f'Member {user.display_name} unbanned.')
+            else:
+                await ctx.send(f'Player {user} unbanned.')
             await self.bot.audit(f'unbanned ' +
                                  (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}'),
                                  user=ctx.message.author)

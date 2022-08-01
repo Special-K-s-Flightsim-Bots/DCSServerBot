@@ -214,7 +214,7 @@ class UserStatisticsEventListener(EventListener):
             return
         if data['eventName'] == 'disconnect':
             if data['arg1'] != 1:
-                player = server.get_player(id=data['arg1'])
+                player: Player = server.get_player(id=data['arg1'])
                 if not player:
                     self.log.warning(f"Player id={data['arg1']} not found. Can't close their statistics.")
                     return
@@ -261,7 +261,7 @@ class UserStatisticsEventListener(EventListener):
                         else:
                             kill_type = 'kill_other'  # Static objects
                         if kill_type in self.SQL_EVENT_UPDATES.keys():
-                            pilot = server.get_player(id=data['arg1'])
+                            pilot: Player = server.get_player(id=data['arg1'])
                             for crew_member in server.get_crew_members(pilot):
                                 cursor.execute(self.SQL_EVENT_UPDATES[kill_type], (server.mission_id, crew_member.ucid))
 
@@ -291,7 +291,7 @@ class UserStatisticsEventListener(EventListener):
                         else:
                             death_type = 'other'
                         if death_type in self.SQL_EVENT_UPDATES.keys():
-                            pilot = server.get_player(id=data['arg4'])
+                            pilot: Player = server.get_player(id=data['arg4'])
                             for crew_member in server.get_crew_members(pilot):
                                 cursor.execute(self.SQL_EVENT_UPDATES[death_type], (server.mission_id, crew_member.ucid))
                     conn.commit()
@@ -306,7 +306,7 @@ class UserStatisticsEventListener(EventListener):
                     conn = self.pool.getconn()
                     try:
                         with closing(conn.cursor()) as cursor:
-                            player = server.get_player(id=data['arg1'])
+                            player: Player = server.get_player(id=data['arg1'])
                             cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
                                            (server.mission_id, player.ucid))
                             conn.commit()
@@ -319,7 +319,7 @@ class UserStatisticsEventListener(EventListener):
             if data['arg1'] != -1:
                 if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
                     # TODO: when DCS bug wih multicrew eject gets fixed, change this to single player only
-                    pilot = server.get_player(id=data['arg1'])
+                    pilot: Player = server.get_player(id=data['arg1'])
                     crew_members = server.get_crew_members(pilot)
                     if len(crew_members) == 1:
                         conn = self.pool.getconn()
@@ -337,7 +337,7 @@ class UserStatisticsEventListener(EventListener):
     async def onChatCommand(self, data: dict) -> None:
         if data['subcommand'] == 'linkme':
             server: Server = self.bot.servers[data['server_name']]
-            player = server.get_player(id=data['from_id'])
+            player: Player = server.get_player(id=data['from_id'])
             if not player:
                 return
             if len(data['params']):
@@ -352,13 +352,11 @@ class UserStatisticsEventListener(EventListener):
                                 f'Player {player.name} (ucid={player.ucid}) entered a non-existent linking token.')
                         else:
                             discord_id = cursor.fetchone()[0]
-                            cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
-                                           (discord_id, player.ucid))
+                            player.member = self.bot.guilds[0].get_member(discord_id)
+                            player.verified = True
                             cursor.execute('DELETE FROM players WHERE ucid = %s', (token, ))
-                            member = self.bot.guilds[0].get_member(discord_id)
-                            player.member = member
                             await self.bot.audit(f'self-linked to DCS user "{player.name}" (ucid={player.ucid}).',
-                                                 user=member)
+                                                 user=player.member)
                             player.sendChatMessage('Your user has been linked!')
                         conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
@@ -367,5 +365,6 @@ class UserStatisticsEventListener(EventListener):
                 finally:
                     self.pool.putconn(conn)
             else:
-                player.sendChatMessage(f"Syntax: -linkme token\nYou get the token with "
-                                       f"{self.bot.config['BOT']['COMMAND_PREFIX']}linkme in our Discord.")
+                player.sendChatMessage(f"Syntax: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme token\n"
+                                       f"You get the token with {self.bot.config['BOT']['COMMAND_PREFIX']}linkme in "
+                                       f"our Discord.")

@@ -160,7 +160,7 @@ class DCSServerBot(commands.Bot):
         elif isinstance(err, commands.NoPrivateMessage):
             await ctx.send('This command can\'t be used in a DM.')
         elif isinstance(err, commands.MissingRequiredArgument):
-            await ctx.send('Parameter missing. Try !help')
+            await ctx.send(f'Parameter missing. Try {ctx.prefix}help')
         elif isinstance(err, commands.errors.CheckFailure):
             await ctx.send('Your role does not allow you to use this command (in this channel).')
         elif isinstance(err, asyncio.TimeoutError):
@@ -230,11 +230,15 @@ class DCSServerBot(commands.Bot):
         finally:
             self.pool.putconn(conn)
 
-    def get_ucid_by_member(self, member: discord.Member) -> Optional[str]:
+    def get_ucid_by_member(self, member: discord.Member, verified: Optional[bool] = False) -> Optional[str]:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC', (member.id, ))
+                sql = 'SELECT ucid FROM players WHERE discord_id = %s '
+                if verified:
+                    sql += 'AND manual IS TRUE '
+                sql += 'ORDER BY last_seen DESC'
+                cursor.execute(sql, (member.id, ))
                 if cursor.rowcount >= 1:
                     return cursor.fetchone()[0]
                 else:
@@ -512,7 +516,7 @@ class DCSServerBot(commands.Bot):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
                 # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                 self.allow_reuse_address = True
-                self.max_packet_size = 65504
+                MyThreadingUDPServer.max_packet_size = 65504
                 super().__init__(server_address, request_handler)
 
         host = self.config['BOT']['HOST']

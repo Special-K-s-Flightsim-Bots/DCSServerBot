@@ -11,7 +11,7 @@ This plugin supports administrative commands that are needed to operate a DCS se
 | .start    |                       | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                             |
 | .stop     |                       | admin-channel | DCS Admin | Stops a DCS server.                                                                                                      |
 | .status   |                       | all           | DCS       | Shows the status of all configured DCS servers.                                                                          |
-| .update   |                       | admin-channel | DCS Admin | Updates DCS World to the latest available version.                                                                       |
+| .update   | [-force]              | admin-channel | DCS Admin | Updates DCS World to the latest available version. -force can be used, if no update could be detected automatically.     |
 | .password | [coalition]*          | admin-channel | DCS Admin | Changes the password of a DCS server or a specific coalition* on this server.                                            |
 | .kick     | name [reason]         | admin-channel | DCS Admin | Kicks the user with the in-game name "name" from the DCS server. The "reason" will be provided to the user.              |
 | .spec     | name [reason]         | admin-channel | DCS Admin | Moves the user with the in-game name "name" to spectators. The "reason" will be provided to the user as a chat message.  |

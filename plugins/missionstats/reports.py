@@ -94,7 +94,7 @@ class MissionStats(report.EmbedElement):
         if len(sides) == 0:
             self.embed.add_field(name='Data can only be displayed in a private coalition channel!', value='_ _')
             return
-        self.embed.add_field(name='▬▬▬▬▬▬ Current Situation ▬▬▬▬▬▬', value='_ _', inline=False)
+        self.embed.add_field(name='▬▬▬▬▬▬▬▬▬▬▬ Current Situation ▬▬▬▬▬▬▬▬▬▬▬', value='_ _', inline=False)
         self.embed.add_field(
             name='_ _', value='Airbases / FARPs\nPlanes\nHelicopters\nGround Units\nShips\nStructures')
         for coalition in sides:
@@ -114,7 +114,7 @@ class MissionStats(report.EmbedElement):
                         Side.BLUE: {},
                         Side.RED: {}
                     }
-                    self.embed.add_field(name='▬▬▬▬▬▬ Achievements ▬▬▬▬▬▬▬', value='_ _', inline=False)
+                    self.embed.add_field(name='▬▬▬▬▬▬▬▬▬▬▬ Achievements ▬▬▬▬▬▬▬▬▬▬▬▬', value='_ _', inline=False)
                     for row in cursor.fetchall():
                         s = Side(int(row['init_side']))
                         for name, value in row.items():
