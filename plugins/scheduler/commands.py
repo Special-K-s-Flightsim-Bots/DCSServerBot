@@ -417,7 +417,8 @@ class Scheduler(Plugin):
                 server.maintenance = True
                 await self.launch_dcs(server, config, ctx.message.author)
                 await msg.delete()
-                await ctx.send(f"DCS server \"{server.name}\" started.")
+                await ctx.send(f"DCS server \"{server.name}\" started.\n"
+                               f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
                 for ext in server.extensions.values():
                     if not await ext.is_running() and await ext.startup():
                         self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
@@ -447,7 +448,8 @@ class Scheduler(Plugin):
                 server.restart_pending = True
                 await self.teardown_dcs(server, ctx.message.author)
                 await msg.delete()
-                await ctx.send(f"DCS server \"{server.name}\" shut down.")
+                await ctx.send(f"DCS server \"{server.name}\" shut down.\n"
+                               f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
                 server.restart_pending = False
             else:
                 await ctx.send(f"DCS server \"{server.name}\" is already shut down.")
@@ -484,16 +486,24 @@ class Scheduler(Plugin):
     async def preset(self, ctx):
         server: Server = await self.bot.get_server(ctx)
         if server:
+            stopped = False
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                await ctx.send('You need to stop / shutdown the server to change the mission preset.')
-                return
+                if not await utils.yn_question(self, ctx,
+                                               'Do you want me to stop the server to change the mission preset?'):
+                    return
+                stopped = True
+                await server.stop()
             config = self.get_config(server)
             presets = list(config['presets'].keys())
             n = await utils.selection_list(self, ctx, presets, self.format_presets)
             if n < 0:
                 return
             self.change_mizfile(server, config, presets[n])
-            await ctx.send('Preset changed.')
+            if stopped:
+                await server.start()
+                await ctx.send('Preset changed, server restarted.')
+            else:
+                await ctx.send('Preset changed.')
 
     @commands.command(description='Create preset from running mission', usage='<name>')
     @utils.has_role('DCS Admin')
@@ -535,9 +545,12 @@ class Scheduler(Plugin):
     async def reset(self, ctx):
         server: Server = await self.bot.get_server(ctx)
         if server:
+            stopped = False
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                await ctx.send('You need to stop / shutdown the server to reset the mission.')
-                return
+                if not await utils.yn_question(self, ctx, 'Do you want me to stop the server to reset the mission?'):
+                    return
+                stopped = True
+                await server.stop()
             config = self.get_config(server)
             if 'reset' not in config:
                 await ctx.send(f"No \"reset\" parameter found for server {server.name}.")
@@ -550,7 +563,11 @@ class Scheduler(Plugin):
                 self.eventlistener.run(server, reset)
             else:
                 await ctx.send('Incorrect format of "reset" parameter in scheduler.json')
-            await ctx.send('Mission reset.')
+            if stopped:
+                await server.start()
+                await ctx.send('Mission reset, server restarted.')
+            else:
+                await ctx.send('Mission reset.')
 
 
 def setup(bot: DCSServerBot):
