@@ -187,6 +187,7 @@ class Server(DataObject):
         self.log.debug(f"HOST->{self.name}: {msg}")
         dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         dcs_socket.sendto(msg.encode('utf-8'), (self.host, int(self.port)))
+        dcs_socket.close()
 
     async def sendtoDCSSync(self, message: dict, timeout: Optional[int] = 5.0):
         future = self.bot.loop.create_future()

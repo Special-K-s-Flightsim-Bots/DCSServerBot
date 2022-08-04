@@ -26,7 +26,7 @@ class Plugin(commands.Cog):
         self.bot: DCSServerBot = bot
         self.log = bot.log
         self.pool = bot.pool
-        self.loop = asyncio.get_event_loop()
+        self.loop = bot.loop
         self.locals = self.read_locals()
         self._config = dict[str, dict]()
         self.eventlistener = eventlistener(self) if eventlistener else None
