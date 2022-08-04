@@ -288,7 +288,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
             if react.emoji == '🔀':
                 await self.unlink(ctx, member)
             elif react.emoji == '💯':
-                _member.verify()
+                _member.verified = True
                 if player:
                     player.verified = True
             elif react.emoji == '✅':
