@@ -42,7 +42,7 @@ class DCSServerBot(commands.Bot):
         self.plugins = [p.strip() for p in plugins.split(',')]
         self.audit_channel = None
         self.mission_stats = None
-        self.executor = ThreadPoolExecutor(max_workers=10)
+        self.executor = ThreadPoolExecutor()
 
     async def close(self):
         await super().close()
