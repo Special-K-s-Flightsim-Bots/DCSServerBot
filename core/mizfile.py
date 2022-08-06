@@ -223,15 +223,15 @@ class MizFile:
                 break
 
     @property
-    def qnh(self) -> int:
+    def qnh(self) -> float:
         exp = re.compile(self.re_exp['key_value'].format(key='qnh'))
         for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
             if match:
-                return int(match.group('value'))
+                return float(match.group('value'))
 
     @qnh.setter
-    def qnh(self, value: int) -> None:
+    def qnh(self, value: float) -> None:
         if value <= 0:
             self.enable_dust = False
         else:
