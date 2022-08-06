@@ -507,9 +507,11 @@ class DCSServerBot(commands.Bot):
                             self.loop.call_soon_threadsafe(f.set_result, data)
                     if command != 'registerDCSServer':
                         return
+                futures = []
                 for listener in self.eventListeners:
-                    if command in listener.commands:
-                        self.loop.call_soon_threadsafe(asyncio.create_task, listener.processEvent(data))
+                    futures.append(asyncio.run_coroutine_threadsafe(listener.processEvent(data), self.loop))
+                for future in futures:
+                    future.result()
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
