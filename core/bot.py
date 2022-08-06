@@ -77,6 +77,7 @@ class DCSServerBot(commands.Bot):
             except asyncio.TimeoutError:
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server_name}".')
                 server.status = Status.SHUTDOWN
+        self.log.info('DCSServerBot started, accepting commands.')
 
     def load_plugin(self, plugin: str) -> bool:
         try:
@@ -151,7 +152,6 @@ class DCSServerBot(commands.Bot):
             # start the UDP listener to accept commands from DCS
             self.loop.create_task(self.start_udp_listener())
             self.loop.create_task(self.register_servers())
-            self.log.info('DCSServerBot started, accepting commands.')
         else:
             self.log.info('Discord connection reestablished.')
         return
