@@ -212,6 +212,7 @@ class DCSServerBot(commands.Bot):
         if host == '0.0.0.0':
             host = '127.0.0.1'
         dcs_socket.sendto(msg.encode('utf-8'), (host, int(self.config['BOT']['PORT'])))
+        dcs_socket.close()
 
     def get_channel(self, id: int):
         return super().get_channel(id) if id != -1 else None
