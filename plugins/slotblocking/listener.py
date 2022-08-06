@@ -41,7 +41,7 @@ class SlotBlockingListener(EventListener):
                 'params': config
             })
 
-    def get_points(self, server: Server, player: CreditPlayer) -> int:
+    def _get_points(self, server: Server, player: CreditPlayer) -> int:
         config = self.plugin.get_config(server)
         if 'restricted' in config:
             for unit in config['restricted']:
@@ -54,7 +54,7 @@ class SlotBlockingListener(EventListener):
                         return unit['crew']
         return 0
 
-    def get_costs(self, server: Server, data: Union[CreditPlayer, dict]) -> int:
+    def _get_costs(self, server: Server, data: Union[CreditPlayer, dict]) -> int:
         config = self.plugin.get_config(server)
         unit_type = data.unit_type if isinstance(data, CreditPlayer) else data['unit_type']
         unit_name = data.unit_name if isinstance(data, CreditPlayer) else data['unit_name']
@@ -100,7 +100,7 @@ class SlotBlockingListener(EventListener):
                     Side(data['side']) != Side.SPECTATOR:
                 # only pilots have to "pay" for their plane
                 if int(data['sub_slot']) == 0:
-                    player.deposit = self.get_costs(server, data)
+                    player.deposit = self._get_costs(server, data)
 
     async def onMissionEvent(self, data):
         server: Server = self.bot.servers[data['server_name']]
@@ -116,7 +116,7 @@ class SlotBlockingListener(EventListener):
                 player: CreditPlayer = cast(CreditPlayer, server.get_player(name=initiator['name'], active=True))
                 # only pilots have to "pay" for their plane
                 if player.sub_slot == 0:
-                    player.deposit = self.get_costs(server, player)
+                    player.deposit = self._get_costs(server, player)
 
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -134,7 +134,7 @@ class SlotBlockingListener(EventListener):
                         player.audit('buy', old_points, 'Points taken for being killed in a reserved module')
                         player.deposit = 0
                         # if the remaining points are not enough to stay in this plane, move them back to spectators
-                        if player.points < self.get_points(server, player):
+                        if player.points < self._get_points(server, player):
                             server.move_to_spectators(player)
         elif data['eventName'] == 'crash':
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
@@ -146,9 +146,9 @@ class SlotBlockingListener(EventListener):
                     player.deposit = 0
             else:
                 old_points = player.points
-                player.points -= self.get_costs(server, player)
+                player.points -= self._get_costs(server, player)
                 player.audit('buy', old_points, 'Points taken for crashing in a reserved module')
-            if player.points < self.get_points(server, player):
+            if player.points < self._get_points(server, player):
                 server.move_to_spectators(player)
         elif data['eventName'] == 'landing':
             # clear deposit on landing
@@ -160,7 +160,7 @@ class SlotBlockingListener(EventListener):
             if 'use_reservations' in config and config['use_reservations']:
                 player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
                 if player.deposit == 0 and int(player.sub_slot) == 0:
-                    player.deposit = self.get_costs(server, player)
+                    player.deposit = self._get_costs(server, player)
         elif data['eventName'] == 'disconnect':
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if player and player.deposit > 0:

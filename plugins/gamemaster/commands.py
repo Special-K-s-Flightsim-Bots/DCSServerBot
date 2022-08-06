@@ -316,9 +316,9 @@ class GameMasterMaster(GameMasterAgent):
                                                              '(. for none):')
             servers: list[Server] = await self.get_campaign_servers(ctx)
             try:
-                self.eventlistener.campaign('add', servers=servers, name=name, description=description,
-                                            start=dateparser.parse(start_time, settings={'TIMEZONE': 'UTC'}) if start_time else None,
-                                            end=dateparser.parse(end_time, settings={'TIMEZONE': 'UTC'}) if end_time else None)
+                self.eventlistener._campaign('add', servers=servers, name=name, description=description,
+                                             start=dateparser.parse(start_time, settings={'TIMEZONE': 'UTC'}) if start_time else None,
+                                             end=dateparser.parse(end_time, settings={'TIMEZONE': 'UTC'}) if end_time else None)
                 await ctx.send(f"Campaign {name} added.")
             except psycopg2.errors.ExclusionViolation:
                 await ctx.send(f"A campaign is already configured for this timeframe!")
@@ -330,7 +330,7 @@ class GameMasterMaster(GameMasterAgent):
                     await ctx.send(f"Usage: {ctx.prefix}.campaign start <name>")
                     return
                 servers: list[Server] = await self.get_campaign_servers(ctx)
-                self.eventlistener.campaign('start', servers=servers, name=name)
+                self.eventlistener._campaign('start', servers=servers, name=name)
                 await ctx.send(f"Campaign {name} started.")
             except psycopg2.errors.ExclusionViolation:
                 await ctx.send(f"There is a campaign already running on server {server.name}!")
@@ -347,7 +347,7 @@ class GameMasterMaster(GameMasterAgent):
                     return
             warn_text = f"Do you want to stop campaign \"{name}\"?"
             if await utils.yn_question(self, ctx, warn_text) is True:
-                self.eventlistener.campaign('stop', name=name)
+                self.eventlistener._campaign('stop', name=name)
                 await ctx.send(f"Campaign stopped.")
             else:
                 await ctx.send('Aborted.')
@@ -362,7 +362,7 @@ class GameMasterMaster(GameMasterAgent):
                     return
             warn_text = f"Do you want to delete campaign \"{name}\"?"
             if await utils.yn_question(self, ctx, warn_text) is True:
-                self.eventlistener.campaign('delete', name=name)
+                self.eventlistener._campaign('delete', name=name)
                 await ctx.send(f"Campaign deleted.")
             else:
                 await ctx.send('Aborted.')

@@ -339,14 +339,10 @@ class Scheduler(Plugin):
 
     @staticmethod
     def check_affinity(server: Server, config: dict):
-        if server.pid == -1:
-            p = utils.find_process('DCS.exe', server.installation)
-            if p:
-                server.pid = p.pid
-        if server.pid != -1:
-            pid = server.pid
-            ps = psutil.Process(pid)
-            ps.cpu_affinity(config['affinity'])
+        if not server.process:
+            server.process = utils.find_process('DCS.exe', server.installation)
+        if server.process:
+            server.process.cpu_affinity(config['affinity'])
 
     @tasks.loop(minutes=1.0)
     async def check_state(self):
@@ -558,9 +554,9 @@ class Scheduler(Plugin):
             reset = config['reset']
             if isinstance(reset, list):
                 for cmd in reset:
-                    self.eventlistener.run(server, cmd)
+                    self.eventlistener._run(server, cmd)
             elif isinstance(reset, str):
-                self.eventlistener.run(server, reset)
+                self.eventlistener._run(server, reset)
             else:
                 await ctx.send('Incorrect format of "reset" parameter in scheduler.json')
             if stopped:

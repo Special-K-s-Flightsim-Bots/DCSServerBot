@@ -11,6 +11,7 @@ import uuid
 from contextlib import closing, suppress
 from core import utils, const
 from dataclasses import dataclass, field
+from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
 from .dataobject import DataObject, DataObjectFactory
 from .const import Status, Coalition, Channel
@@ -37,7 +38,7 @@ class Server(DataObject):
     current_mission: Mission = field(default=None, compare=False)
     mission_id: int = field(default=-1, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
-    pid: int = field(default=-1, compare=False)
+    process: Optional[Process] = field(default=None, compare=False)
     maintenance: bool = field(default=False, compare=False)
     restart_pending: bool = field(default=False, compare=False)
     dcs_version: str = field(default=None, compare=False)
@@ -135,7 +136,8 @@ class Server(DataObject):
         })
 
     def changeServerSettings(self, name: str, value: Union[str, int, bool]):
-        assert name in ['listStartIndex', 'password', 'name', 'maxPlayers', 'listLoop', 'allow_players_pool'], "Value can't be changed."
+        assert name in ['listStartIndex', 'password', 'name', 'maxPlayers', 'listLoop', 'allow_players_pool'], \
+            "Value can't be changed."
         if isinstance(value, str):
             value = '"' + value + '"'
         elif isinstance(value, bool):
@@ -248,7 +250,7 @@ class Server(DataObject):
             os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']), self.installation))
         p = subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', self.installation],
                              executable=os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) + r'\bin\dcs.exe')
-        self.pid = p.pid
+        self.process = Process(p.pid)
         timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
@@ -258,15 +260,14 @@ class Server(DataObject):
         self.sendtoDCS({"command": "shutdown"})
         with suppress(asyncio.TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
-        p = utils.find_process('DCS.exe', self.installation)
-        if p:
+        if self.process:
             try:
-                p.wait(timeout)
+                self.process.wait(timeout)
             except subprocess.TimeoutExpired:
-                p.kill()
+                self.process.kill()
         if self.status != Status.SHUTDOWN:
             self.status = Status.SHUTDOWN
-        self.pid = -1
+        self.process = None
 
     async def stop(self) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING]:
@@ -283,9 +284,9 @@ class Server(DataObject):
         await self.stop()
         await self.start()
 
-    async def loadMission(self, mission_id: int) -> None:
+    async def _load(self, message):
         stopped = self.status == Status.STOPPED
-        self.sendtoDCS({"command": "startMission", "id": mission_id})
+        self.sendtoDCS(message)
         if not stopped:
             # wait for a status change (STOPPED or LOADING)
             await self.wait_for_status_change([Status.STOPPED, Status.LOADING])
@@ -298,20 +299,11 @@ class Server(DataObject):
             self.log.debug(f'Trying to force start server "{self.name}" due to DCS bug.')
             await self.start()
 
+    async def loadMission(self, mission_id: int) -> None:
+        await self._load({"command": "startMission", "id": mission_id})
+
     async def loadNextMission(self) -> None:
-        stopped = self.status == Status.STOPPED
-        self.sendtoDCS({"command": "startNextMission"})
-        if not stopped:
-            # wait for a status change (STOPPED or LOADING)
-            await self.wait_for_status_change([Status.STOPPED, Status.LOADING])
-        else:
-            self.sendtoDCS({"command": "start_server"})
-        # wait until we are running again
-        try:
-            await self.wait_for_status_change([Status.RUNNING, Status.PAUSED])
-        except asyncio.TimeoutError:
-            self.log.debug(f'Trying to force start server "{self.name}" due to DCS bug.')
-            await self.start()
+        await self._load({"command": "startNextMission"})
 
     async def setEmbed(self, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None,
                        channel_id: Optional[Union[Channel, int]] = Channel.STATUS) -> None:
@@ -337,8 +329,8 @@ class Server(DataObject):
                 try:
                     with closing(conn.cursor()) as cursor:
                         cursor.execute('INSERT INTO message_persistence (server_name, embed_name, embed) VALUES (%s, '
-                                       '%s, %s) ON CONFLICT (server_name, embed_name) DO UPDATE SET embed=%s',
-                                       (self.name, embed_name, message.id, message.id))
+                                       '%s, %s) ON CONFLICT (server_name, embed_name) DO UPDATE SET '
+                                       'embed=excluded.embed', (self.name, embed_name, message.id))
                     conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.log.exception(error)

@@ -96,7 +96,7 @@ class MessageOfTheDay(Plugin):
         if server and server.status in [Status.RUNNING, Status.PAUSED]:
             message = None
             if 'join' in option:
-                message = self.eventlistener.on_join(config)
+                message = self.eventlistener._on_join(config)
             elif 'birth' in option:
                 if not member:
                     await ctx.send(f'Usage: {ctx.prefix}{option} @member')
@@ -105,7 +105,7 @@ class MessageOfTheDay(Plugin):
                 if not player:
                     await ctx.send(f"Player {member.display_name} is currently not logged in.")
                     return
-                message = await self.eventlistener.on_birth(config, server, player)
+                message = await self.eventlistener._on_birth(config, server, player)
             elif 'nudge' in option:
                 # TODO
                 pass

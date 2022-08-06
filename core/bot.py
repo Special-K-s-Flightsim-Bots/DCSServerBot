@@ -74,6 +74,7 @@ class DCSServerBot(commands.Bot):
                 await server.sendtoDCSSync({"command": "registerDCSServer"}, timeout)
                 self.log.info(f'  => Running DCS server "{server_name}" registered.')
             except asyncio.TimeoutError:
+                self.log.debug(f'  => Timeout while trying to contact DCS server "{server_name}".')
                 server.status = Status.SHUTDOWN
 
     def load_plugin(self, plugin: str) -> bool:
@@ -423,9 +424,7 @@ class DCSServerBot(commands.Bot):
                                         installation=installation, host=self.config[installation]['DCS_HOST'],
                                         port=self.config[installation]['DCS_PORT'])
         # set the PID
-        process = utils.find_process('DCS.exe', server.installation)
-        if process:
-            server.pid = process.pid
+        server.process = utils.find_process('DCS.exe', server.installation)
         server.options = data['options']
         server.settings = data['serverSettings']
         server.dcs_version = data['dcs_version']
@@ -448,9 +447,9 @@ class DCSServerBot(commands.Bot):
                             del self.servers[data['server_name']]
                             return False
                 cursor.execute('INSERT INTO servers (server_name, agent_host, host, port) VALUES(%s, %s, %s, '
-                               '%s) ON CONFLICT (server_name) DO UPDATE SET agent_host=%s, host=%s, port=%s, '
-                               'last_seen=NOW()', (data['server_name'], platform.node(), data['host'], data['port'],
-                                                   platform.node(), data['host'], data['port']))
+                               '%s) ON CONFLICT (server_name) DO UPDATE SET agent_host=excluded.agent_host, '
+                               'host=excluded.agent_host, port=excluded.port, last_seen=NOW()',
+                               (data['server_name'], platform.node(), data['host'], data['port']))
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -506,11 +505,15 @@ class DCSServerBot(commands.Bot):
                             f.get_loop().call_soon_threadsafe(f.set_result, data)
                     if command != 'registerDCSServer':
                         return
-                futures = []
-                for listener in self.eventListeners:
-                    futures.append(asyncio.run_coroutine_threadsafe(listener.processEvent(data), self.loop))
+                futures = [
+                    asyncio.run_coroutine_threadsafe(listener.processEvent(data), self.loop) for listener in self.eventListeners if command in listener.commands
+                ]
                 for future in futures:
-                    future.result()
+                    try:
+                        # don't allow methods to take more than 60 seconds
+                        future.result(60)
+                    except Exception as ex:
+                        self.log.exception(ex)
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):

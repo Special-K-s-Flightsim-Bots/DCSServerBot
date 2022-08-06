@@ -49,7 +49,7 @@ class UserStatisticsEventListener(EventListener):
 
     async def processEvent(self, data: dict[str, Union[str, int]]) -> Any:
         if (data['command'] == 'registerDCSServer') or \
-                (data['server_name'] in self.statistics and data['command'] in self.registeredEvents()):
+                (data['server_name'] in self.statistics and data['command'] in self.commands):
             return await super().processEvent(data)
         else:
             return None

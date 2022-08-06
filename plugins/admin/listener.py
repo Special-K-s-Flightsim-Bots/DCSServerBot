@@ -7,7 +7,7 @@ from core import EventListener, Player, Server, Channel
 
 class AdminEventListener(EventListener):
 
-    def updateBans(self, data=None):
+    def _updateBans(self, data=None):
         banlist = []
         conn = self.pool.getconn()
         try:
@@ -32,7 +32,7 @@ class AdminEventListener(EventListener):
 
     async def registerDCSServer(self, data):
         # upload the current bans to the server
-        self.updateBans(data)
+        self._updateBans(data)
 
     async def ban(self, data):
         conn = self.pool.getconn()

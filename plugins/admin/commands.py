@@ -654,7 +654,7 @@ class Master(Agent):
                     self.bot.log.debug(f'- Auto-ban member {member.display_name} on the DCS servers')
                     cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                    'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
-                    self.eventlistener.updateBans()
+                    self.eventlistener._updateBans()
                 self.bot.log.debug(f'- Delete stats of member {member.display_name}')
                 cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
                                'discord_id = %s)', (member.id, ))
@@ -674,7 +674,7 @@ class Master(Agent):
                 self.bot.log.debug(f'- Ban member {member.display_name} on the DCS servers.')
                 cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
-                self.eventlistener.updateBans()
+                self.eventlistener._updateBans()
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -693,7 +693,7 @@ class Master(Agent):
                     # auto-unban them if they were auto-banned
                     cursor.execute('DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE '
                                    'discord_id = %s)', (member.id, ))
-                    self.eventlistener.updateBans()
+                    self.eventlistener._updateBans()
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)
