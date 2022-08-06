@@ -60,6 +60,7 @@ class GameMasterEventListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         if data['id'] != 1 and self.bot.config.getboolean(server.installation, 'COALITIONS'):
             player: Player = server.get_player(id=data['id'])
+            data['from_id'] = data['id']
             if self.get_coalition(player):
                 data['subcommand'] = 'coalition'
                 await self.onChatCommand(data)
