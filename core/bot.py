@@ -71,7 +71,7 @@ class DCSServerBot(commands.Bot):
             try:
                 # check if there is a running server already
                 timeout = 10 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 5
-                server.sendtoDCS({"command": "registerDCSServer"})
+                server.sendtoDCS({"command": "registerDCSServer", "channel": "init"})
                 await server.wait_for_status_change([Status.RUNNING, Status.PAUSED, Status.STOPPED], timeout)
                 self.log.info(f'  => Running DCS server "{server_name}" registered.')
             except asyncio.TimeoutError:
@@ -505,13 +505,10 @@ class DCSServerBot(commands.Bot):
                         f = self.listeners[data['channel']]
                         if not f.cancelled():
                             self.loop.call_soon_threadsafe(f.set_result, data)
-                    if command != 'registerDCSServer':
                         return
-                futures = []
                 for listener in self.eventListeners:
-                    futures.append(asyncio.run_coroutine_threadsafe(listener.processEvent(data), self.loop))
-                for future in futures:
-                    future.result()
+                    if command in listener.commands:
+                        self.loop.call_soon_threadsafe(asyncio.create_task, listener.processEvent(data))
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):

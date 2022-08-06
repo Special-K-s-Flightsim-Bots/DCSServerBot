@@ -109,7 +109,7 @@ class MissionEventListener(EventListener):
             server.current_mission = mission
         server.current_mission.update(data)
         server.status = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
-        if data['channel'].startswith('sync-'):
+        if data['channel'].startswith('init'):
             if 'players' not in data:
                 data['players'] = []
                 server.status = Status.STOPPED
@@ -282,6 +282,8 @@ class MissionEventListener(EventListener):
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
             if data['arg1'] != -1:
                 player = server.get_player(id=data['arg1'])
+                if not player:
+                    return
                 if data['eventName'] in ['takeoff', 'landing']:
                     await self._send_chat_message(server, self.EVENT_TEXTS[player.side][data['eventName']].format(
                         player.name, data['arg3'] if len(data['arg3']) > 0 else 'ground'))
