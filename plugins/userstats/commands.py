@@ -429,10 +429,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s',
+                cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s ORDER BY manual',
                                (ctx.message.author.id, ))
-                if cursor.rowcount > 1:
-                    await ctx.send('Multiple mappings found. More than one question might come up.')
                 for row in cursor.fetchall():
                     if len(row[0]) == 4:
                         await send_token(ctx, row[0])
@@ -440,7 +438,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     elif row[1] is False:
                         if not await utils.yn_question(self, ctx, 'Automatic user mapping found.\n'
                                                                   'Do you want to re-link your user?'):
-                            continue
+                            return
                         else:
                             for server in self.bot.servers.values():
                                 player = server.get_player(ucid=row[0])
@@ -448,19 +446,20 @@ class UserStatisticsMaster(UserStatisticsAgent):
                                     player.member = None
                                     continue
                             cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
+                            break
                     elif not await utils.yn_question(self, ctx, '__Verified__ user mapping found.\nHave '
                                                                 'you switched from Steam to Standalone or your PC?\n'):
-                        continue
-                    # in the very unlikely event that we have generated the very same random number twice
-                    while True:
-                        try:
-                            token = str(random.randrange(1000, 9999))
-                            cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
-                                           (token, ctx.message.author.id))
-                            break
-                        except psycopg2.DatabaseError:
-                            pass
-                    await send_token(ctx, token)
+                        return
+                # in the very unlikely event that we have generated the very same random number twice
+                while True:
+                    try:
+                        token = str(random.randrange(1000, 9999))
+                        cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
+                                       (token, ctx.message.author.id))
+                        break
+                    except psycopg2.DatabaseError:
+                        pass
+                await send_token(ctx, token)
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
