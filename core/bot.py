@@ -71,7 +71,8 @@ class DCSServerBot(commands.Bot):
             try:
                 # check if there is a running server already
                 timeout = 10 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 5
-                await server.sendtoDCSSync({"command": "registerDCSServer"}, timeout)
+                server.sendtoDCS({"command": "registerDCSServer"})
+                await server.wait_for_status_change([Status.RUNNING, Status.PAUSED, Status.STOPPED], timeout)
                 self.log.info(f'  => Running DCS server "{server_name}" registered.')
             except asyncio.TimeoutError:
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server_name}".')
@@ -149,7 +150,7 @@ class DCSServerBot(commands.Bot):
                     self.log.info(f'  => {string.capwords(plugin)} NOT loaded.')
             # start the UDP listener to accept commands from DCS
             self.loop.create_task(self.start_udp_listener())
-            await self.register_servers()
+            self.loop.create_task(self.register_servers())
             self.log.info('DCSServerBot started, accepting commands.')
         else:
             self.log.info('Discord connection reestablished.')
@@ -502,18 +503,12 @@ class DCSServerBot(commands.Bot):
                     if data['channel'] in self.listeners:
                         f = self.listeners[data['channel']]
                         if not f.cancelled():
-                            f.get_loop().call_soon_threadsafe(f.set_result, data)
+                            self.loop.call_soon_threadsafe(f.set_result, data)
                     if command != 'registerDCSServer':
                         return
-                futures = [
-                    asyncio.run_coroutine_threadsafe(listener.processEvent(data), self.loop) for listener in self.eventListeners if command in listener.commands
-                ]
-                for future in futures:
-                    try:
-                        # don't allow methods to take more than 60 seconds
-                        future.result(60)
-                    except Exception as ex:
-                        self.log.exception(ex)
+                for listener in self.eventListeners:
+                    if command in listener.commands:
+                        self.loop.call_soon_threadsafe(asyncio.create_task, listener.processEvent(data))
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
