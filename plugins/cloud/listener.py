@@ -12,7 +12,7 @@ class CloudListener(EventListener):
 
     async def registerDCSServer(self, data):
         # if the server is running, the bans will be sent by the plugin
-        if 'sync-' not in data['channel']:
+        if 'init' not in data['channel']:
             server: Server = self.bot.servers[data['server_name']]
             try:
                 for ban in (await self.plugin.get('bans')):
