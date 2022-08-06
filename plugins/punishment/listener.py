@@ -10,7 +10,7 @@ class PunishmentEventListener(EventListener):
         super().__init__(plugin)
         self.lock = asyncio.Lock()
 
-    def get_flight_hours(self, player: Player) -> int:
+    def _get_flight_hours(self, player: Player) -> int:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -22,7 +22,7 @@ class PunishmentEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    def get_punishment_points(self, player: Player) -> int:
+    def _get_punishment_points(self, player: Player) -> int:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -33,7 +33,7 @@ class PunishmentEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    async def punish(self, data: dict):
+    async def _punish(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if 'penalties' in config:
@@ -60,7 +60,7 @@ class PunishmentEventListener(EventListener):
                                                f"the next {config['forgive']} seconds, you can pardon the other player.")
                 else:
                     target = None
-                hours = self.get_flight_hours(initiator)
+                hours = self._get_flight_hours(initiator)
                 if 'flightHoursWeight' in config:
                     weight = 1
                     for fhw in config['flightHoursWeight']:
@@ -103,7 +103,7 @@ class PunishmentEventListener(EventListener):
                     # check collision
                     if data['arg2'] == initiator.unit_type:
                         data['eventName'] = 'collision_hit'
-                    await self.punish(data)
+                    await self._punish(data)
             elif data['eventName'] == 'kill':
                 if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:
                     initiator = server.get_player(id=data['arg1'])
@@ -114,7 +114,7 @@ class PunishmentEventListener(EventListener):
                     # check collision
                     if data['arg7'] == initiator.unit_type:
                         data['eventName'] = 'collision_kill'
-                    await self.punish(data)
+                    await self._punish(data)
 
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -144,7 +144,7 @@ class PunishmentEventListener(EventListener):
                 target.sendChatMessage('-forgive is not enabled on this server.')
         elif data['subcommand'] == 'penalty':
             player = server.get_player(id=data['from_id'])
-            points = self.get_punishment_points(player)
+            points = self._get_punishment_points(player)
             player.sendChatMessage(f"{player.name}, you currently have {points} penalty points.")
 
     async def onPlayerConnect(self, data):
@@ -174,6 +174,6 @@ class PunishmentEventListener(EventListener):
             return
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['id'])
-        points = self.get_punishment_points(player)
+        points = self._get_punishment_points(player)
         if points > 0:
             player.sendChatMessage(f"{player.name}, you currently have {points} penalty points.")

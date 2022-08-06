@@ -41,15 +41,15 @@ class AgentServerStats(Plugin):
 
     @staticmethod
     def get_params(*params) -> Tuple[bool, Optional[str]]:
-        all = False
+        is_all = False
         period = None
         if len(params):
             for i in range(0, len(params)):
                 if params[i] in ['hour', 'day', 'week', 'month', 'year']:
                     period = params[i]
                 elif params[i].lower() == '-all':
-                    all = True
-        return all, period
+                    is_all = True
+        return is_all, period
 
     async def display_report(self, ctx, schema: str, period: str, server_name: str):
         report = Report(self.bot, self.plugin_name, schema)
@@ -63,18 +63,18 @@ class AgentServerStats(Plugin):
     @utils.has_role('Admin')
     @commands.guild_only()
     async def serverload(self, ctx, *params):
-        all, period = self.get_params(*params)
+        is_all, period = self.get_params(*params)
         server: Server = await self.bot.get_server(ctx)
-        if not all and server:
+        if not is_all and server:
             await self.display_report(ctx, 'serverload.json', period, server.name)
 
     @commands.command(description='Shows servers statistics', usage='[period]')
     @utils.has_role('Admin')
     @commands.guild_only()
     async def serverstats(self, ctx, *params):
-        all, period = self.get_params(*params)
+        is_all, period = self.get_params(*params)
         server: Server = await self.bot.get_server(ctx)
-        if not all and server:
+        if not is_all and server:
             await self.display_report(ctx, 'serverstats.json', period, server.name)
 
     @tasks.loop(minutes=1.0)
@@ -86,21 +86,21 @@ class AgentServerStats(Plugin):
                     if server.status not in [Status.RUNNING, Status.PAUSED]:
                         continue
                     users = len(server.get_active_players())
-                    # don't use the PID in here as it creates a NEW process which we don't want to
-                    process = utils.find_process('DCS.exe', server.installation)
-                    if not process:
-                        self.log.warning(f"Could not find a running DCS instance for server {server_name}, skipping "
-                                         f"server load gathering.")
-                        continue
-                    cpu = process.cpu_percent()
-                    memory = process.memory_full_info()
-                    io_counters = process.io_counters()
-                    if process.pid not in self.io_counters:
+                    if not server.process:
+                        server.process = utils.find_process('DCS.exe', server.installation)
+                        if not server.process:
+                            self.log.warning(f"Could not find a running DCS instance for server {server_name}, "
+                                             f"skipping server load gathering.")
+                            continue
+                    cpu = server.process.cpu_percent()
+                    memory = server.process.memory_full_info()
+                    io_counters = server.process.io_counters()
+                    if server.process.pid not in self.io_counters:
                         write_bytes = read_bytes = 0
                     else:
-                        write_bytes = io_counters.write_bytes - self.io_counters[process.pid].write_bytes
-                        read_bytes = io_counters.read_bytes - self.io_counters[process.pid].read_bytes
-                    self.io_counters[process.pid] = io_counters
+                        write_bytes = io_counters.write_bytes - self.io_counters[server.process.pid].write_bytes
+                        read_bytes = io_counters.read_bytes - self.io_counters[server.process.pid].read_bytes
+                    self.io_counters[server.process.pid] = io_counters
                     net_io_counters = psutil.net_io_counters(pernic=False)
                     if not self.net_io_counters:
                         bytes_sent = bytes_recv = 0
@@ -150,9 +150,9 @@ class MasterServerStats(AgentServerStats):
     @utils.has_role('Admin')
     @commands.guild_only()
     async def serverload(self, ctx, *params):
-        all, period = self.get_params(*params)
+        is_all, period = self.get_params(*params)
         server: Server = await self.bot.get_server(ctx)
-        if not all:
+        if not is_all:
             if server:
                 await self.display_report(ctx, 'serverload.json', period, server.name)
         else:
@@ -163,9 +163,9 @@ class MasterServerStats(AgentServerStats):
     @utils.has_role('Admin')
     @commands.guild_only()
     async def serverstats(self, ctx, *params):
-        all, period = self.get_params(*params)
+        is_all, period = self.get_params(*params)
         server: Server = await self.bot.get_server(ctx)
-        if not all:
+        if not is_all:
             if server:
                 await self.display_report(ctx, 'serverstats.json', period, server.name)
         else:

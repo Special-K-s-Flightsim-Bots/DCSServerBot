@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 class SchedulerListener(EventListener):
 
-    def run(self, server: Server, method: str):
+    def _run(self, server: Server, method: str):
         if method.startswith('load:'):
             server.sendtoDCS({
                 "command": "do_script_file",
@@ -57,7 +57,7 @@ class SchedulerListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if config and 'onMissionStart' in config:
-            self.run(server, config['onMissionStart'])
+            self._run(server, config['onMissionStart'])
 
     async def onMissionLoadEnd(self, data):
         server: Server = self.bot.servers[data['server_name']]
@@ -67,13 +67,13 @@ class SchedulerListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if config and 'onMissionEnd' in config:
-            self.run(server, config['onMissionEnd'])
+            self._run(server, config['onMissionEnd'])
 
     async def onShutdown(self, data):
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if config and 'onShutdown' in config:
-            self.run(server, config['onShutdown'])
+            self._run(server, config['onShutdown'])
 
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

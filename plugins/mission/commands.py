@@ -358,9 +358,9 @@ class Mission(Plugin):
             if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
             elif server.status in [Status.LOADING, Status.STOPPED]:
-                if server.pid != -1 and not psutil.pid_exists(server.pid):
+                if server.process and not server.process.is_running():
                     server.status = Status.SHUTDOWN
-                    server.pid = -1
+                    server.process = None
                 continue
             try:
                 # we set a longer timeout in here because, we don't want to risk false restarts
@@ -376,18 +376,18 @@ class Mission(Plugin):
                 server.current_mission.mission_time = data['mission_time']
                 server.current_mission.real_time = data['real_time']
                 data['channel'] = server.get_channel(Channel.STATUS).id
-                await self.eventlistener.displayMissionEmbed(server)
+                await self.eventlistener._display_mission_embed(server)
             except asyncio.TimeoutError:
                 # check if the server process is still existent
                 max_hung_minutes = int(self.bot.config['DCS']['MAX_HUNG_MINUTES'])
-                if max_hung_minutes > 0 and (server.pid != -1 and psutil.pid_exists(server.pid)):
+                if max_hung_minutes > 0 and (server.process and server.process.is_running()):
                     self.log.warning(f"Server \"{server.name}\" is not responding.")
                     # process might be in a hung state, so try again for a specified amount of times
                     if server.name in self.hung and self.hung[server.name] >= (max_hung_minutes - 1):
-                        if server.pid != -1:
+                        if server.process:
                             self.log.warning(f"Killing server \"{server.name}\" after {max_hung_minutes} retries")
-                            psutil.Process(server.pid).kill()
-                            server.pid = -1
+                            server.process.kill()
+                            server.process = None
                             await self.bot.audit("Server killed due to a hung state.", server=server)
                         else:
                             self.log.warning(f"Server \"{server.name}\" considered dead after {max_hung_minutes} retries")

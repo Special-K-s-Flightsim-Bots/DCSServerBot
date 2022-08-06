@@ -16,12 +16,12 @@ To disable mission statistics for a specific mission, you can use the following 
 **Attention:** These commands need MISSION_STATISTICS=true in the server you want to run the commands on!
 
 
-| Command                   | Parameter                        | Channel                     | Role | Description                                                                                        |
-|---------------------------|----------------------------------|-----------------------------|------|----------------------------------------------------------------------------------------------------|
-| .missionstats             |                                  | status-/chat-/admin-channel | DCS  | Display the current mission situation for red and blue and the achievments in kills and captures.  |
-| .sorties                  | [@member / Player Name] [period] | all                         | DCS  | Display the number of sories and real flight time per module / period.                             |
-| .modulestats / .modstats  | [@member / Player Name] [period] | all                         | DCS  | Display module and weapon statistics per module.                                                   |
-| .refuelings / .refuel     | [@member / Player Name] [period] | all                         | DCS  | Display refuelings per module.                                                                    |
+| Command                   | Parameter                        | Channel                     | Role | Description                                                                                         |
+|---------------------------|----------------------------------|-----------------------------|------|-----------------------------------------------------------------------------------------------------|
+| .missionstats             |                                  | status-/chat-/admin-channel | DCS  | Display the current mission situation for red and blue and the achievments in kills and captures.   |
+| .sorties                  | [@member / Player Name] [period] | all                         | DCS  | Display the number of sories and real flight time per module / period.                              |
+| .modulestats / .modstats  | [@member / Player Name] [period] | all                         | DCS  | Display module and weapon statistics per module.                                                    |
+| .refuelings / .refuel     | [@member / Player Name] [period] | all                         | DCS  | Display refuelings per module.                                                                      |
 
 **Attention:** "period" can either be a period [day, week, month, year] or a campaign name!
 

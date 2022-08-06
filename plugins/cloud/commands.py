@@ -5,7 +5,7 @@ import discord
 import pandas as pd
 import psycopg2
 from contextlib import closing
-from core import Plugin, DCSServerBot, utils, TEventListener, PaginationReport
+from core import Plugin, DCSServerBot, utils, TEventListener, PaginationReport, Status
 from discord.ext import commands, tasks
 from typing import Type, Any, Optional, Union
 from .listener import CloudListener
@@ -31,8 +31,10 @@ class CloudHandlerAgent(Plugin):
             "guild_name": self.bot.guilds[0].name,
             "owner_id": self.bot.owner_id
         }
+        self.cloud_bans.start()
 
     def cog_unload(self):
+        self.cloud_bans.cancel()
         asyncio.create_task(self.session.close())
 
     async def get(self, request: str) -> Any:
@@ -65,6 +67,20 @@ class CloudHandlerAgent(Plugin):
             await ctx.send('Cloud not connected.')
         finally:
             await message.delete()
+
+    @tasks.loop(minutes=15.0)
+    async def cloud_bans(self):
+        try:
+            for ban in (await self.get('bans')):
+                for server in self.bot.servers.values():
+                    if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+                        server.sendtoDCS({
+                            "command": "ban",
+                            "ucid": ban["ucid"],
+                            "reason": ban["reason"]
+                        })
+        except aiohttp.ClientError:
+            self.log.error('- Cloud service not responding.')
 
 
 class CloudHandlerMaster(CloudHandlerAgent):

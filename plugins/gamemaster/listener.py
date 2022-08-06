@@ -28,7 +28,7 @@ class GameMasterEventListener(EventListener):
             if 'from_id' in data and data['from_id'] != 1 and len(data['message']) > 0:
                 await chat_channel.send(data['from_name'] + ': ' + data['message'])
 
-    def get_coalition(self, player: Player) -> Optional[Coalition]:
+    def _get_coalition(self, player: Player) -> Optional[Coalition]:
         if not player.coalition:
             conn = self.bot.pool.getconn()
             try:
@@ -43,7 +43,7 @@ class GameMasterEventListener(EventListener):
                 self.bot.pool.putconn(conn)
         return player.coalition
 
-    def get_coalition_password(self, server: Server, coalition: Coalition) -> Optional[str]:
+    def _get_coalition_password(self, server: Server, coalition: Coalition) -> Optional[str]:
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -60,7 +60,8 @@ class GameMasterEventListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         if data['id'] != 1 and self.bot.config.getboolean(server.installation, 'COALITIONS'):
             player: Player = server.get_player(id=data['id'])
-            if self.get_coalition(player):
+            data['from_id'] = data['id']
+            if self._get_coalition(player):
                 data['subcommand'] = 'coalition'
                 await self.onChatCommand(data)
             data['subcommand'] = 'password'
@@ -73,7 +74,7 @@ class GameMasterEventListener(EventListener):
         if coalition.casefold() not in ['blue', 'red']:
             player.sendChatMessage('Usage: -join <blue|red>')
             return
-        if self.get_coalition(player) == Coalition(coalition):
+        if self._get_coalition(player) == Coalition(coalition):
             player.sendChatMessage(f"You are a member of coalition {coalition} already.")
             return
         conn = self.bot.pool.getconn()
@@ -110,7 +111,7 @@ class GameMasterEventListener(EventListener):
     async def leave(self, data):
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['from_id'], active=True)
-        if not self.get_coalition(player):
+        if not self._get_coalition(player):
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
                                    f"-join <blue|red>.")
             return
@@ -137,8 +138,8 @@ class GameMasterEventListener(EventListener):
         finally:
             self.bot.pool.putconn(conn)
 
-    def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
-                 description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
+    def _campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
+                  description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -184,27 +185,27 @@ class GameMasterEventListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         name = data['name'] or '_internal_'
         try:
-            self.campaign('start', servers=[server], name=name)
+            self._campaign('start', servers=[server], name=name)
         except psycopg2.errors.UniqueViolation:
             await self.resetCampaign(data)
 
     async def stopCampaign(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         _, name = utils.get_running_campaign(server)
-        self.campaign('delete', name=name)
+        self._campaign('delete', name=name)
 
     async def resetCampaign(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         _, name = utils.get_running_campaign(server)
-        self.campaign('delete', name=name)
-        self.campaign('start', servers=[server])
+        self._campaign('delete', name=name)
+        self._campaign('start', servers=[server])
 
     async def onChatCommand(self, data):
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['from_id'])
         if not player:
             return
-        coalition = self.get_coalition(player)
+        coalition = self._get_coalition(player)
         if self.bot.config.getboolean(server.installation, 'COALITIONS'):
             if data['subcommand'] == 'join':
                 await self.join(data)
@@ -217,7 +218,7 @@ class GameMasterEventListener(EventListener):
                     player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
                                            f"-join <blue|red>.")
                     return
-                password = self.get_coalition_password(server, player.coalition)
+                password = self._get_coalition_password(server, player.coalition)
                 if password:
                     player.sendChatMessage(f"Your coalition password is {password}.")
                 else:

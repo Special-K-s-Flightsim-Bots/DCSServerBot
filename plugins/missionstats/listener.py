@@ -43,9 +43,9 @@ class MissionStatisticsEventListener(EventListener):
 
     async def getMissionSituation(self, data):
         self.bot.mission_stats[data['server_name']] = data
-        await self.displayMissionStats(data)
+        await self._display_mission_stats(data)
 
-    def toggleMissionStats(self, data):
+    def _toggle_mission_stats(self, data):
         server: Server = self.bot.servers[data['server_name']]
         if self.bot.config.getboolean(server.installation, 'MISSION_STATISTICS'):
             server.sendtoDCS({"command": "enableMissionStats"})
@@ -56,12 +56,12 @@ class MissionStatisticsEventListener(EventListener):
     async def registerDCSServer(self, data):
         server: Server = self.bot.servers[data['server_name']]
         if data['channel'].startswith('sync') and server.status in [Status.RUNNING, Status.PAUSED]:
-            self.toggleMissionStats(data)
+            self._toggle_mission_stats(data)
 
     async def onMissionLoadEnd(self, data):
-        self.toggleMissionStats(data)
+        self._toggle_mission_stats(data)
 
-    async def displayMissionStats(self, data):
+    async def _display_mission_stats(self, data):
         server: Server = self.bot.servers[data['server_name']]
         # Hide the mission statistics embed, if coalitions are enabled
         if self.bot.config.getboolean(server.installation, 'DISPLAY_MISSION_STATISTICS') and \
@@ -71,7 +71,7 @@ class MissionStatisticsEventListener(EventListener):
                 report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server, 'stats_embed')
                 await report.render(stats=stats, mission_id=server.mission_id, sides=[Coalition.BLUE, Coalition.RED])
 
-    def update_database(self, data):
+    def _update_database(self, data):
         if data['eventName'] in self.filter:
             return
         conn = self.pool.getconn()
@@ -121,7 +121,7 @@ class MissionStatisticsEventListener(EventListener):
     async def onMissionEvent(self, data):
         server: Server = self.bot.servers[data['server_name']]
         if self.bot.config.getboolean(server.installation, 'PERSIST_MISSION_STATISTICS'):
-            self.update_database(data)
+            self._update_database(data)
         if data['server_name'] in self.bot.mission_stats:
             stats = self.bot.mission_stats[data['server_name']]
             update = False
@@ -210,6 +210,6 @@ class MissionStatisticsEventListener(EventListener):
                     if chat_channel:
                         await chat_channel.send(message)
             if update:
-                return await self.displayMissionStats(data)
+                return await self._display_mission_stats(data)
             else:
                 return None

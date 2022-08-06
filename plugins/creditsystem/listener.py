@@ -15,7 +15,7 @@ class CreditSystemListener(EventListener):
                 'params': config
             })
 
-    def get_points_per_kill(self, server: Server, data: dict) -> int:
+    def _get_points_per_kill(self, server: Server, data: dict) -> int:
         default = 1
         config = self.plugin.get_config(server)
         if 'points_per_kill' in config:
@@ -62,7 +62,7 @@ class CreditSystemListener(EventListener):
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
-                    ppk = self.get_points_per_kill(server, data)
+                    ppk = self._get_points_per_kill(server, data)
                     if ppk:
                         old_points = player.points
                         player.points += ppk
