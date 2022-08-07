@@ -70,7 +70,7 @@ class DCSServerBot(commands.Bot):
         for server_name, server in self.servers.items():
             try:
                 # check if there is a running server already
-                timeout = 10 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 5
+                timeout = 30 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
                 server.sendtoDCS({"command": "registerDCSServer", "channel": "init"})
                 await server.wait_for_status_change([Status.RUNNING, Status.PAUSED, Status.STOPPED], timeout)
                 self.log.info(f'  => Running DCS server "{server_name}" registered.')
@@ -137,12 +137,12 @@ class DCSServerBot(commands.Bot):
 
     async def on_ready(self):
         if not self.external_ip:
+            self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
             self.member = self.guilds[0].get_member(self.user.id)
+            self.external_ip = await utils.get_external_ip()
             self.log.debug('- Checking channels ...')
             for server in self.servers.values():
                 self.check_channels(server.installation)
-            self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
-            self.external_ip = await utils.get_external_ip()
             self.log.info('- Loading Plugins ...')
             for plugin in self.plugins:
                 if self.load_plugin(plugin.lower()):
@@ -154,6 +154,8 @@ class DCSServerBot(commands.Bot):
             self.loop.create_task(self.register_servers())
         else:
             self.log.info('Discord connection reestablished.')
+            # if the connection outage was due to an IP change, update the external IP
+            self.external_ip = await utils.get_external_ip()
         return
 
     async def on_command_error(self, ctx: discord.ext.commands.Context, err: Exception):
