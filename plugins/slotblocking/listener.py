@@ -90,13 +90,13 @@ class SlotBlockingListener(EventListener):
             return
         if 'side' in data and 'use_reservations' in config and config['use_reservations']:
             player: CreditPlayer = cast(CreditPlayer, server.get_player(ucid=data['ucid'], active=True))
-            if player.deposit > 0:
+            if player and player.deposit > 0:
                 old_points = player.points
                 player.points -= player.deposit
                 player.audit('buy', old_points, 'Points taken for using a reserved module')
                 player.deposit = 0
             # if mission statistics are enabled, use BIRTH events instead
-            if not self.bot.config.getboolean(server.installation, 'MISSION_STATISTICS') and \
+            if player and not self.bot.config.getboolean(server.installation, 'MISSION_STATISTICS') and \
                     Side(data['side']) != Side.SPECTATOR:
                 # only pilots have to "pay" for their plane
                 if int(data['sub_slot']) == 0:
@@ -115,7 +115,7 @@ class SlotBlockingListener(EventListener):
             if 'use_reservations' in config and config['use_reservations']:
                 player: CreditPlayer = cast(CreditPlayer, server.get_player(name=initiator['name'], active=True))
                 # only pilots have to "pay" for their plane
-                if player.sub_slot == 0:
+                if player and player.sub_slot == 0:
                     player.deposit = self._get_costs(server, player)
 
     async def onGameEvent(self, data: dict) -> None:
@@ -127,7 +127,7 @@ class SlotBlockingListener(EventListener):
             # players only lose points if they weren't killed as a teamkill
             if data['arg4'] != -1 and data['arg3'] != data['arg6']:
                 player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg4']))
-                if 'use_reservations' in config and config['use_reservations']:
+                if player and 'use_reservations' in config and config['use_reservations']:
                     if player.deposit > 0:
                         old_points = player.points
                         player.points -= player.deposit
@@ -138,6 +138,8 @@ class SlotBlockingListener(EventListener):
                             server.move_to_spectators(player)
         elif data['eventName'] == 'crash':
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
+            if not player:
+                return
             if 'use_reservations' in config and config['use_reservations']:
                 if player.deposit > 0:
                     old_points = player.points
@@ -153,13 +155,13 @@ class SlotBlockingListener(EventListener):
         elif data['eventName'] == 'landing':
             # clear deposit on landing
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
-            if player.deposit > 0:
+            if player and player.deposit > 0:
                 player.deposit = 0
         elif data['eventName'] == 'takeoff':
             # take deposit on takeoff
             if 'use_reservations' in config and config['use_reservations']:
                 player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))
-                if player.deposit == 0 and int(player.sub_slot) == 0:
+                if player and player.deposit == 0 and int(player.sub_slot) == 0:
                     player.deposit = self._get_costs(server, player)
         elif data['eventName'] == 'disconnect':
             player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['arg1']))

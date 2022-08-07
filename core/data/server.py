@@ -348,4 +348,5 @@ class Server(DataObject):
             while self.status not in s:
                 await self.status_change.wait()
 
-        await asyncio.wait_for(wait(status), timeout)
+        if self.status not in status:
+            await asyncio.wait_for(wait(status), timeout)

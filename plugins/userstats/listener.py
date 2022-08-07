@@ -194,18 +194,7 @@ class UserStatisticsEventListener(EventListener):
 
     async def disableUserStats(self, data):
         self.statistics.discard(data['server_name'])
-        server: Server = self.bot.servers[data['server_name']]
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute(self.SQL_MISSION_HANDLING['close_statistics'], (server.mission_id,))
-                cursor.execute(self.SQL_MISSION_HANDLING['close_mission'], (server.mission_id,))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        await self.onSimulationStop(data)
 
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
