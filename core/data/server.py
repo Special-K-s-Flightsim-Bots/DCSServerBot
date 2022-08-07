@@ -246,11 +246,12 @@ class Server(DataObject):
         self.name = new_name
 
     async def startup(self) -> None:
-        self.log.debug(r'Launching DCS server with: "{}\bin\dcs.exe" --server --norender -w {}'.format(
+        self.log.debug(r'Launching DCS server with: "{}\bin\DCS.exe" --server --norender -w {}'.format(
             os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']), self.installation))
-        p = subprocess.Popen(['dcs.exe', '--server', '--norender', '-w', self.installation],
-                             executable=os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) + r'\bin\dcs.exe')
-        self.process = Process(p.pid)
+        p = subprocess.Popen(['DCS.exe', '--server', '--norender', '-w', self.installation],
+                             executable=os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) + r'\bin\DCS.exe')
+        with suppress(Exception):
+            self.process = Process(p.pid)
         timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
@@ -260,7 +261,7 @@ class Server(DataObject):
         self.sendtoDCS({"command": "shutdown"})
         with suppress(asyncio.TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
-        if self.process:
+        if self.process and self.process.is_running():
             try:
                 self.process.wait(timeout)
             except subprocess.TimeoutExpired:
