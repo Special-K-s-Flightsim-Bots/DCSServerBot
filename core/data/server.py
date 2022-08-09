@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio
-import json
 import discord
+import json
 import os
 import re
 import socket
@@ -315,14 +315,22 @@ class Server(DataObject):
                 if isinstance(self.embeds[embed_name],  discord.Message):
                     message = self.embeds[embed_name]
                 else:
-                    with suppress(discord.errors.NotFound):
+                    try:
                         message = await channel.fetch_message(self.embeds[embed_name])
                         self.embeds[embed_name] = message
+                    except discord.errors.NotFound:
+                        message = None
+                    except discord.errors.DiscordException as ex:
+                        self.log.warning(f"Discord error during setEmbed({embed_name}): " + str(ex))
+                        return
             if message:
                 try:
                     await message.edit(embed=embed)
                 except discord.errors.NotFound:
                     message = None
+                except discord.errors.DiscordException as ex:
+                    self.log.warning(f"Discord error during update of embed {embed_name}: " + str(ex))
+                    return
             if not message:
                 message = await channel.send(embed=embed, file=file)
                 self.embeds[embed_name] = message

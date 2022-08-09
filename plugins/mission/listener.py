@@ -109,7 +109,7 @@ class MissionEventListener(EventListener):
             server.current_mission = mission
         server.current_mission.update(data)
         server.status = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
-        if data['channel'].startswith('init'):
+        if data['channel'].startswith('sync-'):
             if 'players' not in data:
                 data['players'] = []
                 server.status = Status.STOPPED
