@@ -6,7 +6,7 @@ import win32api
 from configparser import ConfigParser
 from core import Extension, DCSServerBot, utils, report, Server
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Optional, TextIO
 
 
 class SRS(Extension):
@@ -98,6 +98,16 @@ class LotAtc(Extension):
             return int(value)
 
     def load_config(self) -> Optional[dict]:
+        def read_file(file: TextIO, cfg: dict):
+            for line in file.readlines():
+                match = exp.match(line)
+                if match:
+                    key = match.group('key').strip()
+                    if key.startswith('--'):
+                        continue
+                    value = match.group('value').strip(' ,')
+                    cfg[key] = self.parse(value)
+
         exp = re.compile(r'(?P<key>.*) = (?P<value>.*)')
         cfg = dict()
         installation = self.server.installation
@@ -105,26 +115,12 @@ class LotAtc(Extension):
                           '/Mods/services/LotAtc/config.lua'):
             with open(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
                       '/Mods/services/LotAtc/config.lua', 'r') as file:
-                for line in file.readlines():
-                    match = exp.match(line)
-                    if match:
-                        key = match.group('key').strip()
-                        if key.startswith('--'):
-                            continue
-                        value = match.group('value').strip(' ,')
-                        cfg[key] = self.parse(value)
+                read_file(file, cfg)
         if os.path.exists(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
                           '/Mods/services/LotAtc/config.custom.lua'):
             with open(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
                       '/Mods/services/LotAtc/config.custom.lua', 'r') as file:
-                for line in file.readlines():
-                    match = exp.match(line)
-                    if match:
-                        key = match.group('key').strip()
-                        if key.startswith('--'):
-                            continue
-                        value = match.group('value').strip(' ,')
-                        cfg[key] = self.parse(value)
+                read_file(file, cfg)
         return cfg
 
     @property
@@ -169,9 +165,9 @@ class Tacview(Extension):
             tacview = self.server.options['plugins']['Tacview']
             if 'tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled']:
                 if 'tacviewPlaybackDelay' in tacview and tacview['tacviewPlaybackDelay'] > 0:
-                    self.log.warning('  - Realtime Telemetry is enabled but tacviewPlaybackDelay is set!')
+                    self.log.warning(f'  - {self.server.name}: Realtime Telemetry is enabled but tacviewPlaybackDelay is set!')
             elif 'tacviewPlaybackDelay' not in tacview or tacview['tacviewPlaybackDelay'] == 0:
-                self.log.warning('  - tacviewPlaybackDelay is not set, you might see performance issues!')
+                self.log.warning(f'  - {self.server.name}: tacviewPlaybackDelay is not set, you might see performance issues!')
             return tacview
         else:
             return dict()
