@@ -512,7 +512,8 @@ class DCSServerBot(commands.Bot):
                         f = self.listeners[data['channel']]
                         if not f.cancelled():
                             f.set_result(data)
-                        return
+                        if command != 'registerDCSServer':
+                            return
                 for listener in self.eventListeners:
                     if command in listener.commands:
                         try:
