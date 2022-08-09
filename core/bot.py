@@ -65,18 +65,23 @@ class DCSServerBot(commands.Bot):
                 server.changeServerSettings('listLoop', True)
 
     async def register_servers(self):
-        self.log.info('- Searching for running DCS servers ...')
+        self.log.info('- Searching for running DCS servers, this might take a bit ...')
         servers = list(self.servers.values())
+        timeout = 30 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
         ret = await asyncio.gather(
-            *[server.sendtoDCSSync({"command": "registerDCSServer"}) for server in servers],
+            *[server.sendtoDCSSync({"command": "registerDCSServer"}, timeout) for server in servers],
             return_exceptions=True
         )
+        num = 0
         for i in range(0, len(servers)):
             if isinstance(ret[i], asyncio.TimeoutError):
                 servers[i].status = Status.SHUTDOWN
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{servers[i].name}".')
             else:
                 self.log.info(f'  => Running DCS server "{servers[i].name}" registered.')
+                num += 1
+        if num == 0:
+            self.log.info('- No running servers found.')
         self.log.info('DCSServerBot started, accepting commands.')
 
     def load_plugin(self, plugin: str) -> bool:
@@ -507,19 +512,19 @@ class DCSServerBot(commands.Bot):
                     self.log.debug(f"Command {command} for unregistered server {data['server_name']} received, "
                                    f"ignoring.")
                     return
+                if not data['channel'].startswith('sync-') or command == 'registerDCSServer':
+                    for listener in self.eventListeners:
+                        if command in listener.commands:
+                            try:
+                                await listener.processEvent(data)
+                            except Exception as ex:
+                                self.log.exception(ex)
                 if data['channel'].startswith('sync-'):
                     if data['channel'] in self.listeners:
                         f = self.listeners[data['channel']]
                         if not f.cancelled():
                             f.set_result(data)
-                        if command != 'registerDCSServer':
-                            return
-                for listener in self.eventListeners:
-                    if command in listener.commands:
-                        try:
-                            await listener.processEvent(data)
-                        except Exception as ex:
-                            self.log.exception(ex)
+                        return
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
