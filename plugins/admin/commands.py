@@ -732,11 +732,16 @@ class Master(Agent):
                         embed = utils.format_embed(data)
                         msg = None
                         if 'message_id' in data:
-                            with suppress(discord.errors.NotFound):
+                            try:
                                 msg = await message.channel.fetch_message(int(data['message_id']))
-                        if msg:
-                            await msg.edit(embed=embed)
-                        else:
+                                await msg.edit(embed=embed)
+                            except discord.errors.NotFound:
+                                msg = None
+                            except discord.errors.DiscordException as ex:
+                                self.log.exception(ex)
+                                await message.channel.send(f'Error while updating embed!')
+                                return
+                        if not msg:
                             await message.channel.send(embed=embed)
                         await message.delete()
                 else:

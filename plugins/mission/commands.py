@@ -235,6 +235,8 @@ class Mission(Plugin):
                 await ctx.send('No missions registered with this server, please add one.')
             if not num:
                 num = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '🔄')
+            else:
+                num -= 1
             if num >= 0:
                 if server.is_populated() and not await utils.yn_question(self, ctx,
                                                                          'People are flying on the server atm.\nDo you '
