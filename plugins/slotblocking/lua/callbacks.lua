@@ -40,7 +40,7 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
         return
     end
     log.write('DCSServerBot', log.DEBUG, 'Slotblocking: onPlayerTryConnect()')
-    if not dcsbot.params then
+    if not dcsbot.params or dcsbot.params['slotblocking'] == nil then
         return
     end
     local config = dcsbot.params['slotblocking']['VIP']
