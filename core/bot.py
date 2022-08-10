@@ -67,7 +67,7 @@ class DCSServerBot(commands.Bot):
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers, this might take a bit ...')
         servers = list(self.servers.values())
-        timeout = 60 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 30
+        timeout = 30 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
         ret = await asyncio.gather(
             *[server.sendtoDCSSync({"command": "registerDCSServer"}, timeout) for server in servers],
             return_exceptions=True
@@ -512,20 +512,20 @@ class DCSServerBot(commands.Bot):
                     self.log.debug(f"Command {command} for unregistered server {data['server_name']} received, "
                                    f"ignoring.")
                     return
-                if not data['channel'].startswith('sync-') or command == 'registerDCSServer':
-                    for listener in self.eventListeners:
-                        if command in listener.commands:
-                            try:
-                                self.log.debug(f"Processing {listener.plugin_name}.{command}()")
-                                await listener.processEvent(data)
-                            except Exception as ex:
-                                self.log.exception(ex)
                 if data['channel'].startswith('sync-'):
                     if data['channel'] in self.listeners:
                         f = self.listeners[data['channel']]
                         if not f.cancelled():
                             f.set_result(data)
-                        return
+                        if command != 'registerDCSServer':
+                            return
+                for listener in self.eventListeners:
+                    if command in listener.commands:
+                        try:
+                            self.log.debug(f"Processing {listener.plugin_name}.{command}()")
+                            await listener.processEvent(data)
+                        except Exception as ex:
+                            self.log.exception(ex)
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
