@@ -32,9 +32,13 @@ function admin.onPlayerTryConnect(addr, name, ucid, playerID)
 	end
     plist = net.get_player_list()
     num_players = table.getn(plist)
+    ipaddr = string.sub(addr, 0, string.find(addr, ':') - 1)
     if num_players > 1 then
         for i = 2, num_players do
-            if net.get_player_info(plist[i], 'ucid') == ucid then
+            pucid = net.get_player_info(plist[i], 'ucid')
+            pipaddr = net.get_player_info(plist[i], 'ipaddr')
+            pipaddr = string.sub(pipaddr, 0, string.find(pipaddr, ':') - 1)
+            if pucid == ucid and pipaddr ~= ipaddr then
                 msg.command = 'sendMessage'
                 msg.message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to account sharing.'
                 utils.sendBotTable(msg, config.ADMIN_CHANNEL)

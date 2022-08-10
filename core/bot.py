@@ -516,6 +516,7 @@ class DCSServerBot(commands.Bot):
                     for listener in self.eventListeners:
                         if command in listener.commands:
                             try:
+                                self.log.debug(f"Processing {listener.plugin_name}.{command}()")
                                 await listener.processEvent(data)
                             except Exception as ex:
                                 self.log.exception(ex)

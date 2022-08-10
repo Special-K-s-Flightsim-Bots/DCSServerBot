@@ -32,14 +32,12 @@ class Agent(Plugin):
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
         self.update_pending = False
-        self.update_bot_status.start()
         if self.bot.config.getboolean('DCS', 'AUTOUPDATE') is True:
             self.check_for_dcs_update.start()
 
     def cog_unload(self):
         if self.bot.config.getboolean('DCS', 'AUTOUPDATE') is True:
             self.check_for_dcs_update.cancel()
-        self.update_bot_status.cancel()
         super().cog_unload()
 
     @commands.command(description='Lists the registered DCS servers')
@@ -430,18 +428,6 @@ class Agent(Plugin):
             embed.add_field(name='Status', value='\n'.join(status))
             embed.add_field(name='Maint.', value='\n'.join(maintenance))
             await ctx.send(embed=embed)
-
-    @tasks.loop(minutes=1.0)
-    async def update_bot_status(self):
-        for server_name, server in self.bot.servers.items():
-            if server.status in STATUS_EMOJI.keys():
-                try:
-                    await self.bot.change_presence(
-                        activity=discord.Game(STATUS_EMOJI[server.status] + ' ' +
-                                              re.sub(self.bot.config['FILTER']['SERVER_FILTER'], '', server_name).strip()))
-                    await asyncio.sleep(10)
-                except Exception as ex:
-                    self.log.debug("Exception in update_bot_status(): " + str(ex))
 
     @tasks.loop(minutes=5.0)
     async def check_for_dcs_update(self):
