@@ -296,6 +296,8 @@ class UserStatisticsEventListener(EventListener):
                     try:
                         with closing(conn.cursor()) as cursor:
                             player: Player = server.get_player(id=data['arg1'])
+                            if not player:
+                                return
                             cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
                                            (server.mission_id, player.ucid))
                             conn.commit()

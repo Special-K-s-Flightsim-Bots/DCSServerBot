@@ -378,7 +378,7 @@ class Mission(Plugin):
                 server.current_mission.mission_time = data['mission_time']
                 server.current_mission.real_time = data['real_time']
                 data['channel'] = server.get_channel(Channel.STATUS).id
-                await self.eventlistener._display_mission_embed(server)
+                self.eventlistener._display_mission_embed(server)
             except asyncio.TimeoutError:
                 # check if the server process is still existent
                 max_hung_minutes = int(self.bot.config['DCS']['MAX_HUNG_MINUTES'])

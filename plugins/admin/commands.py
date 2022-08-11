@@ -427,6 +427,7 @@ class Agent(Plugin):
             embed.add_field(name='Server', value='\n'.join(names))
             embed.add_field(name='Status', value='\n'.join(status))
             embed.add_field(name='Maint.', value='\n'.join(maintenance))
+            embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
             await ctx.send(embed=embed)
 
     @tasks.loop(minutes=5.0)

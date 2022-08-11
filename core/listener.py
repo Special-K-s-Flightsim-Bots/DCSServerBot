@@ -20,7 +20,10 @@ class EventListener(ABC):
 
     async def processEvent(self, data: dict[str, Union[str, int]]) -> Any:
         if data['command'] in self.commands:
-            return await getattr(self, data['command'])(data)
+            try:
+                return await getattr(self, data['command'])(data)
+            except Exception as ex:
+                self.log.exception(ex)
         else:
             return None
 

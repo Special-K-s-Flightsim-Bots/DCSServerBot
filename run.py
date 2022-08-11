@@ -58,7 +58,7 @@ class Main:
         # Initialize the logger
         log = logging.getLogger(name='dcsserverbot')
         log.setLevel(logging.DEBUG)
-        formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
+        formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(threadName)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         fh = RotatingFileHandler('dcsserverbot.log', encoding='utf-8',
                                  maxBytes=int(self.config['BOT']['LOGROTATE_SIZE']),

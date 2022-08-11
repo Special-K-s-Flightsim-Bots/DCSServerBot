@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import discord
 import psycopg2
 from contextlib import closing
@@ -63,9 +64,9 @@ class GameMasterEventListener(EventListener):
             data['from_id'] = data['id']
             if self._get_coalition(player):
                 data['subcommand'] = 'coalition'
-                await self.onChatCommand(data)
+                self.bot.loop.call_soon(asyncio.create_task, self.onChatCommand(data))
             data['subcommand'] = 'password'
-            await self.onChatCommand(data)
+            self.bot.loop.call_soon(asyncio.create_task, self.onChatCommand(data))
 
     async def join(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]

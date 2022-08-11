@@ -1,3 +1,4 @@
+import asyncio
 import psycopg2
 from contextlib import closing
 from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel
@@ -43,7 +44,7 @@ class MissionStatisticsEventListener(EventListener):
 
     async def getMissionSituation(self, data):
         self.bot.mission_stats[data['server_name']] = data
-        await self._display_mission_stats(data)
+        self._display_mission_stats(data)
 
     def _toggle_mission_stats(self, data):
         server: Server = self.bot.servers[data['server_name']]
@@ -61,7 +62,7 @@ class MissionStatisticsEventListener(EventListener):
     async def onMissionLoadEnd(self, data):
         self._toggle_mission_stats(data)
 
-    async def _display_mission_stats(self, data):
+    def _display_mission_stats(self, data):
         server: Server = self.bot.servers[data['server_name']]
         # Hide the mission statistics embed, if coalitions are enabled
         if self.bot.config.getboolean(server.installation, 'DISPLAY_MISSION_STATISTICS') and \
@@ -69,7 +70,9 @@ class MissionStatisticsEventListener(EventListener):
             stats = self.bot.mission_stats[data['server_name']]
             if 'coalitions' in stats:
                 report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server, 'stats_embed')
-                await report.render(stats=stats, mission_id=server.mission_id, sides=[Coalition.BLUE, Coalition.RED])
+                self.bot.loop.call_soon(asyncio.create_task, report.render(stats=stats,
+                                                                           mission_id=server.mission_id,
+                                                                           sides=[Coalition.BLUE, Coalition.RED]))
 
     def _update_database(self, data):
         if data['eventName'] in self.filter:
@@ -208,8 +211,6 @@ class MissionStatisticsEventListener(EventListener):
                     update = True
                     chat_channel = server.get_channel(Channel.CHAT)
                     if chat_channel:
-                        await chat_channel.send(message)
+                        self.bot.loop.call_soon(asyncio.create_task, chat_channel.send(message))
             if update:
-                return await self._display_mission_stats(data)
-            else:
-                return None
+                self._display_mission_stats(data)

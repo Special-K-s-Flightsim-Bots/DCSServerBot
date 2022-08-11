@@ -1,5 +1,6 @@
 # noinspection PyPackageRequirements
 import aiohttp
+import asyncio
 import psycopg2
 from core import EventListener, Server, Player, Side
 from contextlib import closing
@@ -32,6 +33,8 @@ class CloudListener(EventListener):
         if 'token' not in config:
             return
         player: Player = server.get_player(id=data['id'])
+        if not player:
+            return
         if player.side == Side.SPECTATOR:
             return
         conn = self.pool.getconn()
@@ -53,7 +56,7 @@ class CloudListener(EventListener):
                 if cursor.rowcount > 0:
                     row = cursor.fetchone()
                     row['client'] = self.plugin.client
-                    await self.plugin.post('upload', row)
+                    self.bot.loop.call_soon(asyncio.create_task, self.plugin.post('upload', row))
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:

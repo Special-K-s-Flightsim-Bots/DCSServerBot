@@ -212,5 +212,5 @@ class PersistentReport(Report):
     async def render(self, *args, **kwargs) -> ReportEnv:
         env = await super().render(*args, **kwargs)
         file = discord.File(env.filename) if env.filename else None
-        await self.server.setEmbed(self.embed_name, env.embed, file)
+        self.bot.loop.call_soon(asyncio.create_task, self.server.setEmbed(self.embed_name, env.embed, file))
         return env
