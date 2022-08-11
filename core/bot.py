@@ -458,7 +458,7 @@ class DCSServerBot(commands.Bot):
                             return False
                 cursor.execute('INSERT INTO servers (server_name, agent_host, host, port) VALUES(%s, %s, %s, '
                                '%s) ON CONFLICT (server_name) DO UPDATE SET agent_host=excluded.agent_host, '
-                               'host=excluded.agent_host, port=excluded.port, last_seen=NOW()',
+                               'host=excluded.host, port=excluded.port, last_seen=NOW()',
                                (data['server_name'], platform.node(), data['host'], data['port']))
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
