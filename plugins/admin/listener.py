@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import psycopg2
 import shlex
@@ -72,8 +73,9 @@ class AdminEventListener(EventListener):
                 return
             server.kick(delinquent, reason)
             player.sendChatMessage(f"User {name} kicked.")
-            await self.bot.audit(f'kicked player {name}' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
-                                 user=player.member)
+            self.bot.loop.call_soon(asyncio.create_task,
+                                    self.bot.audit(f'kicked player {name}' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                                                   user=player.member))
         elif data['subcommand'] == '911':
             mentions = ''
             for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
@@ -81,5 +83,5 @@ class AdminEventListener(EventListener):
                 if role:
                     mentions += role.mention
             message = ' '.join(data['params'])
-            await server.get_channel(Channel.ADMIN).send(mentions + f" 911 call from player {player.name} "
-                                                                    f"(ucid={player.ucid}):```{message}```")
+            self.bot.loop.call_soon(asyncio.create_task, server.get_channel(Channel.ADMIN).send(
+                mentions + f" 911 call from player {player.name} (ucid={player.ucid}):```{message}```"))

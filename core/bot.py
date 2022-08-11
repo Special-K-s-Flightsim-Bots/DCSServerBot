@@ -12,6 +12,7 @@ from contextlib import closing
 from core import utils, Server, Status, Channel, DataObjectFactory
 from datetime import datetime
 from discord.ext import commands
+from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Callable, Optional, Tuple, Any, Union, TYPE_CHECKING
 from .listener import EventListener
@@ -41,7 +42,7 @@ class DCSServerBot(commands.Bot):
         self.plugins = [p.strip() for p in plugins.split(',')]
         self.audit_channel = None
         self.mission_stats = None
-        self.executor = ThreadPoolExecutor()
+        self.executor = ThreadPoolExecutor(thread_name_prefix='BotExecutor')
 
     async def close(self):
         await super().close()
@@ -67,7 +68,7 @@ class DCSServerBot(commands.Bot):
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers, this might take a bit ...')
         servers = list(self.servers.values())
-        timeout = 30 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
+        timeout = 30 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 5
         ret = await asyncio.gather(
             *[server.sendtoDCSSync({"command": "registerDCSServer"}, timeout) for server in servers],
             return_exceptions=True
@@ -411,7 +412,7 @@ class DCSServerBot(commands.Bot):
         self.eventListeners.remove(listener)
         self.log.debug(f'- EventListener {type(listener).__name__} unregistered.')
 
-    async def register_server(self, data) -> bool:
+    def register_server(self, data) -> bool:
         installations = utils.findDCSInstallations(data['server_name'])
         if len(installations) == 0:
             self.log.error(f"No section found for server {data['server_name']} in your dcsserverbot.ini.\n"
@@ -495,44 +496,61 @@ class DCSServerBot(commands.Bot):
             def handle(s):
                 data = json.loads(s.request[0].strip())
                 # ignore messages not containing server names
-                if 'server_name' in data:
-                    self.loop.call_soon_threadsafe(asyncio.create_task, s.process(data))
-                else:
+                if 'server_name' not in data:
                     self.log.warning('Message without server_name received: {}'.format(data))
-
-            @staticmethod
-            async def process(data: dict):
-                self.log.debug('{}->HOST: {}'.format(data['server_name'], json.dumps(data)))
-                command = data['command']
-                if command == 'registerDCSServer':
-                    if not await self.register_server(data):
-                        return
-                elif (data['server_name'] not in self.servers or
-                      self.servers[data['server_name']].status == Status.UNREGISTERED):
-                    self.log.debug(f"Command {command} for unregistered server {data['server_name']} received, "
-                                   f"ignoring.")
                     return
-                if data['channel'].startswith('sync-'):
-                    if data['channel'] in self.listeners:
-                        f = self.listeners[data['channel']]
-                        if not f.cancelled():
-                            f.set_result(data)
-                        if command != 'registerDCSServer':
-                            return
-                for listener in self.eventListeners:
-                    if command in listener.commands:
-                        try:
-                            self.log.debug(f"Processing {listener.plugin_name}.{command}()")
-                            await listener.processEvent(data)
-                        except Exception as ex:
-                            self.log.exception(ex)
+                server_name = data['server_name']
+                if server_name not in s.server.message_queue:
+                    s.server.message_queue[server_name] = Queue()
+                    s.server.executor.submit(s.process, server_name)
+                s.server.message_queue[server_name].put(data)
+
+            def process(s, server_name: str):
+                data = s.server.message_queue[server_name].get()
+                while len(data):
+                    try:
+                        self.log.debug('{}->HOST: {}'.format(data['server_name'], json.dumps(data)))
+                        command = data['command']
+                        if command == 'registerDCSServer':
+                            if not self.register_server(data):
+                                self.log.error(f"Error while registering server {server_name}. Exiting worker thread.")
+                                return
+                        elif (data['server_name'] not in self.servers or
+                              self.servers[data['server_name']].status == Status.UNREGISTERED):
+                            self.log.debug(f"Command {command} for unregistered server {data['server_name']} received, "
+                                           f"ignoring.")
+                            continue
+                        if data['channel'].startswith('sync-'):
+                            if data['channel'] in self.listeners:
+                                f = self.listeners[data['channel']]
+                                if not f.cancelled():
+                                    self.loop.call_soon_threadsafe(f.set_result, data)
+                                if command != 'registerDCSServer':
+                                    continue
+                        for listener in self.eventListeners:
+                            if command in listener.commands:
+                                self.loop.call_soon_threadsafe(asyncio.create_task, listener.processEvent(data))
+                    except Exception as ex:
+                        self.log.exception(ex)
+                    finally:
+                        s.server.message_queue[server_name].task_done()
+                        data = s.server.message_queue[server_name].get()
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
                 # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                 MyThreadingUDPServer.allow_reuse_address = True
                 MyThreadingUDPServer.max_packet_size = 65504
+                self.message_queue: dict[str, Queue[str]] = {}
+                self.executor = ThreadPoolExecutor(thread_name_prefix='UDPServer')
                 super().__init__(server_address, request_handler)
+
+            def shutdown(self) -> None:
+                super().shutdown()
+                for server_name, queue in self.message_queue.items():
+                    queue.join()
+                    queue.put('')
+                self.executor.shutdown(wait=True)
 
         host = self.config['BOT']['HOST']
         port = int(self.config['BOT']['PORT'])

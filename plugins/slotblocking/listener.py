@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import re
 from core import EventListener, Plugin, Server, Side, Status, utils
 from typing import Union, cast, TYPE_CHECKING
@@ -81,7 +82,7 @@ class SlotBlockingListener(EventListener):
                     message = f"VIP member {member.display_name} joined"
                 else:
                     message = f"VIP user {data['name']}(ucid={data['ucid']} joined"
-                await self.bot.audit(message, server=server)
+                self.bot.loop.call_soon(asyncio.create_task, self.bot.audit(message, server=server))
 
     async def onPlayerChangeSlot(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
