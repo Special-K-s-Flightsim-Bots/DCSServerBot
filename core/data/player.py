@@ -60,17 +60,17 @@ class Player(DataObject):
                     cursor.execute('INSERT INTO players (ucid, discord_id, name, ipaddr, last_seen) VALUES (%s, -1, '
                                    '%s, %s, NOW())',
                                    (self.ucid, self.name, self.ipaddr))
-                # if automatch is enabled, try to match the user
-                if not self.member and self.bot.config.getboolean('BOT', 'AUTOMATCH'):
-                    discord_user = self.bot.match_user({"ucid": self.ucid, "name": self.name})
-                    if discord_user:
-                        self.member = discord_user
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+        # if automatch is enabled, try to match the user
+        if not self.member and self.bot.config.getboolean('BOT', 'AUTOMATCH'):
+            discord_user = self.bot.match_user({"ucid": self.ucid, "name": self.name})
+            if discord_user:
+                self.member = discord_user
 
     def is_active(self) -> bool:
         return self.active
