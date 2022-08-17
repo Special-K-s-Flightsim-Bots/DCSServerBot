@@ -20,6 +20,7 @@ class CreditPlayer(Player):
                 # load credit points
                 campaign_id, _ = utils.get_running_campaign(self.server)
                 if not campaign_id:
+                    self.log.debug('CreditPlayer: no campaign found! You need to create a campaign to use credits.')
                     return
                 cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
                                (campaign_id, self.ucid))
@@ -28,8 +29,10 @@ class CreditPlayer(Player):
                     self.server.sendtoDCS({
                         'command': 'updateUserPoints',
                         'ucid': self.ucid,
-                        'points': self._points,
+                        'points': self._points
                     })
+                else:
+                    self.log.debug(f'CreditPlayer: No entry found in credits table for player {self.name}({self.ucid})')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
@@ -64,7 +67,7 @@ class CreditPlayer(Player):
             self.server.sendtoDCS({
                 'command': 'updateUserPoints',
                 'ucid': self.ucid,
-                'points': self._points,
+                'points': self._points
             })
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()

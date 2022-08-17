@@ -42,6 +42,11 @@ class CreditSystemListener(EventListener):
         if player.points == -1:
             player.points = config['initial_points'] if 'initial_points' in config else 0
             player.audit('init', 0, 'Initial points received')
+        server.sendtoDCS({
+            'command': 'updateUserPoints',
+            'ucid': player.ucid,
+            'points': player.points
+        })
         player.sendChatMessage(f"{player.name}, you currently have {player.points} credit points.")
 
     async def addUserPoints(self, data: dict) -> None:

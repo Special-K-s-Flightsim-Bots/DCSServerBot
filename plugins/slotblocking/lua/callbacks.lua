@@ -80,6 +80,9 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
                 points = unit['crew'] or 0
             end
             if points then
+                if not dcsbot.userInfo[player].points then
+                    log.write('DCSServerBot', log.ERROR, 'Slotblocking: User has no points, but points are configured. Check your creditsystem.json and make sure a campaign is running.')
+                end
                 if dcsbot.userInfo[player].points < points then
                     local message = 'You need at least ' .. points .. ' points to enter this slot. You currently have ' .. dcsbot.userInfo[player].points .. ' points.'
                     net.send_chat_to(message, playerID)
