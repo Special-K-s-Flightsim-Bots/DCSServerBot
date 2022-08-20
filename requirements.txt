@@ -1,5 +1,5 @@
 dateparser
-discord.py>=1.7.3
+discord.py>=1.7.3,<2.0.0
 pandas>=1.4.3
 numpy>=1.23.0
 matplotlib>=3.5.2
