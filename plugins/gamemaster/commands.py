@@ -21,7 +21,7 @@ class GameMasterAgent(Plugin):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE campaigns SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+                cursor.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
