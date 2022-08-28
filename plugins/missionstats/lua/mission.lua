@@ -24,6 +24,13 @@ dcsbot.mission_stats_enabled = false
 
 dcsbot.eventHandler = {}
 function dcsbot.eventHandler:onEvent(event)
+	status, err = pcall(onEvent, event)
+	if not status then
+		env.warning("DCSServerBot - Error during MissionStatistics:onEvent(): " .. err)
+	end
+end
+
+function onEvent(event)
 	if event then
 		local msg = {}
 		msg.command = 'onMissionEvent'
