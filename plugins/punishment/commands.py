@@ -132,7 +132,7 @@ class PunishmentAgent(Plugin):
                                         reason = row['event']
                                     await self.punish(server, player, punishment, reason)
                                     if player.active:
-                                        player.sendChatMessage("Your current punishment points are: {row['points']}")
+                                        player.sendChatMessage(f"Your current punishment points are: {row['points']}")
                                     break
                             cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
                     conn.commit()
