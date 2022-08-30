@@ -350,5 +350,5 @@ class OvGME(Plugin):
             await msg.delete()
 
 
-def setup(bot: DCSServerBot):
-    bot.add_cog(OvGME(bot))
+async def setup(bot: DCSServerBot):
+    await bot.add_cog(OvGME(bot))

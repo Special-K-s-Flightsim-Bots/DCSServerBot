@@ -33,9 +33,10 @@ class CloudHandlerAgent(Plugin):
         }
         self.cloud_bans.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         self.cloud_bans.cancel()
         asyncio.create_task(self.session.close())
+        await super().cog_unload()
 
     async def get(self, request: str) -> Any:
         url = f"{self.base_url}/{request}"
@@ -90,10 +91,10 @@ class CloudHandlerMaster(CloudHandlerAgent):
         if 'token' in self.config:
             self.cloud_sync.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         if 'token' in self.config:
             self.cloud_sync.cancel()
-        super().cog_unload()
+        await super().cog_unload()
 
     @commands.command(description='Resync all statistics with the cloud', usage='[ucid / @member]')
     @utils.has_role('DCS Admin')
@@ -178,8 +179,8 @@ class CloudHandlerMaster(CloudHandlerAgent):
             self.pool.putconn(conn)
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(CloudHandlerMaster(bot, CloudListener))
+        await bot.add_cog(CloudHandlerMaster(bot, CloudListener))
     else:
-        bot.add_cog(CloudHandlerAgent(bot, CloudListener))
+        await bot.add_cog(CloudHandlerAgent(bot, CloudListener))

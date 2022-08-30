@@ -21,7 +21,7 @@ class GameMasterAgent(Plugin):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE campaigns SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+                cursor.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -392,8 +392,8 @@ class GameMasterMaster(GameMasterAgent):
             await ctx.send(f"Usage: {ctx.prefix}.campaign <add|start|stop|delete|list>")
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(GameMasterMaster(bot, GameMasterEventListener))
+        await bot.add_cog(GameMasterMaster(bot, GameMasterEventListener))
     else:
-        bot.add_cog(GameMasterAgent(bot, GameMasterEventListener))
+        await bot.add_cog(GameMasterAgent(bot, GameMasterEventListener))

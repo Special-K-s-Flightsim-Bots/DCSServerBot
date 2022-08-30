@@ -1,7 +1,16 @@
+import asyncio
+import csv
+import os
+import re
+import string
+from pathlib import Path
+
 import psycopg2
 from contextlib import closing
 from core import EventListener, Server, Player, Channel, Side
+from datetime import datetime
 from plugins.greenieboard import get_element
+from typing import Tuple, Optional
 
 
 class GreenieBoardEventListener(EventListener):
@@ -19,18 +28,18 @@ class GreenieBoardEventListener(EventListener):
         }
     }
 
-    async def update_greenieboard(self):
+    def _update_greenieboard(self):
         if self.locals['configs'][0]['persistent_board']:
             server: Server = list(self.bot.servers.values())[0]
             embed = self.plugin.render_board()
             if embed:
                 if 'persistent_channel' in self.locals['configs'][0]:
                     channel_id = int(self.locals['configs'][0]['persistent_channel'])
-                    await server.setEmbed('greenieboard', embed, channel_id=channel_id)
+                    self.bot.loop.call_soon(asyncio.create_task, server.setEmbed('greenieboard', embed, channel_id=channel_id))
                 else:
-                    await server.setEmbed('greenieboard', embed)
+                    self.bot.loop.call_soon(asyncio.create_task, server.setEmbed('greenieboard', embed))
 
-    async def send_chat_message(self, player: Player, data: dict, grade: str, comment: str):
+    async def _send_chat_message(self, player: Player, data: dict, grade: str, comment: str):
         server: Server = self.bot.servers[data['server_name']]
         chat_channel = server.get_channel(Channel.CHAT)
         if chat_channel is not None:
@@ -45,30 +54,93 @@ class GreenieBoardEventListener(EventListener):
                                                                                         comment))
 
     async def registerDCSServer(self, data: dict):
-        await self.update_greenieboard()
+        self._update_greenieboard()
+
+    def _process_sc_lso_event(self, config: dict, server: Server, player: Player, data: dict) -> Tuple[str, str]:
+        grade = get_element(data['comment'], 'grade')
+        comment = get_element(data['comment'], 'comment')
+        time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
+        night = time > 20 * 3600 or time < 6 * 3600
+        points = config['ratings'][grade]
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, "
+                               "night, points, trapsheet) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                               (server.mission_id, player.ucid, data['initiator']['unit_type'], grade, data['comment'],
+                                data['place']['name'], night, points,
+                                data['trapsheet'] if 'trapsheet' in data else None))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            conn.rollback()
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+        return grade, comment
+
+    def _get_lso_rating(self, config: dict, server: Server, player: Player, data: dict) -> Tuple[Optional[str], Optional[str]]:
+        carrier = data['place']['name'].split()[0]
+        filename = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'] + os.path.sep +
+                                      config['Moose.AIRBOSS']['basedir'] + os.path.sep +
+                                      config['Moose.AIRBOSS']['grades'].format(carrier=carrier))
+        with open(filename, 'r') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                if row['Name'] == player.name and \
+                        row['Airframe'] == player.unit_type and \
+                        row['Carrier Name'] == data['place']['name'] and \
+                        abs(datetime.strptime(row['OS Date'], '%a %b %d %H:%M:%S %Y').timestamp() - datetime.now().timestamp()) < 60.0:
+                    if row['Grade'] == 'WO':
+                        grade = 'WO  '
+                    elif row['Grade'] == '-- (BOLTER)':
+                        grade = '--- : '
+                    else:
+                        grade = f"{row['Grade']} :"
+                    comment = row['Details']
+                    if row['Wire'] != 'n/a':
+                        comment += f"  WIRE# {row['Wire']}"
+                    return grade, comment
+        return None, None
+
+    def get_trapsheet(self, config: dict, server: Server, player: Player) -> Optional[str]:
+        dirname = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'] + os.path.sep +
+                                     config['Moose.AIRBOSS']['basedir'])
+        pilot = re.sub("[^A-Za-z0-9]", " ", player.name).strip()
+        filename = f'*trapsheet-{pilot}_{player.unit_type}*.csv'
+        p = Path(dirname)
+        try:
+            return max(p.glob(filename), key=lambda x: p.stat().st_mtime).__str__()
+        except:
+            return None
+
+    def _process_airboss_event(self, config: dict, server: Server, player: Player, data: dict) -> Tuple[Optional[str], Optional[str]]:
+        # check if we find a landing information about that user in our LSO file
+        grade, comment = self._get_lso_rating(config, server, player, data)
+        if not grade:
+            return None, None
+        # generate a pseudo S_EVENT_LANDING_QUALITY_MARK event
+        data['command'] = 'onMissionEvent'
+        data['eventName'] = 'S_EVENT_LANDING_QUALITY_MARK'
+        data['comment'] = f"LSO: GRADE:{grade} {comment}"
+        data['trapsheet'] = self.get_trapsheet(config, server, player)
+        self._process_sc_lso_event(config, server, player, data)
+        return grade, comment
 
     async def onMissionEvent(self, data: dict):
-        if data['eventName'] == 'S_EVENT_LANDING_QUALITY_MARK':
-            server: Server = self.bot.servers[data['server_name']]
-            player: Player = server.get_player(name=data['initiator']['name']) if 'name' in data['initiator'] else None
-            if player:
-                grade = get_element(data['comment'], 'grade')
-                comment = get_element(data['comment'], 'comment')
-                time = (int(server.current_mission.start_time) + int(server.current_mission.mission_time)) % 86400
-                night = time > 20*3600 or time < 6 * 3600
-                points = self.locals['configs'][0]['ratings'][grade]
-                await self.send_chat_message(player, data, grade, comment.replace('_', '\\_'))
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute("INSERT INTO greenieboard (player_ucid, unit_type, grade, comment, place, "
-                                       "night, points) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                                       (player.ucid, data['initiator']['unit_type'], grade, data['comment'],
-                                        data['place']['name'], night, points))
-                    conn.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    conn.rollback()
-                    self.log.exception(error)
-                finally:
-                    self.pool.putconn(conn)
-                await self.update_greenieboard()
+        if 'initiator' not in data:
+            return
+        server: Server = self.bot.servers[data['server_name']]
+        config = self.plugin.get_config(server)
+        player: Player = server.get_player(name=data['initiator']['name']) if 'name' in data['initiator'] else None
+        if player:
+            grade = comment = None
+            if 'Moose.AIRBOSS' in config:
+                if data['eventName'] == 'S_EVENT_LAND' and 'CVN' in data['place']['name']:
+                    grade, comment = self._process_airboss_event(config, server, player, data)
+                    if not grade:
+                        return
+            elif data['eventName'] == 'S_EVENT_LANDING_QUALITY_MARK':
+                grade, comment = self._process_sc_lso_event(config, server, player, data)
+            if grade:
+                await self._send_chat_message(player, data, grade, comment.replace('_', '\\_'))
+                self._update_greenieboard()

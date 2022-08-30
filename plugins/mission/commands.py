@@ -3,7 +3,6 @@ import aiohttp
 import asyncio
 import discord
 import os
-import psutil
 import psycopg2
 import re
 from contextlib import closing
@@ -22,10 +21,10 @@ class Mission(Plugin):
         self.update_mission_status.start()
         self.update_channel_name.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         self.update_channel_name.cancel()
         self.update_mission_status.cancel()
-        super().cog_unload()
+        await super().cog_unload()
 
     def rename(self, old_name: str, new_name: str):
         conn = self.pool.getconn()
@@ -483,5 +482,5 @@ class Mission(Plugin):
             await message.delete()
 
 
-def setup(bot: DCSServerBot):
-    bot.add_cog(Mission(bot, MissionEventListener))
+async def setup(bot: DCSServerBot):
+    await bot.add_cog(Mission(bot, MissionEventListener))

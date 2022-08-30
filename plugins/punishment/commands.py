@@ -14,9 +14,9 @@ class PunishmentAgent(Plugin):
         super().__init__(bot, eventlistener)
         self.check_punishments.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         self.check_punishments.cancel()
-        super().cog_unload()
+        await super().cog_unload()
 
     def get_config(self, server: Server) -> Optional[dict]:
         if server.name not in self._config:
@@ -132,7 +132,7 @@ class PunishmentAgent(Plugin):
                                         reason = row['event']
                                     await self.punish(server, player, punishment, reason)
                                     if player.active:
-                                        player.sendChatMessage("Your current punishment points are: {row['points']}")
+                                        player.sendChatMessage(f"Your current punishment points are: {row['points']}")
                                     break
                             cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
                     conn.commit()
@@ -155,9 +155,9 @@ class PunishmentMaster(PunishmentAgent):
         self.unban_config = self.read_unban_config()
         self.decay.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         self.decay.cancel()
-        super().cog_unload()
+        await super().cog_unload()
 
     def rename(self, old_name: str, new_name: str):
         conn = self.pool.getconn()
@@ -323,10 +323,10 @@ class PunishmentMaster(PunishmentAgent):
             await ctx.message.delete()
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(PunishmentMaster(bot, PunishmentEventListener))
+        await bot.add_cog(PunishmentMaster(bot, PunishmentEventListener))
     else:
-        bot.add_cog(PunishmentAgent(bot, PunishmentEventListener))
+        await bot.add_cog(PunishmentAgent(bot, PunishmentEventListener))

@@ -133,10 +133,10 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
             await ctx.message.delete()
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if 'userstats' not in bot.plugins:
         raise PluginRequiredError('userstats')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(MissionStatisticsMaster(bot, MissionStatisticsEventListener))
+        await bot.add_cog(MissionStatisticsMaster(bot, MissionStatisticsEventListener))
     else:
-        bot.add_cog(MissionStatisticsAgent(bot, MissionStatisticsEventListener))
+        await bot.add_cog(MissionStatisticsAgent(bot, MissionStatisticsEventListener))

@@ -21,10 +21,10 @@ class AgentServerStats(Plugin):
         self.io_counters = {}
         self.net_io_counters = None
 
-    def cog_unload(self):
+    async def cog_unload(self):
         self.cleanup.cancel()
         self.schedule.cancel()
-        super().cog_unload()
+        await super().cog_unload()
 
     def rename(self, old_name: str, new_name: str):
         conn = self.pool.getconn()
@@ -173,10 +173,10 @@ class MasterServerStats(AgentServerStats):
             await report.render(period=period, server_name=None)
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if 'userstats' not in bot.plugins:
         raise PluginRequiredError('userstats')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(MasterServerStats(bot, ServerStatsListener))
+        await bot.add_cog(MasterServerStats(bot, ServerStatsListener))
     else:
-        bot.add_cog(AgentServerStats(bot, ServerStatsListener))
+        await bot.add_cog(AgentServerStats(bot, ServerStatsListener))

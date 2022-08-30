@@ -1,5 +1,6 @@
 from core import report
 from . import get_element, ERRORS, DISTANCE_MARKS, GRADES
+from .trapsheet import plot_trapsheet, read_trapsheet, parse_filename
 
 
 class LSORating(report.EmbedElement):
@@ -18,22 +19,67 @@ class LSORating(report.EmbedElement):
 
         self.add_field(name="LSO Comment", value=f"{comment}", inline=False)
 
-        report.Ruler(self.env).render()
+        report.Ruler(self.env).render(ruler_length=28)
+        # remove unnecessary blanks
+        comment = get_element(landing['comment'], 'comment')
+        distance_marks = list(DISTANCE_MARKS.keys())
+        elements = []
+        for element in [e.strip() for e in comment.split()]:
+            def merge(s1: str, s2: str):
+                if '(' in s1 and '(' in s2:
+                    pos = s1.find(')')
+                    substr2 = s2[s2.find('(') + 1:s2.find(')')]
+                    s1 = s1[:pos] + substr2 + s1[pos:]
+                    s2 = s2.replace('(' + substr2 + ')', '')
+                if '_' in s1 and '_' in s2:
+                    pos = s1.rfind('_')
+                    substr2 = s2[s2.find('_') + 1:s2.rfind('_')]
+                    s1 = s1[:pos] + substr2 + s1[pos:]
+                    s2 = s2.replace('_' + substr2 + '_', '')
+                s1 += s2
+                return s1
 
-        elements = [e.strip() for e in get_element(landing['comment'], 'comment').split()]
+            if len(elements) == 0:
+                elements.append(element)
+            else:
+                if not any(distance in elements[-1] for distance in distance_marks):
+                    elements[-1] = merge(elements[-1], element)
+                else:
+                    elements.append(element)
+
         for mark, text in DISTANCE_MARKS.items():
             comments = ''
-            for element in elements:
+            for element in elements.copy():
                 if mark in element:
+                    elements.remove(element)
+                    if mark != 'BC':
+                        element = element.replace(mark, '')
                     little = element.startswith('(')
                     many = element.startswith('_')
                     ignored = element.startswith('[')
                     if little or many or ignored:
                         element = element[1:-1]
-                    # don't replace BC as it comes alone
-                    if mark != 'BC':
-                        element = element.replace(mark, '')
-                    comments += '- ' + ERRORS[element] + \
-                                (' (a little)' if little else ' (a lot!)' if many else ' (ignored)' if ignored else '') + '\n'
+                    while len(element):
+                        found = False
+                        for error in ERRORS.keys():
+                            if error in element:
+                                found = True
+                                comments += '- ' + ERRORS[error] + (' (a little)' if little else ' (a lot!)' if many else '(ignored)' if ignored else '') + '\n '
+                                element = element.replace(error, '')
+                                break
+                        if not found:
+                            self.log.error(f'Element {element} not found in LSO mapping!')
+                            element = ''
             if len(comments) > 0:
                 self.embed.add_field(name=text, value=comments, inline=False)
+
+
+class TrapSheet(report.MultiGraphElement):
+
+    def render(self, landing: dict):
+        if 'trapsheet' not in landing or len(landing['trapsheet']) == 0:
+            return
+        trapsheet = landing['trapsheet']
+        ts = read_trapsheet(trapsheet)
+        ps = parse_filename(trapsheet)
+        plot_trapsheet(self.axes, ts, ps, trapsheet)

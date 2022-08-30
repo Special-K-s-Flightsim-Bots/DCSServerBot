@@ -17,6 +17,26 @@
     },
     {
       "class": "plugins.missionstats.reports.ModuleStats2"
+    },
+    {
+      "type": "Graph",
+      "params": {
+        "width": 5,
+        "height": 5,
+        "cols": 1,
+        "rows": 1,
+        "elements": [
+          {
+            "type": "SQLPieChart",
+            "params": {
+              "col": 0,
+              "row": 0,
+              "title": "Kills",
+              "sql": "SELECT COALESCE(SUM(kills_planes), 0) as \"Planes\", COALESCE(SUM(kills_helicopters), 0) \"Helicopters\", COALESCE(SUM(kills_ships), 0) as \"Ships\", COALESCE(SUM(kills_sams), 0) as \"Air Defence\", COALESCE(SUM(kills_ground), 0) as \"Ground\" FROM statistics s WHERE player_ucid = %(ucid)s and slot = %(module)s"
+            }
+          }
+        ]
+      }
     }
   ],
   "footer": "Display is WIP, Guns for instance yet to come.\nValues > 100% might be splash damage or incorrectly reported by DCS."

@@ -61,7 +61,7 @@ class Report:
             elif name == 'footer':
                 footer = self.env.embed.footer.text
                 text = utils.format_string(item, **self.env.params)
-                if footer == discord.Embed.Empty:
+                if footer is None:
                     footer = text
                 else:
                     footer += '\n' + text
@@ -176,6 +176,7 @@ class PaginationReport(Report):
                         message = await self.ctx.send(embed=env.embed, file=file, delete_after=self.timeout)
                     if env.filename:
                         os.remove(env.filename)
+                        env.filename = None
                 except ValueNotInRange as ex:
                     await self.ctx.send(str(ex))
                 except Exception as ex:

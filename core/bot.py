@@ -14,7 +14,7 @@ from datetime import datetime
 from discord.ext import commands
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Callable, Optional, Tuple, Any, Union, TYPE_CHECKING
+from typing import Callable, Optional, Tuple, Union, TYPE_CHECKING
 from .listener import EventListener
 
 if TYPE_CHECKING:
@@ -85,9 +85,9 @@ class DCSServerBot(commands.Bot):
             self.log.info('- No running servers found.')
         self.log.info('DCSServerBot started, accepting commands.')
 
-    def load_plugin(self, plugin: str) -> bool:
+    async def load_plugin(self, plugin: str) -> bool:
         try:
-            self.load_extension(f'plugins.{plugin}.commands')
+            await self.load_extension(f'plugins.{plugin}.commands')
             return True
         except commands.ExtensionNotFound:
             self.log.error(f'  - No commands.py found for plugin "{plugin}"')
@@ -95,20 +95,20 @@ class DCSServerBot(commands.Bot):
             self.log.error(f'  - {ex.original if ex.original else ex}')
         return False
 
-    def unload_plugin(self, plugin: str):
+    async def unload_plugin(self, plugin: str):
         try:
-            self.unload_extension(f'plugins.{plugin}.commands')
+            await self.unload_extension(f'plugins.{plugin}.commands')
         except commands.ExtensionNotFound:
             self.log.debug(f'- No init.py found for plugin "{plugin}!"')
             pass
 
-    def reload_plugin(self, plugin: str):
-        self.unload_plugin(plugin)
-        self.load_plugin(plugin)
+    async def reload_plugin(self, plugin: str):
+        await self.unload_plugin(plugin)
+        await self.load_plugin(plugin)
 
-    def run(self, *args: Any, **kwargs: Any) -> None:
+    async def start(self, token: str, *, reconnect: bool = True) -> None:
         self.init_servers()
-        super().run(*args, **kwargs)
+        await super().start(token, reconnect=reconnect)
 
     def check_channel(self, channel_id: int):
         channel = self.get_channel(channel_id)
@@ -151,7 +151,7 @@ class DCSServerBot(commands.Bot):
                 self.check_channels(server.installation)
             self.log.info('- Loading Plugins ...')
             for plugin in self.plugins:
-                if self.load_plugin(plugin.lower()):
+                if await self.load_plugin(plugin.lower()):
                     self.log.info(f'  => {string.capwords(plugin)} loaded.')
                 else:
                     self.log.info(f'  => {string.capwords(plugin)} NOT loaded.')
@@ -162,7 +162,6 @@ class DCSServerBot(commands.Bot):
             self.log.warning('Discord connection re-established.')
             # maybe our external IP got changed...
             self.external_ip = await utils.get_external_ip()
-        return
 
     async def on_command_error(self, ctx: discord.ext.commands.Context, err: Exception):
         if isinstance(err, commands.CommandNotFound):
@@ -197,13 +196,13 @@ class DCSServerBot(commands.Bot):
                 member = user
             embed = discord.Embed(color=discord.Color.blue())
             if member:
-                embed.set_author(name=member.name + '#' + member.discriminator, icon_url=member.avatar_url)
-                embed.set_thumbnail(url=member.avatar_url)
+                embed.set_author(name=member.name + '#' + member.discriminator, icon_url=member.avatar)
+                embed.set_thumbnail(url=member.avatar)
                 message = f'<@{member.id}> ' + message
             elif not user:
                 embed.set_author(name=self.member.name + '#' + self.member.discriminator,
-                                 icon_url=self.member.avatar_url)
-                embed.set_thumbnail(url=self.member.avatar_url)
+                                 icon_url=self.member.avatar)
+                embed.set_thumbnail(url=self.member.avatar)
             embed.description = message
             if isinstance(user, str):
                 embed.add_field(name='UCID', value=user)
