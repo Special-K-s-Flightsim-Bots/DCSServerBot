@@ -433,7 +433,8 @@ class Mission(Plugin):
                     else:
                         name = re.sub('［.*］', f'［{current}／{max_players}］', name)
                 try:
-                    await channel.edit(name=name)
+                    if name != channel.name:
+                        await channel.edit(name=name)
                 except Exception as ex:
                     self.log.debug("Exception in update_channel_name(): " + str(ex))
 

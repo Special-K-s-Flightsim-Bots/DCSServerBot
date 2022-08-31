@@ -1,11 +1,9 @@
 import asyncio
 import csv
 import os
-import re
-import string
-from pathlib import Path
-
 import psycopg2
+import re
+from pathlib import Path
 from contextlib import closing
 from core import EventListener, Server, Player, Channel, Side
 from datetime import datetime
@@ -102,11 +100,13 @@ class GreenieBoardEventListener(EventListener):
                     return grade, comment
         return None, None
 
-    def get_trapsheet(self, config: dict, server: Server, player: Player) -> Optional[str]:
+    def get_trapsheet(self, config: dict, server: Server, player: Player, data: dict) -> Optional[str]:
         dirname = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'] + os.path.sep +
                                      config['Moose.AIRBOSS']['basedir'])
-        pilot = re.sub("[^A-Za-z0-9]", " ", player.name).strip()
-        filename = f'*trapsheet-{pilot}_{player.unit_type}*.csv'
+        carrier = data['place']['name'].split()[0]
+        name = re.sub("[^A-Za-z0-9]", " ", player.name).strip()
+        filename = config['Moose.AIRBOSS']['trapsheets'].format(
+            carrier=carrier, name=name, unit_type=player.unit_type, number='*')
         p = Path(dirname)
         try:
             return max(p.glob(filename), key=lambda x: p.stat().st_mtime).__str__()
@@ -122,7 +122,9 @@ class GreenieBoardEventListener(EventListener):
         data['command'] = 'onMissionEvent'
         data['eventName'] = 'S_EVENT_LANDING_QUALITY_MARK'
         data['comment'] = f"LSO: GRADE:{grade} {comment}"
-        data['trapsheet'] = self.get_trapsheet(config, server, player)
+        # get the trapsheet
+        data['grade'] = grade
+        data['trapsheet'] = self.get_trapsheet(config, server, player, data)
         self._process_sc_lso_event(config, server, player, data)
         return grade, comment
 

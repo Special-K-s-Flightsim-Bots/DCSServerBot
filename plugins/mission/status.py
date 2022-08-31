@@ -1,3 +1,4 @@
+from contextlib import suppress
 from core import const, report, Status, Server
 from datetime import datetime, timedelta
 from typing import Optional
@@ -106,22 +107,9 @@ class ExtensionsInfo(report.EmbedElement):
         # we don't have any extensions loaded (yet)
         if len(server.extensions) == 0:
             return
-        footer = self.embed.footer.text
         for ext in server.extensions.values():
-            # TODO: TEMP BUGFIX
-            try:
+            with suppress(Exception):
                 ext.render(self)
-            except Exception:
-                pass
-            footer += f", {ext.name} {ext.version}"
-        ext_names = list(server.extensions.keys())
-        footer += '\n- The IP address of '
-        if len(ext_names) == 1:
-            footer += ext_names[0]
-        else:
-            footer += ', '.join(ext_names[0:-1]) + ' and ' + ext_names[-1]
-        footer += ' is the same as the server.'
-        self.embed.set_footer(text=footer)
 
 
 class Footer(report.EmbedElement):

@@ -47,8 +47,7 @@ different greenieboards for different servers. If that is a user demand in the f
       "Moose.AIRBOSS": {
         "basedir": "airboss",
         "grades": "AIRBOSS-{carrier}_LSOGrades.csv",
-        "trapsheets": "AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}-{number}.csv",
-        "bolter": "Bolter_AIRBOSS-trapsheet-{name}-{unit_type}-{number}.csv"
+        "trapsheets": "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv"
       }
     }
   ]

@@ -19,23 +19,15 @@
       "class": "plugins.missionstats.reports.ModuleStats2"
     },
     {
-      "type": "Graph",
+      "type": "Ruler",
       "params": {
-        "width": 5,
-        "height": 5,
-        "cols": 1,
-        "rows": 1,
-        "elements": [
-          {
-            "type": "SQLPieChart",
-            "params": {
-              "col": 0,
-              "row": 0,
-              "title": "Kills",
-              "sql": "SELECT COALESCE(SUM(kills_planes), 0) as \"Planes\", COALESCE(SUM(kills_helicopters), 0) \"Helicopters\", COALESCE(SUM(kills_ships), 0) as \"Ships\", COALESCE(SUM(kills_sams), 0) as \"Air Defence\", COALESCE(SUM(kills_ground), 0) as \"Ground\" FROM statistics s WHERE player_ucid = %(ucid)s and slot = %(module)s"
-            }
-          }
-        ]
+        "ruler_length": 20
+      }
+    },
+    {
+      "type": "SQLTable",
+      "params": {
+        "sql": "SELECT target_cat AS \"Category\", target_type AS \"Unit Type\", count(*) AS \"Kills\" FROM MISSIONSTATS WHERE init_id = %(ucid)s AND init_type = %(module)s AND event = 'S_EVENT_KILL' GROUP BY target_cat, target_type ORDER BY 1,2 DESC"
       }
     }
   ],
