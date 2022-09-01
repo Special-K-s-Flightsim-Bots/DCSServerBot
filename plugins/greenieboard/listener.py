@@ -1,6 +1,8 @@
 import asyncio
 import csv
 import os
+import string
+
 import psycopg2
 import re
 from pathlib import Path
@@ -104,7 +106,7 @@ class GreenieBoardEventListener(EventListener):
         dirname = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'] + os.path.sep +
                                      config['Moose.AIRBOSS']['basedir'])
         carrier = data['place']['name'].split()[0]
-        name = re.sub("[^A-Za-z0-9]", " ", player.name).strip()
+        name = re.sub(f"[{string.punctuation}]", "", player.name).strip()
         filename = config['Moose.AIRBOSS']['trapsheets'].format(
             carrier=carrier, name=name, unit_type=player.unit_type, number='*')
         p = Path(dirname)
