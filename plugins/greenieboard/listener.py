@@ -1,14 +1,13 @@
 import asyncio
 import csv
 import os
-import string
-
 import psycopg2
 import re
-from pathlib import Path
+import string
 from contextlib import closing
 from core import EventListener, Server, Player, Channel, Side
 from datetime import datetime
+from pathlib import Path
 from plugins.greenieboard import get_element
 from typing import Tuple, Optional
 
@@ -67,7 +66,7 @@ class GreenieBoardEventListener(EventListener):
             with closing(conn.cursor()) as cursor:
                 cursor.execute("INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, "
                                "night, points, trapsheet) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                               (server.mission_id, player.ucid, data['initiator']['unit_type'], grade, data['comment'],
+                               (server.mission_id, player.ucid, player.unit_type, grade, data['comment'],
                                 data['place']['name'], night, points,
                                 data['trapsheet'] if 'trapsheet' in data else None))
             conn.commit()
@@ -90,12 +89,15 @@ class GreenieBoardEventListener(EventListener):
                         row['Airframe'] == player.unit_type and \
                         row['Carrier Name'] == data['place']['name'] and \
                         abs(datetime.strptime(row['OS Date'], '%a %b %d %H:%M:%S %Y').timestamp() - datetime.now().timestamp()) < 60.0:
-                    if row['Grade'] == 'WO':
-                        grade = 'WO  '
-                    elif row['Grade'] == '-- (BOLTER)':
+                    grade: str = row['Grade']
+                    if '<SH>' in grade:
+                        grade = grade[:-4]
+                    if grade == 'CUT':
+                        grade = 'C'
+                    if grade.startswith('--'):
                         grade = '--- : '
                     else:
-                        grade = f"{row['Grade']} :"
+                        grade = f"{grade} :"
                     comment = row['Details']
                     if row['Wire'] != 'n/a':
                         comment += f"  WIRE# {row['Wire']}"
