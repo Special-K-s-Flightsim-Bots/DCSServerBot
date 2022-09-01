@@ -139,7 +139,7 @@ class GreenieBoardEventListener(EventListener):
         if player:
             grade = comment = None
             if 'Moose.AIRBOSS' in config:
-                if data['eventName'] == 'S_EVENT_LAND' and 'CVN' in data['place']['name']:
+                if data['eventName'] == 'S_EVENT_AIRBOSS':
                     grade, comment = self._process_airboss_event(config, server, player, data)
                     if not grade:
                         return
