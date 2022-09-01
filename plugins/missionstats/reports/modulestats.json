@@ -27,7 +27,7 @@
     {
       "type": "SQLTable",
       "params": {
-        "sql": "SELECT target_cat AS \"Category\", target_type AS \"Unit Type\", count(*) AS \"Kills\" FROM MISSIONSTATS WHERE init_id = %(ucid)s AND init_type = %(module)s AND event = 'S_EVENT_KILL' GROUP BY target_cat, target_type ORDER BY 1,2 DESC"
+        "sql": "SELECT target_cat AS \"Category\", target_type AS \"Unit Type\", count(*) AS \"Kills\" FROM MISSIONSTATS WHERE init_id = %(ucid)s AND init_type = %(module)s AND event = 'S_EVENT_KILL' AND target_cat IS NOT NULL GROUP BY target_cat, target_type ORDER BY 1,3 DESC"
       }
     }
   ],

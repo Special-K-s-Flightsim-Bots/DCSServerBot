@@ -158,18 +158,23 @@ class ModuleStats1(report.EmbedElement):
 
 class ModuleStats2(report.EmbedElement):
     def render(self, ucid: str, module: str, period: str, flt: StatisticsFilter) -> None:
-        sql = "SELECT init_type, MAX(target_cat) AS target_cat, weapon, MAX(shots) AS shots, MAX(hits) AS hits, " \
-              "MAX(kills) AS kills FROM (SELECT m.init_type, CASE WHEN m.target_cat IN ('Airplanes', 'Helicopters') " \
-              "THEN 'Air' WHEN m.target_cat IN ('Ground Units', 'Ships', 'Structures') THEN 'Ground' END AS " \
-              "target_cat, COALESCE(CASE WHEN m.weapon = '' OR m.event = 'S_EVENT_SHOOTING_START' THEN NULL ELSE " \
-              "m.weapon END, 'Gun') AS weapon, COALESCE(SUM(CASE WHEN m.event IN ('S_EVENT_SHOT', " \
-              "'S_EVENT_SHOOTING_START') THEN 1 ELSE 0 END), 0) AS shots, COALESCE(SUM(CASE WHEN m.event = " \
-              "'S_EVENT_HIT' THEN 1 ELSE 0 END), 0) AS hits, COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_KILL' THEN 1 " \
-              "ELSE 0 END), 0) AS kills FROM missionstats m, statistics s WHERE m.mission_id = s.mission_id AND " \
-              "m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) "
-        sql += 'AND ' + flt.filter(self.env.bot, period)
-        sql += "AND m.init_id = %(ucid)s AND m.init_type = %(module)s GROUP BY 1, 2, 3) x WHERE weapon <> 'Gun' GROUP " \
-               "BY 1, 3 HAVING MAX(shots) > 0 AND MAX(target_cat) IS NOT NULL ORDER BY 2,3,4 "
+        sql = "SELECT y.target_cat, y.weapon, x.shots, y.hits, y.kills, y.kills::DECIMAL / x.shots AS kd FROM"
+        sql += "("
+        sql += "SELECT CASE WHEN COALESCE(m.weapon, '') = '' OR m.event = 'S_EVENT_SHOOTING_START' THEN 'Gun' ELSE " \
+               "m.weapon END AS weapon, COALESCE(SUM(CASE WHEN m.event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START') " \
+               "THEN 1 ELSE 0 END), 0) AS shots FROM missionstats m, statistics s WHERE m.mission_id = s.mission_id " \
+               "AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) AND m.init_id = %(ucid)s AND m.init_type = " \
+               "%(module)s GROUP BY 1 "
+        sql += ")x, ("
+        sql += "SELECT CASE WHEN m.target_cat IN ('Airplanes', 'Helicopters') THEN 'Air' WHEN m.target_cat IN (" \
+               "'Ground Units', 'Ships', 'Structures') THEN 'Ground' END AS target_cat, CASE WHEN COALESCE(m.weapon, " \
+               "'') = '' THEN 'Gun' ELSE m.weapon END AS weapon, COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_HIT' THEN " \
+               "1 ELSE 0 END), 0) AS hits, COALESCE(SUM(CASE WHEN m.event = 'S_EVENT_KILL' THEN 1 ELSE 0 END), " \
+               "0) AS kills FROM missionstats m, statistics s WHERE m.event IN ('S_EVENT_HIT', 'S_EVENT_KILL') AND " \
+               "m.mission_id = s.mission_id AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW()) AND " \
+               "m.target_cat IS NOT NULL AND m.init_id = %(ucid)s AND m.init_type = %(module)s GROUP BY 1, 2 "
+        sql += ") y "
+        sql += "WHERE x.weapon = y.weapon AND x.shots <> 0 ORDER BY 1, 6 DESC"
 
         conn = self.pool.getconn()
         try:
@@ -179,6 +184,8 @@ class ModuleStats2(report.EmbedElement):
                     weapons = hs_ratio = ks_ratio = ''
                     category = None
                     for row in cursor.fetchall():
+                        if row['weapon'] == 'Gun':
+                            continue
                         if category != row['target_cat']:
                             if len(weapons) > 0:
                                 self.add_field(name='Weapon', value=weapons)
@@ -190,10 +197,6 @@ class ModuleStats2(report.EmbedElement):
                         shots = row['shots']
                         hits = row['hits']
                         kills = row['kills']
-                        if shots == 0:
-                            shots = hits
-                        if shots == 0 and hits == 0 and kills == 0:
-                            continue
                         weapons += row['weapon'] + '\n'
                         hs_ratio += f"{100*hits/shots:.2f}%\n"
                         ks_ratio += f"{100*kills/shots:.2f}%\n"
