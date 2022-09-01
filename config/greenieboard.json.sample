@@ -15,6 +15,14 @@
         "WO": 1,
         "C": 0
       }
+    },
+    {
+      "installation": "DCS.openbeta_server",
+      "Moose.AIRBOSS": {
+        "basedir": "airboss",
+        "grades": "AIRBOSS-{carrier}_LSOGrades.csv",
+        "trapsheets": "*AIRBOSS-trapsheet-{name}_{unit_type}*.csv"
+      }
     }
   ]
 }
