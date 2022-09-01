@@ -159,9 +159,9 @@ def plot_trapsheet(axs: list[Axes], ts: dict[str, ndarray], pinfo: dict[str, str
 
     if pinfo['aircraft'] == 'AV-8B':
         carrier01 = plt.imread('./plugins/greenieboard/img/boat03_2.png')
-        ax.figure.figimage(carrier01, 940, 320, alpha=.75, zorder=1)
+        ax.figure.figimage(carrier01, 1075, 350, alpha=.75, zorder=1)
         carrier02 = plt.imread('./plugins/greenieboard/img/boat05_2.png')
-        ax.figure.figimage(carrier02, 930, 567, alpha=0.75, zorder=1)
+        ax.figure.figimage(carrier02, 1075, 610, alpha=0.75, zorder=1)
     else:
         carrier01 = plt.imread('./plugins/greenieboard/img/boat03.png')
         ax.figure.figimage(carrier01, 1075, 332, alpha=.45, zorder=1)
