@@ -60,7 +60,7 @@ class GreenieBoardEventListener(EventListener):
         comment = get_element(data['comment'], 'comment')
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
         night = time > 20 * 3600 or time < 6 * 3600
-        points = config['ratings'][grade]
+        points = data['points'] if 'points' in data else config['ratings'][grade]
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:

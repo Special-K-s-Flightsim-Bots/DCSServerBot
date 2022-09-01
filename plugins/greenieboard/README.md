@@ -43,6 +43,7 @@ function airboss:OnAfterLSOGrade(from, event, to, playerData, mygrade)
     msg.initiator.unit_type = playerData.unit.unit_type
     msg.place = {}
     msg.place.name = myGrade.carriername
+    msg.points = myGrade.points
     msg.time = timer.getAbsTime()
     dcsbot.sendBotTable(msg)
 end 
@@ -66,7 +67,7 @@ different greenieboards for different servers. If that is a user demand in the f
       "persistent_board": true,     -- true (default false) if you want a persistent board displayed somewhere in your discord
       "persistent_channel": "1234", -- the ID of the channel where the greenieboard should be displayed
       "ratings": {                  -- ratings will define how many points you get for which LSO rating (see SC documentation for details)
-        "_OK_": 5,
+        "_OK_": 5,                  -- if using Moose.AIRBOSS, ratings will be taken from there!
         "OK": 4,
         "(OK)": 3,
         "B": 2.5,
