@@ -90,7 +90,8 @@ class Autoexec:
         with open(outfile, 'w') as outcfg:
             for key, value in self.values.items():
                 if key == 'log':
-                    outcfg.write(f"{key}.{value}")
+                    outcfg.write(f"{key}.{value}\n")
+                    continue
                 elif key == 'net':
                     outcfg.write('if not net then net = {} end\n')
                 if isinstance(value, dict):
