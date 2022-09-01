@@ -77,7 +77,7 @@ class LSORating(report.EmbedElement):
 class TrapSheet(report.MultiGraphElement):
 
     def render(self, landing: dict):
-        if 'trapsheet' not in landing or len(landing['trapsheet']) == 0:
+        if 'trapsheet' not in landing or not landing['trapsheet']:
             return
         trapsheet = landing['trapsheet']
         ts = read_trapsheet(trapsheet)
