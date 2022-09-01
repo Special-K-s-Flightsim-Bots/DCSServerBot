@@ -3,7 +3,6 @@ import asyncio
 import discord
 import json
 import os
-import psutil
 import random
 import string
 from copy import deepcopy
@@ -25,10 +24,10 @@ class Scheduler(Plugin):
         self.lastrun = None
         self.schedule_extensions.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         self.schedule_extensions.cancel()
         self.check_state.cancel()
-        super().cog_unload()
+        await super().cog_unload()
 
     def read_locals(self) -> dict:
         # create a base scheduler.json if non exists
@@ -566,7 +565,7 @@ class Scheduler(Plugin):
                 await ctx.send('Mission reset.')
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-    bot.add_cog(Scheduler(bot, SchedulerListener))
+    await bot.add_cog(Scheduler(bot, SchedulerListener))

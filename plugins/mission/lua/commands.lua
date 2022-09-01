@@ -181,8 +181,10 @@ function dcsbot.sendChatMessage(json)
 	if (json.from) then
 		message = json.from .. ': ' .. message
 	end
-	if (json.to) then
-		net.send_chat_to(message, json.to)
+	if json.to then
+		if net.get_player_info(json.to) then
+			net.send_chat_to(message, json.to)
+		end
 	else
 		net.send_chat(message, true)
 	end
@@ -197,7 +199,9 @@ function dcsbot.sendPopupMessage(json)
 	time = json.time or 10
 	to = json.to or 'all'
 	if tonumber(to) then
-		net.dostring_in('mission', 'a_out_text_delay_u('.. to ..', ' .. basicSerialize(message) .. ', ' .. tostring(time) .. ')')
+		if net.get_player_info(to) then
+			net.dostring_in('mission', 'a_out_text_delay_u('.. to ..', ' .. basicSerialize(message) .. ', ' .. tostring(time) .. ')')
+		end
 	elseif to == 'all' then
 		net.dostring_in('mission', 'a_out_text_delay(' .. basicSerialize(message) .. ', ' .. tostring(time) .. ')')
 	elseif to == 'red' then

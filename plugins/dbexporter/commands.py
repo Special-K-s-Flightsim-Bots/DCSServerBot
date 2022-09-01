@@ -18,11 +18,11 @@ class DBExporter(Plugin):
                 self.locals['config']['autoexport'] is True:
             self.schedule.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         if 'config' in self.locals and 'autoexport' in self.locals['config'] and \
                 self.locals['configs']['autoexport'] is True:
             self.schedule.cancel()
-        super().cog_unload()
+        await super().cog_unload()
 
     def do_export(self, table_filter: List[str]):
         conn = self.pool.getconn()
@@ -52,5 +52,5 @@ class DBExporter(Plugin):
         self.do_export(self.locals['config']['tablefilter'] if ('config' in self.locals and 'tablefilter' in self.locals['config']) else [])
 
 
-def setup(bot: DCSServerBot):
-    bot.add_cog(DBExporter(bot))
+async def setup(bot: DCSServerBot):
+    await bot.add_cog(DBExporter(bot))

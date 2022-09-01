@@ -7,11 +7,10 @@ import os
 import platform
 import psycopg2
 import psycopg2.extras
-import re
 import shlex
 import string
 import subprocess
-from contextlib import closing, suppress
+from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Player, Status, Server, Coalition
 from discord.ext import commands, tasks
 from typing import Union, List, Optional
@@ -35,10 +34,10 @@ class Agent(Plugin):
         if self.bot.config.getboolean('DCS', 'AUTOUPDATE') is True:
             self.check_for_dcs_update.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         if self.bot.config.getboolean('DCS', 'AUTOUPDATE') is True:
             self.check_for_dcs_update.cancel()
-        super().cog_unload()
+        await super().cog_unload()
 
     @commands.command(description='Lists the registered DCS servers')
     @utils.has_role('DCS')
@@ -735,8 +734,8 @@ class Master(Agent):
                     await message.channel.send(f'Error {response.status} while reading JSON file!')
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(Master(bot, AdminEventListener))
+        await bot.add_cog(Master(bot, AdminEventListener))
     else:
-        bot.add_cog(Agent(bot, AdminEventListener))
+        await bot.add_cog(Agent(bot, AdminEventListener))

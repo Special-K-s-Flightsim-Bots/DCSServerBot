@@ -48,5 +48,5 @@ class Sample(Plugin):
         await ctx.send(data['message'])
 
 
-def setup(bot: DCSServerBot):
-    bot.add_cog(Sample(bot, SampleEventListener))
+async def setup(bot: DCSServerBot):
+    await bot.add_cog(Sample(bot, SampleEventListener))

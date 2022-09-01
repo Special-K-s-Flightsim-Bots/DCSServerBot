@@ -117,9 +117,9 @@ class UserStatisticsMaster(UserStatisticsAgent):
         super().__init__(bot, listener)
         self.expire_token.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         self.expire_token.cancel()
-        super().cog_unload()
+        await super().cog_unload()
 
     @commands.command(brief='Shows player statistics',
                       description='Displays the users statistics, either for a specific period or for a running '
@@ -483,10 +483,10 @@ class UserStatisticsMaster(UserStatisticsAgent):
             self.pool.putconn(conn)
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(UserStatisticsMaster(bot, UserStatisticsEventListener))
+        await bot.add_cog(UserStatisticsMaster(bot, UserStatisticsEventListener))
     else:
-        bot.add_cog(UserStatisticsAgent(bot, UserStatisticsEventListener))
+        await bot.add_cog(UserStatisticsAgent(bot, UserStatisticsEventListener))

@@ -392,8 +392,8 @@ class GameMasterMaster(GameMasterAgent):
             await ctx.send(f"Usage: {ctx.prefix}.campaign <add|start|stop|delete|list>")
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(GameMasterMaster(bot, GameMasterEventListener))
+        await bot.add_cog(GameMasterMaster(bot, GameMasterEventListener))
     else:
-        bot.add_cog(GameMasterAgent(bot, GameMasterEventListener))
+        await bot.add_cog(GameMasterAgent(bot, GameMasterEventListener))

@@ -296,10 +296,10 @@ class CreditSystemMaster(CreditSystemAgent):
             self.pool.putconn(conn)
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(CreditSystemMaster(bot, CreditSystemListener))
+        await bot.add_cog(CreditSystemMaster(bot, CreditSystemListener))
     else:
-        bot.add_cog(CreditSystemAgent(bot, CreditSystemListener))
+        await bot.add_cog(CreditSystemAgent(bot, CreditSystemListener))

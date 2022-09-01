@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import logging
 import os
@@ -198,10 +199,11 @@ class Main:
                             pool=self.pool,
                             help_command=None)
 
-    def run(self):
+    async def run(self):
         self.log.info('- Starting {}-Node on {}'.format('Master' if self.config.getboolean(
             'BOT', 'MASTER') is True else 'Agent', platform.node()))
-        self.bot.run(self.config['BOT']['TOKEN'], bot=True, reconnect=True)
+        async with self.bot:
+            await self.bot.start(self.config['BOT']['TOKEN'], reconnect=True)
 
     def add_commands(self):
         @self.bot.command(description='Reloads a Plugin', usage='[cog]')
@@ -352,15 +354,20 @@ class Main:
         return False
 
 
-if __name__ == "__main__":
+async def main():
     if not path.exists('config/dcsserverbot.ini'):
         Install.install()
     else:
-        try:
-            Install.verify()
-            Main().run()
-        except discord.errors.LoginFailure:
-            print('Invalid Discord TOKEN provided. Please check the documentation.')
-        except Exception as ex:
-            print(f"{ex.__class__.__name__}: {ex}")
-            exit(-1)
+        Install.verify()
+        await Main().run()
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except discord.errors.LoginFailure:
+        print('Invalid Discord TOKEN provided. Please check the documentation.')
+    except KeyboardInterrupt:
+        exit(-1)
+    except Exception as ex:
+        print(f"{ex.__class__.__name__}: {ex}")
+        exit(-1)

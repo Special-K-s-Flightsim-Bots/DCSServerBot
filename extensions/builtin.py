@@ -60,15 +60,15 @@ class SRS(Extension):
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         if self.locals:
+            value = f"{self.bot.external_ip}:{self.locals['Server Settings']['server_port']}"
             show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
             if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'.lower()] and \
                     'External AWACS Mode Settings' in self.locals:
                 blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD'.lower()]
                 red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'.lower()]
-                value = f'🔹 Pass: {blue}\n🔸 Pass: {red}'
-            else:
-                value = '_ _'
-            embed.add_field(name=f"SRS [{self.locals['Server Settings']['server_port']}]", value=value)
+                if blue or red:
+                    value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
+            embed.add_field(name=f"SRS", value=value)
 
     def verify(self) -> bool:
         # check if SRS is installed
@@ -138,15 +138,15 @@ class LotAtc(Extension):
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         if self.locals:
+            value = f"{self.bot.external_ip}:{self.locals['port']}" if 'port' in self.locals else ''
             show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
-            if show_passwords and 'blue_password' in self.locals and 'red_password' in self.locals:
-                value = f"🔹 Pass: {self.locals['blue_password']}\n🔸 Pass: {self.locals['red_password']}"
-            else:
+            blue = self.locals['blue_password'] if 'blue_password' in self.locals else ''
+            red = self.locals['red_password'] if 'red_password' in self.locals else ''
+            if show_passwords and (blue or red):
+                value += f"\n🔹 Pass: {blue}\n🔸 Pass: {red}"
+            if not len(value):
                 value = '_ _'
-            if 'port' in self.locals:
-                embed.add_field(name=f"LotAtc [{self.locals['port']}]", value=value)
-            else:
-                embed.add_field(name='LotAtc', value=value)
+            embed.add_field(name='LotAtc', value=value)
 
     def verify(self) -> bool:
         if not os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
@@ -202,6 +202,8 @@ class Tacview(Extension):
         else:
             show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
             value = ''
+            if 'tacviewRealTimeTelemetryPort' in self.locals and len(self.locals['tacviewRealTimeTelemetryPort']) > 0:
+                value += f"{self.bot.external_ip}:{self.locals['tacviewRealTimeTelemetryPort']}\n"
             if 'tacviewRealTimeTelemetryEnabled' in self.locals and self.locals['tacviewRealTimeTelemetryEnabled']:
                 name += ' RT'
                 if show_passwords and 'tacviewRealTimeTelemetryPassword' in self.locals and \
@@ -210,8 +212,6 @@ class Tacview(Extension):
             elif show_passwords and 'tacviewHostTelemetryPassword' in self.locals \
                     and len(self.locals['tacviewHostTelemetryPassword']) > 0:
                 value += f"Password: {self.locals['tacviewHostTelemetryPassword']}\n"
-            if 'tacviewRealTimeTelemetryPort' in self.locals and len(self.locals['tacviewRealTimeTelemetryPort']) > 0:
-                name += f" [{self.locals['tacviewRealTimeTelemetryPort']}]"
             if 'tacviewRemoteControlEnabled' in self.locals and self.locals['tacviewRemoteControlEnabled']:
                 value += f"**Remote Ctrl [{self.locals['tacviewRemoteControlPort']}]**\n"
                 if show_passwords and 'tacviewRemoteControlPassword' in self.locals and \

@@ -77,7 +77,7 @@ class Help(Plugin):
         await ctx.send(embed=help_embed)
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     # help is only available on the master
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        bot.add_cog(Help(bot, HelpListener))
+        await bot.add_cog(Help(bot, HelpListener))

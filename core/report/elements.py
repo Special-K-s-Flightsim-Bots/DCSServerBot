@@ -102,8 +102,10 @@ class MultiGraphElement(ReportElement):
         for i in range(0, len(params)):
             colspan = params[i]['colspan'] if 'colspan' in params[i] else 1
             rowspan = params[i]['rowspan'] if 'rowspan' in params[i] else 1
+            sharex = params[i]['sharex'] if 'sharex' in params[i] else False
             self.axes.append(plt.subplot2grid((rows, cols), (params[i]['row'], params[i]['col']), colspan=colspan,
-                                              rowspan=rowspan, fig=self.env.figure))
+                                              rowspan=rowspan, fig=self.env.figure,
+                                              sharex=self.axes[-1] if sharex else None))
 
     @abstractmethod
     def render(self, **kwargs):
@@ -115,10 +117,12 @@ class Graph(ReportElement):
         super().__init__(env)
         plt.switch_backend('agg')
 
-    def render(self, width: int, height: int, cols: int, rows: int, elements: List[dict]):
+    def render(self, width: int, height: int, cols: int, rows: int, elements: List[dict], facecolor: Optional[str] = None):
         plt.style.use('dark_background')
         plt.rcParams['axes.facecolor'] = '2C2F33'
         self.env.figure = plt.figure(figsize=(width, height))
+        if facecolor:
+            self.env.figure.set_facecolor(facecolor)
         futures = []
         with concurrent.futures.ThreadPoolExecutor(
                 max_workers=int(self.env.bot.config['REPORTS']['NUM_WORKERS'])) as executor:
@@ -155,7 +159,7 @@ class Graph(ReportElement):
         plt.close(self.env.figure)
         self.env.embed.set_image(url='attachment://' + self.env.filename)
         footer = self.env.embed.footer.text
-        if footer == discord.Embed.Empty:
+        if footer is None:
             footer = 'Click on the image to zoom in.'
         else:
             footer += '\nClick on the image to zoom in.'
@@ -287,6 +291,7 @@ class PieChart(GraphElement):
             return '{:.1f}%\n({:d})'.format(pct, absolute)
 
     def render(self, values: dict[str, Any]):
+        values = {k: v for k, v in values.copy().items() if v}
         if len(values) or self.show_no_data:
             labels = values.keys()
             values = list(values.values())

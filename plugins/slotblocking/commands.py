@@ -75,9 +75,9 @@ class SlotBlocking(Plugin):
         return self._config[server.name] if server.name in self._config else None
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
     if 'creditsystem' not in bot.plugins:
         raise PluginRequiredError('creditsystem')
-    bot.add_cog(SlotBlocking(bot, SlotBlockingListener))
+    await bot.add_cog(SlotBlocking(bot, SlotBlockingListener))

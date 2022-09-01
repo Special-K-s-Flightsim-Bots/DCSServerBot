@@ -18,9 +18,9 @@ class MessageOfTheDay(Plugin):
         self.last_nudge = dict[str, datetime]()
         self.nudge.start()
 
-    def cog_unload(self):
+    async def cog_unload(self):
         self.nudge.cancel()
-        super().cog_unload()
+        await super().cog_unload()
 
     def migrate(self, version: str):
         if version != '1.1' or not path.exists('config/motd.json'):
@@ -141,7 +141,7 @@ class MessageOfTheDay(Plugin):
                 self.last_nudge[server.name] = server.current_mission.mission_time
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-    bot.add_cog(MessageOfTheDay(bot, MessageOfTheDayListener))
+    await bot.add_cog(MessageOfTheDay(bot, MessageOfTheDayListener))

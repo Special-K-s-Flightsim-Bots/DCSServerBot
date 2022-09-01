@@ -13,9 +13,6 @@ from .listener import GreenieBoardEventListener
 
 class GreenieBoard(Plugin):
 
-    def get_config(self, server: Optional[dict] = None):
-        return self.locals['configs'][0]
-
     @staticmethod
     def format_comments(data, marker, marker_emoji):
         embed = discord.Embed(title=f"Latest Carrier Landings for user {data[0]['name']}", color=discord.Color.blue())
@@ -43,6 +40,7 @@ class GreenieBoard(Plugin):
                 name += ' ' + ' '.join(params)
             ucid = self.bot.get_ucid_by_name(name)
         landings = List[dict]
+        num_landings = self.locals['configs'][0]['num_landings']
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         conn = self.pool.getconn()
         try:
@@ -51,10 +49,9 @@ class GreenieBoard(Plugin):
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC LIMIT 1',
                                    (member.id, ))
                     ucid = cursor.fetchone()['ucid']
-                cursor.execute("SELECT p.name, g.grade, g.unit_type, g.comment, g.place, g.time, g.points FROM "
-                               "greenieboard g, players p WHERE p.ucid = %s AND g.player_ucid = p.ucid ORDER BY ID "
-                               "DESC LIMIT %s",
-                               (ucid, self.get_config()['num_landings']))
+                cursor.execute("SELECT p.name, g.grade, g.unit_type, g.comment, g.place, g.time, g.points, g.trapsheet "
+                               "FROM greenieboard g, players p WHERE p.ucid = %s AND g.player_ucid = p.ucid "
+                               "ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
                 if cursor.rowcount == 0:
                     await ctx.send('No carrier landings recorded for this user.',
                                    delete_after=timeout if timeout > 0 else None)
@@ -74,13 +71,13 @@ class GreenieBoard(Plugin):
     def render_board(self):
         conn = self.pool.getconn()
         try:
+            num_rows = self.locals['configs'][0]['num_rows']
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
                 cursor.execute('SELECT g.player_ucid, p.name, AVG(g.points) AS points, MAX(time) AS time FROM '
                                'greenieboard g, players p WHERE g.player_ucid = p.ucid GROUP BY 1, 2 ORDER BY 3 DESC '
-                               'LIMIT %s',
-                               (self.get_config()['num_rows'], ))
+                               'LIMIT %s', (num_rows, ))
                 if cursor.rowcount > 0:
-                    embed = discord.Embed(title=f"Greenieboard (TOP {self.get_config()['num_rows']})",
+                    embed = discord.Embed(title=f"Greenieboard (TOP {num_rows})",
                                           color=discord.Color.blue())
                     pilots = points = landings = ''
                     max_time = datetime.fromisocalendar(1970, 1, 1)
@@ -137,11 +134,11 @@ class GreenieBoard(Plugin):
             await ctx.message.delete()
 
 
-def setup(bot: DCSServerBot):
+async def setup(bot: DCSServerBot):
     if 'missionstats' not in bot.plugins:
         raise PluginRequiredError('missionstats')
     # make sure that we have a proper configuration, take the default one if none is there
     if not path.exists('config/greenieboard.json'):
         bot.log.info('No greenieboard.json found, copying the sample.')
         shutil.copyfile('config/greenieboard.json.sample', 'config/greenieboard.json')
-    bot.add_cog(GreenieBoard(bot, GreenieBoardEventListener))
+    await bot.add_cog(GreenieBoard(bot, GreenieBoardEventListener))

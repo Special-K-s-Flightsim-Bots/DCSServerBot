@@ -1,5 +1,4 @@
 from __future__ import annotations
-import asyncio
 import json
 import os
 import psycopg2
@@ -35,7 +34,7 @@ class Plugin(commands.Cog):
             self.bot.register_eventListener(self.eventlistener)
         self.log.debug(f'- Plugin {type(self).__name__} v{self.plugin_version} initialized.')
 
-    def cog_unload(self):
+    async def cog_unload(self):
         if self.eventlistener:
             self.bot.unregister_eventListener(self.eventlistener)
         # delete a possible configuration

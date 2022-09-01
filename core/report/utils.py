@@ -1,3 +1,5 @@
+import asyncio
+
 import psycopg2
 from contextlib import closing
 from core import utils
@@ -46,9 +48,12 @@ async def parse_input(self, kwargs: dict, params: List[Any]):
             finally:
                 self.pool.putconn(conn)
         elif 'callback' in param:
-            data: dict = await kwargs['server'].sendtoDCSSync({
-                "command": "getVariable", "name": param['callback']
-            })
-            if 'value' in data:
-                new_args[param['callback']] = data['value']
+            try:
+                data: dict = await kwargs['server'].sendtoDCSSync({
+                    "command": "getVariable", "name": param['callback']
+                })
+                if 'value' in data:
+                    new_args[param['callback']] = data['value']
+            except asyncio.TimeoutError:
+                new_args[param['callback']] = None
     return new_args
