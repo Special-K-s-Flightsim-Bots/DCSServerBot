@@ -28,19 +28,18 @@ To integrate DCSServerBot into your lua code using Moose AIRBOSS, you need to se
 ```lua
 local airboss=AIRBOSS:New("CVN-73", "CVN-73")
 
-function airboss:OnAfterLSOGrade(from, event, to, playerData, mygrade)
+function airboss:OnAfterLSOGrade(from, event, to, playerData, myGrade)
     player_name = playerData.name:gsub('[%p]', '')
     [...] -- do some magic in here, like SH break, etc.
     airbossWashington:SetTrapSheet(nil, "AIRBOSS-trapsheet-" .. player_name)
     [...]
-    self:_SaveTrapSheet(playerData, mygrade)
+    self:_SaveTrapSheet(playerData, myGrade)
 
     msg = {}
     msg.command = "onMissionEvent"
     msg.eventName = "S_EVENT_AIRBOSS"
     msg.initiator = {}
     msg.initiator.name = playerData.name
-    msg.initiator.unit_type = playerData.unit.unit_type
     msg.place = {}
     msg.place.name = myGrade.carriername
     msg.points = myGrade.points
