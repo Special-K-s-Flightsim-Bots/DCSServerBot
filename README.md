@@ -38,7 +38,7 @@ These commands can be used to administrate the bot itself.
 | Cloud        | Cloud-based statistics system.                                      | yes      | Userstats             | [README](./plugins/cloud/README.md)        |
 | Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission               | [README](./plugins/punishment/README.md)   |
 | SlotBlocking | Slotblocking either based on units or a point based system.         | yes      | Mission, Creditsystem | [README](./plugins/slotblocking/README.md) |
-| GreenieBoard | Greenieboard and LSO quality mark analysis (SC only)                | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
+| GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS)   | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
 | MOTD         | Generates a message of the day.                                     | yes      | Mission, Missionstats | [README](./plugins/motd/README.md)         |
 | DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
 | OvGME        | Install or update mods into your DCS server.                        | yes      |                       | [README](./plugins/ovgme/README.md)        |

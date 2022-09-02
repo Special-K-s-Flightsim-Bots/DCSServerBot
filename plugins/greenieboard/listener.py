@@ -78,10 +78,9 @@ class GreenieBoardEventListener(EventListener):
         return grade, comment
 
     def _get_lso_rating(self, config: dict, server: Server, player: Player, data: dict) -> Tuple[Optional[str], Optional[str]]:
-        carrier = data['place']['name'].split()[0]
         filename = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'] + os.path.sep +
                                       config['Moose.AIRBOSS']['basedir'] + os.path.sep +
-                                      config['Moose.AIRBOSS']['grades'].format(carrier=carrier))
+                                      config['Moose.AIRBOSS']['grades'].format(carrier=data['place']['name']))
         with open(filename, 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
