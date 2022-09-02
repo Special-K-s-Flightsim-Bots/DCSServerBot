@@ -1,6 +1,7 @@
 import asyncio
 import discord
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 from discord.ext import commands
 from . import config
@@ -209,18 +210,41 @@ def coalition_only():
 
 
 def format_embed(data: dict) -> discord.Embed:
-    embed = discord.Embed(color=discord.Color.blue())
-    if 'title' in data and len(data['title']) > 0:
-        embed.title = data['title']
-    if 'description' in data and len(data['description']) > 0:
-        embed.description = data['description']
-    if 'img' in data and len(data['img']) > 0:
+    color = data['color'] if 'color' in data else discord.Color.blue()
+    embed = discord.Embed(color=color)
+    if 'title' in data:
+        embed.title = data['title'] or '_ _'
+    if 'description' in data:
+        embed.description = data['description'] or '_ _'
+    if 'img' in data and isinstance(data['img'], str):
         embed.set_image(url=data['img'])
-    if 'footer' in data and len(data['footer']) > 0:
-        embed.set_footer(text=data['footer'])
+    if 'image' in data and isinstance(data['image'], dict):
+        if 'url' in data['image']:
+            embed.set_image(url=data['image']['url'])
+    if 'footer' in data:
+        if isinstance(data['footer'], str):
+            embed.set_footer(text=data['footer'])
+        else:
+            text = data['footer']['text'] if 'text' in data['footer'] else None
+            icon_url = data['footer']['icon_url'] if 'icon_url' in data['footer'] else None
+            embed.set_footer(text=text, icon_url=icon_url)
     if 'fields' in data:
-        for name, value in data['fields'].items():
-            embed.add_field(name=name, value=value)
+        if isinstance(data['fields'], dict):
+            for name, value in data['fields'].items():
+                embed.add_field(name=name or '_ _', value=value or '_ _')
+        elif isinstance(data['fields'], list):
+            for field in data['fields']:
+                name = field['name'] if 'name' in field else None
+                value = field['value'] if 'value' in field else None
+                inline = field['inline'] if 'inline' in field else False
+                embed.add_field(name=name or '_ _', value=value or '_ _', inline=inline)
+    if 'author' in data:
+        name = data['author']['name'] if 'name' in data['author'] else None
+        url = data['author']['url'] if 'url' in data['author'] else None
+        icon_url = data['author']['icon_url'] if 'icon_url' in data['author'] else None
+        embed.set_author(name=name, url=url, icon_url=icon_url)
+    if 'timestamp' in data:
+        embed.timestamp = datetime.strptime(data['timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ')
     return embed
 
 
@@ -296,7 +320,7 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
             message += name + value + '\n'
         if not field.inline:
             message += '\n'
-    if len(embed.footer):
+    if len(embed.footer.text):
         message += '\n' + embed.footer.text
     return message
 
