@@ -14,7 +14,7 @@ should not have access to the database directly for whatever reasons (being remo
 
 ## greenieboard.json.sample
 This sample contains a proposal for a points system for carrier landings and shows a possibility to configure a 
-persistent embed.
+persistent embed. In addition, you can see how to configure the Moose.AIRBOSS integration.
 
 ## motd.json.sample
 This sample contains a default section, that is being used for every server, if nothing else is provided and a specific
