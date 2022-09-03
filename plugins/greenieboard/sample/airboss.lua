@@ -86,6 +86,7 @@ function airbossWashington:OnAfterLSOGrade(From, Event, To, playerData, myGrade)
     player_name = player_name:gsub('[%p]', '')
 
     --local gradeForFile
+    local trapsheet = ''
     if string_grade == "_OK_" and player_wire > 1 then
         --if  string_grade == "_OK_" and player_wire == "3" and player_Tgroove >=15 and player_Tgroove <19 then
         timer.scheduleFunction(underlinePass, {}, timer.getTime() + 5)
@@ -93,10 +94,9 @@ function airbossWashington:OnAfterLSOGrade(From, Event, To, playerData, myGrade)
             myGrade.grade = "_OK_<SH>"
             myGrade.points = myGrade.points
             client_performing_sh:Set(0)
-            airbossWashington:SetTrapSheet(nil, "SH_unicorn_AIRBOSS-trapsheet-" .. player_name)
-            timer.scheduleFunction(underlinePassSH, {}, timer.getTime() + 5)
+            trapsheet = "SH_unicorn_AIRBOSS-trapsheet-" .. player_name
         else
-            airbossWashington:SetTrapSheet(nil, "unicorn_AIRBOSS-trapsheet-" .. player_name)
+            trapsheet = "unicorn_AIRBOSS-trapsheet-" .. player_name
         end
 
     elseif string_grade == "OK" and player_wire > 1 then
@@ -104,9 +104,9 @@ function airbossWashington:OnAfterLSOGrade(From, Event, To, playerData, myGrade)
             myGrade.grade = "OK<SH>"
             myGrade.points = myGrade.points + 0.5
             client_performing_sh:Set(0)
-            airbossWashington:SetTrapSheet(nil, "SH_AIRBOSS-trapsheet-" .. player_name)
+            trapsheet = "SH_AIRBOSS-trapsheet-" .. player_name
         else
-            airbossWashington:SetTrapSheet(nil, "AIRBOSS-trapsheet-" .. player_name)
+            trapsheet = "AIRBOSS-trapsheet-" .. player_name
         end
 
     elseif string_grade == "(OK)" and player_wire > 1 then
@@ -115,9 +115,9 @@ function airbossWashington:OnAfterLSOGrade(From, Event, To, playerData, myGrade)
             myGrade.grade = "(OK)<SH>"
             myGrade.points = myGrade.points + 1.00
             client_performing_sh:Set(0)
-            airbossWashington:SetTrapSheet(nil, "SH_AIRBOSS-trapsheet-" .. player_name)
+            trapsheet = "SH_AIRBOSS-trapsheet-" .. player_name
         else
-            airbossWashington:SetTrapSheet(nil, "AIRBOSS-trapsheet-" .. player_name)
+            trapsheet = "AIRBOSS-trapsheet-" .. player_name
         end
 
     elseif string_grade == "--" and player_wire > 1 then
@@ -125,31 +125,31 @@ function airbossWashington:OnAfterLSOGrade(From, Event, To, playerData, myGrade)
             myGrade.grade = "--<SH>"
             myGrade.points = myGrade.points + 1.00
             client_performing_sh:Set(0)
-            airbossWashington:SetTrapSheet(nil, "SH_AIRBOSS-trapsheet-" .. player_name)
+            trapsheet = "SH_AIRBOSS-trapsheet-" .. player_name
         else
-            airbossWashington:SetTrapSheet(nil, "AIRBOSS-trapsheet-" .. player_name)
+            trapsheet = "AIRBOSS-trapsheet-" .. player_name
         end
 
     elseif string_grade == "-- (BOLTER)" then
-        airbossWashington:SetTrapSheet(nil, "Bolter_AIRBOSS-trapsheet-" .. player_name)
+        trapsheet = "Bolter_AIRBOSS-trapsheet-" .. player_name
     elseif string_grade == "WOFD" then
-        airbossWashington:SetTrapSheet(nil, "WOFD_AIRBOSS-trapsheet-" .. player_name)
+        trapsheet = "WOFD_AIRBOSS-trapsheet-" .. player_name
     elseif string_grade == "OWO" then
-        airbossWashington:SetTrapSheet(nil, "OWO_AIRBOSS-trapsheet-" .. player_name)
+        trapsheet = "OWO_AIRBOSS-trapsheet-" .. player_name
     elseif string_grade == "CUT" then
         if player_wire == 1 then
             myGrade.points = myGrade.points + 1.00
-            airbossWashington:SetTrapSheet(nil, "Cut_AIRBOSS-trapsheet-" .. player_name)
+            trapsheet = "Cut_AIRBOSS-trapsheet-" .. player_name
         else
-            airbossWashington:SetTrapSheet(nil, "Cut_AIRBOSS-trapsheet-" .. player_name)
+            trapsheet = "Cut_AIRBOSS-trapsheet-" .. player_name
         end
     end
-
     if player_case == 3 and player_detail == "    " then
-        airbossWashington:SetTrapSheet(nil, "NIGHT5_AIRBOSS-trapsheet-" .. player_name)
+        trapsheet = "NIGHT5_AIRBOSS-trapsheet-" .. player_name
         myGrade.grade = "_OK_"
         myGrade.points = 5.0
     end
+    airbossWashington:SetTrapSheet(nil, trapsheet)
 
     myGrade.messageType = 2
     myGrade.callsign = playerData.callsign
@@ -165,11 +165,11 @@ function airbossWashington:OnAfterLSOGrade(From, Event, To, playerData, myGrade)
     msg.eventName = "S_EVENT_AIRBOSS"
     msg.initiator = {}
     msg.initiator.name = playerData.name
-    msg.initiator.unit_type = playerData.unit.unit_type
     msg.place = {}
     msg.place.name = myGrade.carriername
     msg.time = timer.getAbsTime()
     msg.points = myGrade.points
+    msg.trapsheet = trapsheet
     dcsbot.sendBotTable(msg)
     timer.scheduleFunction(resetTrapSheetFileFormat, {}, timer.getTime() + 10)
 end

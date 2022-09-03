@@ -110,9 +110,12 @@ class GreenieBoardEventListener(EventListener):
         dirname = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'] + os.path.sep +
                                      config['Moose.AIRBOSS']['basedir'])
         carrier = data['place']['name'].split()[0]
-        name = re.sub(f"[{string.punctuation}]", "", player.name).strip()
-        filename = config['Moose.AIRBOSS']['trapsheets'].format(
-            carrier=carrier, name=name, unit_type=player.unit_type, number='*')
+        if 'trapsheet' not in data:
+            name = re.sub(f"[{string.punctuation}]", "", player.name).strip()
+            filename = config['Moose.AIRBOSS']['trapsheets'].format(
+                carrier=carrier, name=name, unit_type=player.unit_type, number='*')
+        else:
+            filename = data['trapsheet'] + "_{unit_type}*.csv".format(unit_type=player.unit_type)
         p = Path(dirname)
         try:
             return max(p.glob(filename), key=lambda x: p.stat().st_mtime).__str__()

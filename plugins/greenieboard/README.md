@@ -31,7 +31,8 @@ local airboss=AIRBOSS:New("CVN-73", "CVN-73")
 function airboss:OnAfterLSOGrade(from, event, to, playerData, myGrade)
     player_name = playerData.name:gsub('[%p]', '')
     [...] -- do some magic in here, like SH break, etc.
-    airbossWashington:SetTrapSheet(nil, "AIRBOSS-trapsheet-" .. player_name)
+    trapsheet = "AIRBOSS-trapsheet-" .. player_name
+    airbossWashington:SetTrapSheet(nil, trapsheet)
     [...]
     self:_SaveTrapSheet(playerData, myGrade)
 
@@ -43,6 +44,7 @@ function airboss:OnAfterLSOGrade(from, event, to, playerData, myGrade)
     msg.place = {}
     msg.place.name = myGrade.carriername
     msg.points = myGrade.points
+    msg.trapsheet = trapsheet
     msg.time = timer.getAbsTime()
     dcsbot.sendBotTable(msg)
 end 
