@@ -81,6 +81,9 @@ class GreenieBoardEventListener(EventListener):
         filename = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'] + os.path.sep +
                                       config['Moose.AIRBOSS']['basedir'] + os.path.sep +
                                       config['Moose.AIRBOSS']['grades'].format(carrier=data['place']['name']))
+        if not os.path.exists(filename):
+            self.log.error(f'GreenieBoard: LSO file ({filename}) not found!')
+            return None, None
         with open(filename, 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
@@ -113,7 +116,9 @@ class GreenieBoardEventListener(EventListener):
         p = Path(dirname)
         try:
             return max(p.glob(filename), key=lambda x: p.stat().st_mtime).__str__()
-        except:
+        except Exception as ex:
+            self.log.exception(ex)
+            self.log.error(f'GreenieBoard: No trapsheet with pattern ({filename}) could be found!')
             return None
 
     def _process_airboss_event(self, config: dict, server: Server, player: Player, data: dict) -> Tuple[Optional[str], Optional[str]]:
