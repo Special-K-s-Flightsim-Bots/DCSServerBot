@@ -21,7 +21,7 @@
       "Moose.AIRBOSS": {
         "basedir": "airboss",
         "grades": "AIRBOSS-{carrier}_LSOGrades.csv",
-        "trapsheets": "*AIRBOSS-trapsheet-{name}_{unit_type}*.csv"
+        "trapsheets": "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv"
       }
     }
   ]

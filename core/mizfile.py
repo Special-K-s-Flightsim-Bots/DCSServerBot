@@ -269,16 +269,75 @@ class MizFile:
         for i in range(0, len(self.mission)):
             if '["clouds"] = ' in self.mission[i]:
                 j = 2
+                old_elements = elements.copy()
                 while '}' not in self.mission[i + j]:
                     for e in elements:
                         if e in self.mission[i + j] and e in values:
                             self.mission[i + j] = re.sub(' = ([^,]*)', ' = {}'.format(self.unparse(values[e])),
                                                          self.mission[i + j])
                             j += 1
-                            elements.remove(e)
+                            old_elements.remove(e)
+                    elements = old_elements.copy()
                     j += 1
                 # check for remaining elements
-                for e in elements:
+                for e in old_elements:
+                    if e in values:
+                        self.mission.insert(i + j - 1, f'            ["{e}"] = {self.unparse(values[e])},\n')
+                break
+
+    @property
+    def enable_fog(self) -> bool:
+        exp = re.compile(self.re_exp['key_value'].format(key='enable_fog'))
+        for i in range(0, len(self.mission)):
+            match = exp.search(self.mission[i])
+            if match:
+                return self.parse(match.group('value'))
+
+    @enable_fog.setter
+    def enable_fog(self, value: bool) -> None:
+        exp = re.compile(self.re_exp['key_value'].format(key='enable_fog'))
+        for i in range(0, len(self.mission)):
+            match = exp.search(self.mission[i])
+            if match:
+                self.mission[i] = re.sub(' = ([^,]*)', ' = {}'.format(self.unparse(value)), self.mission[i])
+                break
+
+    @property
+    def fog(self) -> dict:
+        exp = re.compile(self.re_exp['genkey_value'])
+        fog = dict()
+        for i in range(0, len(self.mission)):
+            if '["fog"] =' in self.mission[i]:
+                j = 2
+                while '}' not in self.mission[i + j]:
+                    match = exp.search(self.mission[i + j])
+                    if match:
+                        fog[match.group('key')] = self.parse(match.group('value'))
+                        j += 1
+                    else:
+                        break
+                break
+        return fog
+
+    @fog.setter
+    def fog(self, values: dict):
+        elements = list(values.keys())
+        self.enable_fog = True
+        for i in range(0, len(self.mission)):
+            if '["fog"] = ' in self.mission[i]:
+                j = 2
+                old_elements = elements.copy()
+                while '}' not in self.mission[i + j]:
+                    for e in elements:
+                        if e in self.mission[i + j] and e in values:
+                            self.mission[i + j] = re.sub(' = ([^,]*)', ' = {}'.format(self.unparse(values[e])),
+                                                         self.mission[i + j])
+                            j += 1
+                            old_elements.remove(e)
+                    elements = old_elements.copy()
+                    j += 1
+                # check for remaining elements
+                for e in old_elements:
                     if e in values:
                         self.mission.insert(i + j - 1, f'            ["{e}"] = {self.unparse(values[e])},\n')
                 break

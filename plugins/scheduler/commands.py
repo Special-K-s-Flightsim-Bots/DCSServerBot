@@ -292,6 +292,8 @@ class Scheduler(Plugin):
                 miz.dust_density = int(value['dust_density'])
             if 'qnh' in value:
                 miz.qnh = int(value['qnh'])
+            if 'fog' in value:
+                miz.fog = value['fog']
         miz.save()
 
     async def restart_mission(self, server: Server, config: dict):
