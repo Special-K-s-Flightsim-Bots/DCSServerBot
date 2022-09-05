@@ -183,14 +183,14 @@ If your directory is named DCS instead (stable version), just add these fields t
 ### DCS/Hook Configuration
 The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by the bot.
 
-### Sanitization
-DCSServerBot sanitizes your MissionScripting environment. That means, it changes entries in {DCS_INSTALLATION}\Scripts\MissionScripting.lua.
-If you use any other method of sanitization, DCSServerBot checks, if additional sanitizations are needed and conducts them.
+### Desanitization
+DCSServerBot desanitizes your MissionScripting environment. That means, it changes entries in {DCS_INSTALLATION}\Scripts\MissionScripting.lua.
+If you use any other method of desanitization, DCSServerBot checks, if additional desanitizations are needed and conducts them.
 **To be able to do so, you must change the permissions on the DCS-installation directory. Give the User group write permissions for instance.**
 Your MissionScripting.lua will look like this afterwards:
 ```lua
 do
-	sanitizeModule('os')
+	--sanitizeModule('os')
 	--sanitizeModule('io')
 	--sanitizeModule('lfs')
 	--_G['require'] = nil
