@@ -50,7 +50,7 @@ class Main:
             exit(-1)
         self.db_version = None
         self.pool = self.init_db()
-        utils.dcs.sanitize(self)
+        utils.dcs.desanitize(self)
         self.install_hooks()
         self.bot: DCSServerBot = self.init_bot()
         self.add_commands()

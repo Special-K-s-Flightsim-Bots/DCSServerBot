@@ -82,7 +82,7 @@ async def getLatestVersion(branch: str) -> Optional[str]:
     return None
 
 
-def sanitize(self) -> None:
+def desanitize(self) -> None:
     # Sanitizing MissionScripting.lua
     filename = os.path.expandvars(config['DCS']['DCS_INSTALLATION']) + r'\Scripts\MissionScripting.lua'
     backup = filename.replace('.lua', '.bak')
@@ -97,20 +97,18 @@ def sanitize(self) -> None:
         output = []
         dirty = False
         for line in orig:
-            if ("sanitizeModule('io')" in line or "sanitizeModule('lfs')" in line) and not line.lstrip().startswith(
-                    '--'):
+            if line.lstrip().startswith('--'):
+                output.append(line)
+                continue
+            if "sanitizeModule('os')" in line or "sanitizeModule('io')" in line or "sanitizeModule('lfs')" in line:
                 line = line.replace('sanitizeModule', '--sanitizeModule')
                 dirty = True
-            # old sanitization (pre 2.7.9)
-            elif 'require = nil' in line and not line.lstrip().startswith('--'):
-                line = line.replace('require', '--require')
-            # new sanitization (2.7.9 and above)
-            elif ("_G['require'] = nil" in line or "_G['package'] = nil" in line) and not line.lstrip().startswith('--'):
+            elif "_G['require'] = nil" in line or "_G['package'] = nil" in line:
                 line = line.replace('_G', '--_G')
                 dirty = True
             output.append(line)
         if dirty:
-            self.log.info('- Sanitizing MissionScripting')
+            self.log.info('- Desanitizing MissionScripting')
             # backup original file
             shutil.copyfile(filename, backup)
             with open(filename, 'w') as outfile:
