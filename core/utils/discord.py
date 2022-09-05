@@ -253,9 +253,9 @@ def embed_to_text(embed: discord.Embed) -> str:
         return line.splitlines()
 
     message = []
-    if len(embed.title):
+    if embed.title:
         message.append(embed.title.upper())
-    if len(embed.description):
+    if embed.description:
         message.append(embed.description)
     message.append('')
     row = len(message)
@@ -301,15 +301,15 @@ def embed_to_text(embed: discord.Embed) -> str:
 
 def embed_to_simpletext(embed: discord.Embed) -> str:
     message = ''
-    if len(embed.title):
+    if embed.title:
         message += embed.title.upper() + '\n' + '=' * len(embed.title) + '\n'
-    if len(embed.description):
+    if embed.description:
         message += embed.description + '\n'
     message += '\n'
     for field in embed.fields:
         name = field.name if field.name != '_ _' else ''
         value = field.value if field.value != '_ _' else ''
-        if len(name) and len(value):
+        if name and value:
             if field.inline:
                 message += name + ': ' + ' | '.join(value.splitlines()) + '\n'
             else:
@@ -320,7 +320,7 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
             message += name + value + '\n'
         if not field.inline:
             message += '\n'
-    if len(embed.footer.text):
+    if embed.footer and embed.footer.text:
         message += '\n' + embed.footer.text
     return message
 
