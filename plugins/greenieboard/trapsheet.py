@@ -216,8 +216,8 @@ def plot_trapsheet(axs: list[Axes], ts: dict[str, ndarray], pinfo: dict[str, str
         if xmax > 1.2:
             xmax = 1.2
 
-        ax.plot([0, xmax], [8.8, 8.8], linewidth=1.2, alpha=0.8, linestyle='--')  # g-
-        ax.plot([0, xmax], [7.4, 7.4], linewidth=1.2, alpha=0.8, linestyle='--')  # g-
+        ax.plot([0, xmax], [8.8, 8.8], linewidth=1.2, alpha=0.8, linestyle='--')
+        ax.plot([0, xmax], [7.4, 7.4], linewidth=1.2, alpha=0.8, linestyle='--')
 
     elif hawk_aoa in ps:  # 6.75 onspeed min, 7.00 onspeed, 7.25 onspeed max
         if maxvalue < 8.5 and minvalue > 6:
@@ -238,8 +238,8 @@ def plot_trapsheet(axs: list[Axes], ts: dict[str, ndarray], pinfo: dict[str, str
         xmax = max(0.8, xmax)
         xmax = min(1.2, xmax)
 
-        ax.plot([0, xmax], [7.25, 7.25], 'g-', linewidth=1.2, alpha=0.8, linestyle='--')  # g-
-        ax.plot([0, xmax], [6.75, 6.75], 'g-', linewidth=1.2, alpha=0.8, linestyle='--')  # g-
+        ax.plot([0, xmax], [7.25, 7.25], linewidth=1.2, alpha=0.8, linestyle='--')
+        ax.plot([0, xmax], [6.75, 6.75], linewidth=1.2, alpha=0.8, linestyle='--')
 
     elif tomcatA_aoa in ps:
         if maxvalue < 12.0 and minvalue > 8.0:
@@ -257,8 +257,8 @@ def plot_trapsheet(axs: list[Axes], ts: dict[str, ndarray], pinfo: dict[str, str
         xmax = lm[1]
         xmax = max(0.7, xmax)
         xmax = min(1.2, xmax)
-        ax.plot([0, xmax], [10.818, 10.818], 'g-', linewidth=1.2, alpha=0.8, linestyle='--')
-        ax.plot([0, xmax], [9.9, 9.9], 'g-', linewidth=1.2, alpha=0.8, linestyle='--')  # g-
+        ax.plot([0, xmax], [10.818, 10.818], linewidth=1.2, alpha=0.8, linestyle='--')
+        ax.plot([0, xmax], [9.9, 9.9], linewidth=1.2, alpha=0.8, linestyle='--')
 
     elif tomcatB_aoa in ps:
 
@@ -279,8 +279,8 @@ def plot_trapsheet(axs: list[Axes], ts: dict[str, ndarray], pinfo: dict[str, str
         xmax = max(0.7, xmax)
         xmax = min(1.2, xmax)
 
-        ax.plot([0, xmax], [10.818, 10.818], 'g-', linewidth=1.2, alpha=0.8, linestyle='--')
-        ax.plot([0, xmax], [9.9, 9.9], 'g-', linewidth=1.2, alpha=0.8, linestyle='--')  # g-
+        ax.plot([0, xmax], [10.818, 10.818], linewidth=1.2, alpha=0.8, linestyle='--')
+        ax.plot([0, xmax], [9.9, 9.9], linewidth=1.2, alpha=0.8, linestyle='--')
 
     elif harrier_aoa in ps:
         if maxvalue < 13 and minvalue > 9:
@@ -307,8 +307,8 @@ def plot_trapsheet(axs: list[Axes], ts: dict[str, ndarray], pinfo: dict[str, str
         xmax = max(0.7, xmax)
         xmax = min(1.2, xmax)
 
-        ax.plot([0, xmax], [12.0, 12.0], 'g-', linewidth=1.2, alpha=0.8, linestyle='--')  # g-
-        ax.plot([0, xmax], [10.0, 10.0], 'g-', linewidth=1.2, alpha=0.8, linestyle='--')  # g-
+        ax.plot([0, xmax], [12.0, 12.0], linewidth=1.2, alpha=0.8, linestyle='--')
+        ax.plot([0, xmax], [10.0, 10.0], linewidth=1.2, alpha=0.8, linestyle='--')
 
     elif skyhawk_aoa in ps:
         if maxvalue < 10.75 and minvalue > 6.75:
@@ -328,8 +328,8 @@ def plot_trapsheet(axs: list[Axes], ts: dict[str, ndarray], pinfo: dict[str, str
         xmax = max(0.7, xmax)
         xmax = min(1.2, xmax)
 
-        ax.plot([0, xmax], [9.0, 9.0], 'g-', linewidth=1.2, alpha=0.8, linestyle='--')  # g-
-        ax.plot([0, xmax], [8.5, 8.5], 'g-', linewidth=1.2, alpha=0.8, linestyle='--')  # g-
+        ax.plot([0, xmax], [9.0, 9.0], linewidth=1.2, alpha=0.8, linestyle='--')
+        ax.plot([0, xmax], [8.5, 8.5], linewidth=1.2, alpha=0.8, linestyle='--')
 
     ax.plot(xy[0][:-num_aoa], ts['AoA'][:-num_aoa], 'g-', linewidth=8, alpha=0.1)
     ax.plot(xy[0][:-num_aoa], ts['AoA'][:-num_aoa], 'g-', linewidth=5, alpha=0.1)
