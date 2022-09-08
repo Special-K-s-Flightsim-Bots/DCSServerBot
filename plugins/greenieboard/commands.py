@@ -49,9 +49,9 @@ class GreenieBoard(Plugin):
                     cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC LIMIT 1',
                                    (member.id, ))
                     ucid = cursor.fetchone()['ucid']
-                cursor.execute("SELECT p.name, g.grade, g.unit_type, g.comment, g.place, g.time, g.points, g.trapsheet "
-                               "FROM greenieboard g, players p WHERE p.ucid = %s AND g.player_ucid = p.ucid "
-                               "ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
+                cursor.execute("SELECT p.name, g.grade, g.unit_type, g.comment, g.place, g.wire, g.time, g.points, "
+                               "g.trapsheet FROM greenieboard g, players p WHERE p.ucid = %s AND g.player_ucid = "
+                               "p.ucid ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
                 if cursor.rowcount == 0:
                     await ctx.send('No carrier landings recorded for this user.',
                                    delete_after=timeout if timeout > 0 else None)
@@ -105,7 +105,8 @@ class GreenieBoard(Plugin):
                                     value=landings)
                     footer = ''
                     for grade, text in const.GRADES.items():
-                        footer += const.DAY_EMOJIS[grade] + ' ' + text + '\n'
+                        if grade not in ['WOP', 'OWO', 'TWO', 'WOFD']:
+                            footer += const.DAY_EMOJIS[grade] + ' ' + text + '\n'
                     footer += '\nLandings are added at the front, meaning 1 is your latest landing.\nNight landings ' \
                               'shown by round markers.'
                     if max_time:

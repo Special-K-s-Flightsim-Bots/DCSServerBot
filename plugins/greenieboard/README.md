@@ -44,8 +44,11 @@ function airboss:OnAfterLSOGrade(from, event, to, playerData, myGrade)
     msg.place = {}
     msg.place.name = myGrade.carriername
     msg.points = myGrade.points
+    msg.grade = myGrade.grade
+    msg.details = myGrade.details
+    msg.wire = playerData.wire
     msg.trapsheet = trapsheet
-    msg.time = timer.getAbsTime()
+    msg.time = timer.getTime()
     dcsbot.sendBotTable(msg)
 end 
 ```
