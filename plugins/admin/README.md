@@ -18,9 +18,7 @@ This plugin supports administrative commands that are needed to operate a DCS se
 | .ban      | @member/ucid [reason] | all           | DCS Admin | Bans a specific player either by their Discord ID or UCID.                                                               |
 | .unban    | @member/ucid          | all           | DCS Admin | Unbans a specific player either by their Discord ID or UCID.                                                             |
 | .bans     |                       | all           | DCS Admin | Lists the current active bans.                                                                                           |
-| .dcslog   |                       | admin-channel | DCS Admin | Send the current dcs.log as a DM (zipped, if > 8 MB).                                                                    |
-| .botlog   |                       | all           | DCS Admin | Send the current dcsserverbot.log as a DM (zipped, if > 8 MB).                                                           |
-| .download |                       | admin-channel | DCS Admin | Download a bot config file or a mission into a DM.                                                                       |
+| .download |                       | admin-channel | DCS Admin | Download a dcs.log, dcsserverbot.log, bot config file or a mission into a DM.                                            |
 | .shell    |                       | admin-channel | Admin     | Runs a shell command on a specific node.                                                                                 |
 
 In addition, you can upload embeds to discord channels, just by using json files like this:
