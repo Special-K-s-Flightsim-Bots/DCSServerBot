@@ -271,6 +271,10 @@ class Mission(Plugin):
             missions = original.copy()
             # remove the active mission as we can't delete it
             missions.pop(data['listStartIndex'] - 1)
+            if not missions:
+                await ctx.send("You can't delete the (only) running mission.")
+                return
+
             mission = await utils.selection(ctx, placeholder="Select the mission to delete",
                                             options=[SelectOption(label=x[(x.rfind('\\') + 1):-4], value=x) for x in missions])
             if not mission:
