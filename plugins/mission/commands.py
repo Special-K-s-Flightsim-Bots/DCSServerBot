@@ -7,6 +7,7 @@ import psycopg2
 import re
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel
+from discord import SelectOption
 from discord.ext import commands, tasks
 from os import path
 from typing import Optional
@@ -163,14 +164,13 @@ class Mission(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if server.restart_pending and not await utils.yn_question(self, ctx, 'A restart is currently pending.\nWould '
-                                                                             'you still like to restart the mission?'):
+        if server.restart_pending and not await utils.yn_question(ctx, 'A restart is currently pending.\n'
+                                                                       'Would you still like to restart the mission?'):
             return
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
             server.restart_pending = True
             if server.status == Status.RUNNING:
-                if server.is_populated() and not await utils.yn_question(self, ctx,
-                                                                         'People are flying on the server atm.\n'
+                if server.is_populated() and not await utils.yn_question(ctx, 'People are flying on the server atm.\n'
                                                                          'Do you really want to restart the mission?'):
                     await ctx.send('Aborted.')
                     return
@@ -198,32 +198,10 @@ class Mission(Plugin):
             await asyncio.sleep(5)
             await msg.delete()
 
-    @staticmethod
-    def format_mission_list(data, marker, marker_emoji):
-        embed = discord.Embed(title='Mission List', color=discord.Color.blue())
-        ids = missions = ''
-        for i in range(0, len(data)):
-            mission = data[i]
-            mission = mission[(mission.rfind('\\') + 1):-4]
-            if marker == (i + 1):
-                ids += marker_emoji + '\n'
-                missions += f'**{mission}**\n'
-            else:
-                ids += (chr(0x31 + i) + '\u20E3' + '\n')
-                missions += f'{mission}\n'
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Mission', value=missions)
-        embed.add_field(name='_ _', value='_ _')
-        if marker > -1:
-            embed.set_footer(text='Press a number to load a new mission or 🔄 to reload the current one.')
-        else:
-            embed.set_footer(text='Press a number to delete this mission.')
-        return embed
-
-    @commands.command(description='Lists the current configured missions', aliases=['load'])
+    @commands.command(description='(Re-)Loads a mission', aliases=['list'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def list(self, ctx, num: Optional[int] = None):
+    async def load(self, ctx):
         server: Server = await self.bot.get_server(ctx)
         if not server:
             return
@@ -231,65 +209,47 @@ class Mission(Plugin):
             data = await server.sendtoDCSSync({"command": "listMissions"})
             missions = data['missionList']
             if len(missions) == 0:
-                await ctx.send('No missions registered with this server, please add one.')
-            if not num:
-                num = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '🔄')
-            else:
-                num -= 1
-            if num >= 0:
-                if server.is_populated() and not await utils.yn_question(self, ctx,
-                                                                         'People are flying on the server atm.\nDo you '
-                                                                         'really want to restart/change the mission?'):
-                    await ctx.send('Aborted.')
-                    return
-                mission = missions[num]
-                mission = mission[(mission.rfind('\\') + 1):-4]
-                # make sure that the Scheduler doesn't interfere
-                server.restart_pending = True
-                msg = await ctx.send(f'Loading mission "{mission}" ...')
-                await server.loadMission(num + 1)
-                await msg.delete()
-                await ctx.send(f'Mission {mission} loaded.')
+                await ctx.send(f'No missions registered with this server, please "{ctx.prefix}add" one.')
+                return
+
+            current = missions[data['listStartIndex'] - 1]
+            current = current[(current.rfind('\\') + 1):-4]
+            mission = await utils.selection(ctx, title=f"Mission {current} is running.",
+                                            placeholder="Select a mission to load",
+                                            options=[SelectOption(label=x[(x.rfind('\\') + 1):-4], value=x) for x in missions])
+            if not mission:
+                return
+            name = mission[(mission.rfind('\\') + 1):-4]
+            msg = await ctx.send(f'Loading mission {name} ...')
+            await server.loadMission(missions.index(mission) + 1)
+            await msg.delete()
+            await ctx.send(f'Mission {name} loaded.')
         else:
             return await ctx.send(f"Server {server.name} is {server.status.name}.")
-
-    @staticmethod
-    def format_file_list(data, marker, marker_emoji):
-        embed = discord.Embed(title='Available Missions', color=discord.Color.blue())
-        ids = missions = ''
-        for i in range(0, len(data)):
-            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            missions += data[i][:-4] + '\n'
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Mission', value=missions)
-        embed.add_field(name='_ _', value='_ _')
-        embed.set_footer(text='Press a number to add the selected mission to the list.')
-        return embed
 
     @commands.command(description='Adds a mission to the list', usage='[path]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def add(self, ctx, *path):
+    async def add(self, ctx, *filename):
         server: Server = await self.bot.get_server(ctx)
         if not server:
             return
         if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            if len(path) == 0:
+            if len(filename) == 0:
                 data = await server.sendtoDCSSync({"command": "listMissions"})
                 installed = [mission[(mission.rfind('\\') + 1):] for mission in data['missionList']]
                 data = await server.sendtoDCSSync({"command": "listMizFiles"})
                 available = data['missions']
-                files = list(set(available) - set(installed))
+                files: list = list(set(available) - set(installed))
                 if len(files) == 0:
                     await ctx.send('No (new) mission found to add.')
                     return
-                n = await utils.selection_list(self, ctx, files, self.format_file_list)
-                if n >= 0:
-                    file = files[n]
-                else:
+                file = await utils.selection(ctx, placeholder="Select a file to be added to the mission list.",
+                                             options=[SelectOption(label=x[:-4], value=x) for x in files])
+                if not file:
                     return
             else:
-                file = ' '.join(path)
+                file = ' '.join(filename)
             if file is not None:
                 server.sendtoDCS({"command": "addMission", "path": file})
                 await ctx.send(f'Mission "{file[:-4]}" added.')
@@ -307,19 +267,22 @@ class Mission(Plugin):
             return
         if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             data = await server.sendtoDCSSync({"command": "listMissions"})
-            missions = data['missionList']
-            n = await utils.selection_list(self, ctx, missions, self.format_mission_list, 5, data['listStartIndex'], '❌')
-            if n == (data['listStartIndex'] - 1):
-                await ctx.send('The running mission can\'t be deleted.')
-            elif n >= 0:
-                mission = missions[n]
-                mission = mission[(mission.rfind('\\') + 1):-4]
-                server.sendtoDCS({"command": "deleteMission", "id": n + 1})
-                if await utils.yn_question(self, ctx, f"Do you want to delete {missions[n]} from disk?"):
-                    os.remove(missions[n])
-                    await ctx.send(f'Mission "{mission}" deleted.')
-                else:
-                    await ctx.send(f'Mission "{mission}" removed from list.')
+            original: list[str] = data['missionList']
+            missions = original.copy()
+            # remove the active mission as we can't delete it
+            missions.pop(data['listStartIndex'] - 1)
+            mission = await utils.selection(ctx, placeholder="Select the mission to delete",
+                                            options=[SelectOption(label=x[(x.rfind('\\') + 1):-4], value=x) for x in missions])
+            if not mission:
+                return
+
+            name = mission[(mission.rfind('\\') + 1):-4]
+            server.sendtoDCS({"command": "deleteMission", "id": original.index(mission) + 1})
+            if await utils.yn_question(ctx, f'Delete mission "{name}" from disk?'):
+                os.remove(mission)
+                await ctx.send(f'Mission "{name}" deleted.')
+            else:
+                await ctx.send(f'Mission "{name}" removed from list.')
         else:
             return await ctx.send('Server ' + server.name + ' is not running.')
 
@@ -455,13 +418,13 @@ class Mission(Plugin):
             if path.exists(filename):
                 exists = True
                 ctx = utils.ContextWrapper(message)
-                if await utils.yn_question(self, ctx, 'File exists. Do you want to overwrite it?') is False:
+                if await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?') is False:
                     await message.channel.send('Upload aborted.')
                     return
                 if server.status in [Status.RUNNING, Status.PAUSED] and \
                         path.normpath(server.current_mission.filename) == path.normpath(filename):
-                    if await utils.yn_question(self, ctx, 'Mission is currently active.\nDo you want me to stop the '
-                                                          'DCS Server to replace it?') is True:
+                    if await utils.yn_question(ctx, 'Mission is currently active.\nDo you want me to stop the DCS '
+                                                    'Server to replace it?') is True:
                         await server.stop()
                         stopped = True
                     else:

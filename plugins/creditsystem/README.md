@@ -22,6 +22,17 @@ The Creditsystem is configured with a file named config\creditsystem.json. You'l
         { "category": "Planes", "type": "Player", "points": 4 },
         { "category": "Helicopters", "points": 3 }
       ]
+    },{
+      "installation": "instance2",
+      "initial_points": [
+        {
+          "discord": "Donator",
+          "points": 10
+        },
+        {
+          "default": 1
+        }
+      ]
     }
   ]
 }

@@ -266,7 +266,7 @@ class OvGME(Plugin):
                 return
             latest = self.get_latest_version(packages[n][0], packages[n][1])
             if latest != packages[n][2] and \
-                    await utils.yn_question(self, ctx, f"Would you like to update package {packages[n][1]}?"):
+                    await utils.yn_question(ctx, f"Would you like to update package {packages[n][1]}?"):
                 msg = await ctx.send('Updating ...')
                 try:
                     if not self.uninstall_package(server, packages[n][0], packages[n][1], packages[n][2]):
@@ -279,7 +279,7 @@ class OvGME(Plugin):
                     return
                 finally:
                     await msg.delete()
-            elif await utils.yn_question(self, ctx, f"Would you like to uninstall package {packages[n][1]}?"):
+            elif await utils.yn_question(ctx, f"Would you like to uninstall package {packages[n][1]}?"):
                 msg = await ctx.send('Uninstalling ...')
                 try:
                     if self.uninstall_package(server, packages[n][0], packages[n][1], packages[n][2]):
