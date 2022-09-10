@@ -258,8 +258,8 @@ class Main:
                     await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}rename <new server name>")
                     return
                 if server.status in [Status.STOPPED, Status.SHUTDOWN]:
-                    if await utils.yn_question(self, ctx, 'Are you sure to rename server "{}" '
-                                                          'to "{}"?'.format(old_name, new_name)) is True:
+                    if await utils.yn_question(ctx, 'Are you sure to rename server '
+                                                    '"{}" to "{}"?'.format(old_name, new_name)) is True:
                         server.rename(old_name, new_name, True)
                         self.bot.servers[new_name] = server
                         del self.bot.servers[old_name]
@@ -277,8 +277,8 @@ class Main:
             server: Server = await self.bot.get_server(ctx)
             if server:
                 if server.status == Status.SHUTDOWN:
-                    if await utils.yn_question(self, ctx, 'Are you sure to unregister server "{}" from '
-                                                          'node "{}"?'.format(server.name, platform.node())) is True:
+                    if await utils.yn_question(ctx, 'Are you sure to unregister server "{}" from '
+                                                    'node "{}"?'.format(server.name, platform.node())) is True:
                         del self.bot.servers[server.name]
                         await ctx.send('Server {} unregistered.'.format(server.name))
                         await self.bot.audit(f"User {ctx.message.author.display_name} unregistered DCS server "
@@ -293,8 +293,8 @@ class Main:
         @utils.has_role('Admin')
         @commands.guild_only()
         async def upgrade(ctx):
-            if await utils.yn_question(self, ctx, 'The bot will check and upgrade to the latest version, '
-                                                  'if available.\nAre you sure?'):
+            if await utils.yn_question(ctx, 'The bot will check and upgrade to the latest version, if available.\n'
+                                            'Are you sure?'):
                 await ctx.send('Checking for a bot upgrade ...')
                 if self.upgrade():
                     await ctx.send('The bot has upgraded itself.')
@@ -302,8 +302,8 @@ class Main:
                     for server_name, server in self.bot.servers.items():
                         if server.status != Status.SHUTDOWN:
                             running = True
-                    if running and await utils.yn_question(self, ctx, 'It is recommended to shut down all running '
-                                                                      'servers.\nWould you like to shut them down now?'):
+                    if running and await utils.yn_question(ctx, 'It is recommended to shut down all running servers.\n'
+                                                                'Would you like to shut them down now?'):
                         for server_name, server in self.bot.servers.items():
                             await server.shutdown()
                     await ctx.send('The bot is now restarting itself.\nAll servers will be launched according to their '
@@ -316,7 +316,7 @@ class Main:
         @utils.has_role('Admin')
         @commands.guild_only()
         async def terminate(ctx):
-            if await utils.yn_question(self, ctx, 'Do you really want to terminate the bot?'):
+            if await utils.yn_question(ctx, 'Do you really want to terminate the bot?'):
                 await ctx.send('Bot will terminate now (and restart automatically, if started by run.cmd).')
                 exit(-1)
 

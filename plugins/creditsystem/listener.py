@@ -15,9 +15,9 @@ class CreditSystemListener(EventListener):
                 'params': config
             })
 
-    def _get_points_per_kill(self, server: Server, data: dict) -> int:
+    @staticmethod
+    def _get_points_per_kill(config: dict, data: dict) -> int:
         default = 1
-        config = self.plugin.get_config(server)
         if 'points_per_kill' in config:
             for unit in config['points_per_kill']:
                 if 'category' in unit and data['victimCategory'] != unit['category']:
@@ -33,6 +33,21 @@ class CreditSystemListener(EventListener):
                     default = unit['default']
         return default
 
+    @staticmethod
+    def _get_initial_points(player: CreditPlayer, config: dict) -> int:
+        if 'initial_points' not in config:
+            return 0
+        if isinstance(config['initial_points'], int):
+            return config['initial_points']
+        elif isinstance(config['initial_points'], list):
+            roles = [x.name for x in player.member.roles] if player.member else []
+            for element in config['initial_points']:
+                if 'discord' in element and element['discord'] in roles:
+                    return element['points']
+                elif 'default' in element:
+                    return element['default']
+        return 0
+
     async def onPlayerStart(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
@@ -40,8 +55,8 @@ class CreditSystemListener(EventListener):
             return
         player = cast(CreditPlayer, server.get_player(id=data['id']))
         if player.points == -1:
-            player.points = config['initial_points'] if 'initial_points' in config else 0
-            player.audit('init', 0, 'Initial points received')
+            player.points = self._get_initial_points(player, config)
+            player.audit('init', player.points, 'Initial points received')
         server.sendtoDCS({
             'command': 'updateUserPoints',
             'ucid': player.ucid,
@@ -67,7 +82,7 @@ class CreditSystemListener(EventListener):
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
-                    ppk = self._get_points_per_kill(server, data)
+                    ppk = self._get_points_per_kill(config, data)
                     if ppk:
                         old_points = player.points
                         player.points += ppk

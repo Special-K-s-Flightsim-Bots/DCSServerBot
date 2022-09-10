@@ -2,8 +2,11 @@ import asyncio
 import discord
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import Optional, cast
+from discord import Interaction, app_commands, SelectOption
 from discord.ext import commands
+from discord.ui import Modal, Button, View, Select
+
 from . import config
 
 
@@ -117,6 +120,42 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, mar
         return -1
 
 
+class SelectView(View):
+    def __init__(self, ctx: commands.Context, *, placeholder: str, options: list[SelectOption]):
+        super().__init__()
+        self.ctx = ctx
+        self.result = None
+        select: Select = cast(Select, self.children[0])
+        select.placeholder = placeholder
+        select.options = options
+
+    @discord.ui.select()
+    async def callback(self, interaction: Interaction, select: Select):
+        self.result = select.values[0]
+        self.stop()
+
+    async def interaction_check(self, interaction: Interaction, /) -> bool:
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
+            return False
+        else:
+            return True
+
+
+async def selection(ctx, *, title: Optional[str] = None, placeholder: Optional[str] = None,
+                    options: list[SelectOption]) -> Optional[str]:
+    embed = discord.Embed(description=title, color=discord.Color.blue()) if title else None
+    view = SelectView(ctx, placeholder=placeholder, options=options)
+    msg = None
+    try:
+        msg = await ctx.send(embed=embed, view=view)
+        if await view.wait():
+            return None
+        return view.result
+    finally:
+        await msg.delete()
+
+
 async def multi_selection_list(self, ctx, data, embed_formatter) -> list[int]:
     def check_ok(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.emoji == '🆗')
@@ -141,20 +180,45 @@ async def multi_selection_list(self, ctx, data, embed_formatter) -> list[int]:
     return retval
 
 
-async def yn_question(self, ctx, question: str, msg: Optional[str] = None) -> bool:
-    yn_embed = discord.Embed(title=question, color=discord.Color.red())
-    if msg is not None:
-        yn_embed.add_field(name=msg, value='_ _')
-    yn_msg = await ctx.send(embed=yn_embed)
-    await yn_msg.add_reaction('🇾')
-    await yn_msg.add_reaction('🇳')
+class YNQuestionView(View):
+    def __init__(self, ctx: commands.Context):
+        super().__init__(timeout=120)
+        self.ctx = ctx
+        self.result = False
+
+    @discord.ui.button(label='Yes', style=discord.ButtonStyle.primary, custom_id='yn_yes')
+    async def on_yes(self, interaction: Interaction, button: Button):
+        self.result = True
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label='No', style=discord.ButtonStyle.secondary, custom_id='yn_no')
+    async def on_no(self, interaction: Interaction, button: Button):
+        self.result = False
+        await interaction.response.defer()
+        self.stop()
+
+    async def interaction_check(self, interaction: Interaction, /) -> bool:
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
+            return False
+        else:
+            return True
+
+
+async def yn_question(ctx: commands.Context, question: str, message: Optional[str] = None) -> bool:
+    embed = discord.Embed(title=question, color=discord.Color.red())
+    if message is not None:
+        embed.add_field(name=message, value='_ _')
+    view = YNQuestionView(ctx)
+    msg = None
     try:
-        react = await wait_for_single_reaction(self, ctx, yn_msg)
-    except asyncio.TimeoutError:
-        return False
+        msg = await ctx.send(embed=embed, view=view)
+        if await view.wait():
+            return False
+        return view.result
     finally:
-        await yn_msg.delete()
-    return react.emoji == '🇾'
+        await msg.delete()
 
 
 def check_roles(roles: list[str], member: discord.Member) -> bool:
@@ -171,10 +235,17 @@ def check_roles(roles: list[str], member: discord.Member) -> bool:
 
 
 def has_role(role: str):
-    def predicate(ctx):
+    def predicate(ctx: commands.Context) -> bool:
         return check_roles([role], ctx.author)
 
     return commands.check(predicate)
+
+
+def app_has_role(role: str):
+    def predicate(interaction: Interaction) -> bool:
+        return check_roles([role], interaction.user)
+
+    return app_commands.check(predicate)
 
 
 def has_roles(roles: list[str]):
@@ -184,6 +255,13 @@ def has_roles(roles: list[str]):
     return commands.check(predicate)
 
 
+def app_has_roles(roles: list[str]):
+    def predicate(interaction: Interaction) -> bool:
+        return check_roles(roles, interaction.user)
+
+    return app_commands.check(predicate)
+
+
 def has_not_role(role: str):
     def predicate(ctx):
         return not check_roles([role], ctx.author)
@@ -191,11 +269,25 @@ def has_not_role(role: str):
     return commands.check(predicate)
 
 
+def app_has_not_role(role: str):
+    def predicate(interaction: Interaction) -> bool:
+        return not check_roles([role], interaction.user)
+
+    return app_commands.check(predicate)
+
+
 def has_not_roles(roles: list[str]):
     def predicate(ctx):
         return not check_roles(roles, ctx.author)
 
     return commands.check(predicate)
+
+
+def app_has_not_roles(roles: list[str]):
+    def predicate(interaction: Interaction) -> bool:
+        return not check_roles(roles, interaction.user)
+
+    return app_commands.check(predicate)
 
 
 def coalition_only():
@@ -207,6 +299,17 @@ def coalition_only():
         return False
 
     return commands.check(predicate)
+
+
+def app_coalition_only():
+    def predicate(interaction: Interaction) -> bool:
+        for role in interaction.user.roles:
+            if role.name in [config['ROLES']['Coalition Blue'], config['ROLES']['Coalition Red']]:
+                if interaction.channel.overwrites_for(role).send_messages:
+                    return True
+        return False
+
+    return app_commands.check(predicate)
 
 
 def format_embed(data: dict) -> discord.Embed:
@@ -323,6 +426,13 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
     if embed.footer and embed.footer.text:
         message += '\n' + embed.footer.text
     return message
+
+
+async def servers_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    choices: list[app_commands.Choice[str]] = [
+        app_commands.Choice(name=x, value=x) for x in interaction.client.servers.keys() if current.casefold() in x.casefold()
+    ]
+    return choices[:25]
 
 
 @dataclass

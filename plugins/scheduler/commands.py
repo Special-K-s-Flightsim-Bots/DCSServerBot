@@ -7,6 +7,7 @@ import random
 import string
 from copy import deepcopy
 from core import Plugin, PluginRequiredError, utils, Status, MizFile, Autoexec, Extension, Server, Coalition, Channel
+from discord.ui import Select, View
 from datetime import datetime, timedelta
 from discord.ext import tasks, commands
 from typing import Type, Optional, List, TYPE_CHECKING
@@ -437,7 +438,7 @@ class Scheduler(Plugin):
                 question = f"Do you want to shut down the DCS server \"{server.name}\"?"
                 if server.is_populated():
                     question += '\nPeople are flying on this server atm!'
-                if not await utils.yn_question(self, ctx, question):
+                if not await utils.yn_question(ctx, question):
                     return
                 msg = await ctx.send(f"Shutting down DCS server \"{server.name}\", please wait ...")
                 # set maintenance flag to prevent auto-starts of this server
@@ -482,25 +483,35 @@ class Scheduler(Plugin):
     @commands.guild_only()
     async def preset(self, ctx):
         server: Server = await self.bot.get_server(ctx)
-        if server:
-            stopped = False
-            if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                if not await utils.yn_question(self, ctx,
-                                               'Do you want me to stop the server to change the mission preset?'):
-                    return
-                stopped = True
-                await server.stop()
-            config = self.get_config(server)
-            presets = list(config['presets'].keys())
-            n = await utils.selection_list(self, ctx, presets, self.format_presets)
-            if n < 0:
+        if not server:
+            return
+
+        stopped = False
+        if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+            if not await utils.yn_question(ctx, 'Do you want me to stop the server to change the mission preset?'):
+                await ctx.send('Aborted.')
                 return
-            self.change_mizfile(server, config, presets[n])
+            stopped = True
+            await server.stop()
+
+        config = self.get_config(server)
+        presets = [discord.SelectOption(label=p) for p in config['presets'].keys()]
+        select = Select(options=presets, placeholder="Select the preset(s) you want to apply", max_values=10)
+
+        async def callback(interaction: discord.Interaction):
+            await interaction.response.defer(thinking=True)
+            for preset in select.values:
+                self.change_mizfile(server, config, preset)
             if stopped:
                 await server.start()
-                await ctx.send('Preset changed, server restarted.')
+                await interaction.followup.send('Preset changed, server restarted.')
             else:
-                await ctx.send('Preset changed.')
+                await interaction.followup.send('Preset changed.')
+
+        select.callback = callback
+        view = View()
+        view.add_item(select)
+        await ctx.send(view=view)
 
     @commands.command(description='Create preset from running mission', usage='<name>')
     @utils.has_role('DCS Admin')
@@ -516,7 +527,7 @@ class Scheduler(Plugin):
             if 'presets' not in self.locals['configs'][0]:
                 self.locals['configs'][0]['presets'] = dict()
             if name in self.locals['configs'][0]['presets'] and \
-                    not await utils.yn_question(self, ctx, f'Do you want to overwrite the existing preset "{name}"?'):
+                    not await utils.yn_question(ctx, f'Do you want to overwrite the existing preset "{name}"?'):
                 await ctx.send('Aborted.')
                 return
             self.locals['configs'][0]['presets'] |= {
@@ -544,7 +555,7 @@ class Scheduler(Plugin):
         if server:
             stopped = False
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                if not await utils.yn_question(self, ctx, 'Do you want me to stop the server to reset the mission?'):
+                if not await utils.yn_question(ctx, 'Do you want me to stop the server to reset the mission?'):
                     return
                 stopped = True
                 await server.stop()

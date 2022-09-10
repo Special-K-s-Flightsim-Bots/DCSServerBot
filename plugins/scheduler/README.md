@@ -17,11 +17,17 @@ Examples:
         "text": "!!! {item} will {what} in {when} !!!"
       },
       "presets": {                            -- Weather presets (see below)
-          "Winter Nighttime": {"start_time": "03:00", "date": "2016-01-10", "temperature": -10, "clouds": "RainyPreset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
-          "Winter Daytime": {"start_time": "08:00", "date": "2016-01-10", "temperature": -12, "clouds": "Preset2", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 5, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
-          "Summer Nighttime": {"start_time": "03:00", "date": "2016-07-26", "temperature": 18, "clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
-          "Summer Daytime": {"start_time": "10:00", "date": "2016-07-26", "temperature": 22, "clouds": "Preset2", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
-          "Heavy Storm": {"start_time": "16:00", "temperature": 16, "clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}}
+          "Winter": { "date": "2016-01-10", "temperature": -10 },
+          "Summer": { "date": "2016-07-26", "temperature": 18 },
+          "Early Morning": { "start_time": "04:30" },
+          "Morning": { "start_time": "08:00" },
+          "Noon": { "start_time": "12:00" },
+          "Evening": { "start_time": "18:00" },
+          "Late Evening": { "start_time": "22:00" },
+          "Night": { "start_time": "01:00" },
+          "Calm": {"clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
+          "Windy": {"clouds": "Preset3", "wind": {"at8000":  {"speed": 15, "dir":  105}, "at2000": {"speed" 10, "dir": 130}, "atGround": {"speed": 10, "dir": 20}}},
+          "Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}}
       },
       "extensions": {
         "SRS": {
@@ -62,11 +68,11 @@ Examples:
       "restart": {                            -- missions rotate every 4 hrs
         "method": "rotate",
         "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
-        "settings": {                         -- Weather will change on a time basis
-          "00:00-07:59": "Winter Nighttime",
-          "08:00-11:59": "Winter Daytime",
-          "12:00-19:59": "Summer Daytime",
-          "20:00-23:59": "Summer Nighttime"
+        "settings": {                         -- Weather will change on a timed basis
+          "00:00-07:59": "Winter, Night, Calm",
+          "08:00-11:59": "Winter, Morning, Windy",
+          "12:00-19:59": "Summer, Noon, Calm",
+          "20:00-23:59": "Summer, Night, Storm"
         }
       },
      "onMissionEnd": "load:Scripts/net/persist.lua", -- load a specific lua on restart 
@@ -78,8 +84,8 @@ Examples:
         "21:30": "NNNNNYN",                   -- Missions start on Saturdays at 21:30, so start the server there
         "23:00-00:00": "NNNNNPN",             -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated        
         "settings": [                         -- Weather will change randomly
-          "Winter Daytime",
-          "Summer Daytime"
+          "Winter, Morning, Windy",
+          "Summer, Morning, Calm"
         ]
       },
      "onMissionStart": "load:Script/net/f10menu.lua"  -- load some lua in the mission on mission start
@@ -96,6 +102,8 @@ Examples:
 | text            | A customizable message that will be sent to the users when a restart is pending.<br/>{item} will be replaced with either "server" or "mission", depending on what's happening.<br/>{what} will be replaced with what is happening (restart, shutdown, rotate)<br/>{when} will be replaced with the time to wait. |
 
 ### Section "preset"
+Weather presets can be combined by comma separating them in the appropriate server configuration. You can either create
+full-fledged weather presets already and load them later or you combine them like in the example above. 
 
 | Parameter        | Description                                     |
 |------------------|-------------------------------------------------|
@@ -182,8 +190,8 @@ The following environment variables can be used in the "run" command:
 If a server gets started or stopped manually (using .startup / .shutdown), it will be put in "maintenance" mode.
 To clear this and give the control back to the scheduler, use the following command.
 
-| Command | Parameter | Channel       | Role      | Description                                          |
-|---------|-----------|---------------|-----------|------------------------------------------------------|
-| .clear  |           | admin-channel | DCS Admin | Clears the maintenance state of a server.            |
-| .preset |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. |
-| .reset  |           | admin-channel | DCS Admin | Calls a configurable reset command.                  |
+| Command | Parameter | Channel       | Role      | Description                                                                                              |
+|---------|-----------|---------------|-----------|----------------------------------------------------------------------------------------------------------|
+| .clear  |           | admin-channel | DCS Admin | Clears the maintenance state of a server.                                                                |
+| .preset |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. Multiple selections will apply all presets at once. |
+| .reset  |           | admin-channel | DCS Admin | Calls a configurable reset command.                                                                      |

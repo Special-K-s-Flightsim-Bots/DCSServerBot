@@ -230,8 +230,8 @@ class PunishmentMaster(PunishmentAgent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def forgive(self, ctx, user: Union[discord.Member, str]):
-        if await utils.yn_question(self, ctx, 'This will delete all the punishment points for this user.\nAre you '
-                                              'sure (Y/N)?') is True:
+        if await utils.yn_question(ctx, 'This will delete all the punishment points for this user.\n'
+                                        'Are you sure (Y/N)?') is True:
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:

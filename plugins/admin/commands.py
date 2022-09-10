@@ -12,7 +12,10 @@ import string
 import subprocess
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Player, Status, Server, Coalition
+from discord import Interaction, Embed
 from discord.ext import commands, tasks
+from discord.ui import Select, View
+from pathlib import Path
 from typing import Union, List, Optional
 from zipfile import ZipFile
 from .listener import AdminEventListener
@@ -132,9 +135,8 @@ class Agent(Plugin):
         if old_version == new_version:
             await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
         elif new_version or param and param == '-force':
-            if await utils.yn_question(self, ctx, 'Would you like to update from version {} to {}?\nAll running '
-                                                  'DCS servers will be shut down!'.format(old_version,
-                                                                                          new_version)) is True:
+            if await utils.yn_question(ctx, 'Would you like to update from version {} to {}?\nAll running DCS servers '
+                                            'will be shut down!'.format(old_version, new_version)) is True:
                 await self.bot.audit(f"started an update of all DCS servers on node {platform.node()}.",
                                      user=ctx.message.author)
                 await self.do_update([120, 60], ctx)
@@ -175,8 +177,8 @@ class Agent(Plugin):
                     await self.bot.audit(f"changed password for coalition {coalition}",
                                          user=ctx.message.author, server=server)
                     if server.status != Status.STOPPED and \
-                            await utils.yn_question(self, ctx, "Password has been changed.\nDo you want the servers "
-                                                               "to be restarted for the change to take effect?"):
+                            await utils.yn_question(ctx, "Password has been changed.\nDo you want the servers to be "
+                                                         "restarted for the change to take effect?"):
                         await server.restart()
                         await self.bot.audit('restarted the server', server=server, user=ctx.message.author)
                 else:
@@ -187,7 +189,7 @@ class Agent(Plugin):
 
     @staticmethod
     def format_player_list(data: list[Player], marker, marker_emoji):
-        embed = discord.Embed(title='Mission List', color=discord.Color.blue())
+        embed = Embed(title='Mission List', color=discord.Color.blue())
         ids = names = ucids = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
@@ -351,6 +353,54 @@ class Agent(Plugin):
             if filename.endswith('.zip'):
                 os.remove(filename)
 
+    @commands.command(description='Download config files or missions')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def download(self, ctx: commands.Context) -> None:
+        server: Server = await self.bot.get_server(ctx)
+        if not server:
+            return
+
+        view = View()
+        msg = None
+        choices: list[discord.SelectOption] = [
+            discord.SelectOption(label="Config File", value="config"),
+            discord.SelectOption(label="Mission", value="mission")
+        ]
+        select1 = Select(placeholder="What do you want to download?", options=choices)
+
+        async def choice(interaction: Interaction):
+            if select1.values[0] == 'mission':
+                directory = Path(os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Missions')
+                pattern = '*.miz'
+            else:
+                directory = Path('./config')
+                pattern = '*.json'
+
+            options: list[discord.SelectOption] = []
+            files: dict[str, str] = {}
+            for file in directory.glob(pattern):
+                files[file.name] = directory.__str__() + os.path.sep + file.name
+                options.append(discord.SelectOption(label=file.name))
+            if not len(options):
+                await interaction.response.send_message("No file found.")
+                return
+            select2 = Select(placeholder="Select a file to download", options=options[:25])
+
+            async def _download(interaction: Interaction):
+                channel = await interaction.user.create_dm()
+                await channel.send(file=discord.File(files[select2.values[0]]))
+                await interaction.response.send_message('File sent as a DM.')
+
+            select2.callback = _download
+            view.add_item(select2)
+            await msg.edit(view=view)
+            await interaction.response.defer()
+
+        select1.callback = choice
+        view.add_item(select1)
+        msg = await ctx.send(view=view)
+
     @commands.command(description='Runs a shell command', hidden=True)
     @utils.has_role('Admin')
     @commands.guild_only()
@@ -396,8 +446,8 @@ class Agent(Plugin):
         if server:
             if server.status in [Status.RUNNING, Status.PAUSED]:
                 if server.is_populated() and \
-                        not await utils.yn_question(self, ctx, "People are flying on this server atm.\n"
-                                                               "Do you really want to stop it?"):
+                        not await utils.yn_question(ctx, "People are flying on this server atm.\n"
+                                                         "Do you really want to stop it?"):
                     return
                 await server.stop()
                 await self.bot.audit('stopped the server', server=server, user=ctx.message.author)
@@ -461,7 +511,8 @@ class Agent(Plugin):
                                 return True
                             filename = f"config/{plugin}.json"
                             if os.path.exists(filename) and not \
-                                    await utils.yn_question(self, ctx, f'Do you want to overwrite {filename} on node {platform.node()}?'):
+                                    await utils.yn_question(ctx, f'Do you want to overwrite {filename} on '
+                                                                 f'node {platform.node()}?'):
                                 await message.channel.send('Aborted.')
                                 return True
                             with open(filename, 'w', encoding="utf-8") as outfile:
@@ -472,12 +523,13 @@ class Agent(Plugin):
                         else:
                             return False
                     else:
-                        if await utils.yn_question(self, ctx, f'Do you want to overwrite dcsserverbot.ini on node {platform.node()}?'):
+                        if await utils.yn_question(ctx, f'Do you want to overwrite dcsserverbot.ini on '
+                                                        f'node {platform.node()}?'):
                             with open('config/dcsserverbot.ini', 'w', encoding='utf-8') as outfile:
                                 outfile.writelines('\n'.join((await response.text(encoding='utf-8')).splitlines()))
                             self.bot.config = utils.config = utils.reload()
                             await message.channel.send('dcsserverbot.ini updated.')
-                            if await utils.yn_question(self, ctx, 'Do you want to restart the bot?'):
+                            if await utils.yn_question(ctx, 'Do you want to restart the bot?'):
                                 exit(-1)
                         else:
                             await message.channel.send('Aborted.')
@@ -508,8 +560,8 @@ class Master(Agent):
     @utils.has_role('Admin')
     @commands.guild_only()
     async def prune(self, ctx):
-        if not await utils.yn_question(self, ctx, 'This will remove old data from your database and compact it.\nAre '
-                                                  'you sure?'):
+        if not await utils.yn_question(ctx, 'This will remove old data from your database and compact it.\n'
+                                            'Are you sure?'):
             return
         conn = self.pool.getconn()
         try:

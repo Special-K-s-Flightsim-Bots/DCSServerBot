@@ -346,7 +346,7 @@ class GameMasterMaster(GameMasterAgent):
                     await ctx.send('No running campaign found.')
                     return
             warn_text = f"Do you want to stop campaign \"{name}\"?"
-            if await utils.yn_question(self, ctx, warn_text) is True:
+            if await utils.yn_question(ctx, warn_text) is True:
                 self.eventlistener._campaign('stop', name=name)
                 await ctx.send(f"Campaign stopped.")
             else:
@@ -361,7 +361,7 @@ class GameMasterMaster(GameMasterAgent):
                     await ctx.send('No running campaign found.')
                     return
             warn_text = f"Do you want to delete campaign \"{name}\"?"
-            if await utils.yn_question(self, ctx, warn_text) is True:
+            if await utils.yn_question(ctx, warn_text) is True:
                 self.eventlistener._campaign('delete', name=name)
                 await ctx.send(f"Campaign deleted.")
             else:

@@ -12,6 +12,18 @@
         { "category": "Planes", "type": "Player", "points": 4 },
         { "category": "Planes", "unit_type": "F-14B", "type": "Player", "points": 5 }
       ]
+    },
+    {
+        "installation": "instance2",
+        "initial_points": [
+            {
+              "discord": "Donator",
+              "points": 15
+            },
+            {
+              "default": 10
+            }
+        ]
     }
   ]
 }

@@ -1,3 +1,4 @@
+import re
 from core import report
 from . import get_element, ERRORS, DISTANCE_MARKS, GRADES
 from .trapsheet import plot_trapsheet, read_trapsheet, parse_filename
@@ -5,23 +6,22 @@ from .trapsheet import plot_trapsheet, read_trapsheet, parse_filename
 
 class LSORating(report.EmbedElement):
     def render(self, landing: dict):
-        grade = GRADES[landing['grade']].replace('_', '\\_')
-        comment = get_element(landing['comment'], 'comment').replace('_', '\\_')
-        wire = get_element(landing['comment'], 'wire') or '-'
+        grade = GRADES[landing['grade']]
+        comment = landing['comment']
+        wire = landing['wire']
 
         self.add_field(name="Date/Time", value=f"{landing['time']:%y-%m-%d %H:%M:%S}")
         self.add_field(name="Plane", value=f"{landing['unit_type']}")
         self.add_field(name="Carrier", value=f"{landing['place']}")
 
-        self.add_field(name="LSO Grade", value=f"{grade}")
+        self.add_field(name="LSO Grade: {}".format(landing['grade'].replace('_', '\\_')), value=grade)
         self.add_field(name="Wire", value=f"{wire}")
         self.add_field(name="Points", value=f"{landing['points']}")
 
-        self.add_field(name="LSO Comment", value=f"{comment}", inline=False)
+        self.add_field(name="LSO Comment", value=comment.replace('_', '\\_'), inline=False)
 
         report.Ruler(self.env).render(ruler_length=28)
         # remove unnecessary blanks
-        comment = get_element(landing['comment'], 'comment')
         distance_marks = list(DISTANCE_MARKS.keys())
         elements = []
         for element in [e.strip() for e in comment.split()]:
@@ -54,22 +54,46 @@ class LSORating(report.EmbedElement):
                     elements.remove(element)
                     if mark != 'BC':
                         element = element.replace(mark, '')
-                    little = element.startswith('(')
-                    many = element.startswith('_')
-                    ignored = element.startswith('[')
-                    if little or many or ignored:
-                        element = element[1:-1]
-                    while len(element):
-                        found = False
-                        for error in ERRORS.keys():
-                            if error in element:
-                                found = True
-                                comments += '- ' + ERRORS[error] + (' (a little)' if little else ' (a lot!)' if many else '(ignored)' if ignored else '') + '\n '
-                                element = element.replace(error, '')
-                                break
-                        if not found:
-                            self.log.error(f'Element {element} not found in LSO mapping!')
-                            element = ''
+
+                    def deflate_comment(_element: str) -> list[str]:
+                        retval = []
+                        while len(_element):
+                            for error in ERRORS.keys():
+                                if error in _element:
+                                    retval.append(ERRORS[error])
+                                    _element = _element.replace(error, '')
+                                    break
+                            else:
+                                self.log.error(f'Element {element} not found in LSO mapping!')
+                                _element = ''
+                        return retval
+
+                    little = re.findall("\((.*?)\)", element)
+                    if len(little):
+                        for x in little:
+                            for y in deflate_comment(x):
+                                comments += '- ' + y + ' (a little)\n'
+                            element = element.replace(f'({x})', '')
+                        if not element:
+                            continue
+                    many = re.findall("_(.*?)_", element)
+                    if len(many):
+                        for x in many:
+                            for y in deflate_comment(x):
+                                comments += '- ' + y + ' (a lot!)\n'
+                            element = element.replace(f'_{x}_', '')
+                        if not element:
+                            continue
+                    ignored = re.findall("\[(.*?)\]", element)
+                    if len(ignored):
+                        for x in ignored:
+                            for y in deflate_comment(x):
+                                comments += '- ' + y + ' (ignored)\n'
+                            element = element.replace(f'[{x}]', '')
+                        if not element:
+                            continue
+                    for y in deflate_comment(element):
+                        comments += '- ' + y + '\n'
             if len(comments) > 0:
                 self.embed.add_field(name=text, value=comments, inline=False)
 

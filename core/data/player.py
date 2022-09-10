@@ -23,7 +23,7 @@ class Player(DataObject):
     ucid: str
     ipaddr: str = field(compare=False)
     banned: bool = field(compare=False)
-    slot: str = field(compare=False, default='')
+    slot: int = field(compare=False, default=0)
     sub_slot: int = field(compare=False, default=0)
     unit_callsign: str = field(compare=False, default='')
     unit_name: str = field(compare=False, default='')

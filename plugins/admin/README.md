@@ -20,23 +20,38 @@ This plugin supports administrative commands that are needed to operate a DCS se
 | .bans     |                       | all           | DCS Admin | Lists the current active bans.                                                                                           |
 | .dcslog   |                       | admin-channel | DCS Admin | Send the current dcs.log as a DM (zipped, if > 8 MB).                                                                    |
 | .botlog   |                       | all           | DCS Admin | Send the current dcsserverbot.log as a DM (zipped, if > 8 MB).                                                           |
+| .download |                       | admin-channel | DCS Admin | Download a bot config file or a mission into a DM.                                                                       |
 | .shell    |                       | admin-channel | Admin     | Runs a shell command on a specific node.                                                                                 |
 
 In addition, you can upload embeds to discord channels, just by using json files like this:
+
 ```json
 {
-	"message_id": 967120121632006228,
-	"title": "Special K successfully landed at Batumi!",
-	"description": "Special K did it again and succeeded at his try to land at Senaki.",
-	"img": "https://i.chzbgr.com/full/8459987200/hB315ED4E/damn-instruction-manual",
-	"fields": {
-		"Pilot": "sexy as hell",
-		"Speed": "130 kn",
-		"Wind": "calm"
-	},
-	"footer": "Just kidding, they forgot to put their gear down!"
+  "message_id": 967120121632006228,
+  "title": "Special K successfully landed at Senaki!",
+  "description": "Special K did it again and succeeded at his try to land at Senaki.",
+  "img": "https://i.chzbgr.com/full/8459987200/hB315ED4E/damn-instruction-manual",
+  "fields": [
+    {
+      "name": "Pilot",
+      "value": "sexy as hell",
+      "inline": true
+    },
+    {
+      "name": "Speed",
+      "value": "130 kn",
+      "inline": true
+    },
+    {
+      "name": "Wind",
+      "value": "calm",
+      "inline": true
+    }
+  ],
+  "footer": "Just kidding, they forgot to put their gear down!"
 }
 ```
+
 Just upload a file with such a content and a .json extension to the channel where you want the information to be 
 displayed (can be done by the Admin-Role only!). If you provide a valid message_id, the message will be updated.
 

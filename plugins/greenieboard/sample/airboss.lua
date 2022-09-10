@@ -167,9 +167,12 @@ function airbossWashington:OnAfterLSOGrade(From, Event, To, playerData, myGrade)
     msg.initiator.name = playerData.name
     msg.place = {}
     msg.place.name = myGrade.carriername
-    msg.time = timer.getAbsTime()
     msg.points = myGrade.points
+    msg.grade = myGrade.grade
+    msg.details = myGrade.details
+    msg.wire = playerData.wire
     msg.trapsheet = trapsheet
+    msg.time = timer.getTime()
     dcsbot.sendBotTable(msg)
     timer.scheduleFunction(resetTrapSheetFileFormat, {}, timer.getTime() + 10)
 end

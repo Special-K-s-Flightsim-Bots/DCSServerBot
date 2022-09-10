@@ -43,8 +43,8 @@ class UserStatisticsAgent(Plugin):
             if server.status in [Status.STOPPED, Status.SHUTDOWN]:
                 conn = self.pool.getconn()
                 try:
-                    if await utils.yn_question(self, ctx, f'I\'m going to **DELETE ALL STATISTICS**\nof server '
-                                                          f'"{server.name}".\n\nAre you sure?'):
+                    if await utils.yn_question(ctx, f'I\'m going to **DELETE ALL STATISTICS**\n'
+                                                    f'of server "{server.name}".\n\nAre you sure?'):
                         with closing(conn.cursor()) as cursor:
                             cursor.execute(
                                 'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE '
@@ -436,8 +436,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
                         await send_token(ctx, row[0])
                         return
                     elif row[1] is False:
-                        if not await utils.yn_question(self, ctx, 'Automatic user mapping found.\n'
-                                                                  'Do you want to re-link your user?'):
+                        if not await utils.yn_question(ctx, 'Automatic user mapping found.\n'
+                                                            'Do you want to re-link your user?'):
                             return
                         else:
                             for server in self.bot.servers.values():
@@ -447,8 +447,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
                                     continue
                             cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
                             break
-                    elif not await utils.yn_question(self, ctx, '__Verified__ user mapping found.\nHave '
-                                                                'you switched from Steam to Standalone or your PC?\n'):
+                    elif not await utils.yn_question(ctx, '__Verified__ user mapping found.\n'
+                                                          'Have you switched from Steam to Standalone or your PC?'):
                         return
                 # in the very unlikely event that we have generated the very same random number twice
                 while True:

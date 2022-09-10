@@ -9,6 +9,7 @@ import socket
 import string
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
+from discord import Interaction, app_commands
 from core import utils, Server, Status, Channel, DataObjectFactory
 from datetime import datetime
 from discord.ext import commands
@@ -42,6 +43,8 @@ class DCSServerBot(commands.Bot):
         self.plugins = [p.strip() for p in plugins.split(',')]
         self.audit_channel = None
         self.mission_stats = None
+        self.synced = False
+        self.tree.on_error = self.on_app_command_error
         self.executor = ThreadPoolExecutor(thread_name_prefix='BotExecutor')
 
     async def close(self):
@@ -142,6 +145,7 @@ class DCSServerBot(commands.Bot):
                 self.check_channel(channel_id)
 
     async def on_ready(self):
+        await self.wait_until_ready()
         if not self.external_ip:
             self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
             self.member = self.guilds[0].get_member(self.user.id)
@@ -155,6 +159,14 @@ class DCSServerBot(commands.Bot):
                     self.log.info(f'  => {string.capwords(plugin)} loaded.')
                 else:
                     self.log.info(f'  => {string.capwords(plugin)} NOT loaded.')
+            if not self.synced:
+                self.log.info('- Registering Commands ...')
+                if self.guilds[0].id == 717133797308498002:
+                    self.tree.copy_global_to(guild=discord.Object(id=717133797308498002))
+                    await self.tree.sync(guild=discord.Object(id=717133797308498002))
+                else:
+                    await self.tree.sync()
+                self.synced = True
             # start the UDP listener to accept commands from DCS
             self.loop.create_task(self.start_udp_listener())
             self.loop.create_task(self.register_servers())
@@ -177,6 +189,19 @@ class DCSServerBot(commands.Bot):
         else:
             self.log.exception(err)
             await ctx.send("An unknown exception occured.")
+
+    async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandNotFound):
+            pass
+        if isinstance(error, app_commands.NoPrivateMessage):
+            await interaction.response.send_message('This command can\'t be used in a DM.')
+        elif isinstance(error, app_commands.CheckFailure):
+            await interaction.response.send_message('You don\'t have the rights to use that command.')
+        elif isinstance(error, asyncio.TimeoutError):
+            await interaction.response.send_message('A timeout occured. Is the DCS server running?')
+        else:
+            self.log.exception(error)
+            await interaction.response.send_message("An unknown exception occured.")
 
     def reload(self, plugin: Optional[str]):
         if plugin:
@@ -469,9 +494,10 @@ class DCSServerBot(commands.Bot):
         self.log.debug(f"Server {server.name} initialized")
         return True
 
-    async def get_server(self, ctx: Union[Context, discord.Message, str]) -> Optional[Server]:
+    async def get_server(self, ctx: Union[Context, Interaction, discord.Message, str]) -> Optional[Server]:
         for server_name, server in self.servers.items():
-            if isinstance(ctx, discord.ext.commands.context.Context) or isinstance(ctx, discord.Message):
+            if isinstance(ctx, discord.ext.commands.context.Context) or isinstance(ctx, Interaction) \
+                    or isinstance(ctx, discord.Message):
                 if server.status == Status.UNREGISTERED:
                     continue
                 channels = [Channel.ADMIN, Channel.STATUS]
