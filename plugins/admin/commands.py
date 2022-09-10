@@ -309,51 +309,7 @@ class Agent(Plugin):
             else:
                 await ctx.send(f"Player {name} not found.")
 
-    @commands.command(description='DMs the current DCS server log')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def dcslog(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            channel = await ctx.message.author.create_dm()
-            path = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + r'\logs\dcs.log'
-            if os.path.getsize(path) >= 8*1024*1024:
-                with ZipFile('dcs.log.zip', 'w') as zipfile:
-                    zipfile.write(path)
-                filename = zipfile.filename
-            else:
-                filename = path
-            try:
-                await channel.send(content=f"This is the DCS logfile of server {server.name}",
-                                   file=discord.File(filename))
-                await ctx.send('Current dcs.log sent as DM.')
-                await self.bot.audit(f'requested the dcs.log', server=server, user=ctx.message.author)
-            finally:
-                if filename.endswith('.zip'):
-                    os.remove(filename)
-
-    @commands.command(description='DMs the current bot log')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def botlog(self, ctx):
-        channel = await ctx.message.author.create_dm()
-        path = r'.\dcsserverbot.log'
-        if os.path.getsize(path) >= 8 * 1024 * 1024:
-            with ZipFile('dcsserverbot.log.zip', 'w') as zipfile:
-                zipfile.write(path)
-            filename = zipfile.filename
-        else:
-            filename = path
-        try:
-            await channel.send(content=f"This is the current DCSServerBot log of node {platform.node()}",
-                               file=discord.File(filename))
-            await ctx.send('Current dcsserverbot.log sent as DM.')
-            await self.bot.audit(f'requested the dcsserverbot.log for node {platform.node()}', user=ctx.message.author)
-        finally:
-            if filename.endswith('.zip'):
-                os.remove(filename)
-
-    @commands.command(description='Download config files or missions')
+    @commands.command(description='Download config files or missions', aliases=['dcslog', 'botlog'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def download(self, ctx: commands.Context) -> None:
@@ -364,13 +320,21 @@ class Agent(Plugin):
         view = View()
         msg = None
         choices: list[discord.SelectOption] = [
+            discord.SelectOption(label="DCS Log", value="dcslog"),
+            discord.SelectOption(label="Bot Log", value="botlog"),
             discord.SelectOption(label="Config File", value="config"),
             discord.SelectOption(label="Mission", value="mission")
         ]
         select1 = Select(placeholder="What do you want to download?", options=choices)
 
         async def choice(interaction: Interaction):
-            if select1.values[0] == 'mission':
+            if select1.values[0] == 'dcslog':
+                directory = Path(os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + r'\logs')
+                pattern = 'dcs.log*'
+            elif select1.values[0] == 'botlog':
+                directory = Path('.')
+                pattern = 'dcsserverbot.log*'
+            elif select1.values[0] == 'mission':
                 directory = Path(os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Missions')
                 pattern = '*.miz'
             else:
@@ -389,8 +353,18 @@ class Agent(Plugin):
 
             async def _download(interaction: Interaction):
                 channel = await interaction.user.create_dm()
-                await channel.send(file=discord.File(files[select2.values[0]]))
+                filename = files[select2.values[0]]
+                zipped = False
+                if not filename.endswith('.zip') and os.path.getsize(filename) >= 8 * 1024 * 1024:
+                    with ZipFile(filename + '.zip', 'w') as zipfile:
+                        zipfile.write(filename)
+                    filename = zipfile.filename
+                    zipped = True
+
+                await channel.send(file=discord.File(filename))
                 await interaction.response.send_message('File sent as a DM.')
+                if zipped:
+                    os.remove(filename)
 
             select2.callback = _download
             view.add_item(select2)
