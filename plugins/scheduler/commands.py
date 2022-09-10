@@ -486,6 +486,12 @@ class Scheduler(Plugin):
         if not server:
             return
 
+        config = self.get_config(server)
+        presets = [discord.SelectOption(label=p) for p in config['presets'].keys()]
+        if not presets:
+            await ctx.send('No presets available, please configure them in your scheduler.json.')
+            return
+
         stopped = False
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
             if not await utils.yn_question(ctx, 'Do you want me to stop the server to change the mission preset?'):
@@ -494,9 +500,7 @@ class Scheduler(Plugin):
             stopped = True
             await server.stop()
 
-        config = self.get_config(server)
-        presets = [discord.SelectOption(label=p) for p in config['presets'].keys()]
-        select = Select(options=presets, placeholder="Select the preset(s) you want to apply", max_values=10)
+        select = Select(options=presets, placeholder="Select the preset(s) you want to apply", max_values=min(10, len(presets)))
 
         async def callback(interaction: discord.Interaction):
             await interaction.response.defer(thinking=True)
