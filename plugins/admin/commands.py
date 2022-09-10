@@ -355,7 +355,8 @@ class Agent(Plugin):
                 channel = await interaction.user.create_dm()
                 filename = files[select2.values[0]]
                 zipped = False
-                if not filename.endswith('.zip') and os.path.getsize(filename) >= 8 * 1024 * 1024:
+                if not filename.endswith('.zip') and not filename.endswith('.miz') and \
+                        os.path.getsize(filename) >= 8 * 1024 * 1024:
                     with ZipFile(filename + '.zip', 'w') as zipfile:
                         zipfile.write(filename)
                     filename = zipfile.filename
