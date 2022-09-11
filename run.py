@@ -211,7 +211,7 @@ class Main:
         @commands.guild_only()
         async def reload(ctx, plugin=None):
             self.read_config()
-            self.bot.reload(plugin)
+            await self.bot.reload(plugin)
             if plugin:
                 await ctx.send('Plugin {} reloaded.'.format(string.capwords(plugin)))
             else:
@@ -243,7 +243,7 @@ class Main:
             if num != -1:
                 self.read_config()
                 name = installed[num].plugin_name
-                self.bot.reload(name)
+                await self.bot.reload(name)
                 await ctx.send('Plugin {} reloaded.'.format(string.capwords(name)))
 
         @self.bot.command(description='Rename a server')
