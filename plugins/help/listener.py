@@ -1,5 +1,5 @@
 from __future__ import annotations
-from core import EventListener
+from core import EventListener, utils
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -33,7 +33,7 @@ class HelpListener(EventListener):
             if 'punishment' in self.bot.plugins:
                 messages.append(f'"{prefix}penalty"      displays your penalty points')
                 messages.append(f'"{prefix}forgive"      forgive another user for teamhits/-kills')
-            if 'creditsystem' in self.bot.plugins:
+            if 'creditsystem' in self.bot.plugins and utils.get_running_campaign(server)[0]:
                 messages.append(f'"{prefix}credits"      displays your credits')
                 messages.append(f'"{prefix}donate"       donate points to another player')
                 messages.append(f'"{prefix}tip"          tip a GCI with points')
