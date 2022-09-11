@@ -289,10 +289,14 @@ class Scheduler(Plugin):
                 miz.wind = value['wind']
             if 'groundTurbulence' in value:
                 miz.groundTurbulence = int(value['groundTurbulence'])
+            if 'enable_dust' in value:
+                miz.enable_dust = value['enable_dust']
             if 'dust_density' in value:
                 miz.dust_density = int(value['dust_density'])
             if 'qnh' in value:
                 miz.qnh = int(value['qnh'])
+            if 'enable_fog' in value:
+                miz.enable_fog = value['enable_fog']
             if 'fog' in value:
                 miz.fog = value['fog']
         miz.save()
