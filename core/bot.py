@@ -71,7 +71,7 @@ class DCSServerBot(commands.Bot):
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers, this might take a bit ...')
         servers = list(self.servers.values())
-        timeout = 30 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 5
+        timeout = (5 * len(self.servers)) if self.config.getboolean('BOT', 'SLOW_SYSTEM') else (3 * len(self.servers))
         ret = await asyncio.gather(
             *[server.sendtoDCSSync({"command": "registerDCSServer"}, timeout) for server in servers],
             return_exceptions=True
@@ -548,7 +548,7 @@ class DCSServerBot(commands.Bot):
                         if data['channel'].startswith('sync-'):
                             if data['channel'] in self.listeners:
                                 f = self.listeners[data['channel']]
-                                if not f.cancelled():
+                                if not f.done():
                                     self.loop.call_soon_threadsafe(f.set_result, data)
                                 if command != 'registerDCSServer':
                                     continue
