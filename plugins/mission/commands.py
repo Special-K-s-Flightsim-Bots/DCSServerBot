@@ -214,14 +214,16 @@ class Mission(Plugin):
 
             current = missions[data['listStartIndex'] - 1]
             current = current[(current.rfind('\\') + 1):-4]
-            mission = await utils.selection(ctx, title=f"Mission {current} is running.",
+            name = await utils.selection(ctx, title=f"Mission {current} is running.",
                                             placeholder="Select a mission to load",
-                                            options=[SelectOption(label=x[(x.rfind('\\') + 1):-4], value=x) for x in missions])
-            if not mission:
+                                            options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
+            if not name:
                 return
-            name = mission[(mission.rfind('\\') + 1):-4]
             msg = await ctx.send(f'Loading mission {name} ...')
-            await server.loadMission(missions.index(mission) + 1)
+            for mission in missions:
+                if name in mission:
+                    await server.loadMission(missions.index(mission) + 1)
+                    break
             await msg.delete()
             await ctx.send(f'Mission {name} loaded.')
         else:
@@ -245,7 +247,7 @@ class Mission(Plugin):
                     await ctx.send('No (new) mission found to add.')
                     return
                 file = await utils.selection(ctx, placeholder="Select a file to be added to the mission list.",
-                                             options=[SelectOption(label=x[:-4], value=x) for x in files])
+                                             options=[SelectOption(label=x[:-4], value=x) for x in files[:25]])
                 if not file:
                     return
             else:
@@ -275,18 +277,20 @@ class Mission(Plugin):
                 await ctx.send("You can't delete the (only) running mission.")
                 return
 
-            mission = await utils.selection(ctx, placeholder="Select the mission to delete",
-                                            options=[SelectOption(label=x[(x.rfind('\\') + 1):-4], value=x) for x in missions])
-            if not mission:
+            name = await utils.selection(ctx, placeholder="Select the mission to delete",
+                                            options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
+            if not name:
                 return
 
-            name = mission[(mission.rfind('\\') + 1):-4]
-            server.sendtoDCS({"command": "deleteMission", "id": original.index(mission) + 1})
-            if await utils.yn_question(ctx, f'Delete mission "{name}" from disk?'):
-                os.remove(mission)
-                await ctx.send(f'Mission "{name}" deleted.')
-            else:
-                await ctx.send(f'Mission "{name}" removed from list.')
+            for mission in missions:
+                if name in mission:
+                    server.sendtoDCS({"command": "deleteMission", "id": original.index(mission) + 1})
+                    if await utils.yn_question(ctx, f'Delete mission "{name}" from disk?'):
+                        os.remove(mission)
+                        await ctx.send(f'Mission "{name}" deleted.')
+                    else:
+                        await ctx.send(f'Mission "{name}" removed from list.')
+                    break
         else:
             return await ctx.send('Server ' + server.name + ' is not running.')
 
