@@ -153,7 +153,8 @@ async def selection(ctx, *, title: Optional[str] = None, placeholder: Optional[s
             return None
         return view.result
     finally:
-        await msg.delete()
+        if msg:
+            await msg.delete()
 
 
 async def multi_selection_list(self, ctx, data, embed_formatter) -> list[int]:
