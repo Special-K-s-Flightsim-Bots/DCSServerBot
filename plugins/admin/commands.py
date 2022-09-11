@@ -492,7 +492,7 @@ class Agent(Plugin):
                                 return True
                             with open(filename, 'w', encoding="utf-8") as outfile:
                                 json.dump(data, outfile, indent=2)
-                            self.bot.reload(plugin)
+                            await self.bot.reload(plugin)
                             await message.channel.send(f"Plugin {string.capwords(plugin)} re-configured.")
                             return True
                         else:

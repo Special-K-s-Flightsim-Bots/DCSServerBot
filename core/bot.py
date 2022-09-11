@@ -203,12 +203,12 @@ class DCSServerBot(commands.Bot):
             self.log.exception(error)
             await interaction.response.send_message("An unknown exception occured.")
 
-    def reload(self, plugin: Optional[str]):
+    async def reload(self, plugin: Optional[str]):
         if plugin:
-            self.reload_plugin(plugin)
+            await self.reload_plugin(plugin)
         else:
             for plugin in self.plugins:
-                self.reload_plugin(plugin)
+                await self.reload_plugin(plugin)
 
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None, server: Optional[Server] = None):
         if not self.audit_channel:
