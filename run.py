@@ -11,6 +11,7 @@ import subprocess
 import sys
 from core import utils, Server, DCSServerBot, Status
 from contextlib import closing, suppress
+from discord import SelectOption
 from discord.ext import commands
 from install import Install
 from logging.handlers import RotatingFileHandler
@@ -206,45 +207,37 @@ class Main:
             await self.bot.start(self.config['BOT']['TOKEN'], reconnect=True)
 
     def add_commands(self):
-        @self.bot.command(description='Reloads a Plugin', usage='[cog]')
+
+        @self.bot.command(description='Reloads plugins', aliases=['plugins'])
         @utils.has_role('Admin')
         @commands.guild_only()
-        async def reload(ctx, plugin=None):
-            self.read_config()
-            await self.bot.reload(plugin)
-            if plugin:
-                await ctx.send('Plugin {} reloaded.'.format(string.capwords(plugin)))
-            else:
-                await ctx.send('All plugins reloaded.')
-
-        def format_plugin_list(data, marker, marker_emoji):
+        async def reload(ctx):
+            plugins = list(self.bot.cogs.values())
             embed = discord.Embed(title=f'Installed Plugins ({platform.node()})', color=discord.Color.blue())
-            ids = names = versions = ''
-            for i in range(0, len(data)):
-                ids += (chr(0x31 + i) + '\u20E3' + '\n')
-                names += data[i].plugin_name + '\n'
-                versions += data[i].plugin_version + '\n'
-            embed.add_field(name='ID', value=ids)
+            names = versions = ''
+            for plugin in plugins:
+                names += string.capwords(plugin.plugin_name) + '\n'
+                versions += plugin.plugin_version + '\n'
             embed.add_field(name='Name', value=names)
             embed.add_field(name='Version', value=versions)
             embed.add_field(name='▬' * 20, value='_ _', inline=False)
             embed.add_field(name='Bot Version', value=f"v{self.bot.version}.{self.bot.sub_version}")
             embed.add_field(name='_ _', value='_ _')
             embed.add_field(name='DB Version', value=f"{self.db_version}")
-            embed.set_footer(text='Press a number to reload this plugin')
-            return embed
-
-        @self.bot.command(description='Lists all installed plugins', aliases=['version', 'versions'])
-        @utils.has_role('Admin')
-        @commands.guild_only()
-        async def plugins(ctx):
-            installed = list(self.bot.cogs.values())
-            num = await utils.selection_list(self, ctx, installed, format_plugin_list, 9)
-            if num != -1:
-                self.read_config()
-                name = installed[num].plugin_name
-                await self.bot.reload(name)
-                await ctx.send('Plugin {} reloaded.'.format(string.capwords(name)))
+            cogs = await utils.selection(ctx, placeholder="Select the plugin(s) to reload",
+                                         embed=embed,
+                                         options=[
+                                             SelectOption(
+                                                 label=string.capwords(x.plugin_name),
+                                                 value=x.plugin_name) for x in plugins
+                                         ],
+                                         max_values=len(plugins))
+            if not cogs:
+                return
+            self.read_config()
+            for cog in cogs:
+                await self.bot.reload(cog)
+                await ctx.send('Plugin {} reloaded.'.format(string.capwords(cog)))
 
         @self.bot.command(description='Rename a server')
         @utils.has_role('Admin')

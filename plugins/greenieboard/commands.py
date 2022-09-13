@@ -1,4 +1,6 @@
 import discord
+import json
+import os
 import psycopg2
 import shutil
 from contextlib import closing
@@ -12,6 +14,23 @@ from .listener import GreenieBoardEventListener
 
 
 class GreenieBoard(Plugin):
+
+    def migrate(self, version: str):
+        if version != '1.3':
+            return
+        os.rename('config/greenieboard.json', 'config/greenieboard.bak')
+        with open('config/greenieboard.bak') as infile:
+            old: dict = json.load(infile)
+        dirty = False
+        for config in old['configs']:
+            if 'ratings' in config and '---' in config['ratings']:
+                config['ratings']['--'] = config['ratings']['---']
+                del config['ratings']['---']
+                dirty = True
+        if dirty:
+            with open('config/greenieboard.json', 'w') as outfile:
+                json.dump(old, outfile, indent=2)
+                self.log.info('  => config/greenieboard.json migrated to new format, please verify!')
 
     @staticmethod
     def format_comments(data, marker, marker_emoji):

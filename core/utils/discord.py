@@ -121,17 +121,22 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, mar
 
 
 class SelectView(View):
-    def __init__(self, ctx: commands.Context, *, placeholder: str, options: list[SelectOption]):
+    def __init__(self, ctx: commands.Context, *, placeholder: str, options: list[SelectOption], min_values: int, max_values: int):
         super().__init__()
         self.ctx = ctx
         self.result = None
         select: Select = cast(Select, self.children[0])
         select.placeholder = placeholder
         select.options = options
+        select.min_values = min_values
+        select.max_values = max_values
 
     @discord.ui.select()
     async def callback(self, interaction: Interaction, select: Select):
-        self.result = select.values[0]
+        if select.max_values > 1:
+            self.result = select.values
+        else:
+            self.result = select.values[0]
         self.stop()
 
     async def interaction_check(self, interaction: Interaction, /) -> bool:
@@ -142,10 +147,11 @@ class SelectView(View):
             return True
 
 
-async def selection(ctx, *, title: Optional[str] = None, placeholder: Optional[str] = None,
-                    options: list[SelectOption]) -> Optional[str]:
-    embed = discord.Embed(description=title, color=discord.Color.blue()) if title else None
-    view = SelectView(ctx, placeholder=placeholder, options=options)
+async def selection(ctx, *, title: Optional[str] = None, placeholder: Optional[str] = None, embed: discord.Embed = None,
+                    options: list[SelectOption], min_values: Optional[int] = 1, max_values: Optional[int] = 1) -> Optional[str]:
+    if not embed and title:
+        embed = discord.Embed(description=title, color=discord.Color.blue())
+    view = SelectView(ctx, placeholder=placeholder, options=options, min_values=min_values, max_values=max_values)
     msg = None
     try:
         msg = await ctx.send(embed=embed, view=view)
