@@ -75,7 +75,7 @@ different greenieboards for different servers. If that is a user demand in the f
         "OK": 4,
         "(OK)": 3,
         "B": 2.5,
-        "---": 2,
+        "--": 2,
         "OWO": 2,
         "WO": 1,
         "C": 0

@@ -87,6 +87,7 @@ ERRORS = {
     "RR": "Right rudder",
     "SD": "Spotted deck",
     "ST": "Steep turn",
+    "WO": "Wave-off",
     "WU": "Wrapped up",
     "B": "Flat Glideslope",
     "C": "Climbing",
