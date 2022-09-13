@@ -1,6 +1,28 @@
 # Plugin "Admin"
 This plugin supports administrative commands that are needed to operate a DCS server remotely.
 
+## Configuration
+Currently, most of the configuration affecting the admin plugin. is still being done in the dcsserverbot.ini.<br>
+An exception is the .download command. You can specify, which folders / patterns you want to offer your admins to
+download from your server. There is a default list being loaded, if no list is provided. The format is self-explanatory.
+
+```json
+{
+  "configs": [
+    {
+      "downloads": [
+        { "label": "DCS Logs", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\logs", "pattern": "dcs.log*" },
+        { "label": "DCSServerBot Logs", "directory": ".", "pattern": "dcsserverbot.log*" },
+        { "label": "Missions", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\Missions", "pattern": "*.miz" },
+        { "label": "Config Files", "directory": ".\\config", "pattern": "*.json" },
+        { "label": "dcsserverbot.ini", "directory": ".\\config", "pattern": "dcsserverbot.ini" }
+      ]
+    }
+  ]
+}
+```
+When using the .download command, you can select which "label" you want to download.
+
 ## Discord Commands
 
 | Command   | Parameter             | Channel       | Role      | Description                                                                                                              |

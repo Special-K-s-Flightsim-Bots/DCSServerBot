@@ -443,6 +443,7 @@ class Scheduler(Plugin):
                 if server.is_populated():
                     question += '\nPeople are flying on this server atm!'
                 if not await utils.yn_question(ctx, question):
+                    await ctx.send('Aborted.')
                     return
                 msg = await ctx.send(f"Shutting down DCS server \"{server.name}\", please wait ...")
                 # set maintenance flag to prevent auto-starts of this server
@@ -498,7 +499,10 @@ class Scheduler(Plugin):
 
         stopped = False
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-            if not await utils.yn_question(ctx, 'Do you want me to stop the server to change the mission preset?'):
+            question = f"Do you want to stop server \"{server.name}\" to change the mission preset?"
+            if server.is_populated():
+                question += '\nPeople are flying on this server atm!'
+            if not await utils.yn_question(ctx, question):
                 await ctx.send('Aborted.')
                 return
             stopped = True

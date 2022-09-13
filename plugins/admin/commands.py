@@ -8,6 +8,7 @@ import platform
 import psycopg2
 import psycopg2.extras
 import shlex
+import shutil
 import string
 import subprocess
 from contextlib import closing
@@ -319,27 +320,29 @@ class Agent(Plugin):
 
         view = View()
         msg = None
-        choices: list[discord.SelectOption] = [
-            discord.SelectOption(label="DCS Log", value="dcslog"),
-            discord.SelectOption(label="Bot Log", value="botlog"),
-            discord.SelectOption(label="Config File", value="config"),
-            discord.SelectOption(label="Mission", value="mission")
-        ]
+        choices: list[discord.SelectOption] = [discord.SelectOption(label=x['label']) for x in self.get_config(server)['downloads']]
         select1 = Select(placeholder="What do you want to download?", options=choices)
 
+        async def send_file(interaction: Interaction, filename: str):
+            channel = await interaction.user.create_dm()
+            zipped = False
+            if not filename.endswith('.zip') and not filename.endswith('.miz') and \
+                    os.path.getsize(filename) >= 8 * 1024 * 1024:
+                with ZipFile(filename + '.zip', 'w') as zipfile:
+                    zipfile.write(filename)
+                filename = zipfile.filename
+                zipped = True
+            await channel.send(file=discord.File(filename))
+            await interaction.response.send_message('File sent as a DM.')
+            if zipped:
+                os.remove(filename)
+
         async def choice(interaction: Interaction):
-            if select1.values[0] == 'dcslog':
-                directory = Path(os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + r'\logs')
-                pattern = 'dcs.log*'
-            elif select1.values[0] == 'botlog':
-                directory = Path('.')
-                pattern = 'dcsserverbot.log*'
-            elif select1.values[0] == 'mission':
-                directory = Path(os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Missions')
-                pattern = '*.miz'
-            else:
-                directory = Path('./config')
-                pattern = '*.json'
+            for download in self.get_config(server)['downloads']:
+                if download['label'] == select1.values[0]:
+                    directory = Path(os.path.expandvars(download['directory'].format(server=server)))
+                    pattern = download['pattern']
+                    break
 
             options: list[discord.SelectOption] = []
             files: dict[str, str] = {}
@@ -349,23 +352,14 @@ class Agent(Plugin):
             if not len(options):
                 await interaction.response.send_message("No file found.")
                 return
+            if len(options) == 1:
+                await send_file(interaction, files[options[0].value])
+                return
+
             select2 = Select(placeholder="Select a file to download", options=options[:25])
 
             async def _download(interaction: Interaction):
-                channel = await interaction.user.create_dm()
-                filename = files[select2.values[0]]
-                zipped = False
-                if not filename.endswith('.zip') and not filename.endswith('.miz') and \
-                        os.path.getsize(filename) >= 8 * 1024 * 1024:
-                    with ZipFile(filename + '.zip', 'w') as zipfile:
-                        zipfile.write(filename)
-                    filename = zipfile.filename
-                    zipped = True
-
-                await channel.send(file=discord.File(filename))
-                await interaction.response.send_message('File sent as a DM.')
-                if zipped:
-                    os.remove(filename)
+                await send_file(interaction, files[select2.values[0]])
 
             select2.callback = _download
             view.add_item(select2)
@@ -762,6 +756,9 @@ class Master(Agent):
 
 
 async def setup(bot: DCSServerBot):
+    if not os.path.exists('config/admin.json'):
+        bot.log.info('No admin.json found, copying the sample.')
+        shutil.copyfile('config/admin.json.sample', 'config/admin.json')
     if bot.config.getboolean('BOT', 'MASTER') is True:
         await bot.add_cog(Master(bot, AdminEventListener))
     else:
