@@ -309,7 +309,7 @@ class Scheduler(Plugin):
         elif not server.restart_pending:
             server.restart_pending = True
             method = config['restart']['method']
-            if populated:
+            if populated and method != 'restart_with_shutdown' and 'mission_end' not in config['restart']:
                 await self.warn_users(server, config, method)
             if method == 'restart_with_shutdown':
                 if 'mission_end' in config['restart'] and config['restart']['mission_end']:
@@ -341,7 +341,9 @@ class Scheduler(Plugin):
                     (server.current_mission.mission_time + restart_in) >= (int(config['restart']['mission_time']) * 60):
                 asyncio.create_task(self.restart_mission(server, config))
             elif 'local_times' in config['restart']:
-                now = datetime.now() + timedelta(seconds=restart_in)
+                now = datetime.now()
+                if config['restart']['method'] != 'restart_with_shutdown' and 'mission_end' not in config['restart']:
+                    now += timedelta(seconds=restart_in)
                 for t in config['restart']['local_times']:
                     if utils.is_in_timeframe(now, t):
                         asyncio.create_task(self.restart_mission(server, config))
