@@ -41,6 +41,7 @@ class Server(DataObject):
     process: Optional[Process] = field(default=None, compare=False)
     maintenance: bool = field(default=False, compare=False)
     restart_pending: bool = field(default=False, compare=False)
+    shutdown_pending: bool = field(default=False, compare=False)
     dcs_version: str = field(default=None, compare=False)
     extensions: dict[str, Extension] = field(default_factory=dict, compare=False)
     _lock: asyncio.Lock = field(init=False, compare=False)

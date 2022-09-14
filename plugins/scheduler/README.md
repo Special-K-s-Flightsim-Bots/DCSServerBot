@@ -79,10 +79,22 @@ Examples:
      "onShutdown": "run:shutdown /s"                 -- shutdown the PC when DCS is shut down
     },
     {
+      "installation": "instance3",
+      "schedule": {
+        "00-24": "YYYYYYY"                    -- Server runs all day long,
+      },
+      "restart": {
+        "method": "restart_with_shutdown",    -- restarts the whole server instead only the mission
+        "local_times": ["03:00"],             -- check for restart at 03h
+        "mission_end": true                   -- restart the server after the next mission end only
+      }
+    },
+    {
       "installation": "missions",
       "schedule": {
         "21:30": "NNNNNYN",                   -- Missions start on Saturdays at 21:30, so start the server there
-        "23:00-00:00": "NNNNNPN",             -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated        
+        "23:00-00:00": "NNNNNPN"              -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated
+        },        
         "settings": [                         -- Weather will change randomly
           "Winter, Morning, Windy",
           "Summer, Morning, Calm"

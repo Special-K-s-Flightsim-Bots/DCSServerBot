@@ -1,3 +1,4 @@
+import asyncio
 import shlex
 import subprocess
 from core import EventListener, utils, Extension, Server
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
 
 class SchedulerListener(EventListener):
 
-    def _run(self, server: Server, method: str):
+    def _run(self, server: Server, method: str) -> None:
         if method.startswith('load:'):
             server.sendtoDCS({
                 "command": "do_script_file",
@@ -34,7 +35,7 @@ class SchedulerListener(EventListener):
             self.log.debug('Launching command: ' + cmd)
             subprocess.run(shlex.split(cmd), shell=True)
 
-    async def registerDCSServer(self, data):
+    async def registerDCSServer(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if 'extensions' not in config:
@@ -53,23 +54,33 @@ class SchedulerListener(EventListener):
                 self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
                 await self.bot.audit(f"{ext.name} started", server=server)
 
-    async def onSimulationStart(self, data):
+    async def onGameEvent(self, data: dict) -> None:
+        server: Server = self.bot.servers[data['server_name']]
+        if data['eventName'] == 'mission_end' and server.shutdown_pending:
+            config = self.plugin.get_config(server)
+            self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
+            await asyncio.sleep(1)
+            await server.shutdown()
+            await self.plugin.launch_dcs(server, config)
+            server.shutdown_pending = False
+
+    async def onSimulationStart(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if config and 'onMissionStart' in config:
             self._run(server, config['onMissionStart'])
 
-    async def onMissionLoadEnd(self, data):
+    async def onMissionLoadEnd(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.restart_pending = False
 
-    async def onMissionEnd(self, data):
+    async def onMissionEnd(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if config and 'onMissionEnd' in config:
             self._run(server, config['onMissionEnd'])
 
-    async def onShutdown(self, data):
+    async def onShutdown(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if config and 'onShutdown' in config:

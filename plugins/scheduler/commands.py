@@ -312,10 +312,13 @@ class Scheduler(Plugin):
             if populated:
                 await self.warn_users(server, config, method)
             if method == 'restart_with_shutdown':
-                self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
-                await asyncio.sleep(1)
-                await server.shutdown()
-                await self.launch_dcs(server, config)
+                if 'mission_end' in config['restart'] and config['restart']['mission_end']:
+                    server.shutdown_pending = True
+                else:
+                    self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
+                    await asyncio.sleep(1)
+                    await server.shutdown()
+                    await self.launch_dcs(server, config)
             elif method == 'restart':
                 self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
                 await asyncio.sleep(1)
