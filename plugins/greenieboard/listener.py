@@ -59,13 +59,14 @@ class GreenieBoardEventListener(EventListener):
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
         night = time > 20 * 3600 or time < 6 * 3600
         points = data['points'] if 'points' in data else config['ratings'][data['grade']]
+        wire = data['wire'] if 'wire' in data else None
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute("INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, "
                                "wire, night, points, trapsheet) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                                (server.mission_id, player.ucid, player.unit_type, data['grade'], data['details'],
-                                data['place']['name'], data['wire'], night, points,
+                                data['place']['name'], wire, night, points,
                                 data['trapsheet'] if 'trapsheet' in data else None))
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:

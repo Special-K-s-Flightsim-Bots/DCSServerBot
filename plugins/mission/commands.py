@@ -7,10 +7,11 @@ import psycopg2
 import re
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel
-from discord import SelectOption
+from discord import SelectOption, Interaction
 from discord.ext import commands, tasks
+from discord.ui import Select, View, Button
 from os import path
-from typing import Optional
+from typing import Optional, cast
 from .listener import MissionEventListener
 
 
@@ -205,36 +206,87 @@ class Mission(Plugin):
             await asyncio.sleep(5)
             await msg.delete()
 
+    class LoadView(View):
+        def __init__(self, ctx, *, placeholder: str, options: list):
+            super().__init__()
+            self.ctx = ctx
+            select: Select = cast(Select, self.children[0])
+            select.placeholder = placeholder
+            select.options = options
+            self.result = None
+
+        @discord.ui.select()
+        async def callback(self, interaction: Interaction, select: Select):
+            self.result = select.values[0]
+            self.clear_items()
+            await interaction.response.edit_message(view=self)
+            self.stop()
+
+        @discord.ui.button(label='Reload', style=discord.ButtonStyle.primary, emoji='🔁')
+        async def reload(self, interaction: Interaction, button: Button):
+            self.result = "reload"
+            await interaction.response.defer()
+            self.stop()
+
+        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='❌')
+        async def cancel(self, interaction: Interaction, button: Button):
+            await interaction.response.defer()
+            self.stop()
+
+        async def interaction_check(self, interaction: Interaction, /) -> bool:
+            if interaction.user != self.ctx.author:
+                await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
+                return False
+            else:
+                return True
+
     @commands.command(description='(Re-)Loads a mission', aliases=['list'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def load(self, ctx):
+    async def load(self, ctx: commands.Context):
         server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            data = await server.sendtoDCSSync({"command": "listMissions"})
-            missions = data['missionList']
-            if len(missions) == 0:
-                await ctx.send(f'No missions registered with this server, please "{ctx.prefix}add" one.')
-                return
-
-            current = missions[data['listStartIndex'] - 1]
-            current = current[(current.rfind('\\') + 1):-4]
-            name = await utils.selection(ctx, title=f"Mission {current} is running.",
-                                            placeholder="Select a mission to load",
-                                            options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
-            if not name:
-                return
-            msg = await ctx.send(f'Loading mission {name} ...')
-            for mission in missions:
-                if name in mission:
-                    await server.loadMission(missions.index(mission) + 1)
-                    break
-            await msg.delete()
-            await ctx.send(f'Mission {name} loaded.')
-        else:
+        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             return await ctx.send(f"Server {server.name} is {server.status.name}.")
+
+        data = await server.sendtoDCSSync({"command": "listMissions"})
+        missions = data['missionList']
+        if len(missions) == 0:
+            await ctx.send(f'No missions registered with this server, please "{ctx.prefix}add" one.')
+            return
+
+        embed = discord.Embed(title=f"{server.name}", colour=discord.Colour.blue())
+        embed.description = "Load / reload missions."
+        embed.add_field(name="Mission Name", value=server.current_mission.name)
+        embed.add_field(name="# Players", value=str(len(server.get_active_players())))
+        embed.add_field(name='▬' * 27, value='_ _', inline=False)
+        view = self.LoadView(ctx, placeholder="Select a mission to load",
+                             options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
+        msg = await ctx.send(embed=embed, view=view)
+        try:
+            if await view.wait():
+                return
+            elif not view.result:
+                await ctx.send('Aborted.')
+                return
+            name = view.result
+            if name == "reload":
+                await server.current_mission.restart()
+                await ctx.send(f'Mission {server.current_mission.name} reloaded.')
+            else:
+                tmp = await ctx.send(f'Loading mission {name} ...')
+                try:
+                    for mission in missions:
+                        if name in mission:
+                            await server.loadMission(missions.index(mission) + 1)
+                            await ctx.send(f'Mission {name} loaded.')
+                            break
+                finally:
+                    await tmp.delete()
+        finally:
+            await ctx.message.delete()
+            await msg.delete()
 
     @commands.command(description='Adds a mission to the list', usage='[path]')
     @utils.has_role('DCS Admin')

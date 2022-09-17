@@ -201,10 +201,10 @@ class DCSServerBot(commands.Bot):
         elif isinstance(err, commands.errors.CheckFailure):
             await ctx.send('Your role does not allow you to use this command (in this channel).')
         elif isinstance(err, asyncio.TimeoutError):
-            await ctx.send('A timeout occured. Is the DCS server running?')
+            await ctx.send('A timeout occurred. Is the DCS server running?')
         else:
             self.log.exception(err)
-            await ctx.send("An unknown exception occured.")
+            await ctx.send("An unknown exception occurred.")
 
     async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.CommandNotFound):
@@ -214,10 +214,10 @@ class DCSServerBot(commands.Bot):
         elif isinstance(error, app_commands.CheckFailure):
             await interaction.response.send_message('You don\'t have the rights to use that command.')
         elif isinstance(error, asyncio.TimeoutError):
-            await interaction.response.send_message('A timeout occured. Is the DCS server running?')
+            await interaction.response.send_message('A timeout occurred. Is the DCS server running?')
         else:
             self.log.exception(error)
-            await interaction.response.send_message("An unknown exception occured.")
+            await interaction.response.send_message("An unknown exception occurred.")
 
     async def reload(self, plugin: Optional[str]):
         if plugin:

@@ -195,13 +195,13 @@ class YNQuestionView(View):
         self.ctx = ctx
         self.result = False
 
-    @discord.ui.button(label='Yes', style=discord.ButtonStyle.primary, custom_id='yn_yes')
+    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='yn_yes', emoji='✅')
     async def on_yes(self, interaction: Interaction, button: Button):
         self.result = True
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label='No', style=discord.ButtonStyle.secondary, custom_id='yn_no')
+    @discord.ui.button(label='No', style=discord.ButtonStyle.secondary, custom_id='yn_no', emoji='❌')
     async def on_no(self, interaction: Interaction, button: Button):
         self.result = False
         await interaction.response.defer()

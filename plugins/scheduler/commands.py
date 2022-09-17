@@ -248,6 +248,33 @@ class Scheduler(Plugin):
 
     @staticmethod
     def change_mizfile(server: Server, config: dict, presets: Optional[str] = None):
+        def apply_preset(preset: dict):
+            if 'start_time' in value:
+                miz.start_time = value['start_time']
+            if 'date' in value:
+                miz.date = datetime.strptime(value['date'], '%Y-%m-%d')
+            if 'temperature' in value:
+                miz.temperature = int(value['temperature'])
+            if 'clouds' in value:
+                if isinstance(value['clouds'], str):
+                    miz.clouds = {"preset": value['clouds']}
+                else:
+                    miz.clouds = value['clouds']
+            if 'wind' in value:
+                miz.wind = value['wind']
+            if 'groundTurbulence' in value:
+                miz.groundTurbulence = int(value['groundTurbulence'])
+            if 'enable_dust' in value:
+                miz.enable_dust = value['enable_dust']
+            if 'dust_density' in value:
+                miz.dust_density = int(value['dust_density'])
+            if 'qnh' in value:
+                miz.qnh = int(value['qnh'])
+            if 'enable_fog' in value:
+                miz.enable_fog = value['enable_fog']
+            if 'fog' in value:
+                miz.fog = value['fog']
+
         filename = None
         if not server.current_mission or not server.current_mission.filename:
             for i in range(int(server.getServerSetting('listStartIndex')), 0, -1):
@@ -274,31 +301,12 @@ class Scheduler(Plugin):
         miz = MizFile(filename)
         for preset in [x.strip() for x in presets.split(',')]:
             value = config['presets'][preset]
-            if 'start_time' in value:
-                miz.start_time = value['start_time']
-            if 'date' in value:
-                miz.date = datetime.strptime(value['date'], '%Y-%m-%d')
-            if 'temperature' in value:
-                miz.temperature = int(value['temperature'])
-            if 'clouds' in value:
-                if isinstance(value['clouds'], str):
-                    miz.clouds = {"preset": value['clouds']}
-                else:
-                    miz.clouds = value['clouds']
-            if 'wind' in value:
-                miz.wind = value['wind']
-            if 'groundTurbulence' in value:
-                miz.groundTurbulence = int(value['groundTurbulence'])
-            if 'enable_dust' in value:
-                miz.enable_dust = value['enable_dust']
-            if 'dust_density' in value:
-                miz.dust_density = int(value['dust_density'])
-            if 'qnh' in value:
-                miz.qnh = int(value['qnh'])
-            if 'enable_fog' in value:
-                miz.enable_fog = value['enable_fog']
-            if 'fog' in value:
-                miz.fog = value['fog']
+            if isinstance(value, list):
+                for inner_preset in value:
+                    inner_value = config['presets'][inner_preset]
+                    apply_preset(inner_value)
+            elif isinstance(value, dict):
+                apply_preset(value)
         miz.save()
 
     async def restart_mission(self, server: Server, config: dict):
