@@ -473,6 +473,21 @@ class Scheduler(Plugin):
                 for ext in await self.teardown_extensions(server, config, ctx.message.author):
                     await ctx.send(f"{ext} shut down for server \"{server.name}\".")
 
+    @commands.command(description='Sets the servers maintenance flag')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def maintenance(self, ctx):
+        server: Server = await self.bot.get_server(ctx)
+        if server:
+            if not server.maintenance:
+                server.maintenance = True
+                await ctx.send(f"Maintenance mode set for server {server.name}.\n"
+                               f"The {string.capwords(self.plugin_name)} will be set on hold until you use"
+                               f" {ctx.prefix}clear again.")
+                await self.bot.audit("set maintenance flag", user=ctx.message.author, server=server)
+            else:
+                await ctx.send(f"Server {server.name} is already in maintenance mode.")
+
     @commands.command(description='Clears the servers maintenance flag')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
