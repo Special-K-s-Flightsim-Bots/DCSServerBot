@@ -168,6 +168,13 @@ class GameMasterAgent(Plugin):
 
 class GameMasterMaster(GameMasterAgent):
 
+    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+        self.log.debug('Pruning Gamemaster ...')
+        with closing(conn.cursor()) as cursor:
+            if days > 0:
+                cursor.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
+        self.log.debug('Gamemaster pruned.')
+
     @commands.command(description='Join a coalition (red / blue)', usage='[red | blue]')
     @utils.has_role('DCS')
     @utils.has_not_roles(['Coalition Blue', 'Coalition Red', 'GameMaster'])

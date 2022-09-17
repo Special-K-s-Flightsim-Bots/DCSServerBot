@@ -96,6 +96,9 @@ class Plugin(commands.Cog):
     async def after_dcs_update(self):
         pass
 
+    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+        pass
+
     def init_db(self):
         conn = self.pool.getconn()
         try:

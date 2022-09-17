@@ -94,8 +94,12 @@ class DCSServerBot(commands.Bot):
             return True
         except commands.ExtensionNotFound:
             self.log.error(f'  - No commands.py found for plugin "{plugin}"')
+        except commands.ExtensionAlreadyLoaded:
+            self.log.error(f'  - Plugin "{plugin} was already loaded"')
         except commands.ExtensionFailed as ex:
             self.log.error(f'  - {ex.original if ex.original else ex}')
+        except Exception as ex:
+            self.log.exception(ex)
         return False
 
     async def unload_plugin(self, plugin: str):
@@ -113,27 +117,39 @@ class DCSServerBot(commands.Bot):
         self.init_servers()
         await super().start(token, reconnect=reconnect)
 
-    def check_channel(self, channel_id: int):
+    def check_channel(self, channel_id: int) -> bool:
         channel = self.get_channel(channel_id)
+        if not channel:
+            self.log.error(f'No channel with ID {channel_id} found!')
+            return False
         channel_name = channel.name.encode(encoding='ASCII', errors='replace').decode()
         # name changes of the status channel will only happen with the correct permission
         permissions = channel.permissions_for(self.member)
         if not permissions.view_channel:
             self.log.error(f'Permission "View Channel" missing for channel {channel_name}')
+            return False
         if not permissions.send_messages:
             self.log.error(f'Permission "Send Messages" missing for channel {channel_name}')
+            return False
         if not permissions.read_messages:
             self.log.error(f'Permission "Read Messages" missing for channel {channel_name}')
+            return False
         if not permissions.read_message_history:
             self.log.error(f'Permission "Read Message History" missing for channel {channel_name}')
+            return False
         if not permissions.add_reactions:
             self.log.error(f'Permission "Add Reactions" missing for channel {channel_name}')
+            return False
         if not permissions.attach_files:
             self.log.error(f'Permission "Attach Files" missing for channel {channel_name}')
+            return False
         if not permissions.embed_links:
             self.log.error(f'Permission "Embed Links" missing for channel {channel_name}')
+            return False
         if not permissions.manage_messages:
             self.log.error(f'Permission "Manage Messages" missing for channel {channel_name}')
+            return False
+        return True
 
     def check_channels(self, installation: str):
         channels = ['ADMIN_CHANNEL', 'STATUS_CHANNEL', 'CHAT_CHANNEL']

@@ -98,7 +98,6 @@ class WeatherInfo(report.EmbedElement):
             if weather['enable_fog'] is True:
                 visibility = int(weather['fog']['visibility'] * const.METER_IN_FEET + 0.5)
             self.add_field(name='Visibility', value=f'{visibility:,} ft')
-            report.Ruler(self.env).render()
 
 
 class ExtensionsInfo(report.EmbedElement):
@@ -107,6 +106,7 @@ class ExtensionsInfo(report.EmbedElement):
         # we don't have any extensions loaded (yet)
         if len(server.extensions) == 0:
             return
+        report.Ruler(self.env).render()
         for ext in server.extensions.values():
             with suppress(Exception):
                 ext.render(self)

@@ -121,6 +121,17 @@ class UserStatisticsMaster(UserStatisticsAgent):
         self.expire_token.cancel()
         await super().cog_unload()
 
+    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+        self.log.debug('Pruning Userstats ...')
+        with closing(conn.cursor()) as cursor:
+            if ucids:
+                for ucid in ucids:
+                    cursor.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
+            elif days > 0:
+                cursor.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
+        self.log.debug('Userstats pruned.')
+
+
     @commands.command(brief='Shows player statistics',
                       description='Displays the users statistics, either for a specific period or for a running '
                                   'campaign.\nPeriod might be one of _day, yesterday, month, week_ or _year_. Campaign '
@@ -180,13 +191,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
         finally:
             await ctx.message.delete()
 
-    @commands.command(brief='Links a member to a DCS user',
-                      description="Used to link a Discord member to a DCS user by linking the Discord ID to the "
-                                  "respective UCID of that user.\nThe bot needs this information to be able to "
-                                  "display the statistics and other information for the user.\nIf a user is manually "
-                                  "linked, their link is approved, which means that they can use specific commands "
-                                  "in the in-game chat, if they belong to an elevated Discord role.",
-                      usage='<member> <ucid>')
+    @commands.command(description="Links a member to a DCS user", usage='<member> <ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def link(self, ctx, member: discord.Member, ucid: str):
@@ -201,15 +206,11 @@ class UserStatisticsMaster(UserStatisticsAgent):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+            await ctx.message.delete()
         await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
         await self.bot.audit(f'linked member {member.display_name} to ucid {ucid}.', user=ctx.message.author)
 
-    @commands.command(brief='Unlinks a member',
-                      description="Removes any link between this Discord member and a DCS users. Might be used, if a "
-                                  "mislink happend, either manually or due to the bots auto-link functionality not "
-                                  "having linked correctly.\n\nStatistics will not be deleted for this UCID, so "
-                                  "if you link the UCID to the correct member, they still see all their valuable data.",
-                      usage='<member|ucid>')
+    @commands.command(description='Unlinks a member', usage='<member|ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unlink(self, ctx, member: Union[discord.Member, str]):
@@ -231,6 +232,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+            await ctx.message.delete()
         if isinstance(member, discord.Member):
             await ctx.send(f'Member {member.display_name} unlinked.')
             await self.bot.audit(f'unlinked member {member.display_name}.', user=ctx.message.author)
@@ -424,7 +426,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                                    f"```{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme {token}```\n"
                                    f"**The TOKEN will expire in 2 days.**")
             except discord.Forbidden:
-                await ctx.send("Please allow me to send you the secret TOKEN in a DM!", delete_after=10)
+                await ctx.send("Please allow me to send you the secret TOKEN in a DM!")
 
         conn = self.pool.getconn()
         try:

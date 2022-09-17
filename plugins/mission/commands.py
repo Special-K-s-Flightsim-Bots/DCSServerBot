@@ -39,6 +39,13 @@ class Mission(Plugin):
         finally:
             self.pool.putconn(conn)
 
+    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+        self.log.debug('Pruning Mission ...')
+        with closing(conn.cursor()) as cursor:
+            if days > 0:
+                cursor.execute(f"DELETE FROM missions WHERE mission_end < (DATE(NOW()) - interval '{days} days')")
+        self.log.debug('Mission pruned.')
+
     @commands.command(description='Shows the active DCS mission')
     @utils.has_role('DCS Admin')
     @commands.guild_only()

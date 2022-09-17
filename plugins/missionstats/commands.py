@@ -32,6 +32,16 @@ class MissionStatisticsAgent(Plugin):
 
 class MissionStatisticsMaster(MissionStatisticsAgent):
 
+    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+        self.log.debug('Pruning Missionstats ...')
+        with closing(conn.cursor()) as cursor:
+            if ucids:
+                for ucid in ucids:
+                    cursor.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
+            elif days > 0:
+                cursor.execute(f"DELETE FROM missionstats WHERE time < (DATE(NOW()) - interval '{days} days')")
+        self.log.debug('Missionstats pruned.')
+
     @commands.command(description='Display statistics about sorties', usage='[user] [period]')
     @utils.has_role('DCS')
     @commands.guild_only()

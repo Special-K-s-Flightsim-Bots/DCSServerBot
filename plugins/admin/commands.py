@@ -13,9 +13,9 @@ import string
 import subprocess
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Player, Status, Server, Coalition
-from discord import Interaction, Embed
+from discord import Interaction, Embed, SelectOption
 from discord.ext import commands, tasks
-from discord.ui import Select, View
+from discord.ui import Select, View, Button
 from pathlib import Path
 from typing import Union, List, Optional
 from zipfile import ZipFile
@@ -525,31 +525,102 @@ class Agent(Plugin):
 
 class Master(Agent):
 
-    @commands.command(description='Prune unused data in the database', hidden=True)
+    class CleanupView(View):
+        def __init__(self, ctx: commands.Context):
+            super().__init__()
+            self.ctx = ctx
+            self.what = 'non-members'
+            self.age = '180'
+            self.command = None
+
+        @discord.ui.select(placeholder="What to be pruned?", options=[
+            SelectOption(label='Non-member users (unlinked)', value='non-members', default=True),
+            SelectOption(label='Members and non-members', value='users'),
+            SelectOption(label='Data only (all users)', value='data')
+        ])
+        async def set_what(self, interaction: Interaction, select: Select):
+            self.what = select.values[0]
+            await interaction.response.defer()
+
+        @discord.ui.select(placeholder="Which age to be pruned?", options=[
+            SelectOption(label='Older than 90 days', value='90'),
+            SelectOption(label='Older than 180 days', value='180', default=True),
+            SelectOption(label='Older than 1 year', value='360 days')
+        ])
+        async def set_age(self, interaction: Interaction, select: Select):
+            self.age = select.values[0]
+            await interaction.response.defer()
+
+        @discord.ui.button(label='Prune', style=discord.ButtonStyle.danger, emoji='⚠')
+        async def prune(self, interaction: Interaction, button: Button):
+            await interaction.response.defer()
+            self.command = "prune"
+            self.stop()
+
+        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='🚫')
+        async def cancel(self, interaction: Interaction, button: Button):
+            await interaction.response.defer()
+            self.command = "cancel"
+            self.stop()
+
+        async def interaction_check(self, interaction: Interaction, /) -> bool:
+            if interaction.user != self.ctx.author:
+                await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
+                return False
+            else:
+                return True
+
+    @commands.command(description='Prune unused data in the database', hidden=True, aliases=['prune'])
     @utils.has_role('Admin')
     @commands.guild_only()
-    async def prune(self, ctx):
-        if not await utils.yn_question(ctx, 'This will remove old data from your database and compact it.\n'
-                                            'Are you sure?'):
+    async def cleanup(self, ctx):
+        embed = discord.Embed(title=":warning: Database Prune :warning:")
+        embed.description = "You are going to delete data from your database. Be advised.\n\n" \
+                            "Please select the data to be pruned:"
+        view = self.CleanupView(ctx)
+        msg = await ctx.send(embed=embed, view=view)
+        await view.wait()
+        await msg.delete()
+        if view.command == "cancel":
+            await ctx.send('Aborted.')
             return
+
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                # delete non-members that haven't a name with them (very old data)
-                cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
-                               'discord_id = -1 AND name IS NULL)')
-                cursor.execute('DELETE FROM players WHERE discord_id = -1 AND name IS NULL')
-                # delete players that haven't shown up for 6 month
-                cursor.execute("DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE last_seen "
-                               "IS NULL OR last_seen < NOW() - interval '6 month')")
-                cursor.execute("DELETE FROM players WHERE last_seen IS NULL OR last_seen < NOW() - interval '6 month'")
+                if view.what in ['users', 'non-members']:
+                    sql = f"SELECT ucid FROM players WHERE last_seen < (DATE(NOW()) - interval '{view.age} days')"
+                    if view.what == 'non-members':
+                        sql += ' AND discord_id = -1'
+
+                    cursor.execute(sql)
+                    ucids = [row[0] for row in cursor.fetchall()]
+                    if not ucids:
+                        await ctx.send('No players to prune.')
+                        return
+                    if not await utils.yn_question(ctx, f"This will delete {len(ucids)} players incl. their stats "
+                                                        f"from the database.\nAre you sure?"):
+                        return
+                    for cog in self.bot.cogs.values():
+                        await cog.prune(conn, ucids=ucids)
+                    for ucid in ucids:
+                        cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
+                    await ctx.send(f"{len(ucids)} players pruned.")
+                elif view.what == 'data':
+                    days = int(view.age)
+                    if not await utils.yn_question(ctx, f"This will delete all data older than {days} days from the "
+                                                        f"database.\nAre you sure?"):
+                        return
+                    for cog in self.bot.cogs.values():
+                        await cog.prune(conn, days=days)
+                    await ctx.send(f"All data older than {days} days pruned.")
             conn.commit()
-            await self.bot.audit(f'pruned the database', user=ctx.message.author)
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.bot.log.exception(error)
         finally:
             self.bot.pool.putconn(conn)
+        await self.bot.audit(f'pruned the database', user=ctx.message.author)
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [reason]')
     @utils.has_role('DCS Admin')
