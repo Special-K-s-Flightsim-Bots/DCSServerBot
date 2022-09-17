@@ -94,8 +94,8 @@ class History(report.EmbedElement):
                     return
                 rows = cursor.fetchall()
                 self.embed.add_field(name='▬' * 15 + ' History ' + '▬' * 15, value='_ _', inline=False)
-                self.embed.add_field(name='DCS Name', value='\n'.join([row['name'] for row in rows]))
-                self.embed.add_field(name='IP Addr', value='\n'.join([row['ipaddr'] for row in rows]))
+                self.embed.add_field(name='DCS Name', value='\n'.join([row['name'] or 'n/a' for row in rows]))
+                self.embed.add_field(name='IP Addr', value='\n'.join([row['ipaddr'] or 'n/a' for row in rows]))
                 self.embed.add_field(name='Time', value='\n'.join([f"{row['time']:%y-%m-%d %H:%M:%S}" for row in rows]))
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)

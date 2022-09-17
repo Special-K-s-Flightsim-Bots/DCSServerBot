@@ -30,8 +30,8 @@ class CreditSystemListener(EventListener):
                 if 'category' in unit or 'unit_type' in unit or 'type' in unit:
                     return unit['points']
                 elif 'default' in unit:
-                    default = unit['default']
-        return default
+                    default = unit['default'] if data['victimCategory'] != 'Structures' else 0
+        return default if data['victimCategory'] != 'Structures' else 0
 
     @staticmethod
     def _get_initial_points(player: CreditPlayer, config: dict) -> int:

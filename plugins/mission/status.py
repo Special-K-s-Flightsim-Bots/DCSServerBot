@@ -50,8 +50,9 @@ class ServerInfo(report.EmbedElement):
                                        timedelta(seconds=server.current_mission.start_time + uptime))
             self.add_field(name='Date/Time in Mission', value=value)
             if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
-                self.add_field(name='Avail. Slots', value='🔹 {}  |  {} 🔸'.format(server.current_mission.num_slots_blue,
-                                                                                  server.current_mission.num_slots_red))
+                self.add_field(name='Avail. Slots',
+                               value=f'🔹 {server.current_mission.num_slots_blue}  |  '
+                                     f'{server.current_mission.num_slots_red} 🔸')
             else:
                 self.add_field(name='Coalitions', value='Yes')
         if server.maintenance:
@@ -98,7 +99,6 @@ class WeatherInfo(report.EmbedElement):
             if weather['enable_fog'] is True:
                 visibility = int(weather['fog']['visibility'] * const.METER_IN_FEET + 0.5)
             self.add_field(name='Visibility', value=f'{visibility:,} ft')
-            report.Ruler(self.env).render()
 
 
 class ExtensionsInfo(report.EmbedElement):
@@ -107,6 +107,7 @@ class ExtensionsInfo(report.EmbedElement):
         # we don't have any extensions loaded (yet)
         if len(server.extensions) == 0:
             return
+        report.Ruler(self.env).render()
         for ext in server.extensions.values():
             with suppress(Exception):
                 ext.render(self)

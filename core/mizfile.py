@@ -341,3 +341,10 @@ class MizFile:
                     if e in values:
                         self.mission.insert(i + j - 1, f'            ["{e}"] = {self.unparse(values[e])},\n')
                 break
+
+    def clear_required_modules(self) -> None:
+        for i in range(0, len(self.mission)):
+            if '["requiredModules"] =' in self.mission[i]:
+                i += 2
+                while self.mission[i] != '}, -- end of ["requiredModules"]':
+                    self.mission.pop(i)

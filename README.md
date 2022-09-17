@@ -157,6 +157,9 @@ d) __DCS Section__
 | GREETING_MESSAGE_UNMATCHED | A greeting message, that people will receive in DCS chat, if they are unmatched.                                                              |
 | SERVER_USER                | The username to display as user no. 1 in the server (aka "Observer")                                                                          |
 | MAX_HUNG_MINUTES           | The maximum amount in minutes the server is allowed to not respond to the bot until considered dead (default = 3). Set it to 0 to disable it. |
+| MESSAGE_PLAYER_USERNAME    | Message that a user gets when being rejected because of a default player name (Player, Spieler, etc.).                                        |
+| MESSAGE_BAN                | Message a banned user gets when being rejected.                                                                                               |
+| MESSAGE_ACCOUNT_SHARING    | Message a user gets when being rejected for account sharing.                                                                                  |
 
 e) __Server Specific Sections__
 

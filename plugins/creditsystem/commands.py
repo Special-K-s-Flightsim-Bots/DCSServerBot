@@ -51,6 +51,15 @@ class CreditSystemAgent(Plugin):
 
 class CreditSystemMaster(CreditSystemAgent):
 
+    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+        self.log.debug('Pruning Creditsystem ...')
+        with closing(conn.cursor()) as cursor:
+            if ucids:
+                for ucid in ucids:
+                    cursor.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))
+                    cursor.execute('DELETE FROM credits_log WHERE player_ucid = %s', (ucid,))
+        self.log.debug('Creditsystem pruned.')
+
     def get_credits(self, ucid: str) -> list[dict]:
         conn = self.pool.getconn()
         try:

@@ -4,11 +4,20 @@ local dcsbot	= base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local config	= base.require("DCSServerBotConfig")
 
-function trim(s)
+local default_names = { 'Player', 'Spieler', 'Jugador', 'Joueur' }
+
+local function trim(s)
   return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
 end
 
-function isBanned(ucid)
+local function locate( table, value )
+    for i = 1, #table do
+        if table[i] == value then return true end
+    end
+    return false
+end
+
+local function isBanned(ucid)
 	return dcsbot.banList[ucid] ~= nil
 end
 
@@ -17,18 +26,14 @@ local admin = admin or {}
 function admin.onPlayerTryConnect(addr, name, ucid, playerID)
     log.write('DCSServerBot', log.DEBUG, 'Admin: onPlayerTryConnect()')
 	local msg = {}
-	-- we don't accept empty player IDs
-	if name == nil or trim(name) == '' then
-        msg.command = 'sendMessage'
-        msg.message = 'User with empty user name (ucid=' .. ucid .. ') rejected.'
-    	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
-		return false, 'Rejected due to empty username.'
-	end
+    if locate(default_names, name) then
+        return false, config.MESSAGE_PLAYER_USERNAME
+    end
 	if isBanned(ucid) then
         msg.command = 'sendMessage'
         msg.message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
     	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
-	    return false, 'You are banned from this server. Reason: ' .. dcsbot.banList[ucid]
+	    return false, string.gsub(config.MESSAGE_BAN, "{}", dcsbot.banList[ucid])
 	end
     plist = net.get_player_list()
     num_players = table.getn(plist)
@@ -42,7 +47,7 @@ function admin.onPlayerTryConnect(addr, name, ucid, playerID)
                 msg.command = 'sendMessage'
                 msg.message = 'User ' .. name .. ' (ucid=' .. ucid .. ') rejected due to account sharing.'
                 utils.sendBotTable(msg, config.ADMIN_CHANNEL)
-                return false, 'Rejected and reported due to possible account sharing.'
+                return false, config.MESSAGE_ACCOUNT_SHARING
             end
         end
     end

@@ -121,7 +121,8 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, mar
 
 
 class SelectView(View):
-    def __init__(self, ctx: commands.Context, *, placeholder: str, options: list[SelectOption], min_values: int, max_values: int):
+    def __init__(self, ctx: commands.Context, *, placeholder: str, options: list[SelectOption], min_values: int,
+                 max_values: int):
         super().__init__()
         self.ctx = ctx
         self.result = None
@@ -148,13 +149,14 @@ class SelectView(View):
 
 
 async def selection(ctx, *, title: Optional[str] = None, placeholder: Optional[str] = None, embed: discord.Embed = None,
-                    options: list[SelectOption], min_values: Optional[int] = 1, max_values: Optional[int] = 1) -> Optional[str]:
+                    options: list[SelectOption], min_values: Optional[int] = 1, max_values: Optional[int] = 1,
+                    ephemeral: bool = False) -> Optional[str]:
     if not embed and title:
         embed = discord.Embed(description=title, color=discord.Color.blue())
     view = SelectView(ctx, placeholder=placeholder, options=options, min_values=min_values, max_values=max_values)
     msg = None
     try:
-        msg = await ctx.send(embed=embed, view=view)
+        msg = await ctx.send(embed=embed, view=view, ephemeral=ephemeral)
         if await view.wait():
             return None
         return view.result
@@ -163,7 +165,7 @@ async def selection(ctx, *, title: Optional[str] = None, placeholder: Optional[s
             await msg.delete()
 
 
-async def multi_selection_list(self, ctx, data, embed_formatter) -> list[int]:
+async def multi_selection_list(self, ctx: commands.Context, data: list, embed_formatter) -> list[int]:
     def check_ok(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.emoji == '🆗')
 
@@ -193,13 +195,13 @@ class YNQuestionView(View):
         self.ctx = ctx
         self.result = False
 
-    @discord.ui.button(label='Yes', style=discord.ButtonStyle.primary, custom_id='yn_yes')
+    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='yn_yes', emoji='✅')
     async def on_yes(self, interaction: Interaction, button: Button):
         self.result = True
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label='No', style=discord.ButtonStyle.secondary, custom_id='yn_no')
+    @discord.ui.button(label='No', style=discord.ButtonStyle.secondary, custom_id='yn_no', emoji='❌')
     async def on_no(self, interaction: Interaction, button: Button):
         self.result = False
         await interaction.response.defer()
@@ -214,7 +216,7 @@ class YNQuestionView(View):
 
 
 async def yn_question(ctx: commands.Context, question: str, message: Optional[str] = None) -> bool:
-    embed = discord.Embed(title=question, color=discord.Color.red())
+    embed = discord.Embed(description=question, color=discord.Color.red())
     if message is not None:
         embed.add_field(name=message, value='_ _')
     view = YNQuestionView(ctx)
@@ -465,7 +467,8 @@ class ContextWrapper(commands.Context):
         suppress_embeds: bool = False,
         ephemeral: bool = False,
     ) -> discord.Message:
-        return await self.message.channel.send(content, tts=tts, embed=embed, view=view, file=file, files=files,
-                                               delete_after=delete_after, nonce=nonce,
+        return await self.message.channel.send(content, tts=tts, embed=embed, embeds=embeds, file=file, files=files,
+                                               stickers=stickers, delete_after=delete_after, nonce=nonce,
                                                allowed_mentions=allowed_mentions, reference=reference,
-                                               mention_author=mention_author)
+                                               mention_author=mention_author, view=view,
+                                               suppress_embeds=suppress_embeds, ephemeral=ephemeral)
