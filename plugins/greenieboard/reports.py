@@ -7,7 +7,7 @@ from .trapsheet import plot_trapsheet, read_trapsheet, parse_filename
 class LSORating(report.EmbedElement):
     def render(self, landing: dict):
         grade = GRADES[landing['grade']]
-        comment = landing['comment']
+        comment = landing['comment'].replace('/', '')
         wire = landing['wire']
 
         self.add_field(name="Date/Time", value=f"{landing['time']:%y-%m-%d %H:%M:%S}")
@@ -64,7 +64,7 @@ class LSORating(report.EmbedElement):
                                     _element = _element.replace(error, '')
                                     break
                             else:
-                                self.log.error(f'Element {element} not found in LSO mapping!')
+                                self.log.error(f'Element {_element} not found in LSO mapping!')
                                 _element = ''
                         return retval
 
