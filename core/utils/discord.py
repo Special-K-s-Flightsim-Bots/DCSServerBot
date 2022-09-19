@@ -1,13 +1,17 @@
+from __future__ import annotations
 import asyncio
 import discord
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, cast, Sequence, Union
+from typing import Optional, cast, Sequence, Union, TYPE_CHECKING
 from discord import Interaction, app_commands, SelectOption
 from discord.ext import commands
 from discord.ui import Button, View, Select
 
 from . import config
+
+if TYPE_CHECKING:
+    from .. import Server
 
 
 async def wait_for_single_reaction(self, ctx, message: discord.Message) -> discord.Reaction:
@@ -444,6 +448,14 @@ async def servers_autocomplete(interaction: discord.Interaction, current: str) -
     return choices[:25]
 
 
+async def players_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    server: Server = interaction.client.get_server(interaction)
+    choices: list[app_commands.Choice[str]] = [
+        app_commands.Choice(name=x.name, value=x.ucid) for x in server.get_active_players() if current.casefold() in x.name.casefold()
+    ]
+    return choices[:25]
+
+
 @dataclass
 class ContextWrapper(commands.Context):
     message: discord.Message
@@ -465,10 +477,10 @@ class ContextWrapper(commands.Context):
         mention_author: Optional[bool] = None,
         view: Optional[View] = None,
         suppress_embeds: bool = False,
-        ephemeral: bool = False,
+        ephemeral: bool = False
     ) -> discord.Message:
         return await self.message.channel.send(content, tts=tts, embed=embed, embeds=embeds, file=file, files=files,
                                                stickers=stickers, delete_after=delete_after, nonce=nonce,
                                                allowed_mentions=allowed_mentions, reference=reference,
                                                mention_author=mention_author, view=view,
-                                               suppress_embeds=suppress_embeds, ephemeral=ephemeral)
+                                               suppress_embeds=suppress_embeds)
