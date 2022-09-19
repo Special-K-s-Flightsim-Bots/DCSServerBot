@@ -105,9 +105,8 @@ class MissionEventListener(EventListener):
     async def registerDCSServer(self, data):
         server: Server = self.bot.servers[data['server_name']]
         if not server.current_mission:
-            mission: Mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
-                                                       map=data['current_map'], name=data['current_mission'])
-            server.current_mission = mission
+            server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
+                                                             map=data['current_map'], name=data['current_mission'])
         server.current_mission.update(data)
         server.status = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
         if data['channel'].startswith('sync-'):
@@ -129,10 +128,10 @@ class MissionEventListener(EventListener):
     async def onMissionLoadBegin(self, data):
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.LOADING
-        mission: Mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
-                                                   map=data['current_map'], name=data['current_mission'])
-        mission.update(data)
-        server.current_mission = mission
+        if not server.current_mission:
+            server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
+                                                             map=data['current_map'], name=data['current_mission'])
+        server.current_mission.update(data)
         server.players = dict[int, Player]()
         if server.settings:
             self._display_mission_embed(server)
@@ -287,7 +286,7 @@ class MissionEventListener(EventListener):
                         player.name, data['arg3'] if len(data['arg3']) > 0 else 'ground'))
                 else:
                     self._send_chat_message(server,
-                                                  self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
+                                            self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
 
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
