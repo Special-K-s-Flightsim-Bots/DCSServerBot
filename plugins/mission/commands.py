@@ -270,6 +270,7 @@ class Mission(Plugin):
             elif not view.result:
                 await ctx.send('Aborted.')
                 return
+            msg = await msg.edit(suppress=True)
             name = view.result
             if name == "reload":
                 await server.current_mission.restart()
@@ -509,6 +510,8 @@ class Mission(Plugin):
             if stopped:
                 await server.start()
             await message.channel.send("Mission uploaded and added." if not exists else "Mission replaced.")
+        except Exception as ex:
+            self.log.exception(ex)
         finally:
             await message.delete()
 
