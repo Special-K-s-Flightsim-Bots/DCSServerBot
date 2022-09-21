@@ -2,7 +2,7 @@ import dateparser
 import discord
 import psycopg2
 from contextlib import closing
-from core import DCSServerBot, Plugin, utils, Report, Status, Server, Coalition, Channel
+from core import DCSServerBot, Plugin, utils, Report, Status, Server, Coalition, Channel, Player
 from discord.ext import commands
 from typing import Optional
 from .listener import GameMasterEventListener
@@ -82,8 +82,8 @@ class GameMasterAgent(Plugin):
                     i = 0
                 message = ' '.join(args[i:])
                 if to.lower() not in ['all', 'red', 'blue']:
-                    player = server.get_player(name=to, active=True)
-                    if player and len(player.slot) > 0:
+                    player: Player = server.get_player(name=to, active=True)
+                    if player:
                         player.sendPopupMessage(message, time, ctx.message.author.display_name)
                     else:
                         await ctx.send(f'Can\'t find player "{to}" or player is not in an active unit.')

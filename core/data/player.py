@@ -174,8 +174,8 @@ class Player(DataObject):
             timeout = self.bot.config['BOT']['MESSAGE_TIMEOUT']
         self.server.sendtoDCS({
             "command": "sendPopupMessage",
-            "to": self.slot,
+            "to": self.unit_name,
             "from": sender,
-            "message": message,
+            "message": message.replace('\n', '\\n'),
             "time": timeout
         })

@@ -202,7 +202,7 @@ class MizFile:
     @property
     def dust_density(self) -> int:
         if not self.enable_dust:
-            return -1
+            return 0
         exp = re.compile(self.re_exp['key_value'].format(key='dust_density'))
         for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
@@ -211,10 +211,6 @@ class MizFile:
 
     @dust_density.setter
     def dust_density(self, value: int) -> None:
-        if value <= 0:
-            self.enable_dust = False
-        else:
-            self.enable_dust = True
         exp = re.compile(self.re_exp['key_value'].format(key='dust_density'))
         for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
@@ -232,10 +228,6 @@ class MizFile:
 
     @qnh.setter
     def qnh(self, value: float) -> None:
-        if value <= 0:
-            self.enable_dust = False
-        else:
-            self.enable_dust = True
         exp = re.compile(self.re_exp['key_value'].format(key='qnh'))
         for i in range(0, len(self.mission)):
             match = exp.search(self.mission[i])
@@ -322,7 +314,6 @@ class MizFile:
     @fog.setter
     def fog(self, values: dict):
         elements = list(values.keys())
-        self.enable_fog = True
         for i in range(0, len(self.mission)):
             if '["fog"] = ' in self.mission[i]:
                 j = 2

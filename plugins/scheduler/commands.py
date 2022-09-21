@@ -563,6 +563,9 @@ class Scheduler(Plugin):
                 await ctx.send(f"Server {server.name} not running.")
                 return
             name = ' '.join(args)
+            if not name:
+                await ctx.send(f'Usage: {ctx.prefix}add_preset <name>')
+                return
             miz = MizFile(server.current_mission.filename)
             if 'presets' not in self.locals['configs'][0]:
                 self.locals['configs'][0]['presets'] = dict()
@@ -580,7 +583,9 @@ class Scheduler(Plugin):
                     "groundTurbulence": miz.groundTurbulence,
                     "enable_dust": miz.enable_dust,
                     "dust_density": miz.dust_density if miz.enable_dust else 0,
-                    "qnh": miz.qnh
+                    "qnh": miz.qnh,
+                    "enable_fog": miz.enable_fog,
+                    "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0}
                 }
             }
             with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:
