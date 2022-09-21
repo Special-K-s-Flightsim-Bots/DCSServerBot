@@ -265,9 +265,12 @@ class MizFile:
                 while '}' not in self.mission[i + j]:
                     for e in elements:
                         if e in self.mission[i + j] and e in values:
-                            self.mission[i + j] = re.sub(' = ([^,]*)', ' = {}'.format(self.unparse(values[e])),
-                                                         self.mission[i + j])
-                            j += 1
+                            if e == 'preset' and not values[e]:
+                                del self.mission[i + j]
+                            else:
+                                self.mission[i + j] = re.sub(' = ([^,]*)', ' = {}'.format(self.unparse(values[e])),
+                                                             self.mission[i + j])
+                                j += 1
                             old_elements.remove(e)
                     elements = old_elements.copy()
                     j += 1
