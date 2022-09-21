@@ -146,7 +146,6 @@ class MissionEventListener(EventListener):
     async def onSimulationStop(self, data):
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.STOPPED
-        server.current_mission = None
         self._display_mission_embed(server)
 
     async def onSimulationPause(self, data):
