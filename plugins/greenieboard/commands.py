@@ -102,9 +102,11 @@ class GreenieBoard(Plugin):
         try:
             num_rows = self.locals['configs'][0]['num_rows']
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute('SELECT g.player_ucid, p.name, AVG(g.points) AS points, MAX(time) AS time FROM '
-                               'greenieboard g, players p WHERE g.player_ucid = p.ucid GROUP BY 1, 2 ORDER BY 3 DESC '
-                               'LIMIT %s', (num_rows, ))
+                cursor.execute('SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time FROM (SELECT player_ucid, '
+                               'ROW_NUMBER() OVER w AS rn, AVG(points) OVER w AS points, MAX(time) OVER w AS time '
+                               'FROM greenieboard WINDOW w AS (PARTITION BY player_ucid ORDER BY ID DESC ROWS BETWEEN '
+                               'CURRENT ROW AND 9 FOLLOWING)) g, players p WHERE g.player_ucid = p.ucid AND g.rn = 1 '
+                               'GROUP BY 1, 2, 3 ORDER BY 3 DESC LIMIT %s', (num_rows, ))
                 if cursor.rowcount > 0:
                     embed = discord.Embed(title=f"Greenieboard (TOP {num_rows})",
                                           color=discord.Color.blue())
@@ -113,8 +115,8 @@ class GreenieBoard(Plugin):
                     for row in cursor.fetchall():
                         pilots += row['name'] + '\n'
                         points += f"{row['points']:.2f}\n"
-                        cursor.execute('SELECT grade, night FROM greenieboard WHERE player_ucid = %s ORDER BY time '
-                                       'DESC LIMIT 10', (row['player_ucid'], ))
+                        cursor.execute('SELECT grade, night FROM greenieboard WHERE player_ucid = %s ORDER BY ID DESC '
+                                       'LIMIT 10', (row['player_ucid'], ))
                         i = 0
                         landings += '**|'
                         for landing in cursor.fetchall():
