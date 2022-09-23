@@ -300,9 +300,15 @@ class Scheduler(Plugin):
                 presets = random.choice(config['restart']['settings'])
         miz = MizFile(filename)
         for preset in [x.strip() for x in presets.split(',')]:
+            if preset not in config['presets']:
+                server.log.error(f'Preset {preset} not found, ignored.')
+                continue
             value = config['presets'][preset]
             if isinstance(value, list):
                 for inner_preset in value:
+                    if inner_preset not in config['presets']:
+                        server.log.error(f'Preset {inner_preset} not found, ignored.')
+                        continue
                     inner_value = config['presets'][inner_preset]
                     apply_preset(inner_value)
             elif isinstance(value, dict):
