@@ -520,12 +520,11 @@ class Scheduler(Plugin):
             return
 
         config = self.get_config(server)
-        presets = [discord.SelectOption(label=p) for p in config['presets'].keys()]
+        presets = [discord.SelectOption(label=k) for k, v in config['presets'].items() if 'hidden' not in v or not v['hidden']]
         if not presets:
             await ctx.send('No presets available, please configure them in your scheduler.json.')
             return
 
-        stopped = False
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
             question = f"Do you want to stop server \"{server.name}\" to change the mission preset?"
             if server.is_populated():
@@ -533,13 +532,15 @@ class Scheduler(Plugin):
             if not await utils.yn_question(ctx, question):
                 await ctx.send('Aborted.')
                 return
-            stopped = True
-            await server.stop()
 
         select = Select(options=presets, placeholder="Select the preset(s) you want to apply", max_values=min(10, len(presets)))
 
         async def callback(interaction: discord.Interaction):
             await interaction.response.defer(thinking=True)
+            stopped = False
+            if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+                stopped = True
+                await server.stop()
             for preset in select.values:
                 self.change_mizfile(server, config, preset)
             if stopped:

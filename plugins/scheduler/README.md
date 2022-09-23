@@ -1,10 +1,12 @@
 # Plugin Scheduler
-With this plugin you can decide when to run your DCS servers, when to run which mission and how long a specific mission shall run, either in local time or in mission time.
-Tasks that can be achieved with this solution are:
+With this plugin you can decide when to run your DCS servers, when to run which mission and how long a specific mission 
+shall run, either in local time or in mission time. Tasks that can be achieved with this solution are below others:
 * Have a server rotate a mission every 4 hrs.
 * Restart the mission before it gets dark.
 * Have two servers run alternately, maybe one with password, one public
 * Change time and weather in your mission on specific times or randomly
+
+The plugin is one of if not the most complex plugins of DCSServerBot. Read this documentation thoroughly. 
 
 ## Configuration
 Examples:
@@ -27,7 +29,8 @@ Examples:
           "Night": { "start_time": "01:00" },
           "Calm": {"clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
           "Windy": {"clouds": "Preset3", "wind": {"at8000":  {"speed": 15, "dir":  105}, "at2000": {"speed" 10, "dir": 130}, "atGround": {"speed": 10, "dir": 20}}},
-          "Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}}
+          "Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}, "hidden":  true},
+          "Default": ["Summer", "Morning", "Calm"]
       },
       "extensions": {
         "SRS": {
@@ -117,17 +120,22 @@ Examples:
 Weather presets can be combined by comma separating them in the appropriate server configuration. You can either create
 full-fledged weather presets already and load them later or you combine them like in the example above. 
 
-| Parameter        | Description                                     |
-|------------------|-------------------------------------------------|
-|                  | First parameter is the name of the preset.      |
-| date             | The missions date.                              |
-| start_time       | The missions start time in seconds.             |
-| temperature      | Temperature in °C.                              |
-| clouds           | Name of a DCS cloud preset.                     |
-| wind             | Wind atGround, at2000 (m) and at8000 (m) in m/s |
-| qnh              | Pressure at sea level in mmHg                   |
-| groundTurbulence | Ground turbulence in 0.1 * meters               |
-| dust_density     | Dust density in meters, 0 = off                 |
+| Parameter        | Description                                                   |
+|------------------|---------------------------------------------------------------|
+|                  | First parameter is the name of the preset.                    |
+| date             | The missions date.                                            |
+| start_time       | The missions start time in seconds.                           |
+| temperature      | Temperature in °C.                                            |
+| clouds           | Name of a DCS cloud preset.                                   |
+| wind             | Wind atGround, at2000 (m) and at8000 (m) in m/s               |
+| qnh              | Pressure at sea level in mmHg                                 |
+| groundTurbulence | Ground turbulence in 0.1 * meters                             |
+| enable_dust      | Whether to enable dust or not                                 |
+| dust_density     | Dust density in meters, 0 = off                               |
+| enable_fog       | Whether to enable fog or not                                  |
+| fog              | Settings for fog (thickness, visibility)                      |
+| hidden           | If true, this preset is not selectable in the .preset command |
+
 
 
 ### Section "schedule"

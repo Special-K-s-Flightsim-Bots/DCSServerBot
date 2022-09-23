@@ -128,7 +128,7 @@ class DCSServerBot(commands.Bot):
                 if discord_role.name in config_roles:
                     config_roles.remove(discord_role.name)
             for bad_role in config_roles:
-                self.log.error(f"Role {bad_role} not found in your Discord!")
+                self.log.error(f"  => Role {bad_role} not found in your Discord!")
 
     def check_channel(self, channel_id: int) -> bool:
         channel = self.get_channel(channel_id)
@@ -139,28 +139,28 @@ class DCSServerBot(commands.Bot):
         # name changes of the status channel will only happen with the correct permission
         permissions = channel.permissions_for(self.member)
         if not permissions.view_channel:
-            self.log.error(f'Permission "View Channel" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "View Channel" missing for channel {channel_name}')
             return False
         if not permissions.send_messages:
-            self.log.error(f'Permission "Send Messages" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Send Messages" missing for channel {channel_name}')
             return False
         if not permissions.read_messages:
-            self.log.error(f'Permission "Read Messages" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Read Messages" missing for channel {channel_name}')
             return False
         if not permissions.read_message_history:
-            self.log.error(f'Permission "Read Message History" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Read Message History" missing for channel {channel_name}')
             return False
         if not permissions.add_reactions:
-            self.log.error(f'Permission "Add Reactions" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Add Reactions" missing for channel {channel_name}')
             return False
         if not permissions.attach_files:
-            self.log.error(f'Permission "Attach Files" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Attach Files" missing for channel {channel_name}')
             return False
         if not permissions.embed_links:
-            self.log.error(f'Permission "Embed Links" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Embed Links" missing for channel {channel_name}')
             return False
         if not permissions.manage_messages:
-            self.log.error(f'Permission "Manage Messages" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Manage Messages" missing for channel {channel_name}')
             return False
         return True
 
@@ -182,7 +182,7 @@ class DCSServerBot(commands.Bot):
                     self.log.warning('  => YOUR BOT IS INSTALLED IN MORE THAN ONE GUILD. THIS IS NOT SUPPORTED!')
                 self.member = self.guilds[0].get_member(self.user.id)
                 self.external_ip = await utils.get_external_ip()
-                self.log.debug('- Checking Roles & Channels ...')
+                self.log.info('- Checking Roles & Channels ...')
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
                 for server in self.servers.values():
                     if self.config.getboolean(server.installation, 'COALITIONS'):
