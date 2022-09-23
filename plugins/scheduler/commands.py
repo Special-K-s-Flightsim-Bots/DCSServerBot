@@ -300,9 +300,15 @@ class Scheduler(Plugin):
                 presets = random.choice(config['restart']['settings'])
         miz = MizFile(filename)
         for preset in [x.strip() for x in presets.split(',')]:
+            if preset not in config['presets']:
+                server.log.error(f'Preset {preset} not found, ignored.')
+                continue
             value = config['presets'][preset]
             if isinstance(value, list):
                 for inner_preset in value:
+                    if inner_preset not in config['presets']:
+                        server.log.error(f'Preset {inner_preset} not found, ignored.')
+                        continue
                     inner_value = config['presets'][inner_preset]
                     apply_preset(inner_value)
             elif isinstance(value, dict):
@@ -348,7 +354,7 @@ class Scheduler(Plugin):
             if 'mission_time' in config['restart'] and \
                     (server.current_mission.mission_time + restart_in) >= (int(config['restart']['mission_time']) * 60):
                 asyncio.create_task(self.restart_mission(server, config))
-            elif 'local_times' in config['restart']:
+            if 'local_times' in config['restart']:
                 now = datetime.now()
                 if config['restart']['method'] != 'restart_with_shutdown' and 'mission_end' not in config['restart']:
                     now += timedelta(seconds=restart_in)
@@ -520,12 +526,11 @@ class Scheduler(Plugin):
             return
 
         config = self.get_config(server)
-        presets = [discord.SelectOption(label=p) for p in config['presets'].keys()]
+        presets = [discord.SelectOption(label=k) for k, v in config['presets'].items() if 'hidden' not in v or not v['hidden']]
         if not presets:
             await ctx.send('No presets available, please configure them in your scheduler.json.')
             return
 
-        stopped = False
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
             question = f"Do you want to stop server \"{server.name}\" to change the mission preset?"
             if server.is_populated():
@@ -533,13 +538,15 @@ class Scheduler(Plugin):
             if not await utils.yn_question(ctx, question):
                 await ctx.send('Aborted.')
                 return
-            stopped = True
-            await server.stop()
 
         select = Select(options=presets, placeholder="Select the preset(s) you want to apply", max_values=min(10, len(presets)))
 
         async def callback(interaction: discord.Interaction):
             await interaction.response.defer(thinking=True)
+            stopped = False
+            if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+                stopped = True
+                await server.stop()
             for preset in select.values:
                 self.change_mizfile(server, config, preset)
             if stopped:

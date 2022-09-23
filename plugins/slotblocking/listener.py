@@ -72,7 +72,7 @@ class SlotBlockingListener(EventListener):
     async def onPlayerConnect(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
-        if not config:
+        if not config or data['id'] == 1:
             return
         if 'VIP' in config and 'audit' in config['VIP'] and config['VIP']['audit'] and 'ucid' in config['VIP']:
             ucid = config['VIP']['ucid']

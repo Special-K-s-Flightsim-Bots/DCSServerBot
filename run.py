@@ -17,6 +17,7 @@ from install import Install
 from logging.handlers import RotatingFileHandler
 from os import path
 from psycopg2 import pool
+from typing import Optional
 from version import __version__
 
 # Set the bot version (not externally configurable)
@@ -211,33 +212,39 @@ class Main:
         @self.bot.command(description='Reloads plugins', aliases=['plugins'])
         @utils.has_role('Admin')
         @commands.guild_only()
-        async def reload(ctx):
-            plugins = list(self.bot.cogs.values())
-            embed = discord.Embed(title=f'Installed Plugins ({platform.node()})', color=discord.Color.blue())
-            names = versions = ''
-            for plugin in plugins:
-                names += string.capwords(plugin.plugin_name) + '\n'
-                versions += plugin.plugin_version + '\n'
-            embed.add_field(name='Name', value=names)
-            embed.add_field(name='Version', value=versions)
-            embed.add_field(name='▬' * 20, value='_ _', inline=False)
-            embed.add_field(name='Bot Version', value=f"v{self.bot.version}.{self.bot.sub_version}")
-            embed.add_field(name='_ _', value='_ _')
-            embed.add_field(name='DB Version', value=f"{self.db_version}")
-            cogs = await utils.selection(ctx, placeholder="Select the plugin(s) to reload",
-                                         embed=embed,
-                                         options=[
-                                             SelectOption(
-                                                 label=string.capwords(x.plugin_name),
-                                                 value=x.plugin_name) for x in plugins
-                                         ],
-                                         max_values=len(plugins))
-            if not cogs:
-                return
+        async def reload(ctx, cog: Optional[str] = None):
+            if cog:
+                cogs = [cog.lower()]
+            else:
+                plugins = list(self.bot.cogs.values())
+                embed = discord.Embed(title=f'Installed Plugins ({platform.node()})', color=discord.Color.blue())
+                names = versions = ''
+                for plugin in plugins:
+                    names += string.capwords(plugin.plugin_name) + '\n'
+                    versions += plugin.plugin_version + '\n'
+                embed.add_field(name='Name', value=names)
+                embed.add_field(name='Version', value=versions)
+                embed.add_field(name='▬' * 20, value='_ _', inline=False)
+                embed.add_field(name='Bot Version', value=f"v{self.bot.version}.{self.bot.sub_version}")
+                embed.add_field(name='_ _', value='_ _')
+                embed.add_field(name='DB Version', value=f"{self.db_version}")
+                cogs = await utils.selection(ctx, placeholder="Select the plugin(s) to reload",
+                                             embed=embed,
+                                             options=[
+                                                 SelectOption(
+                                                     label=string.capwords(x.plugin_name),
+                                                     value=x.plugin_name) for x in plugins
+                                             ],
+                                             max_values=len(plugins))
+                if not cogs:
+                    return
             self.read_config()
             for cog in cogs:
-                await self.bot.reload(cog)
-                await ctx.send('Plugin {} reloaded.'.format(string.capwords(cog)))
+                try:
+                    await self.bot.reload(cog)
+                    await ctx.send(f'Plugin {string.capwords(cog)} reloaded.')
+                except commands.ExtensionNotLoaded:
+                    await ctx.send(f'Plugin {string.capwords(cog)} not found.')
 
         @self.bot.command(description='Rename a server')
         @utils.has_role('Admin')

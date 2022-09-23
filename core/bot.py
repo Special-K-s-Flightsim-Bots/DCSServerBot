@@ -37,6 +37,7 @@ class DCSServerBot(commands.Bot):
         self.pool = kwargs['pool']
         self.log = kwargs['log']
         self.config = kwargs['config']
+        self.master = self.config.getboolean('BOT', 'MASTER')
         plugins = self.config['BOT']['PLUGINS']
         if 'OPT_PLUGINS' in self.config['BOT']:
             plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
@@ -57,6 +58,9 @@ class DCSServerBot(commands.Bot):
         self.executor.shutdown(wait=True)
         self.log.debug('- Executor stopped.')
         self.log.info('Shutdown complete.')
+
+    def is_master(self) -> bool:
+        return self.master
 
     def init_servers(self):
         for server_name, installation in utils.findDCSInstallations():
@@ -117,6 +121,15 @@ class DCSServerBot(commands.Bot):
         self.init_servers()
         await super().start(token, reconnect=reconnect)
 
+    def check_roles(self, roles: list):
+        for role in roles:
+            config_roles = [x.strip() for x in self.config['ROLES'][role].split(',')]
+            for discord_role in self.guilds[0].roles:
+                if discord_role.name in config_roles:
+                    config_roles.remove(discord_role.name)
+            for bad_role in config_roles:
+                self.log.error(f"  => Role {bad_role} not found in your Discord!")
+
     def check_channel(self, channel_id: int) -> bool:
         channel = self.get_channel(channel_id)
         if not channel:
@@ -126,28 +139,28 @@ class DCSServerBot(commands.Bot):
         # name changes of the status channel will only happen with the correct permission
         permissions = channel.permissions_for(self.member)
         if not permissions.view_channel:
-            self.log.error(f'Permission "View Channel" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "View Channel" missing for channel {channel_name}')
             return False
         if not permissions.send_messages:
-            self.log.error(f'Permission "Send Messages" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Send Messages" missing for channel {channel_name}')
             return False
         if not permissions.read_messages:
-            self.log.error(f'Permission "Read Messages" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Read Messages" missing for channel {channel_name}')
             return False
         if not permissions.read_message_history:
-            self.log.error(f'Permission "Read Message History" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Read Message History" missing for channel {channel_name}')
             return False
         if not permissions.add_reactions:
-            self.log.error(f'Permission "Add Reactions" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Add Reactions" missing for channel {channel_name}')
             return False
         if not permissions.attach_files:
-            self.log.error(f'Permission "Attach Files" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Attach Files" missing for channel {channel_name}')
             return False
         if not permissions.embed_links:
-            self.log.error(f'Permission "Embed Links" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Embed Links" missing for channel {channel_name}')
             return False
         if not permissions.manage_messages:
-            self.log.error(f'Permission "Manage Messages" missing for channel {channel_name}')
+            self.log.error(f'  => Permission "Manage Messages" missing for channel {channel_name}')
             return False
         return True
 
@@ -161,35 +174,43 @@ class DCSServerBot(commands.Bot):
                 self.check_channel(channel_id)
 
     async def on_ready(self):
-        await self.wait_until_ready()
-        if not self.external_ip:
-            self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
-            self.member = self.guilds[0].get_member(self.user.id)
-            self.external_ip = await utils.get_external_ip()
-            self.log.debug('- Checking channels ...')
-            for server in self.servers.values():
-                self.check_channels(server.installation)
-            self.log.info('- Loading Plugins ...')
-            for plugin in self.plugins:
-                if await self.load_plugin(plugin.lower()):
-                    self.log.info(f'  => {string.capwords(plugin)} loaded.')
-                else:
-                    self.log.info(f'  => {string.capwords(plugin)} NOT loaded.')
-            if not self.synced:
-                self.log.info('- Registering Commands ...')
-                if self.guilds[0].id == 717133797308498002:
-                    self.tree.copy_global_to(guild=discord.Object(id=717133797308498002))
-                    await self.tree.sync(guild=discord.Object(id=717133797308498002))
-                else:
-                    await self.tree.sync()
-                self.synced = True
-            # start the UDP listener to accept commands from DCS
-            self.loop.create_task(self.start_udp_listener())
-            self.loop.create_task(self.register_servers())
-        else:
-            self.log.warning('Discord connection re-established.')
-            # maybe our external IP got changed...
-            self.external_ip = await utils.get_external_ip()
+        try:
+            await self.wait_until_ready()
+            if not self.external_ip:
+                self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
+                if len(self.guilds) > 1:
+                    self.log.warning('  => YOUR BOT IS INSTALLED IN MORE THAN ONE GUILD. THIS IS NOT SUPPORTED!')
+                self.member = self.guilds[0].get_member(self.user.id)
+                self.external_ip = await utils.get_external_ip()
+                self.log.info('- Checking Roles & Channels ...')
+                self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
+                for server in self.servers.values():
+                    if self.config.getboolean(server.installation, 'COALITIONS'):
+                        self.check_roles(['Coalition Red', 'Coalition Blue'])
+                    self.check_channels(server.installation)
+                self.log.info('- Loading Plugins ...')
+                for plugin in self.plugins:
+                    if await self.load_plugin(plugin.lower()):
+                        self.log.info(f'  => {string.capwords(plugin)} loaded.')
+                    else:
+                        self.log.info(f'  => {string.capwords(plugin)} NOT loaded.')
+                if not self.synced:
+                    self.log.info('- Registering Commands ...')
+                    if self.guilds[0].id == 717133797308498002:
+                        self.tree.copy_global_to(guild=discord.Object(id=717133797308498002))
+                        await self.tree.sync(guild=discord.Object(id=717133797308498002))
+                    else:
+                        await self.tree.sync()
+                    self.synced = True
+                # start the UDP listener to accept commands from DCS
+                self.loop.create_task(self.start_udp_listener())
+                self.loop.create_task(self.register_servers())
+            else:
+                self.log.warning('Discord connection re-established.')
+                # maybe our external IP got changed...
+                self.external_ip = await utils.get_external_ip()
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def on_command_error(self, ctx: discord.ext.commands.Context, err: Exception):
         if isinstance(err, commands.CommandNotFound):
@@ -511,6 +532,8 @@ class DCSServerBot(commands.Bot):
         return True
 
     async def get_server(self, ctx: Union[Context, Interaction, discord.Message, str]) -> Optional[Server]:
+        if self.master and len(self.servers) == 1:
+            return list(self.servers.values())[0]
         for server_name, server in self.servers.items():
             if isinstance(ctx, discord.ext.commands.context.Context) or isinstance(ctx, Interaction) \
                     or isinstance(ctx, discord.Message):
