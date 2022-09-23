@@ -1,7 +1,7 @@
 import asyncio
 import shlex
 import subprocess
-from core import EventListener, utils, Extension, Server
+from core import EventListener, utils, Extension, Server, Player
 from os import path
 from typing import cast, TYPE_CHECKING
 
@@ -53,6 +53,14 @@ class SchedulerListener(EventListener):
             if not await ext.is_running() and await ext.startup():
                 self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
                 await self.bot.audit(f"{ext.name} started", server=server)
+
+    async def onPlayerStart(self, data: dict) -> None:
+        if data['id'] == 1 or 'ucid' not in data:
+            return
+        server: Server = self.bot.servers[data['server_name']]
+        if server.restart_pending:
+            player: Player = server.get_player(id=data['id'])
+            player.sendChatMessage("*** Mission is about to be restarted soon! ***")
 
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

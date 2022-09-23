@@ -348,7 +348,7 @@ class Scheduler(Plugin):
             if 'mission_time' in config['restart'] and \
                     (server.current_mission.mission_time + restart_in) >= (int(config['restart']['mission_time']) * 60):
                 asyncio.create_task(self.restart_mission(server, config))
-            elif 'local_times' in config['restart']:
+            if 'local_times' in config['restart']:
                 now = datetime.now()
                 if config['restart']['method'] != 'restart_with_shutdown' and 'mission_end' not in config['restart']:
                     now += timedelta(seconds=restart_in)
