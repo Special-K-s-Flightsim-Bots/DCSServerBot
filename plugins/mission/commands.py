@@ -250,6 +250,12 @@ class Mission(Plugin):
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             return await ctx.send(f"Server {server.name} is {server.status.name}.")
 
+        if server.is_populated():
+            question = f"People are flying on this server atm!\nDo you really want to change the mission?"
+            if not await utils.yn_question(ctx, question):
+                await ctx.send('Aborted.')
+                return
+
         data = await server.sendtoDCSSync({"command": "listMissions"})
         missions = data['missionList']
         if len(missions) == 0:
