@@ -374,7 +374,7 @@ class Scheduler(Plugin):
         # check all servers
         for server_name, server in self.bot.servers.items():
             # only care about servers that are not in the startup phase
-            if server.status in [Status.UNREGISTERED, Status.LOADING] or server.restart_pending:
+            if server.status in [Status.UNREGISTERED, Status.LOADING] or server.maintenance or server.restart_pending:
                 continue
             config = self.get_config(server)
             # if no config is defined for this server, ignore it
