@@ -22,7 +22,7 @@ class HelpListener(EventListener):
                 return
             dcs_admin = player.has_discord_roles(['DCS Admin'])
             if dcs_admin:
-                messages.append(f'"{prefix}kick \'name\'"  kick a user')
+                messages.append(f'"{prefix}kick <name>"  kick a user')
                 messages.append(f'"{prefix}restart time" restart the running mission')
                 messages.append(f'"{prefix}list"         list available missions')
                 messages.append(f'"{prefix}load number"  load a specific mission')

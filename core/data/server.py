@@ -220,7 +220,7 @@ class Server(DataObject):
             "command": "sendPopupMessage",
             "to": coalition.value,
             "from": sender,
-            "message": message.replace('\n', '\\n'),
+            "message": message.replace('\n', '\\n').replace('"', '\\"'),
             "time": timeout
         })
 

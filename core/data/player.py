@@ -176,6 +176,6 @@ class Player(DataObject):
             "command": "sendPopupMessage",
             "to": self.unit_name,
             "from": sender,
-            "message": message.replace('\n', '\\n'),
+            "message": message.replace('\n', '\\n').replace('"', '\\"'),
             "time": timeout
         })
