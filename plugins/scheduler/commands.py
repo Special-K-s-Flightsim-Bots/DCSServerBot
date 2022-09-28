@@ -249,7 +249,7 @@ class Scheduler(Plugin):
 
     @staticmethod
     def change_mizfile(server: Server, config: dict, presets: Optional[str] = None):
-        def apply_preset(preset: dict):
+        def apply_preset(value: dict):
             if 'start_time' in value:
                 miz.start_time = value['start_time']
             if 'date' in value:
