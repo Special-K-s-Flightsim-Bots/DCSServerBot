@@ -530,6 +530,7 @@ class Scheduler(Plugin):
         @discord.ui.select(placeholder="Select the preset(s) you want to apply")
         async def callback(self, interaction: Interaction, select: Select):
             self.result = select.values
+            await interaction.response.defer()
             self.stop()
 
         @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='❌')
@@ -574,20 +575,21 @@ class Scheduler(Plugin):
             elif not view.result:
                 await ctx.send('Aborted.')
                 return
-            stopped = False
-            if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                stopped = True
-                await server.stop()
-            for preset in view.result:
-                self.change_mizfile(server, config, preset)
-            message = 'Preset changed to: {}'.format(','.join(view.result))
-            if stopped:
-                await server.start()
-                message += ', server restarted.'
-            await ctx.send(message)
         finally:
             await ctx.message.delete()
             await msg.delete()
+        msg = await ctx.send('Changing presets...')
+        stopped = False
+        if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+            stopped = True
+            await server.stop()
+        for preset in view.result:
+            self.change_mizfile(server, config, preset)
+        message = 'Preset changed to: {}'.format(','.join(view.result))
+        if stopped:
+            await server.start()
+            message += ', server restarted.'
+        await msg.edit(content=message)
 
     @commands.command(description='Create preset from running mission', usage='<name>')
     @utils.has_role('DCS Admin')
