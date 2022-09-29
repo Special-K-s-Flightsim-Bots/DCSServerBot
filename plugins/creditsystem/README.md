@@ -21,6 +21,11 @@ The Creditsystem is configured with a file named config\creditsystem.json. You'l
         { "category": "Planes", "type": "AI", "points": 3 },
         { "category": "Planes", "type": "Player", "points": 4 },
         { "category": "Helicopters", "points": 3 }
+      ],
+      "achievements": [         -- Achievements that will be given to the player after a specific playtime or points
+        { "role": "Rookie", "playtime": 0, "credits": 0 },
+        { "role": "Veteran",  "playtime": 25, "credits": 50 },
+        { "role": "Ace", "playtime": 50, "credits": 100 }
       ]
     },{
       "installation": "instance2",
@@ -45,6 +50,8 @@ That means, in the above example you need to specify the plane with the unit_typ
 So this list will be evaluated **exactly in the order the items are listed** and the first match will count! 
 
 To enable the points system, you need to start a "Campaign" on the specific server (see [Gamemaster](../gamemaster/README.md)).
+Same is true for achievements, where you can give your players Discord roles depending on either the time they were 
+flying in that specific campaign or on the points they achieved. Losing points might downgrade the player again.
 
 ## Discord Commands
 | Command  | Parameter          | Role | Description                                           |

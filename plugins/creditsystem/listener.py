@@ -1,4 +1,7 @@
-from core import EventListener, Server, Status
+import discord
+import psycopg2
+from contextlib import closing
+from core import EventListener, Server, Status, utils
 from typing import cast
 from .player import CreditPlayer
 
@@ -72,6 +75,51 @@ class CreditSystemListener(EventListener):
             player.points += data['points']
             player.audit('mission', old_points, 'Unknown mission achievement')
 
+    def _get_flighttime(self, ucid: str) -> int:
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute('SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), '
+                               '0) AS playtime FROM statistics s WHERE player_ucid = %s AND tsrange(s.hop_on, '
+                               's.hop_off) && (SELECT tsrange(c.start, c.stop) FROM campaigns c WHERE NOW() BETWEEN '
+                               'c.start AND COALESCE(c.stop, NOW()))',
+                               (ucid, ))
+                return cursor.fetchone()[0]
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
+    async def _process_achievements(self, player: CreditPlayer):
+        # only members can achieve roles
+        member = player.member
+        if not member:
+            return
+        config: dict = self.locals['configs'][0]
+        if 'achievements' not in config:
+            return
+
+        sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
+        role = None
+        playtime = self._get_flighttime(player.ucid) / 3600
+        for achievement in sorted_achievements:
+            if 'credits' in achievement and player.points >= achievement['credits']:
+                role = achievement['role']
+                break
+            if 'playtime' in achievement and playtime >= achievement['playtime']:
+                role = achievement['role']
+                break
+            # if we are here, the player does not deserve that role
+            if utils.check_roles([achievement['role']], member):
+                await member.remove_roles(discord.utils.get(member.guild.roles, name=achievement['role']))
+                await self.bot.audit(f"lost the rank {achievement['role']}", user=member)
+        if role and not utils.check_roles([role], member):
+            try:
+                await member.add_roles(discord.utils.get(member.guild.roles, name=role))
+                await self.bot.audit(f"achieved the rank {role}", user=member)
+            except discord.Forbidden:
+                self.log.error('The bot needs the Manage Roles permission!')
+
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
@@ -87,6 +135,10 @@ class CreditSystemListener(EventListener):
                         old_points = player.points
                         player.points += ppk
                         player.audit('kill', old_points, f"Killed an enemy {data['arg5']}")
+        elif data['eventName'] == 'disconnect':
+            server: Server = self.bot.servers[data['server_name']]
+            player = cast(CreditPlayer, server.get_player(id=data['arg1']))
+            await self._process_achievements(player)
 
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

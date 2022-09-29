@@ -11,6 +11,11 @@
         { "category": "Helicopters", "points": 3 },
         { "category": "Planes", "type": "Player", "points": 4 },
         { "category": "Planes", "unit_type": "F-14B", "type": "Player", "points": 5 }
+      ],
+      "achievements": [
+        { "role": "Rookie", "playtime": 0, "credits": 0 },
+        { "role": "Veteran",  "playtime": 25, "credits": 50 },
+        { "role": "Ace", "playtime": 50, "credits": 100 }
       ]
     },
     {

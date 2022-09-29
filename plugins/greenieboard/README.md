@@ -69,7 +69,8 @@ different greenieboards for different servers. If that is a user demand in the f
       "num_landings": 5,            -- the number of latest carrier landings you get, if you use the .carrier command
       "num_rows": 10,               -- the number of players that can get on the greenieboard (there might be discord limits)
       "persistent_board": true,     -- true (default false) if you want a persistent board displayed somewhere in your discord
-      "persistent_channel": "1234", -- the ID of the channel where the greenieboard should be displayed
+      "persistent_channel": "1234", -- the ID of the channel where the greenieboard should be displayed,
+      "credits": true,              -- true (default false), credit points will be generated for every landing
       "ratings": {                  -- ratings will define how many points you get for which LSO rating (see SC documentation for details)
         "_OK_": 5,                  -- if using Moose.AIRBOSS, ratings will be taken from there!
         "OK": 4,

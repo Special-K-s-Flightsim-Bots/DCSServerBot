@@ -6,8 +6,9 @@ import string
 from contextlib import closing
 from core import EventListener, Server, Player, Channel, Side
 from pathlib import Path
+from plugins.creditsystem.player import CreditPlayer
 from plugins.greenieboard import get_element
-from typing import Optional
+from typing import Optional, cast
 
 
 class GreenieBoardEventListener(EventListener):
@@ -59,6 +60,10 @@ class GreenieBoardEventListener(EventListener):
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
         night = time > 20 * 3600 or time < 6 * 3600
         points = data['points'] if 'points' in data else config['ratings'][data['grade']]
+        if 'credits' in config and config['credits']:
+            cp: CreditPlayer = cast(CreditPlayer, player)
+            cp.audit('Landing', cp.points, f"Landing on {data['place']} with grade {data['grade']}.")
+            cp.points += points
         wire = data['wire'] if 'wire' in data else None
         conn = self.pool.getconn()
         try:

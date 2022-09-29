@@ -304,6 +304,37 @@ class CreditSystemMaster(CreditSystemAgent):
         finally:
             self.pool.putconn(conn)
 
+    @commands.command(description='Displays your current player profile')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def profile(self, ctx: commands.Context, member: Optional[discord.Member] = None) -> None:
+        config: dict = self.locals['configs'][0]
+        if not member:
+            member = ctx.message.author
+        embed = discord.Embed(title="User Campaign Profile", colour=discord.Color.blue())
+        embed.set_thumbnail(url=member.avatar.url)
+        if 'achievements' in config:
+            for achievement in config['achievements']:
+                if utils.check_roles([achievement['role']], member):
+                    embed.add_field(name='Rank', value=achievement['role'])
+                    break
+            else:
+                embed.add_field(name='Rank', value='n/a')
+        ucid = self.bot.get_ucid_by_member(member, True)
+        if ucid:
+            playtime = self.eventlistener._get_flighttime(ucid)
+            embed.add_field(name='Playtime', value=utils.format_time(playtime - playtime % 60))
+            embed.add_field(name='_ _', value='_ _', inline=True)
+            data = self.get_credits(ucid)
+            campaigns = points = ''
+            for row in data:
+                campaigns += row[1] + '\n'
+                points += f"{row[2]}\n"
+            embed.add_field(name='Campaign', value=campaigns)
+            embed.add_field(name='Points', value=points)
+            embed.add_field(name='_ _', value='_ _')
+        await ctx.send(embed=embed)
+
 
 async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
