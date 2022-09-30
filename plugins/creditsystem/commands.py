@@ -64,9 +64,9 @@ class CreditSystemMaster(CreditSystemAgent):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(f"SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits FROM credits s, campaigns "
-                               f"c WHERE s.player_ucid = %s AND s.campaign_id = c.id AND NOW() BETWEEN c.start AND "
-                               f"COALESCE(c.stop, NOW()) GROUP BY 1, 2",
+                cursor.execute('SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits FROM campaigns c LEFT '
+                               'OUTER JOIN credits s ON (c.id = s.campaign_id AND s.player_ucid = %s) WHERE NOW() '
+                               'BETWEEN c.start AND COALESCE(c.stop, NOW()) GROUP BY 1, 2',
                                (ucid, ))
                 return list(cursor.fetchall())
         except (Exception, psycopg2.DatabaseError) as error:
