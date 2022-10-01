@@ -27,8 +27,8 @@
       "type": "Graph",
       "params":
       {
-        "width": 15,
-        "height": 10,
+        "width": 30,
+        "height": 20,
         "cols": 1,
         "rows": 4,
         "elements":
