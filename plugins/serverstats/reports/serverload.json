@@ -28,9 +28,9 @@
       "params":
       {
         "width": 30,
-        "height": 20,
+        "height": 30,
         "cols": 1,
-        "rows": 4,
+        "rows": 5,
         "elements":
          [
             {
@@ -39,7 +39,8 @@
                 { "row": 0, "col": 0 },
                 { "row": 1, "col": 0 },
                 { "row": 2, "col": 0 },
-                { "row": 3, "col": 0 }
+                { "row": 3, "col": 0 },
+                { "row": 4, "col": 0 }
               ]
             }
          ]

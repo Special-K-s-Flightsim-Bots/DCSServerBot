@@ -185,9 +185,9 @@ class UsersPerDayTime(report.GraphElement):
 class ServerLoad(report.MultiGraphElement):
 
     def render(self, server_name: Optional[str], period: str, agent_host: Optional[str]):
-        sql = f"SELECT date_trunc('minute', time) AS time, SUM(users) AS \"Users\", SUM(cpu) AS \"CPU\", SUM(CASE " \
+        sql = f"SELECT date_trunc('minute', time) AS time, AVG(users) AS \"Users\", AVG(cpu) AS \"CPU\", AVG(CASE " \
               f"WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS \"Memory (paged)\", " \
-              f"SUM(mem_ram)/(1024*1024) AS \"Memory (RAM)\", SUM(read_bytes)/1024 AS \"Read\", SUM(write_bytes)/1024 " \
+              f"AVG(mem_ram)/(1024*1024) AS \"Memory (RAM)\", SUM(read_bytes)/1024 AS \"Read\", SUM(write_bytes)/1024 " \
               f"AS \"Write\", ROUND(AVG(bytes_sent)) AS \"Sent\", ROUND(AVG(bytes_recv)) AS \"Recv\", ROUND(AVG(fps), " \
               f"2) AS \"FPS\", ROUND(AVG(ping), 2) AS \"Ping\" FROM serverstats " \
               f"WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}') "
@@ -202,21 +202,26 @@ class ServerLoad(report.MultiGraphElement):
                 cursor.execute(sql)
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
+                    series.plot(ax=self.axes[0], x='time', y=['CPU'], title='CPU / User', xticks=[], xlabel='')
+                    self.axes[0].legend(loc='upper left')
                     ax2 = self.axes[0].twinx()
-                    series.plot(ax=self.axes[0], x='time', y=['CPU', 'Users'], title='Users / CPU / FPS', xticks=[], xlabel='', ylim=(0, 100))
-                    self.axes[0].legend(['CPU', 'Users'], loc='upper left')
-                    series.plot(ax=ax2, x='time', y=['FPS'], xticks=[], xlabel='', color='blue')
-                    ax2.legend(['FPS'], loc='upper right')
-                    series.plot(ax=self.axes[1], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
-                    self.axes[1].legend(loc='upper right')
-                    series.plot(ax=self.axes[2], x='time', y=['Read', 'Write'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='KB', grid=True)
+                    series.plot(ax=ax2, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
+                    ax2.legend(['Users'], loc='upper right')
+                    series.plot(ax=self.axes[1], x='time', y=['FPS'], title='FPS / User', xticks=[], xlabel='')
+                    self.axes[1].legend(loc='upper left')
+                    ax3 = self.axes[1].twinx()
+                    series.plot(ax=ax3, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
+                    ax3.legend(['Users'], loc='upper right')
+                    series.plot(ax=self.axes[2], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
                     self.axes[2].legend(loc='upper right')
-                    ax3 = self.axes[3].twinx()
-                    series.plot(ax=self.axes[3], x='time', y=['Sent', 'Recv'], title='Network', logy=True, xlabel='', ylabel='KB/s', grid=True)
-                    self.axes[3].legend(['Sent', 'Recv'], loc='upper left')
+                    series.plot(ax=self.axes[3], x='time', y=['Read', 'Write'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='KB', grid=True)
+                    self.axes[3].legend(loc='upper right')
+                    ax4 = self.axes[3].twinx()
+                    series.plot(ax=self.axes[4], x='time', y=['Sent', 'Recv'], title='Network', logy=True, xlabel='', ylabel='KB/s', grid=True)
+                    self.axes[4].legend(['Sent', 'Recv'], loc='upper left')
                     if self.bot.config.getboolean('BOT', 'PING_MONITORING'):
-                        series.plot(ax=ax3, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')
-                        ax3.legend(['Ping'], loc='upper right')
+                        series.plot(ax=ax4, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')
+                        ax4.legend(['Ping'], loc='upper right')
                 else:
                     for i in range(0, 4):
                         self.axes[i].bar([], [])
