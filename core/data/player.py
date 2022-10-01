@@ -135,6 +135,10 @@ class Player(DataObject):
                 self.id = data['id']
         if 'active' in data:
             self.active = data['active']
+        if 'name' in data:
+            self.name = data['name']
+        if 'ipaddr' in data:
+            self.ipaddr = data['ipaddr']
         if 'side' in data:
             self.side = Side(data['side'])
         if 'slot' in data:
