@@ -234,6 +234,52 @@ async def yn_question(ctx: commands.Context, question: str, message: Optional[st
         await msg.delete()
 
 
+class PopulatedQuestionView(View):
+    def __init__(self, ctx: commands.Context):
+        super().__init__(timeout=120)
+        self.ctx = ctx
+        self.result = None
+
+    @discord.ui.button(label='Yes', style=discord.ButtonStyle.red, custom_id='pl_yes', emoji='⚠')
+    async def on_yes(self, interaction: Interaction, button: Button):
+        self.result = 'yes'
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label='Later', style=discord.ButtonStyle.primary, custom_id='pl_later', emoji='⏱')
+    async def on_later(self, interaction: Interaction, button: Button):
+        self.result = 'later'
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, custom_id='pl_cancel', emoji='❌')
+    async def on_cancel(self, interaction: Interaction, button: Button):
+        await interaction.response.defer()
+        self.stop()
+
+    async def interaction_check(self, interaction: Interaction, /) -> bool:
+        if interaction.user != self.ctx.author:
+            await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
+            return False
+        else:
+            return True
+
+
+async def populated_question(ctx: commands.Context, question: str, message: Optional[str] = None) -> Optional[str]:
+    embed = discord.Embed(title='People are flying!', description=question, color=discord.Color.red())
+    if message is not None:
+        embed.add_field(name=message, value='_ _')
+    view = PopulatedQuestionView(ctx)
+    msg = None
+    try:
+        msg = await ctx.send(embed=embed, view=view)
+        if await view.wait():
+            return None
+        return view.result
+    finally:
+        await msg.delete()
+
+
 def check_roles(roles: list[str], member: discord.Member) -> bool:
     valid_roles = set()
     for role in roles:

@@ -1,7 +1,8 @@
 import asyncio
 import shlex
+import string
 import subprocess
-from core import EventListener, utils, Extension, Server, Player
+from core import EventListener, utils, Extension, Server, Player, Status
 from os import path
 from typing import cast, TYPE_CHECKING
 
@@ -63,14 +64,68 @@ class SchedulerListener(EventListener):
             player.sendChatMessage("*** Mission is about to be restarted soon! ***")
 
     async def onGameEvent(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        if data['eventName'] == 'mission_end' and server.shutdown_pending:
+        async def _process(server: Server, what: dict) -> None:
             config = self.plugin.get_config(server)
+            if 'shutdown' in what['command']:
+                await server.shutdown()
+                message = 'shut down DCS server'
+                if 'user' not in what:
+                    message = string.capwords(self.plugin_name) + ' ' + message
+                await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
+            if 'restart' in what['command']:
+                if server.status == Status.SHUTDOWN:
+                    await self.plugin.launch_dcs(server, config)
+                elif server.status == Status.STOPPED:
+                    if 'settings' in config['restart']:
+                        self.plugin.change_mizfile(server, config)
+                    await server.start()
+                    message = 'started DCS server'
+                    if 'user' not in what:
+                        message = string.capwords(self.plugin_name) + ' ' + message
+                    await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
+                elif server.status in [Status.RUNNING, Status.PAUSED]:
+                    if 'settings' in config['restart']:
+                        await server.stop()
+                        self.plugin.change_mizfile(server, config)
+                        await server.start()
+                    else:
+                        await server.current_mission.restart()
+                    message = 'restarted mission'
+                    if 'user' not in what:
+                        message = string.capwords(self.plugin_name) + ' ' + message
+                    await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
+            elif what['command'] == 'rotate':
+                await server.loadNextMission()
+                if 'settings' in config['restart']:
+                    await server.stop()
+                    self.plugin.change_mizfile(server, config)
+                    await server.start()
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated mission", server=server)
+            elif what['command'] == 'load':
+                await server.loadMission(what['id'])
+                message = 'loaded mission'
+                if 'user' not in what:
+                    message = string.capwords(self.plugin_name) + ' ' + message
+                await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
+            elif what['command'] == 'preset':
+                await server.stop()
+                for preset in what['preset']:
+                    self.plugin.change_mizfile(server, config, preset)
+                await server.start()
+                await self.bot.audit("changed preset", server=server, user=what['user'])
+
+            server.restart_pending = False
+
+        server: Server = self.bot.servers[data['server_name']]
+        if data['eventName'] == 'disconnect':
+            if not server.is_populated() and server.on_empty:
+                await _process(server, server.on_empty)
+                server.when_empty = dict()
+        elif data['eventName'] == 'mission_end':
             self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
-            await asyncio.sleep(1)
-            await server.shutdown()
-            await self.plugin.launch_dcs(server, config)
-            server.shutdown_pending = False
+            if server.on_mission_end:
+                await _process(server, server.on_mission_end)
+                server.on_mission_end = dict()
 
     async def onSimulationStart(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
