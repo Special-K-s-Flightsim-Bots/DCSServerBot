@@ -338,7 +338,7 @@ class Agent(Plugin):
         async def send_file(interaction: Interaction, filename: str):
             channel = await interaction.user.create_dm()
             zipped = False
-            if not filename.endswith('.zip') and not filename.endswith('.miz') and \
+            if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('acmi') and \
                     os.path.getsize(filename) >= 8 * 1024 * 1024:
                 with ZipFile(filename + '.zip', 'w') as zipfile:
                     zipfile.write(filename)
@@ -353,14 +353,16 @@ class Agent(Plugin):
             for download in self.get_config(server)['downloads']:
                 if download['label'] == select1.values[0]:
                     directory = Path(os.path.expandvars(download['directory'].format(server=server)))
-                    pattern = download['pattern']
+                    pattern = download['pattern'].format(server=server)
                     break
 
             options: list[discord.SelectOption] = []
             files: dict[str, str] = {}
-            for file in directory.glob(pattern):
+            for file in sorted(directory.glob(pattern), key=os.path.getmtime, reverse=True):
                 files[file.name] = directory.__str__() + os.path.sep + file.name
                 options.append(discord.SelectOption(label=file.name))
+                if len(options) == 25:
+                    break
             if not len(options):
                 await interaction.response.send_message("No file found.")
                 return
@@ -368,7 +370,7 @@ class Agent(Plugin):
                 await send_file(interaction, files[options[0].value])
                 return
 
-            select2 = Select(placeholder="Select a file to download", options=options[:25])
+            select2 = Select(placeholder="Select a file to download", options=options)
 
             async def _download(interaction: Interaction):
                 await send_file(interaction, files[select2.values[0]])
@@ -380,7 +382,7 @@ class Agent(Plugin):
 
         select1.callback = choice
         view.add_item(select1)
-        await ctx.send(view=view)
+        msg = await ctx.send(view=view)
 
     @commands.command(description='Runs a shell command', hidden=True)
     @utils.has_role('Admin')
