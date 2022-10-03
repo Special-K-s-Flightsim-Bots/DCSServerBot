@@ -524,15 +524,6 @@ class Scheduler(Plugin):
             else:
                 await ctx.send(f"Server {server.name} is not in maintenance mode.")
 
-    @staticmethod
-    def format_presets(data: list[str], marker, marker_emoji):
-        embed = discord.Embed(title='Mission Presets', color=discord.Color.blue())
-        embed.add_field(name='ID', value='\n'.join([chr(0x31 + x) + '\u20E3' for x in range(0, len(data))]))
-        embed.add_field(name='Preset', value='\n'.join(data))
-        embed.add_field(name='_ _', value='_ _')
-        embed.set_footer(text='Press a number to select a preset.')
-        return embed
-
     class PresetView(View):
         def __init__(self, ctx: commands.Context, options: list[discord.SelectOption]):
             super().__init__()

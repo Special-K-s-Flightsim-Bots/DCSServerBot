@@ -288,7 +288,7 @@ class Mission(Plugin):
         embed.add_field(name="# Players", value=str(len(server.get_active_players())))
         embed.add_field(name='▬' * 27, value='_ _', inline=False)
         view = self.LoadView(ctx, placeholder="Select a mission to load",
-                             options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
+                             options=[SelectOption(label=os.path.basename(x)[:-4]) for x in missions[:25]])
         msg = await ctx.send(embed=embed, view=view)
         try:
             if await view.wait():
@@ -308,7 +308,7 @@ class Mission(Plugin):
                     await ctx.send(f'Mission {server.current_mission.name} restarted.')
             else:
                 for mission in missions:
-                    if name in mission:
+                    if name == os.path.basename(mission)[:-4]:
                         if result == 'later':
                             server.on_empty = {"command": "load", "id": missions.index(mission) + 1,
                                                "user": ctx.message.author}
@@ -543,7 +543,7 @@ class Mission(Plugin):
                     else:
                         await message.channel.send(f'Error {response.status} while reading MIZ file!')
             if not exists:
-                server.sendtoDCS({"command": "addMission", "path": filename[(filename.rfind('\\') + 1):]})
+                server.sendtoDCS({"command": "addMission", "path": os.path.basename(filename)})
             if stopped:
                 await server.start()
             await message.channel.send("Mission uploaded and added." if not exists else "Mission replaced.")
