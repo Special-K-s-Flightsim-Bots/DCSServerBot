@@ -213,8 +213,6 @@ class Scheduler(Plugin):
         return retval
 
     async def teardown_dcs(self, server: Server, member: Optional[discord.Member] = None):
-        self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
-        await asyncio.sleep(1)
         self.bot.sendtoBot({"command": "onShutdown", "server_name": server.name})
         await asyncio.sleep(1)
         await server.shutdown()
@@ -317,36 +315,48 @@ class Scheduler(Plugin):
         miz.save()
 
     async def restart_mission(self, server: Server, config: dict):
-        # check if the mission is still populated
-        populated = server.is_populated()
-        if 'populated' in config['restart'] and not config['restart']['populated'] and populated:
+        # a restart is already pending, nothing more to do
+        if server.restart_pending:
             return
-        elif not server.restart_pending:
+        else:
             server.restart_pending = True
-            method = config['restart']['method']
-            if populated and method != 'restart_with_shutdown' and 'mission_end' not in config['restart']:
+        method = config['restart']['method']
+        # shall we do something at mission end only?
+        if 'mission_end' in config['restart'] and config['restart']['mission_end']:
+            server.on_mission_end = {'command': method}
+            return
+        # check if the server is populated
+        if server.is_populated():
+            server.on_empty = {'command': method}
+            if 'populated' in config['restart'] and not config['restart']['populated']:
+                return
+            else:
                 await self.warn_users(server, config, method)
-            if method == 'restart_with_shutdown':
-                if 'mission_end' in config['restart'] and config['restart']['mission_end']:
-                    server.shutdown_pending = True
-                else:
-                    self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
-                    await asyncio.sleep(1)
-                    await server.shutdown()
-                    await self.launch_dcs(server, config)
-            elif method == 'restart':
-                self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
-                await asyncio.sleep(1)
-                if 'settings' in config['restart']:
-                    await server.stop()
-                    self.change_mizfile(server, config)
-                    await server.start()
-                else:
-                    await server.current_mission.restart()
-            elif method == 'rotate':
-                self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
-                await asyncio.sleep(1)
-                await server.loadNextMission()
+            # in the unlikely event that we did restart already in the meantime while warning users
+            if not server.restart_pending:
+                return
+            else:
+                server.on_empty = dict()
+
+        if method == 'restart_with_shutdown':
+            await server.shutdown()
+            await self.bot.audit(f"{string.capwords(self.plugin_name)} shut down DCS server", server=server)
+            await self.launch_dcs(server, config)
+        elif method == 'restart':
+            if 'settings' in config['restart']:
+                await server.stop()
+                self.change_mizfile(server, config)
+                await server.start()
+            else:
+                await server.current_mission.restart()
+            await self.bot.audit(f"{string.capwords(self.plugin_name)} restarted mission", server=server)
+        elif method == 'rotate':
+            await server.loadNextMission()
+            if 'settings' in config['restart']:
+                await server.stop()
+                self.change_mizfile(server, config)
+                await server.start()
+            await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated mission", server=server)
 
     async def check_mission_state(self, server: Server, config: dict):
         if 'restart' in config:
@@ -461,19 +471,24 @@ class Scheduler(Plugin):
             elif server.status != Status.SHUTDOWN:
                 question = f"Do you want to shut down the DCS server \"{server.name}\"?"
                 if server.is_populated():
-                    question += '\nPeople are flying on this server atm!'
-                if not await utils.yn_question(ctx, question):
+                    result = await utils.populated_question(ctx, question)
+                else:
+                    result = await utils.yn_question(ctx, question)
+                if not result:
                     await ctx.send('Aborted.')
+                    return
+                elif result == 'later':
+                    server.on_empty = {"command": "shutdown", "user": ctx.message.author}
+                    server.restart_pending = True
+                    await ctx.send('Shutdown postponed when server is empty.')
                     return
                 msg = await ctx.send(f"Shutting down DCS server \"{server.name}\", please wait ...")
                 # set maintenance flag to prevent auto-starts of this server
                 server.maintenance = True
-                server.restart_pending = True
                 await self.teardown_dcs(server, ctx.message.author)
                 await msg.delete()
                 await ctx.send(f"DCS server \"{server.name}\" shut down.\n"
                                f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
-                server.restart_pending = False
             else:
                 await ctx.send(f"DCS server \"{server.name}\" is already shut down.")
             if 'extensions' in config:
@@ -560,12 +575,16 @@ class Scheduler(Plugin):
             return
 
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-            question = f"Do you want to stop server \"{server.name}\" to change the mission preset?"
+            question = 'Do you want to stop the server to change the mission preset?'
             if server.is_populated():
-                question += '\nPeople are flying on this server atm!'
-            if not await utils.yn_question(ctx, question):
+                result = await utils.populated_question(ctx, question)
+            else:
+                result = await utils.yn_question(ctx, question)
+            if not result:
                 await ctx.send('Aborted.')
                 return
+        else:
+            result = None
 
         view = self.PresetView(ctx, presets)
         msg = await ctx.send(view=view)
@@ -578,18 +597,24 @@ class Scheduler(Plugin):
         finally:
             await ctx.message.delete()
             await msg.delete()
-        msg = await ctx.send('Changing presets...')
-        stopped = False
-        if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-            stopped = True
-            await server.stop()
-        for preset in view.result:
-            self.change_mizfile(server, config, preset)
-        message = 'Preset changed to: {}'.format(','.join(view.result))
-        if stopped:
-            await server.start()
-            message += ', server restarted.'
-        await msg.edit(content=message)
+        if result == 'later':
+            server.on_empty = {"command": "preset", "preset": view.result, "user": ctx.message.author}
+            server.restart_pending = True
+            await ctx.send(f'Preset will be changed when server is empty.')
+        else:
+            msg = await ctx.send('Changing presets...')
+            stopped = False
+            if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+                stopped = True
+                await server.stop()
+            for preset in view.result:
+                self.change_mizfile(server, config, preset)
+            message = 'Preset changed to: {}.'.format(','.join(view.result))
+            if stopped:
+                await server.start()
+                message += '\nServer restarted.'
+            await self.bot.audit("changed preset", server=server, user=ctx.message.author)
+            await msg.edit(content=message)
 
     @commands.command(description='Create preset from running mission', usage='<name>')
     @utils.has_role('DCS Admin')

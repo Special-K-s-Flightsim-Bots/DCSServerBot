@@ -64,9 +64,9 @@ class CreditSystemMaster(CreditSystemAgent):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(f"SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits FROM credits s, campaigns "
-                               f"c WHERE s.player_ucid = %s AND s.campaign_id = c.id AND NOW() BETWEEN c.start AND "
-                               f"COALESCE(c.stop, NOW()) GROUP BY 1, 2",
+                cursor.execute('SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits FROM campaigns c LEFT '
+                               'OUTER JOIN credits s ON (c.id = s.campaign_id AND s.player_ucid = %s) WHERE NOW() '
+                               'BETWEEN c.start AND COALESCE(c.stop, NOW()) GROUP BY 1, 2',
                                (ucid, ))
                 return list(cursor.fetchall())
         except (Exception, psycopg2.DatabaseError) as error:
@@ -303,6 +303,37 @@ class CreditSystemMaster(CreditSystemAgent):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+
+    @commands.command(description='Displays your current player profile')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def profile(self, ctx: commands.Context, member: Optional[discord.Member] = None) -> None:
+        config: dict = self.locals['configs'][0]
+        if not member:
+            member = ctx.message.author
+        embed = discord.Embed(title="User Campaign Profile", colour=discord.Color.blue())
+        embed.set_thumbnail(url=member.avatar.url)
+        if 'achievements' in config:
+            for achievement in config['achievements']:
+                if utils.check_roles([achievement['role']], member):
+                    embed.add_field(name='Rank', value=achievement['role'])
+                    break
+            else:
+                embed.add_field(name='Rank', value='n/a')
+        ucid = self.bot.get_ucid_by_member(member, True)
+        if ucid:
+            playtime = self.eventlistener._get_flighttime(ucid)
+            embed.add_field(name='Playtime', value=utils.format_time(playtime - playtime % 60))
+            embed.add_field(name='_ _', value='_ _', inline=True)
+            data = self.get_credits(ucid)
+            campaigns = points = ''
+            for row in data:
+                campaigns += row[1] + '\n'
+                points += f"{row[2]}\n"
+            embed.add_field(name='Campaign', value=campaigns)
+            embed.add_field(name='Points', value=points)
+            embed.add_field(name='_ _', value='_ _')
+        await ctx.send(embed=embed)
 
 
 async def setup(bot: DCSServerBot):

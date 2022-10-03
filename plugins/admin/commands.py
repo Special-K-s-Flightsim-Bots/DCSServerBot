@@ -15,7 +15,7 @@ from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Player, Status, Server, Coalition
 from discord import Interaction, Embed, SelectOption
 from discord.ext import commands, tasks
-from discord.ui import Select, View, Button
+from discord.ui import Select, View, Button, Modal, TextInput
 from pathlib import Path
 from typing import Union, List, Optional
 from zipfile import ZipFile
@@ -188,50 +188,62 @@ class Agent(Plugin):
             else:
                 await ctx.send(f"Usage: {ctx.prefix}password [red|blue]")
 
-    @staticmethod
-    def format_player_list(data: list[Player], marker, marker_emoji):
-        embed = Embed(title='Mission List', color=discord.Color.blue())
-        ids = names = ucids = ''
-        for i in range(0, len(data)):
-            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            names += data[i].name + '\n'
-            ucids += data[i].ucid + '\n'
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Name', value=names)
-        embed.add_field(name='UCID', value=ucids)
-        embed.set_footer(text='Press a number to kick this user.')
-        return embed
-
     @commands.command(description='Kick a user by name', usage='<name>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def kick(self, ctx, name, *args):
+    async def kick(self, ctx, *args):
         server: Server = await self.bot.get_server(ctx)
-        if server:
-            if len(args) > 0:
-                reason = ' '.join(args)
-            else:
-                reason = 'n/a'
-            # find that player
-            if server.status != Status.RUNNING:
-                await ctx.send('Server is not running.')
-                return
-            players = [x for x in server.get_active_players() if name.casefold() in x.name.casefold()]
-            if len(players) > 1:
-                num = await utils.selection_list(self, ctx, players, self.format_player_list)
-            elif len(players) == 1:
-                num = 0
-            else:
-                await ctx.send(f"No player \"{name}\" found.")
-                return
-            if num >= 0:
-                player = players[num]
-                server.kick(player, reason)
-                await ctx.send(f"User \"{player.name}\" kicked.")
-                await self.bot.audit(f"kicked player {player.name}" + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
-                                     user=ctx.message.author)
-            else:
-                await ctx.send('Aborted.')
+        if not server:
+            return
+
+        name = ' '.join(args)
+        # find that player
+        if server.status != Status.RUNNING:
+            await ctx.send(f'Server is {server.status.name.lower()}.')
+            return
+        players = [x for x in server.get_active_players() if name.casefold() in x.name.casefold()]
+        if len(players) > 25:
+            await ctx.send(f'Usage: {ctx.prefix}kick <user>')
+            return
+        elif len(players) == 0:
+            await ctx.send(f"No player \"{name}\" found.")
+            return
+
+        class KickModal(Modal, title="Reason for kicking"):
+            reason = TextInput(label="Reason", placeholder="n/a", max_length=80, required=True)
+
+            def __init__(self, player: Player):
+                super().__init__()
+                self.player = player
+
+            async def on_submit(self, interaction: discord.Interaction):
+                reason = self.reason.value or 'n/a'
+                server.kick(self.player, reason)
+                await server.bot.audit(f"kicked player {self.player.name}" + (f' with reason "{self.reason}".' if reason != 'n/a' else '.'), user=interaction.user)
+                await interaction.response.send_message(f"Kicked player {self.player.name}.")
+
+        class KickView(View):
+            def __init__(self, ctx: commands.Context):
+                super().__init__()
+                self.ctx = ctx
+
+            @discord.ui.select(placeholder="Select a player to be kicked", options=[SelectOption(label=x.name, value=str(players.index(x))) for x in players])
+            async def callback(self, interaction: Interaction, select: Select):
+                modal = KickModal(players[int(select.values[0])])
+                await interaction.response.send_modal(modal)
+                self.stop()
+
+            async def interaction_check(self, interaction: Interaction, /) -> bool:
+                if interaction.user != self.ctx.author:
+                    await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
+                    return False
+                else:
+                    return True
+
+        view = KickView(ctx)
+        msg = await ctx.send(view=view)
+        await view.wait()
+        await msg.delete()
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [reason]')
     @utils.has_role('DCS Admin')
@@ -368,7 +380,7 @@ class Agent(Plugin):
 
         select1.callback = choice
         view.add_item(select1)
-        msg = await ctx.send(view=view)
+        await ctx.send(view=view)
 
     @commands.command(description='Runs a shell command', hidden=True)
     @utils.has_role('Admin')

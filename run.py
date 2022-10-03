@@ -333,20 +333,26 @@ class Main:
                     new_hash = origin.refs[repo.active_branch.name].object.hexsha
                     if new_hash != current_hash:
                         modules = False
-                        self.log.info('  => Remote repo has changed.')
-                        self.log.info('  => Updating myself...')
+                        self.log.info('- Updating myself...')
                         diff = repo.head.commit.diff(new_hash)
                         for d in diff:
                             if d.b_path == 'requirements.txt':
                                 modules = True
-                        repo.remote().pull(repo.active_branch)
-                        self.log.info('- DCSServerBot updated to latest version.')
-                        if modules is True:
-                            self.log.warning('- requirements.txt has changed. Installing missing modules...')
-                            subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
-                        return True
+                        try:
+                            repo.remote().pull(repo.active_branch)
+                            self.log.info('  => DCSServerBot updated to latest version.')
+                            if modules is True:
+                                self.log.warning('  => requirements.txt has changed. Installing missing modules...')
+                                subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+                            return True
+                        except git.exc.GitCommandError:
+                            self.log.error('  => Autoupdate failed!')
+                            self.log.error('     Please revert back the changes in these files:')
+                            for item in repo.index.diff(None):
+                                self.log.error(f'     ./{item.a_path}')
+                            return False
                     else:
-                        self.log.debug('- No upgrade found for DCSServerBot.')
+                        self.log.debug('- No update found for DCSServerBot.')
             except git.exc.InvalidGitRepositoryError:
                 self.log.error('No git repository found. Aborting. Please use "git clone" to install DCSServerBot.')
         except ImportError:

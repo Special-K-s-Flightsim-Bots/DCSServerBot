@@ -175,13 +175,22 @@ class Mission(Plugin):
         if server.restart_pending and not await utils.yn_question(ctx, 'A restart is currently pending.\n'
                                                                        'Would you still like to restart the mission?'):
             return
+        else:
+            server.on_empty = dict()
         if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-            server.restart_pending = True
-            if server.status == Status.RUNNING:
-                if server.is_populated() and not await utils.yn_question(ctx, 'People are flying on the server atm.\n'
-                                                                         'Do you really want to restart the mission?'):
+            if server.is_populated():
+                result = await utils.populated_question(ctx, "Do you really want to restart the mission?")
+                if not result:
                     await ctx.send('Aborted.')
                     return
+                elif result == 'later':
+                    server.on_empty = {"command": "restart", "user": ctx.message.author}
+                    server.restart_pending = True
+                    await ctx.send('Restart postponed when server is empty.')
+                    return
+
+            server.restart_pending = True
+            if server.is_populated():
                 if delay > 0:
                     message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
                 else:
@@ -196,8 +205,10 @@ class Mission(Plugin):
                 server.sendPopupMessage(Coalition.ALL, message, sender=ctx.message.author.display_name)
                 await asyncio.sleep(delay)
                 await msg.delete()
+
             msg = await ctx.send('Mission will restart now, please wait ...')
             await server.current_mission.restart()
+            await self.bot.audit("restarted mission", server=server, user=ctx.message.author)
             await msg.delete()
             msg = await ctx.send('Mission restarted.')
         else:
@@ -222,9 +233,9 @@ class Mission(Plugin):
             await interaction.response.edit_message(view=self)
             self.stop()
 
-        @discord.ui.button(label='Reload', style=discord.ButtonStyle.primary, emoji='🔁')
-        async def reload(self, interaction: Interaction, button: Button):
-            self.result = "reload"
+        @discord.ui.button(label='Restart', style=discord.ButtonStyle.primary, emoji='🔁')
+        async def restart(self, interaction: Interaction, button: Button):
+            self.result = "restart"
             await interaction.response.defer()
             self.stop()
 
@@ -250,11 +261,20 @@ class Mission(Plugin):
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             return await ctx.send(f"Server {server.name} is {server.status.name}.")
 
+        if server.restart_pending and not await utils.yn_question(ctx, 'A restart is currently pending.\n'
+                                                                       'Would you still like to change the mission?'):
+            return
+        else:
+            server.on_empty = dict()
+
+        question = f"Do you really want to change the mission?"
         if server.is_populated():
-            question = f"People are flying on this server atm!\nDo you really want to change the mission?"
-            if not await utils.yn_question(ctx, question):
+            result = await utils.populated_question(ctx, question)
+            if not result:
                 await ctx.send('Aborted.')
                 return
+        else:
+            result = None
 
         data = await server.sendtoDCSSync({"command": "listMissions"})
         missions = data['missionList']
@@ -278,19 +298,30 @@ class Mission(Plugin):
                 return
             msg = await msg.edit(suppress=True)
             name = view.result
-            if name == "reload":
-                await server.current_mission.restart()
-                await ctx.send(f'Mission {server.current_mission.name} reloaded.')
+            if name == "restart":
+                if result == 'later':
+                    server.on_empty = {"command": "restart", "user": ctx.message.author}
+                    server.restart_pending = True
+                    await ctx.send(f'Mission {server.current_mission.name} will be restarted when server is empty.')
+                else:
+                    await server.current_mission.restart()
+                    await ctx.send(f'Mission {server.current_mission.name} restarted.')
             else:
-                tmp = await ctx.send(f'Loading mission {name} ...')
-                try:
-                    for mission in missions:
-                        if name in mission:
+                for mission in missions:
+                    if name in mission:
+                        if result == 'later':
+                            server.on_empty = {"command": "load", "id": missions.index(mission) + 1,
+                                               "user": ctx.message.author}
+                            server.restart_pending = True
+                            await ctx.send(
+                                f'Mission {name} will be loaded when server is empty.')
+                        else:
+                            tmp = await ctx.send(f'Loading mission {name} ...')
                             await server.loadMission(missions.index(mission) + 1)
+                            await self.bot.audit("loaded mission", server=server, user=ctx.message.author)
+                            await tmp.delete()
                             await ctx.send(f'Mission {name} loaded.')
-                            break
-                finally:
-                    await tmp.delete()
+                        break
         finally:
             await ctx.message.delete()
             await msg.delete()
