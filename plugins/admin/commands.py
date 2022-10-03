@@ -210,11 +210,11 @@ class Agent(Plugin):
             return
 
         class KickModal(Modal, title="Reason for kicking"):
+            reason = TextInput(label="Reason", placeholder="n/a", max_length=80, required=True)
+
             def __init__(self, player: Player):
                 super().__init__()
                 self.player = player
-                self.reason = TextInput(label="Reason", placeholder="n/a", max_length=80, required=True)
-                self.add_item(self.reason)
 
             async def on_submit(self, interaction: discord.Interaction):
                 reason = self.reason.value or 'n/a'

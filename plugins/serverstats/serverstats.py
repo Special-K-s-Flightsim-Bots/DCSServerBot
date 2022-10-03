@@ -156,10 +156,9 @@ class UsersPerDayTime(report.GraphElement):
 
     def render(self, server_name: Optional[str], period: Optional[str]):
         sql = 'SELECT to_char(s.hop_on, \'ID\') as weekday, to_char(h.time, \'HH24\') AS hour, ' \
-              'COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(' \
-              'TIMESTAMP \'01.01.1970 00:00:00\', TIMESTAMP \'01.01.1970 23:00:00\', INTERVAL \'1 hour\') ' \
-              'h WHERE date_part(\'hour\', h.time) BETWEEN date_part(\'hour\', s.hop_on) AND date_part(' \
-              '\'hour\', s.hop_off) AND s.mission_id = m.id '
+              'COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(current_date, ' \
+              'current_date + 1, INTERVAL \'1 hour\') h WHERE date_part(\'hour\', h.time) BETWEEN date_part(\'hour\', ' \
+              's.hop_on) AND date_part(\'hour\', s.hop_off) AND s.mission_id = m.id '
         if server_name:
             sql += f" AND m.server_name = '{server_name}' "
         if period:
