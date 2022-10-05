@@ -108,9 +108,12 @@ class ExtensionsInfo(report.EmbedElement):
         if len(server.extensions) == 0:
             return
         report.Ruler(self.env).render()
+        footer = self.embed.footer.text
         for ext in server.extensions.values():
             with suppress(Exception):
                 ext.render(self)
+                footer += ', ' + ext.name + ' v' + ext.version
+        self.embed.set_footer(text=footer)
 
 
 class Footer(report.EmbedElement):
