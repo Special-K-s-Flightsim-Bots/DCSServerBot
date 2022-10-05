@@ -38,6 +38,7 @@ class DCSServerBot(commands.Bot):
         self.log = kwargs['log']
         self.config = kwargs['config']
         self.master = self.config.getboolean('BOT', 'MASTER')
+        self.master_only = self.config.getboolean('BOT', 'MASTER_ONLY')
         plugins = self.config['BOT']['PLUGINS']
         if 'OPT_PLUGINS' in self.config['BOT']:
             plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
@@ -532,7 +533,7 @@ class DCSServerBot(commands.Bot):
         return True
 
     async def get_server(self, ctx: Union[Context, Interaction, discord.Message, str]) -> Optional[Server]:
-        if self.master and len(self.servers) == 1:
+        if self.master and len(self.servers) == 1 and self.master_only:
             return list(self.servers.values())[0]
         for server_name, server in self.servers.items():
             if isinstance(ctx, discord.ext.commands.context.Context) or isinstance(ctx, Interaction) \
