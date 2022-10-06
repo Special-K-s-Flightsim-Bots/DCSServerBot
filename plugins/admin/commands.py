@@ -13,7 +13,7 @@ import string
 import subprocess
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Player, Status, Server, Coalition
-from discord import Interaction, Embed, SelectOption
+from discord import Interaction, SelectOption
 from discord.ext import commands, tasks
 from discord.ui import Select, View, Button, Modal, TextInput
 from pathlib import Path
@@ -349,7 +349,7 @@ class Agent(Plugin):
             if zipped:
                 os.remove(filename)
 
-        async def choice(interaction: Interaction):
+        async def _choice(interaction: Interaction):
             for download in self.get_config(server)['downloads']:
                 if download['label'] == select1.values[0]:
                     directory = Path(os.path.expandvars(download['directory'].format(server=server)))
@@ -376,12 +376,21 @@ class Agent(Plugin):
                 await send_file(interaction, files[select2.values[0]])
 
             select2.callback = _download
+            view.clear_items()
             view.add_item(select2)
+            view.add_item(button)
             await msg.edit(view=view)
             await interaction.response.defer()
 
-        select1.callback = choice
+        async def _cancel(interaction: Interaction):
+            await msg.delete()
+            await interaction.response.defer()
+
+        select1.callback = _choice
+        button = Button(label='Cancel', emoji='❌')
+        button.callback = _cancel
         view.add_item(select1)
+        view.add_item(button)
         msg = await ctx.send(view=view)
 
     @commands.command(description='Runs a shell command', hidden=True)

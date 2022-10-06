@@ -198,19 +198,11 @@ function dcsbot.sendPopupMessage(json)
 	end
 	time = json.time or 10
 	to = json.to or 'all'
-	if to == 'all' then
-		net.dostring_in('mission', 'a_do_script(' .. basicSerialize('trigger.action.outText("' .. message .. '",' .. tostring(time) ..')') .. ')')
-	elseif to == 'red' then
-		net.dostring_in('mission', 'a_do_script(' .. basicSerialize('trigger.action.outTextForCoalition(coalition.side.RED, "' .. message .. '",' .. tostring(time) ..')') .. ')')
-	elseif to == 'blue' then
-		net.dostring_in('mission', 'a_do_script(' .. basicSerialize('trigger.action.outTextForCoalition(coalition.side.BLUE, "' .. message .. '",' .. tostring(time) ..')') .. ')')
-	else
-		net.dostring_in('mission', 'a_do_script(' .. basicSerialize('trigger.action.outTextForUnit(Unit.getByName(\'' .. to .. '\'):getID(), "' .. message .. '",' .. tostring(time) ..')') .. ')')
-	end
+	net.dostring_in('mission', 'a_do_script(' .. basicSerialize('dcsbot.sendPopupMessage("' .. to .. '", ' .. basicSerialize(message) .. ', ' .. tostring(time) ..')') .. ')')
 end
 
 function dcsbot.do_script(json)
-    log.write('DCSServerBot', log.DEBUG, 'Mission: do_script()')
+    log.write(')DCSServerBot', log.DEBUG, 'Mission: do_script()')
     net.dostring_in('mission', 'a_do_script(' .. basicSerialize(json.script) .. ')')
 end
 
