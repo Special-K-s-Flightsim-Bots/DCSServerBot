@@ -327,7 +327,7 @@ class MissionEventListener(EventListener):
                 mission = missions[i]
                 mission = mission[(mission.rfind('\\') + 1):-4]
                 message += f"{i+1} {mission}\n"
-            message += "\nUse -load <number> to load that mission"
+            message += f"\nUse {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}load <number> to load that mission"
             player.sendUserMessage(message, 30)
         elif data['subcommand'] == 'load' and player.has_discord_roles(['DCS Admin']):
             self.bot.loop.call_soon(asyncio.create_task, server.loadMission(data['params'][0]))

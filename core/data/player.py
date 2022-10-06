@@ -168,7 +168,7 @@ class Player(DataObject):
         })
 
     def sendUserMessage(self, message: str, timeout: Optional[int] = -1):
-        if self.side == Side.SPECTATOR:
+        if self.slot == -1:
             [self.sendChatMessage(msg) for msg in message.splitlines()]
         else:
             self.sendPopupMessage(message, timeout)
@@ -180,6 +180,6 @@ class Player(DataObject):
             "command": "sendPopupMessage",
             "to": self.unit_name,
             "from": sender,
-            "message": message.replace('\n', '\\n').replace('"', '\\"'),
+            "message": message,
             "time": timeout
         })

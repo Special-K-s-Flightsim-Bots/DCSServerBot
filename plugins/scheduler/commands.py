@@ -318,25 +318,33 @@ class Scheduler(Plugin):
         # a restart is already pending, nothing more to do
         if server.restart_pending:
             return
-        else:
-            server.restart_pending = True
         method = config['restart']['method']
         # shall we do something at mission end only?
         if 'mission_end' in config['restart'] and config['restart']['mission_end']:
             server.on_mission_end = {'command': method}
+            server.restart_pending = True
             return
         # check if the server is populated
         if server.is_populated():
-            server.on_empty = {'command': method}
+            if not server.on_empty:
+                server.on_empty = {'command': method}
+            warn_times = Scheduler.get_warn_times(config)
+            restart_in = max(warn_times) if len(warn_times) else 0
             if 'populated' in config['restart'] and not config['restart']['populated']:
-                return
-            else:
-                await self.warn_users(server, config, method)
+                if 'max_mission_time' not in config['restart']:
+                    server.restart_pending = True
+                    return
+                elif (config['restart']['max_mission_time'] * 60 - restart_in) > server.current_mission.mission_time:
+                    return
+            server.restart_pending = True
+            await self.warn_users(server, config, method)
             # in the unlikely event that we did restart already in the meantime while warning users
             if not server.restart_pending:
                 return
             else:
                 server.on_empty = dict()
+        else:
+            server.restart_pending = True
 
         if method == 'restart_with_shutdown':
             await server.shutdown()
@@ -385,7 +393,7 @@ class Scheduler(Plugin):
         # check all servers
         for server_name, server in self.bot.servers.items():
             # only care about servers that are not in the startup phase
-            if server.status in [Status.UNREGISTERED, Status.LOADING] or server.maintenance or server.restart_pending:
+            if server.status in [Status.UNREGISTERED, Status.LOADING] or server.maintenance:
                 continue
             config = self.get_config(server)
             # if no config is defined for this server, ignore it

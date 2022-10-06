@@ -26,6 +26,8 @@ end
 
 function mission.onMissionLoadEnd()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadEnd()')
+    net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. 'Scripts/net/DCSServerBot/DCSServerBot.lua' .. '\\")")')
+    net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. 'Scripts/net/DCSServerBot/mission/mission.lua' .. '\\")")')
     local msg = {}
     msg.command = 'onMissionLoadEnd'
     msg.filename = DCS.getMissionFilename()

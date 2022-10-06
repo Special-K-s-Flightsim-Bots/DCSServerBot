@@ -52,7 +52,8 @@ Examples:
       },
       "restart": {
         "method": "restart_with_shutdown",    -- restarts the whole server instead only the mission
-        "mission_time": 480,                  -- restart the mission after 8 hrs (480 minutes)
+        "mission_time": 480,                  -- restart the mission after 8 hrs (480 minutes),
+        "max_mission_time": 510,              -- restart, even if people are in after 8:30 hrs (prior warnings will apply if configured) 
         "populated": false                    -- no restart of the mission (!), as long as people are in
       },
       "reset": "run:del \"{dcs_installation}\\SnowfoxMkII*.lua\""   -- delete files (persistency) on .reset command
@@ -161,14 +162,15 @@ it in the default section.
 
 ### Section "restart"
 
-| Parameter    | Description                                                                                                                                                                                                                                                    |
-|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| method       | One of **restart**, **restart_with_shutdown** or **rotate**.<br/>- "restart" will restart the current mission,<br/>- "restart_with_shutdown" will do the same but shutdown the whole server<br/>- "rotate" will take the next mission out of the mission list. |
-| mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                   |
-| local_times  | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                              |
-| populated    | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                                                                                                |
-| settings     | Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is. Presets can be stacked by comma-separating them.                                                                  |
-| mission_end  | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                                                                                                      |
+| Parameter        | Description                                                                                                                                                                                                                                                    |
+|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| method           | One of **restart**, **restart_with_shutdown** or **rotate**.<br/>- "restart" will restart the current mission,<br/>- "restart_with_shutdown" will do the same but shutdown the whole server<br/>- "rotate" will take the next mission out of the mission list. |
+| mission_time     | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                   |
+| max_mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted, even if people are in.                                                                                                                                            |
+| local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                              |
+| populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                                                                                                |
+| settings         | Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is. Presets can be stacked by comma-separating them.                                                                  |
+| mission_end      | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                                                                                                      |
 
 **Attention!**<br/>
 If using the presets / settings, your missions will be amended automatically by the bot. You might want to create safety copies upfront.
