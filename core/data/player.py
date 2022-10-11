@@ -142,7 +142,7 @@ class Player(DataObject):
         if 'side' in data:
             self.side = Side(data['side'])
         if 'slot' in data:
-            self.slot = data['slot']
+            self.slot = int(data['slot'])
         if 'sub_slot' in data:
             self.sub_slot = data['sub_slot']
         if 'unit_callsign' in data:
