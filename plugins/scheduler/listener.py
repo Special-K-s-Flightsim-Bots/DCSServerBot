@@ -113,14 +113,13 @@ class SchedulerListener(EventListener):
                     self.plugin.change_mizfile(server, config, preset)
                 await server.start()
                 await self.bot.audit("changed preset", server=server, user=what['user'])
-
             server.restart_pending = False
 
         server: Server = self.bot.servers[data['server_name']]
         if data['eventName'] == 'disconnect':
             if not server.is_populated() and server.on_empty:
                 await _process(server, server.on_empty)
-                server.when_empty = dict()
+                server.on_empty = dict()
         elif data['eventName'] == 'mission_end':
             self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
             if server.on_mission_end:
