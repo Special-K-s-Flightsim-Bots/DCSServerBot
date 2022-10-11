@@ -382,7 +382,7 @@ class Mission(Plugin):
             for mission in missions:
                 if name in mission:
                     server.sendtoDCS({"command": "deleteMission", "id": original.index(mission) + 1})
-                    if await utils.yn_question(ctx, f'Delete mission "{name}" from disk?'):
+                    if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
                         os.remove(mission)
                         await ctx.send(f'Mission "{name}" deleted.')
                     else:
@@ -423,6 +423,14 @@ class Mission(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def update_mission_status(self):
+        async def warn_admins(s: Server, message: str) -> None:
+            mentions = ''
+            for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
+                role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
+                if role:
+                    mentions += role.mention
+            await s.get_channel(Channel.ADMIN).send(mentions + ' ' + message)
+
         for server_name, server in self.bot.servers.items():
             if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
@@ -454,22 +462,27 @@ class Mission(Plugin):
                     # process might be in a hung state, so try again for a specified amount of times
                     if server.name in self.hung and self.hung[server.name] >= (max_hung_minutes - 1):
                         if server.process:
-                            self.log.warning(f"Killing server \"{server.name}\" after {max_hung_minutes} retries")
+                            message = f"Can't reach server \"{server.name}\" for more than {max_hung_minutes} minutes. Killing ..."
+                            self.log.warning(message)
                             server.process.kill()
                             server.process = None
                             await self.bot.audit("Server killed due to a hung state.", server=server)
                         else:
-                            self.log.warning(f"Server \"{server.name}\" considered dead after {max_hung_minutes} retries")
+                            message = f"Server \"{server.name}\" died. Setting state to SHUTDOWN."
+                            self.log.warning(message)
                             await self.bot.audit("Server set to SHUTDOWN due to a hung state.", server=server)
                         del self.hung[server.name]
                         server.status = Status.SHUTDOWN
+                        await warn_admins(server, message)
                     elif server.name not in self.hung:
                         self.hung[server.name] = 1
                     else:
                         self.hung[server.name] += 1
                 else:
-                    self.log.warning(f"Server \"{server.name}\" died. Setting state to SHUTDOWN.")
+                    message = f"Server \"{server.name}\" died. Setting state to SHUTDOWN."
+                    self.log.warning(message)
                     server.status = Status.SHUTDOWN
+                    await warn_admins(server, message)
             except Exception as ex:
                 self.log.debug("Exception in update_mission_status(): " + str(ex))
 
