@@ -17,7 +17,7 @@ class HelpListener(EventListener):
                 f'"{prefix}atis airport" display ATIS information',
                 f'"{prefix}911 <text>"   send an alert to admins (misuse will be punished!)'
             ]
-            player = server.get_player(id=data['from_id'])
+            player = server.get_player(id=data['from_id'], active=True)
             if not player:
                 return
             dcs_admin = player.has_discord_roles(['DCS Admin'])
