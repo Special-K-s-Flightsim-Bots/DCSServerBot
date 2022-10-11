@@ -80,7 +80,12 @@ end
 
 function dcsbot.addMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: addMission()')
-	net.missionlist_append(lfs.writedir() .. 'Missions\\' .. json.path)
+	if not string.find(json.path, '\\') then
+		path = lfs.writedir() .. 'Missions\\' .. json.path
+	else
+		path = json.path
+	end
+	net.missionlist_append(path)
 	local current_missions = net.missionlist_get()
 	result = utils.saveSettings({missionList = current_missions["missionList"]})
 	dcsbot.listMissions(json)
