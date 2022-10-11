@@ -70,8 +70,8 @@ class GreenieBoardEventListener(EventListener):
             with closing(conn.cursor()) as cursor:
                 cursor.execute("INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, "
                                "wire, night, points, trapsheet) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                               (server.mission_id, player.ucid, player.unit_type, data['grade'], data['details'],
-                                data['place']['name'], wire, night, points,
+                               (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(),
+                                data['details'], data['place']['name'], wire, night, points,
                                 data['trapsheet'] if 'trapsheet' in data else None))
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:

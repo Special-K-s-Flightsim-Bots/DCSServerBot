@@ -115,8 +115,8 @@ class GreenieBoard(Plugin):
                     for row in cursor.fetchall():
                         pilots += row['name'] + '\n'
                         points += f"{row['points']:.2f}\n"
-                        cursor.execute('SELECT grade, night FROM greenieboard WHERE player_ucid = %s ORDER BY ID DESC '
-                                       'LIMIT 10', (row['player_ucid'], ))
+                        cursor.execute('SELECT TRIM(grade), night FROM greenieboard WHERE player_ucid = %s '
+                                       'ORDER BY ID DESC LIMIT 10', (row['player_ucid'], ))
                         i = 0
                         landings += '**|'
                         for landing in cursor.fetchall():
