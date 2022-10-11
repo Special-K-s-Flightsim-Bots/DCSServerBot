@@ -116,7 +116,7 @@ class MissionEventListener(EventListener):
             for p in data['players']:
                 player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=p['id'],
                                                          name=p['name'], active=p['active'], side=Side(p['side']),
-                                                         ucid=p['ucid'], ipaddr=p['ipaddr'], slot=p['slot'],
+                                                         ucid=p['ucid'], ipaddr=p['ipaddr'], slot=int(p['slot']),
                                                          sub_slot=p['sub_slot'], unit_callsign=p['unit_callsign'],
                                                          unit_name=p['unit_name'], unit_type=p['unit_type'],
                                                          group_id=p['group_id'], group_name=p['group_name'],
