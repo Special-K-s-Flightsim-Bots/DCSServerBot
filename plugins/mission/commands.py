@@ -348,8 +348,11 @@ class Mission(Plugin):
                 if not file:
                     return
             else:
-                file = ' '.join(filename)
+                file = os.path.normpath(' '.join(filename))
             if file is not None:
+                if '\\' in file and not os.path.exists(file):
+                    await ctx.send(f'The file {file} does not exists. Aborting.')
+                    return
                 server.sendtoDCS({"command": "addMission", "path": file})
                 await ctx.send(f'Mission "{file[:-4]}" added.')
             else:
