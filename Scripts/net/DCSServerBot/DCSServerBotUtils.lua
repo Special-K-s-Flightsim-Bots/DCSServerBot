@@ -98,7 +98,6 @@ end
 -- from perun (slightly changed)
 function getMulticrewAllParameters(PlayerId)
 	-- Gets all multicrew parameters
-	local _result = ""
 	local _master_type= "?"
 	local _master_slot
 	local _sub_slot
@@ -117,8 +116,8 @@ function getMulticrewAllParameters(PlayerId)
 
 				if _t_start then
 					-- This is co-player
-					_master_slot = string.sub(_player_slot, 0 , _t_start -1 )
-					_sub_slot = string.sub(_player_slot, _t_start + 1, _t_end )
+					_master_slot = tonumber(string.sub(_player_slot, 0 , _t_start -1 ))
+					_sub_slot = tonumber(string.sub(_player_slot, _t_start + 1, _t_end ))
 				end
 			end
 			_master_type = DCS.getUnitType(_master_slot)
@@ -141,7 +140,7 @@ function getMulticrewAllParameters(PlayerId)
 		_master_slot = -1
 		_sub_slot = -1
 	end
-	return _master_type,_master_slot,_sub_slot
+	return _master_type, _master_slot, _sub_slot
 end
 
 function split(str, sep)
