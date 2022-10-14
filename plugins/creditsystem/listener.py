@@ -103,12 +103,16 @@ class CreditSystemListener(EventListener):
         role = None
         playtime = self._get_flighttime(player.ucid) / 3600
         for achievement in sorted_achievements:
-            if 'credits' in achievement and player.points >= achievement['credits']:
-                role = achievement['role']
-                break
-            if 'playtime' in achievement and playtime >= achievement['playtime']:
-                role = achievement['role']
-                break
+            if 'combined' in achievement and achievement['combined']:
+                if ('credits' in achievement and player.points >= achievement['credits']) and \
+                        ('playtime' in achievement and playtime >= achievement['playtime']):
+                    role = achievement['role']
+                    break
+            else:
+                if ('credits' in achievement and player.points >= achievement['credits']) or \
+                        ('playtime' in achievement and playtime >= achievement['playtime']):
+                    role = achievement['role']
+                    break
             # if we are here, the player does not deserve that role
             if utils.check_roles([achievement['role']], member):
                 await member.remove_roles(discord.utils.get(member.guild.roles, name=achievement['role']))

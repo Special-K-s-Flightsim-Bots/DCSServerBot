@@ -24,8 +24,8 @@ The Creditsystem is configured with a file named config\creditsystem.json. You'l
       ],
       "achievements": [         -- Achievements that will be given to the player after a specific playtime or points
         { "role": "Rookie", "playtime": 0, "credits": 0 },
-        { "role": "Veteran",  "playtime": 25, "credits": 50 },
-        { "role": "Ace", "playtime": 50, "credits": 100 }
+        { "role": "Veteran",  "playtime": 25, "credits": 50, "combined": true },  -- combined=true means they have to reach both goals to get that role
+        { "role": "Ace", "playtime": 50, "credits": 100, "combined": true }
       ]
     },{
       "installation": "instance2",
