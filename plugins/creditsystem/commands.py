@@ -308,6 +308,9 @@ class CreditSystemMaster(CreditSystemAgent):
     @utils.has_role('DCS')
     @commands.guild_only()
     async def profile(self, ctx: commands.Context, member: Optional[discord.Member] = None) -> None:
+        if not self.locals:
+            await ctx.send(f'CreditSystem is not activated, {ctx.prefix}profile does not work.')
+            return
         config: dict = self.locals['configs'][0]
         if not member:
             member = ctx.message.author
@@ -330,9 +333,10 @@ class CreditSystemMaster(CreditSystemAgent):
             for row in data:
                 campaigns += row[1] + '\n'
                 points += f"{row[2]}\n"
-            embed.add_field(name='Campaign', value=campaigns)
-            embed.add_field(name='Points', value=points)
-            embed.add_field(name='_ _', value='_ _')
+            if campaigns:
+                embed.add_field(name='Campaign', value=campaigns)
+                embed.add_field(name='Points', value=points)
+                embed.add_field(name='_ _', value='_ _')
         await ctx.send(embed=embed)
 
 

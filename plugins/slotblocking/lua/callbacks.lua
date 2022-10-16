@@ -89,14 +89,21 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
                     return false
                 end
             end
-            -- blocking slots by discord groups
-            if unit['discord'] and has_value(dcsbot.userInfo[player].roles, unit['discord']) == false then
-                local message = unit['message'] or 'This slot is restricted for a specific discord role.'
+            if unit['ucid'] and player ~= unit['ucid'] then
+                local message = unit['message'] or 'This slot is only accessible to a certain user.'
                 net.send_chat_to(message, playerID)
                 return false
-            end
-            if unit['VIP'] and not unit['VIP'] == is_vip(player) then
-                local message = unit['message'] or 'This slot is restricted for a specific discord role.'
+            elseif unit['ucids'] and has_value(unit['ucids'], player) == false then
+                local message = unit['message'] or 'This slot is only accessible to certain users.'
+                net.send_chat_to(message, playerID)
+                return false
+            -- blocking slots by discord groups
+            elseif unit['discord'] and has_value(dcsbot.userInfo[player].roles, unit['discord']) == false then
+                local message = unit['message'] or 'This slot is only accessible to members with the ' .. unit['discord'] .. ' role.'
+                net.send_chat_to(message, playerID)
+                return false
+            elseif unit['VIP'] and not unit['VIP'] == is_vip(player) then
+                local message = unit['message'] or 'This slot is only accessible to VIP users.'
                 net.send_chat_to(message, playerID)
                 return false
             end
