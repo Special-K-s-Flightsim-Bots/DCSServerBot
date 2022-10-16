@@ -29,7 +29,9 @@ The slot blocking is configured with a file named config\slotblocking.json. You'
       "restricted": [           -- restriction for specific groups of planes, based on a points system
         { "group_name": "^Rookie", "points": 10, "costs": 10 },
         { "group_name": "^Veteran", "points": 20, "crew": 5, "costs": 10 }, -- a multicrew seat (aka RIO) costs 5 points here
-        { "group_name": "^Ace", "points": 50, "costs": 30 }
+        { "group_name": "^Ace", "points": 50, "costs": 30 },
+        { "unit_name": "My Plane", "ucid": "11223344556677889900..." },     -- restriced slot for a specific ucid
+        { "unit_name": "^Party Boats", "ucids": ["11223344", "44556677"]}   -- restricted slots for a group of ucids
       ]
     }
   ]
