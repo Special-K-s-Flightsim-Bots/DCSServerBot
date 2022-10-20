@@ -104,11 +104,14 @@ class MissionEventListener(EventListener):
 
     async def registerDCSServer(self, data):
         server: Server = self.bot.servers[data['server_name']]
+        if 'current_mission' not in data:
+            return
         if not server.current_mission:
             server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
                                                              map=data['current_map'], name=data['current_mission'])
+        else:
+            server.status = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
         server.current_mission.update(data)
-        server.status = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
         if data['channel'].startswith('sync-'):
             if 'players' not in data:
                 data['players'] = []
