@@ -109,7 +109,7 @@ class MissionEventListener(EventListener):
         if not server.current_mission:
             server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
                                                              map=data['current_map'], name=data['current_mission'])
-        else:
+        if server.status == Status.UNREGISTERED:
             server.status = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
         server.current_mission.update(data)
         if data['channel'].startswith('sync-'):
