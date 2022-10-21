@@ -11,9 +11,10 @@ download from your server. There is a default list being loaded, if no list is p
   "configs": [
     {
       "downloads": [
-        { "label": "DCS Logs", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\logs", "pattern": "dcs.log*" },
-        { "label": "DCSServerBot Logs", "directory": ".", "pattern": "dcsserverbot.log*" },
+        { "label": "DCS Logs", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\logs", "pattern": "dcs.log*", "target": "<id:{config[ADMIN_CHANNEL]}>" },
+        { "label": "DCSServerBot Logs", "directory": ".", "pattern": "dcsserverbot.log*", "target": "%USERPROFILE%\\Downloads" },
         { "label": "Missions", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\Missions", "pattern": "*.miz" },
+        { "label": "Tacview", "directory": "%USERPROFILE%\\Documents\\Tacview", "pattern": "Tacview-*.acmi", "target": "<id:12345678901234567>" },
         { "label": "Config Files", "directory": ".\\config", "pattern": "*.json" },
         { "label": "dcsserverbot.ini", "directory": ".\\config", "pattern": "dcsserverbot.ini" }
       ]
@@ -21,7 +22,10 @@ download from your server. There is a default list being loaded, if no list is p
   ]
 }
 ```
-When using the .download command, you can select which "label" you want to download.
+When using the .download command, you can select which "label" you want to download.<br/>
+If "target" is not provided, the file will be sent as a DM. If sending as a DM exceeds the limits of 8 MB, it tries to 
+download to the current channel.</br>
+"target" can be anything from a file path to a channel (see example above).
 
 ## Discord Commands
 
@@ -40,7 +44,7 @@ When using the .download command, you can select which "label" you want to downl
 | .ban      | @member/ucid [reason] | all           | DCS Admin | Bans a specific player either by their Discord ID or UCID.                                                               |
 | .unban    | @member/ucid          | all           | DCS Admin | Unbans a specific player either by their Discord ID or UCID.                                                             |
 | .bans     |                       | all           | DCS Admin | Lists the current active bans.                                                                                           |
-| .download |                       | admin-channel | DCS Admin | Download a dcs.log, dcsserverbot.log, bot config file or a mission into a DM.                                            |
+| .download |                       | admin-channel | DCS Admin | Download a dcs.log, dcsserverbot.log, bot config file or a mission into a DM, path or configured channel.                |
 | .shell    |                       | admin-channel | Admin     | Runs a shell command on a specific node.                                                                                 |
 
 In addition, you can upload embeds to discord channels, just by using json files like this:

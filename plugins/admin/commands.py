@@ -17,7 +17,7 @@ from discord import Interaction, SelectOption
 from discord.ext import commands, tasks
 from discord.ui import Select, View, Button, Modal, TextInput
 from pathlib import Path
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Any
 from zipfile import ZipFile
 from .listener import AdminEventListener
 
@@ -332,11 +332,11 @@ class Agent(Plugin):
 
         view = View()
         msg = None
-        choices: list[discord.SelectOption] = [discord.SelectOption(label=x['label']) for x in self.get_config(server)['downloads']]
+        config = self.get_config(server)
+        choices: list[discord.SelectOption] = [discord.SelectOption(label=x['label']) for x in config['downloads']]
         select1 = Select(placeholder="What do you want to download?", options=choices)
 
-        async def send_file(interaction: Interaction, filename: str):
-            channel = await interaction.user.create_dm()
+        async def send_file(interaction: Interaction, filename: str, target: Any):
             zipped = False
             if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('acmi') and \
                     os.path.getsize(filename) >= 8 * 1024 * 1024:
@@ -344,16 +344,44 @@ class Agent(Plugin):
                     zipfile.write(filename)
                 filename = zipfile.filename
                 zipped = True
-            await channel.send(file=discord.File(filename))
-            await interaction.response.send_message('File sent as a DM.')
+            await interaction.response.defer(thinking=True)
+            if not target:
+                dm_channel = await interaction.user.create_dm()
+                for channel in [dm_channel, ctx.channel]:
+                    try:
+                        await channel.send(file=discord.File(filename))
+                        if channel == dm_channel:
+                            await interaction.followup.send('File sent as a DM.')
+                        else:
+                            await interaction.followup.send('Here is your file:')
+                    except discord.HTTPException:
+                        continue
+                else:
+                    await interaction.followup.send('File too large. You need a higher boost level for your server.')
+            elif target.startswith('<'):
+                channel = self.bot.get_channel(int(target[4:-1]))
+                try:
+                    await channel.send(file=discord.File(filename))
+                except discord.HTTPException:
+                    await interaction.followup.send('File too large. You need a higher boost level for your server.')
+                if channel != ctx.channel:
+                    await interaction.followup.send('File sent to the configured channel.')
+                else:
+                    await interaction.followup.send('Here is your file:')
+            else:
+                path = os.path.expandvars(target)
+                shutil.copy2(filename, path)
+                await interaction.followup.send('File copied to the specified location.')
             if zipped:
                 os.remove(filename)
+            await msg.delete()
 
         async def _choice(interaction: Interaction):
-            for download in self.get_config(server)['downloads']:
+            for download in config['downloads']:
                 if download['label'] == select1.values[0]:
                     directory = Path(os.path.expandvars(download['directory'].format(server=server)))
                     pattern = download['pattern'].format(server=server)
+                    target = download['target'].format(config=self.bot.config[server.installation], server=server) if 'target' in download else None
                     break
 
             options: list[discord.SelectOption] = []
@@ -367,13 +395,13 @@ class Agent(Plugin):
                 await interaction.response.send_message("No file found.")
                 return
             if len(options) == 1:
-                await send_file(interaction, files[options[0].value])
+                await send_file(interaction, files[options[0].value], target)
                 return
 
             select2 = Select(placeholder="Select a file to download", options=options)
 
             async def _download(interaction: Interaction):
-                await send_file(interaction, files[select2.values[0]])
+                await send_file(interaction, files[select2.values[0]], target)
 
             select2.callback = _download
             view.clear_items()
