@@ -354,6 +354,7 @@ class Agent(Plugin):
                             await interaction.followup.send('File sent as a DM.')
                         else:
                             await interaction.followup.send('Here is your file:')
+                        break
                     except discord.HTTPException:
                         continue
                 else:
