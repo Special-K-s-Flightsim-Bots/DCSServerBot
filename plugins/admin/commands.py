@@ -17,7 +17,7 @@ from discord import Interaction, SelectOption
 from discord.ext import commands, tasks
 from discord.ui import Select, View, Button, Modal, TextInput
 from pathlib import Path
-from typing import Union, List, Optional, Any
+from typing import Union, List, Optional
 from zipfile import ZipFile
 from .listener import AdminEventListener
 
@@ -336,7 +336,7 @@ class Agent(Plugin):
         choices: list[discord.SelectOption] = [discord.SelectOption(label=x['label']) for x in config['downloads']]
         select1 = Select(placeholder="What do you want to download?", options=choices)
 
-        async def send_file(interaction: Interaction, filename: str, target: Any):
+        async def send_file(interaction: Interaction, filename: str, target: str):
             zipped = False
             if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('acmi') and \
                     os.path.getsize(filename) >= 8 * 1024 * 1024:
