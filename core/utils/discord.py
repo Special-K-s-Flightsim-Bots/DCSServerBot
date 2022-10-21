@@ -144,6 +144,11 @@ class SelectView(View):
             self.result = select.values[0]
         self.stop()
 
+    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, custom_id='sl_cancel', emoji='❌')
+    async def on_cancel(self, interaction: Interaction, button: Button):
+        await interaction.response.defer()
+        self.stop()
+
     async def interaction_check(self, interaction: Interaction, /) -> bool:
         if interaction.user != self.ctx.author:
             await interaction.response.send_message('This is not your command, mate!', ephemeral=True)

@@ -176,7 +176,7 @@ class Scheduler(Plugin):
                 item = 'server'
             else:
                 item = 'mission'
-            while restart_in > 0:
+            while restart_in > 0 and server.is_populated() and not server.maintenance:
                 for warn_time in warn_times:
                     if warn_time == restart_in:
                         server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
@@ -240,6 +240,9 @@ class Scheduler(Plugin):
                 await self.bot.audit(f"{string.capwords(self.plugin_name)} will shut down DCS server in {utils.format_time(restart_in)}",
                                      server=server)
                 await self.warn_users(server, config, 'shutdown')
+            # if the shutdown has been cancelled due to maintenance mode
+            if not server.restart_pending:
+                return
             await self.teardown_dcs(server)
             if 'extensions' in config:
                 await self.teardown_extensions(server, config)
@@ -334,12 +337,13 @@ class Scheduler(Plugin):
                 if 'max_mission_time' not in config['restart']:
                     server.restart_pending = True
                     return
-                elif (config['restart']['max_mission_time'] * 60 - restart_in) > server.current_mission.mission_time:
+                elif server.current_mission.mission_time <= (config['restart']['max_mission_time'] * 60 - restart_in):
                     return
             server.restart_pending = True
             await self.warn_users(server, config, method)
-            # in the unlikely event that we did restart already in the meantime while warning users
-            if not server.restart_pending:
+            # in the unlikely event that we did restart already in the meantime while warning users or
+            # if the restart has been cancelled due to maintenance mode
+            if not server.restart_pending or not server.is_populated():
                 return
             else:
                 server.on_empty = dict()
@@ -510,7 +514,16 @@ class Scheduler(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             if not server.maintenance:
+                if (server.restart_pending or server.on_empty or server.on_mission_end) and \
+                        not await utils.yn_question(ctx, "Server is configured for a pending restart.\n"
+                                                    "Setting the maintenance flag will abort this restart.\n"
+                                                    "Are you sure?"):
+                    await ctx.send("Aborted.")
+                    return
                 server.maintenance = True
+                server.restart_pending = False
+                server.on_empty = dict()
+                server.on_mission_end = dict()
                 await ctx.send(f"Maintenance mode set for server {server.name}.\n"
                                f"The {string.capwords(self.plugin_name)} will be set on hold until you use"
                                f" {ctx.prefix}clear again.")
