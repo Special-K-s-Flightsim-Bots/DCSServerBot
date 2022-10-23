@@ -45,7 +45,7 @@ class SchedulerListener(EventListener):
             ext: Extension = server.extensions[extension] if extension in server.extensions else None
             if not ext:
                 if '.' not in extension:
-                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server,
+                    ext = utils.str_to_class('extensions.' + extension)(self.bot, server,
                                                                                 config['extensions'][extension])
                 else:
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])

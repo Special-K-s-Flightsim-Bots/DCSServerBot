@@ -195,7 +195,7 @@ class Scheduler(Plugin):
             ext: Extension = server.extensions[extension] if 'extensions' in server.extensions else None
             if not ext:
                 if '.' not in extension:
-                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server, config['extensions'][extension])
+                    ext = utils.str_to_class('extensions.' + extension)(self.bot, server, config['extensions'][extension])
                 else:
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
                 if ext.verify():
@@ -438,7 +438,7 @@ class Scheduler(Plugin):
             return
         for extension, config in self.locals['configs'][0]['extensions'].items():  # type: str, dict
             if '.' not in extension:
-                ext: Extension = utils.str_to_class('extensions.builtin.' + extension)
+                ext: Extension = utils.str_to_class('extensions.' + extension)
             else:
                 ext: Extension = utils.str_to_class(extension)
             ext.schedule(config, self.lastrun)
