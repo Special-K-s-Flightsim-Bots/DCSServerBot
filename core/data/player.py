@@ -21,7 +21,6 @@ class Player(DataObject):
     active: bool = field(compare=False)
     side: Side = field(compare=False)
     ucid: str
-    ipaddr: str = field(compare=False)
     banned: bool = field(compare=False)
     slot: int = field(compare=False, default=0)
     sub_slot: int = field(compare=False, default=0)
@@ -39,7 +38,6 @@ class Player(DataObject):
         if self.id == 1:
             self.active = False
             return
-        self.ipaddr = self.ipaddr[:self.ipaddr.find(':')]
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -53,17 +51,13 @@ class Player(DataObject):
                         self.member = self._member = self.bot.guilds[0].get_member(row[0])
                         self._verified = row[2]
                     self.banned = row[1]
-                    cursor.execute('UPDATE players SET name = %s, ipaddr = %s, last_seen = NOW() WHERE ucid = %s',
-                                   (self.name, self.ipaddr, self.ucid))
-                # no, add a new player
-                else:
-                    cursor.execute('INSERT INTO players (ucid, discord_id, name, ipaddr, last_seen) VALUES (%s, -1, '
-                                   '%s, %s, NOW())',
-                                   (self.ucid, self.name, self.ipaddr))
+                cursor.execute(
+                    'INSERT INTO players (ucid, discord_id, name, last_seen) VALUES (%s, -1, %s, NOW()) ON '
+                    'CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen',
+                    (self.ucid, self.name))
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
-            conn.rollback()
         finally:
             self.pool.putconn(conn)
         # if automatch is enabled, try to match the user
@@ -114,7 +108,7 @@ class Player(DataObject):
         return self._verified
 
     @verified.setter
-    def verified(self, verified:bool) -> None:
+    def verified(self, verified: bool) -> None:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -127,34 +121,43 @@ class Player(DataObject):
             self.pool.putconn(conn)
 
     def update(self, data: dict):
-        if 'id' in data:
-            # if the ID has changed (due to a reconnect), we need to update the server list
-            if self.id != data['id']:
-                del self.server.players[self.id]
-                self.server.players[data['id']] = self
-                self.id = data['id']
-        if 'active' in data:
-            self.active = data['active']
-        if 'name' in data:
-            self.name = data['name']
-        if 'ipaddr' in data:
-            self.ipaddr = data['ipaddr']
-        if 'side' in data:
-            self.side = Side(data['side'])
-        if 'slot' in data:
-            self.slot = int(data['slot'])
-        if 'sub_slot' in data:
-            self.sub_slot = data['sub_slot']
-        if 'unit_callsign' in data:
-            self.unit_callsign = data['unit_callsign']
-        if 'unit_name' in data:
-            self.unit_name = data['unit_name']
-        if 'unit_type' in data:
-            self.unit_type = data['unit_type']
-        if 'group_name' in data:
-            self.group_name = data['group_name']
-        if 'group_id' in data:
-            self.group_id = data['group_id']
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                if 'id' in data:
+                    # if the ID has changed (due to reconnect), we need to update the server list
+                    if self.id != data['id']:
+                        del self.server.players[self.id]
+                        self.server.players[data['id']] = self
+                        self.id = data['id']
+                if 'active' in data:
+                    self.active = data['active']
+                if 'name' in data and self.name != data['name']:
+                    self.name = data['name']
+                    cursor.execute('UPDATE players SET name = %s WHERE ucid = %s', (self.name, self.ucid))
+                if 'side' in data:
+                    self.side = Side(data['side'])
+                if 'slot' in data:
+                    self.slot = int(data['slot'])
+                if 'sub_slot' in data:
+                    self.sub_slot = data['sub_slot']
+                if 'unit_callsign' in data:
+                    self.unit_callsign = data['unit_callsign']
+                if 'unit_name' in data:
+                    self.unit_name = data['unit_name']
+                if 'unit_type' in data:
+                    self.unit_type = data['unit_type']
+                if 'group_name' in data:
+                    self.group_name = data['group_name']
+                if 'group_id' in data:
+                    self.group_id = data['group_id']
+                cursor.execute('UPDATE players SET last_seen = NOW() WHERE ucid = %s', (self.ucid, ))
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
     def has_discord_roles(self, roles: list[str]) -> bool:
         return self.verified and self._member is not None and utils.check_roles(roles, self._member)

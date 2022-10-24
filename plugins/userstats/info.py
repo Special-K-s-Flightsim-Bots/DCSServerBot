@@ -64,7 +64,7 @@ class UCIDs(report.EmbedElement):
                 if not cursor.rowcount:
                     return
                 rows = list(cursor.fetchall())
-                self.embed.add_field(name='▬' * 13 + ' Connected UCIDs ' + '▬' * 13, value='_ _', inline=False)
+                self.embed.add_field(name='▬' * 13 + ' Connected UCIDs ' + '▬' * 12, value='_ _', inline=False)
                 self.embed.add_field(name='UCID', value='\n'.join([row['ucid'] for row in rows]))
                 self.embed.add_field(name='DCS Name', value='\n'.join([row['name'] for row in rows]))
                 if isinstance(member, discord.Member):
@@ -82,21 +82,21 @@ class History(report.EmbedElement):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                sql = 'SELECT name, ipaddr, max(time) AS time FROM players_hist p WHERE p.discord_id = '
+                sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.discord_id = '
                 if isinstance(member, str):
                     sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
                            f"p.ucid = '{member}' OR LOWER(p.name) ILIKE '{member.casefold()}' "
                 else:
                     sql += f"'{member.id}'"
-                sql += ' GROUP BY name, ipaddr ORDER BY time DESC LIMIT 10'
+                sql += ' GROUP BY name ORDER BY time DESC LIMIT 10'
                 cursor.execute(sql)
                 if not cursor.rowcount:
                     return
                 rows = cursor.fetchall()
-                self.embed.add_field(name='▬' * 15 + ' History ' + '▬' * 15, value='_ _', inline=False)
+                self.embed.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
                 self.embed.add_field(name='DCS Name', value='\n'.join([row['name'] or 'n/a' for row in rows]))
-                self.embed.add_field(name='IP Addr', value='\n'.join([row['ipaddr'] or 'n/a' for row in rows]))
                 self.embed.add_field(name='Time', value='\n'.join([f"{row['time']:%y-%m-%d %H:%M:%S}" for row in rows]))
+                self.embed.add_field(name='_ _', value='_ _')
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
             raise

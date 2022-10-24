@@ -117,7 +117,6 @@ function mission.onPlayerConnect(id)
 	msg.id = id
 	msg.name = net.get_player_info(id, 'name')
 	msg.ucid = net.get_player_info(id, 'ucid')
-	msg.ipaddr = net.get_player_info(id, 'ipaddr')
     msg.side = 0
     -- server user is never active
     if (msg.id == 1) then
@@ -136,7 +135,6 @@ function mission.onPlayerStart(id)
 	msg.id = id
 	msg.ucid = net.get_player_info(id, 'ucid')
 	msg.name = net.get_player_info(id, 'name')
-	msg.ipaddr = net.get_player_info(id, 'ipaddr')
     msg.side = 0
     -- server user is never active
     if (msg.id == 1) then
