@@ -31,7 +31,7 @@ class Player(DataObject):
     group_name: str = field(compare=False, default='')
     _member: discord.Member = field(compare=False, repr=False, default=None, init=False)
     _verified: bool = field(compare=False, default=False)
-    coalition: Coalition = field(compare=False, default=None)
+    _coalition: Coalition = field(compare=False, default=None)
 
     def __post_init__(self):
         super().__post_init__()
@@ -119,6 +119,27 @@ class Player(DataObject):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+
+    @property
+    def coalition(self) -> Coalition:
+        return self._coalition
+
+    @coalition.setter
+    def coalition(self, coalition: Coalition):
+        self._coalition = coalition
+        if coalition == Coalition.BLUE:
+            side = Side.BLUE
+        elif coalition == Coalition.RED:
+            side = Side.RED
+        elif coalition == Side.NEUTRAL:
+            side = Side.NEUTRAL
+        else:
+            side = Side.SPECTATOR
+        self.server.sendtoDCS({
+            "command": "setUserCoalition",
+            "ucid": self.ucid,
+            "coalition": side.value
+        })
 
     def update(self, data: dict):
         conn = self.pool.getconn()

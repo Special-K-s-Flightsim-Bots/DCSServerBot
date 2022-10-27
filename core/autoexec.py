@@ -106,8 +106,3 @@ class Autoexec:
                         outcfg.write(f"{key}.{x}\n")
                 else:
                     outcfg.write(f"{key} = {self.unparse(value)}\n")
-
-
-if __name__ == '__main__':
-    cfg = Autoexec(bot=None, installation='instance2')
-    cfg.crash_report_mode = 'silent'

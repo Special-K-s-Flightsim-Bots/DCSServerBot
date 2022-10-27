@@ -2,7 +2,8 @@
 If you want to support Blue and Red coalitions in your Discord and your DCS servers, you're good to go!
 As there are major changes to how the bot behaves with COALITIONS enabled, I decided to have a separate documentation 
 about it. It has redundant information in it, which is usually a bad idea, but I thought it might be easier for you
-guys to have everything in one place.
+guys to have everything in one place.<br/>
+Coalitions are implemented by slot blocking, but can use the recenly added feature of coalition passwords in DCS, too.
 
 **ATTENTION!**</BR>
 With COALITIONS enabled, some persistent displays will not appear in your server status channels (or will be changed)

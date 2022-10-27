@@ -17,25 +17,6 @@ class SlotBlockingListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         config: dict = self.plugin.get_config(server)
         if config:
-            # migrate discord roles to ucids
-            if 'VIP' in config and 'discord' in config['VIP']:
-                if isinstance(config['VIP']['discord'], str):
-                    roles = [config['VIP']['discord']]
-                else:
-                    roles = config['VIP']['discord']
-                if 'ucid' in config['VIP']:
-                    ucids = set(config['VIP']['ucid'])
-                else:
-                    ucids = set[str]()
-                for member in self.bot.get_all_members():  # type: discord.Member
-                    if member.bot:
-                        continue
-                    if utils.check_roles(roles, member):
-                        # VIP users need to be verified
-                        ucid = self.bot.get_ucid_by_member(member, True)
-                        if ucid:
-                            ucids.add(ucid)
-                config['VIP']['ucid'] = list(ucids)
             server.sendtoDCS({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,

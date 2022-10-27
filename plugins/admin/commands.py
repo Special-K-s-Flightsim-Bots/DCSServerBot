@@ -181,6 +181,7 @@ class Agent(Plugin):
                             await utils.yn_question(ctx, "Password has been changed.\nDo you want the servers to be "
                                                          "restarted for the change to take effect?"):
                         await server.restart()
+                        await ctx.send('Server restarted.')
                         await self.bot.audit('restarted the server', server=server, user=ctx.message.author)
                 else:
                     await ctx.send(f"Server \"{server.name}\" must not be shut down to change coalition "

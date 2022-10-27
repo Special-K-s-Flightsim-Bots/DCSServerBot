@@ -6,6 +6,9 @@ local slotblock = slotblock or {}
 
 
 local function has_value(tab, value)
+    if not tab then
+        return false
+    end
     for idx1, value1 in ipairs(tab) do
         if type(value) == "table" then
             for idx2, value2 in ipairs(value) do
@@ -13,10 +16,8 @@ local function has_value(tab, value)
                     return true
                 end
             end
-        else
-            if value1 == value then
-                return true
-            end
+        elseif value1 == value then
+            return true
         end
     end
     return false
@@ -30,9 +31,13 @@ local function is_vip(ucid)
     if not config then
         return false
     end
-    if config['ucid'] and not has_value(config['ucid'], ucid) then
-        return false
+    if config['ucid'] and has_value(config['ucid'], ucid) then
+        return true
     end
+    if config['discord'] and has_value(dcsbot.userInfo[ucid].roles, config['discord']) then
+        return true
+    end
+    return false
 end
 
 function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
