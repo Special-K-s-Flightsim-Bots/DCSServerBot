@@ -15,7 +15,7 @@ class GameMasterAgent(Plugin):
         for server in self.bot.servers.values():
             if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 self.log.debug(f'  - Updating "{server.name}":serverSettings.lua for coalitions')
-                server.changeServerSettings('allow_players_pool', False)
+                server.changeServerSettings('allow_players_pool', self.bot.config.getboolean(server.installation, 'ALLOW_PLAYERS_POOL'))
 
     def rename(self, old_name: str, new_name: str):
         conn = self.pool.getconn()
@@ -201,7 +201,8 @@ class GameMasterMaster(GameMasterAgent):
                         await self.bot.audit(f'tried to join a new coalition in-between the time limit.', user=member)
                         return
                 await member.add_roles(roles[coalition.lower()])
-                cursor.execute('UPDATE players SET coalition = %s WHERE discord_id = %s', (coalition, member.id))
+                cursor.execute('UPDATE players SET coalition = %s, coalition_leave = NULL WHERE discord_id = %s',
+                               (coalition, member.id))
                 await ctx.send(f'Welcome to the {coalition} side!')
                 conn.commit()
         except discord.Forbidden:
@@ -227,8 +228,7 @@ class GameMasterMaster(GameMasterAgent):
                 conn = self.bot.pool.getconn()
                 try:
                     with closing(conn.cursor()) as cursor:
-                        cursor.execute('UPDATE players SET coalition = NULL, coalition_leave = NOW() WHERE discord_id '
-                                       '= %s', (member.id,))
+                        cursor.execute('UPDATE players SET coalition_leave = NOW() WHERE discord_id = %s', (member.id,))
                     conn.commit()
                     await member.remove_roles(value)
                     await ctx.send(f"You've left the {key} coalition!")

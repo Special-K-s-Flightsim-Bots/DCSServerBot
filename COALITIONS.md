@@ -38,11 +38,12 @@ b) __ROLES Section__
 
 c) __Server Specific Sections__
 
-| Parameter              | Description                                 |
-|------------------------|---------------------------------------------|
-| COALITIONS             | Enable coalition handling, default = false. |                                                                                                                                                                                                                                                                                                                                                 
-| COALITION_BLUE_CHANNEL | Coalition channel for blue coalition.       |
-| COALITION_RED_CHANNEL  | Coalition channel for red coalition.        |
+| Parameter              | Description                                                                        |
+|------------------------|------------------------------------------------------------------------------------|
+| COALITIONS             | Enable coalition handling, default = false.                                        |                                                                                                                                                                                                                                                                                                                                                 
+| ALLOW_PLAYERS_POOL     | Enable the in-game players pool view (default = false, if coalitions are enabled). |
+| COALITION_BLUE_CHANNEL | Coalition channel for blue coalition.                                              |
+| COALITION_RED_CHANNEL  | Coalition channel for red coalition.                                               |
 
 **Attention!**<br/>
 Make sure, that all channels for red and blue coalitions have read access **only** for this coalition and not for 

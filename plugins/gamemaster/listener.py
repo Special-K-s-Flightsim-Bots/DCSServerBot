@@ -34,8 +34,9 @@ class GameMasterEventListener(EventListener):
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT coalition FROM players WHERE ucid = %s', (player.ucid, ))
-                    coalition = cursor.fetchone()[0]
+                    cursor.execute('SELECT coalition FROM players WHERE ucid = %s AND coalition_leave IS NULL',
+                                   (player.ucid, ))
+                    coalition = cursor.fetchone()[0] if cursor.rowcount == 1 else None
                     if coalition:
                         player.coalition = Coalition(coalition)
             except (Exception, psycopg2.DatabaseError) as error:
@@ -98,10 +99,12 @@ class GameMasterEventListener(EventListener):
                         Coalition.BLUE: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Blue'])
                     }
                     await player.member.add_roles(roles[player.coalition])
-                cursor.execute('UPDATE players SET coalition = %s WHERE ucid = %s', (coalition, player.ucid))
+                cursor.execute('UPDATE players SET coalition = %s, coalition_leave = NULL WHERE ucid = %s',
+                               (coalition, player.ucid))
                 password = self._get_coalition_password(server, player.coalition)
                 player.sendChatMessage(f'Welcome to the {coalition} side!')
-                player.sendChatMessage(f"Your coalition password is {password}.")
+                if password:
+                    player.sendChatMessage(f"Your coalition password is {password}.")
                 conn.commit()
         except discord.Forbidden:
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
@@ -121,8 +124,7 @@ class GameMasterEventListener(EventListener):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET coalition = NULL, coalition_leave = NOW() WHERE ucid = %s',
-                               (player.ucid,))
+                cursor.execute('UPDATE players SET coalition_leave = NOW() WHERE ucid = %s', (player.ucid,))
             conn.commit()
             if player.member:
                 roles = {
