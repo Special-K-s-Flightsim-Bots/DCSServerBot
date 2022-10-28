@@ -336,9 +336,112 @@ class MizFile:
                         self.mission.insert(i + j - 1, f'            ["{e}"] = {self.unparse(values[e])},\n')
                 break
 
-    def clear_required_modules(self) -> None:
+    @property
+    def halo(self) -> dict:
+        exp = re.compile(self.re_exp['genkey_value'])
+        halo = dict()
+        for i in range(0, len(self.mission)):
+            if '["halo"] =' in self.mission[i]:
+                j = 2
+                while '}' not in self.mission[i + j]:
+                    match = exp.search(self.mission[i + j])
+                    if match:
+                        halo[match.group('key')] = self.parse(match.group('value'))
+                        j += 1
+                    else:
+                        break
+                break
+        if not halo:
+            halo = {"preset": "off"}
+        return halo
+
+    @halo.setter
+    def halo(self, values: dict):
+        elements = list(values.keys())
+        for i in range(0, len(self.mission)):
+            if '["halo"] = ' in self.mission[i]:
+                j = 2
+                old_elements = elements.copy()
+                while '}' not in self.mission[i + j]:
+                    for e in elements:
+                        if e in self.mission[i + j] and e in values:
+                            self.mission[i + j] = re.sub(' = ([^,]*)', ' = {}'.format(self.unparse(values[e])),
+                                                         self.mission[i + j])
+                            j += 1
+                            old_elements.remove(e)
+                    elements = old_elements.copy()
+                    j += 1
+                # check for remaining elements
+                for e in old_elements:
+                    if e in values:
+                        self.mission.insert(i + j - 1, f'            ["{e}"] = {self.unparse(values[e])},\n')
+                break
+        # we haven't found it, add it after groundTurbulence, as DCS would do it
+        else:
+            for i in range(0, len(self.mission)):
+                if '["groundTurbulence"] = ' in self.mission[i]:
+                    self.mission.insert(i + 1, '        ["halo"] = \n')
+                    self.mission.insert(i + 2, '        {\n')
+                    j = 3
+                    for key, value in values.items():
+                        self.mission.insert(i + j, f'            ["{key}"] = {self.unparse(value)},\n')
+                        j += 1
+                    self.mission.insert(i + j, '        }, -- end of ["halo"]\n')
+                    break
+
+    @property
+    def requiredModules(self) -> list[str]:
+        exp = re.compile(self.re_exp['genkey_value'])
+        modules: list[str] = []
+        for i in range(0, len(self.mission)):
+            if '["requiredModules"] =' in self.mission[i]:
+                j = 2
+                while '}' not in self.mission[i + j]:
+                    match = exp.search(self.mission[i + j])
+                    if match:
+                        modules.append(self.parse(match.group('value')))
+                        j += 1
+                    else:
+                        break
+                break
+        return modules
+
+    @requiredModules.setter
+    def requiredModules(self, values: list[str]):
         for i in range(0, len(self.mission)):
             if '["requiredModules"] =' in self.mission[i]:
                 i += 2
-                while self.mission[i] != '}, -- end of ["requiredModules"]':
+                # remove all required modules
+                while '}, -- end of ["requiredModules"]' not in self.mission[i]:
                     self.mission.pop(i)
+                # insert the new ones
+                for v in values:
+                    self.mission.insert(i, f'            ["{v}"] = {self.unparse(v)},\n')
+                break
+
+    @property
+    def accidental_failures(self) -> bool:
+        exp = re.compile(self.re_exp['key_value'].format(key='accidental_failures'))
+        for i in range(0, len(self.mission)):
+            match = exp.search(self.mission[i])
+            if match:
+                return self.parse(match.group('value'))
+
+    @accidental_failures.setter
+    def accidental_failures(self, value: bool) -> None:
+        if value:
+            raise NotImplemented("Setting of accidental_failures is not implemented for now.")
+        exp = re.compile(self.re_exp['key_value'].format(key='accidental_failures'))
+        for i in range(0, len(self.mission)):
+            match = exp.search(self.mission[i])
+            if match:
+                self.mission[i] = re.sub(' = ([^,]*)', ' = {}'.format(self.unparse(value)), self.mission[i])
+                break
+        # workaround for DCS bug
+        if not value:
+            for i in range(0, len(self.mission)):
+                if '["failures"] =' in self.mission[i]:
+                    i += 2
+                    while '}, -- end of ["failures"]' not in self.mission[i]:
+                        self.mission.pop(i)
+                    break

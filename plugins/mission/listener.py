@@ -119,11 +119,10 @@ class MissionEventListener(EventListener):
             for p in data['players']:
                 player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=p['id'],
                                                          name=p['name'], active=p['active'], side=Side(p['side']),
-                                                         ucid=p['ucid'], ipaddr=p['ipaddr'], slot=int(p['slot']),
-                                                         sub_slot=p['sub_slot'], unit_callsign=p['unit_callsign'],
-                                                         unit_name=p['unit_name'], unit_type=p['unit_type'],
-                                                         group_id=p['group_id'], group_name=p['group_name'],
-                                                         banned=False)
+                                                         ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
+                                                         unit_callsign=p['unit_callsign'], unit_name=p['unit_name'],
+                                                         unit_type=p['unit_type'], group_id=p['group_id'],
+                                                         group_name=p['group_name'], banned=False)
                 server.add_player(player)
         self._display_mission_embed(server)
         self._display_player_embed(server)
@@ -169,9 +168,8 @@ class MissionEventListener(EventListener):
         player: Player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
             player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=data['id'],
-                                                     name=data['name'], active=data['active'],
-                                                     side=Side(data['side']), ucid=data['ucid'],
-                                                     ipaddr=data['ipaddr'], banned=False)
+                                                     name=data['name'], active=data['active'], side=Side(data['side']),
+                                                     ucid=data['ucid'], banned=False)
             server.add_player(player)
         else:
             player.update(data)
@@ -185,7 +183,7 @@ class MissionEventListener(EventListener):
         if not player:
             player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=data['id'],
                                              name=data['name'], active=data['active'], side=Side(data['side']),
-                                             ucid=data['ucid'], ipaddr=data['ipaddr'], banned=False)
+                                             ucid=data['ucid'], banned=False)
             server.add_player(player)
         else:
             player.update(data)

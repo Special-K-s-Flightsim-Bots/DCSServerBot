@@ -29,3 +29,9 @@ function dcsbot.setVariable(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: setVariable()')
     net.dostring_in('mission', 'a_do_script("dcsbot.setVariable(\\"' .. json.name ..'\\", \\"' .. json.value .. '\\")")')
 end
+
+-- internal, do not use inside of missions unless you know what you are doing!
+function dcsbot.setUserCoalition(json)
+    log.write('DCSServerBot', log.DEBUG, 'GameMaster: setUserCoalition()')
+    dcsbot.userInfo[json.ucid].coalition = tonumber(json.coalition)
+end

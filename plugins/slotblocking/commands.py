@@ -1,7 +1,9 @@
+import discord
 import json
 import os
 from copy import deepcopy
-from core import DCSServerBot, Plugin, PluginRequiredError, Server
+from core import DCSServerBot, Plugin, PluginRequiredError, Server, Player
+from discord.ext import commands
 from typing import Optional
 from .listener import SlotBlockingListener
 
@@ -73,6 +75,15 @@ class SlotBlocking(Plugin):
             else:
                 return None
         return self._config[server.name] if server.name in self._config else None
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        # did a member change its roles?
+        if before.roles != after.roles:
+            for server in self.bot.servers.values():
+                player: Player = server.get_player(discord_id=after.id)
+                if player:
+                    player.member = after
 
 
 async def setup(bot: DCSServerBot):

@@ -18,10 +18,10 @@ class GameMasterEventListener(EventListener):
         player: Player = server.get_player(id=data['from_id'])
         chat_channel: Optional[discord.TextChannel] = None
         if self.bot.config.getboolean(server.installation, 'COALITIONS') \
-                and data['to'] == -2 and player.side in [Side.BLUE, Side.RED]:
-            if player.side == Side.BLUE:
+                and data['to'] == -2 and player.coalition in [Coalition.BLUE, Coalition.RED]:
+            if player.coalition == Coalition.BLUE:
                 chat_channel = server.get_channel(Channel.COALITION_BLUE)
-            elif player.side == Side.RED:
+            elif player.coalition == Coalition.RED:
                 chat_channel = server.get_channel(Channel.COALITION_RED)
         else:
             chat_channel = server.get_channel(Channel.CHAT)
@@ -34,8 +34,9 @@ class GameMasterEventListener(EventListener):
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT coalition FROM players WHERE ucid = %s', (player.ucid, ))
-                    coalition = cursor.fetchone()[0]
+                    cursor.execute('SELECT coalition FROM players WHERE ucid = %s AND coalition_leave IS NULL',
+                                   (player.ucid, ))
+                    coalition = cursor.fetchone()[0] if cursor.rowcount == 1 else None
                     if coalition:
                         player.coalition = Coalition(coalition)
             except (Exception, psycopg2.DatabaseError) as error:
@@ -62,18 +63,18 @@ class GameMasterEventListener(EventListener):
         if data['id'] != 1 and self.bot.config.getboolean(server.installation, 'COALITIONS'):
             player: Player = server.get_player(id=data['id'])
             data['from_id'] = data['id']
-            if self._get_coalition(player):
-                data['subcommand'] = 'coalition'
-                self.bot.loop.call_soon(asyncio.create_task, self.onChatCommand(data))
-            data['subcommand'] = 'password'
-            self.bot.loop.call_soon(asyncio.create_task, self.onChatCommand(data))
+            data['subcommand'] = 'coalition'
+            await self.onChatCommand(data)
+            if self._get_coalition_password(server, player.coalition):
+                data['subcommand'] = 'password'
+                await self.onChatCommand(data)
 
     async def join(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['from_id'], active=True)
         coalition = data['params'][0] if len(data['params']) > 0 else ''
         if coalition.casefold() not in ['blue', 'red']:
-            player.sendChatMessage('Usage: -join <blue|red>')
+            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join <blue|red>")
             return
         if self._get_coalition(player) == Coalition(coalition):
             player.sendChatMessage(f"You are a member of coalition {coalition} already.")
@@ -98,8 +99,12 @@ class GameMasterEventListener(EventListener):
                         Coalition.BLUE: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Blue'])
                     }
                     await player.member.add_roles(roles[player.coalition])
-                cursor.execute('UPDATE players SET coalition = %s WHERE ucid = %s', (coalition, player.ucid))
+                cursor.execute('UPDATE players SET coalition = %s, coalition_leave = NULL WHERE ucid = %s',
+                               (coalition, player.ucid))
+                password = self._get_coalition_password(server, player.coalition)
                 player.sendChatMessage(f'Welcome to the {coalition} side!')
+                if password:
+                    player.sendChatMessage(f"Your coalition password is {password}.")
                 conn.commit()
         except discord.Forbidden:
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
@@ -114,13 +119,12 @@ class GameMasterEventListener(EventListener):
         player: Player = server.get_player(id=data['from_id'], active=True)
         if not self._get_coalition(player):
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
-                                   f"-join <blue|red>.")
+                                   f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
             return
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET coalition = NULL, coalition_leave = NOW() WHERE ucid = %s',
-                               (player.ucid,))
+                cursor.execute('UPDATE players SET coalition_leave = NOW() WHERE ucid = %s', (player.ucid,))
             conn.commit()
             if player.member:
                 roles = {
@@ -207,17 +211,18 @@ class GameMasterEventListener(EventListener):
         if not player:
             return
         coalition = self._get_coalition(player)
+        prefix = self.bot.config['BOT']['CHAT_COMMAND_PREFIX']
         if self.bot.config.getboolean(server.installation, 'COALITIONS'):
             if data['subcommand'] == 'join':
                 await self.join(data)
             elif data['subcommand'] == 'leave':
                 await self.leave(data)
             elif data['subcommand'] == 'coalition':
-                player.sendChatMessage(f"You are a member of the {coalition.name} coalition." if coalition else "You are not a member of any coalition. You can join one with -join <blue|red>.")
+                player.sendChatMessage(f"You are a member of the {coalition.name} coalition." if coalition else f"You are not a member of any coalition. You can join one with {prefix}join blue|red.")
             elif data['subcommand'] in ['password', 'passwd']:
                 if not coalition:
                     player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
-                                           f"-join <blue|red>.")
+                                           f"{prefix}join blue|red.")
                     return
                 password = self._get_coalition_password(server, player.coalition)
                 if password:
@@ -226,7 +231,7 @@ class GameMasterEventListener(EventListener):
                     player.sendChatMessage("There is no password set for your coalition.")
         if data['subcommand'] == 'flag' and player.has_discord_roles(['DCS Admin', 'GameMaster']):
             if len(data['params']) == 0:
-                player.sendChatMessage(f"Usage: -flag <flag> [value]")
+                player.sendChatMessage(f"Usage: {prefix}flag <flag> [value]")
                 return
             flag = int(data['params'][0])
             if len(data['params']) > 1:

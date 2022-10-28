@@ -195,7 +195,7 @@ class Scheduler(Plugin):
             ext: Extension = server.extensions[extension] if 'extensions' in server.extensions else None
             if not ext:
                 if '.' not in extension:
-                    ext = utils.str_to_class('extensions.builtin.' + extension)(self.bot, server, config['extensions'][extension])
+                    ext = utils.str_to_class('extensions.' + extension)(self.bot, server, config['extensions'][extension])
                 else:
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
                 if ext.verify():
@@ -276,6 +276,12 @@ class Scheduler(Plugin):
                 miz.enable_fog = value['enable_fog']
             if 'fog' in value:
                 miz.fog = value['fog']
+            if 'halo' in value:
+                miz.halo = value['halo']
+            if 'requiredModules' in value:
+                miz.requiredModules = value['requiredModules']
+            if 'accidental_failures' in value:
+                miz.accidental_failures = value['accidental_failures']
 
         filename = None
         if not server.current_mission or not server.current_mission.filename:
@@ -438,7 +444,7 @@ class Scheduler(Plugin):
             return
         for extension, config in self.locals['configs'][0]['extensions'].items():  # type: str, dict
             if '.' not in extension:
-                ext: Extension = utils.str_to_class('extensions.builtin.' + extension)
+                ext: Extension = utils.str_to_class('extensions.' + extension)
             else:
                 ext: Extension = utils.str_to_class(extension)
             ext.schedule(config, self.lastrun)
@@ -459,14 +465,20 @@ class Scheduler(Plugin):
                 msg = await ctx.send(f"DCS server \"{server.name}\" starting up ...")
                 # set maintenance flag to prevent auto-stops of this server
                 server.maintenance = True
-                await self.launch_dcs(server, config, ctx.message.author)
-                await msg.delete()
-                await ctx.send(f"DCS server \"{server.name}\" started.\n"
-                               f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
-                for ext in server.extensions.values():
-                    if not await ext.is_running() and await ext.startup():
-                        self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
-                        await self.bot.audit(f"{ext.name} started", server=server)
+                try:
+                    await self.launch_dcs(server, config, ctx.message.author)
+                    await ctx.send(f"DCS server \"{server.name}\" started.\n"
+                                   f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
+                    for ext in server.extensions.values():
+                        if not await ext.is_running() and await ext.startup():
+                            self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
+                            await self.bot.audit(f"{ext.name} started", server=server)
+                except asyncio.TimeoutError:
+                    await ctx.send(f"Timeout while launching DCS server \"{server.name}\".\n"
+                                   f"The server might be running anyway, check with {ctx.prefix}status.")
+                finally:
+                    await msg.delete()
+
             else:
                 await ctx.send(f"DCS server \"{server.name}\" is already started.")
 
@@ -660,7 +672,8 @@ class Scheduler(Plugin):
                     "dust_density": miz.dust_density if miz.enable_dust else 0,
                     "qnh": miz.qnh,
                     "enable_fog": miz.enable_fog,
-                    "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0}
+                    "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
+                    "halo": miz.halo
                 }
             }
             with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:
