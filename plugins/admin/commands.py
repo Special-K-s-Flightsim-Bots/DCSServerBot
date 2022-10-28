@@ -121,7 +121,7 @@ class Agent(Plugin):
         self.update_pending = False
         if message:
             await message.delete()
-            await ctx.send('DCS servers started.')
+            await ctx.send('DCS servers started (or Scheduler taking over in a bit).')
 
     @commands.command(description='Update a DCS Installation')
     @utils.has_role('DCS Admin')

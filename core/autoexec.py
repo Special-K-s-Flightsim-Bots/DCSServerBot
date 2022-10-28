@@ -71,8 +71,10 @@ class Autoexec:
             return True
         elif value == 'false':
             return False
-        else:
+        elif value.isnumeric():
             return int(value)
+        else:
+            return eval(value)
 
     @staticmethod
     def unparse(value: Any) -> str:
