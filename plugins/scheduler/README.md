@@ -121,21 +121,24 @@ Examples:
 Weather presets can be combined by comma separating them in the appropriate server configuration. You can either create
 full-fledged weather presets already and load them later or you combine them like in the example above. 
 
-| Parameter        | Description                                                   |
-|------------------|---------------------------------------------------------------|
-|                  | First parameter is the name of the preset.                    |
-| date             | The missions date.                                            |
-| start_time       | The missions start time in seconds.                           |
-| temperature      | Temperature in °C.                                            |
-| clouds           | Name of a DCS cloud preset.                                   |
-| wind             | Wind atGround, at2000 (m) and at8000 (m) in m/s               |
-| qnh              | Pressure at sea level in mmHg                                 |
-| groundTurbulence | Ground turbulence in 0.1 * meters                             |
-| enable_dust      | Whether to enable dust or not                                 |
-| dust_density     | Dust density in meters, 0 = off                               |
-| enable_fog       | Whether to enable fog or not                                  |
-| fog              | Settings for fog (thickness, visibility)                      |
-| hidden           | If true, this preset is not selectable in the .preset command |
+| Parameter            | Description                                                                                                              |
+|----------------------|--------------------------------------------------------------------------------------------------------------------------|
+|                      | First parameter is the name of the preset.                                                                               |
+| date                 | The missions date.                                                                                                       |
+| start_time           | The missions start time in seconds.                                                                                      |
+| temperature          | Temperature in °C.                                                                                                       |
+| clouds               | Name of a DCS cloud preset.                                                                                              |
+| wind                 | Wind atGround, at2000 (m) and at8000 (m) in m/s                                                                          |
+| qnh                  | Pressure at sea level in mmHg                                                                                            |
+| groundTurbulence     | Ground turbulence in 0.1 * meters                                                                                        |
+| enable_dust          | Whether to enable dust or not                                                                                            |
+| dust_density         | Dust density in meters, 0 = off                                                                                          |
+| enable_fog           | Whether to enable fog or not                                                                                             |
+| fog                  | Settings for fog (thickness, visibility)                                                                                 |
+| halo                 | Settings for halo (new with DCS 2.8)                                                                                     |
+| requiredModules      | Modules required for this mission (can be empty to disable the requirements check).                                      |
+| accidental_failures  | Set that to false, if you have issues with your mission that accidential failures are enabled even if you disabled them. |
+| hidden               | If true, this preset is not selectable in the .preset command                                                            |
 
 
 
