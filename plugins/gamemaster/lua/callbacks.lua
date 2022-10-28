@@ -10,7 +10,7 @@ end
 
 function gamemaster.onPlayerTryChangeSlot(playerID, side, slotID)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: onPlayerTryChangeSlot()')
-    if config.COALITIONS == false or not dcsbot.params or side == 0 then
+    if config.COALITIONS == false or side == 0 then
         return
     end
     local player = net.get_player_info(playerID, 'ucid')
