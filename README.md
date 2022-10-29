@@ -7,7 +7,7 @@ mind.
 This documentation will show you the main features, how to install and configure the bot and some more sophisticated stuff at the bottom, 
 if you for instance run multiple servers maybe even over multiple locations. 
 
-First let's see, what it can do for you!
+First let's see, what it can do for you (installation instructions below)!
 
 ---
 ## Plugins
@@ -29,13 +29,13 @@ These commands can be used to administrate the bot itself.
 |--------------|---------------------------------------------------------------------|----------|-----------------------|--------------------------------------------|
 | Admin        | Admin commands to manage your DCS server.                           | no       |                       | [README](./plugins/admin/README.md)        |
 | Mission      | Handling of missions, compared to the WebGUI.                       | no       |                       | [README](./plugins/mission/README.md)      |
-| Scheduler    | Autostart / -stop of servers or missions.                           | no       | Mission               | [README](./plugins/scheduler/README.md)    |
+| Scheduler    | Autostart / -stop of servers or missions, change weather, etc.      | no       | Mission               | [README](./plugins/scheduler/README.md)    |
 | CreditSystem | User credits, based on achievements.                                | yes*     | Mission               | [README](./plugins/creditsystem/README.md) |
 | UserStats    | Users statistics system.                                            | yes*     | Mission               | [README](./plugins/userstats/README.md)    |
 | MissionStats | Detailed users statistics / mission statistics.                     | yes*     | Userstats             | [README](./plugins/missionstats/README.md) |
 | GameMaster   | Interaction with the running mission (inform users, set flags, etc) | yes*     |                       | [README](./plugins/gamemaster/README.md)   |
 | ServerStats  | Server statistics for your DCS servers.                             | yes      | Userstats             | [README](./plugins/serverstats/README.md)  |
-| Cloud        | Cloud-based statistics system.                                      | yes      | Userstats             | [README](./plugins/cloud/README.md)        |
+| Cloud        | Cloud-based statistics and global ban system.                       | yes      | Userstats             | [README](./plugins/cloud/README.md)        |
 | Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission               | [README](./plugins/punishment/README.md)   |
 | SlotBlocking | Slotblocking either based on units or a point based system.         | yes      | Mission, Creditsystem | [README](./plugins/slotblocking/README.md) |
 | GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS)   | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
@@ -47,6 +47,11 @@ These commands can be used to administrate the bot itself.
 
 ### In case you want to write your own plugin ...
 There is a sample in the plugins/samples subdirectory, that will guide you through the steps. If you want your plugin to be added to the distribution, just contact me via the contact details below.
+
+## Extensions
+Many DCS admins use extensions or add-ons like DCS-SRS, Taview, Lotatc, etc.</br>
+DCSServerBot supports some of them already and can add a bit of quality of life. 
+Check out [Extensions](./extensions/README.md) for more info on how to use them.
 
 ---
 ## Installation
@@ -233,7 +238,8 @@ If you like that feature, set _AUTOBAN = true_ in dcsserverbot.ini (default = fa
 However, players that are being banned from your Discord or that are being detected as hackers are auto-banned from all your configured DCS servers without prior notice.
 
 ### Additional Security Features
-Players that have no pilot ID (empty), will not be able to join your DCS server. This is not configurable, it's a general rule (and a good one in my eyes).
+Players that have no pilot ID (empty) or that share an account with others, will not be able to join your DCS server. 
+This is not configurable, it's a general rule (and a good one in my eyes).
 
 ---
 ## Running of the Bot
