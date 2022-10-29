@@ -585,7 +585,7 @@ class DCSServerBot(commands.Bot):
                             self.log.debug(f"Command {command} for unregistered server {data['server_name']} received, "
                                            f"ignoring.")
                             continue
-                        if data['channel'].startswith('sync-'):
+                        if 'channel' in data and data['channel'].startswith('sync-'):
                             if data['channel'] in self.listeners:
                                 f = self.listeners[data['channel']]
                                 if not f.done():
