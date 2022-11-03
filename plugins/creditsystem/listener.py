@@ -113,16 +113,23 @@ class CreditSystemListener(EventListener):
                         ('playtime' in achievement and playtime >= achievement['playtime']):
                     role = achievement['role']
                     break
-            # if we are here, the player does not deserve that role
-            if utils.check_roles([achievement['role']], member):
-                await member.remove_roles(discord.utils.get(member.guild.roles, name=achievement['role']))
-                await self.bot.audit(f"lost the rank {achievement['role']}", user=member)
-        if role and not utils.check_roles([role], member):
-            try:
-                await member.add_roles(discord.utils.get(member.guild.roles, name=role))
-                await self.bot.audit(f"achieved the rank {role}", user=member)
-            except discord.Forbidden:
-                self.log.error('The bot needs the Manage Roles permission!')
+
+        if role:
+            for achievement in sorted_achievements:
+                # does the member need to get that role?
+                if achievement['role'] == role and not utils.check_roles([achievement['role']], member):
+                    try:
+                        await member.add_roles(discord.utils.get(member.guild.roles, name=role))
+                        await self.bot.audit(f"achieved the rank {role}", user=member)
+                    except discord.Forbidden:
+                        self.log.error('The bot needs the Manage Roles permission!')
+                # does the member have that role, but they do not deserve it?
+                elif achievement['role'] != role and utils.check_roles([achievement['role']], member):
+                    try:
+                        await member.remove_roles(discord.utils.get(member.guild.roles, name=achievement['role']))
+                        await self.bot.audit(f"lost the rank {achievement['role']}", user=member)
+                    except discord.Forbidden:
+                        self.log.error('The bot needs the Manage Roles permission!')
 
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
