@@ -117,6 +117,8 @@ class MissionEventListener(EventListener):
                 data['players'] = []
                 server.status = Status.STOPPED
             for p in data['players']:
+                if p['id'] == 1:
+                    continue
                 player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=p['id'],
                                                          name=p['name'], active=p['active'], side=Side(p['side']),
                                                          ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],

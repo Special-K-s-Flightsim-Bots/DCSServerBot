@@ -90,12 +90,12 @@ class CreditSystemListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    async def _process_achievements(self, player: CreditPlayer):
+    async def _process_achievements(self, server: Server, player: CreditPlayer):
         # only members can achieve roles
         member = player.member
         if not member:
             return
-        config: dict = self.locals['configs'][0]
+        config: dict = self.plugin.get_config(server)
         if 'achievements' not in config:
             return
 
@@ -119,14 +119,16 @@ class CreditSystemListener(EventListener):
                 # does the member need to get that role?
                 if achievement['role'] == role and not utils.check_roles([achievement['role']], member):
                     try:
-                        await member.add_roles(discord.utils.get(member.guild.roles, name=role))
+                        _role = discord.utils.get(member.guild.roles, name=achievement['role'])
+                        await member.add_roles(_role)
                         await self.bot.audit(f"achieved the rank {role}", user=member)
                     except discord.Forbidden:
                         self.log.error('The bot needs the Manage Roles permission!')
                 # does the member have that role, but they do not deserve it?
                 elif achievement['role'] != role and utils.check_roles([achievement['role']], member):
                     try:
-                        await member.remove_roles(discord.utils.get(member.guild.roles, name=achievement['role']))
+                        _role = discord.utils.get(member.guild.roles, name=achievement['role'])
+                        await member.remove_roles(_role)
                         await self.bot.audit(f"lost the rank {achievement['role']}", user=member)
                     except discord.Forbidden:
                         self.log.error('The bot needs the Manage Roles permission!')
@@ -149,7 +151,7 @@ class CreditSystemListener(EventListener):
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]
             player = cast(CreditPlayer, server.get_player(id=data['arg1']))
-            await self._process_achievements(player)
+            await self._process_achievements(server, player)
 
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

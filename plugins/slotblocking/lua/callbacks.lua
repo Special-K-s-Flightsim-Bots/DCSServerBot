@@ -34,7 +34,7 @@ local function is_vip(ucid)
     if config['ucid'] and has_value(config['ucid'], ucid) then
         return true
     end
-    if config['discord'] and has_value(dcsbot.userInfo[ucid].roles, config['discord']) then
+    if config['discord'] and dcsbot.userInfo[ucid].roles ~= nil and has_value(dcsbot.userInfo[ucid].roles, config['discord']) then
         return true
     end
     return false
