@@ -43,6 +43,10 @@ class CreditSystemAgent(Plugin):
                         merged['points_per_kill'] = specific['points_per_kill']
                     elif 'points_per_kill' in default and 'points_per_kill' in specific:
                         merged['points_per_kill'] = default['points_per_kill'] + specific['points_per_kill']
+                    if 'achievements' in specific:
+                        merged['achievements'] = specific['achievements']
+                    elif 'achievements' in default:
+                        merged['achievements'] = default['achievements']
                     self._config[server.name] = merged
             else:
                 return None
