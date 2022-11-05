@@ -75,15 +75,16 @@ class CreditSystemListener(EventListener):
             player.points += data['points']
             player.audit('mission', old_points, 'Unknown mission achievement')
 
-    def _get_flighttime(self, ucid: str) -> int:
+    def _get_flighttime(self, ucid: str, server: Server) -> int:
+        sql = 'SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime ' \
+              'FROM statistics s, missions m, campaigns c, campaigns_servers cs ' \
+              'WHERE s.player_ucid = %s AND c.id = %s AND s.mission_id = m.id AND cs.campaign_id = c.id ' \
+              'AND m.server_name = cs.server_name AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)'
+        campaign_id, _ = utils.get_running_campaign(server)
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), '
-                               '0) AS playtime FROM statistics s WHERE player_ucid = %s AND tsrange(s.hop_on, '
-                               's.hop_off) && (SELECT tsrange(c.start, c.stop) FROM campaigns c WHERE NOW() BETWEEN '
-                               'c.start AND COALESCE(c.stop, NOW()))',
-                               (ucid, ))
+                cursor.execute(sql, (ucid, campaign_id))
                 return cursor.fetchone()[0]
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -99,9 +100,9 @@ class CreditSystemListener(EventListener):
         if 'achievements' not in config:
             return
 
+        playtime = self._get_flighttime(player.ucid, server)
         sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
         role = None
-        playtime = self._get_flighttime(player.ucid) / 3600
         for achievement in sorted_achievements:
             if 'combined' in achievement and achievement['combined']:
                 if ('credits' in achievement and player.points >= achievement['credits']) and \
