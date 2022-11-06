@@ -181,6 +181,9 @@ class DCSServerBot(commands.Bot):
                 self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
                 if len(self.guilds) > 1:
                     self.log.warning('  => YOUR BOT IS INSTALLED IN MORE THAN ONE GUILD. THIS IS NOT SUPPORTED!')
+                    for guild in self.guilds:
+                        self.log.warning(f'     - {guild.name}')
+                    self.log.warning('  => Remove it from one guild and restart the bot.')
                 self.member = self.guilds[0].get_member(self.user.id)
                 self.external_ip = await utils.get_external_ip()
                 self.log.info('- Checking Roles & Channels ...')
@@ -477,10 +480,14 @@ class DCSServerBot(commands.Bot):
     def register_server(self, data) -> bool:
         installations = utils.findDCSInstallations(data['server_name'])
         if len(installations) == 0:
+            self.log.error(f"No server {data['server_name']} found in any serverSettings.lua.\n"
+                           f"Please check your server configurations!")
+            return False
+        _, installation = installations[0]
+        if installation not in self.config:
             self.log.error(f"No section found for server {data['server_name']} in your dcsserverbot.ini.\n"
                            f"Please add a configuration for it!")
             return False
-        _, installation = installations[0]
         self.log.debug(f"  => Registering DCS-Server \"{data['server_name']}\"")
         # check for protocol incompatibilities
         if data['hook_version'] != self.version:
