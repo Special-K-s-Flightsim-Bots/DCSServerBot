@@ -75,12 +75,11 @@ class CreditSystemListener(EventListener):
             player.points += data['points']
             player.audit('mission', old_points, 'Unknown mission achievement')
 
-    def _get_flighttime(self, ucid: str, server: Server) -> int:
+    def _get_flighttime(self, ucid: str, campaign_id: int) -> int:
         sql = 'SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime ' \
               'FROM statistics s, missions m, campaigns c, campaigns_servers cs ' \
               'WHERE s.player_ucid = %s AND c.id = %s AND s.mission_id = m.id AND cs.campaign_id = c.id ' \
               'AND m.server_name = cs.server_name AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)'
-        campaign_id, _ = utils.get_running_campaign(server)
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -100,7 +99,8 @@ class CreditSystemListener(EventListener):
         if 'achievements' not in config:
             return
 
-        playtime = self._get_flighttime(player.ucid, server)
+        campaign_id, _ = utils.get_running_campaign(server)
+        playtime = self._get_flighttime(player.ucid, campaign_id)
         sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
         role = None
         for achievement in sorted_achievements:

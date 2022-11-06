@@ -329,18 +329,17 @@ class CreditSystemMaster(CreditSystemAgent):
                 embed.add_field(name='Rank', value='n/a')
         ucid = self.bot.get_ucid_by_member(member, True)
         if ucid:
-            playtime = self.eventlistener._get_flighttime(ucid)
-            embed.add_field(name='Playtime', value=utils.format_time(playtime - playtime % 60))
-            embed.add_field(name='_ _', value='_ _', inline=True)
-            data = self.get_credits(ucid)
-            campaigns = points = ''
-            for row in data:
-                campaigns += row[1] + '\n'
-                points += f"{row[2]}\n"
-            if campaigns:
-                embed.add_field(name='Campaign', value=campaigns)
-                embed.add_field(name='Points', value=points)
-                embed.add_field(name='_ _', value='_ _')
+            campaigns = {}
+            for row in self.get_credits(ucid):
+                campaigns[row[1]] = {
+                    "points": row[2],
+                    "playtime": self.eventlistener._get_flighttime(ucid, row[0])
+                }
+
+            for campaign_name, value in campaigns.items():
+                embed.add_field(name='Campaign', value=campaign_name)
+                embed.add_field(name='Playtime', value=utils.format_time(value['playtime'] - value['playtime'] % 60))
+                embed.add_field(name='Points', value=value['points'])
         await ctx.send(embed=embed)
 
 

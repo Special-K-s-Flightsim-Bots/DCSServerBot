@@ -68,13 +68,13 @@ class Mission(Plugin):
             server.sendtoDCS({"command": "getMissionUpdate", "channel": ctx.channel.id})
 
     @staticmethod
-    def format_briefing_list(data: list[dict], marker, marker_emoji):
+    def format_briefing_list(data: list[Server], marker, marker_emoji):
         embed = discord.Embed(title='Briefing', color=discord.Color.blue())
         embed.description = 'Select the server you want to get a briefing for:'
         ids = servers = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            servers += data[i]['server_name'] + '\n'
+            servers += data[i].name + '\n'
         embed.add_field(name='ID', value=ids)
         embed.add_field(name='Server', value=servers)
         embed.add_field(name='_ _', value='_ _')
@@ -101,20 +101,19 @@ class Mission(Plugin):
         server: Server = await self.bot.get_server(ctx)
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         if not server:
-            servers = []
+            servers: list[Server] = list()
             for server_name, server in self.bot.servers.items():
                 if server.status in [Status.RUNNING, Status.PAUSED]:
                     servers.append(server)
             if len(servers) == 0:
                 await ctx.send('No running mission found.', delete_after=timeout if timeout > 0 else None)
                 return
-            elif len(servers) == 1:
-                server = servers[0]
             else:
-                n = await utils.selection_list(self, ctx, servers, self.format_briefing_list)
-                if n < 0:
+                server_name = await utils.selection(ctx, placeholder='Select the server you want to get a briefing for',
+                                                    options=[SelectOption(label=x.name) for x in servers])
+                if not server_name:
                     return
-                server = servers[n]
+                server = self.bot.servers[server_name]
         elif server.status not in [Status.RUNNING, Status.PAUSED]:
             await ctx.send('No running mission found.', delete_after=timeout if timeout > 0 else None)
             return
@@ -377,8 +376,9 @@ class Mission(Plugin):
                 await ctx.send("You can't delete the (only) running mission.")
                 return
 
-            name = await utils.selection(ctx, placeholder="Select the mission to delete",
-                                            options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
+            name = await utils.selection(ctx,
+                                         placeholder="Select the mission to delete",
+                                         options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
             if not name:
                 return
 
