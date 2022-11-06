@@ -160,6 +160,8 @@ class SelectView(View):
 async def selection(ctx, *, title: Optional[str] = None, placeholder: Optional[str] = None, embed: discord.Embed = None,
                     options: list[SelectOption], min_values: Optional[int] = 1, max_values: Optional[int] = 1,
                     ephemeral: bool = False) -> Optional[str]:
+    if len(options) == 1:
+        return options[0].value
     if not embed and title:
         embed = discord.Embed(description=title, color=discord.Color.blue())
     view = SelectView(ctx, placeholder=placeholder, options=options, min_values=min_values, max_values=max_values)
