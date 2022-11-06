@@ -319,7 +319,8 @@ class CreditSystemMaster(CreditSystemAgent):
         if not member:
             member = ctx.message.author
         embed = discord.Embed(title="User Campaign Profile", colour=discord.Color.blue())
-        embed.set_thumbnail(url=member.avatar.url)
+        if member.avatar:
+            embed.set_thumbnail(url=member.avatar.url)
         if 'achievements' in config:
             for achievement in config['achievements']:
                 if utils.check_roles([achievement['role']], member):
