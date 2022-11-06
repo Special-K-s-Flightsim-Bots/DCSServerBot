@@ -100,7 +100,7 @@ class CreditSystemListener(EventListener):
             return
 
         campaign_id, _ = utils.get_running_campaign(server)
-        playtime = self._get_flighttime(player.ucid, campaign_id)
+        playtime = self._get_flighttime(player.ucid, campaign_id) / 3600.0
         sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
         role = None
         for achievement in sorted_achievements:
