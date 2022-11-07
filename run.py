@@ -364,7 +364,7 @@ async def main():
     if not path.exists('config/dcsserverbot.ini'):
         Install.install()
     else:
-        Install.verify()
+        #Install.verify()
         await Main().run()
 
 if __name__ == "__main__":
