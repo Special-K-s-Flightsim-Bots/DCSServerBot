@@ -242,6 +242,36 @@ class GameMasterMaster(GameMasterAgent):
                 finally:
                     self.bot.pool.putconn(conn)
 
+    @commands.command(description='Mass coalition leave for users')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def reset_coalitions(self, ctx):
+        if await utils.yn_question(ctx, 'Do you want to mass-reset all coalition-bindings from your players?') is False:
+            return
+        roles = {
+            "red": discord.utils.get(ctx.guild.roles, name=self.bot.config['ROLES']['Coalition Red']),
+            "blue": discord.utils.get(ctx.guild.roles, name=self.bot.config['ROLES']['Coalition Blue'])
+        }
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT ucid, discord_id, coalition FROM players WHERE coalition IS NOT NULL')
+                for row in cursor.fetchall():
+                    if row[1]:
+                        member = self.bot.guilds[0].get_member(row[1])
+                        await member.remove_roles(roles[row[2]])
+                    cursor.execute('UPDATE players SET coalition = NULL, coalition_leave = NULL WHERE ucid = %s',
+                                   (row[0], ))
+            conn.commit()
+        except discord.Forbidden:
+            await ctx.send('The bot is missing the "Manage Roles" permission.')
+            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+            conn.rollback()
+        finally:
+            self.bot.pool.putconn(conn)
+
     @staticmethod
     def format_campaigns(data, marker, marker_emoji):
         embed = discord.Embed(title="List of Campaigns", color=discord.Color.blue())
