@@ -11,10 +11,7 @@ class Tacview(Extension):
         if 'Tacview' in self.server.options['plugins']:
             # check config for errors
             tacview = self.server.options['plugins']['Tacview']
-            if 'tacviewRealTimeTelemetryEnabled' in tacview and tacview['tacviewRealTimeTelemetryEnabled']:
-                if 'tacviewPlaybackDelay' in tacview and tacview['tacviewPlaybackDelay'] > 0:
-                    self.log.warning(f'  => {self.server.name}: Realtime Telemetry is enabled but tacviewPlaybackDelay is set!')
-            elif 'tacviewPlaybackDelay' not in tacview or tacview['tacviewPlaybackDelay'] == 0:
+            if 'tacviewPlaybackDelay' not in tacview or tacview['tacviewPlaybackDelay'] == 0:
                 self.log.warning(f'  => {self.server.name}: tacviewPlaybackDelay is not set, you might see performance issues!')
             return tacview
         else:
