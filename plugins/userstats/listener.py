@@ -64,77 +64,79 @@ class UserStatisticsEventListener(EventListener):
 
     async def registerDCSServer(self, data):
         server: Server = self.bot.servers[data['server_name']]
-        if data['statistics'] and server.status != Status.STOPPED:
+        if data['statistics']:
             self.statistics.add(server.name)
-            # registering a running instance
-            if data['channel'].startswith('sync-'):
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        mission_id = -1
+        if server.status == Status.STOPPED:
+            return
+        # registering a running instance
+        if data['channel'].startswith('sync-'):
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    mission_id = -1
+                    cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
+                    if cursor.rowcount == 1:
+                        row = cursor.fetchone()
+                        if row[1] == data['current_mission']:
+                            mission_id = row[0]
+                        else:
+                            self.log.warning('The mission in the database does not match the mission that is live '
+                                             'on this server. Fixing...')
+                    if mission_id == -1:
+                        # close ambiguous missions
+                        if cursor.rowcount >= 1:
+                            cursor.execute(self.SQL_MISSION_HANDLING['close_all_statistics'], (server.name,))
+                            cursor.execute(self.SQL_MISSION_HANDLING['close_all_missions'], (server.name,))
+                        # create a new mission
+                        cursor.execute(self.SQL_MISSION_HANDLING['start_mission'], (server.name,
+                                                                                    data['current_mission'],
+                                                                                    data['current_map']))
                         cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
                         if cursor.rowcount == 1:
-                            row = cursor.fetchone()
-                            if row[1] == data['current_mission']:
-                                mission_id = row[0]
-                            else:
-                                self.log.warning('The mission in the database does not match the mission that is live '
-                                                 'on this server. Fixing...')
-                        if mission_id == -1:
-                            # close ambiguous missions
-                            if cursor.rowcount >= 1:
-                                cursor.execute(self.SQL_MISSION_HANDLING['close_all_statistics'], (server.name,))
-                                cursor.execute(self.SQL_MISSION_HANDLING['close_all_missions'], (server.name,))
-                            # create a new mission
-                            cursor.execute(self.SQL_MISSION_HANDLING['start_mission'], (server.name,
-                                                                                        data['current_mission'],
-                                                                                        data['current_map']))
-                            cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
+                            mission_id = cursor.fetchone()[0]
+                        else:
+                            self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
+                                           'gathered for this session.')
+                    server.mission_id = mission_id
+                    if mission_id != -1:
+                        # initialize active players
+                        players = server.get_active_players()
+                        ucids = []
+                        for player in players:
+                            ucids.append(player.ucid)
+                            # make sure we get slot changes that might have occurred in the meantime
+                            cursor.execute(self.SQL_MISSION_HANDLING['check_player'], (mission_id, player.ucid))
+                            player_started = False
                             if cursor.rowcount == 1:
-                                mission_id = cursor.fetchone()[0]
-                            else:
-                                self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
-                                               'gathered for this session.')
-                        server.mission_id = mission_id
-                        if mission_id != -1:
-                            # initialize active players
-                            players = server.get_active_players()
-                            ucids = []
-                            for player in players:
-                                ucids.append(player.ucid)
-                                # make sure we get slot changes that might have occurred in the meantime
-                                cursor.execute(self.SQL_MISSION_HANDLING['check_player'], (mission_id, player.ucid))
-                                player_started = False
-                                if cursor.rowcount == 1:
-                                    # the player is there already ...
-                                    if cursor.fetchone()[0] != player.unit_type:
-                                        # ... but with a different aircraft, so close the old session
-                                        cursor.execute(self.SQL_MISSION_HANDLING['stop_player'],
-                                                       (mission_id, player.ucid))
-                                    else:
-                                        # session will be kept
-                                        player_started = True
-                                if not player_started and player.side != Side.SPECTATOR:
-                                    # only warn for unknown users if it is a non-public server and automatch is on
-                                    if not player.member and self.bot.config.getboolean('BOT', 'AUTOMATCH') and \
-                                            len(server.settings['password']) > 0:
-                                        await server.get_channel(Channel.ADMIN).send(
-                                            'Player {} (ucid={}) can\'t be matched to a discord user.'.format(
-                                                data['name'], data['ucid']))
-                                    cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
-                                                   (mission_id, player.ucid, self.get_unit_type(player),
-                                                    player.side.value))
-                            # close dead entries in the database (if existent)
-                            cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
-                            for row in cursor.fetchall():
-                                if row[0] not in ucids:
-                                    cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, row[0]))
-                        conn.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    conn.rollback()
-                    self.log.exception(error)
-                finally:
-                    self.pool.putconn(conn)
+                                # the player is there already ...
+                                if cursor.fetchone()[0] != player.unit_type:
+                                    # ... but with a different aircraft, so close the old session
+                                    cursor.execute(self.SQL_MISSION_HANDLING['stop_player'],
+                                                   (mission_id, player.ucid))
+                                else:
+                                    # session will be kept
+                                    player_started = True
+                            if not player_started and player.side != Side.SPECTATOR:
+                                # only warn for unknown users if it is a non-public server and automatch is on
+                                if not player.member and self.bot.config.getboolean('BOT', 'AUTOMATCH') and \
+                                        len(server.settings['password']) > 0:
+                                    await server.get_channel(Channel.ADMIN).send(
+                                        'Player {} (ucid={}) can\'t be matched to a discord user.'.format(
+                                            data['name'], data['ucid']))
+                                cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
+                                               (mission_id, player.ucid, self.get_unit_type(player),
+                                                player.side.value))
+                        # close dead entries in the database (if existent)
+                        cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
+                        for row in cursor.fetchall():
+                            if row[0] not in ucids:
+                                cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, row[0]))
+                    conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                conn.rollback()
+                self.log.exception(error)
+            finally:
+                self.pool.putconn(conn)
 
     async def onMissionLoadEnd(self, data):
         server: Server = self.bot.servers[data['server_name']]
