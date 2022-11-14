@@ -1,3 +1,6 @@
+import shutil
+from datetime import datetime
+
 # noinspection PyPackageRequirements
 import aiohttp
 import asyncio
@@ -432,7 +435,14 @@ class Mission(Plugin):
                 role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
                 if role:
                     mentions += role.mention
-            await s.get_channel(Channel.ADMIN).send(mentions + ' ' + message)
+            logdir = os.path.expandvars("%USERPROFILE%\\Saved Games\\" + s.installation + "\\logs\\")
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+            shutil.copy2(logdir + 'dcs.log', logdir + f"dcs.{timestamp}.log")
+            await s.get_channel(Channel.ADMIN).send(mentions + ' ' + message +
+                                                    f"\nLatest dcs.log can be pulled with "
+                                                    f"{self.bot.config['BOT']['COMMAND_PREFIX']}download of "
+                                                    f"dcs.{timestamp}.log\nIf the scheduler is configured for this "
+                                                    f"server, it will relaunch it automatically.")
 
         for server_name, server in self.bot.servers.items():
             if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:

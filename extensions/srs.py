@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import win32api
 from configparser import ConfigParser
@@ -19,6 +20,25 @@ class SRS(Extension):
             return {s: dict(cfg.items(s)) for s in cfg.sections()}
         else:
             self.log.warning(f"Can't load SRS config from {path}!")
+
+    def prepare(self) -> bool:
+        autoconnect = os.path.expandvars(f"%USERPROFILE%\\Saved Games\\{self.server.installation}\\Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua")
+        port = self.locals['Server Settings']['server_port']
+        if os.path.exists(autoconnect):
+            shutil.copy2(autoconnect, autoconnect + '.bak')
+            with open(autoconnect + '.bak') as infile:
+                with open(autoconnect, 'w') as outfile:
+                    for line in infile.readlines():
+                        if 'SRSAuto.SERVER_SRS_HOST_AUTO' in line:
+                            line.replace('= true', '= false')
+                        elif 'SRSAuto.SERVER_SRS_PORT' in line:
+                            line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
+                        elif 'SRSAuto.SERVER_SRS_HOST' in line:
+                            line = f'SRSAuto.SERVER_SRS_HOST = "{self.bot.external_ip}" -- overridden if SRS_HOST_AUTO is true -- set to your PUBLIC ipv4 address\n'
+                        outfile.write(line)
+        else:
+            self.log.info('- SRS autoconnect is not enabled for this server.')
+        return True
 
     async def startup(self) -> bool:
         self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(

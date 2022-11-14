@@ -150,10 +150,9 @@ class SchedulerListener(EventListener):
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         player = server.get_player(id=data['from_id'])
-        if not player:
+        if not player or not player.has_discord_roles(['DCS Admin']):
             return
-        if data['subcommand'] in ['preset', 'presets'] and \
-                player.has_discord_roles(['DCS Admin']):
+        if data['subcommand'] in ['preset', 'presets']:
             config = self.plugin.get_config(server)
             if config and 'presets' in config:
                 presets = list(config['presets'].keys())
@@ -171,3 +170,20 @@ class SchedulerListener(EventListener):
                     await server.start()
             else:
                 player.sendChatMessage(f"There are no presets available to select.")
+        elif data['subcommand'] == 'maintenance':
+            if not server.maintenance:
+                server.maintenance = True
+                server.restart_pending = False
+                server.on_empty = dict()
+                server.on_mission_end = dict()
+                player.sendChatMessage('Maintenance mode enabled.')
+                await self.bot.audit("set maintenance flag", user=player.member, server=server)
+            else:
+                player.sendChatMessage('Maintenance mode is already active.')
+        elif data['subcommand'] == 'clear':
+            if server.maintenance:
+                server.maintenance = False
+                player.sendChatMessage('Maintenance mode disabled/cleared.')
+                await self.bot.audit("cleared maintenance flag", user=player.member, server=server)
+            else:
+                player.sendChatMessage("Maintenance mode wasn't enabled.")

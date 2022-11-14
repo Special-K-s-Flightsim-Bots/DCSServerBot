@@ -68,7 +68,7 @@ class Tacview(Extension):
 
     @staticmethod
     def schedule(config: dict, lastrun: Optional[datetime] = None):
-        DEFAULT_DIR = r"%USERPROFILE%\Documents\Tacview"
+        default_dir = r"%USERPROFILE%\Documents\Tacview"
 
         # check if autodelete is configured
         if 'delete_after' not in config:
@@ -77,7 +77,7 @@ class Tacview(Extension):
         if lastrun and lastrun > (datetime.now() - timedelta(days=1)):
             return
         now = time.time()
-        path = os.path.expandvars(config['path']) if 'path' in config else os.path.expandvars(DEFAULT_DIR)
+        path = os.path.expandvars(config['path']) if 'path' in config else os.path.expandvars(default_dir)
         for f in [os.path.join(path, x) for x in os.listdir(path)]:
             if os.stat(f).st_mtime < (now - config['delete_after'] * 86400):
                 if os.path.isfile(f):
