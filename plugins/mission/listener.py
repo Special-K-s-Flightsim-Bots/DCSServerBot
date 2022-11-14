@@ -64,7 +64,10 @@ class MissionEventListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         embed = utils.format_embed(data)
         if 'id' in data and len(data['id']) > 0:
-            return self.bot.loop.call_soon(asyncio.create_task, server.setEmbed(data['id'], embed))
+            channel = int(data['channel'])
+            if channel == -1:
+                channel = Channel.STATUS
+            return self.bot.loop.call_soon(asyncio.create_task, server.setEmbed(data['id'], embed, channel_id=channel))
         else:
             if int(data['channel']) == -1:
                 channel = server.get_channel(Channel.CHAT)
