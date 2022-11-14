@@ -27,6 +27,8 @@ class HelpListener(EventListener):
                 messages.append(f'"{prefix}list"         list available missions')
                 messages.append(f'"{prefix}load number"  load a specific mission')
                 messages.append(f'"{prefix}preset"       load a specific weather preset')
+                messages.append(f'"{prefix}maintenance"  enable maintenance mode')
+                messages.append(f'"{prefix}clear"        disable maintenance mode')
             game_master = player.has_discord_roles(['GameMaster'])
             if dcs_admin or game_master:
                 messages.append(f'"{prefix}flag"         reads or sets a flag')
