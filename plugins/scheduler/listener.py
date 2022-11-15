@@ -170,7 +170,7 @@ class SchedulerListener(EventListener):
                     await server.start()
             else:
                 player.sendChatMessage(f"There are no presets available to select.")
-        elif data['subcommand'] == 'maintenance':
+        elif data['subcommand'] in ['maintenance', 'maint']:
             if not server.maintenance:
                 server.maintenance = True
                 server.restart_pending = False

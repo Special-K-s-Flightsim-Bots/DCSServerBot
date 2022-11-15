@@ -1,6 +1,10 @@
+import discord
+import psycopg2
 import re
-from core import report
-from . import get_element, ERRORS, DISTANCE_MARKS, GRADES
+from contextlib import closing
+from core import report, Coalition, Side, utils
+from plugins.userstats.filter import StatisticsFilter
+from . import ERRORS, DISTANCE_MARKS, GRADES
 from .trapsheet import plot_trapsheet, read_trapsheet, parse_filename
 
 
@@ -107,3 +111,57 @@ class TrapSheet(report.MultiGraphElement):
         ts = read_trapsheet(trapsheet)
         ps = parse_filename(trapsheet)
         plot_trapsheet(self.axes, ts, ps, trapsheet)
+
+
+class HighscoreTraps(report.GraphElement):
+    def render(self, server_name: str, period: str, limit: int, message: discord.Message, flt: StatisticsFilter,
+               include_bolters: bool = False, include_waveoffs: bool = False):
+        sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, COUNT(g.*) AS value " \
+              "FROM greenieboard g, missions m, statistics s, players p " \
+              "WHERE g.mission_id = m.id AND s.mission_id = m.id AND g.player_ucid = s.player_ucid " \
+              "AND g.player_ucid = p.ucid AND g.unit_type = s.slot AND g.time BETWEEN s.hop_on AND s.hop_off "
+        if server_name:
+            sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
+            if server_name in self.bot.servers:
+                server = self.bot.servers[server_name]
+                tmp = utils.get_sides(message, server)
+                sides = [0]
+                if Coalition.RED in tmp:
+                    sides.append(Side.RED.value)
+                if Coalition.BLUE in tmp:
+                    sides.append(Side.BLUE.value)
+                # in this specific case, we want to display all data, if in public channels
+                if len(sides) == 0:
+                    sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
+                sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
+        if not include_bolters:
+            sql += ' AND g.grade <> \'B\''
+        if not include_waveoffs:
+            sql += ' AND g.grade NOT LIKE \'WO%\''
+        self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
+        sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
+        sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
+
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+                labels = []
+                values = []
+                self.log.debug(sql)
+                cursor.execute(sql)
+                for row in cursor.fetchall():
+                    member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
+                    name = member.display_name if member else row['name']
+                    labels.insert(0, name)
+                    values.insert(0, row['value'])
+                self.axes.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], label="Traps", height=0.75)
+                self.axes.set_title("Traps", color='white', fontsize=25)
+                self.axes.set_xlabel("traps")
+                if len(values) == 0:
+                    self.axes.set_xticks([])
+                    self.axes.set_yticks([])
+                    self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
