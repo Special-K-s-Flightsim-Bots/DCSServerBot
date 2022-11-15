@@ -190,20 +190,22 @@ class SQLTable(EmbedElement):
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 header = None
-                cols = ['', '', '']
+                cols = []
                 elements = 0
                 for row in cursor.fetchall():
                     elements = len(row)
-                    if elements > 3:
-                        raise TooManyElements(elements)
                     if not header:
                         header = list(row.keys())
                     for i in range(0, elements):
-                        cols[i] += str(row[i]) + '\n'
+                        if len(cols) <= i:
+                            cols.append(str(row[i]) + '\n')
+                        else:
+                            cols[i] += str(row[i]) + '\n'
                 for i in range(0, elements):
                     self.add_field(name=header[i], value=cols[i])
-                for i in range(elements, 3):
-                    self.add_field(name='_ _', value='_ _')
+                if elements % 3:
+                    for i in range(0, 3 - elements % 3):
+                        self.add_field(name='_ _', value='_ _')
         except psycopg2.DatabaseError as error:
             self.log.exception(error)
         finally:

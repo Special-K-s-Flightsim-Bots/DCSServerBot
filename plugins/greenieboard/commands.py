@@ -4,7 +4,10 @@ import os
 import psycopg2
 import shutil
 from contextlib import closing
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport
+
+from discord import SelectOption
+
+from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report
 from datetime import datetime
 from discord.ext import commands
 from os import path
@@ -57,28 +60,30 @@ class GreenieBoard(Plugin):
         embed.set_footer(text='Press a number to display details about that specific landing.')
         return embed
 
-    @commands.command(description='Show carrier landing qualifications', usage='[member]')
+    @commands.command(description='Show carrier landing qualifications', usage='[member]', aliases=['traps'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def carrier(self, ctx, member: Optional[Union[discord.Member, str]], *params):
+        def format_landing(landing: dict) -> str:
+            return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']}"
+
         if not member:
             member = ctx.message.author
-        elif isinstance(member, str):
+        if isinstance(member, discord.Member):
+            ucid = self.bot.get_ucid_by_member(member)
+            name = member.display_name
+        else:
             name = member
             if len(params) > 0:
                 name += ' ' + ' '.join(params)
             ucid = self.bot.get_ucid_by_name(name)
         landings = List[dict]
-        num_landings = self.locals['configs'][0]['num_landings']
+        num_landings = max(self.locals['configs'][0]['num_landings'], 25)
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                if isinstance(member, discord.Member):
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC LIMIT 1',
-                                   (member.id, ))
-                    ucid = cursor.fetchone()['ucid']
-                cursor.execute("SELECT p.name, g.grade, g.unit_type, g.comment, g.place, g.wire, g.time, g.points, "
+                cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.wire, g.time, g.points, "
                                "g.trapsheet FROM greenieboard g, players p WHERE p.ucid = %s AND g.player_ucid = "
                                "p.ucid ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
                 if cursor.rowcount == 0:
@@ -90,12 +95,18 @@ class GreenieBoard(Plugin):
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
-        await ctx.message.delete()
-        n = await utils.selection_list(self, ctx, landings, self.format_comments)
-        if n != -1:
+        report = Report(self.bot, self.plugin_name, 'traps.json')
+        env = await report.render(ucid=ucid, name=name)
+        n = await utils.selection(ctx, embed=env.embed, placeholder="Select a trap for details",
+                                  options=[
+                                      SelectOption(label=format_landing(x), value=str(idx))
+                                      for idx, x in enumerate(landings)
+                                  ])
+        if n:
             report = PaginationReport(self.bot, ctx, self.plugin_name, 'lsoRating.json',
                                       timeout if timeout > 0 else None)
-            await report.render(landings=landings, start_index=n)
+            await report.render(landings=landings, start_index=int(n))
+        await ctx.message.delete()
 
     def render_board(self):
         conn = self.pool.getconn()
