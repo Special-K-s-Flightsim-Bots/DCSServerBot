@@ -101,3 +101,15 @@ different greenieboards for different servers. If that is a user demand in the f
 |-----------------|--------------------|---------------|-----------|-----------------------------------------------------------------------------------|
 | .greenieboard   |                    | all           | DCS       | Print the current greenieboard.                                                   |
 | .carrier        | @member / DCS name | all           | DCS       | Display the last carrier landings for this user and a detailed view on selecion.  |
+
+## Highscore Plugin
+You can add your traps to your .highscore (.hs) command. To do that, copy the file plugins/userstats/reports/highscore.json 
+to /reports/userstats and add or replace the following snippet (change col and row to your position in the chart):
+```json
+            {
+              "class": "plugins.greenieboard.reports.HighscoreTraps",
+              "params": { "col": 1, "row": 4, "include_bolters": true, "include_waveoffs": true }
+            }
+```
+include_bolters = true will include bolters to the count of traps</br>
+include_waveoffs = true will include waveoffs to the count of traps</br>

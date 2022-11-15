@@ -522,7 +522,7 @@ class Scheduler(Plugin):
                 for ext in await self.teardown_extensions(server, config, ctx.message.author):
                     await ctx.send(f"{ext} shut down for server \"{server.name}\".")
 
-    @commands.command(description='Sets the servers maintenance flag')
+    @commands.command(description='Sets the servers maintenance flag', aliases=['maint'])
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def maintenance(self, ctx):

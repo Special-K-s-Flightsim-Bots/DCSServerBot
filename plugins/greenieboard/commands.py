@@ -4,11 +4,9 @@ import os
 import psycopg2
 import shutil
 from contextlib import closing
-
-from discord import SelectOption
-
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report
 from datetime import datetime
+from discord import SelectOption
 from discord.ext import commands
 from os import path
 from typing import Optional, Union, List
@@ -45,27 +43,12 @@ class GreenieBoard(Plugin):
                 cursor.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Greenieboard pruned.')
 
-    @staticmethod
-    def format_comments(data, marker, marker_emoji):
-        embed = discord.Embed(title=f"Latest Carrier Landings for user {data[0]['name']}", color=discord.Color.blue())
-        ids = landings = grades = ''
-        for i in range(0, len(data)):
-            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            landings += f"{data[i]['time']:%y-%m-%d %H:%M:%S} - {data[i]['unit_type']}@{data[i]['place']}\n"
-            grade = data[i]['grade'].replace('_', '\\_')
-            grades += f"{grade}\n"
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Landing', value=landings)
-        embed.add_field(name='Grade', value=grades)
-        embed.set_footer(text='Press a number to display details about that specific landing.')
-        return embed
-
     @commands.command(description='Show carrier landing qualifications', usage='[member]', aliases=['traps'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def carrier(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         def format_landing(landing: dict) -> str:
-            return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']}"
+            return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']} ({landing['grade']})"
 
         if not member:
             member = ctx.message.author
