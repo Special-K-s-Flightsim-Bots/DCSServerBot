@@ -50,7 +50,7 @@ class SchedulerListener(EventListener):
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
                 if ext.verify():
                     server.extensions[extension] = ext
-            if not await ext.is_running() and await ext.startup():
+            if not await ext.is_running() and ext.prepare() and await ext.startup():
                 self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
                 await self.bot.audit(f"{ext.name} started", server=server)
 
