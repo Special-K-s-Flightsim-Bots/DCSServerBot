@@ -26,14 +26,15 @@ class SRS(Extension):
         port = self.locals['Server Settings']['server_port']
         if os.path.exists(autoconnect):
             shutil.copy2(autoconnect, autoconnect + '.bak')
-            with open(autoconnect + '.bak') as infile:
+            with open('extensions\\DCS-SRS-AutoConnectGameGUI.lua') as infile:
                 with open(autoconnect, 'w') as outfile:
                     for line in infile.readlines():
-                        if 'SRSAuto.SERVER_SRS_HOST_AUTO' in line:
-                            line.replace('= true', '= false')
-                        elif 'SRSAuto.SERVER_SRS_PORT' in line:
+                        if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
+                            line = "SRSAuto.SERVER_SRS_HOST_AUTO = false -- if set to true SRS will set the " \
+                                   "SERVER_SRS_HOST for you! - Currently disabled\n"
+                        elif line.startswith('SRSAuto.SERVER_SRS_PORT = '):
                             line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
-                        elif 'SRSAuto.SERVER_SRS_HOST' in line:
+                        elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
                             line = f'SRSAuto.SERVER_SRS_HOST = "{self.bot.external_ip}" -- overridden if SRS_HOST_AUTO is true -- set to your PUBLIC ipv4 address\n'
                         outfile.write(line)
         else:

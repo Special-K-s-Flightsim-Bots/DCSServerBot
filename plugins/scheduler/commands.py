@@ -143,9 +143,6 @@ class Scheduler(Plugin):
         return server.status
 
     async def launch_dcs(self, server: Server, config: dict, member: Optional[discord.Member] = None):
-        # prepare the server extensions
-        for ext in server.extensions.values():
-            ext.prepare()
         # change the weather in the mission if provided
         if 'restart' in config and 'settings' in config['restart']:
             self.change_mizfile(server, config)
