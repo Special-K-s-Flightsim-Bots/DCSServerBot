@@ -142,7 +142,27 @@ class Scheduler(Plugin):
                     return Status.SHUTDOWN
         return server.status
 
+    def init_extensions(self, server: Server, config: dict):
+        if 'extensions' not in config:
+            return
+        for extension in config['extensions']:
+            ext: Extension = server.extensions[extension] if extension in server.extensions else None
+            if not ext:
+                if '.' not in extension:
+                    ext = utils.str_to_class('extensions.' + extension)(self.bot, server,
+                                                                        config['extensions'][extension])
+                else:
+                    ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
+                if ext.verify():
+                    server.extensions[extension] = ext
+                else:
+                    continue
+
     async def launch_dcs(self, server: Server, config: dict, member: Optional[discord.Member] = None):
+        self.init_extensions(server, config)
+        for ext in server.extensions.values():
+            await ext.prepare()
+            await ext.beforeMissionLoad()
         # change the weather in the mission if provided
         if 'restart' in config and 'settings' in config['restart']:
             self.change_mizfile(server, config)
@@ -283,15 +303,7 @@ class Scheduler(Plugin):
             if 'accidental_failures' in value:
                 miz.accidental_failures = value['accidental_failures']
 
-        filename = None
-        if not server.current_mission or not server.current_mission.filename:
-            for i in range(int(server.getServerSetting('listStartIndex')), 0, -1):
-                filename = server.getServerSetting(i)
-                if server.current_mission:
-                    server.current_mission.filename = filename
-                break
-        else:
-            filename = server.current_mission.filename
+        filename = utils.get_current_mission_file(server)
         if not filename:
             return
         now = datetime.now()
@@ -322,6 +334,14 @@ class Scheduler(Plugin):
             elif isinstance(value, dict):
                 apply_preset(value)
         miz.save()
+
+    @staticmethod
+    def is_mission_change(server: Server, config: dict) -> bool:
+        if 'settings' in config['restart']:
+            return True
+        if 'RealWeather' in server.extensions.keys():
+            return True
+        return False
 
     async def restart_mission(self, server: Server, config: dict):
         # a restart is already pending, nothing more to do
@@ -361,18 +381,24 @@ class Scheduler(Plugin):
             await self.bot.audit(f"{string.capwords(self.plugin_name)} shut down DCS server", server=server)
             await self.launch_dcs(server, config)
         elif method == 'restart':
-            if 'settings' in config['restart']:
+            if self.is_mission_change(server, config):
                 await server.stop()
-                self.change_mizfile(server, config)
+                if 'settings' in config['restart']:
+                    self.change_mizfile(server, config)
+                elif 'RealWeather' in server.extensions.keys():
+                    await server.extensions['RealWeather'].beforeMissionLoad()
                 await server.start()
             else:
                 await server.current_mission.restart()
             await self.bot.audit(f"{string.capwords(self.plugin_name)} restarted mission", server=server)
         elif method == 'rotate':
             await server.loadNextMission()
-            if 'settings' in config['restart']:
+            if self.is_mission_change(server, config):
                 await server.stop()
-                self.change_mizfile(server, config)
+                if 'settings' in config['restart']:
+                    self.change_mizfile(server, config)
+                elif 'RealWeather' in server.extensions.keys():
+                    await server.extensions['RealWeather'].beforeMissionLoad()
                 await server.start()
             await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated mission", server=server)
 
@@ -469,10 +495,6 @@ class Scheduler(Plugin):
                     await self.launch_dcs(server, config, ctx.message.author)
                     await ctx.send(f"DCS server \"{server.name}\" started.\n"
                                    f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
-                    for ext in server.extensions.values():
-                        if not await ext.is_running() and await ext.startup():
-                            self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
-                            await self.bot.audit(f"{ext.name} started", server=server)
                 except asyncio.TimeoutError:
                     await ctx.send(f"Timeout while launching DCS server \"{server.name}\".\n"
                                    f"The server might be running anyway, check with {ctx.prefix}status.")

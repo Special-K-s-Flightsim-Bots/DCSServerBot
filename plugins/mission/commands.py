@@ -387,12 +387,12 @@ class Mission(Plugin):
 
             for mission in missions:
                 if name in mission:
-                    server.sendtoDCS({"command": "deleteMission", "id": original.index(mission) + 1})
-                    if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
-                        os.remove(mission)
-                        await ctx.send(f'Mission "{name}" deleted.')
-                    else:
+                    if await utils.yn_question(ctx, f'Delete mission "{name}" from the mission list?'):
+                        server.sendtoDCS({"command": "deleteMission", "id": original.index(mission) + 1})
                         await ctx.send(f'Mission "{name}" removed from list.')
+                        if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
+                            os.remove(mission)
+                            await ctx.send(f'Mission "{name}" deleted.')
                     break
         else:
             return await ctx.send('Server ' + server.name + ' is not running.')

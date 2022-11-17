@@ -1,3 +1,4 @@
+from __future__ import annotations
 # noinspection PyPackageRequirements
 import aiohttp
 import math
@@ -9,8 +10,12 @@ import xml
 import xmltodict
 from contextlib import closing
 from core.const import SAVED_GAMES
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, TYPE_CHECKING
 from . import config
+
+if TYPE_CHECKING:
+    from core import Server
+
 
 REGEXP = {
     'branch': re.compile(r'"branch": "(?P<branch>.*)"'),
@@ -148,3 +153,16 @@ def is_banned(self, ucid: str):
         self.log.exception(error)
     finally:
         self.pool.putconn(conn)
+
+
+def get_current_mission_file(server: Server) -> Optional[str]:
+    filename: str = None
+    if not server.current_mission or not server.current_mission.filename:
+        for i in range(int(server.getServerSetting('listStartIndex')), 0, -1):
+            filename = server.getServerSetting(i)
+            if server.current_mission:
+                server.current_mission.filename = filename
+            break
+    else:
+        filename = server.current_mission.filename
+    return filename
