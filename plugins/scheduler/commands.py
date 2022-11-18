@@ -383,10 +383,10 @@ class Scheduler(Plugin):
         elif method == 'restart':
             if self.is_mission_change(server, config):
                 await server.stop()
+                if 'RealWeather' in server.extensions.keys():
+                    await server.extensions['RealWeather'].beforeMissionLoad()
                 if 'settings' in config['restart']:
                     self.change_mizfile(server, config)
-                elif 'RealWeather' in server.extensions.keys():
-                    await server.extensions['RealWeather'].beforeMissionLoad()
                 await server.start()
             else:
                 await server.current_mission.restart()
@@ -395,10 +395,10 @@ class Scheduler(Plugin):
             await server.loadNextMission()
             if self.is_mission_change(server, config):
                 await server.stop()
+                if 'RealWeather' in server.extensions.keys():
+                    await server.extensions['RealWeather'].beforeMissionLoad()
                 if 'settings' in config['restart']:
                     self.change_mizfile(server, config)
-                elif 'RealWeather' in server.extensions.keys():
-                    await server.extensions['RealWeather'].beforeMissionLoad()
                 await server.start()
             await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated mission", server=server)
 

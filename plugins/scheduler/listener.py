@@ -67,10 +67,10 @@ class SchedulerListener(EventListener):
                     await self.plugin.launch_dcs(server, config)
                 elif server.status == Status.STOPPED:
                     if self.plugin.is_mission_change(server, config):
+                        if 'RealWeather' in server.extensions.keys():
+                            await server.extensions['RealWeather'].beforeMissionLoad()
                         if 'settings' in config['restart']:
                             self.plugin.change_mizfile(server, config)
-                        elif 'RealWeather' in server.extensions.keys():
-                            await server.extensions['RealWeather'].beforeMissionLoad()
                         await server.start()
                     message = 'started DCS server'
                     if 'user' not in what:
@@ -79,10 +79,10 @@ class SchedulerListener(EventListener):
                 elif server.status in [Status.RUNNING, Status.PAUSED]:
                     if self.plugin.is_mission_change(server, config):
                         await server.stop()
+                        if 'RealWeather' in server.extensions.keys():
+                            await server.extensions['RealWeather'].beforeMissionLoad()
                         if 'settings' in config['restart']:
                             self.plugin.change_mizfile(server, config)
-                        elif 'RealWeather' in server.extensions.keys():
-                            await server.extensions['RealWeather'].beforeMissionLoad()
                         await server.start()
                     else:
                         await server.current_mission.restart()
@@ -94,10 +94,10 @@ class SchedulerListener(EventListener):
                 await server.loadNextMission()
                 if self.plugin.is_mission_change(server, config):
                     await server.stop()
+                    if 'RealWeather' in server.extensions.keys():
+                        await server.extensions['RealWeather'].beforeMissionLoad()
                     if 'settings' in config['restart']:
                         self.plugin.change_mizfile(server, config)
-                    elif 'RealWeather' in server.extensions.keys():
-                        await server.extensions['RealWeather'].beforeMissionLoad()
                     await server.start()
                 await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated mission", server=server)
             elif what['command'] == 'load':

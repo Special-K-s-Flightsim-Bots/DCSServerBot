@@ -256,6 +256,9 @@ class MissionEventListener(EventListener):
             player1 = server.get_player(id=data['arg1'])
             if data['arg3'] != -1:
                 player2 = server.get_player(id=data['arg3'])
+            # TODO: remove if issue with Forrestal is fixed
+            elif data['arg2'] == player1.unit_type:
+                return
             else:
                 player2 = None
             self._send_chat_message(server, self.EVENT_TEXTS[player1.side][data['eventName']].format(
