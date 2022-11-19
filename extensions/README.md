@@ -142,6 +142,39 @@ status embed about ports and - if you like - passwords and the version of LotAtc
 ```
 There is no default section for LotAtc, so if added to a server like described above, it is enabled, if not, then not.
 
+### DCS-real-weather
+If you want to use real-time weather in your missions, you can do that by using [DCS-real-weather](https://github.com/evogelsa/DCS-real-weather).
+Download the release zip and unzip it to a directory of your choice on your system running your DCS servers and the 
+DCSServerBot. You can then add another extension into your scheduler.json:
+```json
+{
+  "configs": [
+    {
+      [...]
+      "extensions": {
+        "RealWeather": {
+          "installation": "%USERPROFILE%\\Documents\\realweather_v1.5.0"
+        }
+      }
+      [...]
+    },
+    {
+      "installation": "DCS.openbeta_server",
+      [...]
+      "extensions": {
+        "RealWeather": {
+          "enabled": true,
+          "icao": "SFAL",
+          "update-time": true,
+          "update-weather": true
+        }
+      }
+    }
+  ]
+}
+```
+You can find a list of supported parameters in the config.json provided by DCS-real-weather.
+
 ### Write your own Extension!
 Do you use something alongside with DCS that isn't supported yet? Are you someone that does not fear some lines of
 Python code? Well then - write your own extension!</br>
@@ -176,7 +209,7 @@ class MyExtension(Extension):
         return True
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        embed.add_field(name='MyExtension', value='enabled' if self.is_running() else 'disabled')
+        embed.add_field(name='MyExtension', value='enabled' if self.verify() else 'disabled')
 ```
 
 You can then use this extension in your scheduler.json like so:

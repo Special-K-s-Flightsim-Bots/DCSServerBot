@@ -45,8 +45,6 @@ class Sneaker(Extension):
             json.dump(cfg, file, indent=2)
 
     async def startup(self) -> bool:
-        if 'enabled' not in self.config or not self.config['enabled']:
-            return False
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
@@ -84,14 +82,17 @@ class Sneaker(Extension):
 
     @property
     def version(self) -> str:
-        return "0.0.8"
+        return "0.0.9"
 
     def verify(self) -> bool:
+        # check if Sneaker is enabled
+        if 'enabled' not in self.config or not self.config['enabled']:
+            return False
         # check if Sneaker is installed
         if 'cmd' not in self.config or not os.path.exists(os.path.expandvars(self.config['cmd'])):
+            self.log.warning("Sneaker executable not found!")
             return False
         return True
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        if 'enabled' in self.config and self.config['enabled']:
-            embed.add_field(name='Sneaker', value='enabled')
+        embed.add_field(name='Sneaker', value='enabled')

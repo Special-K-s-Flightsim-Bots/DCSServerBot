@@ -1,3 +1,4 @@
+import os.path
 import shlex
 import string
 import subprocess
@@ -38,19 +39,9 @@ class SchedulerListener(EventListener):
     async def registerDCSServer(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
-        if 'extensions' not in config:
-            return
-        for extension in config['extensions']:
-            ext: Extension = server.extensions[extension] if extension in server.extensions else None
-            if not ext:
-                if '.' not in extension:
-                    ext = utils.str_to_class('extensions.' + extension)(self.bot, server,
-                                                                                config['extensions'][extension])
-                else:
-                    ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
-                if ext.verify():
-                    server.extensions[extension] = ext
-            if not await ext.is_running() and ext.prepare() and await ext.startup():
+        self.plugin.init_extensions(server, config)
+        for ext in server.extensions.values():
+            if not await ext.is_running() and await ext.startup():
                 self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
                 await self.bot.audit(f"{ext.name} started", server=server)
 
@@ -75,17 +66,23 @@ class SchedulerListener(EventListener):
                 if server.status == Status.SHUTDOWN:
                     await self.plugin.launch_dcs(server, config)
                 elif server.status == Status.STOPPED:
-                    if 'settings' in config['restart']:
-                        self.plugin.change_mizfile(server, config)
-                    await server.start()
+                    if self.plugin.is_mission_change(server, config):
+                        if 'RealWeather' in server.extensions.keys():
+                            await server.extensions['RealWeather'].beforeMissionLoad()
+                        if 'settings' in config['restart']:
+                            self.plugin.change_mizfile(server, config)
+                        await server.start()
                     message = 'started DCS server'
                     if 'user' not in what:
                         message = string.capwords(self.plugin_name) + ' ' + message
                     await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
                 elif server.status in [Status.RUNNING, Status.PAUSED]:
-                    if 'settings' in config['restart']:
+                    if self.plugin.is_mission_change(server, config):
                         await server.stop()
-                        self.plugin.change_mizfile(server, config)
+                        if 'RealWeather' in server.extensions.keys():
+                            await server.extensions['RealWeather'].beforeMissionLoad()
+                        if 'settings' in config['restart']:
+                            self.plugin.change_mizfile(server, config)
                         await server.start()
                     else:
                         await server.current_mission.restart()
@@ -95,9 +92,12 @@ class SchedulerListener(EventListener):
                     await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
             elif what['command'] == 'rotate':
                 await server.loadNextMission()
-                if 'settings' in config['restart']:
+                if self.plugin.is_mission_change(server, config):
                     await server.stop()
-                    self.plugin.change_mizfile(server, config)
+                    if 'RealWeather' in server.extensions.keys():
+                        await server.extensions['RealWeather'].beforeMissionLoad()
+                    if 'settings' in config['restart']:
+                        self.plugin.change_mizfile(server, config)
                     await server.start()
                 await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated mission", server=server)
             elif what['command'] == 'load':

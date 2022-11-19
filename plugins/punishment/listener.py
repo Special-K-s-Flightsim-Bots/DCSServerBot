@@ -104,6 +104,9 @@ class PunishmentEventListener(EventListener):
                     # check collision
                     if data['arg2'] == initiator.unit_type:
                         data['eventName'] = 'collision_hit'
+                        # TODO: remove when Forrestal is fixed
+                        if target is None:
+                            return
                     await self._punish(data)
             elif data['eventName'] == 'kill':
                 if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] == data['arg6']:

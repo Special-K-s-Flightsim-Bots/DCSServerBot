@@ -356,7 +356,19 @@ class Mission(Plugin):
                     await ctx.send(f'The file {file} does not exists. Aborting.')
                     return
                 server.sendtoDCS({"command": "addMission", "path": file})
-                await ctx.send(f'Mission "{file[:-4]}" added.')
+                name = file[:-4]
+                await ctx.send(f'Mission "{name}" added.')
+                if await utils.yn_question(ctx, 'Do you want to load this mission?'):
+                    data = await server.sendtoDCSSync({"command": "listMissions"})
+                    missions = data['missionList']
+                    for idx, mission in enumerate(missions):
+                        if os.path.basename(mission) == file:
+                            tmp = await ctx.send(f'Loading mission {name} ...')
+                            await server.loadMission(idx + 1)
+                            await self.bot.audit("loaded mission", server=server, user=ctx.message.author)
+                            await tmp.delete()
+                            await ctx.send(f'Mission {name} loaded.')
+                            break
             else:
                 await ctx.send('There is no file in the Missions directory of server {}.'.format(server.name))
         else:
@@ -387,12 +399,12 @@ class Mission(Plugin):
 
             for mission in missions:
                 if name in mission:
-                    server.sendtoDCS({"command": "deleteMission", "id": original.index(mission) + 1})
-                    if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
-                        os.remove(mission)
-                        await ctx.send(f'Mission "{name}" deleted.')
-                    else:
+                    if await utils.yn_question(ctx, f'Delete mission "{name}" from the mission list?'):
+                        server.sendtoDCS({"command": "deleteMission", "id": original.index(mission) + 1})
                         await ctx.send(f'Mission "{name}" removed from list.')
+                        if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
+                            os.remove(mission)
+                            await ctx.send(f'Mission "{name}" deleted.')
                     break
         else:
             return await ctx.send('Server ' + server.name + ' is not running.')
@@ -544,11 +556,11 @@ class Mission(Plugin):
         att = message.attachments[0]
         filename = path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '\\Missions\\' + att.filename
         try:
+            ctx = utils.ContextWrapper(message)
             stopped = False
             exists = False
             if path.exists(filename):
                 exists = True
-                ctx = utils.ContextWrapper(message)
                 if await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?') is False:
                     await message.channel.send('Upload aborted.')
                     return
@@ -570,9 +582,22 @@ class Mission(Plugin):
                         await message.channel.send(f'Error {response.status} while reading MIZ file!')
             if not exists:
                 server.sendtoDCS({"command": "addMission", "path": os.path.basename(filename)})
+            name = os.path.basename(filename)[:-4]
+            await message.channel.send(f"Mission {name} uploaded and added." if not exists else f"Mission {name} replaced.")
+            await self.bot.audit(f"uploaded mission {name}", server=server, user=message.author)
             if stopped:
                 await server.start()
-            await message.channel.send("Mission uploaded and added." if not exists else "Mission replaced.")
+            elif await utils.yn_question(ctx, 'Do you want to load this mission?'):
+                data = await server.sendtoDCSSync({"command": "listMissions"})
+                missions = data['missionList']
+                for idx, mission in enumerate(missions):
+                    if os.path.basename(mission) == os.path.basename(filename):
+                        tmp = await message.channel.send(f'Loading mission {name} ...')
+                        await server.loadMission(idx + 1)
+                        await self.bot.audit("loaded mission", server=server, user=message.author)
+                        await tmp.delete()
+                        await message.channel.send(f'Mission {name} loaded.')
+                        break
         except Exception as ex:
             self.log.exception(ex)
         finally:

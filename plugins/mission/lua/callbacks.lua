@@ -203,16 +203,16 @@ end
 
 function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onGameEvent(' .. eventName .. ')')
-    -- ignore false events
+    -- ignore false takeoff or landing events
     if eventName == 'change_slot' then
         mission.last_change_slot[arg1] = os.clock()
     elseif eventName == 'takeoff' or eventName == 'landing' then
         if mission.last_change_slot[arg1] and mission.last_change_slot[arg1] > (os.clock() - 60) then
-            log.write('DCSServerBot', log.DEBUG, 'Mission: ignoring ' .. eventName .. ' event.')
+            --log.write('DCSServerBot', log.DEBUG, 'Mission: ignoring ' .. eventName .. ' event.')
             return
         end
         if mission.last_to_landing[arg1] and mission.last_to_landing[arg1] > (os.clock() - 10) then
-            log.write('DCSServerBot', log.DEBUG, 'Mission: ignoring ' .. eventName .. ' event.')
+            --log.write('DCSServerBot', log.DEBUG, 'Mission: ignoring ' .. eventName .. ' event.')
             return
         else
             mission.last_to_landing[arg1] = os.clock()

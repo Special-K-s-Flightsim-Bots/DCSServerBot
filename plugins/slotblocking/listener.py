@@ -1,12 +1,8 @@
-from __future__ import annotations
 import asyncio
 import re
-from core import EventListener, Plugin, Server, Side, Status, utils
-from typing import Union, cast, TYPE_CHECKING
+from core import EventListener, Plugin, Server, Side, Status, Player, utils
+from typing import Union, cast
 from plugins.creditsystem.player import CreditPlayer
-
-if TYPE_CHECKING:
-    import discord
 
 
 class SlotBlockingListener(EventListener):
@@ -50,20 +46,30 @@ class SlotBlockingListener(EventListener):
                         return unit['costs']
         return 0
 
+    def _is_vip(self, config: dict, data: dict) -> bool:
+        if 'VIP' not in config:
+            return False
+        if 'ucid' in config['VIP']:
+            ucid = config['VIP']['ucid']
+            if (isinstance(ucid, str) and ucid == data['ucid']) or (isinstance(ucid, list) and data['ucid'] in ucid):
+                return True
+        if 'discord' in config['VIP']:
+            member = self.bot.get_member_by_ucid(data['ucid'])
+            return utils.check_roles(config['VIP']['discord'], member) if member else False
+        return False
+
     async def onPlayerConnect(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if not config or data['id'] == 1:
             return
-        if 'VIP' in config and 'audit' in config['VIP'] and config['VIP']['audit'] and 'ucid' in config['VIP']:
-            ucid = config['VIP']['ucid']
-            if (isinstance(ucid, str) and data['ucid'] == ucid) or (isinstance(ucid, list) and data['ucid'] in ucid):
-                member = self.bot.get_member_by_ucid(data['ucid'])
-                if member:
-                    message = f"VIP member {member.display_name} joined"
-                else:
-                    message = f"VIP user {data['name']}(ucid={data['ucid']} joined"
-                self.bot.loop.call_soon(asyncio.create_task, self.bot.audit(message, server=server))
+        if self._is_vip(config, data):
+            member = self.bot.get_member_by_ucid(data['ucid'])
+            if member:
+                message = f"VIP member {member.display_name} joined"
+            else:
+                message = f"VIP user {data['name']}(ucid={data['ucid']} joined"
+            self.bot.loop.call_soon(asyncio.create_task, self.bot.audit(message, server=server))
 
     async def onPlayerChangeSlot(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

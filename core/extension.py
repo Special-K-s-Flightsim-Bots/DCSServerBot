@@ -21,8 +21,11 @@ class Extension(ABC):
     def load_config(self) -> Optional[dict]:
         return dict()
 
-    def prepare(self) -> bool:
+    async def prepare(self) -> bool:
         return True
+
+    async def beforeMissionLoad(self) -> bool:
+        return False
 
     async def startup(self) -> bool:
         return False

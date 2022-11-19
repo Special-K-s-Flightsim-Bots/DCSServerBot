@@ -21,12 +21,12 @@ class SRS(Extension):
         else:
             self.log.warning(f"Can't load SRS config from {path}!")
 
-    def prepare(self) -> bool:
+    async def prepare(self) -> bool:
         autoconnect = os.path.expandvars(f"%USERPROFILE%\\Saved Games\\{self.server.installation}\\Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua")
         port = self.locals['Server Settings']['server_port']
         if os.path.exists(autoconnect):
             shutil.copy2(autoconnect, autoconnect + '.bak')
-            with open('extensions\\DCS-SRS-AutoConnectGameGUI.lua') as infile:
+            with open('extensions\\lua\\DCS-SRS-AutoConnectGameGUI.lua') as infile:
                 with open(autoconnect, 'w') as outfile:
                     for line in infile.readlines():
                         if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
