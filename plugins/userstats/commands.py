@@ -131,7 +131,6 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 cursor.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Userstats pruned.')
 
-
     @commands.command(brief='Shows player statistics',
                       description='Displays the users statistics, either for a specific period or for a running '
                                   'campaign.\nPeriod might be one of _day, yesterday, month, week_ or _year_. Campaign '
@@ -152,6 +151,30 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 await ctx.send('Please provide a valid period or campaign name.')
                 return
             report = PaginationReport(self.bot, ctx, self.plugin_name, 'userstats.json', timeout if timeout > 0 else None)
+            await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
+                                member_name=member.display_name if isinstance(member, discord.Member) else member,
+                                period=period, server_name=None, flt=flt)
+        finally:
+            await ctx.message.delete()
+
+    @commands.command(brief='Sends player statistics as DM',
+                      description='Sends the users statistics, either for a specific period or for a running '
+                                  'campaign in a DM.\nPeriod might be one of _day, yesterday, month, week_ or _year_. '
+                                  'Campaign has to be one of your configured campaigns.\nIf no period is given, '
+                                  'default is everything, unless a campaign is configured. Then it\'s the running '
+                                  'campaign.', usage='[member] [period]')
+    @utils.has_role('DCS')
+    async def statsme(self, ctx, period: Optional[str]):
+        try:
+            member = ctx.message.author
+            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+            flt = StatisticsFilter.detect(self.bot, period)
+            if period and not flt:
+                await ctx.send('Please provide a valid period or campaign name.')
+                return
+            await ctx.send('Your statistics will be sent in a DM.', delete_after=30)
+            report = PaginationReport(self.bot, await ctx.message.author.create_dm(), self.plugin_name,
+                                      'userstats.json', timeout if timeout > 0 else None)
             await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
                                 member_name=member.display_name if isinstance(member, discord.Member) else member,
                                 period=period, server_name=None, flt=flt)

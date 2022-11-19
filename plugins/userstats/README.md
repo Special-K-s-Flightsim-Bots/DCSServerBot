@@ -17,6 +17,7 @@ If the AUTOMATCH is disabled or was not successful, users can generate a unique 
 | Command                | Parameter                                 | Channel | Role      | Description                                                                                         |
 |------------------------|-------------------------------------------|---------|-----------|-----------------------------------------------------------------------------------------------------|
 | .statistics/.stats     | [@member / DCS name] [day/week/month/all] | all     | DCS       | Display your own statistics or that of a specific member.                                           |
+| .statsme               | [day/week/month/all]                      | all     | DCS       | Send your own statistics in a DM instead of displaying them in public.                              |
 | .highscore/.hs         | [day/week/month/all]                      | all     | DCS       | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)   |
 | .link                  | @member ucid                              | all     | DCS Admin | Sometimes users can't be linked automatically. That is a manual workaround.                         |
 | .unlink                | @member / ucid                            | all     | DCS Admin | Unlink a member from a ucid / ucid from a user, if the automatic linking didn't work.               |

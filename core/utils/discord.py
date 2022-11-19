@@ -14,13 +14,14 @@ if TYPE_CHECKING:
     from .. import Server
 
 
-async def wait_for_single_reaction(self, ctx, message: discord.Message) -> discord.Reaction:
+async def wait_for_single_reaction(self, ctx: Union[commands.Context, discord.DMChannel], message: discord.Message) -> discord.Reaction:
     def check_press(react: discord.Reaction, user: discord.Member):
-        return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.message.id == message.id)
+        return (react.message.channel == message.channel) & (user == member) & (react.message.id == message.id)
 
     tasks = [self.bot.wait_for('reaction_add', check=check_press),
              self.bot.wait_for('reaction_remove', check=check_press)]
     try:
+        member = ctx.message.author if isinstance(ctx, commands.Context) else ctx.recipient
         done, tasks = await asyncio.wait(tasks, timeout=120, return_when=asyncio.FIRST_COMPLETED)
         if len(done) > 0:
             react, _ = done.pop().result()

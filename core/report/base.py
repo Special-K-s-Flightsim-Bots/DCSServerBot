@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from contextlib import closing, suppress
 from discord.ext.commands import Context
 from os import path
-from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast
+from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound, \
     ValueNotInRange
 
@@ -115,8 +115,8 @@ class PaginationReport(Report):
     class NoPaginationInformation(Exception):
         pass
 
-    def __init__(self, bot: DCSServerBot, ctx: Context, plugin: str, filename: str, timeout: Optional[int] = None,
-                 pagination: Optional[list] = None):
+    def __init__(self, bot: DCSServerBot, ctx: Union[Context, discord.DMChannel], plugin: str, filename: str,
+                 timeout: Optional[int] = None, pagination: Optional[list] = None):
         super().__init__(bot, plugin, filename)
         self.ctx = ctx
         self.timeout = timeout
@@ -197,7 +197,10 @@ class PaginationReport(Report):
                         await message.delete()
                         await pagination((index + 1) if index < (len(values) - 1) else 0)
             except asyncio.TimeoutError:
-                await message.clear_reactions()
+                if isinstance(self.ctx, discord.DMChannel):
+                    await message.delete()
+                else:
+                    await message.clear_reactions()
 
         await pagination(start_index)
         return self.env
