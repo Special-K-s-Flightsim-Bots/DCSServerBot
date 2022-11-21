@@ -1,6 +1,3 @@
-import shutil
-from datetime import datetime
-
 # noinspection PyPackageRequirements
 import aiohttp
 import asyncio
@@ -8,8 +5,10 @@ import discord
 import os
 import psycopg2
 import re
+import shutil
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel
+from datetime import datetime
 from discord import SelectOption, Interaction
 from discord.ext import commands, tasks
 from discord.ui import Select, View, Button
@@ -65,7 +64,7 @@ class Mission(Plugin):
                 env = await report.render(server=server, num_players=num_players)
                 await ctx.send(embed=env.embed)
             else:
-                await ctx.send('Server ' + server.name + ' is not running.')
+                await ctx.send(f'There is no mission running on server {server.name}')
                 return
         else:
             server.sendtoDCS({"command": "getMissionUpdate", "channel": ctx.channel.id})

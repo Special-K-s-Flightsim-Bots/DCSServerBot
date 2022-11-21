@@ -107,28 +107,33 @@ class MissionEventListener(EventListener):
 
     async def registerDCSServer(self, data):
         server: Server = self.bot.servers[data['server_name']]
-        if 'current_mission' not in data:
+        # the server is starting up
+        if not data['channel'].startswith('sync-'):
             return
+        # no mission is registered with the server, set the state to STOPPED
+        if 'current_mission' not in data:
+            server.status = Status.STOPPED
+            return
+        # the server was started already, but the bot wasn't
         if not server.current_mission:
             server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
                                                              map=data['current_map'], name=data['current_mission'])
-        if server.status == Status.UNREGISTERED:
-            server.status = Status.PAUSED if 'pause' in data and data['pause'] is True else Status.RUNNING
+
+        server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server.current_mission.update(data)
-        if data['channel'].startswith('sync-'):
-            if 'players' not in data:
-                data['players'] = []
-                server.status = Status.STOPPED
-            for p in data['players']:
-                if p['id'] == 1:
-                    continue
-                player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=p['id'],
-                                                         name=p['name'], active=p['active'], side=Side(p['side']),
-                                                         ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
-                                                         unit_callsign=p['unit_callsign'], unit_name=p['unit_name'],
-                                                         unit_type=p['unit_type'], group_id=p['group_id'],
-                                                         group_name=p['group_name'], banned=False)
-                server.add_player(player)
+        if 'players' not in data:
+            data['players'] = []
+            server.status = Status.STOPPED
+        for p in data['players']:
+            if p['id'] == 1:
+                continue
+            player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=p['id'],
+                                                     name=p['name'], active=p['active'], side=Side(p['side']),
+                                                     ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
+                                                     unit_callsign=p['unit_callsign'], unit_name=p['unit_name'],
+                                                     unit_type=p['unit_type'], group_id=p['group_id'],
+                                                     group_name=p['group_name'], banned=False)
+            server.add_player(player)
         self._display_mission_embed(server)
         self._display_player_embed(server)
 
@@ -147,6 +152,11 @@ class MissionEventListener(EventListener):
     async def onMissionLoadEnd(self, data):
         server: Server = self.bot.servers[data['server_name']]
         server.current_mission.update(data)
+        self._display_mission_embed(server)
+
+    async def onSimulationStart(self, data):
+        server: Server = self.bot.servers[data['server_name']]
+        server.status = Status.PAUSED
         self._display_mission_embed(server)
 
     async def onSimulationStop(self, data):

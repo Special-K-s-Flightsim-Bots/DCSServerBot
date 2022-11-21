@@ -333,6 +333,7 @@ class Scheduler(Plugin):
                     apply_preset(inner_value)
             elif isinstance(value, dict):
                 apply_preset(value)
+            server.bot.log.info(f"Preset {preset} applied.")
         miz.save()
 
     @staticmethod
@@ -620,7 +621,7 @@ class Scheduler(Plugin):
             await ctx.send('No presets available, please configure them in your scheduler.json.')
             return
 
-        if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+        if server.status in [Status.PAUSED, Status.RUNNING]:
             question = 'Do you want to stop the server to change the mission preset?'
             if server.is_populated():
                 result = await utils.populated_question(ctx, question)
@@ -629,6 +630,9 @@ class Scheduler(Plugin):
             if not result:
                 await ctx.send('Aborted.')
                 return
+        elif server.status == Status.LOADING:
+            await ctx.send("Server is still loading, can't change presets.")
+            return
         else:
             result = None
 
@@ -669,7 +673,7 @@ class Scheduler(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             if server.status not in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
-                await ctx.send(f"Server {server.name} not running.")
+                await ctx.send(f"No mission running on server {server.name}.")
                 return
             name = ' '.join(args)
             if not name:
@@ -709,7 +713,7 @@ class Scheduler(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             stopped = False
-            if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+            if server.status in [Status.RUNNING, Status.PAUSED]:
                 if not await utils.yn_question(ctx, 'Do you want me to stop the server to reset the mission?'):
                     return
                 stopped = True

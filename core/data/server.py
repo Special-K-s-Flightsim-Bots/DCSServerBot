@@ -278,7 +278,7 @@ class Server(DataObject):
             await self.wait_for_status_change([Status.STOPPED])
 
     async def start(self) -> None:
-        if self.status in [Status.STOPPED]:
+        if self.status == Status.STOPPED:
             timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 120
             self.sendtoDCS({"command": "start_server"})
             await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)

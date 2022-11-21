@@ -69,7 +69,7 @@ class UserStatisticsEventListener(EventListener):
         if server.status == Status.STOPPED:
             return
         # registering a running instance
-        if data['channel'].startswith('sync-'):
+        if data['channel'].startswith('sync-') and 'current_mission' in data:
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:

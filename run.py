@@ -257,7 +257,7 @@ class Main:
                 if len(new_name) == 0:
                     await ctx.send(f"Usage: {self.config['BOT']['COMMAND_PREFIX']}rename <new server name>")
                     return
-                if server.status in [Status.STOPPED, Status.SHUTDOWN]:
+                if server.status not in [Status.RUNNING, Status.PAUSED]:
                     if await utils.yn_question(ctx, 'Are you sure to rename server '
                                                     '"{}" to "{}"?'.format(old_name, new_name)) is True:
                         server.rename(old_name, new_name, True)
