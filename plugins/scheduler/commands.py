@@ -508,7 +508,7 @@ class Scheduler(Plugin):
     @commands.command(description='Shutdown a DCS/DCS-SRS server')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def shutdown(self, ctx):
+    async def shutdown(self, ctx, *params):
         server: Server = await self.bot.get_server(ctx)
         if server:
             config = self.get_config(server)
@@ -516,23 +516,27 @@ class Scheduler(Plugin):
                 await ctx.send('Server is currently starting up. Please wait and try again.')
                 return
             elif server.status != Status.SHUTDOWN:
-                question = f"Do you want to shut down the DCS server \"{server.name}\"?"
-                if server.is_populated():
-                    result = await utils.populated_question(ctx, question)
-                else:
-                    result = await utils.yn_question(ctx, question)
-                if not result:
-                    await ctx.send('Aborted.')
-                    return
-                elif result == 'later':
-                    server.on_empty = {"command": "shutdown", "user": ctx.message.author}
-                    server.restart_pending = True
-                    await ctx.send('Shutdown postponed when server is empty.')
-                    return
+                if not params or params[0] != '-force':
+                    question = f"Do you want to shut down DCS server \"{server.name}\"?"
+                    if server.is_populated():
+                        result = await utils.populated_question(ctx, question)
+                    else:
+                        result = await utils.yn_question(ctx, question)
+                    if not result:
+                        await ctx.send('Aborted.')
+                        return
+                    elif result == 'later':
+                        server.on_empty = {"command": "shutdown", "user": ctx.message.author}
+                        server.restart_pending = True
+                        await ctx.send('Shutdown postponed when server is empty.')
+                        return
                 msg = await ctx.send(f"Shutting down DCS server \"{server.name}\", please wait ...")
                 # set maintenance flag to prevent auto-starts of this server
                 server.maintenance = True
-                await self.teardown_dcs(server, ctx.message.author)
+                if params and params[0].casefold() == '-force':
+                    await server.shutdown()
+                else:
+                    await self.teardown_dcs(server, ctx.message.author)
                 await msg.delete()
                 await ctx.send(f"DCS server \"{server.name}\" shut down.\n"
                                f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")

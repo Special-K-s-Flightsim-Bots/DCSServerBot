@@ -32,8 +32,6 @@ download to the current channel.</br>
 | Command   | Parameter             | Channel       | Role      | Description                                                                                                              |
 |-----------|-----------------------|---------------|-----------|--------------------------------------------------------------------------------------------------------------------------|
 | .servers  |                       | all           | DCS       | Lists all registered DCS servers and their status (same as .mission but for all). Servers will auto-register on startup. |
-| .startup  |                       | admin-channel | DCS Admin | Starts a dedicated DCS server process.                                                                                   |
-| .shutdown |                       | admin-channel | DCS Admin | Shuts the dedicated DCS server process down.                                                                             |
 | .start    |                       | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                             |
 | .stop     |                       | admin-channel | DCS Admin | Stops a DCS server.                                                                                                      |
 | .status   |                       | all           | DCS       | Shows the status of all configured DCS servers.                                                                          |
