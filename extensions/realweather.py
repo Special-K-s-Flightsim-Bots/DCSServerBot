@@ -20,6 +20,9 @@ class RealWeather(Extension):
             with open(os.path.expandvars(rw_home + '\\config.json')) as infile:
                 cfg = json.load(infile)
                 filename = utils.get_current_mission_file(self.server)
+                if not filename:
+                    self.log.warning("No mission configured, can't apply real weather.")
+                    return False
                 if not os.path.exists(filename + '.orig'):
                     shutil.copy2(filename, filename + '.orig')
                 cfg['input-mission-file'] = filename + '.orig'
@@ -31,6 +34,7 @@ class RealWeather(Extension):
                 with open(os.path.expandvars(cwd + '\\config.json'), 'w') as outfile:
                     json.dump(cfg, outfile, indent=2)
                 subprocess.run(executable=os.path.expandvars(rw_home + '\\realweather.exe'), args=[], cwd=cwd, shell=True)
+                self.log.info(f"Real weather applied to mission.")
                 return True
         except Exception as ex:
             self.log.exception(ex)

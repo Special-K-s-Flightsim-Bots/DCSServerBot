@@ -78,7 +78,7 @@ class OvGME(Plugin):
                 # If the bot is still starting up (default), we're trying to figure out the state of the DCS process
                 p = utils.find_process('DCS.exe', server.installation)
                 if (not installed or installed != version) and \
-                        (p or server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]):
+                        (p or server.status != Status.SHUTDOWN):
                     self.log.warning(f"  - Server {server.name} needs to be shutdown to install packages.")
                     break
                 maintenance = server.maintenance

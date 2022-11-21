@@ -40,7 +40,7 @@ class UserStatisticsAgent(Plugin):
     async def reset_statistics(self, ctx):
         server: Server = await self.bot.get_server(ctx)
         if server:
-            if server.status in [Status.STOPPED, Status.SHUTDOWN]:
+            if server.status not in [Status.RUNNING, Status.PAUSED]:
                 conn = self.pool.getconn()
                 try:
                     if await utils.yn_question(ctx, f'I\'m going to **DELETE ALL STATISTICS**\n'
