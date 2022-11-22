@@ -71,7 +71,7 @@ class DCSServerBot(commands.Bot):
                     host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'])
                 self.servers[server_name] = server
                 # TODO: can be removed if bug in net.load_next_mission() is fixed
-                server.changeServerSettings('listLoop', True)
+                server.settings['listLoop'] = True
 
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers, this might take a bit ...')
@@ -506,7 +506,6 @@ class DCSServerBot(commands.Bot):
         # set the PID
         server.process = utils.find_process('DCS.exe', server.installation)
         server.options = data['options']
-        server.settings = data['serverSettings']
         server.dcs_version = data['dcs_version']
         # update the database and check for server name changes
         conn = self.pool.getconn()

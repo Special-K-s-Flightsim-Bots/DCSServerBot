@@ -1,6 +1,7 @@
 from __future__ import annotations
 # noinspection PyPackageRequirements
 import aiohttp
+import luadata
 import math
 import os
 import psycopg2
@@ -29,17 +30,14 @@ def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, s
     installations = []
     for dirname in os.listdir(SAVED_GAMES):
         if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):
-            settings = os.path.join(SAVED_GAMES, dirname, 'Config\\serverSettings.lua')
-            if os.path.exists(settings):
-                if server_name:
-                    with open(settings, encoding='utf8') as f:
-                        if '["name"] = "{}"'.format(server_name) in f.read():
-                            installations.append((server_name, dirname))
+            path = os.path.join(SAVED_GAMES, dirname, 'Config\\serverSettings.lua')
+            if os.path.exists(path):
+                settings = luadata.read(path, encoding='utf-8')
+                if server_name and settings['name'] == server_name:
+                    installations.append((server_name, dirname))
+                    break
                 else:
-                    with open(settings, encoding='utf8') as f:
-                        match = REGEXP['server_name'].search(f.read())
-                        if match:
-                            installations.append((match.group('server_name'), dirname))
+                    installations.append((settings['name'], dirname))
     return installations
 
 
@@ -153,16 +151,3 @@ def is_banned(self, ucid: str):
         self.log.exception(error)
     finally:
         self.pool.putconn(conn)
-
-
-def get_current_mission_file(server: Server) -> Optional[str]:
-    filename: str = None
-    if not server.current_mission or not server.current_mission.filename:
-        for i in range(int(server.getServerSetting('listStartIndex')), 0, -1):
-            filename = server.getServerSetting(i)
-            if server.current_mission:
-                server.current_mission.filename = filename
-            break
-    else:
-        filename = server.current_mission.filename
-    return filename

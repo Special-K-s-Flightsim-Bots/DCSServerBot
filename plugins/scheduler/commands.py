@@ -303,7 +303,7 @@ class Scheduler(Plugin):
             if 'accidental_failures' in value:
                 miz.accidental_failures = value['accidental_failures']
 
-        filename = utils.get_current_mission_file(server)
+        filename = server.get_current_mission_file()
         if not filename:
             return
         now = datetime.now()

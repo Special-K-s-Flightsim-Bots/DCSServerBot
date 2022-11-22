@@ -15,7 +15,9 @@ class GameMasterAgent(Plugin):
         for server in self.bot.servers.values():
             if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 self.log.debug(f'  - Updating "{server.name}":serverSettings.lua for coalitions')
-                server.changeServerSettings('allow_players_pool', self.bot.config.getboolean(server.installation, 'ALLOW_PLAYERS_POOL'))
+                advanced = server.settings['advanced']
+                advanced['allow_players_pool'] = self.bot.config.getboolean(server.installation, 'ALLOW_PLAYERS_POOL')
+                server.settings['advanced'] = advanced
 
     def rename(self, old_name: str, new_name: str):
         conn = self.pool.getconn()

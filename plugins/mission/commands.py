@@ -354,7 +354,7 @@ class Mission(Plugin):
                 if '\\' in file and not os.path.exists(file):
                     await ctx.send(f'The file {file} does not exists. Aborting.')
                     return
-                server.sendtoDCS({"command": "addMission", "path": file})
+                server.addMission(file)
                 name = file[:-4]
                 await ctx.send(f'Mission "{name}" added.')
                 if await utils.yn_question(ctx, 'Do you want to load this mission?'):
@@ -399,7 +399,7 @@ class Mission(Plugin):
             for mission in missions:
                 if name in mission:
                     if await utils.yn_question(ctx, f'Delete mission "{name}" from the mission list?'):
-                        server.sendtoDCS({"command": "deleteMission", "id": original.index(mission) + 1})
+                        server.deleteMission(original.index(mission) + 1)
                         await ctx.send(f'Mission "{name}" removed from list.')
                         if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
                             os.remove(mission)
@@ -579,8 +579,8 @@ class Mission(Plugin):
                             outfile.write(await response.read())
                     else:
                         await message.channel.send(f'Error {response.status} while reading MIZ file!')
-            if not exists:
-                server.sendtoDCS({"command": "addMission", "path": os.path.basename(filename)})
+            if not exists and not self.bot.config.getboolean('BOT', 'AUTOSCAN'):
+                server.addMission(os.path.basename(filename))
             name = os.path.basename(filename)[:-4]
             await message.channel.send(f"Mission {name} uploaded and added." if not exists else f"Mission {name} replaced.")
             await self.bot.audit(f"uploaded mission {name}", server=server, user=message.author)
