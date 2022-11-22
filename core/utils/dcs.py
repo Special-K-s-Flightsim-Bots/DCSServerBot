@@ -33,9 +33,9 @@ def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, s
             path = os.path.join(SAVED_GAMES, dirname, 'Config\\serverSettings.lua')
             if os.path.exists(path):
                 settings = luadata.read(path, encoding='utf-8')
-                if server_name and settings['name'] == server_name:
-                    installations.append((server_name, dirname))
-                    break
+                if server_name:
+                    if settings['name'] == server_name:
+                        return [(server_name, dirname)]
                 else:
                     installations.append((settings['name'], dirname))
     return installations
