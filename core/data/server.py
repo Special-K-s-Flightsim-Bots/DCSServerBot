@@ -58,8 +58,8 @@ class SettingsDict(dict):
     def __setitem__(self, key, value):
         super().__setitem__(key, value)
         path = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
-        with open(path, 'w', encoding='utf8') as outfile:
-            outfile.write("cfg = " + luadata.serialize(self, 'utf-8', indent='\t', indent_level=0))
+        with open(path, 'wb') as outfile:
+            outfile.write(("cfg = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
 
 
 @dataclass
