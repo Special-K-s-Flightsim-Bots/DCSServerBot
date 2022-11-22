@@ -224,7 +224,7 @@ class Server(DataObject):
         if not self.current_mission or not self.current_mission.filename:
             settings = self.settings
             for i in range(int(settings['listStartIndex']), 0, -1):
-                filename = settings['missionList'][i]
+                filename = settings['missionList'][i-1]
                 if self.current_mission:
                     self.current_mission.filename = filename
                 break
