@@ -1,4 +1,3 @@
-from __future__ import annotations
 # noinspection PyPackageRequirements
 import aiohttp
 import luadata
@@ -11,11 +10,8 @@ import xml
 import xmltodict
 from contextlib import closing
 from core.const import SAVED_GAMES
-from typing import Optional, List, Tuple, TYPE_CHECKING
+from typing import Optional, List, Tuple
 from . import config
-
-if TYPE_CHECKING:
-    from core import Server
 
 
 REGEXP = {
@@ -33,8 +29,10 @@ def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, s
             path = os.path.join(SAVED_GAMES, dirname, 'Config\\serverSettings.lua')
             if os.path.exists(path):
                 settings = luadata.read(path, encoding='utf-8')
+                if 'name' not in settings:
+                    settings['name'] = 'DCS Server'
                 if server_name:
-                    if 'name' in settings and settings['name'] == server_name:
+                    if settings['name'] == server_name:
                         return [(server_name, dirname)]
                 else:
                     installations.append((settings['name'], dirname))
