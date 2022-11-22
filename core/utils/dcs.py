@@ -34,7 +34,7 @@ def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, s
             if os.path.exists(path):
                 settings = luadata.read(path, encoding='utf-8')
                 if server_name:
-                    if settings['name'] == server_name:
+                    if 'name' in settings and settings['name'] == server_name:
                         return [(server_name, dirname)]
                 else:
                     installations.append((settings['name'], dirname))
