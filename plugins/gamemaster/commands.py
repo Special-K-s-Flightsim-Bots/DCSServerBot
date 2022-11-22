@@ -206,6 +206,7 @@ class GameMasterMaster(GameMasterAgent):
                 await ctx.send(f'Welcome to the {coalition} side!')
                 conn.commit()
         except discord.Forbidden:
+            conn.rollback()
             await ctx.send("I can't add you to this coalition. Please contact an Admin.")
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
         except (Exception, psycopg2.DatabaseError) as error:
@@ -247,6 +248,7 @@ class GameMasterMaster(GameMasterAgent):
     @commands.guild_only()
     async def reset_coalitions(self, ctx):
         if await utils.yn_question(ctx, 'Do you want to mass-reset all coalition-bindings from your players?') is False:
+            await ctx.send('Aborted.')
             return
         roles = {
             "red": discord.utils.get(ctx.guild.roles, name=self.bot.config['ROLES']['Coalition Red']),
@@ -263,6 +265,7 @@ class GameMasterMaster(GameMasterAgent):
                     cursor.execute('UPDATE players SET coalition = NULL, coalition_leave = NULL WHERE ucid = %s',
                                    (row[0], ))
             conn.commit()
+            await ctx.send('Coalition bindings reset for all players.')
         except discord.Forbidden:
             await ctx.send('The bot is missing the "Manage Roles" permission.')
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)

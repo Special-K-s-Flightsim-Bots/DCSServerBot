@@ -1,5 +1,4 @@
 from __future__ import annotations
-import asyncio
 import discord
 import psycopg2
 from contextlib import closing
@@ -62,6 +61,17 @@ class GameMasterEventListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         if data['id'] != 1 and self.bot.config.getboolean(server.installation, 'COALITIONS'):
             player: Player = server.get_player(id=data['id'])
+            if player.coalition == Coalition.BLUE:
+                side = Side.BLUE
+            elif player.coalition == Coalition.RED:
+                side = Side.RED
+            else:
+                side = Side.SPECTATOR
+            server.sendtoDCS({
+                "command": "setUserCoalition",
+                "ucid": player.ucid,
+                "coalition": side.value
+            })
             data['from_id'] = data['id']
             data['subcommand'] = 'coalition'
             await self.onChatCommand(data)
@@ -79,10 +89,12 @@ class GameMasterEventListener(EventListener):
         if self._get_coalition(player) == Coalition(coalition):
             player.sendChatMessage(f"You are a member of coalition {coalition} already.")
             return
+
+        # update the database
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                # we don't care about coalitions if they left longer than one day before
+                # check if the player is eligible to change the coalitions
                 cursor.execute("SELECT coalition FROM players WHERE ucid = %s AND coalition_leave > (NOW() - "
                                "interval %s)", (player.ucid, self.bot.config['BOT']['COALITION_LOCK_TIME']))
                 if cursor.rowcount == 1:
@@ -92,27 +104,34 @@ class GameMasterEventListener(EventListener):
                         await self.bot.audit(f"{player.name} tried to join a new coalition in-between the time limit.",
                                              user=player.ucid)
                         return
-                player.coalition = Coalition(coalition)
-                if player.member:
-                    roles = {
-                        Coalition.RED: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Red']),
-                        Coalition.BLUE: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Blue'])
-                    }
-                    await player.member.add_roles(roles[player.coalition])
+
+                # set the new coalition
                 cursor.execute('UPDATE players SET coalition = %s, coalition_leave = NULL WHERE ucid = %s',
                                (coalition, player.ucid))
-                password = self._get_coalition_password(server, player.coalition)
-                player.sendChatMessage(f'Welcome to the {coalition} side!')
-                if password:
-                    player.sendChatMessage(f"Your coalition password is {password}.")
+                player.coalition = Coalition(coalition)
                 conn.commit()
-        except discord.Forbidden:
-            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
             conn.rollback()
         finally:
             self.bot.pool.putconn(conn)
+
+        # welcome them in DCS
+        password = self._get_coalition_password(server, player.coalition)
+        player.sendChatMessage(f'Welcome to the {coalition} side!')
+        if password:
+            player.sendChatMessage(f"Your coalition password is {password}.")
+
+        # set the discord role
+        try:
+            if player.member:
+                roles = {
+                    Coalition.RED: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Red']),
+                    Coalition.BLUE: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Blue'])
+                }
+                await player.member.add_roles(roles[player.coalition])
+        except discord.Forbidden:
+            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
     async def leave(self, data):
         server: Server = self.bot.servers[data['server_name']]
@@ -121,27 +140,29 @@ class GameMasterEventListener(EventListener):
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
                                    f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
             return
+        # update the database
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('UPDATE players SET coalition_leave = NOW() WHERE ucid = %s', (player.ucid,))
-            conn.commit()
+                player.sendChatMessage(f"You've left the {player.coalition.name} coalition!")
+                player.coalition = None
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+            conn.rollback()
+        finally:
+            self.bot.pool.putconn(conn)
+        # remove discord roles
+        try:
             if player.member:
                 roles = {
                     Coalition.RED: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Red']),
                     Coalition.BLUE: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Blue'])
                 }
                 await player.member.remove_roles(roles[player.coalition])
-            player.sendChatMessage(f"You've left the {player.coalition.name} coalition!")
-            player.coalition = None
-            return
         except discord.Forbidden:
             await self.bot.audit(f'Permission "Manage Roles" missing for {self.bot.member.name}.', user=self.bot.member)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
 
     def _campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
                   description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):

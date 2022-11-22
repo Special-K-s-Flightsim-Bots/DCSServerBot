@@ -15,6 +15,15 @@ function gamemaster.onPlayerTryChangeSlot(playerID, side, slotID)
     end
     local player = net.get_player_info(playerID, 'ucid')
     local coalition = dcsbot.userInfo[player].coalition
+    if not coalition then
+        if side == 1 then
+            s = "red"
+        elseif side == 2 then
+            s = "blue"
+        end
+        net.send_chat_to("Use " .. config.CHAT_COMMAND_PREFIX .. "join " .. s .. " to join the " .. s .. " coalition first!", playerID)
+        return false
+    end
     if coalition ~= side then
         net.send_chat_to("You are not a member of this coalition!", playerID)
         return false
