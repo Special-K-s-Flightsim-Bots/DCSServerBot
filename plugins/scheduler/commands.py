@@ -303,7 +303,7 @@ class Scheduler(Plugin):
             if 'accidental_failures' in value:
                 miz.accidental_failures = value['accidental_failures']
 
-        filename = utils.get_current_mission_file(server)
+        filename = server.get_current_mission_file()
         if not filename:
             return
         now = datetime.now()
@@ -597,10 +597,15 @@ class Scheduler(Plugin):
         async def callback(self, interaction: Interaction, select: Select):
             self.result = select.values
             await interaction.response.defer()
+
+        @discord.ui.button(label='OK', style=discord.ButtonStyle.green, emoji='✅')
+        async def ok(self, interaction: Interaction, button: Button):
+            await interaction.response.defer()
             self.stop()
 
         @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='❌')
         async def cancel(self, interaction: Interaction, button: Button):
+            self.result = None
             await interaction.response.defer()
             self.stop()
 
@@ -661,8 +666,7 @@ class Scheduler(Plugin):
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 stopped = True
                 await server.stop()
-            for preset in view.result:
-                self.change_mizfile(server, config, preset)
+            self.change_mizfile(server, config, ','.join(view.result))
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if stopped:
                 await server.start()

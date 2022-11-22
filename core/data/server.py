@@ -2,17 +2,19 @@ from __future__ import annotations
 import asyncio
 import discord
 import json
+import luadata
 import os
-import re
 import socket
 import subprocess
 import psycopg2
 import uuid
 from contextlib import closing, suppress
-from core import utils, const
 from dataclasses import dataclass, field
+from pathlib import Path
 from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from .dataobject import DataObject, DataObjectFactory
 from .const import Status, Coalition, Channel
 
@@ -20,6 +22,44 @@ if TYPE_CHECKING:
     from .player import Player
     from .mission import Mission
     from ..extension import Extension
+
+
+class MissionFileSystemEventHandler(FileSystemEventHandler):
+    def __init__(self, server: Server):
+        self.server = server
+        self.bot = server.bot
+        self.log = server.log
+
+    def on_created(self, event: FileSystemEvent):
+        path: str = os.path.normpath(event.src_path)
+        if path.endswith('.miz'):
+            self.server.addMission(path)
+            self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
+
+    def on_deleted(self, event: FileSystemEvent):
+        path: str = os.path.normpath(event.src_path)
+        if path.endswith('.miz'):
+            for idx, mission in enumerate(self.server.settings['missionList']):
+                if mission == path:
+                    if (idx + 1) == self.server.mission_id:
+                        self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
+                        return
+                    self.server.deleteMission(idx + 1)
+                    self.log.info(f"=> Mission {os.path.basename(mission)[:-4]} deleted from server {self.server.name}.")
+
+
+class SettingsDict(dict):
+    def __init__(self, server: Server, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.server = server
+        self.bot = server.bot
+        self.log = server.log
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        path = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
+        with open(path, 'w', encoding='utf8') as outfile:
+            outfile.write("cfg = " + luadata.serialize(self, 'utf-8', indent='\t', indent_level=0))
 
 
 @dataclass
@@ -31,10 +71,10 @@ class Server(DataObject):
     port: int
     _channels: dict[Channel, discord.TextChannel] = field(default_factory=dict, compare=False)
     embeds: dict[str, Union[int, discord.Message]] = field(repr=False, default_factory=dict, compare=False)
-    _status: Status = field(compare=False, default=Status.UNREGISTERED)
+    _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
     options: dict = field(default_factory=dict, compare=False)
-    settings: dict = field(default_factory=dict, compare=False)
+    _settings: Optional[SettingsDict] = field(default=None, compare=False)
     current_mission: Mission = field(default=None, compare=False)
     mission_id: int = field(default=-1, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
@@ -64,6 +104,11 @@ class Server(DataObject):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+        # enable autoscan for missions changes
+        if self.bot.config.getboolean('BOT', 'AUTOSCAN'):
+            self.event_handler = MissionFileSystemEventHandler(self)
+            self.observer = Observer()
+            self.observer.start()
 
     @property
     def status(self) -> Status:
@@ -72,6 +117,36 @@ class Server(DataObject):
     @status.setter
     def status(self, status: Status):
         if status != self._status:
+            if self.bot.config.getboolean('BOT', 'AUTOSCAN'):
+                if self._status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTDOWN] \
+                        and status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+                    if not self.observer.emitters:
+                        self.observer.schedule(self.event_handler,
+                                               os.path.expandvars(
+                                                   self.bot.config[self.installation]['DCS_HOME']) + r"\Missions",
+                                               recursive=False)
+                        self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder enabled.')
+                elif status == Status.SHUTDOWN:
+                    if self._status == Status.UNREGISTERED:
+                        # make sure all missions in the directory are in the mission list ...
+                        directory = Path(
+                            os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r"\Missions")
+                        missions = self.settings['missionList']
+                        i: int = 0
+                        for file in directory.glob('*.miz'):
+                            if str(file) not in missions:
+                                missions.append(str(file))
+                                i += 1
+                        # make sure the list is written to serverSettings.lua
+                        self.settings['missionList'] = missions
+                        if i:
+                            self.log.info(f"  => {self.name}: {i} missions auto-added to the mission list")
+                        if len(missions) > 25:
+                            self.log.warning(f"  => {self.name}: You have more than 25 missions registered!"
+                                             f" You won't see them all in {self.bot.config['BOT']['COMMAND_PREFIX']}load!")
+                    elif self.observer.emitters:
+                        self.observer.unschedule_all()
+                        self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
             self._status = status
             self.status_change.set()
             self.status_change.clear()
@@ -137,50 +212,25 @@ class Server(DataObject):
             "reason": reason
         })
 
-    def changeServerSettings(self, name: str, value: Union[str, int, bool]):
-        assert name in ['listStartIndex', 'password', 'name', 'maxPlayers', 'listLoop', 'allow_players_pool'], \
-            "Value can't be changed."
-        if isinstance(value, str):
-            value = '"' + value + '"'
-        elif isinstance(value, bool):
-            value = value.__repr__().lower()
-        _, installation = utils.findDCSInstallations(self.name)[0]
-        server_settings = os.path.join(const.SAVED_GAMES, installation, 'Config\\serverSettings.lua')
-        tmp_settings = os.path.join(const.SAVED_GAMES, installation, 'Config\\serverSettings.tmp')
-        with open(server_settings, encoding='utf8') as infile:
-            inlines = infile.readlines()
-        outlines = []
-        for line in inlines:
-            if '["{}"]'.format(name) in line:
-                outlines.append(re.sub(' = ([^,]*)', ' = {}'.format(value), line))
-                if line.startswith('cfg'):
-                    outlines.append('\n')
-            else:
-                outlines.append(line)
-        with open(tmp_settings, 'w', encoding='utf8') as outfile:
-            outfile.writelines(outlines)
-        os.remove(server_settings)
-        os.rename(tmp_settings, server_settings)
+    @property
+    def settings(self) -> dict:
+        if not self._settings:
+            path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
+            self._settings = SettingsDict(self, luadata.read(path, encoding='utf-8'))
+        return self._settings
 
-    def getServerSetting(self, name: Union[str, int]):
-        if isinstance(name, str):
-            name = '"' + name + '"'
-        exp = re.compile(r'\[{}\] = (?P<value>.*),'.format(name))
-        _, installation = utils.findDCSInstallations(self.name)[0]
-        server_settings = os.path.join(const.SAVED_GAMES, installation, 'Config\\serverSettings.lua')
-        with open(server_settings, encoding='utf8') as infile:
-            for line in infile.readlines():
-                match = exp.search(line)
-                if match:
-                    retval = match.group('value')
-                    if retval.startswith('"'):
-                        return retval.replace('"', '')
-                    elif retval == 'false':
-                        return False
-                    elif retval == 'true':
-                        return True
-                    else:
-                        return int(retval)
+    def get_current_mission_file(self) -> Optional[str]:
+        filename = None
+        if not self.current_mission or not self.current_mission.filename:
+            settings = self.settings
+            for i in range(int(settings['listStartIndex']), 0, -1):
+                filename = settings['missionList'][i]
+                if self.current_mission:
+                    self.current_mission.filename = filename
+                break
+        else:
+            filename = self.current_mission.filename
+        return filename
 
     def sendtoDCS(self, message: dict):
         # As Lua does not support large numbers, convert them to strings
@@ -244,7 +294,7 @@ class Server(DataObject):
         finally:
             self.pool.putconn(conn)
         if update_settings:
-            self.changeServerSettings('name', new_name)
+            self.settings['name'] = new_name
         self.name = new_name
 
     async def startup(self) -> None:
@@ -290,6 +340,7 @@ class Server(DataObject):
     async def _load(self, message):
         stopped = self.status == Status.STOPPED
         self.sendtoDCS(message)
+        self._settings = None
         if not stopped:
             # wait for a status change (STOPPED or LOADING)
             await self.wait_for_status_change([Status.STOPPED, Status.LOADING])
@@ -301,6 +352,16 @@ class Server(DataObject):
         except asyncio.TimeoutError:
             self.log.debug(f'Trying to force start server "{self.name}" due to DCS bug.')
             await self.start()
+
+    def addMission(self, path: str) -> None:
+        self.sendtoDCS({"command": "addMission", "path": path})
+        self._settings = None
+
+    def deleteMission(self, mission_id: int) -> None:
+        if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
+            raise AttributeError("Can't delete the running mission!")
+        self.sendtoDCS({"command": "deleteMission", "id": mission_id})
+        self._settings = None
 
     async def loadMission(self, mission_id: int) -> None:
         await self._load({"command": "startMission", "id": mission_id})

@@ -28,10 +28,6 @@ function dcsbot.registerDCSServer(json)
 	else
 		msg.statistics = true
 	end
-    -- settings
-	msg.serverSettings = utils.loadSettingsRaw()
-    -- clear ct field, if it was there
-    msg.serverSettings['ct'] = nil
 	msg.options = DCS.getUserOptions()
     -- airbases
     msg.airbases = {}

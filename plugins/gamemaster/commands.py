@@ -15,7 +15,9 @@ class GameMasterAgent(Plugin):
         for server in self.bot.servers.values():
             if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 self.log.debug(f'  - Updating "{server.name}":serverSettings.lua for coalitions')
-                server.changeServerSettings('allow_players_pool', self.bot.config.getboolean(server.installation, 'ALLOW_PLAYERS_POOL'))
+                advanced = server.settings['advanced']
+                advanced['allow_players_pool'] = self.bot.config.getboolean(server.installation, 'ALLOW_PLAYERS_POOL')
+                server.settings['advanced'] = advanced
 
     def rename(self, old_name: str, new_name: str):
         conn = self.pool.getconn()
@@ -206,6 +208,7 @@ class GameMasterMaster(GameMasterAgent):
                 await ctx.send(f'Welcome to the {coalition} side!')
                 conn.commit()
         except discord.Forbidden:
+            conn.rollback()
             await ctx.send("I can't add you to this coalition. Please contact an Admin.")
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
         except (Exception, psycopg2.DatabaseError) as error:
@@ -247,6 +250,7 @@ class GameMasterMaster(GameMasterAgent):
     @commands.guild_only()
     async def reset_coalitions(self, ctx):
         if await utils.yn_question(ctx, 'Do you want to mass-reset all coalition-bindings from your players?') is False:
+            await ctx.send('Aborted.')
             return
         roles = {
             "red": discord.utils.get(ctx.guild.roles, name=self.bot.config['ROLES']['Coalition Red']),
@@ -263,6 +267,7 @@ class GameMasterMaster(GameMasterAgent):
                     cursor.execute('UPDATE players SET coalition = NULL, coalition_leave = NULL WHERE ucid = %s',
                                    (row[0], ))
             conn.commit()
+            await ctx.send('Coalition bindings reset for all players.')
         except discord.Forbidden:
             await ctx.send('The bot is missing the "Manage Roles" permission.')
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)

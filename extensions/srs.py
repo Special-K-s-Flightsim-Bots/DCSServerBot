@@ -92,8 +92,10 @@ class SRS(Extension):
         # check if SRS is installed
         if 'installation' not in self.config or \
                 not os.path.exists(os.path.expandvars(self.config['installation']) + r'\SR-Server.exe'):
+            self.log.debug("SRS executable not found in {}".format(self.config['installation'] + r'\SR-Server.exe'))
             return False
         # do we have a proper config file?
         if 'config' not in self.config or not os.path.exists(os.path.expandvars(self.config['config'])):
+            self.log.debug(f"SRS config not found in {self.config['config']}")
             return False
         return True

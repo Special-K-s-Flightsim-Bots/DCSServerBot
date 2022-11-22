@@ -6,6 +6,10 @@ You can upload .miz files in the configured admin channel of your server(s). You
 Existing missions will be replaced (with security question) and if the server is running with that mission, it will be
 restarted (another security question will apply). Newly added missions will be auto-added to the mission list.
 
+## Auto-Scanning
+If you set _AUTOSCAN = true_ n your BOT section of dcsserverbot.ini, all miz files that were added into the Missions
+directory of your server (for instance via a Google Drive) will be auto-added to your mission list.
+
 ## Discord Commands
 
 | Command          | Parameter                | Channel                     | Role                  | Description                                                                                          |

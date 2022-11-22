@@ -42,8 +42,8 @@ class Player(DataObject):
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, '
-                               'manual FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid WHERE p.ucid = %s',
-                               (self.ucid, ))
+                               'p.manual, p.coalition FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid '
+                               'WHERE p.ucid = %s', (self.ucid, ))
                 # existing member found?
                 if cursor.rowcount == 1:
                     row = cursor.fetchone()
@@ -51,6 +51,8 @@ class Player(DataObject):
                         self.member = self._member = self.bot.guilds[0].get_member(row[0])
                         self._verified = row[2]
                     self.banned = row[1]
+                    if row[3]:
+                        self.coalition = Coalition.RED if row[3] == 'red' else Coalition.BLUE
                 cursor.execute(
                     'INSERT INTO players (ucid, discord_id, name, last_seen) VALUES (%s, -1, %s, NOW()) ON '
                     'CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen',
@@ -131,8 +133,6 @@ class Player(DataObject):
             side = Side.BLUE
         elif coalition == Coalition.RED:
             side = Side.RED
-        elif coalition == Side.NEUTRAL:
-            side = Side.NEUTRAL
         else:
             side = Side.SPECTATOR
         self.server.sendtoDCS({

@@ -19,7 +19,7 @@ To be able to create a message on "birth", MISSION_STATISTICS = true has to be e
       },
       "nudge": {
         "delay": 600,                                                           -- every 10 mins
-        "message": "This awesome server is presented to you by http://discord.gg/myfancylink.\nCome and join us!",
+        "message": "This awesome server is presented to you by https://discord.gg/myfancylink.\nCome and join us!",
         "recipients": "!@everyone",                                             -- who should receive it?
         "display_type": "popup",
         "display_time": 20
@@ -43,7 +43,7 @@ recipients can be a list of Discord groups that the player either is part of or 
         "delay": 60,
         "messages": [
           {
-            "message": "This awesome server is presented to you by http://discord.gg/myfancylink.\nCome and join us!",
+            "message": "This awesome server is presented to you by https://discord.gg/myfancylink.\nCome and join us!",
             "recipients": "!@everyone",
             "display_type": "popup",
             "display_time": 20

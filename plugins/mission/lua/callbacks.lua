@@ -125,6 +125,8 @@ function mission.onPlayerConnect(id)
         msg.active = true
     end
     dcsbot.userInfo[msg.ucid] = dcsbot.userInfo[msg.ucid] or {}
+    dcsbot.userInfo[msg.ucid].points = nil
+    dcsbot.userInfo[msg.ucid].coalition = nil
 	utils.sendBotTable(msg)
 end
 
