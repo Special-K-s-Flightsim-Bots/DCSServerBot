@@ -17,7 +17,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from .dataobject import DataObject, DataObjectFactory
 from .const import Status, Coalition, Channel
-from .. import utils
+from core import utils
 
 if TYPE_CHECKING:
     from .player import Player
@@ -232,8 +232,14 @@ class Server(DataObject):
             if start_index <= len(settings['missionList']):
                 filename = settings['missionList'][start_index - 1]
             else:
-                settings['listStartIndex'] = 1
-                filename = settings['missionList'][0]
+                filename = None
+            if not filename or not os.path.exists(filename):
+                for idx, filename in enumerate(settings['missionList']):
+                    if os.path.exists(filename):
+                        settings['listStartIndex'] = idx + 1
+                        break
+                else:
+                    filename = None
         else:
             filename = self.current_mission.filename
         return filename

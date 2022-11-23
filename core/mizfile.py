@@ -171,5 +171,8 @@ class MizFile:
     def accidental_failures(self, value: bool) -> None:
         if value:
             raise NotImplemented("Setting of accidental_failures is not implemented for now.")
-        self.mission['forcedOptions']['accidental_failures'] = value
+        if not self.mission['forcedOptions']:
+            self.mission['forcedOptions'] = {
+                'accidental_failures': value
+            }
         self.mission['failures'] = []
