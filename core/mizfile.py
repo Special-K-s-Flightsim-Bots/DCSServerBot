@@ -143,7 +143,10 @@ class MizFile:
 
     @property
     def halo(self) -> dict:
-        return self.mission['weather']['halo'] or {"preset": "off"}
+        if 'halo' in self.mission['weather']:
+            return self.mission['weather']['halo']
+        else:
+            return {"preset": "off"}
 
     @halo.setter
     def halo(self, values: dict):

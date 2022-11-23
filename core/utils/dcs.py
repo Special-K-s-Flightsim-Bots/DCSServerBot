@@ -12,7 +12,7 @@ from contextlib import closing
 from core.const import SAVED_GAMES
 from typing import Optional, List, Tuple
 from . import config
-
+from .. import utils
 
 REGEXP = {
     'branch': re.compile(r'"branch": "(?P<branch>.*)"'),
@@ -28,7 +28,11 @@ def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, s
         if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):
             path = os.path.join(SAVED_GAMES, dirname, 'Config\\serverSettings.lua')
             if os.path.exists(path):
-                settings = luadata.read(path, encoding='utf-8')
+                try:
+                    settings = luadata.read(path, encoding='utf-8')
+                except Exception:
+                    # DSMC workaround
+                    settings = utils.dsmc_parse_settings(path)
                 if 'name' not in settings:
                     settings['name'] = 'DCS Server'
                 if server_name:

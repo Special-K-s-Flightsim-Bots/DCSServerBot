@@ -16,3 +16,4 @@ from .dcs import *
 from .discord import *
 from .helper import *
 from .os import *
+from .dsmc import *
