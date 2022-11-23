@@ -17,6 +17,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from .dataobject import DataObject, DataObjectFactory
 from .const import Status, Coalition, Channel
+from .. import utils
 
 if TYPE_CHECKING:
     from .player import Player
@@ -216,7 +217,12 @@ class Server(DataObject):
     def settings(self) -> dict:
         if not self._settings:
             path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
-            self._settings = SettingsDict(self, luadata.read(path, encoding='utf-8'))
+            try:
+                self._settings = SettingsDict(self, luadata.read(path, encoding='utf-8'))
+            except Exception:
+                # DSMC workaround
+                self.log.info('  => DSMC detected.')
+                self._settings = utils.dsmc_parse_settings(path)
         return self._settings
 
     def get_current_mission_file(self) -> Optional[str]:
