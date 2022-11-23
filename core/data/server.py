@@ -17,7 +17,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from .dataobject import DataObject, DataObjectFactory
 from .const import Status, Coalition, Channel
-from .. import utils
+from core import utils
 
 if TYPE_CHECKING:
     from .player import Player
