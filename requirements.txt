@@ -9,6 +9,5 @@ xmltodict==0.13.0
 psutil==5.9.2
 pypiwin32==223
 icmplib==3.0.3
-luadata==1.0.5
 watchdog==2.1.9
 pyyaml==6.0

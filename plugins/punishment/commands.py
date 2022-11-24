@@ -75,19 +75,19 @@ class PunishmentAgent(Plugin):
                                        f"To check your current penalty points, use the "
                                        f"{self.bot.config['BOT']['COMMAND_PREFIX']}penalty command.")
             else:
-                message = f"Player {player.name}(ucid={player.ucid}) banned by {self.bot.member.name} for {reason}."
+                message = f"Player {player.name} (ucid={player.ucid}) banned by {self.bot.member.name} for {reason}."
                 await server.get_channel(Channel.ADMIN).send(message)
                 await self.bot.audit(message)
 
         if punishment['action'] == 'kick' and player.active:
             server.kick(player, reason)
-            await server.get_channel(Channel.ADMIN).send(f"Player {player.name}(ucid={player.ucid}) kicked by "
+            await server.get_channel(Channel.ADMIN).send(f"Player {player.name} (ucid={player.ucid}) kicked by "
                                                          f"{self.bot.member.name} for {reason}.")
 
         elif punishment['action'] == 'move_to_spec':
             server.move_to_spectators(player)
             player.sendChatMessage(f"You've been kicked back to spectators because of: {reason}.")
-            await server.get_channel(Channel.ADMIN).send(f"Player {player.name}(ucid={player.ucid}) moved to "
+            await server.get_channel(Channel.ADMIN).send(f"Player {player.name} (ucid={player.ucid}) moved to "
                                                          f"spectators by {self.bot.member.name} for {reason}.")
 
         elif punishment['action'] == 'credits' and type(player).__name__ == 'CreditPlayer':
@@ -96,7 +96,7 @@ class PunishmentAgent(Plugin):
             player.audit('punishment', old_points, f"Punished for {reason}")
             player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!\n"
                                    f"Your current credit points are: {player.points}")
-            await server.get_channel(Channel.ADMIN).send(f"Player {player.name}(ucid={player.ucid}) punished with "
+            await server.get_channel(Channel.ADMIN).send(f"Player {player.name} (ucid={player.ucid}) punished with "
                                                          f"credits by {self.bot.member.name} for {reason}.")
 
         elif punishment['action'] == 'warn':
@@ -220,7 +220,7 @@ class PunishmentMaster(PunishmentAgent):
                             cursor.execute('DELETE FROM bans WHERE ucid = %s', (row['ucid'], ))
                             cursor.execute('SELECT discord_id, name FROM players WHERE ucid = %s', (row['ucid'],))
                             banned = cursor.fetchone()
-                            await self.bot.audit(f"Player {banned['name']}(ucid={row['ucid']}) unbanned by "
+                            await self.bot.audit(f"Player {banned['name']} (ucid={row['ucid']}) unbanned by "
                                                  f"{self.bot.member.name} due to decay.")
                             with suppress(Exception):
                                 guild = self.bot.guilds[0]

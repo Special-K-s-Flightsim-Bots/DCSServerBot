@@ -29,7 +29,8 @@ class MizFile:
                     if item.filename != 'mission':
                         zout.writestr(item, zin.read(item.filename))
                     else:
-                        zout.writestr(item, "mission = " + luadata.serialize(self.mission, 'utf-8', indent='\t', indent_level=0))
+                        zout.writestr(item, "mission = " + luadata.serialize(self.mission, 'utf-8', indent='\t',
+                                                                             indent_level=0))
         os.remove(self.filename)
         os.rename(tmpname, self.filename)
 
@@ -76,7 +77,12 @@ class MizFile:
 
     @wind.setter
     def wind(self, values: dict) -> None:
-        self.mission['weather']['wind'] |= values
+        if 'atGround' in values:
+            self.mission['weather']['wind']['atGround'] |= values['atGround']
+        if 'at2000' in values:
+            self.mission['weather']['wind']['at2000'] |= values['at2000']
+        if 'at8000' in values:
+            self.mission['weather']['wind']['at8000'] |= values['at8000']
 
     @property
     def groundTurbulence(self) -> float:

@@ -582,8 +582,8 @@ class Mission(Plugin):
             if not exists and not self.bot.config.getboolean('BOT', 'AUTOSCAN'):
                 server.addMission(os.path.basename(filename))
             name = os.path.basename(filename)[:-4]
-            await message.channel.send(f"Mission {name} uploaded and added." if not exists else f"Mission {name} replaced.")
-            await self.bot.audit(f"uploaded mission {name}", server=server, user=message.author)
+            await message.channel.send(f'Mission "{name}" uploaded and added.' if not exists else f"Mission {name} replaced.")
+            await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
             if stopped:
                 await server.start()
             elif await utils.yn_question(ctx, 'Do you want to load this mission?'):
