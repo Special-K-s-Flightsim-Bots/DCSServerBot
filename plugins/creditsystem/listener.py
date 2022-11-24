@@ -27,8 +27,8 @@ class CreditSystemListener(EventListener):
                     continue
                 if 'unit_type' in unit and unit['unit_type'] != data['arg5']:
                     continue
-                if 'type' in unit and ((unit['type'] == 'AI' and data['arg4'] != "-1") or
-                                       (unit['type'] == 'Player' and data['arg4'] == "-1")):
+                if 'type' in unit and ((unit['type'] == 'AI' and int(data['arg4']) != -1) or
+                                       (unit['type'] == 'Player' and int(data['arg4']) == -1)):
                     continue
                 if 'category' in unit or 'unit_type' in unit or 'type' in unit:
                     return unit['points']
