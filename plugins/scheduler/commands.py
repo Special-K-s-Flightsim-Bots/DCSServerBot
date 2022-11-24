@@ -333,7 +333,7 @@ class Scheduler(Plugin):
                     apply_preset(inner_value)
             elif isinstance(value, dict):
                 apply_preset(value)
-            server.bot.log.info(f"Preset {preset} applied.")
+            server.bot.log.info(f"  => Preset {preset} applied.")
         miz.save()
 
     @staticmethod

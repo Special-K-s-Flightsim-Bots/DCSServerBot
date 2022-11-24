@@ -60,7 +60,7 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
         byte_current = None
         byte_current_is_space = False
         if pos < slen:
-            byte_current = sbins[pos : pos + 1]
+            byte_current = sbins[pos: pos + 1]
             byte_current_is_space = (
                 byte_current == b" "
                 or byte_current == b"\r"
@@ -71,7 +71,7 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
             print("[step] pos", pos, byte_current, state, comment, key, node)
 
         if comment == "MULTILINE":
-            if byte_current == b"]" and sbins[pos : pos + 2] == b"]]":
+            if byte_current == b"]" and sbins[pos: pos + 2] == b"]]":
                 comment = None
                 pos = pos + 1
         elif comment == "INLINE":
@@ -80,15 +80,15 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
         elif state == "SEEK_CHILD":
             if byte_current is None:
                 break
-            if byte_current == b"-" and sbins[pos : pos + 4] == b"--[[":
+            if byte_current == b"-" and sbins[pos: pos + 4] == b"--[[":
                 comment = "MULTILINE"
                 pos = pos + 3
-            elif byte_current == b"-" and sbins[pos : pos + 2] == b"--":
+            elif byte_current == b"-" and sbins[pos: pos + 2] == b"--":
                 comment = "INLINE"
                 pos = pos + 1
             elif not node["is_root"] and (
-                (byte_current >= b"A" and byte_current <= b"Z")
-                or (byte_current >= b"a" and byte_current <= b"z")
+                (b"A" <= byte_current <= b"Z")
+                or (b"a" <= byte_current <= b"z")
                 or byte_current == b"_"
             ):
                 state = "KEY_SIMPLE"
@@ -122,10 +122,10 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
             if byte_current is None:
                 errmsg = "unexpected empty value."
                 break
-            if byte_current == b"-" and sbins[pos : pos + 4] == b"--[[":
+            elif byte_current == b"-" and sbins[pos: pos + 4] == b"--[[":
                 comment = "MULTILINE"
                 pos = pos + 3
-            elif byte_current == b"-" and sbins[pos : pos + 2] == b"--":
+            elif byte_current == b"-" and sbins[pos: pos + 2] == b"--":
                 comment = "INLINE"
                 pos = pos + 1
             elif byte_current == b'"' or byte_current == b"'":
@@ -133,9 +133,7 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
                 component_name = "VALUE"
                 pos1 = pos + 1
                 byte_quoting_char = byte_current
-            elif byte_current == b"-" or (
-                byte_current >= b"0" and byte_current <= b"9"
-            ):
+            elif byte_current == b"-" or (b"0" <= byte_current <= b"9"):
                 state = "INT"
                 component_name = "VALUE"
                 pos1 = pos
@@ -143,12 +141,12 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
                 state = "FLOAT"
                 component_name = "VALUE"
                 pos1 = pos
-            elif byte_current == b"t" and sbins[pos : pos + 4] == b"true":
+            elif byte_current == b"t" and sbins[pos: pos + 4] == b"true":
                 node_entries_append(node, key, True)
                 state = "VALUE_END"
                 key = None
                 pos = pos + 3
-            elif byte_current == b"f" and sbins[pos : pos + 5] == b"false":
+            elif byte_current == b"f" and sbins[pos: pos + 5] == b"false":
                 node_entries_append(node, key, False)
                 state = "VALUE_END"
                 key = None
@@ -180,7 +178,6 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
                     node_entries_append(node, key, data)
                     state = "VALUE_END"
                     key = None
-                data = None
         elif state == "INT":
             if byte_current == b"." or byte_current == b"e":
                 state = "FLOAT"
@@ -195,9 +192,10 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
                     state = "VALUE_END"
                     key = None
                     pos = pos - 1
-                data = None
         elif state == "FLOAT":
-            if byte_current is None or ((byte_current < b"0" or byte_current > b"9") and byte_current != b"-" and byte_current != b"+"):
+            if byte_current == b"e" or byte_current == b"-" or byte_current == b"+":
+                pass
+            elif byte_current is None or byte_current < b"0" or byte_current > b"9":
                 if pos == pos1 + 1 and sbins[pos1:pos] == b".":
                     errmsg = "unexpected dot."
                     break
@@ -212,14 +210,13 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
                         state = "VALUE_END"
                         key = None
                         pos = pos - 1
-                    data = None
         elif state == "VALUE_END":
             if byte_current is None:
                 pass
-            elif byte_current == b"-" and sbins[pos : pos + 4] == b"--[[":
+            elif byte_current == b"-" and sbins[pos: pos + 4] == b"--[[":
                 comment = "MULTILINE"
                 pos = pos + 3
-            elif byte_current == b"-" and sbins[pos : pos + 2] == b"--":
+            elif byte_current == b"-" and sbins[pos: pos + 2] == b"--":
                 comment = "INLINE"
                 pos = pos + 1
             elif byte_current == b",":
@@ -234,10 +231,10 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
             if byte_current is None:
                 errmsg = "key expression expected."
                 break
-            if byte_current == b"-" and sbins[pos : pos + 4] == b"--[[":
+            if byte_current == b"-" and sbins[pos: pos + 4] == b"--[[":
                 comment = "MULTILINE"
                 pos = pos + 3
-            elif byte_current == b"-" and sbins[pos : pos + 2] == b"--":
+            elif byte_current == b"-" and sbins[pos: pos + 2] == b"--":
                 comment = "INLINE"
                 pos = pos + 1
             elif byte_current == b'"' or byte_current == b"'":
@@ -246,7 +243,7 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
                 pos1 = pos + 1
                 byte_quoting_char = byte_current
             elif byte_current == b"-" or (
-                byte_current >= b"0" and byte_current <= b"9"
+                    b"0" <= byte_current <= b"9"
             ):
                 state = "INT"
                 component_name = "KEY"
@@ -255,32 +252,23 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
                 state = "FLOAT"
                 component_name = "KEY"
                 pos1 = pos
-            elif byte_current == b"t" and sbins[pos : pos + 4] == b"true":
+            elif byte_current == b"t" and sbins[pos: pos + 4] == b"true":
                 errmsg = "python do not support bool as dict key."
                 break
-                key = True
-                state = "KEY_EXPRESSION_FINISH"
-                pos = pos + 3
-            elif byte_current == b"f" and sbins[pos : pos + 5] == b"false":
+            elif byte_current == b"f" and sbins[pos: pos + 5] == b"false":
                 errmsg = "python do not support bool variable as dict key."
                 break
-                key = False
-                state = "KEY_EXPRESSION_FINISH"
-                pos = pos + 4
             elif byte_current == b"{":
                 errmsg = "python do not support lua table variable as dict key."
                 break
-                state = "SEEK_CHILD"
-                stack.push({"node": node, "state": state, "key": key})
-                node = {"entries": [], "lualen": 0}
         elif state == "KEY_EXPRESSION_FINISH":
             if byte_current is None:
                 errmsg = 'unexpected end of table key expression, "]" expected.'
                 break
-            if byte_current == b"-" and sbins[pos : pos + 4] == b"--[[":
+            if byte_current == b"-" and sbins[pos: pos + 4] == b"--[[":
                 comment = "MULTILINE"
                 pos = pos + 3
-            elif byte_current == b"-" and sbins[pos : pos + 2] == b"--":
+            elif byte_current == b"-" and sbins[pos: pos + 2] == b"--":
                 comment = "INLINE"
                 pos = pos + 1
             elif byte_current == b"]":
@@ -291,10 +279,10 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
         elif state == "KEY_EXPRESSION_CLOSE":
             if byte_current == b"=":
                 state = "VALUE"
-            elif byte_current == b"-" and sbins[pos : pos + 4] == b"--[[":
+            elif byte_current == b"-" and sbins[pos: pos + 4] == b"--[[":
                 comment = "MULTILINE"
                 pos = pos + 3
-            elif byte_current == b"-" and sbins[pos : pos + 2] == b"--":
+            elif byte_current == b"-" and sbins[pos: pos + 2] == b"--":
                 comment = "INLINE"
                 pos = pos + 1
             elif not byte_current_is_space:
@@ -302,9 +290,9 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
                 break
         elif state == "KEY_SIMPLE":
             if not (
-                (byte_current >= b"A" and byte_current <= b"Z")
-                or (byte_current >= b"a" and byte_current <= b"z")
-                or (byte_current >= b"0" and byte_current <= b"9")
+                (b"A" <= byte_current <= b"Z")
+                or (b"a" <= byte_current <= b"z")
+                or (b"0" <= byte_current <= b"9")
                 or byte_current == b"_"
             ):
                 key = sbins[pos1:pos].decode(encoding)
@@ -313,10 +301,10 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
         elif state == "KEY_SIMPLE_END":
             if byte_current_is_space:
                 pass
-            elif byte_current == b"-" and sbins[pos : pos + 4] == b"--[[":
+            elif byte_current == b"-" and sbins[pos: pos + 4] == b"--[[":
                 comment = "MULTILINE"
                 pos = pos + 3
-            elif byte_current == b"-" and sbins[pos : pos + 2] == b"--":
+            elif byte_current == b"-" and sbins[pos: pos + 2] == b"--":
                 comment = "INLINE"
                 pos = pos + 1
             elif byte_current == b"=":
@@ -334,7 +322,7 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
                     pos = pos - 1
                 else:
                     key = None
-                    errmsg = "invalied table simple key character."
+                    errmsg = "invalid table simple key character."
                     break
         pos += 1
         if verbose:
@@ -351,10 +339,7 @@ def unserialize(raw, encoding="utf-8", multival=False, verbose=False):
         end_pos = min(pos + 10, slen)
         err_parts = sbins[start_pos:end_pos].decode(encoding)
         err_indent = " " * (pos - start_pos)
-        raise Exception(
-            "Unserialize luadata failed on pos %d:\n    %s\n    %s^\n    %s"
-            % (pos, err_parts, err_indent, errmsg)
-        )
+        raise Exception(f"Unserialize luadata failed on pos {pos}:\n    {err_parts}\n    {err_indent}^\n    {errmsg}")
 
     res = []
     for kv in root["entries"]:
