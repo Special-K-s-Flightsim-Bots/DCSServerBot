@@ -153,7 +153,7 @@ class Agent(Plugin):
             if not coalition:
                 if server.status in [Status.SHUTDOWN, Status.STOPPED]:
                     password = await utils.input_value(self, ctx, 'Please enter the new password (. for none):', True)
-                    server.settings['password'] = password
+                    server.settings['password'] = password if password else ''
                     await self.bot.audit(f"changed password", user=ctx.message.author, server=server)
                     await ctx.send('Password has been changed.')
                 else:
