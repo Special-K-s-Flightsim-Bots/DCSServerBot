@@ -53,6 +53,17 @@ To enable the points system, you need to start a "Campaign" on the specific serv
 Same is true for achievements, where you can give your players Discord roles depending on either the time they were 
 flying in that specific campaign or on the points they achieved. Losing points might downgrade the player again.
 
+If you want to specify points for ground targets, you need to select the correct category out of this list:
+
+* Unarmed
+* Air Defence
+* Artillery
+* Armor
+* Locomotive
+* Carriage
+* MissilesSS
+
+
 ## Discord Commands
 | Command  | Parameter          | Role | Description                                           |
 |----------|--------------------|------|-------------------------------------------------------|

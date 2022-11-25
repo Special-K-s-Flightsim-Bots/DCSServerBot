@@ -66,7 +66,7 @@ class Field(EmbedElement):
 
 
 class Table(EmbedElement):
-    def render(self, values: dict):
+    def render(self, values: dict, inline: Optional[bool] = True):
         header = None
         cols = ['', '', '']
         elements = 0
@@ -79,9 +79,10 @@ class Table(EmbedElement):
             for i in range(0, elements):
                 cols[i] += utils.format_string(row[header[i]], '_ _', **self.env.params) + '\n'
         for i in range(0, elements):
-            self.add_field(name=header[i], value=cols[i])
-        for i in range(elements, 3):
-            self.add_field(name='_ _', value='_ _')
+            self.add_field(name=header[i], value=cols[i], inline=inline)
+        if inline:
+            for i in range(elements, 3):
+                self.add_field(name='_ _', value='_ _')
 
 
 class GraphElement(ReportElement):
@@ -184,7 +185,7 @@ class SQLField(EmbedElement):
 
 
 class SQLTable(EmbedElement):
-    def render(self, sql: str):
+    def render(self, sql: str, inline: Optional[bool] = True):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -202,8 +203,8 @@ class SQLTable(EmbedElement):
                         else:
                             cols[i] += str(row[i]) + '\n'
                 for i in range(0, elements):
-                    self.add_field(name=header[i], value=cols[i])
-                if elements % 3:
+                    self.add_field(name=header[i], value=cols[i], inline=inline)
+                if elements % 3 and inline:
                     for i in range(0, 3 - elements % 3):
                         self.add_field(name='_ _', value='_ _')
         except psycopg2.DatabaseError as error:
