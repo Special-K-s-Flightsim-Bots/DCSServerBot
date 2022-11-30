@@ -62,7 +62,7 @@ class UserStatisticsEventListener(EventListener):
             unit_type += ' (Crew)'
         return unit_type
 
-    async def registerDCSServer(self, data):
+    async def registerDCSServer(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         if data['statistics']:
             self.statistics.add(server.name)

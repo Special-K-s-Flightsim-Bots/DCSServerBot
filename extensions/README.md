@@ -80,6 +80,52 @@ To enable Tacview support, again, a change in scheduler.json is needed:
 **delete_after** specifies the number of days after which old Tacview files will get deleted by the bot.</br>
 **show_passwords** specifies whether to show the Tacview passwords in the server embed in your status channel or not.
 
+### LotAtc
+Another famous extension for DCS is [LotAtc](https://www.lotatc.com/) by D'Art. If you think about any kind of proper
+GCI or ATC work, there is no way around it. It perfectly integrates with DCS and DCS-SRS.<br/>
+DCSServerBot can detect if it is there and enabled, but that's about it. You'll get a notification in your servers
+status embed about ports and - if you like - passwords and the version of LotAtc printed in the footer.
+```json
+{
+  "configs": [
+    {
+      "installation": "DCS.openbeta_server",
+      [...]
+      "extensions": {
+        "LotAtc": {
+          "show_passwords": false
+        }
+      }
+    }
+  ]
+}
+```
+There is no default section for LotAtc, so if added to a server like described above, it is enabled, if not, then not.
+
+### DSMC
+If you want to enable persistence for your missions, [DSMC](https://dsmcfordcs.wordpress.com/) is one way to go.
+DSMC does not need any change in your missions (but you can, see their documentation!). It will write out a new
+miz-file with the state of the mission at the time of saving. This is perfect for instance for campaigns, where you
+want to follow up on the next campaign day with the exact state of the mission it had at the end of the current day.</br>
+To use DSMC, you need to install it, according to the documentation linked above. In DCSServerBot, you activate the 
+extension like with all others:
+```json
+    {
+      "installation": "DCS.openbeta_server",
+      [...]
+      "extensions": {
+        "DSMC": {
+          "enabled": true
+        }
+      }
+    }
+```
+DCSServerBot will detect if DSCM is enabled and - if yes - change the settings in your DSMC_Dedicated_Server_options.lua
+to fit to its needs. DSMC will write out a new miz-file with a new extension (001, 002, ...) after each run. The bot
+will take care, that this generated mission will be the next to launch. Other extensions like RealWeather work together
+with these generated missions, so you can use a DSMC generated mission but apply a preset or any real time weather to
+it.
+
 ### Sneaker
 Well, this "sneaked" in here somehow. Many people were asking for a moving map and we looked at several solutions. 
 Nearly all took a lot of effort to get them running, if ever. Then we stumbled across 
@@ -119,28 +165,6 @@ Adding sneaker is quite straightforward, if you looked at the above examples alr
 You need to let the sneaker cmd point to wherever you've installed the sneaker.exe binary (name might vary, usually 
 there is a version number attached to it). DCSServerBot will auto-create the config json for sneaker 
 (config/sneaker.json) and start / stop / monitor the sneaker process.
-
-### LotAtc
-Another famous extension for DCS is [LotAtc](https://www.lotatc.com/) by D'Art. If you think about any kind of proper
-GCI or ATC work, there is no way around it. It perfectly integrates with DCS and DCS-SRS.<br/>
-DCSServerBot can detect if it is there and enabled, but that's about it. You'll get a notification in your servers
-status embed about ports and - if you like - passwords and the version of LotAtc printed in the footer.
-```json
-{
-  "configs": [
-    {
-      "installation": "DCS.openbeta_server",
-      [...]
-      "extensions": {
-        "LotAtc": {
-          "show_passwords": false
-        }
-      }
-    }
-  ]
-}
-```
-There is no default section for LotAtc, so if added to a server like described above, it is enabled, if not, then not.
 
 ### DCS-real-weather
 If you want to use real-time weather in your missions, you can do that by using [DCS-real-weather](https://github.com/evogelsa/DCS-real-weather).

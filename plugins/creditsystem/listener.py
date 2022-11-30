@@ -122,8 +122,11 @@ class CreditSystemListener(EventListener):
                 if achievement['role'] == role and not utils.check_roles([achievement['role']], member):
                     try:
                         _role = discord.utils.get(member.guild.roles, name=achievement['role'])
-                        await member.add_roles(_role)
-                        await self.bot.audit(f"achieved the rank {role}", user=member)
+                        if _role:
+                            await member.add_roles(_role)
+                            await self.bot.audit(f"achieved the rank {role}", user=member)
+                        else:
+                            self.log.error(f"Role {achievement['role']} not found in your Discord!")
                     except discord.Forbidden:
                         self.log.error('The bot needs the Manage Roles permission!')
                 # does the member have that role, but they do not deserve it?

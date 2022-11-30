@@ -141,6 +141,8 @@ function dcsbot.registerDCSServer(json)
             end
         end
     end
+    -- check if DSMC is enabled
+    msg.dsmc_enabled = (base.HOOK ~= nil)
     if (json ~= nil) then
         utils.sendBotTable(msg, json.channel)
     else

@@ -244,9 +244,21 @@ This is not configurable, it's a general rule (and a good one in my eyes).
 
 ---
 ## Running of the Bot
-To start the bot, you can either use the packaged _run.cmd_ command or _python run.py_.
+To start the bot, you can either use the packaged ```run.cmd``` command or ```python run.py```.
 <br/>If using _AUTOUPDATE = true_ it is recommended to start the bot via _run.cmd_, as this runs it in a loop as it will close 
-itself after an update has taken place.
+itself after an update has taken place.</br>
+If you want to run the bot from autostart, create a small batch script, that will change to the bots installation 
+directory and run the bot from there like so:
+```cmd
+@echo off
+cd "<whereveryouinstalledthebot>\DCSServerBot"
+:loop
+python run.py
+goto loop
+```
+If you want to run the bot in a **virtual environment** (because you have other Python programs with different external 
+library versions) you can use the ```run-venv.cmd``` batch file to launch the bot.
+```
 
 ---
 ## User Matching

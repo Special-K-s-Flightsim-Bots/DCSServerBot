@@ -110,7 +110,6 @@ function airbossWashington:OnAfterLSOGrade(From, Event, To, playerData, myGrade)
         end
 
     elseif string_grade == "(OK)" and player_wire > 1 then
-        airbossWashington:SetTrapSheet(nil, "AIRBOSS-trapsheet-" .. player_name)
         if client_performing_sh:Get() == 1 then
             myGrade.grade = "(OK)<SH>"
             myGrade.points = myGrade.points + 1.00
@@ -156,8 +155,7 @@ function airbossWashington:OnAfterLSOGrade(From, Event, To, playerData, myGrade)
     myGrade.name = playerData.name
     if playerData.wire == 1 then
         myGrade.points = myGrade.points - 1.00
-        local onewire_to_discord = ('**' .. player_name .. ' almost had a rampstrike with that 1-wire!**')
-        dcsbot.sendBotMessage(onewire_to_discord)
+        dcsbot.sendBotMessage('**' .. player_name .. ' almost had a rampstrike with that 1-wire!**')
     end
     self:_SaveTrapSheet(playerData, mygrade)
     msg = {}

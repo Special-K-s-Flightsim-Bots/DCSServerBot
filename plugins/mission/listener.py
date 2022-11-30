@@ -105,7 +105,7 @@ class MissionEventListener(EventListener):
             data['command'] = data['subcommand']
             server.sendtoDCS(data)
 
-    async def registerDCSServer(self, data):
+    async def registerDCSServer(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         # the server is starting up
         if not data['channel'].startswith('sync-'):
@@ -272,7 +272,7 @@ class MissionEventListener(EventListener):
                 player2 = None
             self._send_chat_message(server, self.EVENT_TEXTS[player1.side][data['eventName']].format(
                 'player ' + player1.name, ('player ' + player2.name) if player2 is not None else 'AI',
-                data['arg2'] or 'Cannon'))
+                data['arg2'] or 'Cannon/Bomblet'))
         elif data['eventName'] == 'self_kill':
             player = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
             self._send_chat_message(server, self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
@@ -284,7 +284,7 @@ class MissionEventListener(EventListener):
                 ('player ' + player1.name) if player1 is not None else 'AI',
                 data['arg2'] or 'SCENERY', Side(data['arg6']).name,
                 ('player ' + player2.name) if player2 is not None else 'AI',
-                data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon'))
+                data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon/Bomblet'))
             # report teamkills from players to admins
             if (player1 is not None) and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
                 if player1.member:
