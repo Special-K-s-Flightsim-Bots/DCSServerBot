@@ -118,8 +118,8 @@ function dcsbot.registerDCSServer(json)
             msg.clouds = clouds
         end
         -- slots
-        msg.num_slots_blue = #DCS.getAvailableSlots('blue')
-        msg.num_slots_red = #DCS.getAvailableSlots('red')
+        msg.num_slots_blue = table.getn(DCS.getAvailableSlots('blue'))
+        msg.num_slots_red = table.getn(DCS.getAvailableSlots('red'))
         -- players
         plist = net.get_player_list()
         num_players = table.getn(plist)

@@ -150,8 +150,12 @@ class UserStatisticsMaster(UserStatisticsAgent):
             if period and not flt:
                 await ctx.send('Please provide a valid period or campaign name.')
                 return
+            if isinstance(member, str):
+                ucid, member = self.bot.get_ucid_by_name(member)
+            else:
+                ucid = self.bot.get_ucid_by_member(member)
             report = PaginationReport(self.bot, ctx, self.plugin_name, 'userstats.json', timeout if timeout > 0 else None)
-            await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
+            await report.render(member=member if isinstance(member, discord.Member) else ucid,
                                 member_name=member.display_name if isinstance(member, discord.Member) else member,
                                 period=period, server_name=None, flt=flt)
         finally:
@@ -175,9 +179,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
             await ctx.send('Your statistics will be sent in a DM.', delete_after=30)
             report = PaginationReport(self.bot, await ctx.message.author.create_dm(), self.plugin_name,
                                       'userstats.json', timeout if timeout > 0 else None)
-            await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
-                                member_name=member.display_name if isinstance(member, discord.Member) else member,
-                                period=period, server_name=None, flt=flt)
+            await report.render(member=member, member_name=member.display_name, period=period, server_name=None,
+                                flt=flt)
         finally:
             await ctx.message.delete()
 
@@ -274,7 +277,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
             if len(name) == 32:
                 ucid = member
             else:
-                ucid = self.bot.get_ucid_by_name(name)
+                ucid, name = self.bot.get_ucid_by_name(name)
             if ucid:
                 member = self.bot.get_member_by_ucid(ucid)
         else:
@@ -449,7 +452,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
                                    f"```{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme {token}```\n"
                                    f"**The TOKEN will expire in 2 days.**")
             except discord.Forbidden:
-                await ctx.send("Please allow me to send you the secret TOKEN in a DM!")
+                await ctx.send("I do not have permission to send you a DM!\n"
+                               "Please change your privacy settings to allow this!")
 
         conn = self.pool.getconn()
         try:

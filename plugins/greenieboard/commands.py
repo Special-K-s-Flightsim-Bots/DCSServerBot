@@ -48,7 +48,7 @@ class GreenieBoard(Plugin):
     @commands.guild_only()
     async def carrier(self, ctx, member: Optional[Union[discord.Member, str]], *params):
         def format_landing(landing: dict) -> str:
-            return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']} ({landing['grade']})"
+            return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']}: {landing['grade']}"
 
         if not member:
             member = ctx.message.author
@@ -59,7 +59,7 @@ class GreenieBoard(Plugin):
             name = member
             if len(params) > 0:
                 name += ' ' + ' '.join(params)
-            ucid = self.bot.get_ucid_by_name(name)
+            ucid, name = self.bot.get_ucid_by_name(name)
         landings = List[dict]
         num_landings = max(self.locals['configs'][0]['num_landings'], 25)
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])

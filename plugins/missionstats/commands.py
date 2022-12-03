@@ -56,8 +56,12 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
             if period and not flt:
                 await ctx.send('Please provide a valid period.')
                 return
+            if isinstance(member, str):
+                ucid, member = self.bot.get_ucid_by_name(member)
+            else:
+                ucid = self.bot.get_ucid_by_member(member)
             report = Report(self.bot, self.plugin_name, 'sorties.json')
-            env = await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
+            env = await report.render(ucid=ucid,
                                       member_name=member.display_name if isinstance(member, discord.Member) else member,
                                       period=period, flt=flt)
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
@@ -98,7 +102,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
                                    (member.id, ))
                     ucid = cursor.fetchone()[0] if cursor.rowcount > 0 else None
                 else:
-                    ucid = self.bot.get_ucid_by_name(member)
+                    ucid, member = self.bot.get_ucid_by_name(member)
                 if not ucid:
                     await ctx.send('This user is not linked correctly.')
                     return
@@ -134,8 +138,12 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
             if period and not flt:
                 await ctx.send('Please provide a valid period.')
                 return
+            if isinstance(member, str):
+                ucid, member = self.bot.get_ucid_by_name(member)
+            else:
+                ucid = self.bot.get_ucid_by_member(member)
             report = Report(self.bot, self.plugin_name, 'refuelings.json')
-            env = await report.render(member=member if isinstance(member, discord.Member) else self.bot.get_ucid_by_name(member),
+            env = await report.render(ucid=ucid,
                                       member_name=member.display_name if isinstance(member, discord.Member) else member,
                                       period=period, flt=flt)
             await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
