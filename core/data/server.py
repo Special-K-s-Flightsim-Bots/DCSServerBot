@@ -219,8 +219,9 @@ class Server(DataObject):
             path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
             try:
                 self._settings = SettingsDict(self, luadata.read(path, encoding='utf-8'))
-            except Exception:
-                # DSMC workaround
+            except Exception as ex:
+                # TODO: DSMC workaround
+                self.log.debug(f"Exception while reading {path}:\n{ex}")
                 self.log.info('  => DSMC detected.')
                 self._settings = utils.dsmc_parse_settings(path)
         return self._settings

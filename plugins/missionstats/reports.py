@@ -28,21 +28,17 @@ class Sorties(report.EmbedElement):
             self.sorties.loc[len(self.sorties.index)] = [flight.plane, flight.end - flight.start]
         return Flight()
 
-    def render(self, member: Union[discord.Member, str], period: str, flt: StatisticsFilter) -> None:
+    def render(self, ucid: str, period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT mission_id, init_type, init_cat, event, place, time FROM missionstats WHERE event IN " \
               "('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
         self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period)
-        if isinstance(member, discord.Member):
-            sql += " AND init_id IN (SELECT ucid FROM players WHERE discord_id = %s)"
-        else:
-            sql += " AND init_id = %s"
-        sql += " ORDER BY 6"
+        sql += ' AND init_id = %s ORDER BY 6'
 
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member, ))
+                cursor.execute(sql, (ucid, ))
                 flight = Flight()
                 mission_id = -1
                 for row in cursor.fetchall():
@@ -211,21 +207,17 @@ class ModuleStats2(report.EmbedElement):
 
 
 class Refuelings(report.EmbedElement):
-    def render(self, member: Union[discord.Member, str], period: str, flt: StatisticsFilter) -> None:
+    def render(self, ucid: str, period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT init_type, COUNT(*) FROM missionstats WHERE EVENT = 'S_EVENT_REFUELING_STOP'"
         if period:
             self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
             sql += ' AND ' + flt.filter(self.env.bot, period)
-        if isinstance(member, discord.Member):
-            sql += " AND init_id IN (SELECT ucid FROM players WHERE discord_id = %s)"
-        else:
-            sql += " AND init_id = %s"
-        sql += " GROUP BY 1 ORDER BY 2 DESC"
+        sql += ' AND init_id = %s GROUP BY 1 ORDER BY 2 DESC'
 
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member, ))
+                cursor.execute(sql, (ucid, ))
                 modules = []
                 numbers = []
                 for row in cursor.fetchall():

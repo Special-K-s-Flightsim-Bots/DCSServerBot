@@ -98,10 +98,12 @@ class DCSServerBot(commands.Bot):
         try:
             await self.load_extension(f'plugins.{plugin}.commands')
             return True
+        except ModuleNotFoundError:
+            self.log.error(f'  - Plugin "{plugin}" not found!')
         except commands.ExtensionNotFound:
-            self.log.error(f'  - No commands.py found for plugin "{plugin}"')
+            self.log.error(f'  - No commands.py found for plugin "{plugin}"!')
         except commands.ExtensionAlreadyLoaded:
-            self.log.error(f'  - Plugin "{plugin} was already loaded"')
+            self.log.warning(f'  - Plugin "{plugin} was already loaded"')
         except commands.ExtensionFailed as ex:
             self.log.error(f'  - {ex.original if ex.original else ex}')
         except Exception as ex:
@@ -292,15 +294,16 @@ class DCSServerBot(commands.Bot):
     def get_channel(self, id: int):
         return super().get_channel(id) if id != -1 else None
 
-    def get_ucid_by_name(self, name: str) -> Optional[str]:
+    def get_ucid_by_name(self, name: str) -> Optional[Tuple[str, str]]:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 search = f'%{name}%'
-                cursor.execute('SELECT ucid FROM players WHERE LOWER(name) like LOWER(%s) ORDER BY last_seen DESC '
-                               'LIMIT 1', (search, ))
+                cursor.execute('SELECT ucid, name FROM players WHERE LOWER(name) like LOWER(%s) '
+                               'ORDER BY last_seen DESC LIMIT 1', (search, ))
                 if cursor.rowcount >= 1:
-                    return cursor.fetchone()[0]
+                    res = cursor.fetchone()
+                    return res[0], res[1]
                 else:
                     return None
         except (Exception, psycopg2.DatabaseError) as error:

@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import psycopg2
 import string
@@ -145,6 +146,9 @@ class PunishmentAgent(Plugin):
     @check_punishments.before_loop
     async def before_check(self):
         await self.bot.wait_until_ready()
+        # we need the CreditSystem to be loaded before processing punishments
+        while 'CreditSystemMaster' not in self.bot.cogs and 'CreditSystemAgent' not in self.bot.cogs:
+            await asyncio.sleep(1)
 
 
 class PunishmentMaster(PunishmentAgent):
