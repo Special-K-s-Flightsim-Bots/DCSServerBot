@@ -93,7 +93,7 @@ class Agent(Plugin):
             await ctx.send('Updating DCS World. Please wait, this might take some time ...')
         else:
             self.log.info('Updating DCS World ...')
-        for plugin in self.bot.cogs.values():
+        for plugin in self.bot.cogs.values():  # type: Plugin
             await plugin.before_dcs_update()
         # disable any popup on the remote machine
         startupinfo = subprocess.STARTUPINFO()
@@ -103,7 +103,7 @@ class Agent(Plugin):
             self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
         utils.desanitize(self)
         # run after_dcs_update() in all plugins
-        for plugin in self.bot.cogs.values():
+        for plugin in self.bot.cogs.values():  # type: Plugin
             await plugin.after_dcs_update()
         message = None
         if ctx:
@@ -654,8 +654,8 @@ class Master(Agent):
                     if not await utils.yn_question(ctx, f"This will delete {len(ucids)} players incl. their stats "
                                                         f"from the database.\nAre you sure?"):
                         return
-                    for cog in self.bot.cogs.values():
-                        await cog.prune(conn, ucids=ucids)
+                    for plugin in self.bot.cogs.values():  # type: Plugin
+                        await plugin.prune(conn, ucids=ucids)
                     for ucid in ucids:
                         cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
                     await ctx.send(f"{len(ucids)} players pruned.")
@@ -664,8 +664,8 @@ class Master(Agent):
                     if not await utils.yn_question(ctx, f"This will delete all data older than {days} days from the "
                                                         f"database.\nAre you sure?"):
                         return
-                    for cog in self.bot.cogs.values():
-                        await cog.prune(conn, days=days)
+                    for plugin in self.bot.cogs.values():  # type: Plugin
+                        await plugin.prune(conn, days=days)
                     await ctx.send(f"All data older than {days} days pruned.")
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
@@ -831,9 +831,6 @@ class Master(Agent):
                 conn.rollback()
             finally:
                 self.bot.pool.putconn(conn)
-
-    @commands.Cog.listener()
-    async def on_member_join(self, member):
         if 'GREETING_DM' in self.bot.config['BOT']:
             channel = await member.create_dm()
             await channel.send(self.bot.config['BOT']['GREETING_DM'].format(name=member.name, guild=member.guild.name))
