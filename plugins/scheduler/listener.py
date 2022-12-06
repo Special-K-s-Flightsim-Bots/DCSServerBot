@@ -1,8 +1,7 @@
-import os.path
 import shlex
 import string
 import subprocess
-from core import EventListener, utils, Extension, Server, Player, Status
+from core import EventListener, utils, Server, Player, Status
 from os import path
 from typing import cast, TYPE_CHECKING
 
