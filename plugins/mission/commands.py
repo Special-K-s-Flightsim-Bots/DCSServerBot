@@ -128,7 +128,7 @@ class Mission(Plugin):
         env = await report.render(mission_info=mission_info, server_name=server.name, message=ctx.message)
         await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
-    @commands.command(description='Shows information of a specific airport', aliases=['weather'])
+    @commands.command(description='Information about a specific airport', aliases=['weather'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def atis(self, ctx, *args):
@@ -421,7 +421,7 @@ class Mission(Plugin):
         else:
             await ctx.send('Server "{}" is not running.'.format(server.name))
 
-    @commands.command(description='Unpauses the current running mission')
+    @commands.command(description='Unpauses the running mission')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unpause(self, ctx):

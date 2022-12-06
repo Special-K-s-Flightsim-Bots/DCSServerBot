@@ -328,7 +328,6 @@ class GameMasterMaster(GameMasterAgent):
                                   '> Delete the campaign with the provided name or the running campaign.\n'
                                   '5) list [-all]\n'
                                   '> List the running campaign or all.',
-                      usage='<add|start|stop|delete|list>',
                       aliases=['season', 'campaigns', 'seasons'])
     @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
