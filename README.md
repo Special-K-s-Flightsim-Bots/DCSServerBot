@@ -258,7 +258,6 @@ goto loop
 ```
 If you want to run the bot in a **virtual environment** (because you have other Python programs with different external 
 library versions) you can use the ```run-venv.cmd``` batch file to launch the bot.
-```
 
 ---
 ## User Matching
