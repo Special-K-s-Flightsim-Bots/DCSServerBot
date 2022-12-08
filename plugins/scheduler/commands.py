@@ -3,6 +3,7 @@ import asyncio
 import discord
 import json
 import os
+import platform
 import random
 import string
 from copy import deepcopy
@@ -545,6 +546,66 @@ class Scheduler(Plugin):
             if 'extensions' in config:
                 for ext in await self.teardown_extensions(server, config, ctx.message.author):
                     await ctx.send(f"{ext} shut down for server \"{server.name}\".")
+
+    @commands.command(description='Starts a stopped DCS server')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def start(self, ctx):
+        server: Server = await self.bot.get_server(ctx)
+        if server:
+            if server.status == Status.STOPPED:
+                msg = await ctx.send(f"Starting server {server.name} ...")
+                await server.start()
+                await msg.delete()
+                await ctx.send(f"Server {server.name} started.")
+                await self.bot.audit('started the server', server=server, user=ctx.message.author)
+            elif server.status == Status.SHUTDOWN:
+                await ctx.send(f"Server {server.name} is shut down. Use {ctx.prefix}startup to start it up.")
+            elif server.status in [Status.RUNNING, Status.PAUSED]:
+                await ctx.send(f"Server {server.name} is already started.")
+            else:
+                await ctx.send(f"Server {server.name} is still {server.status.name}, please wait ...")
+
+    @commands.command(description='Stops a DCS server')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def stop(self, ctx):
+        server: Server = await self.bot.get_server(ctx)
+        if server:
+            if server.status in [Status.RUNNING, Status.PAUSED]:
+                if server.is_populated() and \
+                        not await utils.yn_question(ctx, "People are flying on this server atm.\n"
+                                                         "Do you really want to stop it?"):
+                    return
+                await server.stop()
+                await self.bot.audit('stopped the server', server=server, user=ctx.message.author)
+                await ctx.send(f"Server {server.name} stopped.")
+            elif server.status == Status.STOPPED:
+                await ctx.send(f"Server {server.name} is stopped already. Use {ctx.prefix}shutdown to terminate the "
+                               f"dcs.exe process.")
+            elif server.status == Status.SHUTDOWN:
+                await ctx.send(f"Server {server.name} is shut down already.")
+            else:
+                await ctx.send(f"Server {server.name} is {server.status.name}, please wait ...")
+
+    @commands.command(description='Status of a DCS server')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def status(self, ctx):
+        embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
+        names = []
+        status = []
+        maintenance = []
+        for server in self.bot.servers.values():
+            names.append(server.name)
+            status.append(string.capwords(server.status.name.lower()))
+            maintenance.append('Y' if server.maintenance else 'N')
+        if len(names):
+            embed.add_field(name='Server', value='\n'.join(names))
+            embed.add_field(name='Status', value='\n'.join(status))
+            embed.add_field(name='Maint.', value='\n'.join(maintenance))
+            embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
+            await ctx.send(embed=embed)
 
     @commands.command(description='Sets the servers maintenance flag', aliases=['maint'])
     @utils.has_role('DCS Admin')

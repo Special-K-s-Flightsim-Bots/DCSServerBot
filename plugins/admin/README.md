@@ -31,10 +31,6 @@ download to the current channel.</br>
 
 | Command   | Parameter             | Channel       | Role      | Description                                                                                                              |
 |-----------|-----------------------|---------------|-----------|--------------------------------------------------------------------------------------------------------------------------|
-| .servers  |                       | all           | DCS       | Lists all registered DCS servers and their status (same as .mission but for all). Servers will auto-register on startup. |
-| .start    |                       | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                             |
-| .stop     |                       | admin-channel | DCS Admin | Stops a DCS server.                                                                                                      |
-| .status   |                       | all           | DCS       | Shows the status of all configured DCS servers.                                                                          |
 | .update   | [-force]              | admin-channel | DCS Admin | Updates DCS World to the latest available version. -force can be used, if no update could be detected automatically.     |
 | .password | [coalition]*          | admin-channel | DCS Admin | Changes the password of a DCS server or a specific coalition* on this server.                                            |
 | .kick     | name [reason]         | admin-channel | DCS Admin | Kicks the user with the in-game name "name" from the DCS server. The "reason" will be provided to the user.              |

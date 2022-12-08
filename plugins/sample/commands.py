@@ -1,4 +1,5 @@
-from core import DCSServerBot, Plugin, utils, Server
+from core import DCSServerBot, Plugin, utils, Server, EventListener, TEventListener
+from typing import Type
 from discord.ext import commands
 from .listener import SampleEventListener
 
@@ -14,7 +15,7 @@ class Sample(Plugin):
     ----------
     bot: DCSServerBot
         The discord bot instance.
-    listener : EventListener
+    listener: EventListener
         A listener class to receive events from DCS.
 
     Methods
@@ -23,7 +24,7 @@ class Sample(Plugin):
         Send the text to DCS, which will return the same text again (echo).
     """
 
-    def __init__(self, bot, listener):
+    def __init__(self, bot: DCSServerBot, listener: Type[TEventListener]):
         super().__init__(bot, listener)
         # Do whatever is needed to initialize your plugin.
         # You usually don't need to implement this function.

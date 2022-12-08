@@ -290,7 +290,7 @@ class Server(DataObject):
 
     def rename(self, old_name: str, new_name: str, update_settings: bool = False) -> None:
         # call rename() in all Plugins
-        for plugin in self.bot.cogs.values():
+        for plugin in self.bot.cogs.values():  # type: Plugin
             plugin.rename(old_name, new_name)
         # rename the entries in the main database tables
         conn = self.pool.getconn()

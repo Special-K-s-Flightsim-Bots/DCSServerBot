@@ -12,18 +12,19 @@ directory of your server (for instance via a Google Drive) will be auto-added to
 
 ## Discord Commands
 
-| Command          | Parameter                | Channel                     | Role                  | Description                                                                                          |
-|------------------|--------------------------|-----------------------------|-----------------------|------------------------------------------------------------------------------------------------------|
-| .mission         |                          | status-/admin-channel       | DCS Admin             | Information about the active mission. Persistent display in status-channel.                          |
-| .players         |                          | status-/chat-/admin-channel | DCS                   | Lists the players currently active on the server. Persistent display in status-channel.              |
-| .list / .load    |                          | admin-channel               | DCS Admin             | Select a mission to start / restart.                                                                 |
-| .add             | [miz-file]               | admin-channel               | DCS Admin             | Select a mission from the file system to be added to the mission list.                               |
-| .delete / .del   |                          | admin-channel               | DCS Admin             | Delete a mission from the mission list and optional from the file system.                            |
-| .restart         | [time in secs] [message] | admin-channel               | DCS Admin             | Restarts the current mission after [time] seconds. A message will be sent as a popup to that server. |
-| .pause           |                          | admin-channel               | DCS Admin, GameMaster | Pauses the current running mission.                                                                  |
-| .unpause         |                          | admin-channel               | DCS Admin, GameMaster | Resumes the current running mission.                                                                 |
-| .briefing/.brief |                          | all                         | DCS                   | Shows the description / briefing of the running mission.                                             |
-| .atis / .weather | Airport Name             | all                         | DCS                   | Information about a specific airport in this mission (incl. weather).                                |
+| Command          | Parameter                | Channel                     | Role                  | Description                                                                                                              |
+|------------------|--------------------------|-----------------------------|-----------------------|--------------------------------------------------------------------------------------------------------------------------|
+| .servers         |                          | all                         | DCS                   | Lists all registered DCS servers and their status (same as .mission but for all). Servers will auto-register on startup. |
+| .mission         |                          | status-/admin-channel       | DCS Admin             | Information about the active mission. Persistent display in status-channel.                                              |
+| .players         |                          | status-/chat-/admin-channel | DCS                   | Lists the players currently active on the server. Persistent display in status-channel.                                  |
+| .list / .load    |                          | admin-channel               | DCS Admin             | Select a mission to start / restart.                                                                                     |
+| .add             | [miz-file]               | admin-channel               | DCS Admin             | Select a mission from the file system to be added to the mission list.                                                   |
+| .delete / .del   |                          | admin-channel               | DCS Admin             | Delete a mission from the mission list and optional from the file system.                                                |
+| .restart         | [time in secs] [message] | admin-channel               | DCS Admin             | Restarts the current mission after [time] seconds. A message will be sent as a popup to that server.                     |
+| .pause           |                          | admin-channel               | DCS Admin, GameMaster | Pauses the current running mission.                                                                                      |
+| .unpause         |                          | admin-channel               | DCS Admin, GameMaster | Resumes the current running mission.                                                                                     |
+| .briefing/.brief |                          | all                         | DCS                   | Shows the description / briefing of the running mission.                                                                 |
+| .atis / .weather | Airport Name             | all                         | DCS                   | Information about a specific airport in this mission (incl. weather).                                                    |
 
 ## Tables
 ### Players
@@ -31,7 +32,7 @@ directory of your server (for instance via a Google Drive) will be auto-added to
 |-----------------|-----------------------|----------------------------------------------------------|
 | #ucid           | TEXT                  | Unique ID of this user (DCS ID).                         |
 | discord_id      | BIGINT                | Discord ID of this user (if matched) or -1 otherwise.    |
-| name            | TEXT                  | Last used DCS ingame-name of this user.                  |
+| name            | TEXT                  | Last used DCS in-game-name of this user.                 |
 | ipaddr          | TEXT                  | Last used IP-address of this user.                       |
 | coalition       | TEXT                  | The coalition the user belongs to.                       |
 | coalition_leave | TIMESTAMP             | The time that user last left their coalition.            |
@@ -46,7 +47,7 @@ This table keeps a history of all changes to the main player table.
 | #id        | NUMBER                  | Unique ID (sequence)                                     |
 | ucid       | TEXT                    | Unique ID of this user (DCS ID).                         |
 | discord_id | BIGINT                  | Discord ID of this user (if matched) or -1 otherwise.    |
-| name       | TEXT                    | Last used DCS ingame-name of this user.                  |
+| name       | TEXT                    | Last used DCS in-game-name of this user.                 |
 | ipaddr     | TEXT                    | Last used IP-address of this user.                       |
 | coalition  | TEXT                    | The coalition the user belongs to.                       |
 | manual     | BOOLEAN                 | True if this user was manually matched, FALSE otherwise. |

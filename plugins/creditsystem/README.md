@@ -2,7 +2,7 @@
 This plugin adds credits to the bot. People can gain credits atm by killing stuff. It is planned to enhance this 
 further, by gaining credits by flighttimes, etc.<br/>
 Other plugins make use of credits. Currently, [SlotBlocking](../slotblocking/README.md) can block slots by credits and
-take credits away, if people waste airplanes. Furthermore [Punishment](../punishment/README.md) can take credit points
+take credits away, if people waste airplanes. Furthermore, [Punishment](../punishment/README.md) can take credit points
 away due to punishment points a player gets due to teamkills or the like.
 
 ## Configuration
@@ -42,7 +42,7 @@ The Creditsystem is configured with a file named config\creditsystem.json. You'l
   ]
 }
 ```
-In general you get points per category. This can be specified in more detail by adding unit types or even "Player" or
+In general, you get points per category. This can be specified in more detail by adding unit types or even "Player" or
 "AI" as a type to give people different points for killing human players. A "default" will be used for any other kill.
 
 If you use multiple entries for points_to_kill, please make sure, that you order them from specialized to non-specialized.

@@ -1,5 +1,5 @@
 # Plugin Punishment
-The DCSServerBot's auto-ban, auto-kick, auto-move-back-to-spectators module, based on the players behaviour and the configuration described in here.
+The DCSServerBot auto-ban, auto-kick, auto-move-back-to-spectators module, based on the players behaviour and the configuration described in here.
 The ideas of this plugin are based on [Slmod](https://github.com/mrSkortch/DCS-SLmod). Thanks to Speed for his awesome solution!
 
 ## Configuration
@@ -84,7 +84,7 @@ Decay can only be configured once, so there is no need for a server specific con
 
 | Command  | Parameter       | Channel | Role      | Description                                            |
 |----------|-----------------|---------|-----------|--------------------------------------------------------|
-| .forgive | <member>/<ucid> | all     | DCS Admin | Deletes all punishement points for this member / user. |
+| .forgive | <member>/<ucid> | all     | DCS Admin | Deletes all punishment points for this member / user.  |
 | .penalty |                 | all     | DCS       | Displays the players penalty points.                   |
 
 ## Hot to use the penalty system inside of missions

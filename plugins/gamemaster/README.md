@@ -38,11 +38,11 @@ A campaign name of "_internal_" will be used in that case.
 
 ## Tables
 ### CAMPAIGNS
-| Column      | Type                    | Description                                    |
-|-------------|-------------------------|------------------------------------------------|
-| #id         | SERIAL                  | Auto-incrementing unique ID of this campaign.  |
-| name        | TEXT NOT NULL           | The campaign name.                             |
-| description | TEXT                    | A brief description about the campaign.        |
-| server_name | TEXT NOT NULL           | The server name the campaign is valid for.     |
-| start       | TIMESTAMP DEFAULT NOW() | The starttime of the campaign (default = now). |
-| stop        | TIMESTAMP               | When will the campaign stop.                   |
+| Column      | Type                    | Description                                     |
+|-------------|-------------------------|-------------------------------------------------|
+| #id         | SERIAL                  | Auto-incrementing unique ID of this campaign.   |
+| name        | TEXT NOT NULL           | The campaign name.                              |
+| description | TEXT                    | A brief description about the campaign.         |
+| server_name | TEXT NOT NULL           | The server name the campaign is valid for.      |
+| start       | TIMESTAMP DEFAULT NOW() | The start-time of the campaign (default = now). |
+| stop        | TIMESTAMP               | When will the campaign stop.                    |

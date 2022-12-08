@@ -2,7 +2,7 @@
 One of the main goals of DCSServerBot is gathering data of your DCS World servers and display them in a useful format.<br/>
 To achieve this, DCSServerBot already comes with some built-in reports. Many plugins display simple to complex data, which I thought, might be of interest.
 <br/><br/>
-To allow you to change the look and feel of existing reports and to make it easier to build your own, I've developed a JSON-baed reporting framework.
+To allow you to change the look and feel of existing reports and to make it easier to build your own, I've developed a JSON-based reporting framework.
 Here you'll find the main features and elements of this framework.
 
 ## Using Reports in your Plugins
@@ -185,7 +185,7 @@ Similar to the Table element but with values from a SQL query:
 ```
 
 ## Graph Elements
-To display nice graphics like barcharts or piecharts, you need to wrap them in a Graph element:
+To display nice graphics like bar-charts or pie-charts, you need to wrap them in a Graph element:
 ```json
 "elements": [
   {

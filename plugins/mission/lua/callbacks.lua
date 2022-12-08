@@ -12,8 +12,12 @@ local mission = mission or {}
 mission.last_to_landing = {}
 mission.last_change_slot = {}
 
+
 function mission.onMissionLoadBegin()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onMissionLoadBegin()')
+	if dcsbot.registered == false then
+		dcsbot.registerDCSServer()
+	end
 	if DCS.getCurrentMission() then
         local msg = {}
         msg.command = 'onMissionLoadBegin'
@@ -112,6 +116,9 @@ end
 
 function mission.onPlayerConnect(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerConnect()')
+	if id == 1 and dcsbot.registered == false then
+		dcsbot.registerDCSServer()
+	end
 	local msg = {}
 	msg.command = 'onPlayerConnect'
 	msg.id = id
@@ -132,6 +139,9 @@ end
 
 function mission.onPlayerStart(id)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerStart()')
+	if id == 1 and dcsbot.registered == false then
+		dcsbot.registerDCSServer()
+	end
 	local msg = {}
 	msg.command = 'onPlayerStart'
 	msg.id = id
@@ -184,6 +194,7 @@ end
 
 function mission.onSimulationStop()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationStop()')
+    dcsbot.registered = false
     local msg = {}
     msg.command = 'onSimulationStop'
     utils.sendBotTable(msg)

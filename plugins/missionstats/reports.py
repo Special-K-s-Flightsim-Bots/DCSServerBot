@@ -1,4 +1,3 @@
-import discord
 import pandas as pd
 import psycopg2
 import string
@@ -7,7 +6,6 @@ from core import report, ReportEnv, utils, Side, Coalition
 from dataclasses import dataclass
 from datetime import datetime
 from plugins.userstats.filter import StatisticsFilter
-from typing import Union
 
 
 @dataclass
