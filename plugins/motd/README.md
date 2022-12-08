@@ -1,5 +1,5 @@
 # Plugin MessageOfTheDay (MOTD)
-This plugin adds a message of the day to the server, that is displayed either on join or when you hop in a plane.
+This plugin adds a message of the day to the server, that is displayed either on join or when you hop into a plane.
 
 ## Configuration
 The plugin is configured via JSON, as many others. If you don't generate your custom json file (sample available in the 

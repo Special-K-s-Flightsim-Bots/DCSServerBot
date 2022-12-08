@@ -1,5 +1,6 @@
 # Plugin "Mission"
-The mission plugin adds commands for amending the mission list, scheduled restarts, persistent mission- and player-embeds to be displayed in your status channels and ATIS like information for the missions' airports. 
+The mission plugin adds commands for amending the mission list, persistent mission- and player-embeds to be displayed 
+in your status channels and ATIS like information for the missions' airports. 
 
 ## Uploading of Missions
 You can upload .miz files in the configured admin channel of your server(s). You need the DCS Admin role for that.
@@ -8,7 +9,7 @@ restarted (another security question will apply). Newly added missions will be a
 
 ## Auto-Scanning
 If you set _AUTOSCAN = true_ n your BOT section of dcsserverbot.ini, all miz files that were added into the Missions
-directory of your server (for instance via a Google Drive) will be auto-added to your mission list.
+folder of your DCS-server (for instance via a Google Drive) will be auto-added to your mission list.
 
 ## Discord Commands
 
