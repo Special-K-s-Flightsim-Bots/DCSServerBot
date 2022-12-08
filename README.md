@@ -4,10 +4,14 @@ and per-user statistics, optional cloud-based statistics, [coalitions](./COALITI
 plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come into your 
 mind. 
 
-This documentation will show you the main features, how to install and configure the bot and some more sophisticated stuff at the bottom, 
-if you for instance run multiple servers maybe even over multiple locations. 
+This documentation will show you the main features, how to install and configure the bot and some more sophisticated 
+stuff at the bottom, if you for instance run multiple servers maybe even over multiple locations. 
 
-First let's see, what it can do for you (installation instructions below)!
+If you don't need statistics and search a smaller and easier to install solution, you might want to look at my
+[DCSServerBotLight](https://github.com/Special-K-s-Flightsim-Bots/DCSServerBotLight), which can do some of the stuff
+you see in here already, without the need of any PostgreSQL-database.
+
+Now let's see, what DCSServerBot can do for you (installation instructions below)!
 
 ---
 ## Plugins
