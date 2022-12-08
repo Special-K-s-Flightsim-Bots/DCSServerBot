@@ -1,4 +1,4 @@
-from core import EventListener
+from core import EventListener, Server
 
 
 class SampleEventListener(EventListener):
@@ -14,8 +14,9 @@ class SampleEventListener(EventListener):
         Called whenever ".sample" is called in discord (see commands.py).
     """
 
-    async def registerDCSServer(self, data):
-        self.log.debug(f"I've received a registration event from server {data['server_name']}!")
+    async def registerDCSServer(self, data: dict) -> None:
+        server: Server = self.bot.servers[data['server_name']]
+        self.log.debug(f"I've received a registration event from server {server.name}!")
 
     async def sample(self, data):
         self.log.debug("I've received the sample event!")

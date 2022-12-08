@@ -3,6 +3,7 @@ import aiohttp
 import asyncio
 import discord
 import os
+import platform
 import psycopg2
 import re
 import shutil
@@ -48,6 +49,21 @@ class Mission(Plugin):
             if days > 0:
                 cursor.execute(f"DELETE FROM missions WHERE mission_end < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Mission pruned.')
+
+    @commands.command(description='Lists the registered DCS servers')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def servers(self, ctx):
+        if len(self.bot.servers) > 0:
+            for server_name, server in self.bot.servers.items():
+                if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+                    players = server.get_active_players()
+                    num_players = len(players) + 1
+                    report = Report(self.bot, 'mission', 'serverStatus.json')
+                    env = await report.render(server=server, num_players=num_players)
+                    await ctx.send(embed=env.embed)
+        else:
+            await ctx.send('No server running on host {}'.format(platform.node()))
 
     @commands.command(description='Shows the active DCS mission')
     @utils.has_role('DCS Admin')

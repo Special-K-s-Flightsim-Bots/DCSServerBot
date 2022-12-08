@@ -50,7 +50,7 @@ Many servers run [Tacview](https://www.tacview.net/) to help people analyse thei
 whatnot. It is an awesome tool for teaching and after action reports as well.<br/>
 One of the downsides (besides a performance hit on servers) is, that you gather a lot of data and fill up your disk.
 DCSServerBot takes care of both, it will a) warn you, if you configured Tacview in a way that is bad for your overall
-server performance and it can delete old Tacview files after a specific time.<br/>
+server performance, and b) it can delete old Tacview files after a specific time.<br/>
 To enable Tacview support, again, a change in scheduler.json is needed:
 ```json
 {
@@ -120,19 +120,19 @@ extension like with all others:
       }
     }
 ```
-DCSServerBot will detect if DSCM is enabled and - if yes - change the settings in your DSMC_Dedicated_Server_options.lua
+DCSServerBot will detect if DSMC is enabled and - if yes - change the settings in your DSMC_Dedicated_Server_options.lua
 to fit to its needs. DSMC will write out a new miz-file with a new extension (001, 002, ...) after each run. The bot
 will take care, that this generated mission will be the next to launch. Other extensions like RealWeather work together
 with these generated missions, so you can use a DSMC generated mission but apply a preset or any real time weather to
 it.
 
 ### Sneaker
-Well, this "sneaked" in here somehow. Many people were asking for a moving map and we looked at several solutions. 
+Well, this "sneaked" in here somehow. Many people were asking for a moving map, and we looked at several solutions. 
 Nearly all took a lot of effort to get them running, if ever. Then we stumbled across 
 [Sneaker](https://github.com/b1naryth1ef/sneaker) and in all fairness - that was more or less all that we needed. It 
-looks good, it is easy to setup. We tried to contact the developer, but unfortunately they are quite unresponsive. So
+looks good, it is easy to set up. We tried to contact the developer, but unfortunately they are quite unresponsive. So
 we created a [fork](https://github.com/Special-K-s-Flightsim-Bots/sneaker), added all the maps and maybe will remove
-some of the main bugs in the upcoming future.<br/>
+the major bugs in the upcoming future.<br/>
 Sneaker itself provides a webserver that then connect via the Tacview Realtime protocol to your server. You need to 
 have Tacview running on your server though, to use sneaker. As there are still some issues, please don't configure a
 realtime password for now.<br/>

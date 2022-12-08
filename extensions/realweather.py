@@ -3,7 +3,7 @@ import os
 import shutil
 import subprocess
 
-from core import Extension, report, utils
+from core import Extension, report
 from typing import Optional
 
 

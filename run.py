@@ -219,7 +219,7 @@ class Main:
                 plugins = list(self.bot.cogs.values())
                 embed = discord.Embed(title=f'Installed Plugins ({platform.node()})', color=discord.Color.blue())
                 names = versions = ''
-                for plugin in plugins:
+                for plugin in plugins:  # type: Plugin
                     names += string.capwords(plugin.plugin_name) + '\n'
                     versions += plugin.plugin_version + '\n'
                 embed.add_field(name='Name', value=names)

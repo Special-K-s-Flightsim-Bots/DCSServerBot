@@ -27,9 +27,9 @@ These commands can be used to administrate the bot itself.
 ### List of supported Plugins
 | Plugin       | Scope                                                               | Optional | Dependent on          | Documentation                              |
 |--------------|---------------------------------------------------------------------|----------|-----------------------|--------------------------------------------|
-| Admin        | Admin commands to manage your DCS server.                           | no       |                       | [README](./plugins/admin/README.md)        |
 | Mission      | Handling of missions, compared to the WebGUI.                       | no       |                       | [README](./plugins/mission/README.md)      |
-| Scheduler    | Autostart / -stop of servers or missions, change weather, etc.      | no       | Mission               | [README](./plugins/scheduler/README.md)    |
+| Scheduler    | Autostart / -stop of servers or missions, change weather, etc.      | yes*     | Mission               | [README](./plugins/scheduler/README.md)    |
+| Admin        | Admin commands to manage your DCS server.                           | yes*     |                       | [README](./plugins/admin/README.md)        |
 | CreditSystem | User credits, based on achievements.                                | yes*     | Mission               | [README](./plugins/creditsystem/README.md) |
 | UserStats    | Users statistics system.                                            | yes*     | Mission               | [README](./plugins/userstats/README.md)    |
 | MissionStats | Detailed users statistics / mission statistics.                     | yes*     | Userstats             | [README](./plugins/missionstats/README.md) |
@@ -43,13 +43,14 @@ These commands can be used to administrate the bot itself.
 | DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
 | OvGME        | Install or update mods into your DCS server.                        | yes      |                       | [README](./plugins/ovgme/README.md)        |
 
-*) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot.
+*) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot. If you
+want to remove them, overwrite PLUGINS in your dcsserverbot.ini.
 
 ### In case you want to write your own plugin ...
 There is a sample in the plugins/samples subdirectory, that will guide you through the steps. If you want your plugin to be added to the distribution, just contact me via the contact details below.
 
 ## Extensions
-Many DCS admins use extensions or add-ons like DCS-SRS, Taview, Lotatc, etc.</br>
+Many DCS admins use extensions or add-ons like DCS-SRS, Tacview, Lotatc, etc.</br>
 DCSServerBot supports some of them already and can add a bit of quality of life. 
 Check out [Extensions](./extensions/README.md) for more info on how to use them.
 
@@ -76,15 +77,15 @@ For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings"
 Best is to use ```git clone``` as you then can use the autoupdate functionality of the bot.<br/>
 Otherwise download the latest release version and extract it somewhere on your PC that is running the DCS server(s) and give it write permissions, if needed. 
 
-**Attention:** Make sure that the bot's installation directory can only be seen by yourself and is not exposed to anybody outside via www etc.
+**Attention:** Make sure that the bots installation directory can only be seen by yourself and is not exposed to anybody outside via www etc.
 
 ### Database
 DCSServerBot uses PostgreSQL to store all information that needs to be persisted, like players, mission information, 
 statistics and whatnot. Therefor, it needs a fast database. Starting with SQLite back in the days, I decided to move
 over to PostgreSQL with version 2.0 already and never regret it.<br/>
-Just install PostgreSQL from the above mentioned website (current version at the time of writing is somewhat about 14, 
+Just install PostgreSQL from the above-mentioned website (current version at the time of writing is somewhat about 14, 
 but will run with any newer version than that, too). Once you started pgadmin4, navigate to "Login Group/Role" and create
-a new login for the bot user. Name it "dcsseverbot" or whatever you desire. Set a password on the "Definition"-tab
+a new login for the bot user. Name it "dcsserverbot" or whatever you desire. Set a password on the "Definition"-tab
 (I honestly have no idea why it is not just in the "Security"-tab) and enable "Can login?" on the "Privileges" tab. 
 Then navigate to "Databases" and create a new database. Name that again maybe "dcsserverbot" and set the user you've 
 created earlier as the owner of that database.<br/>
@@ -104,11 +105,11 @@ a) __BOT Section__
 
 | Parameter           | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
 |---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| OWNER               | The Discord ID of the Bot's owner (that's you!). If you don't know your ID, go to your Discord profile, make sure "Developer Mode" is enabled under "Advanced", go to "My Account", press the "..." besides your profile picture and select "Copy ID"                                                                                                                                                                |
+| OWNER               | The Discord ID of the bots owner (that's you!). If you don't know your ID, go to your Discord profile, make sure "Developer Mode" is enabled under "Advanced", go to "My Account", press the "..." besides your profile picture and select "Copy ID"                                                                                                                                                                 |
 | TOKEN               | The token to be used to run the bot. Can be obtained at http://discord.com/developers.                                                                                                                                                                                                                                                                                                                               |
 | DATABASE_URL        | URL to the PostgreSQL database used to store our data. **If login fails, check password for any special character!**                                                                                                                                                                                                                                                                                                 |
 | COMMAND_PREFIX      | The prefix to be used by Discord commands. Default is '.'                                                                                                                                                                                                                                                                                                                                                            |
-| CHAT_COMMAND_PREFIX | The prefix to be used by ingame-chat comannds. Default is '-'                                                                                                                                                                                                                                                                                                                                                        |                                                                                                                                                                                                                                                                                                                                                        
+| CHAT_COMMAND_PREFIX | The prefix to be used by in-game-chat commands. Default is '-'                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                                                                                                                                                                                        
 | HOST                | IP the bot listens on for messages from DCS. Default is 127.0.0.1, to only accept internal communication on that machine.                                                                                                                                                                                                                                                                                            |
 | PORT                | UDP port, the bot listens on for messages from DCS. Default is 10081. **__Don't expose this port to the outside world!__**                                                                                                                                                                                                                                                                                           |
 | MASTER              | If true, start the bot in master-mode (default for one-bot-installations). If only one bot is running, then there is only a master.\nIf you have to use more than one bot installation, for multiple DCS servers that are spanned over several locations, you have to install one agent (MASTER = false) at every other location. All DCS servers of that location will then automatically register with that agent. |
@@ -116,7 +117,7 @@ a) __BOT Section__
 | SLOW_SYSTEM         | If true, some timeouts are increased to allow slower systems to catch up. Default is false.                                                                                                                                                                                                                                                                                                                          |
 | PLUGINS             | List of plugins to be loaded (you usually don't want to touch this).                                                                                                                                                                                                                                                                                                                                                 |
 | OPT_PLUGINS         | List of optional plugins to be loaded. Here you can add your plugins that you want to use and that are not loaded by default.                                                                                                                                                                                                                                                                                        |
-| AUTOUPDATE          | If true, the bot autoupdates itself with the latest release on startup.                                                                                                                                                                                                                                                                                                                                              |
+| AUTOUPDATE          | If true, the bot auto-updates itself with the latest release on startup.                                                                                                                                                                                                                                                                                                                                             |
 | AUTOSCAN            | Scan for missions in Saved Games\..\Missions and auto-add them to the mission list (default = false).                                                                                                                                                                                                                                                                                                                |
 | AUTOBAN             | If true, members leaving the discord will be automatically banned (default = false).                                                                                                                                                                                                                                                                                                                                 |
 | AUTOMATCH           | If false, users have to match themselves using the .linkme command (see [README](./plugins/userstats/README.md))                                                                                                                                                                                                                                                                                                     |
@@ -166,7 +167,6 @@ d) __DCS Section__
 | MAX_HUNG_MINUTES           | The maximum amount in minutes the server is allowed to not respond to the bot until considered dead (default = 3). Set it to 0 to disable it. |
 | MESSAGE_PLAYER_USERNAME    | Message that a user gets when being rejected because of a default player name (Player, Spieler, etc.).                                        |
 | MESSAGE_BAN                | Message a banned user gets when being rejected.                                                                                               |
-| MESSAGE_ACCOUNT_SHARING    | Message a user gets when being rejected for account sharing.                                                                                  |
 
 e) __Server Specific Sections__
 

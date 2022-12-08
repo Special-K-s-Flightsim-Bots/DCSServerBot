@@ -1,6 +1,6 @@
 import asyncio
 import re
-from core import EventListener, Plugin, Server, Side, Status, Player, utils
+from core import EventListener, Plugin, Server, Side, Status, utils
 from typing import Union, cast
 from plugins.creditsystem.player import CreditPlayer
 

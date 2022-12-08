@@ -62,7 +62,7 @@ specific targets (see list). On the other hand, slots can be blocked until a spe
 by that user ("points"). The "costs" determine, what happens to the users points when he uses this plane.
 There is deposit-like system included, that reserves points when you use a plane and returns them to the user, whenever 
 they bring back the plane intact (landing). Another takeoff will create another deposit. If they crash or get killed, 
-the deposit is gone and they'll finally lose their points. This can be enabled with "use_reservations": true like in 
+the deposit is gone, and they'll finally lose their points. This can be enabled with "use_reservations": true like in 
 the example.
 
 ## ovgme.json.sample

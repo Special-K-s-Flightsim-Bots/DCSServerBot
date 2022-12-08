@@ -121,24 +121,24 @@ Examples:
 Weather presets can be combined by comma separating them in the appropriate server configuration. You can either create
 full-fledged weather presets already and load them later or you combine them like in the example above. 
 
-| Parameter            | Description                                                                                                              |
-|----------------------|--------------------------------------------------------------------------------------------------------------------------|
-|                      | First parameter is the name of the preset.                                                                               |
-| date                 | The missions date.                                                                                                       |
-| start_time           | The missions start time in seconds.                                                                                      |
-| temperature          | Temperature in °C.                                                                                                       |
-| clouds               | Name of a DCS cloud preset.                                                                                              |
-| wind                 | Wind atGround, at2000 (m) and at8000 (m) in m/s                                                                          |
-| qnh                  | Pressure at sea level in mmHg                                                                                            |
-| groundTurbulence     | Ground turbulence in 0.1 * meters                                                                                        |
-| enable_dust          | Whether to enable dust or not                                                                                            |
-| dust_density         | Dust density in meters, 0 = off                                                                                          |
-| enable_fog           | Whether to enable fog or not                                                                                             |
-| fog                  | Settings for fog (thickness, visibility)                                                                                 |
-| halo                 | Settings for halo (new with DCS 2.8)                                                                                     |
-| requiredModules      | Modules required for this mission (can be empty to disable the requirements check).                                      |
-| accidental_failures  | Set that to false, if you have issues with your mission that accidential failures are enabled even if you disabled them. |
-| hidden               | If true, this preset is not selectable in the .preset command                                                            |
+| Parameter            | Description                                                                                                               |
+|----------------------|---------------------------------------------------------------------------------------------------------------------------|
+|                      | First parameter is the name of the preset.                                                                                |
+| date                 | The missions date.                                                                                                        |
+| start_time           | The missions start time in seconds.                                                                                       |
+| temperature          | Temperature in °C.                                                                                                        |
+| clouds               | Name of a DCS cloud preset.                                                                                               |
+| wind                 | Wind atGround, at2000 (m) and at8000 (m) in m/s                                                                           |
+| qnh                  | Pressure at sea level in mmHg                                                                                             |
+| groundTurbulence     | Ground turbulence in 0.1 * meters                                                                                         |
+| enable_dust          | Whether to enable dust or not                                                                                             |
+| dust_density         | Dust density in meters, 0 = off                                                                                           |
+| enable_fog           | Whether to enable fog or not                                                                                              |
+| fog                  | Settings for fog (thickness, visibility)                                                                                  |
+| halo                 | Settings for halo (new with DCS 2.8)                                                                                      |
+| requiredModules      | Modules required for this mission (can be empty to disable the requirements check).                                       |
+| accidental_failures  | Set that to false, if you have issues with your mission that accidental failures are enabled even if you disabled them.   |
+| hidden               | If true, this preset is not selectable in the .preset command                                                             |
 
 
 
@@ -146,7 +146,7 @@ full-fledged weather presets already and load them later or you combine them lik
 
 | First Parameter                                                                                                                                                                                                         | Second Parameter                                                                                                                                                                                                                                                   |
 |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Timeframe, with start and endtime in either HH24 or HH24:MM format.<br/>If only one time is provided, the action (see second parameter) has to happen at exactly this time.                                             | The second parameter contains a character for every day, starting Mo and ending Su. Depending on the character, the behaviour will be selected:<br/>Y, N or P - the server should run in that timeframe (Y) or not (N). P means, it should only run, if populated. |
+| Timeframe, with start and end-time in either HH24 or HH24:MM format.<br/>If only one time is provided, the action (see second parameter) has to happen at exactly this time.                                            | The second parameter contains a character for every day, starting Mo and ending Su. Depending on the character, the behaviour will be selected:<br/>Y, N or P - the server should run in that timeframe (Y) or not (N). P means, it should only run, if populated. |
 | __Examples:__<br/>Time between 12:30h and 18:00h => 12:30-18:00<br/>Time between 09:00h and 21:30h => 09-21:30<br/>Time between 21:00h and 03:00h => 21-03 (next day!)<br/>All day long (00:00h - 24:00h) => 00-24<br/> | __Examples:__<br/>YYYYYYY => every day<br/>YYYYYNN => weekdays only<br/>&nbsp;<br/>&nbsp;                                                                                                                                                                          |
 See the above examples for a better understanding on how it works.
 
@@ -160,20 +160,20 @@ If SRS is listed as an extension, a configured SRS server will be started with t
 | installation | Directory where SRS is installed.   |
 | config       | The server specific configuration.  |
 
-If you want to use different versions of SRS, you can overwrite the installation path on each server. Otherwise specify
+If you want to use different versions of SRS, you can overwrite the installation path on each server, otherwise specify
 it in the default section.
 
 ### Section "restart"
 
-| Parameter        | Description                                                                                                                                                                                                                                                    |
-|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| method           | One of **restart**, **restart_with_shutdown** or **rotate**.<br/>- "restart" will restart the current mission,<br/>- "restart_with_shutdown" will do the same but shutdown the whole server<br/>- "rotate" will take the next mission out of the mission list. |
-| mission_time     | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                   |
-| max_mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted, even if people are in.                                                                                                                                            |
-| local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                              |
-| populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                                                                                                |
-| settings         | Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is. Presets can be stacked by comma-separating them.                                                                  |
-| mission_end      | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                                                                                                      |
+| Parameter        | Description                                                                                                                                                                                                                                                                                                                |
+|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| method           | One of **restart**, **restart_with_shutdown**, **rotate** or **shutdown**.<br/>- "restart" will restart the current mission,<br/>- "restart_with_shutdown" will do the same but shutdown the whole server<br/>- "shutdown" will only shutdown the server<br/>- "rotate" will launch the next mission in the mission list.  |
+| mission_time     | Time in minutes (according to the mission time passed) when the mission has to be restarted.                                                                                                                                                                                                                               |
+| max_mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted, even if people are in.                                                                                                                                                                                                        |
+| local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                                                                                          |
+| populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                                                                                                                                                            |
+| settings         | Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is. Presets can be stacked by comma-separating them.                                                                                                                              |
+| mission_end      | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                                                                                                                                                                  |
 
 **Attention!**<br/>
 If using the presets / settings, your missions will be amended automatically by the bot. You might want to create safety copies upfront.
@@ -220,6 +220,9 @@ To clear this and give the control back to the scheduler, use the following comm
 |--------------|-----------|---------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------|
 | .startup     |           | admin-channel | DCS Admin | Starts a dedicated DCS server process.                                                                                                        |
 | .shutdown    | [-force]  | admin-channel | DCS Admin | Shuts the dedicated DCS server process down.<br/>If -force is used, no player check will be executed and no onShutdown command will be run.   |
+| .start       |           | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                                                  |
+| .stop        |           | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                           |
+| .status      |           | all           | DCS       | Shows the status of all configured DCS servers.                                                                                               |
 | .maintenance |           | admin-channel | DCS Admin | Sets the servers maintenance mode.                                                                                                            |
 | .clear       |           | admin-channel | DCS Admin | Clears the maintenance state of a server.                                                                                                     |
 | .preset      |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. Multiple selections will apply all presets at once.                                      |

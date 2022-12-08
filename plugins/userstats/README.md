@@ -1,5 +1,5 @@
 # Plugin "UserStats"
-DCSServerBot comes with a built in, database driven statistics system. It allows either users to show their own achievements like k/d-ratio, flighttimes per module, server or map, etc.
+DCSServerBot comes with a built-in, database driven statistics system. It allows either users to show their own achievements like k/d-ratio, flighttimes per module, server or map, etc.
 For server owners, it allows you to see which of your servers and missions are being used most, at which time and from which kind of users (Discord members vs. public players).
 
 ## Configuration
@@ -8,7 +8,7 @@ Userstats needs the Mission plugin to be loaded first.
 
 ## User Linking
 It is recommended that your users link their Discord ID to their UCID (DCS World ID). The bot can try to do that by 
-itself (AUTOMATCH = true), but might fail, especially, when the ingame names and Discord names of users differ a lot.
+itself (AUTOMATCH = true), but might fail, especially, when the in-game names and Discord names of users differ a lot.
 If the AUTOMATCH is disabled or was not successful, users can generate a unique TOKEN that is being sent as a DM with 
 ```.linkme```. The TOKEN can then be entered in the in-game chat as a chat-command with ```-linkme TOKEN```.
 

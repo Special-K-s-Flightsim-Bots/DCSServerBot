@@ -1,6 +1,5 @@
 from __future__ import annotations
 import concurrent
-import discord
 import inspect
 import numpy as np
 import psycopg2
