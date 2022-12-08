@@ -357,7 +357,7 @@ class Scheduler(Plugin):
             return
         # check if the server is populated
         if server.is_populated():
-            if not server.on_empty:
+            if not server.on_empty and 'mission_time' in config['restart']:
                 server.on_empty = {'command': method}
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) else 0
@@ -378,9 +378,9 @@ class Scheduler(Plugin):
         else:
             server.restart_pending = True
 
+        if 'shutdown' in method:
+            await self.teardown_dcs(server)
         if method == 'restart_with_shutdown':
-            await server.shutdown()
-            await self.bot.audit(f"{string.capwords(self.plugin_name)} shut down DCS server", server=server)
             await self.launch_dcs(server, config)
         elif method == 'restart':
             if self.is_mission_change(server, config):
