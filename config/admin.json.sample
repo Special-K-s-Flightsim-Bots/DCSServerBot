@@ -2,7 +2,7 @@
   "configs": [
     {
       "downloads": [
-        { "label": "DCS Logs", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\logs", "pattern": "dcs.log*" },
+        { "label": "DCS Logs", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\logs", "pattern": "dcs.*log*" },
         { "label": "DCSServerBot Logs", "directory": ".", "pattern": "dcsserverbot.log*" },
         { "label": "Missions", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\Missions", "pattern": "*.miz" },
         { "label": "Tacview", "directory": "%USERPROFILE%\\Documents\\Tacview", "pattern": "Tacview-*.acmi" },

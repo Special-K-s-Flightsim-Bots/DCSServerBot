@@ -457,15 +457,17 @@ class Mission(Plugin):
     @tasks.loop(minutes=1.0)
     async def update_mission_status(self):
         async def warn_admins(s: Server, message: str) -> None:
-            mentions = ''
-            for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
-                role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
-                if role:
-                    mentions += role.mention
+            if self.bot.config.getboolean(s.installation, 'PING_ADMIN_ON_CRASH'):
+                mentions = ''
+                for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
+                    role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
+                    if role:
+                        mentions += role.mention
+                message += mentions + ' ' + message
             logdir = os.path.expandvars("%USERPROFILE%\\Saved Games\\" + s.installation + "\\logs\\")
             timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
             shutil.copy2(logdir + 'dcs.log', logdir + f"dcs.{timestamp}.log")
-            await s.get_channel(Channel.ADMIN).send(mentions + ' ' + message +
+            await s.get_channel(Channel.ADMIN).send(message +
                                                     f"\nLatest dcs.log can be pulled with "
                                                     f"{self.bot.config['BOT']['COMMAND_PREFIX']}download of "
                                                     f"dcs.{timestamp}.log\nIf the scheduler is configured for this "
