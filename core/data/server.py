@@ -368,14 +368,24 @@ class Server(DataObject):
             await self.start()
 
     def addMission(self, path: str) -> None:
-        self.sendtoDCS({"command": "addMission", "path": path})
-        self._settings = None
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            self.sendtoDCS({"command": "addMission", "path": path})
+            self._settings = None
+        else:
+            missions = self.settings['missionList']
+            missions.append(path)
+            self.settings['missionList'] = missions
 
     def deleteMission(self, mission_id: int) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
             raise AttributeError("Can't delete the running mission!")
-        self.sendtoDCS({"command": "deleteMission", "id": mission_id})
-        self._settings = None
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            self.sendtoDCS({"command": "deleteMission", "id": mission_id})
+            self._settings = None
+        else:
+            missions = self.settings['missionList']
+            del missions[mission_id - 1]
+            self.settings['missionList'] = missions
 
     async def loadMission(self, mission_id: int) -> None:
         await self._load({"command": "startMission", "id": mission_id})
