@@ -20,9 +20,7 @@ from .const import Status, Coalition, Channel
 from core import utils
 
 if TYPE_CHECKING:
-    from .player import Player
-    from .mission import Mission
-    from ..extension import Extension
+    from core import Plugin, Player, Mission, Extension
 
 
 class MissionFileSystemEventHandler(FileSystemEventHandler):
@@ -115,6 +113,13 @@ class Server(DataObject):
     def status(self) -> Status:
         return self._status
 
+    @property
+    def missions_dir(self) -> str:
+        if 'MISSIONS_DIR' in self.bot.config[self.installation]:
+            return os.path.expandvars(self.bot.config[self.installation]['MISSIONS_DIR'])
+        else:
+            return os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + os.path.sep + 'Missions'
+
     @status.setter
     def status(self, status: Status):
         if status != self._status:
@@ -122,16 +127,12 @@ class Server(DataObject):
                 if self._status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTDOWN] \
                         and status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
                     if not self.observer.emitters:
-                        self.observer.schedule(self.event_handler,
-                                               os.path.expandvars(
-                                                   self.bot.config[self.installation]['DCS_HOME']) + r"\Missions",
-                                               recursive=False)
+                        self.observer.schedule(self.event_handler, self.missions_dir, recursive=False)
                         self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder enabled.')
                 elif status == Status.SHUTDOWN:
                     if self._status == Status.UNREGISTERED:
                         # make sure all missions in the directory are in the mission list ...
-                        directory = Path(
-                            os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r"\Missions")
+                        directory = Path(self.missions_dir)
                         missions = self.settings['missionList']
                         i: int = 0
                         for file in directory.glob('*.miz'):
