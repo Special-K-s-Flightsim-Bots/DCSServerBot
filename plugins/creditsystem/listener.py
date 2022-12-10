@@ -38,7 +38,7 @@ class CreditSystemListener(EventListener):
 
     @staticmethod
     def _get_initial_points(player: CreditPlayer, config: dict) -> int:
-        if 'initial_points' not in config:
+        if not config or 'initial_points' not in config:
             return 0
         if isinstance(config['initial_points'], int):
             return config['initial_points']
@@ -52,10 +52,10 @@ class CreditSystemListener(EventListener):
         return 0
 
     async def onPlayerStart(self, data: dict) -> None:
+        if data['id'] == 1:
+            return
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
-        if not config or data['id'] == 1:
-            return
         player = cast(CreditPlayer, server.get_player(id=data['id']))
         if player.points == -1:
             player.points = self._get_initial_points(player, config)
