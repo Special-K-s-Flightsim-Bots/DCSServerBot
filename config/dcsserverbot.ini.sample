@@ -52,9 +52,6 @@ DCS_HOST = 127.0.0.1
 DCS_PORT = 6667
 DCS_HOME = %%USERPROFILE%%\\Saved Games\\instance2
 ; You need to move the server.cfg into your Saved Games folder. I would recommend to rename it to SRS.cfg.
-SRS_CONFIG = %%USERPROFILE%%\\Saved Games\\instance2\\SRS.cfg
-SRS_HOST = 127.0.0.1
-SRS_PORT = 5004
 STATISTICS = true
 MISSION_STATISTICS = true
 ; These channels have to be replaced with the dedicated discord channel IDs (see README)
