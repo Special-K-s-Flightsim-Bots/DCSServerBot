@@ -61,7 +61,9 @@ class GameMasterEventListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         if data['id'] != 1 and self.bot.config.getboolean(server.installation, 'COALITIONS'):
             player: Player = server.get_player(id=data['id'])
-            if player.coalition == Coalition.BLUE:
+            if player.has_discord_roles(['DCS Admin', 'GameMaster']):
+                side = Side.UNKNOWN
+            elif player.coalition == Coalition.BLUE:
                 side = Side.BLUE
             elif player.coalition == Coalition.RED:
                 side = Side.RED
@@ -233,7 +235,8 @@ class GameMasterEventListener(EventListener):
             return
         coalition = self._get_coalition(player)
         prefix = self.bot.config['BOT']['CHAT_COMMAND_PREFIX']
-        if self.bot.config.getboolean(server.installation, 'COALITIONS'):
+        if self.bot.config.getboolean(server.installation, 'COALITIONS') and \
+                not player.has_discord_roles(['DCS Admin', 'GameMaster']):
             if data['subcommand'] == 'join':
                 await self.join(data)
             elif data['subcommand'] == 'leave':

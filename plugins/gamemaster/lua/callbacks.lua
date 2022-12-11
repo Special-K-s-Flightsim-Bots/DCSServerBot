@@ -24,7 +24,10 @@ function gamemaster.onPlayerTryChangeSlot(playerID, side, slotID)
         net.send_chat_to("Use " .. config.CHAT_COMMAND_PREFIX .. "join " .. s .. " to join the " .. s .. " coalition first!", playerID)
         return false
     end
-    if coalition ~= side then
+    -- allow GameMaster and DCS Admin in any slot
+    if coalition == -1 then
+        return
+    elseif coalition ~= side then
         net.send_chat_to("You are not a member of this coalition!", playerID)
         return false
     end
