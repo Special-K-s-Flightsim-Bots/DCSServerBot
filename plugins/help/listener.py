@@ -39,7 +39,8 @@ class HelpListener(EventListener):
                 messages.append(f'"{prefix}credits"      displays your credits')
                 messages.append(f'"{prefix}donate"       donate points to another player')
                 messages.append(f'"{prefix}tip"          tip a GCI with points')
-            if self.bot.config.getboolean(server.installation, 'COALITIONS'):
+            if self.bot.config.getboolean(server.installation, 'COALITIONS') and \
+                    not player.has_discord_roles(['DCS Admin', 'GameMaster']):
                 messages.append(f'"{prefix}join coal."   join a coalition')
                 messages.append(f'"{prefix}leave"        leave a coalition')
                 messages.append(f'"{prefix}password"     shows coalition password')
