@@ -223,11 +223,14 @@ class DCSServerBot(commands.Bot):
         if isinstance(err, commands.CommandNotFound):
             pass
         elif isinstance(err, commands.NoPrivateMessage):
-            await ctx.send('This command can\'t be used in a DM.')
+            await ctx.send(f"{ctx.command.name} can't be used in a DM.")
         elif isinstance(err, commands.MissingRequiredArgument):
-            await ctx.send(f'Parameter missing. Try {ctx.prefix}help')
+            cmd = ctx.command.name
+            if ctx.command.usage:
+                cmd += ' ' + ctx.command.usage
+            await ctx.send(f"Usage: {ctx.prefix}{cmd}")
         elif isinstance(err, commands.errors.CheckFailure):
-            await ctx.send('Your role does not allow you to use this command (in this channel).')
+            await ctx.send(f"You don't have the permission to use {ctx.command.name}!")
         elif isinstance(err, asyncio.TimeoutError):
             await ctx.send('A timeout occurred. Is the DCS server running?')
         else:
@@ -238,9 +241,9 @@ class DCSServerBot(commands.Bot):
         if isinstance(error, app_commands.CommandNotFound):
             pass
         if isinstance(error, app_commands.NoPrivateMessage):
-            await interaction.response.send_message('This command can\'t be used in a DM.')
+            await interaction.response.send_message(f"{interaction.command.name} can't be used in a DM.")
         elif isinstance(error, app_commands.CheckFailure):
-            await interaction.response.send_message('You don\'t have the rights to use that command.')
+            await interaction.response.send_message(f"You don't have the permission to use {interaction.command.name}!")
         elif isinstance(error, asyncio.TimeoutError):
             await interaction.response.send_message('A timeout occurred. Is the DCS server running?')
         else:
