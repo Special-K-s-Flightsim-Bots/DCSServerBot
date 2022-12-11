@@ -163,6 +163,9 @@ class CreditSystemMaster(CreditSystemAgent):
             await ctx.send(f'{to.display_name} needs to properly link their DCS account to receive donations.')
             return
         data = self.get_credits(receiver)
+        if not data:
+            await ctx.send('It seems like there is no campaign running on your server(s).')
+            return
         if len(data) > 1:
             n = await utils.selection_list(self, ctx, data, self.format_credits)
         else:

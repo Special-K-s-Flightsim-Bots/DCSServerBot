@@ -1,7 +1,8 @@
 import psycopg2
 from contextlib import closing
-from core import Player, DataObjectFactory, utils
+from core import Player, DataObjectFactory, utils, Plugin
 from dataclasses import field, dataclass
+from typing import cast
 
 
 @dataclass
@@ -44,9 +45,10 @@ class CreditPlayer(Player):
 
     @points.setter
     def points(self, p: int) -> None:
-        plugin = self.bot.cogs['CreditSystemMaster' if 'CreditSystemMaster' in self.bot.cogs else 'CreditSystemAgent']
+        plugin = cast(Plugin, self.bot.cogs['CreditSystemMaster' if 'CreditSystemMaster' in self.bot.cogs else 'CreditSystemAgent'])
         config = plugin.get_config(self.server)
         if not config:
+            self._points = p
             return
         if 'max_points' in config and p > config['max_points']:
             self._points = config['max_points']
