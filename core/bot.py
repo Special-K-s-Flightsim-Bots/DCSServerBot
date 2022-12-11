@@ -188,7 +188,7 @@ class DCSServerBot(commands.Bot):
                         self.log.warning(f'     - {guild.name}')
                     self.log.warning('  => Remove it from one guild and restart the bot.')
                 self.member = self.guilds[0].get_member(self.user.id)
-                self.external_ip = await utils.get_external_ip()
+                self.external_ip = await utils.get_external_ip() if 'PUBLIC_IP' not in self.config['BOT'] else self.config['BOT']['PUBLIC_IP']
                 self.log.info('- Checking Roles & Channels ...')
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
                 for server in self.servers.values():
@@ -215,7 +215,7 @@ class DCSServerBot(commands.Bot):
             else:
                 self.log.warning('Discord connection re-established.')
                 # maybe our external IP got changed...
-                self.external_ip = await utils.get_external_ip()
+                self.external_ip = await utils.get_external_ip() if 'PUBLIC_IP' not in self.config['BOT'] else self.config['BOT']['PUBLIC_IP']
         except Exception as ex:
             self.log.exception(ex)
 
