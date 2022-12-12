@@ -183,8 +183,8 @@ class Agent(Plugin):
         if not server:
             return
         if server.status in [Status.RUNNING, Status.PAUSED]:
-            if utils.yn_question(question='Server has to be stopped to change its configuration.\n'
-                                          'Do you want to stop it?'):
+            if utils.yn_question(ctx, question='Server has to be stopped to change its configuration.\n'
+                                               'Do you want to stop it?'):
                 await server.stop()
             else:
                 await ctx.send('Aborted.')
@@ -198,15 +198,15 @@ class Agent(Plugin):
                                  max_length=20, required=False)
             max_player = TextInput(label="Max Players", default=server.settings['maxPlayers'], max_length=3, required=True)
 
-            async def on_submit(self, interaction: discord.Interaction):
-                if self.name.value != server.name:
+            async def on_submit(s, interaction: discord.Interaction):
+                if s.name.value != server.name:
                     old_name = server.name
-                    server.rename(new_name=self.name.value, update_settings=True)
-                    self.bot.servers[self.name.value] = server
+                    server.rename(new_name=s.name.value, update_settings=True)
+                    self.bot.servers[s.name.value] = server
                     del self.bot.servers[old_name]
-                server.settings['description'] = self.description.value
-                server.settings['password'] = self.password.value
-                server.settings['maxPlayers'] = int(self.max_player.value)
+                server.settings['description'] = s.description.value
+                server.settings['password'] = s.password.value
+                server.settings['maxPlayers'] = int(s.max_player.value)
                 await interaction.response.send_message(f'Server configuration for server "{server.name}" updated.')
 
         class ConfigView(View):
@@ -240,7 +240,7 @@ class Agent(Plugin):
     @commands.command(description='Kick a user by name', usage='<name>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def kick(self, ctx, *args):
+    async def kick(self, ctx: commands.Context, *args) -> None:
         server: Server = await self.bot.get_server(ctx)
         if not server:
             return
@@ -272,24 +272,25 @@ class Agent(Plugin):
                 await interaction.response.send_message(f"Kicked player {self.player.name}.")
 
         class KickView(View):
-            def __init__(self, ctx: commands.Context):
-                super().__init__()
-                self.ctx = ctx
-
             @discord.ui.select(placeholder="Select a player to be kicked", options=[SelectOption(label=x.name, value=str(players.index(x))) for x in players])
             async def callback(self, interaction: Interaction, select: Select):
                 modal = KickModal(players[int(select.values[0])])
                 await interaction.response.send_modal(modal)
                 self.stop()
 
+            @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='❌')
+            async def cancel(self, interaction: Interaction, button: Button):
+                await interaction.response.defer()
+                self.stop()
+
             async def interaction_check(self, interaction: Interaction, /) -> bool:
-                if interaction.user != self.ctx.author:
+                if interaction.user != ctx.author:
                     await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
                     return False
                 else:
                     return True
 
-        view = KickView(ctx)
+        view = KickView()
         msg = await ctx.send(view=view)
         await view.wait()
         await msg.delete()

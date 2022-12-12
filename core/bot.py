@@ -294,8 +294,8 @@ class DCSServerBot(commands.Bot):
         dcs_socket.sendto(msg.encode('utf-8'), (host, int(self.config['BOT']['PORT'])))
         dcs_socket.close()
 
-    def get_channel(self, id: int):
-        return super().get_channel(id) if id != -1 else None
+    def get_channel(self, channel_id: int):
+        return super().get_channel(channel_id) if id != -1 else None
 
     def get_ucid_by_name(self, name: str) -> Optional[Tuple[str, str]]:
         conn = self.pool.getconn()
