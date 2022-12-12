@@ -167,7 +167,7 @@ class CreditSystemMaster(CreditSystemAgent):
             await ctx.send('It seems like there is no campaign running on your server(s).')
             return
         if len(data) > 1:
-            n = await utils.selection_list(self, ctx, data, self.format_credits)
+            n = await utils.selection_list(self.bot, ctx, data, self.format_credits)
         else:
             n = 0
         p_receiver: Optional[CreditPlayer] = None
@@ -242,7 +242,7 @@ class CreditSystemMaster(CreditSystemAgent):
             await ctx.send(f"You can't donate credit points, as you don't have any.")
             return
         elif len(data) > 1:
-            n = await utils.selection_list(self, ctx, data, self.format_credits)
+            n = await utils.selection_list(self.bot, ctx, data, self.format_credits)
         else:
             n = 0
         if data[n][2] < donation:

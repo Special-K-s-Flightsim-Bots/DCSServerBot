@@ -187,7 +187,7 @@ class PaginationReport(Report):
                     await message.add_reaction('◀️')
                     await message.add_reaction('⏹️')
                     await message.add_reaction('▶️')
-                    react = await utils.wait_for_single_reaction(self, self.ctx, message)
+                    react = await utils.wait_for_single_reaction(self.bot, self.ctx, message)
                     if react.emoji == '◀️':
                         await message.delete()
                         await pagination((index - 1) if index > 0 else len(values) - 1)

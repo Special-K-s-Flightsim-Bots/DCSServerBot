@@ -525,7 +525,7 @@ class DCSServerBot(commands.Bot):
                     if server_name != data['server_name']:
                         if len(utils.findDCSInstallations(server_name)) == 0:
                             self.log.info(f"Auto-renaming server \"{server_name}\" to \"{data['server_name']}\"")
-                            server.rename(server_name, data['server_name'])
+                            server.rename(data['server_name'])
                             del self.servers[server_name]
                         else:
                             self.log.warning(

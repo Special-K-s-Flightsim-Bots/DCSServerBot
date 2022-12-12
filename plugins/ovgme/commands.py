@@ -261,7 +261,7 @@ class OvGME(Plugin):
         for folder in OVGME_FOLDERS:
             packages.extend([(folder, x, y) for x, y in self.get_installed_packages(server, folder)])
         if len(packages) > 0:
-            n = await utils.selection_list(self, ctx, packages, self.format_packages, 5, -1, '🆕')
+            n = await utils.selection_list(self.bot, ctx, packages, self.format_packages, 5, -1, '🆕')
             if n == -1:
                 return
             latest = self.get_latest_version(packages[n][0], packages[n][1])
@@ -326,7 +326,7 @@ class OvGME(Plugin):
         if not config:
             await ctx.send(f"No plugin configuration found for server {server.name}.")
             return
-        n = await utils.selection_list(self, ctx, OVGME_FOLDERS, self.format_folders)
+        n = await utils.selection_list(self.bot, ctx, OVGME_FOLDERS, self.format_folders)
         if n == -1:
             return
         folder = OVGME_FOLDERS[n]
@@ -337,7 +337,7 @@ class OvGME(Plugin):
         if not len(files):
             await ctx.send(f"No available packages in folder {folder}.")
             return
-        n = await utils.selection_list(self, ctx, files, self.format_files)
+        n = await utils.selection_list(self.bot, ctx, files, self.format_files)
         if n == -1:
             return
         msg = await ctx.send('Installing ...')

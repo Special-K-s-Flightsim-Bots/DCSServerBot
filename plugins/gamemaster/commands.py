@@ -344,7 +344,7 @@ class GameMasterMaster(GameMasterAgent):
             return []
         elif len(all_servers) == 1:
             return [self.bot.servers[all_servers[0]]]
-        for element in await utils.multi_selection_list(self, ctx, all_servers, self.format_servers):
+        for element in await utils.multi_selection_list(self.bot, ctx, all_servers, self.format_servers):
             servers.append(self.bot.servers[all_servers[element]])
         return servers
 
@@ -387,7 +387,7 @@ class GameMasterMaster(GameMasterAgent):
             if not name or not start_time:
                 await ctx.send(f"Usage: {ctx.prefix}.campaign add <name> <start> [stop]")
                 return
-            description = await utils.input_value(self, ctx, 'Please enter a short description for this campaign '
+            description = await utils.input_value(self.bot, ctx, 'Please enter a short description for this campaign '
                                                              '(. for none):')
             servers: list[Server] = await self.get_campaign_servers(ctx)
             try:
@@ -452,7 +452,7 @@ class GameMasterMaster(GameMasterAgent):
                         cursor.execute(f"SELECT id, name, description, start, stop FROM campaigns ORDER BY start DESC")
                     if cursor.rowcount > 0:
                         campaigns = [dict(row) for row in cursor.fetchall()]
-                        n = await utils.selection_list(self, ctx, campaigns, self.format_campaigns)
+                        n = await utils.selection_list(self.bot, ctx, campaigns, self.format_campaigns)
                         if n != -1:
                             report = Report(self.bot, self.plugin_name, 'campaign.json')
                             env = await report.render(campaign=campaigns[n], title='Campaign Overview')

@@ -312,7 +312,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
             if player:
                 await message.add_reaction('⏏️')
             await message.add_reaction('⏹️')
-            react = await utils.wait_for_single_reaction(self, ctx, message)
+            react = await utils.wait_for_single_reaction(self.bot, ctx, message)
             if react.emoji == '🔀':
                 await self.unlink(ctx, member)
             elif react.emoji == '💯':
@@ -366,7 +366,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 if len(unmatched) == 0:
                     await ctx.send('No unmatched member could be matched.')
                     return
-                n = await utils.selection_list(self, ctx, unmatched, self.format_unmatched)
+                n = await utils.selection_list(self.bot, ctx, unmatched, self.format_unmatched)
                 if n != -1:
                     cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (unmatched[n]['match'].id, unmatched[n]['ucid']))
                     await self.bot.audit(f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
@@ -419,7 +419,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 if len(suspicious) == 0:
                     await ctx.send('No mislinked players found.')
                     return
-                n = await utils.selection_list(self, ctx, suspicious, self.format_suspicious)
+                n = await utils.selection_list(self.bot, ctx, suspicious, self.format_suspicious)
                 if n != -1:
                     cursor.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
                                    (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,

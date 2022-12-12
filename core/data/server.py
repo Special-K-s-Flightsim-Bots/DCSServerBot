@@ -289,18 +289,18 @@ class Server(DataObject):
             "time": timeout
         })
 
-    def rename(self, old_name: str, new_name: str, update_settings: bool = False) -> None:
+    def rename(self, new_name: str, update_settings: bool = False) -> None:
         # call rename() in all Plugins
         for plugin in self.bot.cogs.values():  # type: Plugin
-            plugin.rename(old_name, new_name)
+            plugin.rename(self.name, new_name)
         # rename the entries in the main database tables
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                               (new_name, old_name))
+                               (new_name, self.name))
                 cursor.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                               (new_name, old_name))
+                               (new_name, self.name))
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)

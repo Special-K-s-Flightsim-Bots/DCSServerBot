@@ -118,7 +118,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         finally:
             self.pool.putconn(conn)
         await ctx.message.delete()
-        n = await utils.selection_list(self, ctx, modules, self.format_modules)
+        n = await utils.selection_list(self.bot, ctx, modules, self.format_modules)
         if n != -1:
             report = PaginationReport(self.bot, ctx, self.plugin_name, 'modulestats.json', timeout if timeout > 0 else None)
             await report.render(member_name=member.display_name if isinstance(member, discord.Member) else member,
