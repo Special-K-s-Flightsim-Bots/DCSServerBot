@@ -66,7 +66,8 @@ class CreditSystemListener(EventListener):
                 'ucid': player.ucid,
                 'points': player.points
             })
-        player.sendChatMessage(f"{player.name}, you currently have {player.points} credit points.")
+        if config:
+            player.sendChatMessage(f"{player.name}, you currently have {player.points} credit points.")
 
     async def addUserPoints(self, data: dict) -> None:
         if data['points'] != 0:
