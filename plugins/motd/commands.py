@@ -1,7 +1,6 @@
 import discord
 import json
 from core import DCSServerBot, Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition
-from datetime import datetime
 from discord.ext import tasks, commands
 from os import path
 from typing import Optional, TYPE_CHECKING, Type
@@ -15,7 +14,7 @@ class MessageOfTheDay(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
-        self.last_nudge = dict[str, datetime]()
+        self.last_nudge = dict[str, int]()
         self.nudge.start()
 
     async def cog_unload(self):

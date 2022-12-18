@@ -1,5 +1,4 @@
 local base      = _G
-local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 
 local serverstats = serverstats or {}

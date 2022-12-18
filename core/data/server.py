@@ -289,18 +289,18 @@ class Server(DataObject):
             "time": timeout
         })
 
-    def rename(self, old_name: str, new_name: str, update_settings: bool = False) -> None:
+    def rename(self, new_name: str, update_settings: bool = False) -> None:
         # call rename() in all Plugins
         for plugin in self.bot.cogs.values():  # type: Plugin
-            plugin.rename(old_name, new_name)
+            plugin.rename(self.name, new_name)
         # rename the entries in the main database tables
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                               (new_name, old_name))
+                               (new_name, self.name))
                 cursor.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                               (new_name, old_name))
+                               (new_name, self.name))
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -323,7 +323,8 @@ class Server(DataObject):
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 
     async def shutdown(self) -> None:
-        timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
+        slow_system = self.bot.config.getboolean('BOT', 'SLOW_SYSTEM')
+        timeout = 300 if slow_system else 180
         self.sendtoDCS({"command": "shutdown"})
         with suppress(asyncio.TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
@@ -332,6 +333,9 @@ class Server(DataObject):
                 self.process.wait(timeout)
             except subprocess.TimeoutExpired:
                 self.process.kill()
+        # make sure, Windows did all cleanups
+        if slow_system:
+            await asyncio.sleep(10)
         if self.status != Status.SHUTDOWN:
             self.status = Status.SHUTDOWN
         self.process = None

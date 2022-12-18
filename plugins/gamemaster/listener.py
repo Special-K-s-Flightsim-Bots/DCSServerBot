@@ -239,6 +239,12 @@ class GameMasterEventListener(EventListener):
                 not player.has_discord_roles(['DCS Admin', 'GameMaster']):
             if data['subcommand'] == 'join':
                 await self.join(data)
+            elif data['subcommand'] == 'red':
+                data["params"] = ["red"]
+                await self.join(data)
+            elif data['subcommand'] == 'blue':
+                data["params"] = ["blue"]
+                await self.join(data)
             elif data['subcommand'] == 'leave':
                 await self.leave(data)
             elif data['subcommand'] == 'coalition':

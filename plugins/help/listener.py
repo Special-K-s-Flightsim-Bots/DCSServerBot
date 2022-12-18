@@ -42,6 +42,8 @@ class HelpListener(EventListener):
             if self.bot.config.getboolean(server.installation, 'COALITIONS') and \
                     not player.has_discord_roles(['DCS Admin', 'GameMaster']):
                 messages.append(f'"{prefix}join coal."   join a coalition')
+                messages.append(f'"{prefix}blue"         join the blue side')
+                messages.append(f'"{prefix}red"          join the red side')
                 messages.append(f'"{prefix}leave"        leave a coalition')
                 messages.append(f'"{prefix}password"     shows coalition password')
                 messages.append(f'"{prefix}coalition"    shows your current coalition')

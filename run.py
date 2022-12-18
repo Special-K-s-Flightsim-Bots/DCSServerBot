@@ -260,7 +260,7 @@ class Main:
                 if server.status not in [Status.RUNNING, Status.PAUSED]:
                     if await utils.yn_question(ctx, 'Are you sure to rename server '
                                                     '"{}" to "{}"?'.format(old_name, new_name)) is True:
-                        server.rename(old_name, new_name, True)
+                        server.rename(new_name, True)
                         self.bot.servers[new_name] = server
                         del self.bot.servers[old_name]
                         await ctx.send('Server has been renamed.')

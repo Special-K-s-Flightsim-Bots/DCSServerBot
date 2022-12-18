@@ -11,15 +11,16 @@ from discord.ui import Button, View, Select
 from . import config
 
 if TYPE_CHECKING:
-    from .. import Server
+    from .. import Server, DCSServerBot
 
 
-async def wait_for_single_reaction(self, ctx: Union[commands.Context, discord.DMChannel], message: discord.Message) -> discord.Reaction:
+async def wait_for_single_reaction(bot: DCSServerBot, ctx: Union[commands.Context, discord.DMChannel],
+                                   message: discord.Message) -> discord.Reaction:
     def check_press(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == message.channel) & (user == member) & (react.message.id == message.id)
 
-    tasks = [self.bot.wait_for('reaction_add', check=check_press),
-             self.bot.wait_for('reaction_remove', check=check_press)]
+    tasks = [bot.wait_for('reaction_add', check=check_press),
+             bot.wait_for('reaction_remove', check=check_press)]
     try:
         member = ctx.message.author if isinstance(ctx, commands.Context) else ctx.recipient
         done, tasks = await asyncio.wait(tasks, timeout=120, return_when=asyncio.FIRST_COMPLETED)
@@ -33,14 +34,40 @@ async def wait_for_single_reaction(self, ctx: Union[commands.Context, discord.DM
             task.cancel()
 
 
-async def input_value(self, ctx, message: str, delete: Optional[bool] = False, timeout: Optional[float] = 300.0):
+async def input_multiline(bot: DCSServerBot, ctx: commands.Context, message: Optional[str] = None,
+                          delete: Optional[bool] = False, timeout: Optional[float] = 300.0) -> str:
+    def check(m):
+        return (m.channel == ctx.message.channel) & (m.author == ctx.message.author)
+
+    msgs: list[discord.Message] = list()
+    try:
+        if message:
+            msgs.append(await ctx.send(message))
+        response = await bot.wait_for('message', check=check, timeout=timeout)
+        if input:
+            msgs.append(response)
+        retval = ""
+        while response.content != '.':
+            retval += response.content + '\n'
+            msgs.append(response)
+            response = await bot.wait_for('message', check=check, timeout=timeout)
+        return retval
+    finally:
+        if delete:
+            for msg in msgs:
+                await msg.delete()
+
+
+async def input_value(bot: DCSServerBot, ctx: commands.Context, message: Optional[str] = None,
+                      delete: Optional[bool] = False, timeout: Optional[float] = 300.0):
     def check(m):
         return (m.channel == ctx.message.channel) & (m.author == ctx.message.author)
 
     msg = response = None
     try:
-        msg = await ctx.send(message)
-        response = await self.bot.wait_for('message', check=check, timeout=timeout)
+        if message:
+            msg = await ctx.send(message)
+        response = await bot.wait_for('message', check=check, timeout=timeout)
         return response.content if response.content != '.' else None
     finally:
         if delete:
@@ -50,7 +77,7 @@ async def input_value(self, ctx, message: str, delete: Optional[bool] = False, t
                 await response.delete()
 
 
-async def pagination(self, ctx, data, embed_formatter, num=10):
+async def pagination(bot: DCSServerBot, ctx: commands.Context, data: list, embed_formatter, num: int = 10):
     message = None
     try:
         j = 0
@@ -68,7 +95,7 @@ async def pagination(self, ctx, data, embed_formatter, num=10):
                 await message.add_reaction('▶️')
                 wait = True
             if wait:
-                react = await wait_for_single_reaction(self, ctx, message)
+                react = await wait_for_single_reaction(bot, ctx, message)
                 await message.delete()
                 if react.emoji == '◀️':
                     j -= 1
@@ -86,13 +113,16 @@ async def pagination(self, ctx, data, embed_formatter, num=10):
             return -1
 
 
-async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, marker_emoji='🔄'):
+async def selection_list(bot: DCSServerBot, ctx: commands.Context, data: list, embed_formatter, num: int = 5,
+                         marker: int = -1, marker_emoji='🔄'):
     message = None
     try:
         j = 0
         while len(data) > 0:
             max_i = (len(data) % num) if (len(data) - j * num) < num else num
-            embed = embed_formatter(data[j * num:j * num + max_i], (marker - j * num) if marker in range(j * num, j * num + max_i + 1) else 0, marker_emoji)
+            embed = embed_formatter(data[j * num:j * num + max_i],
+                                    (marker - j * num) if marker in range(j * num, j * num + max_i + 1) else 0,
+                                    marker_emoji)
             message = await ctx.send(embed=embed)
             if j > 0:
                 await message.add_reaction('◀️')
@@ -104,7 +134,7 @@ async def selection_list(self, ctx, data, embed_formatter, num=5, marker=-1, mar
             await message.add_reaction('⏹️')
             if ((j + 1) * num) < len(data):
                 await message.add_reaction('▶️')
-            react = await wait_for_single_reaction(self, ctx, message)
+            react = await wait_for_single_reaction(bot, ctx, message)
             await message.delete()
             if react.emoji == '◀️':
                 j -= 1
@@ -177,7 +207,7 @@ async def selection(ctx, *, title: Optional[str] = None, placeholder: Optional[s
             await msg.delete()
 
 
-async def multi_selection_list(self, ctx: commands.Context, data: list, embed_formatter) -> list[int]:
+async def multi_selection_list(bot: DCSServerBot, ctx: commands.Context, data: list, embed_formatter) -> list[int]:
     def check_ok(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.emoji == '🆗')
 
@@ -189,7 +219,7 @@ async def multi_selection_list(self, ctx: commands.Context, data: list, embed_fo
         for i in range(0, len(data)):
             await message.add_reaction(chr(0x31 + i) + '\u20E3')
         await message.add_reaction('🆗')
-        await self.bot.wait_for('reaction_add', check=check_ok, timeout=120.0)
+        await bot.wait_for('reaction_add', check=check_ok, timeout=120.0)
         cache_msg = await ctx.fetch_message(message.id)
         for react in cache_msg.reactions:
             if (react.emoji != '🆗') and (react.count > 1):
