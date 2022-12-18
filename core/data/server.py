@@ -323,7 +323,8 @@ class Server(DataObject):
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 
     async def shutdown(self) -> None:
-        timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
+        slow_system = self.bot.config.getboolean('BOT', 'SLOW_SYSTEM')
+        timeout = 300 if slow_system else 180
         self.sendtoDCS({"command": "shutdown"})
         with suppress(asyncio.TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
@@ -332,6 +333,9 @@ class Server(DataObject):
                 self.process.wait(timeout)
             except subprocess.TimeoutExpired:
                 self.process.kill()
+        # make sure, Windows did all cleanups
+        if slow_system:
+            await asyncio.sleep(10)
         if self.status != Status.SHUTDOWN:
             self.status = Status.SHUTDOWN
         self.process = None

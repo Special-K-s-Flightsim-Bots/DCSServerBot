@@ -100,7 +100,7 @@ class GameMasterAgent(Plugin):
     @commands.command(description='Set or clear a flag inside the mission', usage='<flag> [value]')
     @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()
-    async def flag(self, ctx, flag: int, value: int = None):
+    async def flag(self, ctx, flag: str, value: int = None):
         server: Server = await self.bot.get_server(ctx)
         if server and server.status in [Status.RUNNING, Status.PAUSED]:
             if value is not None:
