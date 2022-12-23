@@ -26,26 +26,26 @@ class DCSServerBot(commands.Bot):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.member = None
-        self.version = kwargs['version']
-        self.sub_version = kwargs['sub_version']
+        self.member: Optional[discord.Member] = None
+        self.version: str = kwargs['version']
+        self.sub_version: str = kwargs['sub_version']
         self.listeners = {}
-        self.eventListeners = []
-        self.external_ip = None
+        self.eventListeners: list[EventListener] = []
+        self.external_ip: Optional[str] = None
         self.udp_server = None
-        self.servers = dict[str, Server]()
+        self.servers: dict[str, Server] = dict()
         self.pool = kwargs['pool']
         self.log = kwargs['log']
         self.config = kwargs['config']
-        self.master = self.config.getboolean('BOT', 'MASTER')
-        self.master_only = self.config.getboolean('BOT', 'MASTER_ONLY')
-        plugins = self.config['BOT']['PLUGINS']
+        self.master: bool = self.config.getboolean('BOT', 'MASTER')
+        self.master_only: bool = self.config.getboolean('BOT', 'MASTER_ONLY')
+        plugins: str = self.config['BOT']['PLUGINS']
         if 'OPT_PLUGINS' in self.config['BOT']:
             plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
-        self.plugins = [p.strip() for p in plugins.split(',')]
+        self.plugins: list[str] = [p.strip() for p in plugins.split(',')]
         self.audit_channel = None
         self.mission_stats = None
-        self.synced = False
+        self.synced: bool = False
         self.tree.on_error = self.on_app_command_error
         self.executor = ThreadPoolExecutor(thread_name_prefix='BotExecutor')
 
@@ -484,7 +484,7 @@ class DCSServerBot(commands.Bot):
         self.eventListeners.remove(listener)
         self.log.debug(f'- EventListener {type(listener).__name__} unregistered.')
 
-    def register_server(self, data) -> bool:
+    def register_server(self, data: dict) -> bool:
         installations = utils.findDCSInstallations(data['server_name'])
         if len(installations) == 0:
             self.log.error(f"No server {data['server_name']} found in any serverSettings.lua.\n"
