@@ -295,7 +295,7 @@ class GameMasterMaster(GameMasterAgent):
             with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT ucid, discord_id, coalition FROM players WHERE coalition IS NOT NULL')
                 for row in cursor.fetchall():
-                    if row[1]:
+                    if row[1] != -1:
                         member = self.bot.guilds[0].get_member(row[1])
                         await member.remove_roles(roles[row[2]])
                     cursor.execute('UPDATE players SET coalition = NULL, coalition_leave = NULL WHERE ucid = %s',
