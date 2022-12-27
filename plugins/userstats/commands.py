@@ -154,7 +154,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 ucid, member = self.bot.get_ucid_by_name(member)
             else:
                 ucid = self.bot.get_ucid_by_member(member)
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'userstats.json', timeout if timeout > 0 else None)
+            file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
+            report = PaginationReport(self.bot, ctx, self.plugin_name, file, timeout if timeout > 0 else None)
             await report.render(member=member if isinstance(member, discord.Member) else ucid,
                                 member_name=member.display_name if isinstance(member, discord.Member) else member,
                                 period=period, server_name=None, flt=flt)
@@ -177,8 +178,9 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 await ctx.send('Please provide a valid period or campaign name.')
                 return
             await ctx.send('Your statistics will be sent in a DM.', delete_after=30)
+            file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
             report = PaginationReport(self.bot, await ctx.message.author.create_dm(), self.plugin_name,
-                                      'userstats.json', timeout if timeout > 0 else None)
+                                      file, timeout if timeout > 0 else None)
             await report.render(member=member, member_name=member.display_name, period=period, server_name=None,
                                 flt=flt)
         finally:
@@ -204,11 +206,12 @@ class UserStatisticsMaster(UserStatisticsAgent):
             if period and not flt:
                 await ctx.send('Please provide a valid period or campaign name.')
                 return
+            file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
             if not server:
-                report = PaginationReport(self.bot, ctx, self.plugin_name, 'highscore.json', timeout if timeout > 0 else None)
+                report = PaginationReport(self.bot, ctx, self.plugin_name, file, timeout if timeout > 0 else None)
                 await report.render(period=period, message=ctx.message, flt=flt, server_name=None)
             else:
-                report = Report(self.bot, self.plugin_name, 'highscore.json')
+                report = Report(self.bot, self.plugin_name, file)
                 env = await report.render(period=period, message=ctx.message, server_name=server.name, flt=flt)
                 file = discord.File(env.filename)
                 await ctx.send(embed=env.embed, file=file, delete_after=timeout if timeout > 0 else None)

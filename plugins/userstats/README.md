@@ -31,6 +31,16 @@ If the AUTOMATCH is disabled or was not successful, users can generate a unique 
 If a campaign is active on your server, .stats and .highscore will display the data of that campaign only, unless you use
 the "all" period.
 
+## Reports
+This plugin comes with 3 custom reports where 2 of them are available in two different shapes.
+* userstats.json
+* userstats.campaign.json (for campaign statisics)
+* highscore.json
+* highscore-campaign.json (for campaign statistics)
+* info.json
+
+All templates can be amended if copied into /reports/userstats.
+
 ## How to disable Userstats inside of missions
 Sometimes you don't want your mission to generate per-user statistics, but you don't want to configure your server to disable them forever?
 Well, then - just disable them from inside your mission:

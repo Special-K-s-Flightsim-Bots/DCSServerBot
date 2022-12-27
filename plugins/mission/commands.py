@@ -462,7 +462,7 @@ class Mission(Plugin):
                     role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
                     if role:
                         mentions += role.mention
-                message += mentions + ' ' + message
+                message = mentions + ' ' + message
             logdir = os.path.expandvars("%USERPROFILE%\\Saved Games\\" + s.installation + "\\logs\\")
             timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
             shutil.copy2(logdir + 'dcs.log', logdir + f"dcs.{timestamp}.log")

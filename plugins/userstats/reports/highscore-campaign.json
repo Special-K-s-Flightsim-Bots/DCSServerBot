@@ -1,0 +1,67 @@
+{
+  "color": "blue",
+  "title": "Highscore (TOP {limit})",
+  "description": "{server_name}",
+  "input": [
+    {
+      "name": "limit",
+      "default": 10
+    }
+  ],
+  "pagination": {
+    "param": {
+      "name": "server_name",
+      "class": "plugins.userstats.filter.StatsPagination"
+    }
+  },
+  "elements": [
+    {
+      "type": "Graph",
+      "params": {
+        "width": 15,
+        "height": 20,
+        "cols": 2,
+        "rows": 5,
+        "elements":
+         [
+            {
+              "class": "plugins.userstats.highscore.HighscorePlaytime",
+              "params": { "col": 0, "row": 0, "colspan": 2 }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 0, "row": 1, "kill_type": "Air Targets" }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 1, "row": 1, "kill_type": "Ships" }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 0, "row": 2, "kill_type": "Air Defence" }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 1, "row": 2, "kill_type": "Ground Targets" }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 0, "row": 3, "kill_type": "KD-Ratio" }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 1, "row": 3, "kill_type": "PvP-KD-Ratio" }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 0, "row": 4, "kill_type": "Most Efficient Killers" }
+            },
+            {
+              "class": "plugins.userstats.highscore.HighscoreElement",
+              "params": { "col": 1, "row": 4, "kill_type": "Most Wasteful Pilots" }
+            }
+         ]
+      }
+    }
+  ]
+}
