@@ -125,9 +125,9 @@ class DCSServerBot(commands.Bot):
         self.init_servers()
         await super().start(token, reconnect=reconnect)
 
-    def check_roles(self, roles: list):
+    def check_roles(self, roles: list, server: Optional[Server] = None):
         for role in roles:
-            config_roles = [x.strip() for x in self.config['ROLES'][role].split(',')]
+            config_roles = [x.strip() for x in self.config['ROLES' if not server else server.installation][role].split(',')]
             for discord_role in self.guilds[0].roles:
                 if discord_role.name in config_roles:
                     config_roles.remove(discord_role.name)
@@ -193,7 +193,7 @@ class DCSServerBot(commands.Bot):
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
                 for server in self.servers.values():
                     if self.config.getboolean(server.installation, 'COALITIONS'):
-                        self.check_roles(['Coalition Red', 'Coalition Blue'])
+                        self.check_roles(['Coalition Red', 'Coalition Blue'], server)
                     self.check_channels(server.installation)
                 self.log.info('- Loading Plugins ...')
                 for plugin in self.plugins:

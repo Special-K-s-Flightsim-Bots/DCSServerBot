@@ -387,28 +387,6 @@ def app_has_not_roles(roles: list[str]):
     return app_commands.check(predicate)
 
 
-def coalition_only():
-    def predicate(ctx):
-        for role in ctx.message.author.roles:
-            if role.name in [config['ROLES']['Coalition Blue'], config['ROLES']['Coalition Red']]:
-                if ctx.message.channel.overwrites_for(role).send_messages:
-                    return True
-        return False
-
-    return commands.check(predicate)
-
-
-def app_coalition_only():
-    def predicate(interaction: Interaction) -> bool:
-        for role in interaction.user.roles:
-            if role.name in [config['ROLES']['Coalition Blue'], config['ROLES']['Coalition Red']]:
-                if interaction.channel.overwrites_for(role).send_messages:
-                    return True
-        return False
-
-    return app_commands.check(predicate)
-
-
 def format_embed(data: dict) -> discord.Embed:
     color = data['color'] if 'color' in data else discord.Color.blue()
     embed = discord.Embed(color=color)

@@ -1,10 +1,11 @@
 import dateparser
 import discord
+import platform
 import psycopg2
 from contextlib import closing
 from core import DCSServerBot, Plugin, utils, Report, Status, Server, Coalition, Channel, Player
 from discord.ext import commands
-from typing import Optional, Union
+from typing import Optional
 from .listener import GameMasterEventListener
 
 
@@ -168,8 +169,50 @@ class GameMasterAgent(Plugin):
         else:
             await ctx.send(f"Mission is {server.status.name.lower()}, command discarded.")
 
+    @commands.command(description='Mass coalition leave for users')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def reset_coalitions(self, ctx):
+        if await utils.yn_question(ctx, f'Do you want to mass-reset all coalition-bindings from your players on node '
+                                        f'{platform.node()}?') is False:
+            await ctx.send('Aborted.')
+            return
+        for server in self.bot.servers.values():
+            if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+                continue
+            roles = {
+                "red": discord.utils.get(ctx.guild.roles, name=self.bot.config[server.installation]['Coalition Red']),
+                "blue": discord.utils.get(ctx.guild.roles, name=self.bot.config[server.installation]['Coalition Blue'])
+            }
+            conn = self.bot.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('SELECT p.ucid, p.discord_id, c.coalition FROM players p, coalitions c '
+                                   'WHERE p.ucid = c.player_ucid and c.server_name = %s AND c.coalition IS NOT NULL',
+                                   (server.name,))
+                    for row in cursor.fetchall():
+                        if row[1] != -1:
+                            member = self.bot.guilds[0].get_member(row[1])
+                            await member.remove_roles(roles[row[2]])
+                        cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
+                                       (server.name, row[0]))
+                conn.commit()
+                await ctx.send(f'Coalition bindings reset for all players on node {platform.node()}.')
+            except discord.Forbidden:
+                await ctx.send('The bot is missing the "Manage Roles" permission.')
+                await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.bot.log.exception(error)
+                conn.rollback()
+            finally:
+                self.bot.pool.putconn(conn)
+
 
 class GameMasterMaster(GameMasterAgent):
+
+    def migrate(self, version: str):
+        if version == '1.3':
+            self.log.warning('  => Coalition system has been updated. All player coalitions have been reset!')
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Gamemaster ...')
@@ -178,138 +221,19 @@ class GameMasterMaster(GameMasterAgent):
                 cursor.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Gamemaster pruned.')
 
-    @commands.command(description='Join a coalition (red / blue)', usage='<red | blue>')
+    @commands.command(description='Deprecated', hidden=True)
     @utils.has_role('DCS')
-    @utils.has_not_roles(['Coalition Blue', 'Coalition Red', 'GameMaster'])
     @commands.guild_only()
-    async def join(self, ctx, coalition: str):
-        member = ctx.message.author
-        roles = {
-            "red": discord.utils.get(member.guild.roles, name=self.bot.config['ROLES']['Coalition Red']),
-            "blue": discord.utils.get(member.guild.roles, name=self.bot.config['ROLES']['Coalition Blue'])
-        }
-        if coalition.casefold() not in roles.keys():
-            await ctx.send('Usage: {}join [{}]'.format(ctx.prefix, '|'.join(roles.keys())))
-            return
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                # we don't care about coalitions if they left longer than one day before
-                cursor.execute("SELECT coalition FROM players WHERE discord_id = %s AND coalition_leave > (NOW() - "
-                               "interval %s)", (member.id, self.bot.config['BOT']['COALITION_LOCK_TIME']))
-                if cursor.rowcount == 1:
-                    if cursor.fetchone()[0] != coalition.casefold():
-                        await ctx.send(f"You can't join the {coalition} coalition in-between "
-                                       f"{self.bot.config['BOT']['COALITION_LOCK_TIME']} of leaving a coalition.")
-                        await self.bot.audit(f'tried to join a new coalition in-between the time limit.', user=member)
-                        return
-                await member.add_roles(roles[coalition.lower()])
-                cursor.execute('UPDATE players SET coalition = %s, coalition_leave = NULL WHERE discord_id = %s',
-                               (coalition, member.id))
-                await ctx.send(f'Welcome to the {coalition} side!')
-                conn.commit()
-        except discord.Forbidden:
-            conn.rollback()
-            await ctx.send("I can't add you to this coalition. Please contact an Admin.")
-            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
+    async def join(self, ctx):
+        await ctx.send(f"Please use {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join in the respective server to "
+                       f"join a coalition.")
 
-    @commands.command(description='Leave your current coalition', usage='[member/name/ucid]')
-    @utils.has_roles(['DCS Admin', 'Coalition Blue', 'Coalition Red'])
+    @commands.command(description='Deprecated', hidden=True)
+    @utils.has_role('DCS')
     @commands.guild_only()
-    async def leave(self, ctx, member: Optional[Union[discord.Member, str]] = None, *args):
-        if not member:
-            member = ctx.message.author
-            admin = False
-        elif not utils.check_roles(['DCS Admin'], ctx.message.author):
-            await ctx.send(f"{ctx.prefix}leave [member] only allowed for DCS Admins!")
-            return
-        elif isinstance(member, str) and args:
-            member = member + ' ' + ' '.join(args)
-            admin = True
-        else:
-            admin = True
-
-        if isinstance(member, discord.Member):
-            ucid = self.bot.get_ucid_by_member(member)
-            name = member.display_name
-        elif len(member) != 32:
-            ucid, name = self.bot.get_ucid_by_name(member)
-        else:
-            ucid = name = member
-        if not isinstance(member, discord.Member):
-            member = self.bot.get_member_by_ucid(ucid)
-            if member:
-                name = member.display_name
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT coalition FROM players WHERE ucid = %s', (ucid, ))
-                coalition = cursor.fetchone()[0]
-                if not coalition:
-                    await ctx.send(("You're" if not admin else f"{name} is") + " not a member of any coalition.")
-                    return
-                if admin:
-                    cursor.execute('UPDATE players SET coalition = NULL, coalition_leave = NULL WHERE ucid = %s',
-                                   (ucid,))
-                else:
-                    cursor.execute('UPDATE players SET coalition_leave = NOW() WHERE ucid = %s', (ucid,))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
-        # remove roles, if user is a member
-        if isinstance(member, discord.Member):
-            roles = {
-                "red": discord.utils.get(self.bot.guilds[0].roles, name=self.bot.config['ROLES']['Coalition Red']),
-                "blue": discord.utils.get(self.bot.guilds[0].roles, name=self.bot.config['ROLES']['Coalition Blue'])
-            }
-            for key, value in roles.items():
-                if value in member.roles:
-                    try:
-                        await member.remove_roles(value)
-                    except discord.Forbidden:
-                        await ctx.send("I can't remove you from this coalition. Please contact an Admin.")
-                        await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
-        await ctx.send(("You've" if not admin else name) + f" left the {coalition} coalition.")
-
-    @commands.command(description='Mass coalition leave for users')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def reset_coalitions(self, ctx):
-        if await utils.yn_question(ctx, 'Do you want to mass-reset all coalition-bindings from your players?') is False:
-            await ctx.send('Aborted.')
-            return
-        roles = {
-            "red": discord.utils.get(ctx.guild.roles, name=self.bot.config['ROLES']['Coalition Red']),
-            "blue": discord.utils.get(ctx.guild.roles, name=self.bot.config['ROLES']['Coalition Blue'])
-        }
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT ucid, discord_id, coalition FROM players WHERE coalition IS NOT NULL')
-                for row in cursor.fetchall():
-                    if row[1] != -1:
-                        member = self.bot.guilds[0].get_member(row[1])
-                        await member.remove_roles(roles[row[2]])
-                    cursor.execute('UPDATE players SET coalition = NULL, coalition_leave = NULL WHERE ucid = %s',
-                                   (row[0], ))
-            conn.commit()
-            await ctx.send('Coalition bindings reset for all players.')
-        except discord.Forbidden:
-            await ctx.send('The bot is missing the "Manage Roles" permission.')
-            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
+    async def leave(self, ctx):
+        await ctx.send(f"Please use {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}leave in the respective server to "
+                       f"leave a coalition.")
 
     @staticmethod
     def format_campaigns(data, marker, marker_emoji):

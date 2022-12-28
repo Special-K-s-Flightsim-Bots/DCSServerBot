@@ -24,10 +24,10 @@ def get_sides(message: discord.Message, server: Server) -> list[str]:
         gm_roles = [x.strip() for x in config['ROLES']['GameMaster'].split(',')]
         # find all roles that are allowed to see red and blue
         for role in message.channel.guild.roles:
-            if role.name == config['ROLES']['Coalition Blue']:
+            if role.name == config[server.installation]['Coalition Blue']:
                 roles['Blue'] = role
                 roles['All Blue'].add(role.name)
-            elif role.name == config['ROLES']['Coalition Red']:
+            elif role.name == config[server.installation]['Coalition Red']:
                 roles['Red'] = role
                 roles['All Red'].add(role.name)
             elif role.name == config['ROLES']['DCS']:

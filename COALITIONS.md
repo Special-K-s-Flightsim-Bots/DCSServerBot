@@ -22,7 +22,6 @@ a) __BOT Section__
 
 | Parameter            | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
 |----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| COALITION_LOCK_TIME  | The time you are not allowed to change coalitions in the format "nn days" or "nn hours". Default is 1 day.                                                                                                                                                                                                                                                                                                           |
 | GREETING_DM          | A greeting message, that people will receive as a DM in Discord, if they join your guild.                                                                                                                                                                                                                                                                                                                            |
 
 A GREETING_DM is not mandatory and not linked to coalitions, but it is recommended to tell your new joiners to join a
@@ -33,17 +32,18 @@ b) __ROLES Section__
 | Parameter      | Description                                                                                                   |
 |----------------|---------------------------------------------------------------------------------------------------------------|
 | GameMaster     | Members of this role can run commands that affect the mission behaviour or handle coalition specific details. |
-| Coalition Red  | Members of this role are part of the red coalition.                                                           |
-| Coalition Blue | Members of this role are part of the blue coalition.                                                          |
 
 c) __Server Specific Sections__
 
-| Parameter              | Description                                                                        |
-|------------------------|------------------------------------------------------------------------------------|
-| COALITIONS             | Enable coalition handling, default = false.                                        |                                                                                                                                                                                                                                                                                                                                                 
-| ALLOW_PLAYERS_POOL     | Enable the in-game players pool view (default = false, if coalitions are enabled). |
-| COALITION_BLUE_CHANNEL | Coalition channel for blue coalition.                                              |
-| COALITION_RED_CHANNEL  | Coalition channel for red coalition.                                               |
+| Parameter              | Description                                                                                                |
+|------------------------|------------------------------------------------------------------------------------------------------------|
+| COALITIONS             | Enable coalition handling, default = false.                                                                |                                                                                                                                                                                                                                                                                                                                                 
+| COALITION_LOCK_TIME    | The time you are not allowed to change coalitions in the format "nn days" or "nn hours". Default is 1 day. |
+| ALLOW_PLAYERS_POOL     | Enable the in-game players pool view (default = false, if coalitions are enabled).                         |
+| Coalition Red          | Members of this **role** are part of the red coalition.                                                    |
+| Coalition Blue         | Members of this **role** are part of the blue coalition.                                                   |
+| COALITION_BLUE_CHANNEL | Coalition channel for blue coalition.                                                                      |
+| COALITION_RED_CHANNEL  | Coalition channel for red coalition.                                                                       |
 
 **Attention!**<br/>
 Make sure, that all channels for red and blue coalitions have read access **only** for this coalition and not for 

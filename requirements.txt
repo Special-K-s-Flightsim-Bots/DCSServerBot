@@ -1,7 +1,7 @@
 dateparser==1.1.4
 discord.py==2.1.0
 pandas==1.5.2
-numpy==1.23.5
+numpy==1.24.1
 matplotlib==3.6.2
 psycopg2-binary==2.9.5
 GitPython==3.1.29
