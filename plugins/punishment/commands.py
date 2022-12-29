@@ -226,13 +226,14 @@ class PunishmentMaster(PunishmentAgent):
                             banned = cursor.fetchone()
                             await self.bot.audit(f"Player {banned['name']} (ucid={row['ucid']}) unbanned by "
                                                  f"{self.bot.member.name} due to decay.")
-                            with suppress(Exception):
-                                guild = self.bot.guilds[0]
-                                member = await guild.fetch_member(banned['discord_id'])
-                                channel = await member.create_dm()
-                                await channel.send(
-                                    f"You have been auto-unbanned from the DCS servers on {guild.name}.\n"
-                                    f"Please behave according to the rules to not risk another ban.")
+                            if banned['discord_id'] != -1:
+                                with suppress(Exception):
+                                    guild = self.bot.guilds[0]
+                                    member = await guild.fetch_member(banned['discord_id'])
+                                    channel = await member.create_dm()
+                                    await channel.send(
+                                        f"You have been auto-unbanned from the DCS servers on {guild.name}.\n"
+                                        f"Please behave according to the rules to not risk another ban.")
                         conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
