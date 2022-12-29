@@ -126,7 +126,7 @@ a) __BOT Section__
 | AUTOSCAN            | Scan for missions in Saved Games\..\Missions and auto-add them to the mission list (default = false).                                                                                                                                                                                                                                                                                                                |
 | AUTOBAN             | If true, members leaving the discord will be automatically banned (default = false).                                                                                                                                                                                                                                                                                                                                 |
 | AUTOMATCH           | If false, users have to match themselves using the .linkme command (see [README](./plugins/userstats/README.md))                                                                                                                                                                                                                                                                                                     |
-| COALITION_LOCK_TIME | The time you are not allowed to change [coalitions](./COALITIONS.md) in the format "nn days" or "nn hours". Default is 1 day.                                                                                                                                                                                                                                                                                        |
+| DISCORD_STATUS      | Optional: status to be displayed below the bots avatar in Discord.                                                                                                                                                                                                                                                                                                                                                   |
 | GREETING_DM         | A greeting message, that people will receive as a DM in Discord, if they join your guild.                                                                                                                                                                                                                                                                                                                            |
 | LOGLEVEL            | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).                                                                                                                                                                                                                                                                                                                       |
 | LOGROTATE_COUNT     | Number of logfiles to keep (default: 5).                                                                                                                                                                                                                                                                                                                                                                             |
@@ -148,8 +148,6 @@ b) __ROLES Section__
 | DCS Admin      | The name of the role you'd like to give admin rights on your DCS servers (_Moderator_ for instance).                          |
 | DCS            | The role of users being able to see their statistics and mission information (usually the general user role in your Discord). |
 | GameMaster     | Members of this role can run commands that affect the mission behaviour or handle coalition specific details.                 |
-| Coalition Red  | Members of this role are part of the red coalition (see [Coalitions](./COALITIONS.md)).                                       |
-| Coalition Blue | Members of this role are part of the blue coalition (see [Coalitions](./COALITIONS.md)).                                      |
 
 c) __FILTER Section__ (Optional)
 
@@ -162,16 +160,19 @@ c) __FILTER Section__ (Optional)
 
 d) __DCS Section__
 
-| Parameter                  | Description                                                                                                                                   |
-|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| DCS_INSTALLATION           | The installation directory of DCS World.                                                                                                      |
-| AUTOUPDATE                 | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                                                    |
-| GREETING_MESSAGE_MEMBERS   | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord.                      |
-| GREETING_MESSAGE_UNMATCHED | A greeting message, that people will receive in DCS chat, if they are unmatched.                                                              |
-| SERVER_USER                | The username to display as user no. 1 in the server (aka "Observer")                                                                          |
-| MAX_HUNG_MINUTES           | The maximum amount in minutes the server is allowed to not respond to the bot until considered dead (default = 3). Set it to 0 to disable it. |
-| MESSAGE_PLAYER_USERNAME    | Message that a user gets when being rejected because of a default player name (Player, Spieler, etc.).                                        |
-| MESSAGE_BAN                | Message a banned user gets when being rejected.                                                                                               |
+| Parameter                  | Description                                                                                                                                    |
+|----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| DCS_INSTALLATION           | The installation directory of DCS World.                                                                                                       |
+| AUTOUPDATE                 | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                                                     |
+| GREETING_MESSAGE_MEMBERS   | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord.                       |
+| GREETING_MESSAGE_UNMATCHED | A greeting message, that people will receive in DCS chat, if they are unmatched.                                                               |
+| SERVER_USER                | The username to display as user no. 1 in the server (aka "Observer")                                                                           |
+| MAX_HUNG_MINUTES           | The maximum amount in minutes the server is allowed to not respond to the bot until considered dead (default = 3). Set it to 0 to disable it.  |
+| MESSAGE_PLAYER_USERNAME    | Message that a user gets when being rejected because of a default player name (Player, Spieler, etc.).                                         |
+| MESSAGE_BAN                | Message a banned user gets when being rejected.                                                                                                |
+| COALITION_LOCK_TIME        | The time you are not allowed to change [coalitions](./COALITIONS.md) in the format "nn days" or "nn hours". Default is 1 day.                  |
+| Coalition Red              | Members of this role are part of the red coalition (see [Coalitions](./COALITIONS.md)).                                                        |
+| Coalition Blue             | Members of this role are part of the blue coalition (see [Coalitions](./COALITIONS.md)).                                                       |
 
 e) __Server Specific Sections__
 

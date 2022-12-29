@@ -209,6 +209,8 @@ class DCSServerBot(commands.Bot):
                     else:
                         await self.tree.sync()
                     self.synced = True
+                if 'DISCORD_STATUS' in self.config['BOT']:
+                    await self.change_presence(activity=discord.Game(name=self.config['BOT']['DISCORD_STATUS']))
                 # start the UDP listener to accept commands from DCS
                 self.loop.create_task(self.start_udp_listener())
                 self.loop.create_task(self.register_servers())
