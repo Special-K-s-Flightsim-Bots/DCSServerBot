@@ -28,13 +28,13 @@ class GameMasterEventListener(EventListener):
             if 'from_id' in data and data['from_id'] != 1 and len(data['message']) > 0:
                 await chat_channel.send(data['from_name'] + ': ' + data['message'])
 
-    def _get_coalition(self, player: Player) -> Optional[Coalition]:
+    def _get_coalition(self, server: Server, player: Player) -> Optional[Coalition]:
         if not player.coalition:
             conn = self.bot.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT coalition FROM players WHERE ucid = %s AND coalition_leave IS NULL',
-                                   (player.ucid, ))
+                    cursor.execute('SELECT coalition FROM coalitions WHERE server_name = %s and player_ucid = %s '
+                                   'AND coalition_leave IS NULL', (server.name, player.ucid))
                     coalition = cursor.fetchone()[0] if cursor.rowcount == 1 else None
                     if coalition:
                         player.coalition = Coalition(coalition)
@@ -88,8 +88,14 @@ class GameMasterEventListener(EventListener):
         if coalition.casefold() not in ['blue', 'red']:
             player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join <blue|red>")
             return
-        if self._get_coalition(player) == Coalition(coalition):
-            player.sendChatMessage(f"You are a member of coalition {coalition} already.")
+        if player.coalition:
+            if player.coalition == Coalition(coalition):
+                player.sendChatMessage(f"You are a member of coalition {coalition} already.")
+            else:
+                if player.coalition == Coalition.RED:
+                    player.sendChatMessage(f"You are a member of coalition red already.")
+                else:
+                    player.sendChatMessage(f"You are a member of coalition blue already.")
             return
 
         # update the database
@@ -97,19 +103,24 @@ class GameMasterEventListener(EventListener):
         try:
             with closing(conn.cursor()) as cursor:
                 # check if the player is eligible to change the coalitions
-                cursor.execute("SELECT coalition FROM players WHERE ucid = %s AND coalition_leave > (NOW() - "
-                               "interval %s)", (player.ucid, self.bot.config['BOT']['COALITION_LOCK_TIME']))
+                cursor.execute("SELECT coalition FROM coalitions WHERE server_name = %s AND player_ucid = %s "
+                               "AND coalition_leave > (NOW() - interval %s)",
+                               (server.name, player.ucid, self.bot.config[server.installation]['COALITION_LOCK_TIME']))
                 if cursor.rowcount == 1:
                     if cursor.fetchone()[0] != coalition.casefold():
                         player.sendChatMessage(f"You can't join the {coalition} coalition in-between "
-                                               f"{self.bot.config['BOT']['COALITION_LOCK_TIME']} of leaving a coalition.")
+                                               f"{self.bot.config[server.installation]['COALITION_LOCK_TIME']} of "
+                                               f"leaving a coalition.")
                         await self.bot.audit(f"{player.name} tried to join a new coalition in-between the time limit.",
                                              user=player.ucid)
                         return
 
                 # set the new coalition
-                cursor.execute('UPDATE players SET coalition = %s, coalition_leave = NULL WHERE ucid = %s',
-                               (coalition, player.ucid))
+                cursor.execute('INSERT INTO coalitions (server_name, player_ucid, coalition, coalition_leave) '
+                               'VALUES (%s, %s, %s, NULL) '
+                               'ON CONFLICT (server_name, player_ucid) DO UPDATE '
+                               'SET coalition = excluded.coalition, coalition_leave = excluded.coalition_leave',
+                               (server.name, player.ucid, coalition))
                 player.coalition = Coalition(coalition)
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
@@ -128,8 +139,10 @@ class GameMasterEventListener(EventListener):
         try:
             if player.member:
                 roles = {
-                    Coalition.RED: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Red']),
-                    Coalition.BLUE: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Blue'])
+                    Coalition.RED: discord.utils.get(player.member.guild.roles,
+                                                     name=self.bot.config[server.installation]['Coalition Red']),
+                    Coalition.BLUE: discord.utils.get(player.member.guild.roles,
+                                                      name=self.bot.config[server.installation]['Coalition Blue'])
                 }
                 await player.member.add_roles(roles[player.coalition])
         except discord.Forbidden:
@@ -138,7 +151,7 @@ class GameMasterEventListener(EventListener):
     async def leave(self, data):
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['from_id'], active=True)
-        if not self._get_coalition(player):
+        if not self._get_coalition(server, player):
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
                                    f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
             return
@@ -146,9 +159,9 @@ class GameMasterEventListener(EventListener):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET coalition_leave = NOW() WHERE ucid = %s', (player.ucid,))
+                cursor.execute('UPDATE coalitions SET coalition_leave = NOW() WHERE server_name = %s '
+                               'AND player_ucid = %s', (server.name, player.ucid))
                 player.sendChatMessage(f"You've left the {player.coalition.name} coalition!")
-                player.coalition = None
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -159,12 +172,16 @@ class GameMasterEventListener(EventListener):
         try:
             if player.member:
                 roles = {
-                    Coalition.RED: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Red']),
-                    Coalition.BLUE: discord.utils.get(player.member.guild.roles, name=self.bot.config['ROLES']['Coalition Blue'])
+                    Coalition.RED: discord.utils.get(player.member.guild.roles,
+                                                     name=self.bot.config[server.installation]['Coalition Red']),
+                    Coalition.BLUE: discord.utils.get(player.member.guild.roles,
+                                                      name=self.bot.config[server.installation]['Coalition Blue'])
                 }
                 await player.member.remove_roles(roles[player.coalition])
         except discord.Forbidden:
             await self.bot.audit(f'Permission "Manage Roles" missing for {self.bot.member.name}.', user=self.bot.member)
+        finally:
+            player.coalition = None
 
     def _campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
                   description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
@@ -233,7 +250,7 @@ class GameMasterEventListener(EventListener):
         player: Player = server.get_player(id=data['from_id'])
         if not player:
             return
-        coalition = self._get_coalition(player)
+        coalition = self._get_coalition(server, player)
         prefix = self.bot.config['BOT']['CHAT_COMMAND_PREFIX']
         if self.bot.config.getboolean(server.installation, 'COALITIONS') and \
                 not player.has_discord_roles(['DCS Admin', 'GameMaster']):

@@ -52,7 +52,7 @@ class Help(Plugin):
         if not check:
             raise PermissionError
         help_embed = discord.Embed(color=discord.Color.blue())
-        help_embed.title = f'Command "{ctx.prefix}{command.name}"'
+        help_embed.title = f'Command: {ctx.prefix}{command.name}'
         help_embed.description = command.description
         usage = f'{ctx.prefix}{cmd}'
         if command.usage:
