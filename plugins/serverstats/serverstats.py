@@ -212,13 +212,13 @@ class ServerLoad(report.MultiGraphElement):
                     series.plot(ax=ax3, x='time', y=['Users'], xticks=[], xlabel='', color='blue')
                     ax3.legend(['Users'], loc='upper right')
                     series.plot(ax=self.axes[2], x='time', y=['Memory (RAM)', 'Memory (paged)'], title='Memory', xticks=[], xlabel="", ylabel='Memory (MB)', kind='area', stacked=True)
-                    self.axes[2].legend(loc='upper right')
+                    self.axes[2].legend(loc='upper left')
                     series.plot(ax=self.axes[3], x='time', y=['Read', 'Write'], title='Disk', logy=True, xticks=[], xlabel='', ylabel='KB', grid=True)
-                    self.axes[3].legend(loc='upper right')
-                    ax4 = self.axes[3].twinx()
+                    self.axes[3].legend(loc='upper left')
                     series.plot(ax=self.axes[4], x='time', y=['Sent', 'Recv'], title='Network', logy=True, xlabel='', ylabel='KB/s', grid=True)
                     self.axes[4].legend(['Sent', 'Recv'], loc='upper left')
                     if self.bot.config.getboolean('BOT', 'PING_MONITORING'):
+                        ax4 = self.axes[4].twinx()
                         series.plot(ax=ax4, x='time', y=['Ping'], xlabel='', ylabel='ms', color='yellow')
                         ax4.legend(['Ping'], loc='upper right')
                 else:

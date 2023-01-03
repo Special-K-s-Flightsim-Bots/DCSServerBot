@@ -40,6 +40,8 @@ function mission.onMissionLoadEnd()
     msg.mission_time = 0
     msg.start_time = DCS.getCurrentMission().mission.start_time
     msg.date = DCS.getCurrentMission().mission.date
+    msg.num_slots_blue = table.getn(DCS.getAvailableSlots('blue'))
+    msg.num_slots_red = table.getn(DCS.getAvailableSlots('red'))
     msg.weather = DCS.getCurrentMission().mission.weather
     local clouds = msg.weather.clouds
     if clouds.preset ~= nil then
@@ -111,6 +113,7 @@ function mission.onMissionLoadEnd()
             table.insert(msg.airbases, airbase)
         end
     end
+    msg.dsmc_enabled = (base.HOOK ~= nil)
     utils.sendBotTable(msg)
 end
 
