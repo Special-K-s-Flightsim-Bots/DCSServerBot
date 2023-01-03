@@ -146,7 +146,9 @@ class GameMasterAgent(Plugin):
     @commands.guild_only()
     async def do_script(self, ctx, *script):
         server: Server = await self.bot.get_server(ctx)
-        if server and server.status in [Status.RUNNING, Status.PAUSED]:
+        if not server:
+            return
+        if server.status in [Status.RUNNING, Status.PAUSED]:
             server.sendtoDCS({
                 "command": "do_script",
                 "script": ' '.join(script)
