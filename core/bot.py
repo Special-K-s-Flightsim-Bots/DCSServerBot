@@ -203,11 +203,8 @@ class DCSServerBot(commands.Bot):
                         self.log.info(f'  => {string.capwords(plugin)} NOT loaded.')
                 if not self.synced:
                     self.log.info('- Registering Commands ...')
-                    if self.guilds[0].id == 717133797308498002:
-                        self.tree.copy_global_to(guild=discord.Object(id=717133797308498002))
-                        await self.tree.sync(guild=discord.Object(id=717133797308498002))
-                    else:
-                        await self.tree.sync()
+                    self.tree.copy_global_to(guild=self.guilds[0])
+                    await self.tree.sync(guild=self.guilds[0])
                     self.synced = True
                 if 'DISCORD_STATUS' in self.config['BOT']:
                     await self.change_presence(activity=discord.Game(name=self.config['BOT']['DISCORD_STATUS']))
