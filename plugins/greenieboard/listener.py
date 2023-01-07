@@ -15,14 +15,14 @@ class GreenieBoardEventListener(EventListener):
 
     EVENT_TEXTS = {
         Side.BLUE: {
-            'waveoff': '```ini\n[BLUE player {} waved off from carrier {}.]```',
-            'bolter': '```ini\n[BLUE player {} boltered from carrier {}.]```',
-            'landing': '```ini\n[BLUE player {} landed on carrier {} with grade {} / {}.]```'
+            'waveoff': '```ansi\n\u001b[0;34mBLUE player {} waved off from carrier {}.```',
+            'bolter': '```ansi\n\u001b[0;34mBLUE player {} boltered from carrier {}.```',
+            'landing': '```ansi\n\u001b[0;34mBLUE player {} landed on carrier {} with grade {} / {}.```'
         },
         Side.RED: {
-            'waveoff': '```css\n[RED player {} waved off from carrier {}.]```',
-            'bolter': '```css\n[RED player {} boltered from carrier {}.]```',
-            'landing': '```css\n[RED player {} landed on carrier {} with grade {} / {}.]```'
+            'waveoff': '```ansi\n\u001b[0;31mRED player {} waved off from carrier {}.```',
+            'bolter': '```ansi\n\u001b[0;31mRED player {} boltered from carrier {}.```',
+            'landing': '```ansi\n\u001b[0;31mRED player {} landed on carrier {} with grade {} / {}.```'
         }
     }
 

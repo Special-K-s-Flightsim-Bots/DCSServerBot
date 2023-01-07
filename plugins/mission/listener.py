@@ -11,40 +11,40 @@ if TYPE_CHECKING:
 class MissionEventListener(EventListener):
     EVENT_TEXTS = {
         Side.BLUE: {
-            'takeoff': '```ini\n[BLUE player {} took off from {}.]```',
-            'landing': '```ini\n[BLUE player {} landed at {}.]```',
-            'eject': '```ini\n[BLUE player {} ejected.]```',
-            'crash': '```ini\n[BLUE player {} crashed.]```',
-            'pilot_death': '```ini\n[BLUE player {} died.]```',
-            'kill': '```ini\n[BLUE {} in {} killed {} {} in {} with {}.]```',
-            'friendly_fire': '```fix\n[BLUE {} FRIENDLY FIRE onto {} with {}.]```',
-            'self_kill': '```ini\n[BLUE player {} killed themselves - Ooopsie!]```',
-            'change_slot': '```ini\n[{} player {} occupied {} {}]```',
-            'disconnect': '```ini\n[BLUE player {} disconnected]```'
+            'takeoff': '```ansi\n\u001b[0;34mBLUE player {} took off from {}.```',
+            'landing': '```ansi\n\u001b[0;34mBLUE player {} landed at {}.```',
+            'eject': '```ansi\n\u001b[0;34mBLUE player {} ejected.```',
+            'crash': '```ansi\n\u001b[0;34mBLUE player {} crashed.```',
+            'pilot_death': '```ansi\n\u001b[0;34mBLUE player {} died.```',
+            'kill': '```ansi\n\u001b[0;34mBLUE {} in {} killed {} {} in {} with {}.```',
+            'friendly_fire': '```ansi\n\u001b[1;33mBLUE {} FRIENDLY FIRE onto {} with {}.```',
+            'self_kill': '```ansi\n\u001b[0;34mBLUE player {} killed themselves - Ooopsie!```',
+            'change_slot': '```ansi\n\u001b[0;34m{} player {} occupied {} {}```',
+            'disconnect': '```ansi\n\u001b[0;34mBLUE player {} disconnected```'
         },
         Side.RED: {
-            'takeoff': '```css\n[RED player {} took off from {}.]```',
-            'landing': '```css\n[RED player {} landed at {}.]```',
-            'eject': '```css\n[RED player {} ejected.]```',
-            'crash': '```css\n[RED player {} crashed.]```',
-            'pilot_death': '```css\n[RED player {} died.]```',
-            'kill': '```css\n[RED {} in {} killed {} {} in {} with {}.]```',
-            'friendly_fire': '```fix\n[RED {} FRIENDLY FIRE onto {} with {}.]```',
-            'self_kill': '```css\n[RED player {} killed themselves - Ooopsie!]```',
-            'change_slot': '```css\n[{} player {} occupied {} {}]```',
-            'disconnect': '```css\n[RED player {} disconnected]```'
+            'takeoff': '```ansi\n\u001b[0;31mRED player {} took off from {}.```',
+            'landing': '```ansi\n\u001b[0;31mRED player {} landed at {}.```',
+            'eject': '```ansi\n\u001b[0;31mRED player {} ejected.```',
+            'crash': '```ansi\n\u001b[0;31mRED player {} crashed.```',
+            'pilot_death': '```ansi\n\u001b[0;31mRED player {} died.```',
+            'kill': '```ansi\n\u001b[0;31mRED {} in {} killed {} {} in {} with {}.```',
+            'friendly_fire': '```ansi\n\u001b[1;33mRED {} FRIENDLY FIRE onto {} with {}.```',
+            'self_kill': '```ansi\n\u001b[0;31mRED player {} killed themselves - Ooopsie!```',
+            'change_slot': '```ansi\n\u001b[0;31m{} player {} occupied {} {}```',
+            'disconnect': '```ansi\n\u001b[0;31mRED player {} disconnected```'
         },
         Side.SPECTATOR: {
-            'connect': '```\n[Player {} connected to server]```',
-            'disconnect': '```\n[Player {} disconnected]```',
-            'spectators': '```\n[{} player {} returned to Spectators]```',
-            'crash': '```ini\n[Player {} crashed.]```',
-            'pilot_death': '```ini\n[Player {} died.]```',
-            'kill': '```ini\n[{} in {} killed {} {} in {} with {}.]```',
-            'friendly_fire': '```fix\n[{} FRIENDLY FIRE onto {} with {}.]```'
+            'connect': '```\nPlayer {} connected to server```',
+            'disconnect': '```\nPlayer {} disconnected```',
+            'spectators': '```\n{} player {} returned to Spectators```',
+            'crash': '```\nPlayer {} crashed.```',
+            'pilot_death': '```\n[Player {} died.```',
+            'kill': '```\n{} in {} killed {} {} in {} with {}.```',
+            'friendly_fire': '```ansi\n\u001b[1;33m{} FRIENDLY FIRE onto {} with {}.```'
         },
         Side.UNKNOWN: {
-            'kill': '```ini\n[{} in {} killed {} {} in {} with {}.]```'
+            'kill': '```\n{} in {} killed {} {} in {} with {}.```'
         }
     }
 

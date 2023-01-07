@@ -24,12 +24,12 @@ class MissionStatisticsEventListener(EventListener):
 
     EVENT_TEXTS = {
         Coalition.BLUE: {
-            'capture': '```ini\n[BLUE coalition has captured {}.]```',
-            'capture_from': '```ini\n[BLUE coalition has captured {} from RED coalition.]```'
+            'capture': '```ansi\n\u001b[0;34mBLUE coalition has captured {}.```',
+            'capture_from': '```ansi\n\u001b[0;34mBLUE coalition has captured {} from RED coalition.```'
         },
         Coalition.RED: {
-            'capture': '```css\n[RED coalition has captured {}.]```',
-            'capture_from': '```css\n[RED coalition has captured {} from BLUE coalition.]```'
+            'capture': '```ansi\n\u001b[0;31mRED coalition has captured {}.```',
+            'capture_from': '```ansi\n\u001b[0;31mRED coalition has captured {} from BLUE coalition.```'
         }
     }
 
