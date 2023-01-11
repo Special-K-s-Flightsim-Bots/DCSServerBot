@@ -48,7 +48,7 @@ class GreenieBoardEventListener(EventListener):
                 await chat_channel.send(self.EVENT_TEXTS[player.side]['bolter'].format(player.name, carrier))
             else:
                 details = data['details']
-                if data['wire']:
+                if 'wire' in data and data['wire']:
                     details += f" WIRE# {data['wire']}"
                 await chat_channel.send(self.EVENT_TEXTS[player.side]['landing'].format(
                     player.name, carrier, data['grade'].replace('_', '\\_'), details))
