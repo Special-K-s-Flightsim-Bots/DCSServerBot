@@ -70,15 +70,18 @@ To enable Tacview support, again, a change in scheduler.json is needed:
       [...]
       "extensions": {
         "Tacview": {
-          "show_passwords": false
+          "show_passwords": false,
+          "channel": 837667390242291742
         }
       }
     }
   ]
 }
 ```
-**delete_after** specifies the number of days after which old Tacview files will get deleted by the bot.</br>
-**show_passwords** specifies whether to show the Tacview passwords in the server embed in your status channel or not.
+__Optional__ parameters:</br>
+* **delete_after** specifies the number of days after which old Tacview files will get deleted by the bot.
+* **show_passwords** specifies whether to show the Tacview passwords in the server embed in your status channel or not.
+* **channel** a channel where your tacview files should be uploaded into on mission end.
 
 ### LotAtc
 Another famous extension for DCS is [LotAtc](https://www.lotatc.com/) by D'Art. If you think about any kind of proper
