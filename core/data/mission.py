@@ -40,10 +40,11 @@ class Mission(DataObject):
     async def restart(self):
         self.server.sendtoDCS({"command": "restartMission"})
         # wait for a status change (STOPPED or LOADING)
-        await self.server.wait_for_status_change([Status.STOPPED, Status.LOADING])
+        timeout = 180 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 120
+        await self.server.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout)
         # wait until we are running again
         try:
-            await self.server.wait_for_status_change([Status.RUNNING, Status.PAUSED])
+            await self.server.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout)
         except asyncio.TimeoutError:
             self.log.debug(f'Trying to force start server "{self.server.name}" due to DCS bug.')
             await self.server.start()

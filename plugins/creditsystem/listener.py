@@ -75,7 +75,8 @@ class CreditSystemListener(EventListener):
             player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
             old_points = player.points
             player.points += data['points']
-            player.audit('mission', old_points, 'Unknown mission achievement')
+            if old_points != player.points:
+                player.audit('mission', old_points, 'Unknown mission achievement')
 
     def _get_flighttime(self, ucid: str, campaign_id: int) -> int:
         sql = 'SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime ' \
