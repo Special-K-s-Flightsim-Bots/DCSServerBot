@@ -50,8 +50,13 @@ These commands can be used to administrate the bot itself.
 *) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot. If you
 want to remove them, overwrite PLUGINS in your dcsserverbot.ini.
 
-### In case you want to write your own plugin ...
-There is a sample in the plugins/samples subdirectory, that will guide you through the steps. If you want your plugin to be added to the distribution, just contact me via the contact details below.
+### How to install 3rd-Party Plugins
+Whenever someone else provides a plugin, they most likely do that as a zip file. You can just download any
+plugin zipfile into the plugins directory. They will get unpacked automatically on the next start of DCSServerBot. 
+
+### In case you want to write your own Plugin ...
+There is a sample in the plugins/samples subdirectory, that will guide you through the steps. 
+If you want your plugin to be added to the distribution, just contact me via the contact details below.
 
 ## Extensions
 Many DCS admins use extensions or add-ons like DCS-SRS, Tacview, Lotatc, etc.</br>

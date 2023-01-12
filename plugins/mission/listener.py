@@ -137,7 +137,7 @@ class MissionEventListener(EventListener):
         self._display_mission_embed(server)
         self._display_player_embed(server)
 
-    async def onMissionLoadBegin(self, data):
+    async def onMissionLoadBegin(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.LOADING
         if not server.current_mission:
@@ -149,27 +149,27 @@ class MissionEventListener(EventListener):
             self._display_mission_embed(server)
         self._display_player_embed(server)
 
-    async def onMissionLoadEnd(self, data):
+    async def onMissionLoadEnd(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.current_mission.update(data)
         self._display_mission_embed(server)
 
-    async def onSimulationStart(self, data):
+    async def onSimulationStart(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.PAUSED
         self._display_mission_embed(server)
 
-    async def onSimulationStop(self, data):
+    async def onSimulationStop(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.STOPPED
         self._display_mission_embed(server)
 
-    async def onSimulationPause(self, data):
+    async def onSimulationPause(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.PAUSED
         self._display_mission_embed(server)
 
-    async def onSimulationResume(self, data):
+    async def onSimulationResume(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.RUNNING
         self._display_mission_embed(server)

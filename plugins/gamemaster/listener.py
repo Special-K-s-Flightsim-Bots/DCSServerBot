@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 class GameMasterEventListener(EventListener):
 
-    async def onChatMessage(self, data) -> None:
+    async def onChatMessage(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['from_id'])
         chat_channel: Optional[discord.TextChannel] = None

@@ -475,7 +475,8 @@ class Scheduler(Plugin):
                 ext: Extension = utils.str_to_class('extensions.' + extension)
             else:
                 ext: Extension = utils.str_to_class(extension)
-            ext.schedule(config, self.lastrun)
+            if ext:
+                ext.schedule(config, self.lastrun)
         self.lastrun = datetime.now()
 
     @commands.command(description='Starts a DCS/DCS-SRS server')
