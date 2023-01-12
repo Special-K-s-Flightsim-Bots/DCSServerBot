@@ -334,7 +334,7 @@ mission: Mission = server.current_mission
 ```
 
 ### Player
-There are several ways to access a player:
+There are several ways to access a [player](../core/data/player.py):
 * by their UCID
 * by their Discord ID (if they are a Discord member and properly mapped)
 * by their in-game ID (1, 2, 3, ...)
