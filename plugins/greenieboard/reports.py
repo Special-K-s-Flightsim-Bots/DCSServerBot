@@ -1,4 +1,5 @@
 import discord
+import os
 import psycopg2
 import re
 from contextlib import closing
@@ -108,9 +109,17 @@ class TrapSheet(report.MultiGraphElement):
         if 'trapsheet' not in landing or not landing['trapsheet']:
             return
         trapsheet = landing['trapsheet']
-        ts = read_trapsheet(trapsheet)
-        ps = parse_filename(trapsheet)
-        plot_trapsheet(self.axes, ts, ps, trapsheet)
+        if not os.path.exists(landing['trapsheet']):
+            self.log.error(f"Can't read trapsheet {landing['trapsheet']}, file not found.")
+            return
+        if landing['trapsheet'].endswith('.csv'):
+            ts = read_trapsheet(trapsheet)
+            ps = parse_filename(trapsheet)
+            plot_trapsheet(self.axes, ts, ps, trapsheet)
+        elif landing['trapsheet'].endswith('.png'):
+            self.env.filename = landing['trapsheet']
+        else:
+            self.log.error(f"Unsupported trapsheet format: {landing['trapsheet']}!")
 
 
 class HighscoreTraps(report.GraphElement):

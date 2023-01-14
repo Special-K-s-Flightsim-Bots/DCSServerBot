@@ -165,7 +165,7 @@ class Scheduler(Plugin):
             await server.extensions[ext].prepare()
             await server.extensions[ext].beforeMissionLoad()
         # change the weather in the mission if provided
-        if 'restart' in config and 'settings' in config['restart']:
+        if not server.maintenance and 'restart' in config and 'settings' in config['restart']:
             self.change_mizfile(server, config)
         self.log.info(f"  => DCS server \"{server.name}\" starting up ...")
         await server.startup()

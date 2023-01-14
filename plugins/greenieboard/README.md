@@ -22,6 +22,9 @@ Both are being stored in CSV files, usually somewhere below your Saved Games\<in
 this folder and the format of your files in the greenieboard.json, see the example below. 
 **I would recommend to use separate files per carrier.**<br>
 
+**Attention**: Moose.AIRBOSS stores a CSV file for every trap in the "basedir" you configured for your servers. 
+I will add a cleanup to prune in the future, but currently, there is no auto-cleanup.
+
 ### Code Changes
 To integrate DCSServerBot into your lua code using Moose AIRBOSS, you need to send the following structure to the bot
 **after** the trapsheet is written to disk:
@@ -54,6 +57,19 @@ end
 ```
 A sample file is included in plugins/greenieboard/sample/airboss.lua
 
+## FunkMan Integration (Optional)
+The developers of Moose were so kind to align their new way of sending trap data from DCS via UDP with me, so we could
+generate events, that are compatible with DCSServerBot! To use this option, you currently need to download and link 
+[FunkMan](https://github.com/funkyfranky/FunkMan), but you don't need to run it. I just use some rendering stuff from
+there for convenience reasons and just because they are nice and funkyfranky put a lot of effort in already. A true
+community collaboration though!</br>
+For enabling the FunkMan functionality, you need to enable that in your Moose lua code (samples yet to come, see Moose
+documentation for now) and you need to link the place where you downloaded FunkMan to your greenieboard.json (see below).
+
+**Attention**: FunkMan stores a PNG file for every trap in the "basedir" you configured for your servers
+(Saved Games\DCS.openbeta_server\trapsheets as default). I will add a cleanup to prune in the future, but currently,
+there is no auto-cleanup.
+
 ## Configuration
 Greenieboard comes as many other plugins with a JSON configuration. If you don't generate your own config, DCSServerBot
 will just copy over the sample by itself and use that one. This will do it for the most users, if you don't plan to
@@ -80,6 +96,11 @@ different greenieboards for different servers. If that is a user demand in the f
         "OWO": 2,
         "WO": 1,
         "C": 0
+      },
+      -- OPTIONAL FUNKMAN INTEGRATION --
+      "FunkMan": {
+        "install": "../FunkMan",
+        "IMAGEPATH": "../FunkMan/funkpics/"
       }
     },
     -- OPTIONAL MOOSE AIRBOSS INTEGRATION --
@@ -90,10 +111,20 @@ different greenieboards for different servers. If that is a user demand in the f
         "grades": "AIRBOSS-{carrier}_LSOGrades.csv",
         "trapsheets": "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv"
       }
+    },
+    -- OPTIONAL FUNKMAN INTEGRATION --
+    {
+      "installation": "testdriver",
+      "FunkMan": {
+        "basedir": "trapsheets"
+      }
     }
   ]
 }
 ```
+You can use the DCS standard way (Super Carrier), Moose.AIRBOSS and FunkMan side by side. You just need to decide on one
+of these methods per server. You only get graphical trapsheets with Moose.AIRBOSS and FunkMan, the greenieboard works 
+with all 3 methods.
 
 ## Discord Commands
 

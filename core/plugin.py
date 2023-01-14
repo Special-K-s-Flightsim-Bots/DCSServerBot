@@ -28,8 +28,8 @@ class Plugin(commands.Cog):
         self.loop = bot.loop
         self.locals = self.read_locals()
         self._config = dict[str, dict]()
-        self.eventlistener = eventlistener(self) if eventlistener else None
         self.install()
+        self.eventlistener = eventlistener(self) if eventlistener else None
         if self.eventlistener:
             self.bot.register_eventListener(self.eventlistener)
         self.log.debug(f'- Plugin {type(self).__name__} v{self.plugin_version} initialized.')
@@ -188,3 +188,8 @@ class PluginConflictError(Exception):
 class PluginConfigurationError(Exception):
     def __init__(self, plugin: str, option: str):
         super().__init__(f'Option "{option}" missing in {plugin}.json!')
+
+
+class PluginInstallationError(Exception):
+    def __init__(self, plugin: str, reason: str):
+        super().__init__(f'Plugin "{string.capwords(plugin)}" could not be installed: {reason}')

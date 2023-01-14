@@ -43,6 +43,7 @@ These commands can be used to administrate the bot itself.
 | Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission               | [README](./plugins/punishment/README.md)   |
 | SlotBlocking | Slotblocking either based on units or a point based system.         | yes      | Mission, Creditsystem | [README](./plugins/slotblocking/README.md) |
 | GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS)   | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
+| FunkMan      | Support for Moose.FunkMan (replaces Moose.AIRBOSS in GreenieBoard). | yes      |                       | [README](./plugins/funkman/README.md)      |
 | MOTD         | Generates a message of the day.                                     | yes      | Mission, Missionstats | [README](./plugins/motd/README.md)         |
 | DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
 | OvGME        | Install or update mods into your DCS server.                        | yes      |                       | [README](./plugins/ovgme/README.md)        |
@@ -165,19 +166,20 @@ c) __FILTER Section__ (Optional)
 
 d) __DCS Section__
 
-| Parameter                  | Description                                                                                                                                    |
-|----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| DCS_INSTALLATION           | The installation directory of DCS World.                                                                                                       |
-| AUTOUPDATE                 | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                                                     |
-| GREETING_MESSAGE_MEMBERS   | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord.                       |
-| GREETING_MESSAGE_UNMATCHED | A greeting message, that people will receive in DCS chat, if they are unmatched.                                                               |
-| SERVER_USER                | The username to display as user no. 1 in the server (aka "Observer")                                                                           |
-| MAX_HUNG_MINUTES           | The maximum amount in minutes the server is allowed to not respond to the bot until considered dead (default = 3). Set it to 0 to disable it.  |
-| MESSAGE_PLAYER_USERNAME    | Message that a user gets when being rejected because of a default player name (Player, Spieler, etc.).                                         |
-| MESSAGE_BAN                | Message a banned user gets when being rejected.                                                                                                |
-| COALITION_LOCK_TIME        | The time you are not allowed to change [coalitions](./COALITIONS.md) in the format "nn days" or "nn hours". Default is 1 day.                  |
-| Coalition Red              | Members of this role are part of the red coalition (see [Coalitions](./COALITIONS.md)).                                                        |
-| Coalition Blue             | Members of this role are part of the blue coalition (see [Coalitions](./COALITIONS.md)).                                                       |
+| Parameter                        | Description                                                                                                                                   |
+|----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| DCS_INSTALLATION                 | The installation directory of DCS World.                                                                                                      |
+| AUTOUPDATE                       | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                                                    |
+| GREETING_MESSAGE_MEMBERS         | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord.                      |
+| GREETING_MESSAGE_UNMATCHED       | A greeting message, that people will receive in DCS chat, if they are unmatched.                                                              |
+| SERVER_USER                      | The username to display as user no. 1 in the server (aka "Observer")                                                                          |
+| MAX_HUNG_MINUTES                 | The maximum amount in minutes the server is allowed to not respond to the bot until considered dead (default = 3). Set it to 0 to disable it. |
+| MESSAGE_PLAYER_USERNAME          | Message that a user gets when using line-feeds or carriage-returns in their names.                                                            |
+| MESSAGE_PLAYER_DEFAULT_USERNAME  | Message that a user gets when being rejected because of a default player name (Player, Spieler, etc.).                                        |                                                                                                                                               |
+| MESSAGE_BAN                      | Message a banned user gets when being rejected.                                                                                               |
+| COALITION_LOCK_TIME              | The time you are not allowed to change [coalitions](./COALITIONS.md) in the format "nn days" or "nn hours". Default is 1 day.                 |
+| Coalition Red                    | Members of this role are part of the red coalition (see [Coalitions](./COALITIONS.md)).                                                       |
+| Coalition Blue                   | Members of this role are part of the blue coalition (see [Coalitions](./COALITIONS.md)).                                                      |
 
 e) __Server Specific Sections__
 

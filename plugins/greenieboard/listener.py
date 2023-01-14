@@ -3,8 +3,11 @@ import os
 import psycopg2
 import re
 import string
+import sys
+import uuid
 from contextlib import closing
-from core import EventListener, Server, Player, Channel, Side
+from core import EventListener, Server, Player, Channel, Side, Plugin
+from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
 from plugins.greenieboard import get_element
@@ -25,6 +28,14 @@ class GreenieBoardEventListener(EventListener):
             'landing': '```ansi\n\u001b[0;31mRED player {} landed on carrier {} with grade {} / {}.```'
         }
     }
+
+    def __init__(self, plugin: Plugin):
+        super().__init__(plugin)
+        config = self.locals['configs'][0]
+        if 'FunkMan' in config:
+            sys.path.append(config['FunkMan']['install'])
+            from funkman.funkplot.funkplot import FunkPlot
+            self.funkplot = FunkPlot(ImagePath=config['FunkMan']['IMAGEPATH'])
 
     def _update_greenieboard(self):
         if self.locals['configs'][0]['persistent_board']:
@@ -119,6 +130,22 @@ class GreenieBoardEventListener(EventListener):
         data['wire'] = get_element(data['comment'], 'wire')
         self._process_lso_event(config, server, player, data)
 
+    def _process_funkman_event(self, config: dict, server: Server, player: Player, data: dict):
+        filepath = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + \
+                   os.path.sep + (config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')
+        if not os.path.exists(filepath):
+            os.mkdir(filepath)
+        filename = filepath + os.path.sep + f'{uuid.uuid4()}.png'
+        fig, _ = self.funkplot.PlotTrapSheet(data)
+        fig.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
+        plt.close(fig)
+        data['trapsheet'] = filename
+        data['place'] = {
+            'name': data['carriername']
+        }
+        data['time'] = sum(x * int(t) for x, t in zip([3600, 60, 1], data['mitime'].split(":"))) - int(server.current_mission.start_time)
+        self._process_lso_event(config, server, player, data)
+
     async def onMissionEvent(self, data: dict):
         if 'initiator' not in data:
             return
@@ -137,3 +164,12 @@ class GreenieBoardEventListener(EventListener):
             if update:
                 await self._send_chat_message(player, data)
                 self._update_greenieboard()
+
+    async def moose_lso_grade(self, data: dict):
+        server: Server = self.bot.servers[data['server_name']]
+        config = self.plugin.get_config(server)
+        player: Player = server.get_player(name=data['name']) if 'name' in data else None
+        if player:
+            self._process_funkman_event(config, server, player, data)
+            await self._send_chat_message(player, data)
+            self._update_greenieboard()
