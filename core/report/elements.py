@@ -69,7 +69,8 @@ class Ruler(EmbedElement):
 
 class Field(EmbedElement):
     def render(self, name: str, value: Any, inline: Optional[bool] = True):
-        self.add_field(name=utils.format_string(name, '_ _', **self.env.params), value=utils.format_string(value, '_ _', **self.env.params), inline=inline)
+        self.add_field(name=utils.format_string(name, '_ _', **self.env.params), 
+                                                value=utils.format_string(value, '_ _', **self.env.params), inline=inline)
 
 
 class Table(EmbedElement):
