@@ -223,8 +223,10 @@ class Server(DataObject):
             except Exception as ex:
                 # TODO: DSMC workaround
                 self.log.debug(f"Exception while reading {path}:\n{ex}")
-                self.log.info('  => DSMC detected.')
                 self._settings = utils.dsmc_parse_settings(path)
+                if not self._settings:
+                    self.log.error("- Error while parsing serverSettings.lua!")
+                    raise ex
         return self._settings
 
     def get_current_mission_file(self) -> Optional[str]:
