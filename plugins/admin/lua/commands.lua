@@ -11,7 +11,7 @@ function dcsbot.kick(json)
         return
     end
     plist = net.get_player_list()
-    for i = 1, table.getn(plist) do
+    for i = 2, table.getn(plist) do
         if ((json.ucid and net.get_player_info(plist[i], 'ucid') == json.ucid) or
                 (json.name and net.get_player_info(plist[i], 'name') == json.name)) then
             net.kick(plist[i], json.reason)
