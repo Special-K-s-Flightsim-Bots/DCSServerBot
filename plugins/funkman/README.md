@@ -1,4 +1,4 @@
-# Plugin "Funkman"
+# Plugin "FunkMan"
 This plugin adds support for the Moose Funkman protocol. You need to install 
 [FunkMan](https://github.com/funkyfranky/FunkMan) for it to work.<br/>
 And no, you don't need to run two bots, I just use some modules from FunkMan, just because they are nice :).

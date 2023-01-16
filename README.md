@@ -43,7 +43,7 @@ These commands can be used to administrate the bot itself.
 | Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission               | [README](./plugins/punishment/README.md)   |
 | SlotBlocking | Slotblocking either based on units or a point based system.         | yes      | Mission, Creditsystem | [README](./plugins/slotblocking/README.md) |
 | GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS)   | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
-| FunkMan      | Support for Moose.FunkMan (replaces Moose.AIRBOSS in GreenieBoard). | yes      |                       | [README](./plugins/funkman/README.md)      |
+| FunkMan      | Support for FunkMan                                                 | yes      |                       | [README](./plugins/funkman/README.md)      |
 | MOTD         | Generates a message of the day.                                     | yes      | Mission, Missionstats | [README](./plugins/motd/README.md)         |
 | DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
 | OvGME        | Install or update mods into your DCS server.                        | yes      |                       | [README](./plugins/ovgme/README.md)        |
