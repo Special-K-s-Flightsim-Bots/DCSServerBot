@@ -87,7 +87,7 @@ Decay can only be configured once, so there is no need for a server specific con
 | .forgive | <member>/<ucid> | all     | DCS Admin | Deletes all punishment points for this member / user.  |
 | .penalty |                 | all     | DCS       | Displays the players penalty points.                   |
 
-## Hot to use the penalty system inside of missions
+## How to use the penalty system inside of missions
 To use the penalty system inside of missions, you can use the commands
 ```lua
 --[[

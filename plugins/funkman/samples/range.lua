@@ -1,0 +1,8 @@
+RangePoti=RANGE:New("Range name")
+RangePoti:SetFunkManOn(10042, "127.0.0.1")
+RangePoti:AddBombingTargets("PotiBomb-1", 25)
+RangePoti:AddStrafePit({"PotiStrafe-1"}, 4000, 500, 270, false, 20, RangePoti:GetFoullineDistance("PotiStrafe-1", "foul-2"))
+RangePoti:SetInstructorRadio(301)
+RangePoti:SetRangeControl(296)
+RangePoti:SetMaxStrafeAlt(2500)
+RangePoti:Start()

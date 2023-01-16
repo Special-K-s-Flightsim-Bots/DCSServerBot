@@ -13,6 +13,7 @@ from os import path
 from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound, \
     ValueNotInRange
+from ..data.const import Channel
 
 if TYPE_CHECKING:
     from core import DCSServerBot, Server
@@ -208,13 +209,16 @@ class PaginationReport(Report):
 
 class PersistentReport(Report):
 
-    def __init__(self, bot: DCSServerBot, plugin: str, filename: str, server: Server, embed_name: str):
+    def __init__(self, bot: DCSServerBot, plugin: str, filename: str, server: Server, embed_name: str,
+                 channel_id: Optional[Union[Channel, int]] = Channel.STATUS):
         super().__init__(bot, plugin, filename)
         self.server = server
         self.embed_name = embed_name
+        self.channel_id = channel_id
 
     async def render(self, *args, **kwargs) -> ReportEnv:
         env = await super().render(*args, **kwargs)
         file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None
-        self.bot.loop.call_soon(asyncio.create_task, self.server.setEmbed(self.embed_name, env.embed, file))
+        self.bot.loop.call_soon(asyncio.create_task, self.server.setEmbed(self.embed_name, env.embed, file,
+                                                                          channel_id=self.channel_id))
         return env

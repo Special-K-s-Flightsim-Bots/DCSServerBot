@@ -4,17 +4,44 @@ import os
 import psycopg2
 import shutil
 from contextlib import closing
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report
-from datetime import datetime
+from copy import deepcopy
+from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server
 from discord import SelectOption
 from discord.ext import commands
 from os import path
 from typing import Optional, Union, List
-from . import const
 from .listener import GreenieBoardEventListener
 
 
 class GreenieBoard(Plugin):
+
+    def get_config(self, server: Server) -> Optional[dict]:
+        if server.name not in self._config:
+            if 'configs' in self.locals:
+                specific = default = None
+                for element in self.locals['configs']:
+                    if 'installation' in element or 'server_name' in element:
+                        if ('installation' in element and server.installation == element['installation']) or \
+                                ('server_name' in element and server.name == element['server_name']):
+                            specific = deepcopy(element)
+                    else:
+                        default = deepcopy(element)
+                # we only specify the persistent channel in the server settings, if it is expicitely defined
+                if 'persistent_channel' in default:
+                    del default['persistent_channel']
+                if default and not specific:
+                    self._config[server.name] = default
+                elif specific and not default:
+                    self._config[server.name] = specific
+                elif default and specific:
+                    merged = default
+                    # specific settings will overwrite default settings
+                    for key, value in specific.items():
+                        merged[key] = value
+                    self._config[server.name] = merged
+            else:
+                return None
+        return self._config[server.name] if server.name in self._config else None
 
     def migrate(self, version: str):
         if version != '1.3':
@@ -91,71 +118,15 @@ class GreenieBoard(Plugin):
             await report.render(landings=landings, start_index=int(n))
         await ctx.message.delete()
 
-    def render_board(self):
-        conn = self.pool.getconn()
-        try:
-            num_rows = self.locals['configs'][0]['num_rows']
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute('SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time FROM (SELECT player_ucid, '
-                               'ROW_NUMBER() OVER w AS rn, AVG(points) OVER w AS points, MAX(time) OVER w AS time '
-                               'FROM greenieboard WINDOW w AS (PARTITION BY player_ucid ORDER BY ID DESC ROWS BETWEEN '
-                               'CURRENT ROW AND 9 FOLLOWING)) g, players p WHERE g.player_ucid = p.ucid AND g.rn = 1 '
-                               'GROUP BY 1, 2, 3 ORDER BY 3 DESC LIMIT %s', (num_rows, ))
-                if cursor.rowcount > 0:
-                    embed = discord.Embed(title=f"Greenieboard (TOP {num_rows})",
-                                          color=discord.Color.blue())
-                    pilots = points = landings = ''
-                    max_time = datetime.fromisocalendar(1970, 1, 1)
-                    for row in cursor.fetchall():
-                        pilots += row['name'] + '\n'
-                        points += f"{row['points']:.2f}\n"
-                        cursor.execute('SELECT TRIM(grade) as "grade", night FROM greenieboard WHERE player_ucid = %s '
-                                       'ORDER BY ID DESC LIMIT 10', (row['player_ucid'], ))
-                        i = 0
-                        landings += '**|'
-                        for landing in cursor.fetchall():
-                            if landing['night']:
-                                landings += const.NIGHT_EMOJIS[landing['grade']] + '|'
-                            else:
-                                landings += const.DAY_EMOJIS[landing['grade']] + '|'
-                            i += 1
-                        for i in range(i, 10):
-                            landings += const.DAY_EMOJIS[None] + '|'
-                        landings += '**\n'
-                        if row['time'] > max_time:
-                            max_time = row['time']
-                    embed.add_field(name='Pilot', value=pilots)
-                    embed.add_field(name='Avg', value=points)
-                    embed.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|',
-                                    value=landings)
-                    footer = ''
-                    for grade, text in const.GRADES.items():
-                        if grade not in ['WOP', 'OWO', 'TWO', 'WOFD']:
-                            footer += const.DAY_EMOJIS[grade] + ' ' + text + '\n'
-                    footer += '\nLandings are added at the front, meaning 1 is your latest landing.\nNight landings ' \
-                              'shown by round markers.'
-                    if max_time:
-                        footer += f'\nLast update: {max_time:%y-%m-%d %H:%M:%S}'
-                    embed.set_footer(text=footer)
-                    return embed
-                else:
-                    return None
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-
-    @commands.command(description='Display the current greenieboard', aliases=['greenie'])
+    @commands.command(description='Display the current greenieboard', usage='[num rows]', aliases=['greenie'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def greenieboard(self, ctx):
+    async def greenieboard(self, ctx, num_rows: Optional[int] = 10):
         try:
             timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-            embed = self.render_board()
-            if embed:
-                await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
-            else:
-                await ctx.send('No carrier landings recorded yet.', delete_after=timeout if timeout > 0 else None)
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'greenieboard.json',
+                                      timeout if timeout > 0 else None)
+            await report.render(server_name=None, num_rows=num_rows)
         finally:
             await ctx.message.delete()
 

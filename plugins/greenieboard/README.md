@@ -85,7 +85,7 @@ different greenieboards for different servers. If that is a user demand in the f
       "num_landings": 5,            -- the number of latest carrier landings you get, if you use the .carrier command
       "num_rows": 10,               -- the number of players that can get on the greenieboard (there might be discord limits)
       "persistent_board": true,     -- true (default false) if you want a persistent board displayed somewhere in your discord
-      "persistent_channel": "1234", -- the ID of the channel where the greenieboard should be displayed,
+      "persistent_channel": "1234", -- the ID of the channel where the greenieboard should be displayed
       "credits": true,              -- true (default false), credit points will be generated for every landing
       "ratings": {                  -- ratings will define how many points you get for which LSO rating (see SC documentation for details)
         "_OK_": 5,                  -- if using Moose.AIRBOSS, ratings will be taken from there!
@@ -106,6 +106,8 @@ different greenieboards for different servers. If that is a user demand in the f
     -- OPTIONAL MOOSE AIRBOSS INTEGRATION --
     {
       "installation": "DCS.openbeta_server",
+      "persistent_board": true,     -- true (default false) if you want a persistent board displayed somewhere in your discord
+      "persistent_channel": "4321", -- the ID of the channel where the greenieboard should be displayed
       "Moose.AIRBOSS": {
         "basedir": "airboss",
         "grades": "AIRBOSS-{carrier}_LSOGrades.csv",
@@ -128,10 +130,10 @@ with all 3 methods.
 
 ## Discord Commands
 
-| Command         | Parameter          | Channel       | Role      | Description                                                                       |
-|-----------------|--------------------|---------------|-----------|-----------------------------------------------------------------------------------|
-| .greenieboard   |                    | all           | DCS       | Print the current greenieboard.                                                   |
-| .carrier        | @member / DCS name | all           | DCS       | Display the last carrier landings for this user and a detailed view on selection. |
+| Command         | Parameter          | Channel       | Role      | Description                                                                                         |
+|-----------------|--------------------|---------------|-----------|-----------------------------------------------------------------------------------------------------|
+| .greenieboard   | rows               | all           | DCS       | Print the current greenieboard (per server). 10 rows is default, can be changed with the parameter. |
+| .carrier        | @member / DCS name | all           | DCS       | Display the last carrier landings for this user and a detailed view on selection.                   |
 
 ## Highscore Plugin
 You can add your traps to your .highscore (.hs) command. To do that, copy the file plugins/userstats/reports/highscore.json 

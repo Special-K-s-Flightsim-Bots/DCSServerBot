@@ -6,7 +6,7 @@ import string
 import sys
 import uuid
 from contextlib import closing
-from core import EventListener, Server, Player, Channel, Side, Plugin
+from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
@@ -37,16 +37,27 @@ class GreenieBoardEventListener(EventListener):
             from funkman.funkplot.funkplot import FunkPlot
             self.funkplot = FunkPlot(ImagePath=config['FunkMan']['IMAGEPATH'])
 
-    def _update_greenieboard(self):
-        if self.locals['configs'][0]['persistent_board']:
-            server: Server = list(self.bot.servers.values())[0]
-            embed = self.plugin.render_board()
-            if embed:
-                if 'persistent_channel' in self.locals['configs'][0]:
-                    channel_id = int(self.locals['configs'][0]['persistent_channel'])
-                    self.bot.loop.call_soon(asyncio.create_task, server.setEmbed('greenieboard', embed, channel_id=channel_id))
-                else:
-                    self.bot.loop.call_soon(asyncio.create_task, server.setEmbed('greenieboard', embed))
+    def _update_greenieboard(self, server: Server):
+        # shall we render the server specific board?
+        config = self.plugin.get_config(server)
+        if 'persistent_channel' in config:
+            if 'persistent_board' in config and not config['persistent_board']:
+                return
+            channel_id = int(config['persistent_channel'])
+            num_rows = config['num_rows'] if 'num_rows' in config else 10
+            report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
+                                      server, f'greenieboard-{server.name}', channel_id=channel_id)
+            self.bot.loop.call_soon(asyncio.create_task, report.render(server_name=server.name, num_rows=num_rows))
+        # shall we render the global board?
+        config = self.locals['configs'][0]
+        if 'persistent_channel' in config:
+            if 'persistent_board' in config and not config['persistent_board']:
+                return
+            channel_id = int(config['persistent_channel'])
+            num_rows = config['num_rows'] if 'num_rows' in config else 10
+            report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
+                                      server, f'greenieboard', channel_id=channel_id)
+            self.bot.loop.call_soon(asyncio.create_task, report.render(server_name=None, num_rows=num_rows))
 
     async def _send_chat_message(self, player: Player, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -65,7 +76,11 @@ class GreenieBoardEventListener(EventListener):
                     player.name, carrier, data['grade'].replace('_', '\\_'), details))
 
     async def registerDCSServer(self, data: dict):
-        self._update_greenieboard()
+        server: Server = self.bot.servers[data['server_name']]
+        try:
+            self._update_greenieboard(server)
+        except FileNotFoundError as ex:
+            self.log.error(f'  => File not found: {ex}')
 
     def _process_lso_event(self, config: dict, server: Server, player: Player, data: dict):
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
@@ -163,7 +178,7 @@ class GreenieBoardEventListener(EventListener):
                 update = True
             if update:
                 await self._send_chat_message(player, data)
-                self._update_greenieboard()
+                self._update_greenieboard(server)
 
     async def moose_lso_grade(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -172,4 +187,4 @@ class GreenieBoardEventListener(EventListener):
         if player:
             self._process_funkman_event(config, server, player, data)
             await self._send_chat_message(player, data)
-            self._update_greenieboard()
+            self._update_greenieboard(server)

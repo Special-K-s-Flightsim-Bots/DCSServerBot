@@ -3,9 +3,10 @@ import os
 import psycopg2
 import re
 from contextlib import closing
-from core import report, Coalition, Side, utils
+from core import report, Coalition, Side, utils, EmbedElement
+from datetime import datetime
 from plugins.userstats.filter import StatisticsFilter
-from . import ERRORS, DISTANCE_MARKS, GRADES
+from . import ERRORS, DISTANCE_MARKS, GRADES, const
 from .trapsheet import plot_trapsheet, read_trapsheet, parse_filename
 
 
@@ -170,6 +171,62 @@ class HighscoreTraps(report.GraphElement):
                     self.axes.set_xticks([])
                     self.axes.set_yticks([])
                     self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
+
+class GreenieBoard(EmbedElement):
+    def render(self, server_name: str, num_rows: int):
+        conn = self.pool.getconn()
+        try:
+            sql1 = 'SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time FROM (' \
+                   'SELECT player_ucid, ROW_NUMBER() OVER w AS rn, AVG(points) OVER w AS points, MAX(time) ' \
+                   'OVER w AS time FROM greenieboard'
+            sql2 = 'SELECT TRIM(grade) as "grade", night FROM greenieboard WHERE player_ucid = %s'
+            if server_name:
+                sql1 += f" WHERE mission_id in (SELECT id FROM missions WHERE server_name = '{server_name}')"
+                sql2 += f" AND mission_id in (SELECT id FROM missions WHERE server_name = '{server_name}')"
+            sql1 += ' WINDOW w AS (PARTITION BY player_ucid ORDER BY ID DESC ROWS BETWEEN CURRENT ROW AND 9 FOLLOWING)) ' \
+                   'g, players p WHERE g.player_ucid = p.ucid AND g.rn = 1 GROUP BY 1, 2, 3 ORDER BY 3 DESC LIMIT %s'
+            sql2 += ' ORDER BY ID DESC LIMIT 10'
+
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+                cursor.execute(sql1, (num_rows, ))
+                if cursor.rowcount > 0:
+                    pilots = points = landings = ''
+                    max_time = datetime.fromisocalendar(1970, 1, 1)
+                    for row in cursor.fetchall():
+                        pilots += row['name'] + '\n'
+                        points += f"{row['points']:.2f}\n"
+                        cursor.execute(sql2, (row['player_ucid'], ))
+                        i = 0
+                        landings += '**|'
+                        for landing in cursor.fetchall():
+                            if landing['night']:
+                                landings += const.NIGHT_EMOJIS[landing['grade']] + '|'
+                            else:
+                                landings += const.DAY_EMOJIS[landing['grade']] + '|'
+                            i += 1
+                        for i in range(i, 10):
+                            landings += const.DAY_EMOJIS[None] + '|'
+                        landings += '**\n'
+                        if row['time'] > max_time:
+                            max_time = row['time']
+                    self.add_field(name='Pilot', value=pilots)
+                    self.add_field(name='Avg', value=points)
+                    self.add_field(name='|:one:|:two:|:three:|:four:|:five:|:six:|:seven:|:eight:|:nine:|:zero:|',
+                                   value=landings)
+                    footer = ''
+                    for grade, text in const.GRADES.items():
+                        if grade not in ['WOP', 'OWO', 'TWO', 'WOFD']:
+                            footer += const.DAY_EMOJIS[grade] + ' ' + text + '\n'
+                    footer += '\nLandings are added at the front, meaning 1 is your latest landing.\n' \
+                              'Night landings shown by round markers.'
+                    if max_time:
+                        footer += f'\nLast recorded trap: {max_time:%y-%m-%d %H:%M:%S}'
+                    self.embed.set_footer(text=footer)
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
