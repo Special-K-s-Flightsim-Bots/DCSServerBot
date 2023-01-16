@@ -155,6 +155,7 @@ class GreenieBoardEventListener(EventListener):
         fig.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
         plt.close(fig)
         data['trapsheet'] = filename
+        data['grade'] = self._normalize_airboss_lso_rating(data['grade'])
         data['place'] = {
             'name': data['carriername']
         }
