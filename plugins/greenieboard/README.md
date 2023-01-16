@@ -22,6 +22,9 @@ Both are being stored in CSV files, usually somewhere below your Saved Games\<in
 this folder and the format of your files in the greenieboard.json, see the example below. 
 **I would recommend to use separate files per carrier.**<br>
 
+**Attention**: Moose.AIRBOSS stores a CSV file for every trap in the "basedir" you configured for your servers. 
+I will add a cleanup to prune in the future, but currently, there is no auto-cleanup.
+
 ### Code Changes
 To integrate DCSServerBot into your lua code using Moose AIRBOSS, you need to send the following structure to the bot
 **after** the trapsheet is written to disk:
@@ -54,6 +57,19 @@ end
 ```
 A sample file is included in plugins/greenieboard/sample/airboss.lua
 
+## FunkMan Integration (Optional)
+The developers of Moose were so kind to align their new way of sending trap data from DCS via UDP with me, so we could
+generate events, that are compatible with DCSServerBot! To use this option, you currently need to download and link 
+[FunkMan](https://github.com/funkyfranky/FunkMan), but you don't need to run it. I just use some rendering stuff from
+there for convenience reasons and just because they are nice and funkyfranky put a lot of effort in already. A true
+community collaboration though!</br>
+For enabling the FunkMan functionality, you need to enable that in your Moose lua code (samples yet to come, see Moose
+documentation for now) and you need to link the place where you downloaded FunkMan to your greenieboard.json (see below).
+
+**Attention**: FunkMan stores a PNG file for every trap in the "basedir" you configured for your servers
+(Saved Games\DCS.openbeta_server\trapsheets as default). I will add a cleanup to prune in the future, but currently,
+there is no auto-cleanup.
+
 ## Configuration
 Greenieboard comes as many other plugins with a JSON configuration. If you don't generate your own config, DCSServerBot
 will just copy over the sample by itself and use that one. This will do it for the most users, if you don't plan to
@@ -69,7 +85,7 @@ different greenieboards for different servers. If that is a user demand in the f
       "num_landings": 5,            -- the number of latest carrier landings you get, if you use the .carrier command
       "num_rows": 10,               -- the number of players that can get on the greenieboard (there might be discord limits)
       "persistent_board": true,     -- true (default false) if you want a persistent board displayed somewhere in your discord
-      "persistent_channel": "1234", -- the ID of the channel where the greenieboard should be displayed,
+      "persistent_channel": "1234", -- the ID of the channel where the greenieboard should be displayed
       "credits": true,              -- true (default false), credit points will be generated for every landing
       "ratings": {                  -- ratings will define how many points you get for which LSO rating (see SC documentation for details)
         "_OK_": 5,                  -- if using Moose.AIRBOSS, ratings will be taken from there!
@@ -80,27 +96,44 @@ different greenieboards for different servers. If that is a user demand in the f
         "OWO": 2,
         "WO": 1,
         "C": 0
+      },
+      -- OPTIONAL FUNKMAN INTEGRATION --
+      "FunkMan": {
+        "install": "../FunkMan",
+        "IMAGEPATH": "../FunkMan/funkpics/"
       }
     },
     -- OPTIONAL MOOSE AIRBOSS INTEGRATION --
     {
       "installation": "DCS.openbeta_server",
+      "persistent_board": true,     -- true (default false) if you want a persistent board displayed somewhere in your discord
+      "persistent_channel": "4321", -- the ID of the channel where the greenieboard should be displayed
       "Moose.AIRBOSS": {
         "basedir": "airboss",
         "grades": "AIRBOSS-{carrier}_LSOGrades.csv",
         "trapsheets": "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv"
       }
+    },
+    -- OPTIONAL FUNKMAN INTEGRATION --
+    {
+      "installation": "testdriver",
+      "FunkMan": {
+        "basedir": "trapsheets"
+      }
     }
   ]
 }
 ```
+You can use the DCS standard way (Super Carrier), Moose.AIRBOSS and FunkMan side by side. You just need to decide on one
+of these methods per server. You only get graphical trapsheets with Moose.AIRBOSS and FunkMan, the greenieboard works 
+with all 3 methods.
 
 ## Discord Commands
 
-| Command         | Parameter          | Channel       | Role      | Description                                                                       |
-|-----------------|--------------------|---------------|-----------|-----------------------------------------------------------------------------------|
-| .greenieboard   |                    | all           | DCS       | Print the current greenieboard.                                                   |
-| .carrier        | @member / DCS name | all           | DCS       | Display the last carrier landings for this user and a detailed view on selection. |
+| Command         | Parameter          | Channel       | Role      | Description                                                                                         |
+|-----------------|--------------------|---------------|-----------|-----------------------------------------------------------------------------------------------------|
+| .greenieboard   | rows               | all           | DCS       | Print the current greenieboard (per server). 10 rows is default, can be changed with the parameter. |
+| .carrier        | @member / DCS name | all           | DCS       | Display the last carrier landings for this user and a detailed view on selection.                   |
 
 ## Highscore Plugin
 You can add your traps to your .highscore (.hs) command. To do that, copy the file plugins/userstats/reports/highscore.json 

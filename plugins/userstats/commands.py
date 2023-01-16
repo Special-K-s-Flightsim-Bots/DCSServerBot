@@ -514,6 +514,16 @@ class UserStatisticsMaster(UserStatisticsAgent):
         finally:
             self.pool.putconn(conn)
 
+    @commands.command(description='Show inactive users')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def inactive(self, ctx: commands.Context, *param) -> None:
+        period = ' '.join(param) if len(param) else None
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        report = Report(self.bot, self.plugin_name, 'inactive.json')
+        env = await report.render(period=period)
+        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+
 
 async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:

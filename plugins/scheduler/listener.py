@@ -1,3 +1,4 @@
+import asyncio
 import shlex
 import string
 import subprocess
@@ -133,12 +134,18 @@ class SchedulerListener(EventListener):
     async def onMissionLoadEnd(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.restart_pending = False
+        for ext in server.extensions.values():
+            if await ext.is_running():
+                self.bot.loop.call_soon(asyncio.create_task, ext.onMissionLoadEnd(data))
 
     async def onMissionEnd(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if config and 'onMissionEnd' in config:
             self._run(server, config['onMissionEnd'])
+        for ext in server.extensions.values():
+            if await ext.is_running():
+                self.bot.loop.call_soon(asyncio.create_task, ext.onMissionEnd(data))
 
     async def onShutdown(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

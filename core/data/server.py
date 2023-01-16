@@ -223,8 +223,10 @@ class Server(DataObject):
             except Exception as ex:
                 # TODO: DSMC workaround
                 self.log.debug(f"Exception while reading {path}:\n{ex}")
-                self.log.info('  => DSMC detected.')
                 self._settings = utils.dsmc_parse_settings(path)
+                if not self._settings:
+                    self.log.error("- Error while parsing serverSettings.lua!")
+                    raise ex
         return self._settings
 
     def get_current_mission_file(self) -> Optional[str]:
@@ -342,8 +344,9 @@ class Server(DataObject):
 
     async def stop(self) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING]:
+            timeout = 120 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 60
             self.sendtoDCS({"command": "stop_server"})
-            await self.wait_for_status_change([Status.STOPPED])
+            await self.wait_for_status_change([Status.STOPPED], timeout)
 
     async def start(self) -> None:
         if self.status == Status.STOPPED:
@@ -361,12 +364,12 @@ class Server(DataObject):
         self._settings = None
         if not stopped:
             # wait for a status change (STOPPED or LOADING)
-            await self.wait_for_status_change([Status.STOPPED, Status.LOADING])
+            await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
         else:
             self.sendtoDCS({"command": "start_server"})
         # wait until we are running again
         try:
-            await self.wait_for_status_change([Status.RUNNING, Status.PAUSED])
+            await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
         except asyncio.TimeoutError:
             self.log.debug(f'Trying to force start server "{self.name}" due to DCS bug.')
             await self.start()

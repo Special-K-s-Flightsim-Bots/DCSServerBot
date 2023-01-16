@@ -1,0 +1,57 @@
+{
+  "color": "blue",
+  "title": "Inactive User Information",
+  "input": [
+    {
+      "name": "ruler_length",
+      "value": 34
+    },
+    {
+      "name": "period",
+      "default": "3 months"
+    }
+  ],
+  "elements":
+  [
+    {
+      "type": "Ruler",
+      "params": {
+        "header": "Top 10 Players that didn't log in recently"
+      }
+    },
+    {
+      "type": "SQLTable",
+      "params": {
+        "sql": "select ucid as \"UCID\", name as \"Name\" from players where last_seen < now() - interval '{period}' order by last_seen limit 10",
+        "inline": true
+      }
+    },
+    {
+      "type": "Ruler",
+      "params": {
+        "header": "Top 10 Members that didn't log in recently"
+      }
+    },
+    {
+      "type": "SQLTable",
+      "params": {
+        "sql": "select ucid as \"UCID\", name as \"Name\" from players where discord_id != -1 and last_seen < now() - interval '{period}' order by last_seen limit 10",
+        "inline": true
+      }
+    },
+    {
+      "type": "Ruler",
+      "params": {
+        "header": "Top 10 Players with Lowest Playtime"
+      }
+    },
+    {
+      "type": "SQLTable",
+      "params": {
+        "sql": "select ucid as \"UCID\", name as \"Name\", ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS \"Playtime (h)\" from players p, statistics s where p.ucid = s.player_ucid group by p.ucid order by 3 limit 10",
+        "inline": true
+      }
+    }
+  ],
+  "footer": "Inactive period is {period}"
+}

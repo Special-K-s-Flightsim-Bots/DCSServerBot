@@ -122,7 +122,6 @@ class MizFile:
 
     @clouds.setter
     def clouds(self, values: dict) -> None:
-        elements = list(values.keys())
         # If we're using a preset, disable dynamic weather
         if self.atmosphere_type == 1 and 'preset' in values:
             self.atmosphere_type = 0

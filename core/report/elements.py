@@ -1,12 +1,15 @@
 from __future__ import annotations
 import concurrent
+import discord
 import inspect
 import numpy as np
+import os
 import psycopg2
 import sys
 import uuid
 from abc import ABC, abstractmethod
 from contextlib import closing
+from discord import ButtonStyle, Interaction
 from core import utils
 from core.report.env import ReportEnv
 from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue
@@ -55,13 +58,19 @@ class Image(EmbedElement):
 
 
 class Ruler(EmbedElement):
-    def render(self, ruler_length: Optional[int] = 34):
-        self.add_field(name='▬' * ruler_length, value='_ _', inline=False)
+    def render(self, header: Optional[str] = '', ruler_length: Optional[int] = 34):
+        if header:
+            header = ' ' + header + ' '
+        filler = int((ruler_length - len(header) / 2.5) / 2)
+        if filler <= 0:
+            filler = 1
+        self.add_field(name='▬' * filler + header + '▬' * filler, value='_ _', inline=False)
 
 
 class Field(EmbedElement):
     def render(self, name: str, value: Any, inline: Optional[bool] = True):
-        self.add_field(name=utils.format_string(name, '_ _', **self.env.params), value=utils.format_string(value, '_ _', **self.env.params), inline=inline)
+        self.add_field(name=utils.format_string(name, '_ _', **self.env.params), 
+                                                value=utils.format_string(value, '_ _', **self.env.params), inline=inline)
 
 
 class Table(EmbedElement):
@@ -82,6 +91,17 @@ class Table(EmbedElement):
         if inline:
             for i in range(elements, 3):
                 self.add_field(name='_ _', value='_ _')
+
+
+class Button(ReportElement):
+    def render(self, style: str, label: str, custom_id: Optional[str] = None, url: Optional[str] = None,
+               disabled: Optional[bool] = False, interaction: Optional[Interaction] = None):
+        b = discord.ui.Button(style=ButtonStyle(style), label=label, url=url, disabled=disabled)
+        if interaction:
+            b.callback(interaction=interaction)
+        if not self.env.view:
+            self.env.view = discord.ui.View()
+        self.env.view.add_item(b)
 
 
 class GraphElement(ReportElement):
@@ -153,11 +173,13 @@ class Graph(ReportElement):
         for future in futures:
             if future.exception():
                 raise future.exception()
-        plt.subplots_adjust(hspace=0.5, wspace=0.5)
-        self.env.filename = f'{uuid.uuid4()}.png'
-        self.env.figure.savefig(self.env.filename, bbox_inches='tight', facecolor='#2C2F33')
-        plt.close(self.env.figure)
-        self.env.embed.set_image(url='attachment://' + self.env.filename)
+        # only render the graph, if we don't have a rendered graph already attached as a file (image)
+        if not self.env.filename:
+            plt.subplots_adjust(hspace=0.5, wspace=0.5)
+            self.env.filename = f'{uuid.uuid4()}.png'
+            self.env.figure.savefig(self.env.filename, bbox_inches='tight', facecolor='#2C2F33')
+            plt.close(self.env.figure)
+        self.env.embed.set_image(url='attachment://' + os.path.basename(self.env.filename))
         footer = self.env.embed.footer.text
         if footer is None:
             footer = 'Click on the image to zoom in.'

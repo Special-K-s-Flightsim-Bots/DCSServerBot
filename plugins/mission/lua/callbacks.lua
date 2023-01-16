@@ -151,6 +151,8 @@ function mission.onPlayerStart(id)
 	msg.ucid = net.get_player_info(id, 'ucid')
 	msg.name = net.get_player_info(id, 'name')
     msg.side = 0
+    msg.slot = -1
+    msg.sub_slot = -1
     -- server user is never active
     if (msg.id == 1) then
         msg.active = false

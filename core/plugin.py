@@ -28,8 +28,8 @@ class Plugin(commands.Cog):
         self.loop = bot.loop
         self.locals = self.read_locals()
         self._config = dict[str, dict]()
-        self.eventlistener = eventlistener(self) if eventlistener else None
         self.install()
+        self.eventlistener = eventlistener(self) if eventlistener else None
         if self.eventlistener:
             self.bot.register_eventListener(self.eventlistener)
         self.log.debug(f'- Plugin {type(self).__name__} v{self.plugin_version} initialized.')
@@ -87,19 +87,19 @@ class Plugin(commands.Cog):
             if not path.exists(target_path):
                 os.makedirs(target_path)
 
-    def migrate(self, version: str):
+    def migrate(self, version: str) -> None:
         pass
 
-    async def before_dcs_update(self):
+    async def before_dcs_update(self) -> None:
         pass
 
-    async def after_dcs_update(self):
+    async def after_dcs_update(self) -> None:
         pass
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None) -> None:
         pass
 
-    def init_db(self):
+    def init_db(self) -> None:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -170,7 +170,7 @@ class Plugin(commands.Cog):
                 return None
         return self._config[server.name] if server.name in self._config else None
 
-    def rename(self, old_name: str, new_name: str):
+    def rename(self, old_name: str, new_name: str) -> None:
         # this function has to be implemented in your own plugins, if a server rename takes place
         pass
 
@@ -188,3 +188,8 @@ class PluginConflictError(Exception):
 class PluginConfigurationError(Exception):
     def __init__(self, plugin: str, option: str):
         super().__init__(f'Option "{option}" missing in {plugin}.json!')
+
+
+class PluginInstallationError(Exception):
+    def __init__(self, plugin: str, reason: str):
+        super().__init__(f'Plugin "{string.capwords(plugin)}" could not be installed: {reason}')

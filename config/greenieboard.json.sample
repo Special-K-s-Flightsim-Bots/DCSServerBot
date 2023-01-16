@@ -14,6 +14,10 @@
         "OWO": 2,
         "WO": 1,
         "C": 0
+      },
+      "FunkMan": {
+        "install": "../FunkMan",
+        "IMAGEPATH": "../FunkMan/funkpics/"
       }
     },
     {
@@ -22,6 +26,12 @@
         "basedir": "airboss",
         "grades": "AIRBOSS-{carrier}_LSOGrades.csv",
         "trapsheets": "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv"
+      }
+    },
+    {
+      "installation": "instance2",
+      "FunkMan": {
+        "basedir": "trapsheets"
       }
     }
   ]

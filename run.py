@@ -15,7 +15,7 @@ from discord import SelectOption
 from discord.ext import commands
 from install import Install
 from logging.handlers import RotatingFileHandler
-from os import path
+from pathlib import Path
 from psycopg2 import pool
 from typing import Optional
 from version import __version__
@@ -51,6 +51,7 @@ class Main:
             self.log.warning('- Restart needed => exiting.')
             exit(-1)
         self.db_version = None
+        self.install_plugins()
         self.pool = self.init_db()
         utils.dcs.desanitize(self)
         self.install_hooks()
@@ -78,6 +79,13 @@ class Main:
         ch.setFormatter(formatter)
         log.addHandler(ch)
         return log
+
+    def install_plugins(self):
+        for file in Path('plugins').glob('*.zip'):
+            path = file.__str__()
+            self.log.info('- Unpacking plugin "{}" ...'.format(os.path.basename(path).replace('.zip', '')))
+            shutil.unpack_archive(path, '{}'.format(path.replace('.zip', '')))
+            os.remove(path)
 
     @staticmethod
     def read_config():
@@ -114,7 +122,7 @@ class Main:
                                                "INSERT INTO version (version) VALUES ('v1.4');")
                             cursor.execute('SELECT version FROM version')
                             self.db_version = cursor.fetchone()[0]
-                            while path.exists(UPDATES_SQL.format(self.db_version)):
+                            while os.path.exists(UPDATES_SQL.format(self.db_version)):
                                 self.log.info('Updating Database {} ...'.format(self.db_version))
                                 with open(UPDATES_SQL.format(self.db_version)) as tables_sql:
                                     for query in tables_sql.readlines():
@@ -150,10 +158,10 @@ class Main:
                 continue
             self.log.info(f'  => {installation}')
             dcs_path = os.path.expandvars(self.config[installation]['DCS_HOME'] + '\\Scripts')
-            if not path.exists(dcs_path):
+            if not os.path.exists(dcs_path):
                 os.mkdir(dcs_path)
             ignore = None
-            if path.exists(dcs_path + r'\net\DCSServerBot'):
+            if os.path.exists(dcs_path + r'\net\DCSServerBot'):
                 self.log.debug('  - Updating Hooks ...')
                 shutil.rmtree(dcs_path + r'\net\DCSServerBot')
                 ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
@@ -361,7 +369,7 @@ class Main:
 
 
 async def main():
-    if not path.exists('config/dcsserverbot.ini'):
+    if not os.path.exists('config/dcsserverbot.ini'):
         Install.install()
     else:
         Install.verify()

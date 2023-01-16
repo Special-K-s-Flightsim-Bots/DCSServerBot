@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 class EventListener(ABC):
 
-    def __init__(self, plugin):
+    def __init__(self, plugin: Plugin):
         self.plugin: Plugin = plugin
         self.plugin_name = type(self).__module__.split('.')[-2]
         self.bot: DCSServerBot = plugin.bot
