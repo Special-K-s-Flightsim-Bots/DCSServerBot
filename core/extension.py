@@ -27,10 +27,10 @@ class Extension(ABC):
     async def beforeMissionLoad(self) -> bool:
         return False
 
-    async def onMissionLoadEnd(self, data: dict):
+    async def onMissionLoadEnd(self, data: dict) -> bool:
         return False
 
-    async def onMissionEnd(self, data: dict):
+    async def onSimulationStop(self, data: dict) -> bool:
         return False
 
     async def startup(self) -> bool:
