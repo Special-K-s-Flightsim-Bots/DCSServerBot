@@ -621,4 +621,6 @@ class Mission(Plugin):
 
 
 async def setup(bot: DCSServerBot):
+    if 'gamemaster' not in bot.plugins:
+        raise PluginRequiredError('gamemaster')
     await bot.add_cog(Mission(bot, MissionEventListener))

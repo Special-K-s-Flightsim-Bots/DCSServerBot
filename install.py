@@ -1,11 +1,15 @@
 import os
 import psycopg2
+import secrets
 import socket
 import winreg
 from configparser import ConfigParser
-from core import utils
+from contextlib import closing, suppress
+from getpass import getpass
 from os import path
-from typing import Optional
+from core import utils
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from typing import Optional, Tuple
 
 
 class InvalidParameter(Exception):
@@ -27,67 +31,125 @@ class MissingParameter(Exception):
 class Install:
 
     @staticmethod
-    def install():
-        print('Welcome to the DCSSeverBot!\n\nI will create a file named config/dcsserverbot.ini for you now...')
+    def get_dcs_installation() -> Optional[str]:
         dcs_installation = None
         key = skey = None
         try:
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Eagle Dynamics", 0)
             num_dcs_installs = winreg.QueryInfoKey(key)[0]
             if num_dcs_installs == 0:
-                print('Attention: No installation of DCS World found on this PC. Autostart will not work.')
-            elif num_dcs_installs > 1:
-                print('I\'ve found multiple installations of DCS World on this PC:')
-                for i in range(0, num_dcs_installs):
-                    print(f'{i+1}: {winreg.EnumKey(key, i)}')
-                num = int(input('\nPlease specify, which installation you want the bot to use: '))
-                skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Eagle Dynamics\\{winreg.EnumKey(key, num-1)}", 0)
+                raise FileNotFoundError
+            installs = list[Tuple[str, str]]()
+            for i in range(0, num_dcs_installs):
+                name = winreg.EnumKey(key, i)
+                skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Eagle Dynamics\\{name}", 0)
+                path = winreg.QueryValueEx(skey, 'Path')[0]
+                if os.path.exists(path):
+                    installs.append((name, path))
+            if len(installs) == 0:
+                raise FileNotFoundError
+            elif len(installs) == 1:
+                print(f"{installs[0][0]} found.")
+                return installs[0][1]
             else:
-                skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Eagle Dynamics\\{winreg.EnumKey(key, 0)}", 0)
-            if skey:
-                dcs_installation = winreg.QueryValueEx(skey, 'Path')[0]
-                if not path.exists(dcs_installation):
+                print('I\'ve found multiple installations of DCS World on this PC:')
+                for i in range(0, len(installs)):
+                    print(f'{i+1}: {installs[i][0]}')
+                num = int(input('\nPlease specify, which installation you want the bot to use: '))
+                return installs[num][1]
+        except (FileNotFoundError, OSError):
+            while dcs_installation is None:
+                dcs_installation = input("Please enter the path to your DCS World installation: ")
+                if not os.path.exists(dcs_installation):
+                    print("Directory not found. Please try again.")
                     dcs_installation = None
-                    raise OSError
-        except FileNotFoundError:
-            print('Attention: No installation of DCS World found on this PC. Autostart will not work.')
-        except OSError:
-            print('Attention: Your DCS was not installed correctly. Autostart will not work.')
         finally:
             if key:
                 key.Close()
             if skey:
                 skey.Close()
+        return dcs_installation
 
+    @staticmethod
+    def get_database_url() -> Optional[str]:
+        if not utils.is_open('127.0.0.1', 5432):
+            print('No PostgreSQL installation found. Please install PostgreSQL and re-run the installation.')
+            exit(-1)
+        while True:
+            passwd = getpass('Please enter your PostgreSQL master password: ')
+            url = f'postgres://postgres:{passwd}@localhost:5432/postgres'
+            try:
+                conn = psycopg2.connect(url)
+                conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT);
+                with closing(conn.cursor()) as cursor:
+                    passwd = secrets.token_urlsafe(8)
+                    try:
+                        cursor.execute("CREATE USER dcsserverbot WITH ENCRYPTED PASSWORD %s", (passwd, ))
+                    except psycopg2.Error:
+                        print('Existing dcsserverbot database found.')
+                        while True:
+                            passwd = getpass("Please enter your password for user 'dcsserverbot': ")
+                            try:
+                                conn2 = psycopg2.connect(f"postgres://dcsserverbot:{passwd}@localhost:5432/dcsserverbot")
+                                conn2.close()
+                                break
+                            except psycopg2.Error:
+                                print("Wrong password. Try again.")
+                    with suppress(psycopg2.Error):
+                        cursor.execute("CREATE DATABASE dcsserverbot")
+                    cursor.execute("GRANT ALL PRIVILEGES ON DATABASE dcsserverbot TO dcsserverbot")
+                    conn.close()
+                    print("PostgreSQL user and database created.")
+                    return f"postgres://dcsserverbot:{passwd}@localhost:5432/dcsserverbot"
+            except psycopg2.OperationalError:
+                print("Wrong password. Try again!")
+            except psycopg2.Error as ex:
+                print(ex)
+                return None
+
+    @staticmethod
+    def install():
+        print("Welcome to the DCSSeverBot!\n\n")
+        print("Let's create a first version of your dcsserverbot.ini now!")
+        dcs_installation = Install.get_dcs_installation() or '<see documentation>'
+        token = input('Please enter your discord TOKEN (see documentation): ') or '<see documentation>'
+        database_url = Install.get_database_url()
         with open('config/dcsserverbot.ini', 'w') as inifile:
             inifile.writelines([
                 '; This file is generated and has to be amended to your needs!\n',
                 '[BOT]\n',
                 'OWNER=<see documentation>\n',
-                'TOKEN=<see documentation>\n',
-                'DATABASE_URL=postgres://<user>:<pass>@localhost:5432/<database>\n',
-                '\n'])
+                f'TOKEN={token}\n',
+                f'DATABASE_URL={database_url}\n'
+            ])
+            try:
+                import git
+                inifile.write('AUTOUPDATE=true\n')
+            except ImportError:
+                pass
             if dcs_installation:
                 inifile.writelines([
+                    '\n',
                     '[DCS]\n',
-                    'DCS_INSTALLATION={}\n'.format(dcs_installation.replace('\\', '\\\\')),
-                    '\n'
+                    'DCS_INSTALLATION={}\n'.format(dcs_installation.replace('\\', '\\\\'))
                 ])
+            print("Searching DCS servers ...")
             dcs_port = 6666
-            for _, installation in utils.findDCSInstallations():
-                inifile.writelines([
-                    f'[{installation}]\n',
-                    'DCS_HOST=127.0.0.1\n',
-                    f'DCS_PORT={dcs_port}\n',
-                    r'DCS_HOME = %%USERPROFILE%%\\Saved Games\\' + f'{installation}\n',
-                    'ADMIN_CHANNEL=<see documentation>\n',
-                    'STATUS_CHANNEL=<see documentation>\n',
-                    'CHAT_CHANNEL=<see documentation>\n',
-                    '\n'
-                ])
-                dcs_port += 1
-        print('Please check config/dcsserverbot.ini and edit it according to the installation documentation before '
-              'you restart the bot.')
+            for name, installation in utils.findDCSInstallations():
+                if input(f'Do you want to add server "{name}" (Y/N)?').upper() == 'Y':
+                    inifile.writelines([
+                        '\n',
+                        f'[{installation}]\n',
+                        'DCS_HOST=127.0.0.1\n',
+                        f'DCS_PORT={dcs_port}\n',
+                        r'DCS_HOME = %%USERPROFILE%%\\Saved Games\\' + f'{installation}\n',
+                        'ADMIN_CHANNEL=<see documentation>\n',
+                        'STATUS_CHANNEL=<see documentation>\n',
+                        'CHAT_CHANNEL=<see documentation>\n'
+                    ])
+                    dcs_port += 1
+        print("\nI've created a DCSServerBot configuration file \"config/dcsserverbot.ini\" for you.\n"
+              "Please review it, before you launch DCSServerBot.")
 
     @staticmethod
     def verify():
@@ -106,7 +168,7 @@ class Install:
         if path.exists('config/default.ini'):
             config.read('config/default.ini')
         else:
-            raise Exception('Your installation is broken.')
+            raise Exception("Your installation is broken, default.ini is missing!")
         if path.exists('config/dcsserverbot.ini'):
             config.read('config/dcsserverbot.ini')
         else:
@@ -130,6 +192,10 @@ class Install:
                                                                'has been installed by using git clone.')
             if 'AUDIT_CHANNEL' in config['BOT'] and not check_channel(config['BOT']['AUDIT_CHANNEL']):
                 raise InvalidParameter('BOT', 'AUDIT_CHANNEL', 'Invalid channel.')
+            if 'PLUGINS' in config['BOT'] and \
+                    config['BOT']['PLUGINS'] != 'mission, scheduler, help, admin, userstats, missionstats, ' \
+                                                'creditsystem, gamemaster':
+                print("Please don't change the PLUGINS parameter, use OPT_PLUGINS instead!")
         except KeyError as key:
             raise MissingParameter('BOT', str(key))
         # check DCS section
@@ -139,7 +205,7 @@ class Install:
         except KeyError as key:
             raise MissingParameter('DCS', str(key))
         num_installs = 0
-        ports = set()
+        ports = set(config['BOT']['PORT'])
         for _, installation in utils.findDCSInstallations():
             try:
                 if installation not in config:
@@ -154,27 +220,21 @@ class Install:
                                                                      'default: 6666).')
                 else:
                     if config[installation]['DCS_PORT'] in ports:
-                        raise InvalidParameter(installation, 'DCS_PORT', 'Port has to be unique for all servers!')
+                        raise InvalidParameter(installation, 'DCS_PORT', 'Ports have to be unique for all servers!')
+                    elif config[installation]['DCS_PORT'] in [8088, 10308, 10309]:
+                        raise InvalidParameter(installation, 'DCS_PORT',
+                                               "Don't use the port of your DCS server (""10308), webgui_port (8088) or "
+                                               "webrtc_port (""10309)!")
                     ports.add(config[installation]['DCS_PORT'])
                 if not path.exists(os.path.expandvars(config[installation]['DCS_HOME'])):
                     raise InvalidParameter(installation, 'DCS_HOME', 'Path does not exist.')
-                if 'SRS_CONFIG' in config[installation]:
-                    if not path.exists(os.path.expandvars(config[installation]['SRS_CONFIG'])):
-                        raise InvalidParameter(installation, 'SRS_CONFIG', 'Path does not exist.')
-                    try:
-                        socket.inet_aton(config[installation]['SRS_HOST'])
-                    except socket.error:
-                        raise InvalidParameter(installation, 'SRS_HOST', 'Invalid IPv4 address.')
-                    if not config[installation]['SRS_PORT'].isnumeric():
-                        raise InvalidParameter(installation, 'SRS_PORT', 'Please enter a number from 1024 to 65535 ('
-                                                                         'default: 5002).')
                 for channel in ['CHAT_CHANNEL', 'ADMIN_CHANNEL', 'STATUS_CHANNEL']:
                     if not check_channel(config[installation][channel]):
                         raise InvalidParameter(installation, channel, 'Invalid channel.')
             except KeyError as key:
                 raise MissingParameter(installation, str(key))
         if num_installs == 0:
-            raise Exception('Your dcsserverbot.ini does not contain any matching server configuration.')
+            raise Exception('Your dcsserverbot.ini does not contain any server configuration.')
 
 
 if __name__ == "__main__":

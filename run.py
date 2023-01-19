@@ -47,6 +47,7 @@ class Main:
         self.config = self.read_config()
         self.log = self.init_logger()
         self.log.info(f'DCSServerBot v{BOT_VERSION}.{SUB_VERSION} starting up ...')
+        self.log.info(f'- Python version {platform.python_version()} detected.')
         if self.config.getboolean('BOT', 'AUTOUPDATE') and self.upgrade():
             self.log.warning('- Restart needed => exiting.')
             exit(-1)
@@ -370,12 +371,15 @@ class Main:
 
 async def main():
     if not os.path.exists('config/dcsserverbot.ini'):
-        Install.install()
+        print("Please run 'python install.py' first.")
     else:
         Install.verify()
         await Main().run()
 
 if __name__ == "__main__":
+    if int(platform.python_version_tuple()[0]) != 3 or int(platform.python_version_tuple()[1]) not in range(9, 12):
+        print("You need Python 3.9 to 3.11 to run DCSServerBot!")
+        exit(-1)
     try:
         asyncio.run(main())
     except discord.errors.LoginFailure:
