@@ -1,14 +1,11 @@
+import discord
 import os
 import re
-import string
 import time
-from collections import deque
-
-import discord
 import win32api
+from collections import deque
 from core import Extension, report, Server
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Optional
 
 

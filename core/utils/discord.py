@@ -19,8 +19,10 @@ async def wait_for_single_reaction(bot: DCSServerBot, ctx: Union[commands.Contex
     def check_press(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == message.channel) & (user == member) & (react.message.id == message.id)
 
-    tasks = [bot.wait_for('reaction_add', check=check_press),
-             bot.wait_for('reaction_remove', check=check_press)]
+    tasks = [
+        asyncio.create_task(bot.wait_for('reaction_add', check=check_press)),
+        asyncio.create_task(bot.wait_for('reaction_remove', check=check_press))
+    ]
     try:
         member = ctx.message.author if isinstance(ctx, commands.Context) else ctx.recipient
         done, tasks = await asyncio.wait(tasks, timeout=120, return_when=asyncio.FIRST_COMPLETED)

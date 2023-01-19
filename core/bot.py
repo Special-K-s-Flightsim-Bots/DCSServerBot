@@ -297,7 +297,7 @@ class DCSServerBot(commands.Bot):
     def get_channel(self, channel_id: int):
         return super().get_channel(channel_id) if id != -1 else None
 
-    def get_ucid_by_name(self, name: str) -> Optional[Tuple[str, str]]:
+    def get_ucid_by_name(self, name: str) -> Tuple[Optional[str], Optional[str]]:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -308,7 +308,7 @@ class DCSServerBot(commands.Bot):
                     res = cursor.fetchone()
                     return res[0], res[1]
                 else:
-                    return None
+                    return None, None
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
