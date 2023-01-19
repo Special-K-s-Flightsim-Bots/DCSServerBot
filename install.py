@@ -188,8 +188,8 @@ class Install:
                 try:
                     import git
                 except ImportError:
-                    raise InvalidParameter('BOT', 'AUTOUPATE', 'Make sure git for Windows is installed and the bot '
-                                                               'has been installed by using git clone.')
+                    raise InvalidParameter('BOT', 'AUTOUPDATE', 'Make sure git for Windows is installed and the bot '
+                                                                'has been installed by using "git clone".')
             if 'AUDIT_CHANNEL' in config['BOT'] and not check_channel(config['BOT']['AUDIT_CHANNEL']):
                 raise InvalidParameter('BOT', 'AUDIT_CHANNEL', 'Invalid channel.')
             if 'PLUGINS' in config['BOT'] and \
