@@ -167,6 +167,9 @@ class GreenieBoardEventListener(EventListener):
             return
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
+        # ignore SC / Moose.AIRBOSS events, if FunkMan is enabled
+        if 'FunkMan' in config:
+            return
         player: Player = server.get_player(name=data['initiator']['name']) if 'name' in data['initiator'] else None
         if player:
             update = False
