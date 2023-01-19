@@ -92,6 +92,8 @@ class Tacview(Extension):
                               r'\Mods\tech\Tacview\bin\tacview.dll')
 
     async def onSimulationStop(self, data: dict):
+        if 'channel' not in self.config:
+            return
         server: Server = self.bot.servers[data['server_name']]
         log = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Logs/dcs.log'
         exp = re.compile(r'TACVIEW.DLL (.*): Successfully saved \[(?P<filename>.*)\]')

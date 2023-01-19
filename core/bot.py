@@ -9,6 +9,7 @@ import socket
 import string
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
+from copy import deepcopy
 from discord import Interaction, app_commands
 from core import utils, Server, Status, Channel, DataObjectFactory
 from datetime import datetime
@@ -412,7 +413,7 @@ class DCSServerBot(commands.Bot):
             # we could not find the user, so try to match them
             dcs_name = re.sub(tag_filter, '', data['name']).strip() if tag_filter else data['name']
             # we do not match the default names
-            if dcs_name in ['Player', 'Spieler', 'Jugador', 'Joueur']:
+            if dcs_name in ['Player', 'Spieler', 'Jugador', 'Joueur', 'Игрок']:
                 return None
             # a minimum of 3 characters have to match
             max_weight = 3
@@ -608,7 +609,8 @@ class DCSServerBot(commands.Bot):
                                     continue
                         for listener in self.eventListeners:
                             if command in listener.commands:
-                                self.loop.call_soon_threadsafe(asyncio.create_task, listener.processEvent(data))
+                                self.loop.call_soon_threadsafe(asyncio.create_task,
+                                                               listener.processEvent(deepcopy(data)))
                     except Exception as ex:
                         self.log.exception(ex)
                     finally:

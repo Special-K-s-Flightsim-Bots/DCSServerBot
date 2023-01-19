@@ -283,6 +283,9 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 ucid, name = self.bot.get_ucid_by_name(name)
             if ucid:
                 member = self.bot.get_member_by_ucid(ucid)
+            else:
+                await ctx.send('Player not found.')
+                return
         else:
             ucid = self.bot.get_ucid_by_member(member)
 
