@@ -146,7 +146,6 @@ class SchedulerListener(EventListener):
 
     async def onSimulationStop(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
-        config = self.plugin.get_config(server)
         for ext in server.extensions.values():
             if await ext.is_running():
                 self.bot.loop.call_soon(asyncio.create_task, ext.onSimulationStop(data))
