@@ -4,6 +4,4 @@ if not exist venv (
     venv\Scripts\python.exe -m pip install --upgrade pip
     venv\Scripts\pip install -r requirements.txt
 )
-:loop
-venv\Scripts\python run.py
-goto loop
+venv\Scripts\python install.py
