@@ -643,8 +643,8 @@ class Mission(Plugin):
                             outfile.write(await response.read())
                     else:
                         await message.channel.send(f'Error {response.status} while reading MIZ file!')
-            if not exists and not self.bot.config.getboolean('BOT', 'AUTOSCAN'):
-                server.addMission(os.path.basename(filename))
+            if not self.bot.config.getboolean('BOT', 'AUTOSCAN'):
+                server.addMission(filename)
             name = os.path.basename(filename)[:-4]
             await message.channel.send(f'Mission "{name}" uploaded and added.' if not exists else f"Mission {name} replaced.")
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
@@ -654,7 +654,7 @@ class Mission(Plugin):
                 data = await server.sendtoDCSSync({"command": "listMissions"})
                 missions = data['missionList']
                 for idx, mission in enumerate(missions):
-                    if os.path.basename(mission) == os.path.basename(filename):
+                    if os.path.normpath(mission) == os.path.normpath(filename):
                         tmp = await message.channel.send(f'Loading mission {name} ...')
                         await server.loadMission(idx + 1)
                         await self.bot.audit("loaded mission", server=server, user=message.author)

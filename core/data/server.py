@@ -385,13 +385,14 @@ class Server(DataObject):
             await self.start()
 
     def addMission(self, path: str) -> None:
+        path = os.path.normpath(path)
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             self.sendtoDCS({"command": "addMission", "path": path})
             self._settings = None
         else:
-            missions = self.settings['missionList']
-            missions.append(path)
-            self.settings['missionList'] = missions
+            missions: set[str] = set(self.settings['missionList'])
+            missions.add(path)
+            self.settings['missionList'] = list(missions)
 
     def deleteMission(self, mission_id: int) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
