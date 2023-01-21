@@ -1,4 +1,3 @@
-from __future__ import annotations
 import asyncio
 import discord
 import json
@@ -10,17 +9,13 @@ import string
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
-from discord import Interaction, app_commands
 from core import utils, Server, Status, Channel, DataObjectFactory
 from datetime import datetime
 from discord.ext import commands
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Callable, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Callable, Optional, Tuple, Union
 from .listener import EventListener
-
-if TYPE_CHECKING:
-    from discord.ext.commands.context import Context
 
 
 class DCSServerBot(commands.Bot):
@@ -220,15 +215,17 @@ class DCSServerBot(commands.Bot):
         except Exception as ex:
             self.log.exception(ex)
 
-    async def on_command_error(self, ctx: discord.ext.commands.Context, err: Exception):
+    async def on_command_error(self, ctx: commands.Context, err: Exception):
         if isinstance(err, commands.CommandNotFound):
             pass
         elif isinstance(err, commands.NoPrivateMessage):
             await ctx.send(f"{ctx.command.name} can't be used in a DM.")
         elif isinstance(err, commands.MissingRequiredArgument):
-            cmd = ctx.command.name
+            cmd = ctx.command.name + ' '
             if ctx.command.usage:
-                cmd += ' ' + ctx.command.usage
+                cmd += ctx.command.usage
+            else:
+                cmd += ' '.join([f'<{name}>' if param.required else f'[{name}]' for name, param in ctx.command.params.items()])
             await ctx.send(f"Usage: {ctx.prefix}{cmd}")
         elif isinstance(err, commands.errors.CheckFailure):
             await ctx.send(f"You don't have the permission to use {ctx.command.name}!")
@@ -238,12 +235,12 @@ class DCSServerBot(commands.Bot):
             self.log.exception(err)
             await ctx.send("An unknown exception occurred.")
 
-    async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
-        if isinstance(error, app_commands.CommandNotFound):
+    async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+        if isinstance(error, discord.app_commands.CommandNotFound):
             pass
-        if isinstance(error, app_commands.NoPrivateMessage):
+        if isinstance(error, discord.app_commands.NoPrivateMessage):
             await interaction.response.send_message(f"{interaction.command.name} can't be used in a DM.")
-        elif isinstance(error, app_commands.CheckFailure):
+        elif isinstance(error, discord.app_commands.CheckFailure):
             await interaction.response.send_message(f"You don't have the permission to use {interaction.command.name}!")
         elif isinstance(error, asyncio.TimeoutError):
             await interaction.response.send_message('A timeout occurred. Is the DCS server running?')
@@ -369,10 +366,10 @@ class DCSServerBot(commands.Bot):
         if name1 == name2:
             return len(name1)
         # remove any tags
-        n1 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name1).strip().casefold()
+        n1 = re.sub(r'^[\[\<\(=-].*[-=\)\>\]]', '', name1).strip().casefold()
         if len(n1) == 0:
             n1 = name1.casefold()
-        n2 = re.sub('^[\[\<\(=-].*[-=\)\>\]]', '', name2).strip().casefold()
+        n2 = re.sub(r'^[\[\<\(=-].*[-=\)\>\]]', '', name2).strip().casefold()
         if len(n2) == 0:
             n2 = name2.casefold()
         # if the names are too short, return
@@ -382,8 +379,8 @@ class DCSServerBot(commands.Bot):
         if length > 0:
             return length
         # remove any special characters
-        n1 = re.sub('[^a-zA-Z\d ]', '', n1).strip()
-        n2 = re.sub('[^a-zA-Z\d ]', '', n2).strip()
+        n1 = re.sub(r'[^a-zA-Z\d ]', '', n1).strip()
+        n2 = re.sub(r'[^a-zA-Z\d ]', '', n2).strip()
         if (len(n1) == 0) or (len(n2) == 0):
             return 0
         # if the names are too short, return
@@ -393,8 +390,8 @@ class DCSServerBot(commands.Bot):
         if length > 0:
             return length
         # remove any numbers
-        n1 = re.sub('[\d ]', '', n1).strip()
-        n2 = re.sub('[\d ]', '', n2).strip()
+        n1 = re.sub(r'[\d ]', '', n1).strip()
+        n2 = re.sub(r'[\d ]', '', n2).strip()
         if (len(n1) == 0) or (len(n2) == 0):
             return 0
         # if the names are too short, return
@@ -547,11 +544,11 @@ class DCSServerBot(commands.Bot):
         self.log.debug(f"Server {server.name} initialized")
         return True
 
-    async def get_server(self, ctx: Union[Context, Interaction, discord.Message, str]) -> Optional[Server]:
+    async def get_server(self, ctx: Union[commands.Context, discord.Interaction, discord.Message, str]) -> Optional[Server]:
         if self.master and len(self.servers) == 1 and self.master_only:
             return list(self.servers.values())[0]
         for server_name, server in self.servers.items():
-            if isinstance(ctx, discord.ext.commands.context.Context) or isinstance(ctx, Interaction) \
+            if isinstance(ctx, commands.Context) or isinstance(ctx, discord.Interaction) \
                     or isinstance(ctx, discord.Message):
                 if server.status == Status.UNREGISTERED:
                     continue
