@@ -111,14 +111,16 @@ different greenieboards for different servers. If that is a user demand in the f
       "Moose.AIRBOSS": {
         "basedir": "airboss",
         "grades": "AIRBOSS-{carrier}_LSOGrades.csv",
-        "trapsheets": "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv"
+        "trapsheets": "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv",
+        "delete_after": 180         -- Optional: only keep trapsheets for 180 days
       }
     },
     -- OPTIONAL FUNKMAN INTEGRATION --
     {
       "installation": "testdriver",
       "FunkMan": {
-        "basedir": "trapsheets"
+        "basedir": "trapsheets",
+        "delete_after": 180         -- Optional: only keep trapsheets for 180 days
       }
     }
   ]

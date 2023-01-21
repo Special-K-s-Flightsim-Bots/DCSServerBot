@@ -1,6 +1,6 @@
 GRADES = {
     "_OK_": "Perfect pass",
-    "OK": "Reasonable deviations with good conditions",
+    "OK": "Reasonable deviations with good corrections",
     "(OK)": "Fair. Reasonable deviations",
     "--": "No grade. Below average but safe pass",
     "B": "Bolter",
