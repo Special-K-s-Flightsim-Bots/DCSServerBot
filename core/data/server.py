@@ -49,17 +49,33 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
 
 class SettingsDict(dict):
-    def __init__(self, server: Server, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, server: Server, path: str):
+        super().__init__()
+        self.path = path
+        self.mtime = 0
         self.server = server
         self.bot = server.bot
         self.log = server.log
+        self.read_settings()
+
+    def read_settings(self):
+        self.log.debug(f'{self.path} changed, re-reading from disk.')
+        self.clear()
+        self.update(luadata.read(self.path, encoding='utf-8'))
+        self.mtime = os.path.getmtime(self.path)
 
     def __setitem__(self, key, value):
+        if self.mtime < os.path.getmtime(self.path):
+            self.read_settings()
         super().__setitem__(key, value)
-        path = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
-        with open(path, 'wb') as outfile:
+        with open(self.path, 'wb') as outfile:
             outfile.write(("cfg = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
+        self.mtime = os.path.getmtime(self.path)
+
+    def __getitem__(self, item):
+        if self.mtime < os.path.getmtime(self.path):
+            self.read_settings()
+        return super().__getitem__(item)
 
 
 @dataclass
@@ -220,7 +236,7 @@ class Server(DataObject):
         if not self._settings:
             path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
             try:
-                self._settings = SettingsDict(self, luadata.read(path, encoding='utf-8'))
+                self._settings = SettingsDict(self, path)
             except Exception as ex:
                 # TODO: DSMC workaround
                 self.log.debug(f"Exception while reading {path}:\n{ex}")
@@ -392,9 +408,9 @@ class Server(DataObject):
             self.sendtoDCS({"command": "addMission", "path": path})
             self._settings = None
         else:
-            missions: set[str] = set(self.settings['missionList'])
-            missions.add(path)
-            self.settings['missionList'] = list(missions)
+            missions = self.settings['missionList']
+            missions.append(path)
+            self.settings['missionList'] = missions
 
     def deleteMission(self, mission_id: int) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:

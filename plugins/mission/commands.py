@@ -406,24 +406,24 @@ class Mission(Plugin):
             if not missions:
                 await ctx.send("You can't delete the (only) running mission.")
                 return
-
-            name = await utils.selection(ctx,
-                                         placeholder="Select the mission to delete",
-                                         options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
-            if not name:
-                return
-
-            for mission in missions:
-                if name in mission:
-                    if await utils.yn_question(ctx, f'Delete mission "{name}" from the mission list?'):
-                        server.deleteMission(original.index(mission) + 1)
-                        await ctx.send(f'Mission "{name}" removed from list.')
-                        if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
-                            os.remove(mission)
-                            await ctx.send(f'Mission "{name}" deleted.')
-                    break
         else:
-            return await ctx.send('Server ' + server.name + ' is not running.')
+            original = missions = server.settings['missionList']
+
+        name = await utils.selection(ctx,
+                                     placeholder="Select the mission to delete",
+                                     options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
+        if not name:
+            return
+
+        for mission in missions:
+            if name in mission:
+                if await utils.yn_question(ctx, f'Delete mission "{name}" from the mission list?'):
+                    server.deleteMission(original.index(mission) + 1)
+                    await ctx.send(f'Mission "{name}" removed from list.')
+                    if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
+                        os.remove(mission)
+                        await ctx.send(f'Mission "{name}" deleted.')
+                break
 
     @commands.command(description='Pauses the current running mission')
     @utils.has_role('DCS Admin')
