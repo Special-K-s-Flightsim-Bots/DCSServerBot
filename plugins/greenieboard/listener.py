@@ -146,15 +146,18 @@ class GreenieBoardEventListener(EventListener):
         self._process_lso_event(config, server, player, data)
 
     def _process_funkman_event(self, config: dict, server: Server, player: Player, data: dict):
-        filepath = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + \
-                   os.path.sep + (config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')
-        if not os.path.exists(filepath):
-            os.mkdir(filepath)
-        filename = filepath + os.path.sep + f'{uuid.uuid4()}.png'
-        fig, _ = self.funkplot.PlotTrapSheet(data)
-        fig.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
-        plt.close(fig)
-        data['trapsheet'] = filename
+        if data['grade'] != 'WO':
+            filepath = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + \
+                       os.path.sep + (config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')
+            if not os.path.exists(filepath):
+                os.mkdir(filepath)
+            filename = filepath + os.path.sep + f'{uuid.uuid4()}.png'
+            fig, _ = self.funkplot.PlotTrapSheet(data)
+            fig.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
+            plt.close(fig)
+            data['trapsheet'] = filename
+        else:
+            del data['trapsheet']
         data['grade'] = self._normalize_airboss_lso_rating(data['grade'])
         data['place'] = {
             'name': data['carriername']

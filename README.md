@@ -29,22 +29,22 @@ These commands can be used to administrate the bot itself.
 | .unregister |           | admin-channel | Admin   | Unregisters the current server from this agent.<br/>Only needed, if the very same server is going to be started on another machine connected to another agent (see "Moving a Server from one Location to Another" below). |
 
 ### List of supported Plugins
-| Plugin       | Scope                                                               | Optional | Dependent on          | Documentation                              |
+| Plugin       | Scope                                                               | Optional | Depending on          | Documentation                              |
 |--------------|---------------------------------------------------------------------|----------|-----------------------|--------------------------------------------|
-| Mission      | Handling of missions, compared to the WebGUI.                       | no       |                       | [README](./plugins/mission/README.md)      |
+| GameMaster   | Interaction with the running mission (inform users, set flags, etc) | no       |                       | [README](./plugins/gamemaster/README.md)   |
+| Mission      | Handling of missions, compared to the WebGUI.                       | no       | GameMaster            | [README](./plugins/mission/README.md)      |
 | Scheduler    | Autostart / -stop of servers or missions, change weather, etc.      | yes*     | Mission               | [README](./plugins/scheduler/README.md)    |
 | Admin        | Admin commands to manage your DCS server.                           | yes*     |                       | [README](./plugins/admin/README.md)        |
-| CreditSystem | User credits, based on achievements.                                | yes*     | Mission               | [README](./plugins/creditsystem/README.md) |
 | UserStats    | Users statistics system.                                            | yes*     | Mission               | [README](./plugins/userstats/README.md)    |
+| CreditSystem | User credits, based on achievements.                                | yes*     | Mission               | [README](./plugins/creditsystem/README.md) |
 | MissionStats | Detailed users statistics / mission statistics.                     | yes*     | Userstats             | [README](./plugins/missionstats/README.md) |
-| GameMaster   | Interaction with the running mission (inform users, set flags, etc) | yes*     |                       | [README](./plugins/gamemaster/README.md)   |
-| ServerStats  | Server statistics for your DCS servers.                             | yes      | Userstats             | [README](./plugins/serverstats/README.md)  |
-| Cloud        | Cloud-based statistics and global ban system.                       | yes      | Userstats             | [README](./plugins/cloud/README.md)        |
 | Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission               | [README](./plugins/punishment/README.md)   |
 | SlotBlocking | Slotblocking either based on units or a point based system.         | yes      | Mission, Creditsystem | [README](./plugins/slotblocking/README.md) |
+| Cloud        | Cloud-based statistics and global ban system.                       | yes      | Userstats             | [README](./plugins/cloud/README.md)        |
+| ServerStats  | Server statistics for your DCS servers.                             | yes      | Userstats             | [README](./plugins/serverstats/README.md)  |
 | GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS)   | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
-| FunkMan      | Support for FunkMan                                                 | yes      |                       | [README](./plugins/funkman/README.md)      |
 | MOTD         | Generates a message of the day.                                     | yes      | Mission, Missionstats | [README](./plugins/motd/README.md)         |
+| FunkMan      | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)       | yes      |                       | [README](./plugins/funkman/README.md)      |
 | DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
 | OvGME        | Install or update mods into your DCS server.                        | yes      |                       | [README](./plugins/ovgme/README.md)        |
 
@@ -68,7 +68,7 @@ Check out [Extensions](./extensions/README.md) for more info on how to use them.
 ## Installation
 
 ### Prerequisites
-You need to have [python 3.9](https://www.python.org/downloads/) and [PostgreSQL](https://www.postgresql.org/download/) installed.
+You need to have [python 3.9](https://www.python.org/downloads/) (or higher) and [PostgreSQL](https://www.postgresql.org/download/) installed.
 The python modules needed are listed in requirements.txt and can be installed with ```pip3 install -r requirements.txt```.
 If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled.
 For autoupdate to work, you have to install [GIT](https://git-scm.com/download/win) and make sure, ```git``` is in your PATH.
@@ -84,8 +84,10 @@ Press "Copy" on the generated URL, paste it into the browser of your choice, sel
 For easier access to channel IDs, enable "Developer Mode" in "Advanced Settings" in Discord.
 
 ### Download
-Best is to use ```git clone``` as you then can use the autoupdate functionality of the bot.<br/>
-Otherwise download the latest release version and extract it somewhere on your PC that is running the DCS server(s) and give it write permissions, if needed. 
+Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git``` as you then can use the 
+autoupdate functionality of the bot.<br/>
+Otherwise download the latest release version and extract it somewhere on your PC that is running the DCS server(s) and 
+give it write permissions, if needed. 
 
 **Attention:** Make sure that the bots installation directory can only be seen by yourself and is not exposed to anybody outside via www etc.
 
@@ -94,20 +96,19 @@ DCSServerBot uses PostgreSQL to store all information that needs to be persisted
 statistics and whatnot. Therefor, it needs a fast database. Starting with SQLite back in the days, I decided to move
 over to PostgreSQL with version 2.0 already and never regret it.<br/>
 Just install PostgreSQL from the above-mentioned website (current version at the time of writing is somewhat about 14, 
-but will run with any newer version than that, too). Once you started pgadmin4, navigate to "Login Group/Role" and create
-a new login for the bot user. Name it "dcsserverbot" or whatever you desire. Set a password on the "Definition"-tab
-(I honestly have no idea why it is not just in the "Security"-tab) and enable "Can login?" on the "Privileges" tab. 
-Then navigate to "Databases" and create a new database. Name that again maybe "dcsserverbot" and set the user you've 
-created earlier as the owner of that database.<br/>
-The URL line you configure in the bot would look like this, if you followed my example:
+but will run with any newer version than that, too). 
 
-DATABASE_URL = postgres://dcsserverbot:<password>@localhost:5432/dcsserverbot
+### DCSServerBot Installation
+Just run the provided ```install``` script. It will search for existing DCS installations, create a database user and 
+database and asks you to add existing DCS servers to the configuration file (see below).
 
 ---
 ## Configuration
 The bot configuration is held in **config/dcsserverbot.ini**. See **dcsserverbot.ini.sample** for an example.<br/>
-If you start the bot for the first time, it will generate a basic file for you that you can amend to your needs afterwards.<br/>
-For some configurations, default values may apply. They are kept in config/default.ini. **Don't change this file**, just overwrite the settings, if you want to have them differently.
+If you run the ```install``` script for the first time, it will generate a basic file for you that you can amend to your 
+needs afterwards.<br/>
+For some configurations, default values may apply. They are kept in config/default.ini. **Don't change this file**, 
+just overwrite the settings, if you want to have them differently.
 
 The following parameters can be used to configure the bot:
 
@@ -166,20 +167,18 @@ c) __FILTER Section__ (Optional)
 
 d) __DCS Section__
 
-| Parameter                        | Description                                                                                                                                   |
-|----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| DCS_INSTALLATION                 | The installation directory of DCS World.                                                                                                      |
-| AUTOUPDATE                       | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                                                    |
-| GREETING_MESSAGE_MEMBERS         | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord.                      |
-| GREETING_MESSAGE_UNMATCHED       | A greeting message, that people will receive in DCS chat, if they are unmatched.                                                              |
-| SERVER_USER                      | The username to display as user no. 1 in the server (aka "Observer")                                                                          |
-| MAX_HUNG_MINUTES                 | The maximum amount in minutes the server is allowed to not respond to the bot until considered dead (default = 3). Set it to 0 to disable it. |
-| MESSAGE_PLAYER_USERNAME          | Message that a user gets when using line-feeds or carriage-returns in their names.                                                            |
-| MESSAGE_PLAYER_DEFAULT_USERNAME  | Message that a user gets when being rejected because of a default player name (Player, Spieler, etc.).                                        |                                                                                                                                               |
-| MESSAGE_BAN                      | Message a banned user gets when being rejected.                                                                                               |
-| COALITION_LOCK_TIME              | The time you are not allowed to change [coalitions](./COALITIONS.md) in the format "nn days" or "nn hours". Default is 1 day.                 |
-| Coalition Red                    | Members of this role are part of the red coalition (see [Coalitions](./COALITIONS.md)).                                                       |
-| Coalition Blue                   | Members of this role are part of the blue coalition (see [Coalitions](./COALITIONS.md)).                                                      |
+| Parameter                       | Description                                                                                                                                   |
+|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| DCS_INSTALLATION                | The installation directory of DCS World.                                                                                                      |
+| AUTOUPDATE                      | If true, your DCS server will be kept up-to-date automatically by the bot (default=false).                                                    |
+| GREETING_MESSAGE_MEMBERS        | A greeting message, that people will receive in DCS chat, if they get recognized by the bot as a member of your discord.                      |
+| GREETING_MESSAGE_UNMATCHED      | A greeting message, that people will receive in DCS chat, if they are unmatched.                                                              |
+| SERVER_USER                     | The username to display as user no. 1 in the server (aka "Observer")                                                                          |
+| MAX_HUNG_MINUTES                | The maximum amount in minutes the server is allowed to not respond to the bot until considered dead (default = 3). Set it to 0 to disable it. |
+| MESSAGE_PLAYER_USERNAME         | Message that a user gets when using line-feeds or carriage-returns in their names.                                                            |
+| MESSAGE_PLAYER_DEFAULT_USERNAME | Message that a user gets when being rejected because of a default player name (Player, Spieler, etc.).                                        |                                                                                                                                               |
+| MESSAGE_BAN                     | Message a banned user gets when being rejected.                                                                                               |
+| MESSAGE_AFK                     | Message for players that are kicked because of being AFK.                                                                                     |
 
 e) __Server Specific Sections__
 
@@ -191,8 +190,12 @@ If your directory is named DCS instead (stable version), just add these fields t
 | DCS_HOST                   | The internal (!) IP of the machine, DCS is running onto. If the DCS server is running on the same machine as the bot (default), this should be 127.0.0.1.                                  |
 | DCS_PORT                   | Must be a unique value > 1024 of an unused port in your system. This is **NOT** the DCS tcp/udp port (10308), that is used by DCS but a unique different one. Keep the default, if unsure. |
 | DCS_HOME                   | The main configuration directory of your DCS server installation (for Hook installation). Keep it empty, if you like to place the Hook by yourself.                                        |
+| CHAT_CHANNEL               | The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.           |
+| STATUS_CHANNEL             | The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
+| ADMIN_CHANNEL              | The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
 | MISSIONS_DIR               | (Optional) If you want to use a central missions directory for multiple servers, you can set it in here.                                                                                   |
 | PING_ADMIN_ON_CRASH        | Define if the role DCS Admin should be pinged when a server crash is being detected (default = true).                                                                                      |
+| START_MINIMIZED            | DCS will start minimized as default. You can disabled that by setting this value to false.                                                                                                 |
 | STATISTICS                 | If false, no statistics will be generated for this server. Default is true (see [Userstats](./plugins/userstats/README.md)).                                                               |
 | MISSION_STATISTICS         | If true, mission statistics will be generated for all missions loaded in this server (see [Missionstats](./plugins/missionstats/README.md)).                                               | 
 | DISPLAY_MISSION_STATISTICS | If true, the persistent mission stats embed is displayed in the servers stats channel (default = true).                                                                                    |
@@ -200,11 +203,11 @@ If your directory is named DCS instead (stable version), just add these fields t
 | PERSIST_AI_STATISTICS      | If true, AI data is exported, too (only player data otherwise), default = false.                                                                                                           |
 | COALITIONS                 | Enable coalition handling (see [Coalitions](./COALITIONS.md)), default = false.                                                                                                            |                                                                                                                                                                                                                                                                                                                                                 
 | ALLOW_PLAYERS_POOL         | Only for [Coalitions](./COALITIONS.md)                                                                                                                                                     |
-| CHAT_CHANNEL               | The ID of the in-game chat channel to be used for the specific DCS server. Must be unique for every DCS server instance configured. If "-1", no chat messages will be generated.           |
+| COALITION_LOCK_TIME        | The time you are not allowed to change [coalitions](./COALITIONS.md) in the format "nn days" or "nn hours". Default is 1 day.                                                              |
+| Coalition Red              | Members of this role are part of the red coalition (see [Coalitions](./COALITIONS.md)).                                                                                                    |
+| Coalition Blue             | Members of this role are part of the blue coalition (see [Coalitions](./COALITIONS.md)).                                                                                                   |
 | COALITION_BLUE_CHANNEL     | Coalition channel for blue coalition (optional, see [Coalitions](./COALITIONS.md)).                                                                                                        |
 | COALITION_RED_CHANNEL      | Coalition channel for red coalition (optional, see [Coalitions](./COALITIONS.md)).                                                                                                         |
-| STATUS_CHANNEL             | The ID of the status-display channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
-| ADMIN_CHANNEL              | The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
 
 ### DCS/Hook Configuration
 The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by the bot.
@@ -259,20 +262,19 @@ This is not configurable, it's a general rule (and a good one in my eyes).
 
 ---
 ## Running of the Bot
-To start the bot, you can either use the packaged ```run.cmd``` command or ```python run.py```.
-<br/>If using _AUTOUPDATE = true_ it is recommended to start the bot via _run.cmd_, as this runs it in a loop as it will close 
-itself after an update has taken place.</br>
+To start the bot, you can either use the packaged ```run``` command or ```python run.py```.<br/>
+If using _AUTOUPDATE=true_ it is recommended to start the bot via ```run```, as this runs it in a loop as it 
+will close itself after an update has taken place.</br>
 If you want to run the bot from autostart, create a small batch script, that will change to the bots installation 
 directory and run the bot from there like so:
 ```cmd
 @echo off
 cd "<whereveryouinstalledthebot>\DCSServerBot"
 :loop
-python run.py
+venv\Scripts\python run.py
 goto loop
 ```
-If you want to run the bot in a **virtual environment** (because you have other Python programs with different external 
-library versions) you can use the ```run-venv.cmd``` batch file to launch the bot.
+DCSServerBot runs in a Python virtual environment, with its own independent set of Python libraries and packages.
 
 ---
 ## User Matching
@@ -355,12 +357,6 @@ If you like to use a single embed, maybe in the status channel, and update it in
   dcsbot.updateEmbed('myEmbed', title, description, img)
 ```
 If no embed named "myEmbed" is there already, the updateEmbed() call will generate it for you, otherwise it will be replaced with this one.
-
----
-## TODO
-Things to be added in the future:
-* user-friendly installation
-* more plugins!
 
 ---
 ## Contact / Support

@@ -1,3 +1,5 @@
+import time
+
 import discord
 import json
 import os
@@ -5,15 +7,22 @@ import psycopg2
 import shutil
 from contextlib import closing
 from copy import deepcopy
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server
+from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
 from discord import SelectOption
-from discord.ext import commands
+from discord.ext import commands, tasks
 from os import path
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Type
 from .listener import GreenieBoardEventListener
 
 
 class GreenieBoard(Plugin):
+
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+        super().__init__(bot, eventlistener)
+        self.auto_delete.start()
+
+    async def cog_unload(self):
+        self.auto_delete.cancel()
 
     def get_config(self, server: Server) -> Optional[dict]:
         if server.name not in self._config:
@@ -129,6 +138,25 @@ class GreenieBoard(Plugin):
             await report.render(server_name=None, num_rows=num_rows)
         finally:
             await ctx.message.delete()
+
+    @tasks.loop(hours=24.0)
+    async def auto_delete(self):
+        def do_delete(path: str, days: int):
+            now = time.time()
+            for f in [os.path.join(path, x) for x in os.listdir(path)]:
+                if os.stat(f).st_mtime < (now - days * 86400):
+                    if os.path.isfile(f):
+                        os.remove(f)
+
+        for server in self.bot.servers.values():
+            config = self.get_config(server)
+            basedir = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
+            if 'Moose.AIRBOSS' in config and 'delete_after' in config['Moose.AIRBOSS']:
+                basedir += os.path.sep + config['Moose.AIRBOSS']['basedir'] if 'basedir' in config['Moose.AIRBOSS'] else ''
+                do_delete(basedir, config['Moose.AIRBOSS']['delete_after'])
+            elif 'FunkMan' in config and 'delete_after' in config['FunkMan']:
+                basedir += os.path.sep + config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else ''
+                do_delete(basedir, config['FunkMan']['delete_after'])
 
 
 async def setup(bot: DCSServerBot):

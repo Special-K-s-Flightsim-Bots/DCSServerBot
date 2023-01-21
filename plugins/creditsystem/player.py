@@ -39,6 +39,9 @@ class CreditPlayer(Player):
         finally:
             self.pool.putconn(conn)
 
+    def __hash__(self):
+        return super().__hash__()
+
     @property
     def points(self) -> int:
         return self._points

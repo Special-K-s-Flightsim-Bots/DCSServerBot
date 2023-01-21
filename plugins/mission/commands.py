@@ -8,7 +8,7 @@ import psycopg2
 import re
 import shutil
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel
+from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel, Player
 from datetime import datetime
 from discord import SelectOption, Interaction
 from discord.ext import commands, tasks
@@ -24,8 +24,10 @@ class Mission(Plugin):
         self.hung = dict[str, int]()
         self.update_mission_status.start()
         self.update_channel_name.start()
+        self.afk_check.start()
 
     async def cog_unload(self):
+        self.afk_check.cancel()
         self.update_channel_name.cancel()
         self.update_mission_status.cancel()
         await super().cog_unload()
@@ -404,24 +406,24 @@ class Mission(Plugin):
             if not missions:
                 await ctx.send("You can't delete the (only) running mission.")
                 return
-
-            name = await utils.selection(ctx,
-                                         placeholder="Select the mission to delete",
-                                         options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
-            if not name:
-                return
-
-            for mission in missions:
-                if name in mission:
-                    if await utils.yn_question(ctx, f'Delete mission "{name}" from the mission list?'):
-                        server.deleteMission(original.index(mission) + 1)
-                        await ctx.send(f'Mission "{name}" removed from list.')
-                        if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
-                            os.remove(mission)
-                            await ctx.send(f'Mission "{name}" deleted.')
-                    break
         else:
-            return await ctx.send('Server ' + server.name + ' is not running.')
+            original = missions = server.settings['missionList']
+
+        name = await utils.selection(ctx,
+                                     placeholder="Select the mission to delete",
+                                     options=[SelectOption(label=x[(x.rfind('\\') + 1):-4]) for x in missions[:25]])
+        if not name:
+            return
+
+        for mission in missions:
+            if name in mission:
+                if await utils.yn_question(ctx, f'Delete mission "{name}" from the mission list?'):
+                    server.deleteMission(original.index(mission) + 1)
+                    await ctx.send(f'Mission "{name}" removed from list.')
+                    if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
+                        os.remove(mission)
+                        await ctx.send(f'Mission "{name}" deleted.')
+                break
 
     @commands.command(description='Pauses the current running mission')
     @utils.has_role('DCS Admin')
@@ -452,6 +454,37 @@ class Mission(Plugin):
             await ctx.send('Server "{}" is still loading... please wait a bit and try again.'.format(server.name))
         else:
             await ctx.send('Server "{}" is stopped or shut down. Please start the server first before unpausing.'.format(server.name))
+
+    @commands.command(description='List of AFK players', usage='[minutes]')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def afk(self, ctx, minutes: int = 10):
+        server: Server = await self.bot.get_server(ctx)
+        afk: list[Player] = list()
+        lsn = self.eventlistener  # type: MissionEventListener
+        for player, dt in lsn.afk.items():
+            if server and player.server != server:
+                continue
+            if (datetime.now() - dt).total_seconds() > minutes * 60:
+                afk.append(player)
+        if len(afk):
+            title = 'AFK Players'
+            if server:
+                title += f' on {server.name}'
+            embed = discord.Embed(title=title, color=discord.Color.blue())
+            embed.description = f'These players are AFK for more than {minutes} minutes:'
+            for player in sorted(afk, key=lambda x: x.server.name):
+                embed.add_field(name='Name', value=player.name)
+                embed.add_field(name='Time',
+                                value=utils.format_time(int((datetime.now() - lsn.afk[player]).total_seconds())))
+                if server:
+                    embed.add_field(name='_ _', value='_ _')
+                else:
+                    embed.add_field(name='Server', value=player.server.name)
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send(f"No player is AFK for more than {minutes} minutes.")
+
 
     @tasks.loop(minutes=1.0)
     async def update_mission_status(self):
@@ -560,6 +593,20 @@ class Mission(Plugin):
                 except Exception as ex:
                     self.log.debug("Exception in update_channel_name(): " + str(ex))
 
+    @tasks.loop(minutes=1.0)
+    async def afk_check(self):
+        try:
+            lsn = self.eventlistener  # type: MissionEventListener
+            for player, dt in lsn.afk.items():
+                max_time = int(self.bot.config[player.server.installation]['AFK_TIME'])
+                if max_time == -1:
+                    continue
+                if (datetime.now() - dt).total_seconds() > max_time:
+                    msg = self.bot.config['DCS']['MESSAGE_AFK'].format(player=player, time=utils.format_time(max_time))
+                    player.server.kick(player, msg)
+        except Exception as ex:
+            self.log.exception(ex)
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # ignore bot messages or messages that does not contain miz attachments
@@ -596,8 +643,8 @@ class Mission(Plugin):
                             outfile.write(await response.read())
                     else:
                         await message.channel.send(f'Error {response.status} while reading MIZ file!')
-            if not exists and not self.bot.config.getboolean('BOT', 'AUTOSCAN'):
-                server.addMission(os.path.basename(filename))
+            if not self.bot.config.getboolean('BOT', 'AUTOSCAN'):
+                server.addMission(filename)
             name = os.path.basename(filename)[:-4]
             await message.channel.send(f'Mission "{name}" uploaded and added.' if not exists else f"Mission {name} replaced.")
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
@@ -607,7 +654,7 @@ class Mission(Plugin):
                 data = await server.sendtoDCSSync({"command": "listMissions"})
                 missions = data['missionList']
                 for idx, mission in enumerate(missions):
-                    if os.path.basename(mission) == os.path.basename(filename):
+                    if os.path.normpath(mission) == os.path.normpath(filename):
                         tmp = await message.channel.send(f'Loading mission {name} ...')
                         await server.loadMission(idx + 1)
                         await self.bot.audit("loaded mission", server=server, user=message.author)

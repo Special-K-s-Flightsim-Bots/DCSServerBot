@@ -8,6 +8,7 @@ import socket
 import subprocess
 import psycopg2
 import uuid
+import win32con
 from contextlib import closing, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -48,17 +49,33 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
 
 class SettingsDict(dict):
-    def __init__(self, server: Server, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, server: Server, path: str):
+        super().__init__()
+        self.path = path
+        self.mtime = 0
         self.server = server
         self.bot = server.bot
         self.log = server.log
+        self.read_settings()
+
+    def read_settings(self):
+        self.log.debug(f'{self.path} changed, re-reading from disk.')
+        self.clear()
+        self.update(luadata.read(self.path, encoding='utf-8'))
+        self.mtime = os.path.getmtime(self.path)
 
     def __setitem__(self, key, value):
+        if self.mtime < os.path.getmtime(self.path):
+            self.read_settings()
         super().__setitem__(key, value)
-        path = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
-        with open(path, 'wb') as outfile:
+        with open(self.path, 'wb') as outfile:
             outfile.write(("cfg = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
+        self.mtime = os.path.getmtime(self.path)
+
+    def __getitem__(self, item):
+        if self.mtime < os.path.getmtime(self.path):
+            self.read_settings()
+        return super().__getitem__(item)
 
 
 @dataclass
@@ -219,7 +236,7 @@ class Server(DataObject):
         if not self._settings:
             path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
             try:
-                self._settings = SettingsDict(self, luadata.read(path, encoding='utf-8'))
+                self._settings = SettingsDict(self, path)
             except Exception as ex:
                 # TODO: DSMC workaround
                 self.log.debug(f"Exception while reading {path}:\n{ex}")
@@ -316,8 +333,17 @@ class Server(DataObject):
     async def startup(self) -> None:
         self.log.debug(r'Launching DCS server with: "{}\bin\DCS.exe" --server --norender -w {}'.format(
             os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']), self.installation))
-        p = subprocess.Popen(['DCS.exe', '--server', '--norender', '-w', self.installation],
-                             executable=os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) + r'\bin\DCS.exe')
+        if self.bot.config.getboolean(self.installation, 'START_MINIMIZED'):
+            info = subprocess.STARTUPINFO()
+            info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+            info.wShowWindow = win32con.SW_MINIMIZE
+        else:
+            info = None
+        p = subprocess.Popen(
+            ['DCS.exe', '--server', '--norender', '-w', self.installation],
+            executable=os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) + r'\bin\DCS.exe',
+            startupinfo=info
+        )
         with suppress(Exception):
             self.process = Process(p.pid)
         timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
@@ -375,6 +401,9 @@ class Server(DataObject):
             await self.start()
 
     def addMission(self, path: str) -> None:
+        path = os.path.normpath(path)
+        if path in self.settings['missionList']:
+            return
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             self.sendtoDCS({"command": "addMission", "path": path})
             self._settings = None

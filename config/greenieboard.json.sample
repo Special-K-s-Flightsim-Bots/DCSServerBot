@@ -25,13 +25,15 @@
       "Moose.AIRBOSS": {
         "basedir": "airboss",
         "grades": "AIRBOSS-{carrier}_LSOGrades.csv",
-        "trapsheets": "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv"
+        "trapsheets": "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv",
+        "delete_after": 180
       }
     },
     {
       "installation": "instance2",
       "FunkMan": {
-        "basedir": "trapsheets"
+        "basedir": "trapsheets",
+        "delete_after": 180
       }
     }
   ]
