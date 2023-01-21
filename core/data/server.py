@@ -386,6 +386,8 @@ class Server(DataObject):
 
     def addMission(self, path: str) -> None:
         path = os.path.normpath(path)
+        if path in self.settings['missionList']:
+            return
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             self.sendtoDCS({"command": "addMission", "path": path})
             self._settings = None
