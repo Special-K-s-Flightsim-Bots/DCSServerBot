@@ -11,16 +11,19 @@ get the idea) and dir as a shell command.
 {
   "commands": [
     {
-      "name": "dcs",
-      "params": [ "instance" ],
+      "name": "dcs",                  -- name of the command
+      "roles": ["DCS Admin"],         -- who can use this command
+      "params": [ "instance" ],       -- suppoerted parameters (string only)
       "cmd": {
         "cwd": "C:\\Program Files\\Eagle Dynamics\\DCS World OpenBeta Server\\bin",
         "exe": "DCS.exe",
-        "args": "-w {instance}"
+        "args": "-w {instance}"       -- here you see the parameter being used!
       }
     },
     {
       "name": "dir",
+      "roles": ["Admin", "DCS Admin"],
+      "hidden": true,                 -- command is hidden from .help
       "cmd": {
         "shell": true,
         "cwd": "C:\\",
