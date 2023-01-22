@@ -7,7 +7,7 @@ from .listener import HelpListener
 
 class Help(Plugin):
 
-    def print_all(self, ctx) -> discord.Embed:
+    async def print_all(self, ctx) -> discord.Embed:
         help_embed = discord.Embed(color=discord.Color.blue())
         help_embed.title = f'{self.bot.member.name} Commands'
         cmds = []
@@ -15,9 +15,11 @@ class Help(Plugin):
         for command in self.bot.commands:
             if command.hidden:
                 continue
-            check = True
-            for f in command.checks:
-                check &= f(ctx)
+            predicates = command.checks
+            if not predicates:
+                check = True
+            else:
+                check = await discord.utils.async_all(predicate(ctx) for predicate in predicates)
             if not check:
                 continue
             cmd = f'{ctx.prefix}{command.name}'
@@ -43,12 +45,14 @@ class Help(Plugin):
             help_embed.add_field(name='_ _', value='_ _')
         return help_embed
 
-    def print_command(self, ctx, cmd: str) -> discord.Embed:
+    async def print_command(self, ctx, cmd: str) -> discord.Embed:
         cmd = cmd.lstrip(ctx.prefix)
-        check = True
         command = self.bot.all_commands[cmd]
-        for f in command.checks:
-            check &= f(ctx)
+        predicates = command.checks
+        if not predicates:
+            check = True
+        else:
+            check = await discord.utils.async_all(predicate(ctx) for predicate in predicates)
         if not check:
             raise PermissionError
         help_embed = discord.Embed(color=discord.Color.blue())
@@ -57,6 +61,8 @@ class Help(Plugin):
         usage = f'{ctx.prefix}{cmd}'
         if command.usage:
             usage += f' {command.usage}'
+        elif command.params:
+            usage += ' ' + ' '.join([f'<{name}>' if param.required else f'[{name}]' for name, param in command.params.items()])
         help_embed.add_field(name='Usage', value=usage, inline=False)
         if command.usage:
             help_embed.set_footer(text='<> mandatory, [] non-mandatory')
@@ -67,10 +73,10 @@ class Help(Plugin):
     @commands.command(name='help', description='The help command!')
     async def help(self, ctx, cmd: Optional[str]):
         if not cmd:
-            help_embed = self.print_all(ctx)
+            help_embed = await self.print_all(ctx)
         else:
             try:
-                help_embed = self.print_command(ctx, cmd)
+                help_embed = await self.print_command(ctx, cmd)
             except PermissionError:
                 await ctx.send("You don't have the permission to use this command.")
                 return

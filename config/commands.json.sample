@@ -2,6 +2,7 @@
   "commands": [
     {
       "name": "dcs",
+      "roles": ["DCS Admin"],
       "params": [ "instance" ],
       "cmd": {
         "cwd": "C:\\Program Files\\Eagle Dynamics\\DCS World OpenBeta Server\\bin",
@@ -11,6 +12,8 @@
     },
     {
       "name": "dir",
+      "roles": ["Admin", "DCS Admin"],
+      "hidden": true,
       "cmd": {
         "shell": true,
         "cwd": "C:\\",

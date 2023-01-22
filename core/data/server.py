@@ -1,5 +1,7 @@
 from __future__ import annotations
 import asyncio
+from datetime import datetime
+
 import discord
 import json
 import luadata
@@ -59,7 +61,6 @@ class SettingsDict(dict):
         self.read_settings()
 
     def read_settings(self):
-        self.log.debug(f'{self.path} changed, re-reading from disk.')
         self.mtime = os.path.getmtime(self.path)
         try:
             settings = luadata.read(self.path, encoding='utf-8')
@@ -75,14 +76,19 @@ class SettingsDict(dict):
 
     def __setitem__(self, key, value):
         if self.mtime < os.path.getmtime(self.path):
+            self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_settings()
         super().__setitem__(key, value)
-        with open(self.path, 'wb') as outfile:
-            outfile.write(("cfg = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
+        if len(self):
+            with open(self.path, 'wb') as outfile:
+                outfile.write(("cfg = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
+        else:
+            self.log.error("- Writing of serverSettings.lua aborted due to empty set.")
         self.mtime = os.path.getmtime(self.path)
 
     def __getitem__(self, item):
         if self.mtime < os.path.getmtime(self.path):
+            self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_settings()
         return super().__getitem__(item)
 
@@ -111,6 +117,7 @@ class Server(DataObject):
     dcs_version: str = field(default=None, compare=False)
     extensions: dict[str, Extension] = field(default_factory=dict, compare=False)
     _lock: asyncio.Lock = field(init=False, compare=False)
+    afk: dict[str, datetime] = field(default_factory=dict, compare=False)
 
     def __post_init__(self):
         super().__post_init__()

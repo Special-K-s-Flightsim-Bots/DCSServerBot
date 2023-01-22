@@ -69,9 +69,6 @@ class Player(DataObject):
             if discord_user:
                 self.member = discord_user
 
-    def __hash__(self):
-        return self.ucid.__hash__()
-
     def is_active(self) -> bool:
         return self.active
 

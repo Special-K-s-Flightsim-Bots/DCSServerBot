@@ -33,7 +33,7 @@ class Commands(Plugin):
             try:
                 p = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, timeout=300)
             except Exception as ex:
-                await ctx.send(ex)
+                await ctx.send(ex.__str__())
                 return
             output = p.stdout.decode('cp1252', 'ignore')
             if not output:
@@ -57,7 +57,9 @@ class Commands(Plugin):
     def _register_commands(self):
         for cmd in self.locals['commands']:
             try:
-                c = Command(self.exec_command, name=cmd['name'])
+                checks = [utils.has_roles(cmd['roles']).predicate] if 'roles' in cmd else []
+                hidden = cmd['hidden'] if 'hidden' in cmd else False
+                c = Command(self.exec_command, name=cmd['name'], checks=checks, hidden=hidden)
                 params: dict[str, commands.Parameter] = dict()
                 if 'params' in cmd:
                     for name in cmd['params']:
@@ -72,7 +74,7 @@ class Commands(Plugin):
     def _unregister_commands(self):
         for cmd in self.commands.keys():
             self.bot.remove_command(cmd)
-            self.log.info(f"  - Custom command \"{self.bot.config['BOT']['COMMAND_PREFIX']}{cmd['name']}\" unregistered.")
+            self.log.info(f"  - Custom command \"{self.bot.config['BOT']['COMMAND_PREFIX']}{cmd}\" unregistered.")
 
 
 async def setup(bot: DCSServerBot):
