@@ -81,10 +81,10 @@ class SettingsDict(dict):
         super().__setitem__(key, value)
         if len(self):
             with open(self.path, 'wb') as outfile:
+                self.mtime = os.path.getmtime(self.path)
                 outfile.write(("cfg = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
         else:
             self.log.error("- Writing of serverSettings.lua aborted due to empty set.")
-        self.mtime = os.path.getmtime(self.path)
 
     def __getitem__(self, item):
         if self.mtime < os.path.getmtime(self.path):
