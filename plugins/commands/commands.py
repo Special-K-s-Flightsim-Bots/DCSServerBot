@@ -74,7 +74,7 @@ class Commands(Plugin):
     def _unregister_commands(self):
         for cmd in self.commands.keys():
             self.bot.remove_command(cmd)
-            self.log.info(f"  - Custom command \"{self.bot.config['BOT']['COMMAND_PREFIX']}{cmd['name']}\" unregistered.")
+            self.log.info(f"  - Custom command \"{self.bot.config['BOT']['COMMAND_PREFIX']}{cmd}\" unregistered.")
 
 
 async def setup(bot: DCSServerBot):
