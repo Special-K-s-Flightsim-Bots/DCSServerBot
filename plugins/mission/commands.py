@@ -462,7 +462,10 @@ class Mission(Plugin):
         server: Server = await self.bot.get_server(ctx)
         afk: list[Player] = list()
         lsn = self.eventlistener  # type: MissionEventListener
-        for player, dt in lsn.afk.items():
+        for ucid, dt in lsn.afk.items():
+            player = self.bot.get_player_by_ucid(ucid)
+            if not player:
+                continue
             if server and player.server != server:
                 continue
             if (datetime.now() - dt).total_seconds() > minutes * 60:
@@ -476,7 +479,7 @@ class Mission(Plugin):
             for player in sorted(afk, key=lambda x: x.server.name):
                 embed.add_field(name='Name', value=player.name)
                 embed.add_field(name='Time',
-                                value=utils.format_time(int((datetime.now() - lsn.afk[player]).total_seconds())))
+                                value=utils.format_time(int((datetime.now() - lsn.afk[player.ucid]).total_seconds())))
                 if server:
                     embed.add_field(name='_ _', value='_ _')
                 else:
@@ -484,7 +487,6 @@ class Mission(Plugin):
             await ctx.send(embed=embed)
         else:
             await ctx.send(f"No player is AFK for more than {minutes} minutes.")
-
 
     @tasks.loop(minutes=1.0)
     async def update_mission_status(self):
@@ -597,13 +599,20 @@ class Mission(Plugin):
     async def afk_check(self):
         try:
             lsn = self.eventlistener  # type: MissionEventListener
-            for player, dt in lsn.afk.items():
+            delete: list[str] = list()
+            for ucid, dt in lsn.afk.items():
+                player = self.bot.get_player_by_ucid(ucid)
+                if not player:
+                    delete.append(ucid)
+                    continue
                 max_time = int(self.bot.config[player.server.installation]['AFK_TIME'])
                 if max_time == -1:
                     continue
                 if (datetime.now() - dt).total_seconds() > max_time:
                     msg = self.bot.config['DCS']['MESSAGE_AFK'].format(player=player, time=utils.format_time(max_time))
                     player.server.kick(player, msg)
+            for ucid in delete:
+                del lsn.afk[ucid]
         except Exception as ex:
             self.log.exception(ex)
 

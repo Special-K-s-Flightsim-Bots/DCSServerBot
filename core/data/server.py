@@ -60,9 +60,18 @@ class SettingsDict(dict):
 
     def read_settings(self):
         self.log.debug(f'{self.path} changed, re-reading from disk.')
-        self.clear()
-        self.update(luadata.read(self.path, encoding='utf-8'))
         self.mtime = os.path.getmtime(self.path)
+        try:
+            settings = luadata.read(self.path, encoding='utf-8')
+        except Exception as ex:
+            # TODO: DSMC workaround
+            self.log.debug(f"Exception while reading {self.path}:\n{ex}")
+            settings = utils.dsmc_parse_settings(self.path)
+            if not settings:
+                self.log.error("- Error while parsing serverSettings.lua!")
+                raise ex
+        self.clear()
+        self.update(settings)
 
     def __setitem__(self, key, value):
         if self.mtime < os.path.getmtime(self.path):
@@ -235,15 +244,7 @@ class Server(DataObject):
     def settings(self) -> dict:
         if not self._settings:
             path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
-            try:
-                self._settings = SettingsDict(self, path)
-            except Exception as ex:
-                # TODO: DSMC workaround
-                self.log.debug(f"Exception while reading {path}:\n{ex}")
-                self._settings = utils.dsmc_parse_settings(path)
-                if not self._settings:
-                    self.log.error("- Error while parsing serverSettings.lua!")
-                    raise ex
+            self._settings = SettingsDict(self, path)
         return self._settings
 
     def get_current_mission_file(self) -> Optional[str]:

@@ -51,7 +51,7 @@ class MissionEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.afk: dict[Player, datetime] = dict()
+        self.afk: dict[str, datetime] = dict()
 
     async def sendMessage(self, data):
         server: Server = self.bot.servers[data['server_name']]
@@ -138,7 +138,7 @@ class MissionEventListener(EventListener):
                                                      group_name=p['group_name'], banned=False)
             server.add_player(player)
             if Side(p['side']) == Side.SPECTATOR:
-                self.afk[player] = datetime.now()
+                self.afk[player.ucid] = datetime.now()
         self._display_mission_embed(server)
         self._display_player_embed(server)
 
@@ -216,7 +216,7 @@ class MissionEventListener(EventListener):
         else:
             player.sendChatMessage(self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(player.name, server.name))
         # add the player to the afk list
-        self.afk[player] = datetime.now()
+        self.afk[player.ucid] = datetime.now()
         self._display_mission_embed(server)
         self._display_player_embed(server)
 
@@ -227,8 +227,8 @@ class MissionEventListener(EventListener):
         player: Player = server.get_player(id=data['id'])
         if player:
             player.active = False
-            if player in self.afk:
-                del self.afk[player]
+            if player.ucid in self.afk:
+                del self.afk[player.ucid]
         self._display_mission_embed(server)
         self._display_player_embed(server)
 
@@ -239,14 +239,14 @@ class MissionEventListener(EventListener):
         player: Player = server.get_player(id=data['id'])
         try:
             if Side(data['side']) != Side.SPECTATOR:
-                if player in self.afk:
-                    del self.afk[player]
+                if player.ucid in self.afk:
+                    del self.afk[player.ucid]
                 if player is not None:
                     self._send_chat_message(server, self.EVENT_TEXTS[Side(data['side'])]['change_slot'].format(
                         player.side.name if player.side != Side.SPECTATOR else 'NEUTRAL',
                         data['name'], Side(data['side']).name, data['unit_type']))
             elif player is not None:
-                self.afk[player] = datetime.now()
+                self.afk[player.ucid] = datetime.now()
                 self._send_chat_message(server, self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
                                                                                                       data['name']))
         finally:
@@ -271,8 +271,8 @@ class MissionEventListener(EventListener):
                 self._send_chat_message(server, self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
             finally:
                 player.active = False
-                if player in self.afk:
-                    del self.afk[player]
+                if player.ucid in self.afk:
+                    del self.afk[player.ucid]
                 self._display_mission_embed(server)
                 self._display_player_embed(server)
         elif data['eventName'] == 'friendly_fire' and data['arg1'] != data['arg3']:

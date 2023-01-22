@@ -9,7 +9,7 @@ import string
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
-from core import utils, Server, Status, Channel, DataObjectFactory
+from core import utils, Server, Status, Channel, DataObjectFactory, Player
 from datetime import datetime
 from discord.ext import commands
 from queue import Queue
@@ -346,6 +346,13 @@ class DCSServerBot(commands.Bot):
             self.log.exception(error)
         finally:
             self.pool.putconn(conn)
+
+    def get_player_by_ucid(self, ucid: str) -> Optional[Player]:
+        for server in self.servers.values():
+            player = server.get_player(ucid=ucid, active=True)
+            if player:
+                return player
+        return None
 
     @staticmethod
     def match(name1: str, name2: str) -> int:
