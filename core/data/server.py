@@ -60,7 +60,7 @@ class SettingsDict(dict):
 
     def read_settings(self):
         self.log.debug(f'{self.path} changed, re-reading from disk.')
-        self.clear()
+        self.mtime = os.path.getmtime(self.path)
         try:
             settings = luadata.read(self.path, encoding='utf-8')
         except Exception as ex:
@@ -70,8 +70,8 @@ class SettingsDict(dict):
             if not settings:
                 self.log.error("- Error while parsing serverSettings.lua!")
                 raise ex
+        self.clear()
         self.update(settings)
-        self.mtime = os.path.getmtime(self.path)
 
     def __setitem__(self, key, value):
         if self.mtime < os.path.getmtime(self.path):
