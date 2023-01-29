@@ -71,8 +71,9 @@ class SettingsDict(dict):
             if not settings:
                 self.log.error("- Error while parsing serverSettings.lua!")
                 raise ex
-        self.clear()
-        self.update(settings)
+        if settings:
+            self.clear()
+            self.update(settings)
 
     def __setitem__(self, key, value):
         if self.mtime < os.path.getmtime(self.path):

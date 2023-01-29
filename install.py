@@ -227,6 +227,10 @@ class Install:
                                                "webrtc_port (""10309)!")
                     ports.add(config[installation]['DCS_PORT'])
                 if not path.exists(os.path.expandvars(config[installation]['DCS_HOME'])):
+                    # ignore missing directories in the DCS section, as people might have a serverSettings.lua in their
+                    # DCS folder but no server configured
+                    if installation == 'DCS':
+                        continue
                     raise InvalidParameter(installation, 'DCS_HOME', 'Path does not exist.')
                 for channel in ['CHAT_CHANNEL', 'ADMIN_CHANNEL', 'STATUS_CHANNEL']:
                     if not check_channel(config[installation][channel]):
