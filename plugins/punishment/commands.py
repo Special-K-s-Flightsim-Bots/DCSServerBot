@@ -102,6 +102,9 @@ class PunishmentAgent(Plugin):
 
         elif punishment['action'] == 'warn':
             player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!")
+            
+        elif punishment['action'] == 'message':
+            player.sendUserMessage(f"{player.name}, check your fire: {reason}!")  
 
     @tasks.loop(minutes=1.0)
     async def check_punishments(self):
