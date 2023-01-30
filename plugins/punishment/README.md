@@ -19,7 +19,8 @@ The punishment is configured with a file named config\punishment.json. You'll fi
         { "points": 100, "action": "ban" },
         { "points": 60, "action": "kick" },
         { "points": 40, "action": "move_to_spec" },
-        { "points": 1, "action": "warn" }
+        { "points": 10, "action": "warn" },
+        { "points": 1, "action": "message" }
       ],
       "exemptions": [
         { "ucid": "abc123456abc987654" },

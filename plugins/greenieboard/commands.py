@@ -1,10 +1,9 @@
-import time
-
 import discord
 import json
 import os
 import psycopg2
 import shutil
+import time
 from contextlib import closing
 from copy import deepcopy
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
@@ -102,9 +101,9 @@ class GreenieBoard(Plugin):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.wire, g.time, g.points, "
-                               "g.trapsheet FROM greenieboard g, players p WHERE p.ucid = %s AND g.player_ucid = "
-                               "p.ucid ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
+                cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.trapcase, g.wire, "
+                               "g.time, g.points, g.trapsheet FROM greenieboard g, players p WHERE p.ucid = %s "
+                               "AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
                 if cursor.rowcount == 0:
                     await ctx.send('No carrier landings recorded for this user.',
                                    delete_after=timeout if timeout > 0 else None)
