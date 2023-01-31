@@ -1,5 +1,3 @@
-# noinspection PyPackageRequirements
-import aiohttp
 import asyncio
 import psycopg2
 from core import EventListener, Server, Player, Side
@@ -7,9 +5,6 @@ from contextlib import closing
 
 
 class CloudListener(EventListener):
-
-    def __init__(self, plugin):
-        super().__init__(plugin)
 
     async def onPlayerChangeSlot(self, data: dict) -> None:
         if 'side' not in data or data['id'] == 1:
