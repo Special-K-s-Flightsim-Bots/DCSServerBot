@@ -98,7 +98,7 @@ class Tacview(Extension):
         log = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Logs/dcs.log'
         exp = re.compile(r'TACVIEW.DLL (.*): Successfully saved \[(?P<filename>.*)\]')
         filename = None
-        for line in deque(open(log, encoding='utf-8'), 10):
+        for line in deque(open(log, encoding='utf-8'), 50):
             match = exp.search(line)
             if match:
                 filename = match.group('filename')
