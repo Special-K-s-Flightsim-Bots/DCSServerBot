@@ -1,3 +1,5 @@
+import asyncio
+
 import discord
 import os
 import re
@@ -106,6 +108,12 @@ class Tacview(Extension):
         else:
             self.log.warning("Can't find TACVIEW file to be sent.")
         if filename:
-            channel = self.bot.get_channel(self.config['channel'])
-            await channel.send(file=discord.File(filename))
+            for i in range(0, 60):
+                if os.path.exists(filename):
+                    channel = self.bot.get_channel(self.config['channel'])
+                    await channel.send(file=discord.File(filename))
+                    break
+                await asyncio.sleep(1)
+            else:
+                self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
         return
