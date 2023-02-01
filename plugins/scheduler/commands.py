@@ -425,7 +425,10 @@ class Scheduler(Plugin):
     @staticmethod
     def check_affinity(server: Server, config: dict):
         if not server.process:
-            server.process = utils.find_process('DCS.exe', server.installation)
+            for exe in ['DCS_server.exe', 'DCS.exe']:
+                server.process = utils.find_process(exe, server.installation)
+                if server.process:
+                    break
         if server.process:
             server.process.cpu_affinity(config['affinity'])
 
