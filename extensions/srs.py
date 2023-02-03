@@ -16,7 +16,7 @@ class SRS(Extension):
         cfg = ConfigParser()
         path = os.path.expandvars(self.config['config'])
         if os.path.exists(path):
-            cfg.read(path)
+            cfg.read(path, encoding='utf-8')
             return {s: dict(cfg.items(s)) for s in cfg.sections()}
         else:
             self.log.warning(f"Can't load SRS config from {path}!")

@@ -141,13 +141,15 @@ class Plugin(commands.Cog):
             self.pool.putconn(conn)
 
     def read_locals(self) -> dict:
-        filename = f'./config/{self.plugin_name}.json'
-        if path.exists(filename):
-            self.log.debug(f'  => Reading plugin configuration from {filename} ...')
-            with open(filename) as file:
-                return json.load(file)
+        if path.exists(f'./config/{self.plugin_name}.json'):
+            filename = f'./config/{self.plugin_name}.json'
+        elif path.exists(f'./plugins/{self.plugin_name}/config/config.json'):
+            filename = f'./plugins/{self.plugin_name}/config/config.json'
         else:
             return {}
+        self.log.debug(f'  => Reading plugin configuration from {filename} ...')
+        with open(filename) as file:
+            return json.load(file)
 
     def get_config(self, server: Server) -> Optional[dict]:
         if server.name not in self._config:

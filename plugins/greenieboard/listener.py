@@ -90,14 +90,15 @@ class GreenieBoardEventListener(EventListener):
             cp: CreditPlayer = cast(CreditPlayer, player)
             cp.audit('Landing', cp.points, f"Landing on {data['place']} with grade {data['grade']}.")
             cp.points += points
+        case = data['case'] if 'case' in data else 1 if not night else 3
         wire = data['wire'] if 'wire' in data else None
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute("INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, "
-                               "wire, night, points, trapsheet) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                               "case, wire, night, points, trapsheet) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                                (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(),
-                                data['details'], data['place']['name'], wire, night, points,
+                                data['details'], data['place']['name'], case, wire, night, points,
                                 data['trapsheet'] if 'trapsheet' in data else None))
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:

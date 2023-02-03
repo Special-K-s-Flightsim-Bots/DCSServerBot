@@ -21,7 +21,8 @@ system. We've put together a group consisting of the admins of the most popular 
 on in the community. When we see someone that is crashing servers by hacking or any other **really** (really) bad stuff,
 we put them in the global ban list. Nobody that gets usually banned on a server for misbehaviour will get onto the list.
 There are only the real bad guys on it.</br>
-If you opt in to that plugin, you already participate from that ban list.</br>
+If you opt in to that plugin, you already participate from that ban list. You can chose whether to ban DCS players 
+and/or Discord users. Both are active as a default.</br>
 If you are a server admin of a large server and not part of DGSA yet, send me a DM.
 
 ## Configuration
@@ -31,8 +32,10 @@ If you are a server admin of a large server and not part of DGSA yet, send me a 
     {
       "protocol": "https",
       "host": "dcsserverbot-prod.herokuapp.com",
-      "token": "<secret token>",                       -- You need to contact me for a token, if you want to use this service.
-      "port": 443
+      "token": "<secret token>",                      -- You need to contact me for a token, if you want to use this service.
+      "port": 443,    
+      "dcs-ban": true,                                -- Auto-ban globally banned DCS players (default).
+      "discord-ban": true                             -- Auto-ban globally banned Discord members (default).
     }
   ]
 }

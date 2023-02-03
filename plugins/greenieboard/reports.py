@@ -14,16 +14,16 @@ class LSORating(report.EmbedElement):
     def render(self, landing: dict):
         grade = GRADES[landing['grade']]
         comment = landing['comment'].replace('/', '')
-        wire = landing['wire']
 
         self.add_field(name="Date/Time", value=f"{landing['time']:%y-%m-%d %H:%M:%S}")
         self.add_field(name="Plane", value=f"{landing['unit_type']}")
         self.add_field(name="Carrier", value=f"{landing['place']}")
 
-        self.add_field(name="LSO Grade: {}".format(landing['grade'].replace('_', '\\_')), value=grade)
-        self.add_field(name="Wire", value=f"{wire}")
+        self.add_field(name="Case", value=f"{landing['trapcase']}")
+        self.add_field(name="Wire", value=f"{landing['wire']}")
         self.add_field(name="Points", value=f"{landing['points']}")
 
+        self.add_field(name="LSO Grade: {}".format(landing['grade'].replace('_', '\\_')), value=grade, inline=False)
         self.add_field(name="LSO Comment", value=comment.replace('_', '\\_'), inline=False)
 
         report.Ruler(self.env).render(ruler_length=28)

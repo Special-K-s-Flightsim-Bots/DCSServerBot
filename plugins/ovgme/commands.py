@@ -76,7 +76,10 @@ class OvGME(Plugin):
                     else self.get_latest_version(package['source'], package['name'])
                 installed = self.check_package(server, package['source'], package['name'])
                 # If the bot is still starting up (default), we're trying to figure out the state of the DCS process
-                p = utils.find_process('DCS.exe', server.installation)
+                for exe in ['DCS_server.exe', 'DCS.exe']:
+                    p = utils.find_process(exe, server.installation)
+                    if p:
+                        break
                 if (not installed or installed != version) and \
                         (p or server.status != Status.SHUTDOWN):
                     self.log.warning(f"  - Server {server.name} needs to be shutdown to install packages.")

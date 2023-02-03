@@ -33,10 +33,12 @@ class CloudHandlerAgent(Plugin):
             "guild_name": self.bot.guilds[0].name,
             "owner_id": self.bot.owner_id
         }
-        self.cloud_bans.start()
+        if 'dcs-ban' not in self.config or self.config['dcs-ban']:
+            self.cloud_bans.start()
 
     async def cog_unload(self):
-        self.cloud_bans.cancel()
+        if 'dcs-ban' not in self.config or self.config['dcs-ban']:
+            self.cloud_bans.cancel()
         asyncio.create_task(self.session.close())
         await super().cog_unload()
 
@@ -74,14 +76,17 @@ class CloudHandlerAgent(Plugin):
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):
         try:
-            for ban in (await self.get('bans')):
-                for server in self.bot.servers.values():
-                    if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-                        server.sendtoDCS({
-                            "command": "ban",
-                            "ucid": ban["ucid"],
-                            "reason": ban["reason"]
-                        })
+            bans = await self.get('bans')
+            for server in self.bot.servers.values():
+                if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+                    for ban in bans:
+                        player = server.get_player(ucid=ban["ucid"], active=True)
+                        if player:
+                            server.sendtoDCS({
+                                "command": "ban",
+                                "ucid": ban["ucid"],
+                                "reason": ban["reason"]
+                            })
         except aiohttp.ClientError:
             self.log.error('- Cloud service not responding.')
 
@@ -90,12 +95,18 @@ class CloudHandlerMaster(CloudHandlerAgent):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
+        if ('dcs-ban' not in self.config or self.config['dcs-ban']) and \
+                ('discord-ban' not in self.config or self.config['discord-ban']):
+            self.master_bans.start()
         if 'token' in self.config:
             self.cloud_sync.start()
 
     async def cog_unload(self):
         if 'token' in self.config:
             self.cloud_sync.cancel()
+        if ('dcs-ban' not in self.config or self.config['dcs-ban']) and \
+                ('discord-ban' not in self.config or self.config['discord-ban']):
+            self.master_bans.cancel()
         await super().cog_unload()
 
     @commands.command(description='Resync all statistics with the cloud', usage='[ucid / @member]')
@@ -148,6 +159,31 @@ class CloudHandlerMaster(CloudHandlerAgent):
             await report.render(member=member, data=df, guild=None)
         finally:
             await ctx.message.delete()
+
+    @tasks.loop(minutes=15.0)
+    async def master_bans(self):
+        conn = self.pool.getconn()
+        try:
+            if 'dcs-ban' not in self.config or self.config['dcs-ban']:
+                with closing(conn.cursor()) as cursor:
+                    for ban in (await self.get('bans')):
+                        cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) '
+                                       'ON CONFLICT DO NOTHING', (ban['ucid'], self.plugin_name, ban['reason']))
+                conn.commit()
+            if 'discord-ban' not in self.config or self.config['discord-ban']:
+                for ban in (await self.get('discord-bans')):
+                    member: discord.Member = self.bot.guilds[0].get_member(ban['discord_id'])
+                    if member:
+                        await member.ban(reason=ban['reason'])
+        except aiohttp.ClientError:
+            self.log.error('- Cloud service not responding.')
+        except discord.Forbidden:
+            self.log.warn('- DCSServerBot does not have the permission to ban users.')
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
 
     @tasks.loop(minutes=1.0)
     async def cloud_sync(self):

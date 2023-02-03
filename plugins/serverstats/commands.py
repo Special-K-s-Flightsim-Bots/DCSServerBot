@@ -87,8 +87,11 @@ class AgentServerStats(Plugin):
                         continue
                     users = len(server.get_active_players())
                     if not server.process or not server.process.is_running():
-                        server.process = utils.find_process('DCS.exe', server.installation)
-                        if not server.process:
+                        for exe in ['DCS_server.exe', 'DCS.exe']:
+                            server.process = utils.find_process(exe, server.installation)
+                            if server.process:
+                                break
+                        else:
                             self.log.warning(f"Could not find a running DCS instance for server {server_name}, "
                                              f"skipping server load gathering.")
                             continue

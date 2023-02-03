@@ -168,6 +168,7 @@ function airbossWashington:OnAfterLSOGrade(From, Event, To, playerData, myGrade)
     msg.points = myGrade.points
     msg.grade = myGrade.grade
     msg.details = myGrade.details
+    msg.case = myGrade.case
     msg.wire = playerData.wire
     msg.trapsheet = trapsheet
     msg.time = timer.getTime()
