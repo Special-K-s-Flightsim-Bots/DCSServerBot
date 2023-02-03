@@ -14,7 +14,7 @@ dedicates a lot of work and this simulated real life radio experience to DCS. Ma
 server too, to let their players have a proper radio experience.<br/>
 DCSServerBot integrates nicely with SRS. If you place your server.cfg in your Saved Games\DCS(..)\Config folder (and I
 usually rename it to SRS.cfg, just to avoid confusions in there), the bot can auto-start and -stop your SRS server 
-alongside with your DCS server. It even monitors if SRS has crashed (that's a waste of code.. I literally never saw
+alongside with your DCS server. It even monitors if SRS has crashed (that's a waste of code... I literally never saw
 that crash) and start it again in such a case.<br/>
 To enable SRS, support, you need to add the following parts to your [scheduler.json](..\plugins\scheduler\README.md):
 ```json
