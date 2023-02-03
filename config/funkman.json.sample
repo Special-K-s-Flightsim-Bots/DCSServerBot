@@ -1,0 +1,7 @@
+{
+  "configs": [
+    {
+      "install": "../FunkMan"
+    }
+  ]
+}

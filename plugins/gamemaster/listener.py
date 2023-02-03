@@ -280,7 +280,7 @@ class GameMasterEventListener(EventListener):
             if len(data['params']) == 0:
                 player.sendChatMessage(f"Usage: {prefix}flag <flag> [value]")
                 return
-            flag = int(data['params'][0])
+            flag = data['params'][0]
             if len(data['params']) > 1:
                 value = int(data['params'][1])
                 server.sendtoDCS({
