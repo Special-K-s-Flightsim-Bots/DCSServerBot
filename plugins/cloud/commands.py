@@ -172,6 +172,8 @@ class CloudHandlerMaster(CloudHandlerAgent):
                 conn.commit()
             if 'discord-ban' not in self.config or self.config['discord-ban']:
                 for ban in (await self.get('discord-bans')):
+                    if int(ban['discord_id']) == self.bot.owner_id:
+                        continue
                     user: discord.User = await self.bot.fetch_user(ban['discord_id'])
                     await self.bot.guilds[0].ban(user, reason='DGSA: ' + ban['reason'])
         except aiohttp.ClientError:
