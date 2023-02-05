@@ -171,11 +171,20 @@ class CloudHandlerMaster(CloudHandlerAgent):
                                        'ON CONFLICT DO NOTHING', (ban['ucid'], self.plugin_name, ban['reason']))
                 conn.commit()
             if 'discord-ban' not in self.config or self.config['discord-ban']:
-                for ban in (await self.get('discord-bans')):
-                    if int(ban['discord_id']) == self.bot.owner_id:
+                bans: list[dict] = await self.get('discord-bans')
+                users_to_ban = [await self.bot.fetch_user(x['discord_id']) for x in bans]
+                guild = self.bot.guilds[0]
+                guild_bans = [entry async for entry in guild.bans()]
+                banned_users = [x.user for x in guild_bans if x.reason.startswith('DGSA:')]
+                # unban users that should not be banned anymore
+                for user in [x for x in banned_users if x not in users_to_ban]:
+                    await guild.unban(user, reason='DGSA: ban revoked.')
+                # ban users that were not banned yet
+                for user in [x for x in users_to_ban if x not in banned_users]:
+                    if user.id == self.bot.owner_id:
                         continue
-                    user: discord.User = await self.bot.fetch_user(ban['discord_id'])
-                    await self.bot.guilds[0].ban(user, reason='DGSA: ' + ban['reason'])
+                    reason = next(x['reason'] for x in bans if x['discord_id'] == user.id)
+                    await guild.ban(user, reason='DGSA: ' + reason)
         except aiohttp.ClientError:
             self.log.error('- Cloud service not responding.')
         except discord.Forbidden:
