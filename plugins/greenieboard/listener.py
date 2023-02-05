@@ -96,7 +96,7 @@ class GreenieBoardEventListener(EventListener):
         try:
             with closing(conn.cursor()) as cursor:
                 cursor.execute("INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, "
-                               "case, wire, night, points, trapsheet) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                               "trapcase, wire, night, points, trapsheet) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                                (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(),
                                 data['details'], data['place']['name'], case, wire, night, points,
                                 data['trapsheet'] if 'trapsheet' in data else None))
