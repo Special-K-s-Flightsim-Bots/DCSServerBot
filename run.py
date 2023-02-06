@@ -1,4 +1,6 @@
 import asyncio
+import aiohttp
+import aiofiles
 import discord
 import logging
 import os
@@ -9,12 +11,14 @@ import shutil
 import string
 import subprocess
 import sys
+import zipfile
 from core import utils, Server, DCSServerBot, Status
 from contextlib import closing, suppress
 from discord import SelectOption
 from discord.ext import commands
 from install import Install
 from logging.handlers import RotatingFileHandler
+from matplotlib import font_manager
 from pathlib import Path
 from psycopg2 import pool
 from typing import Optional
@@ -56,6 +60,7 @@ class Main:
         self.pool = self.init_db()
         utils.dcs.desanitize(self)
         self.install_hooks()
+        self.install_fonts()
         self.bot: DCSServerBot = self.init_bot()
         self.add_commands()
 
@@ -190,6 +195,41 @@ class Main:
                     f'! Your dcsserverbot.ini contains errors. You must set a value for {k}. See README for help.')
                 raise k
             self.log.debug('  - Hooks installed into {}.'.format(installation))
+
+    def install_fonts(self):
+        if 'CJK_FONT' in self.config['REPORTS']:
+            if not os.path.exists('fonts'):
+                os.makedirs('fonts')
+
+                async def fetch_file(url: str):
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url) as resp:
+                            assert resp.status == 200
+                            data = await resp.read()
+
+                    async with aiofiles.open(
+                            os.path.join('fonts', "temp.zip"), "wb") as outfile:
+                        await outfile.write(data)
+
+                    with zipfile.ZipFile('fonts/temp.zip', 'r') as zip_ref:
+                        zip_ref.extractall('fonts')
+
+                    os.remove('fonts/temp.zip')
+                    for font in font_manager.findSystemFonts('fonts'):
+                        font_manager.fontManager.addfont(font)
+                    self.log.info('- CJK font installed and loaded.')
+
+                fonts = {
+                    "TC": "https://fonts.google.com/download?family=Noto%20Sans%20TC",
+                    "JP": "https://fonts.google.com/download?family=Noto%20Sans%20JP",
+                    "KR": "https://fonts.google.com/download?family=Noto%20Sans%20KR"
+                }
+
+                asyncio.get_event_loop().create_task(fetch_file(fonts[self.config['REPORTS']['CJK_FONT']]))
+            else:
+                for font in font_manager.findSystemFonts('fonts'):
+                    font_manager.fontManager.addfont(font)
+                self.log.info('- CJK fonts loaded.')
 
     def init_bot(self):
         def get_prefix(client, message):
