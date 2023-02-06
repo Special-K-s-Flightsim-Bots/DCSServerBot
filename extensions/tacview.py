@@ -106,9 +106,9 @@ class Tacview(Extension):
                 filename = match.group('filename')
                 break
         else:
-            self.log.warning("Can't find TACVIEW file to be sent.")
-            self.log.debug('First line to check: ', lines[0])
-            self.log.debug('Last line to check: ', lines[-1])
+            self.log.info("Can't find TACVIEW file to be sent. Was the server even running?")
+            self.log.debug('First line to check: ' + lines[0])
+            self.log.debug('Last line to check: ' + lines[-1])
         if filename:
             for i in range(0, 60):
                 if os.path.exists(filename):
