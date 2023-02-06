@@ -42,25 +42,33 @@ class SRS(Extension):
         return True
 
     async def startup(self) -> bool:
-        self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
-            os.path.expandvars(self.config['installation']), os.path.expandvars(self.config['config'])))
-        self.process = subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(
-            os.path.expandvars(self.config['config']))],
-                                        executable=os.path.expandvars(self.config['installation']) + r'\SR-Server.exe')
-        return await self.is_running()
+        if 'autostart' not in self.config or self.config['autostart']:
+            self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
+                os.path.expandvars(self.config['installation']), os.path.expandvars(self.config['config'])))
+            self.process = subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(
+                os.path.expandvars(self.config['config']))],
+                                            executable=os.path.expandvars(self.config['installation']) + r'\SR-Server.exe')
+        return self.is_running()
 
     async def shutdown(self):
-        p = self.process or utils.find_process('SR-Server.exe', self.server.installation)
-        if p:
-            p.kill()
-            self.process = None
-            return True
+        if 'autostart' not in self.config or self.config['autostart']:
+            p = self.process or utils.find_process('SR-Server.exe', self.server.installation)
+            if p:
+                p.kill()
+                self.process = None
+                return True
+            else:
+                return False
         else:
-            return False
+            return True
 
-    async def is_running(self) -> bool:
+    def is_running(self) -> bool:
         if self.process:
-            return self.process.poll() is None
+            if not self.process.poll():
+                self.process = None
+                return False
+            else:
+                return True
         server_ip = self.locals['Server Settings']['server_ip'] if 'server_ip' in self.locals['Server Settings'] else '127.0.0.1'
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'
@@ -86,7 +94,7 @@ class SRS(Extension):
                 red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD'.lower()]
                 if blue or red:
                     value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
-            embed.add_field(name=f"SRS", value=value)
+            embed.add_field(name="SRS (online)" if self.is_running() else "SRS (offline)", value=value)
 
     def verify(self) -> bool:
         # check if SRS is installed
@@ -98,4 +106,7 @@ class SRS(Extension):
         if 'config' not in self.config or not os.path.exists(os.path.expandvars(self.config['config'])):
             self.log.debug(f"SRS config not found in {self.config['config']}")
             return False
+        if self.server.installation not in self.config['config']:
+            self.log.warning(f"- Please move your SRS configuration from {self.config['config']} to "
+                             f"Saved Games\\{self.server.installation}\\Config\\SRS.cfg")
         return True

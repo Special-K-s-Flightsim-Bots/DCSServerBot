@@ -39,7 +39,7 @@ class Extension(ABC):
     async def shutdown(self) -> bool:
         return False
 
-    async def is_running(self) -> bool:
+    def is_running(self) -> bool:
         return True
 
     @property

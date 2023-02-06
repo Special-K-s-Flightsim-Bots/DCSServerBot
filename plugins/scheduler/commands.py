@@ -224,7 +224,7 @@ class Scheduler(Plugin):
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
                 if ext.verify():
                     server.extensions[extension] = ext
-            if await ext.is_running() and await ext.shutdown():
+            if ext.is_running() and await ext.shutdown():
                 retval.append(ext.name)
                 if not member:
                     self.log.info(f"  => {ext.name} shut down for \"{server.name}\" by "
@@ -455,7 +455,7 @@ class Scheduler(Plugin):
                     # if the server is running, and should run, check if all the extensions are running, too
                     if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and target_state == server.status:
                         for ext in server.extensions.values():
-                            if not await ext.is_running() and await ext.startup():
+                            if not ext.is_running() and await ext.startup():
                                 self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
                                 await self.bot.audit(f"{ext.name} started", server=server)
                 except Exception as ex:

@@ -34,7 +34,8 @@ To enable SRS, support, you need to add the following parts to your [scheduler.j
       [...]
       "extensions": {
         "SRS": {
-          "config": "%USERPROFILE%\\Saved Games\\DCS.openbeta_server\\Config\\SRS.cfg"
+          "config": "%USERPROFILE%\\Saved Games\\DCS.openbeta_server\\Config\\SRS.cfg",
+          "autostart": true     -- can be false to disable autostart of SRS (default = true)
         }
       }
     }

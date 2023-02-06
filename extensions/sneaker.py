@@ -62,7 +62,7 @@ class Sneaker(Extension):
                                                   os.path.expandvars(self.config['config'])],
                                                  executable=os.path.expandvars(self.config['cmd']))
         self._servers.add(self.server.name)
-        return True
+        return self.is_running()
 
     async def shutdown(self) -> bool:
         self._servers.remove(self.server.name)
@@ -77,12 +77,15 @@ class Sneaker(Extension):
                                              executable=os.path.expandvars(self.config['cmd']))
         return True
 
-    async def is_running(self) -> bool:
-        return self._process is not None
+    def is_running(self) -> bool:
+        if self._process and self._process.poll():
+            return True
+        else:
+            return False
 
     @property
     def version(self) -> str:
-        return "0.0.9"
+        return "0.0.10"
 
     def verify(self) -> bool:
         # check if Sneaker is enabled

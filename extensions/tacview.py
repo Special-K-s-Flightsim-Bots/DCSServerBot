@@ -1,5 +1,4 @@
 import asyncio
-
 import discord
 import os
 import re
@@ -100,13 +99,16 @@ class Tacview(Extension):
         log = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Logs/dcs.log'
         exp = re.compile(r'TACVIEW.DLL (.*): Successfully saved \[(?P<filename>.*)\]')
         filename = None
-        for line in deque(open(log, encoding='utf-8'), 10):
+        lines = deque(open(log, encoding='utf-8'), 50)
+        for line in lines:
             match = exp.search(line)
             if match:
                 filename = match.group('filename')
                 break
         else:
             self.log.warning("Can't find TACVIEW file to be sent.")
+            self.log.debug('First line to check: ', lines[0])
+            self.log.debug('Last line to check: ', lines[-1])
         if filename:
             for i in range(0, 60):
                 if os.path.exists(filename):
