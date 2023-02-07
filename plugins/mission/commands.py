@@ -81,7 +81,7 @@ class Mission(Plugin):
                 env = await report.render(server=server, num_players=num_players)
                 await ctx.send(embed=env.embed)
             else:
-                await ctx.send(f'There is no mission running on server {server.name}')
+                await ctx.send(f'There is no mission running on server {server.display_name}')
                 return
         else:
             server.sendtoDCS({"command": "getMissionUpdate", "channel": ctx.channel.id})
@@ -162,7 +162,7 @@ class Mission(Plugin):
                         "z": airbase['position']['z']
                     })
                     report = Report(self.bot, self.plugin_name, 'atis.json')
-                    env = await report.render(airbase=airbase, data=data)
+                    env = await report.render(airbase=airbase, server_name=server.display_name, data=data)
                     timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
                     await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
                     break
@@ -176,7 +176,7 @@ class Mission(Plugin):
             return
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         if server.status not in [Status.RUNNING, Status.PAUSED]:
-            await ctx.send('Server ' + server.name + ' is not running.',
+            await ctx.send('Server ' + server.display_name + ' is not running.',
                            delete_after=timeout if timeout > 0 else None)
             return
         report = Report(self.bot, self.plugin_name, 'players.json')
@@ -230,7 +230,7 @@ class Mission(Plugin):
             await msg.delete()
             msg = await ctx.send('Mission restarted.')
         else:
-            msg = await ctx.send('There is currently no mission running on server "' + server.name + '"')
+            msg = await ctx.send('There is currently no mission running on server "' + server.display_name + '"')
         if (msg is not None) and (server.get_channel(Channel.STATUS).id == ctx.channel.id):
             await asyncio.sleep(5)
             await msg.delete()
@@ -277,7 +277,7 @@ class Mission(Plugin):
         if not server:
             return
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            return await ctx.send(f"Server {server.name} is {server.status.name}.")
+            return await ctx.send(f"Server {server.display_name} is {server.status.name}.")
 
         if server.restart_pending and not await utils.yn_question(ctx, 'A restart is currently pending.\n'
                                                                        'Would you still like to change the mission?'):
@@ -300,9 +300,9 @@ class Mission(Plugin):
             await ctx.send(f'No missions registered with this server, please "{ctx.prefix}add" one.')
             return
 
-        embed = discord.Embed(title=f"{server.name}", colour=discord.Colour.blue())
+        embed = discord.Embed(title=f"{server.display_name}", colour=discord.Colour.blue())
         embed.description = "Load / reload missions."
-        embed.add_field(name="Mission Name", value=server.current_mission.name)
+        embed.add_field(name="Mission Name", value=server.current_mission.display_name)
         embed.add_field(name="# Players", value=str(len(server.get_active_players())))
         embed.add_field(name='▬' * 27, value='_ _', inline=False)
         view = self.LoadView(ctx, placeholder="Select a mission to load",
@@ -320,10 +320,10 @@ class Mission(Plugin):
                 if result == 'later':
                     server.on_empty = {"command": "restart", "user": ctx.message.author}
                     server.restart_pending = True
-                    await ctx.send(f'Mission {server.current_mission.name} will be restarted when server is empty.')
+                    await ctx.send(f'Mission {server.current_mission.display_name} will be restarted when server is empty.')
                 else:
                     await server.current_mission.restart()
-                    await ctx.send(f'Mission {server.current_mission.name} restarted.')
+                    await ctx.send(f'Mission {server.current_mission.display_name} restarted.')
             else:
                 for mission in missions:
                     if name == os.path.basename(mission)[:-4]:
@@ -386,9 +386,9 @@ class Mission(Plugin):
                             await ctx.send(f'Mission {name} loaded.')
                             break
             else:
-                await ctx.send('There is no file in the Missions directory of server {}.'.format(server.name))
+                await ctx.send(f'There is no file in the Missions directory of server {server.display_name}.')
         else:
-            return await ctx.send('Server ' + server.name + ' is not running.')
+            return await ctx.send(f'Server {server.display_name} is not running.')
 
     @commands.command(description='Deletes a mission from the list', aliases=['del'])
     @utils.has_role('DCS Admin')
@@ -434,9 +434,9 @@ class Mission(Plugin):
             return
         if server.status == Status.RUNNING:
             await server.current_mission.pause()
-            await ctx.send('Server "{}" paused.'.format(server.name))
+            await ctx.send(f'Server "{server.display_name}" paused.')
         else:
-            await ctx.send('Server "{}" is not running.'.format(server.name))
+            await ctx.send(f'Server "{server.display_name}" is not running.')
 
     @commands.command(description='Unpauses the running mission')
     @utils.has_role('DCS Admin')
@@ -447,13 +447,14 @@ class Mission(Plugin):
             return
         if server.status == Status.PAUSED:
             await server.current_mission.unpause()
-            await ctx.send('Server "{}" unpaused.'.format(server.name))
+            await ctx.send(f'Server "{server.display_name}" unpaused.')
         elif server.status == Status.RUNNING:
-            await ctx.send('Server "{}" is already running.'.format(server.name))
+            await ctx.send(f'Server "{server.display_name}" is already running.')
         elif server.status == Status.LOADING:
-            await ctx.send('Server "{}" is still loading... please wait a bit and try again.'.format(server.name))
+            await ctx.send(f'Server "{server.display_name}" is still loading... please wait a bit and try again.')
         else:
-            await ctx.send('Server "{}" is stopped or shut down. Please start the server first before unpausing.'.format(server.name))
+            await ctx.send(f'Server "{server.display_name}" is stopped or shut down. '
+                           f'Please start the server first before unpausing.')
 
     @commands.command(description='List of AFK players', usage='[minutes]')
     @utils.has_role('DCS Admin')
@@ -478,13 +479,13 @@ class Mission(Plugin):
             embed = discord.Embed(title=title, color=discord.Color.blue())
             embed.description = f'These players are AFK for more than {minutes} minutes:'
             for player in sorted(afk, key=lambda x: x.server.name):
-                embed.add_field(name='Name', value=player.name)
+                embed.add_field(name='Name', value=player.display_name)
                 embed.add_field(name='Time',
                                 value=utils.format_time(int((datetime.now() - player.server.afk[player.ucid]).total_seconds())))
                 if server:
                     embed.add_field(name='_ _', value='_ _')
                 else:
-                    embed.add_field(name='Server', value=player.server.name)
+                    embed.add_field(name='Server', value=player.server.display_name)
             await ctx.send(embed=embed)
         else:
             await ctx.send(f"No player is AFK for more than {minutes} minutes.")
@@ -498,7 +499,7 @@ class Mission(Plugin):
                     role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
                     if role:
                         mentions += role.mention
-                message = mentions + ' ' + message
+                message = mentions + ' ' + utils.escape_string(message)
             logdir = os.path.expandvars("%USERPROFILE%\\Saved Games\\" + s.installation + "\\logs\\")
             timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
             shutil.copy2(logdir + 'dcs.log', logdir + f"dcs.{timestamp}.log")

@@ -114,7 +114,7 @@ class GreenieBoard(Plugin):
         finally:
             self.pool.putconn(conn)
         report = Report(self.bot, self.plugin_name, 'traps.json')
-        env = await report.render(ucid=ucid, name=name)
+        env = await report.render(ucid=ucid, name=utils.escape_string(name))
         n = await utils.selection(ctx, embed=env.embed, placeholder="Select a trap for details",
                                   options=[
                                       SelectOption(label=format_landing(x), value=str(idx))

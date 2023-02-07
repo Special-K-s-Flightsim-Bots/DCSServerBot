@@ -142,6 +142,10 @@ class Player(DataObject):
             "coalition": side.value
         })
 
+    @property
+    def display_name(self) -> str:
+        return utils.escape_string(self.name)
+
     def update(self, data: dict):
         conn = self.pool.getconn()
         try:

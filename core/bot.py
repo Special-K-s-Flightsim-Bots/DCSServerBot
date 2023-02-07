@@ -277,7 +277,7 @@ class DCSServerBot(commands.Bot):
             if isinstance(user, str):
                 embed.add_field(name='UCID', value=user)
             if server:
-                embed.add_field(name='Server', value=server.name)
+                embed.add_field(name='Server', value=server.display_name)
             embed.set_footer(text=datetime.now().strftime("%d/%m/%y %H:%M:%S"))
             await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
 

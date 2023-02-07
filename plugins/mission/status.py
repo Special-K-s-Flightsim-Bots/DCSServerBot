@@ -19,7 +19,7 @@ class Init(report.EmbedElement):
             name=f"{server.name} [{num_players}/{server.settings['maxPlayers']}]",
             icon_url=STATUS_IMG[server.status])
         if server.status in [Status.PAUSED, Status.RUNNING] and server.current_mission:
-            self.embed.description = f"Mission: \"{server.current_mission.name}\""
+            self.embed.description = f"Mission: \"{server.current_mission.display_name}\""
         else:
             self.embed.description = f"_{server.status.value}_"
         self.embed.set_footer(text='')

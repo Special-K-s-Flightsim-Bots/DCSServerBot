@@ -44,7 +44,12 @@ class Scheduler(Plugin):
                 json.dump(cfg, f, indent=2)
             return cfg
         else:
-            return super().read_locals()
+            configs = super().read_locals()
+            for cfg in configs['configs']:
+                if 'presets' in cfg and isinstance(cfg['presets'], str):
+                    with open(os.path.expandvars(cfg['presets'])) as file:
+                        cfg['presets'] = json.load(file)
+            return configs
 
     def install(self):
         super().install()
@@ -493,25 +498,25 @@ class Scheduler(Plugin):
         if server:
             config = self.get_config(server)
             if server.status == Status.STOPPED:
-                await ctx.send(f"DCS server \"{server.name}\" is stopped.\n"
+                await ctx.send(f"DCS server \"{server.display_name}\" is stopped.\n"
                                f"Please use {ctx.prefix}start instead.")
                 return
             if server.status == Status.SHUTDOWN:
-                msg = await ctx.send(f"DCS server \"{server.name}\" starting up ...")
+                msg = await ctx.send(f"DCS server \"{server.display_name}\" starting up ...")
                 # set maintenance flag to prevent auto-stops of this server
                 server.maintenance = True
                 try:
                     await self.launch_dcs(server, config, ctx.message.author)
-                    await ctx.send(f"DCS server \"{server.name}\" started.\n"
+                    await ctx.send(f"DCS server \"{server.display_name}\" started.\n"
                                    f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
                 except asyncio.TimeoutError:
-                    await ctx.send(f"Timeout while launching DCS server \"{server.name}\".\n"
+                    await ctx.send(f"Timeout while launching DCS server \"{server.display_name}\".\n"
                                    f"The server might be running anyway, check with {ctx.prefix}status.")
                 finally:
                     await msg.delete()
 
             else:
-                await ctx.send(f"DCS server \"{server.name}\" is already started.")
+                await ctx.send(f"DCS server \"{server.display_name}\" is already started.")
 
     @commands.command(description='Shutdown a DCS/DCS-SRS server')
     @utils.has_role('DCS Admin')
@@ -525,7 +530,7 @@ class Scheduler(Plugin):
                 return
             elif server.status != Status.SHUTDOWN:
                 if not params or params[0] != '-force':
-                    question = f"Do you want to shut down DCS server \"{server.name}\"?"
+                    question = f"Do you want to shut down DCS server \"{server.display_name}\"?"
                     if server.is_populated():
                         result = await utils.populated_question(ctx, question)
                     else:
@@ -538,7 +543,7 @@ class Scheduler(Plugin):
                         server.restart_pending = True
                         await ctx.send('Shutdown postponed when server is empty.')
                         return
-                msg = await ctx.send(f"Shutting down DCS server \"{server.name}\", please wait ...")
+                msg = await ctx.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...")
                 # set maintenance flag to prevent auto-starts of this server
                 server.maintenance = True
                 if params and params[0].casefold() == '-force':
@@ -546,13 +551,13 @@ class Scheduler(Plugin):
                 else:
                     await self.teardown_dcs(server, ctx.message.author)
                 await msg.delete()
-                await ctx.send(f"DCS server \"{server.name}\" shut down.\n"
+                await ctx.send(f"DCS server \"{server.display_name}\" shut down.\n"
                                f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
             else:
-                await ctx.send(f"DCS server \"{server.name}\" is already shut down.")
+                await ctx.send(f"DCS server \"{server.display_name}\" is already shut down.")
             if 'extensions' in config:
                 for ext in await self.teardown_extensions(server, config, ctx.message.author):
-                    await ctx.send(f"{ext} shut down for server \"{server.name}\".")
+                    await ctx.send(f"{ext} shut down for server \"{server.display_name}\".")
 
     @commands.command(description='Starts a stopped DCS server')
     @utils.has_role('DCS Admin')
@@ -561,17 +566,17 @@ class Scheduler(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             if server.status == Status.STOPPED:
-                msg = await ctx.send(f"Starting server {server.name} ...")
+                msg = await ctx.send(f"Starting server {server.display_name} ...")
                 await server.start()
                 await msg.delete()
-                await ctx.send(f"Server {server.name} started.")
+                await ctx.send(f"Server {server.display_name} started.")
                 await self.bot.audit('started the server', server=server, user=ctx.message.author)
             elif server.status == Status.SHUTDOWN:
-                await ctx.send(f"Server {server.name} is shut down. Use {ctx.prefix}startup to start it up.")
+                await ctx.send(f"Server {server.display_name} is shut down. Use {ctx.prefix}startup to start it up.")
             elif server.status in [Status.RUNNING, Status.PAUSED]:
-                await ctx.send(f"Server {server.name} is already started.")
+                await ctx.send(f"Server {server.display_name} is already started.")
             else:
-                await ctx.send(f"Server {server.name} is still {server.status.name}, please wait ...")
+                await ctx.send(f"Server {server.display_name} is still {server.status.name}, please wait ...")
 
     @commands.command(description='Stops a DCS server')
     @utils.has_role('DCS Admin')
@@ -586,14 +591,14 @@ class Scheduler(Plugin):
                     return
                 await server.stop()
                 await self.bot.audit('stopped the server', server=server, user=ctx.message.author)
-                await ctx.send(f"Server {server.name} stopped.")
+                await ctx.send(f"Server {server.display_name} stopped.")
             elif server.status == Status.STOPPED:
-                await ctx.send(f"Server {server.name} is stopped already. Use {ctx.prefix}shutdown to terminate the "
+                await ctx.send(f"Server {server.display_name} is stopped already. Use {ctx.prefix}shutdown to terminate the "
                                f"dcs.exe process.")
             elif server.status == Status.SHUTDOWN:
-                await ctx.send(f"Server {server.name} is shut down already.")
+                await ctx.send(f"Server {server.display_name} is shut down already.")
             else:
-                await ctx.send(f"Server {server.name} is {server.status.name}, please wait ...")
+                await ctx.send(f"Server {server.display_name} is {server.status.name}, please wait ...")
 
     @commands.command(description='Status of a DCS server')
     @utils.has_role('DCS')
@@ -604,7 +609,7 @@ class Scheduler(Plugin):
         status = []
         maintenance = []
         for server in self.bot.servers.values():
-            names.append(server.name)
+            names.append(server.display_name)
             status.append(string.capwords(server.status.name.lower()))
             maintenance.append('Y' if server.maintenance else 'N')
         if len(names):
@@ -631,12 +636,12 @@ class Scheduler(Plugin):
                 server.restart_pending = False
                 server.on_empty = dict()
                 server.on_mission_end = dict()
-                await ctx.send(f"Maintenance mode set for server {server.name}.\n"
+                await ctx.send(f"Maintenance mode set for server {server.display_name}.\n"
                                f"The {string.capwords(self.plugin_name)} will be set on hold until you use"
                                f" {ctx.prefix}clear again.")
                 await self.bot.audit("set maintenance flag", user=ctx.message.author, server=server)
             else:
-                await ctx.send(f"Server {server.name} is already in maintenance mode.")
+                await ctx.send(f"Server {server.display_name} is already in maintenance mode.")
 
     @commands.command(description='Clears the servers maintenance flag')
     @utils.has_role('DCS Admin')
@@ -646,11 +651,11 @@ class Scheduler(Plugin):
         if server:
             if server.maintenance:
                 server.maintenance = False
-                await ctx.send(f"Maintenance mode cleared for server {server.name}.\n"
+                await ctx.send(f"Maintenance mode cleared for server {server.display_name}.\n"
                                f"The {string.capwords(self.plugin_name)} will take over the state handling now.")
                 await self.bot.audit("cleared maintenance flag", user=ctx.message.author, server=server)
             else:
-                await ctx.send(f"Server {server.name} is not in maintenance mode.")
+                await ctx.send(f"Server {server.display_name} is not in maintenance mode.")
 
     class PresetView(View):
         def __init__(self, ctx: commands.Context, options: list[discord.SelectOption]):
@@ -749,7 +754,7 @@ class Scheduler(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             if server.status not in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
-                await ctx.send(f"No mission running on server {server.name}.")
+                await ctx.send(f"No mission running on server {server.display_name}.")
                 return
             name = ' '.join(args)
             if not name:
@@ -796,7 +801,7 @@ class Scheduler(Plugin):
                 await server.stop()
             config = self.get_config(server)
             if 'reset' not in config:
-                await ctx.send(f"No \"reset\" parameter found for server {server.name}.")
+                await ctx.send(f"No \"reset\" parameter found for server {server.display_name}.")
                 return
             reset = config['reset']
             if isinstance(reset, list):

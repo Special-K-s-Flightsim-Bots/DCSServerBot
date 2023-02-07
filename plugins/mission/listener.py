@@ -211,7 +211,7 @@ class MissionEventListener(EventListener):
             # only warn for unknown users if it is a non-public server and automatch is on
             if self.bot.config.getboolean('BOT', 'AUTOMATCH') and len(server.settings['password']) > 0:
                 await server.get_channel(Channel.ADMIN).send(
-                    f'Player {player.name} (ucid={player.ucid}) can\'t be matched to a discord user.')
+                    f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.')
         else:
             player.sendChatMessage(self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(player.name, server.name))
         # add the player to the afk list

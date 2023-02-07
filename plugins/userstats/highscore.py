@@ -15,6 +15,7 @@ class HighscorePlaytime(report.GraphElement):
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
             if server_name in self.bot.servers:
+                self.env.embed.description = utils.escape_string(server_name)
                 server = self.bot.servers[server_name]
                 tmp = utils.get_sides(message, server)
                 sides = [0]

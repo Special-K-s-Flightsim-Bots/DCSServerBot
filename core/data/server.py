@@ -147,6 +147,10 @@ class Server(DataObject):
         return self._status
 
     @property
+    def display_name(self) -> str:
+        return utils.escape_string(self.name)
+
+    @property
     def missions_dir(self) -> str:
         if 'MISSIONS_DIR' in self.bot.config[self.installation]:
             return os.path.expandvars(self.bot.config[self.installation]['MISSIONS_DIR'])

@@ -341,15 +341,17 @@ class UserStatisticsEventListener(EventListener):
                         cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token, ))
                         if cursor.rowcount == 0:
                             player.sendChatMessage('Invalid token.')
-                            await server.get_channel(Channel.ADMIN).send(
-                                f'Player {player.name} (ucid={player.ucid}) entered a non-existent linking token.')
+                            await server.get_channel(Channel.ADMIN).send(f'Player {player.display_name} '
+                                                                         f'(ucid={player.ucid}) entered a '
+                                                                         f'non-existent linking token.')
                         else:
                             discord_id = cursor.fetchone()[0]
                             player.member = self.bot.guilds[0].get_member(discord_id)
                             player.verified = True
                             cursor.execute('DELETE FROM players WHERE ucid = %s', (token, ))
-                            await self.bot.audit(f'self-linked to DCS user "{player.name}" (ucid={player.ucid}).',
-                                                 user=player.member)
+                            await self.bot.audit(
+                                f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
+                                user=player.member)
                             player.sendChatMessage('Your user has been linked!')
                         conn.commit()
                 except (Exception, psycopg2.DatabaseError) as error:

@@ -72,10 +72,10 @@ class Sorties(report.EmbedElement):
                 if len(planes) == 0:
                     self.add_field(name='No sorties found for this player.', value='_ _')
                 else:
-                    self.embed.add_field(name='Module', value=planes)
-                    self.embed.add_field(name='Sorties', value=sorties)
-                    self.embed.add_field(name='Total Flighttime', value=times)
-                    self.embed.set_footer(text='Flighttime is the time you were airborne from takeoff to landing / '
+                    self.add_field(name='Module', value=planes)
+                    self.add_field(name='Sorties', value=sorties)
+                    self.add_field(name='Total Flighttime', value=times)
+                    self.set_footer(text='Flighttime is the time you were airborne from takeoff to landing / '
                                                'leave or\nairspawn to landing / leave.')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -86,10 +86,10 @@ class Sorties(report.EmbedElement):
 class MissionStats(report.EmbedElement):
     def render(self, stats: dict, sql: str, mission_id: int, sides: list[Coalition]) -> None:
         if len(sides) == 0:
-            self.embed.add_field(name='Data can only be displayed in a private coalition channel!', value='_ _')
+            self.add_field(name='Data can only be displayed in a private coalition channel!', value='_ _')
             return
-        self.embed.add_field(name='▬▬▬▬▬▬▬▬▬▬▬ Current Situation ▬▬▬▬▬▬▬▬▬▬▬', value='_ _', inline=False)
-        self.embed.add_field(
+        self.add_field(name='▬▬▬▬▬▬▬▬▬▬▬ Current Situation ▬▬▬▬▬▬▬▬▬▬▬', value='_ _', inline=False)
+        self.add_field(
             name='_ _', value='Airbases / FARPs\nPlanes\nHelicopters\nGround Units\nShips\nStructures')
         for coalition in sides:
             coalition_data = stats['coalitions'][coalition.name]
@@ -98,7 +98,7 @@ class MissionStats(report.EmbedElement):
                 value += '{}\n'.format(len(coalition_data['units'][unit_type])
                                        if unit_type in coalition_data['units'] else 0)
             value += '{}\n'.format(len(coalition_data['statics']))
-            self.embed.add_field(name=coalition.name, value=value)
+            self.add_field(name=coalition.name, value=value)
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
@@ -108,19 +108,19 @@ class MissionStats(report.EmbedElement):
                         Side.BLUE: {},
                         Side.RED: {}
                     }
-                    self.embed.add_field(name='▬▬▬▬▬▬▬▬▬▬▬ Achievements ▬▬▬▬▬▬▬▬▬▬▬▬', value='_ _', inline=False)
+                    self.add_field(name='▬▬▬▬▬▬▬▬▬▬▬ Achievements ▬▬▬▬▬▬▬▬▬▬▬▬', value='_ _', inline=False)
                     for row in cursor.fetchall():
                         s = Side(int(row['init_side']))
                         for name, value in row.items():
                             if name == 'init_side':
                                 continue
                             elements[s][name] = value
-                    self.embed.add_field(name='_ _', value='\n'.join(elements[Side.BLUE].keys()) or '_ _')
+                    self.add_field(name='_ _', value='\n'.join(elements[Side.BLUE].keys()) or '_ _')
                     if Coalition.BLUE in sides:
-                        self.embed.add_field(name=string.capwords(Side.BLUE.name),
+                        self.add_field(name=string.capwords(Side.BLUE.name),
                                              value='\n'.join([str(x) for x in elements[Side.BLUE].values()]) or '_ _')
                     if Coalition.RED in sides:
-                        self.embed.add_field(name=string.capwords(Side.RED.name),
+                        self.add_field(name=string.capwords(Side.RED.name),
                                              value='\n'.join([str(x) for x in elements[Side.RED].values()]) or '_ _')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)

@@ -12,7 +12,7 @@ from discord.ext.commands import Context
 from os import path
 from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound, \
-    ValueNotInRange
+    ValueNotInRange, ReportException
 from ..data.const import Channel
 
 if TYPE_CHECKING:
@@ -217,8 +217,11 @@ class PersistentReport(Report):
         self.channel_id = channel_id
 
     async def render(self, *args, **kwargs) -> ReportEnv:
-        env = await super().render(*args, **kwargs)
-        file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None
-        self.bot.loop.call_soon(asyncio.create_task, self.server.setEmbed(self.embed_name, env.embed, file,
-                                                                          channel_id=self.channel_id))
-        return env
+        try:
+            env = await super().render(*args, **kwargs)
+            file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None
+            self.bot.loop.call_soon(asyncio.create_task, self.server.setEmbed(self.embed_name, env.embed, file,
+                                                                              channel_id=self.channel_id))
+            return env
+        except ReportException as ex:
+            self.log.exception(ex)

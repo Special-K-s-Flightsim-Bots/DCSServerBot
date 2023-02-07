@@ -105,7 +105,7 @@ class CreditSystemMaster(CreditSystemAgent):
             else:
                 ucid = self.bot.get_ucid_by_member(member)
                 if not ucid:
-                    await ctx.send(f"Member {member.display_name} is not linked to any DCS user.")
+                    await ctx.send("Member {} is not linked to any DCS user.".format(utils.escape_string(member.display_name)))
                     return
         else:
             member = ctx.message.author
@@ -116,10 +116,10 @@ class CreditSystemMaster(CreditSystemAgent):
         data = self.get_credits(ucid)
         await ctx.message.delete()
         if len(data) == 0:
-            await ctx.send(f'{member.display_name} has no campaign credits.')
+            await ctx.send('{} has no campaign credits.'.format(utils.escape_string(member.display_name)))
             return
         embed = discord.Embed(
-            title="Campaign Credits for {}".format(member.display_name if isinstance(member, discord.Member) else member),
+            title="Campaign Credits for {}".format(utils.escape_string(member.display_name) if isinstance(member, discord.Member) else member),
             color=discord.Color.blue())
         campaigns = points = ''
         for row in data:
@@ -160,7 +160,7 @@ class CreditSystemMaster(CreditSystemAgent):
     async def admin_donate(self, ctx, to: discord.Member, donation: int):
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:
-            await ctx.send(f'{to.display_name} needs to properly link their DCS account to receive donations.')
+            await ctx.send('{} needs to properly link their DCS account to receive donations.'.format(utils.escape_string(to.display_name)))
             return
         data = self.get_credits(receiver)
         if not data:
@@ -186,8 +186,7 @@ class CreditSystemMaster(CreditSystemAgent):
                     old_points_receiver = p_receiver.points
                 if 'max_points' in self.locals['configs'][0] and \
                         (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
-                    await ctx.send(f'Member {to.display_name} would overrun the configured maximum points with '
-                                   f'this donation. Aborted.')
+                    await ctx.send('Member {} would overrun the configured maximum points with this donation. Aborted.'.format(utils.escape_string(to.display_name)))
                     return
                 if p_receiver:
                     p_receiver.points += donation
@@ -231,7 +230,7 @@ class CreditSystemMaster(CreditSystemAgent):
             return
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:
-            await ctx.send(f'{to.display_name} needs to properly link their DCS account to receive donations.')
+            await ctx.send('{} needs to properly link their DCS account to receive donations.'.format(utils.escape_string(to.display_name)))
             return
         donor = self.bot.get_ucid_by_member(ctx.message.author)
         if not donor:
@@ -270,8 +269,7 @@ class CreditSystemMaster(CreditSystemAgent):
                     old_points_receiver = p_receiver.points
                 if 'max_points' in self.locals['configs'][0] and \
                         (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
-                    await ctx.send(f'Member {to.display_name} would overrun the configured maximum points with '
-                                   f'this donation. Aborted.')
+                    await ctx.send('Member {} would overrun the configured maximum points with this donation. Aborted.'.format(utils.escape_string(to.display_name)))
                     return
                 if p_donor:
                     p_donor.points -= donation
@@ -303,8 +301,8 @@ class CreditSystemMaster(CreditSystemAgent):
                                                                                f'Donation from member '
                                                                                f'{ctx.message.author.display_name}'))
             conn.commit()
-            await ctx.send(to.mention + f' you just received {donation} credit points from '
-                                        f'{ctx.message.author.display_name}!')
+            await ctx.send(to.mention + f' you just received {donation} credit points from ' +
+                           '{}!'.format(utils.escape_string(ctx.message.author.display_name)))
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
             conn.rollback()

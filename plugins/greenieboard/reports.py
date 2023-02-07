@@ -101,7 +101,7 @@ class LSORating(report.EmbedElement):
                     for y in deflate_comment(element):
                         comments += '- ' + y + '\n'
             if len(comments) > 0:
-                self.embed.add_field(name=text, value=comments, inline=False)
+                self.add_field(name=text, value=comments, inline=False)
 
 
 class TrapSheet(report.MultiGraphElement):
@@ -192,13 +192,14 @@ class GreenieBoard(EmbedElement):
                    'g, players p WHERE g.player_ucid = p.ucid AND g.rn = 1 GROUP BY 1, 2, 3 ORDER BY 3 DESC LIMIT %s'
             sql2 += ' ORDER BY ID DESC LIMIT 10'
 
+            self.embed.description = utils.escape_string(server_name)
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
                 cursor.execute(sql1, (num_rows, ))
                 if cursor.rowcount > 0:
                     pilots = points = landings = ''
                     max_time = datetime.fromisocalendar(1970, 1, 1)
                     for row in cursor.fetchall():
-                        pilots += row['name'] + '\n'
+                        pilots += utils.escape_string(row['name']) + '\n'
                         points += f"{row['points']:.2f}\n"
                         cursor.execute(sql2, (row['player_ucid'], ))
                         i = 0
