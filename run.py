@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import aiohttp
 import aiofiles
@@ -21,8 +22,12 @@ from logging.handlers import RotatingFileHandler
 from matplotlib import font_manager
 from pathlib import Path
 from psycopg2 import pool
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from version import __version__
+
+if TYPE_CHECKING:
+    from core import Plugin
+
 
 # Set the bot version (not externally configurable)
 BOT_VERSION = __version__[:__version__.rfind('.')]
@@ -308,16 +313,17 @@ class Main:
                     return
                 if server.status not in [Status.RUNNING, Status.PAUSED]:
                     if await utils.yn_question(ctx, 'Are you sure to rename server '
-                                                    '"{}" to "{}"?'.format(old_name, new_name)) is True:
+                                                    '"{}" to "{}"?'.format(utils.escape_string(old_name),
+                                                                           utils.escape_string(new_name))) is True:
                         server.rename(new_name, True)
                         self.bot.servers[new_name] = server
                         del self.bot.servers[old_name]
                         await ctx.send('Server has been renamed.')
-                        await self.bot.audit(
-                            f'User {ctx.message.author.display_name} renamed DCS server "{old_name}" to "{new_name}".',
-                            user=ctx.message.author)
+                        await self.bot.audit('renamed DCS server "{}" to "{}".'.format(utils.escape_string(old_name),
+                                                                                       utils.escape_string(new_name)),
+                                             user=ctx.message.author)
                 else:
-                    await ctx.send('Please stop server "{}" before renaming!'.format(old_name))
+                    await ctx.send(f'Please stop server "{server.display_name}" before renaming!')
 
         @self.bot.command(description='Unregisters a server from this node')
         @utils.has_role('Admin')
@@ -326,17 +332,17 @@ class Main:
             server: Server = await self.bot.get_server(ctx)
             if server:
                 if server.status == Status.SHUTDOWN:
-                    if await utils.yn_question(ctx, 'Are you sure to unregister server "{}" from '
-                                                    'node "{}"?'.format(server.name, platform.node())) is True:
+                    if await utils.yn_question(ctx, f'Are you sure to unregister server "{server.display_name}" from '
+                                                    f'node "{platform.node()}"?') is True:
                         del self.bot.servers[server.name]
-                        await ctx.send('Server {} unregistered.'.format(server.name))
-                        await self.bot.audit(f"User {ctx.message.author.display_name} unregistered DCS server "
-                                             f"\"{server.name}\" from node {platform.node()}.",
-                                             user=ctx.message.author)
+                        await ctx.send(f'Server {server.display_name} unregistered.')
+                        await self.bot.audit(
+                            f"unregistered DCS server \"{server.display_name}\" from node {platform.node()}.",
+                            user=ctx.message.author)
                     else:
                         await ctx.send('Aborted.')
                 else:
-                    await ctx.send('Please shut down server "{}" before unregistering!'.format(server.name))
+                    await ctx.send(f'Please shut down server "{server.display_name}" before unregistering!')
 
         @self.bot.command(description='Upgrades the bot')
         @utils.has_role('Admin')
