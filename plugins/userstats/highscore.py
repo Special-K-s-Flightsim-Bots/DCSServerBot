@@ -14,8 +14,8 @@ class HighscorePlaytime(report.GraphElement):
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
+            self.env.embed.description = utils.escape_string(server_name)
             if server_name in self.bot.servers:
-                self.env.embed.description = utils.escape_string(server_name)
                 server = self.bot.servers[server_name]
                 tmp = utils.get_sides(message, server)
                 sides = [0]
