@@ -67,8 +67,8 @@ class SchedulerListener(EventListener):
                     await self.plugin.launch_dcs(server, config)
                 elif server.status == Status.STOPPED:
                     if self.plugin.is_mission_change(server, config):
-                        if 'RealWeather' in server.extensions.keys():
-                            await server.extensions['RealWeather'].beforeMissionLoad()
+                        for ext in server.extensions.values():
+                            await ext.beforeMissionLoad()
                         if 'settings' in config['restart']:
                             self.plugin.change_mizfile(server, config)
                         await server.start()
@@ -79,8 +79,8 @@ class SchedulerListener(EventListener):
                 elif server.status in [Status.RUNNING, Status.PAUSED]:
                     if self.plugin.is_mission_change(server, config):
                         await server.stop()
-                        if 'RealWeather' in server.extensions.keys():
-                            await server.extensions['RealWeather'].beforeMissionLoad()
+                        for ext in server.extensions.values():
+                            await ext.beforeMissionLoad()
                         if 'settings' in config['restart']:
                             self.plugin.change_mizfile(server, config)
                         await server.start()
@@ -94,8 +94,8 @@ class SchedulerListener(EventListener):
                 await server.loadNextMission()
                 if self.plugin.is_mission_change(server, config):
                     await server.stop()
-                    if 'RealWeather' in server.extensions.keys():
-                        await server.extensions['RealWeather'].beforeMissionLoad()
+                    for ext in server.extensions.values():
+                        await ext.beforeMissionLoad()
                     if 'settings' in config['restart']:
                         self.plugin.change_mizfile(server, config)
                     await server.start()

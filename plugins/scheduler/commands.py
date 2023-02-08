@@ -61,9 +61,9 @@ class Scheduler(Plugin):
                         self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
                         cfg.crash_report_mode = 'silent'
                     elif cfg.crash_report_mode != 'silent':
-                        self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! The Scheduler will '
-                                         'not work properly on DCS crashes, please change it manually to "silent" to '
-                                         'avoid that.')
+                        self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! The Scheduler '
+                                         'will not work properly on DCS crashes, please change it manually to "silent" '
+                                         'to avoid that.')
                 except Exception as ex:
                     self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
@@ -349,8 +349,10 @@ class Scheduler(Plugin):
     def is_mission_change(server: Server, config: dict) -> bool:
         if 'settings' in config['restart']:
             return True
-        if 'RealWeather' in server.extensions.keys():
-            return True
+        # check if someone overloaded beforeMissionLoad, which means the mission is likely to be changed
+        for ext in server.extensions.values():
+            if ext.__class__.beforeMissionLoad != Extension.beforeMissionLoad:
+                return True
         return False
 
     async def restart_mission(self, server: Server, config: dict):
@@ -393,8 +395,8 @@ class Scheduler(Plugin):
         elif method == 'restart':
             if self.is_mission_change(server, config):
                 await server.stop()
-                if 'RealWeather' in server.extensions.keys():
-                    await server.extensions['RealWeather'].beforeMissionLoad()
+                for ext in server.extensions.values():
+                    await ext.beforeMissionLoad()
                 if 'settings' in config['restart']:
                     self.change_mizfile(server, config)
                 await server.start()
@@ -405,8 +407,8 @@ class Scheduler(Plugin):
             await server.loadNextMission()
             if self.is_mission_change(server, config):
                 await server.stop()
-                if 'RealWeather' in server.extensions.keys():
-                    await server.extensions['RealWeather'].beforeMissionLoad()
+                for ext in server.extensions.values():
+                    await ext.beforeMissionLoad()
                 if 'settings' in config['restart']:
                     self.change_mizfile(server, config)
                 await server.start()
