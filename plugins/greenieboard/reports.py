@@ -186,13 +186,13 @@ class GreenieBoard(EmbedElement):
                    'OVER w AS time FROM greenieboard'
             sql2 = 'SELECT TRIM(grade) as "grade", night FROM greenieboard WHERE player_ucid = %s'
             if server_name:
+                self.embed.description = utils.escape_string(server_name)
                 sql1 += f" WHERE mission_id in (SELECT id FROM missions WHERE server_name = '{server_name}')"
                 sql2 += f" AND mission_id in (SELECT id FROM missions WHERE server_name = '{server_name}')"
             sql1 += ' WINDOW w AS (PARTITION BY player_ucid ORDER BY ID DESC ROWS BETWEEN CURRENT ROW AND 9 FOLLOWING)) ' \
                    'g, players p WHERE g.player_ucid = p.ucid AND g.rn = 1 GROUP BY 1, 2, 3 ORDER BY 3 DESC LIMIT %s'
             sql2 += ' ORDER BY ID DESC LIMIT 10'
 
-            self.embed.description = utils.escape_string(server_name)
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
                 cursor.execute(sql1, (num_rows, ))
                 if cursor.rowcount > 0:
