@@ -50,46 +50,47 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
 
 class SettingsDict(dict):
-    def __init__(self, server: Server, path: str):
+    def __init__(self, server: Server, path: str, root: str):
         super().__init__()
         self.path = path
+        self.root = root
         self.mtime = 0
         self.server = server
         self.bot = server.bot
         self.log = server.log
-        self.read_settings()
+        self.read_file()
 
-    def read_settings(self):
+    def read_file(self):
         self.mtime = os.path.getmtime(self.path)
         try:
-            settings = luadata.read(self.path, encoding='utf-8')
+            data = luadata.read(self.path, encoding='utf-8')
         except Exception as ex:
             # TODO: DSMC workaround
             self.log.debug(f"Exception while reading {self.path}:\n{ex}")
-            settings = utils.dsmc_parse_settings(self.path)
-            if not settings:
-                self.log.error("- Error while parsing serverSettings.lua!")
+            data = utils.dsmc_parse_settings(self.path)
+            if not data:
+                self.log.error("- Error while parsing {}!".format(os.path.basename(self.path)))
                 raise ex
-        if settings:
+        if data:
             self.clear()
-            self.update(settings)
+            self.update(data)
 
     def __setitem__(self, key, value):
         if self.mtime < os.path.getmtime(self.path):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
-            self.read_settings()
+            self.read_file()
         super().__setitem__(key, value)
         if len(self):
             with open(self.path, 'wb') as outfile:
                 self.mtime = os.path.getmtime(self.path)
-                outfile.write(("cfg = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
+                outfile.write((f"{self.root} = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
         else:
-            self.log.error("- Writing of serverSettings.lua aborted due to empty set.")
+            self.log.error("- Writing of {} aborted due to empty set.".format(os.path.basename(self.path)))
 
     def __getitem__(self, item):
         if self.mtime < os.path.getmtime(self.path):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
-            self.read_settings()
+            self.read_file()
         return super().__getitem__(item)
 
 
@@ -104,7 +105,7 @@ class Server(DataObject):
     embeds: dict[str, Union[int, discord.Message]] = field(repr=False, default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
-    options: dict = field(default_factory=dict, compare=False)
+    _options: Optional[SettingsDict] = field(default=None, compare=False)
     _settings: Optional[SettingsDict] = field(default=None, compare=False)
     current_mission: Mission = field(default=None, compare=False)
     mission_id: int = field(default=-1, compare=False)
@@ -255,8 +256,15 @@ class Server(DataObject):
     def settings(self) -> dict:
         if not self._settings:
             path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
-            self._settings = SettingsDict(self, path)
+            self._settings = SettingsDict(self, path, 'cfg')
         return self._settings
+
+    @property
+    def options(self) -> dict:
+        if not self._options:
+            path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\options.lua'
+            self._options = SettingsDict(self, path, 'options')
+        return self._options
 
     def get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:

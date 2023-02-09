@@ -68,36 +68,49 @@ class Scheduler(Plugin):
                     self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
     def migrate(self, version: str):
-        if version != '1.1' or 'SRS_INSTALLATION' not in self.bot.config['DCS']:
-            return
-        with open('config/scheduler.json') as file:
-            old: dict = json.load(file)
-        new = deepcopy(old)
-        # search the default config or create one
-        c = -1
-        for i in range(0, len(old['configs'])):
-            if 'installation' not in old['configs'][i]:
-                c = i
-                break
-        if c == -1:
-            new['configs'].append(dict())
-            c = len(new['configs']) - 1
-        new['configs'][c]['extensions'] = {
-            "SRS": {"installation": self.bot.config['DCS']['SRS_INSTALLATION'].replace('%%', '%')}
-        }
-        # migrate the SRS configuration
-        for c in range(0, len(old['configs'])):
-            if 'installation' not in old['configs'][c] or \
-                    'extensions' not in old['configs'][c] or \
-                    'SRS' not in old['configs'][c]['extensions']:
-                continue
+        dirty = False
+        if version == '1.1' and 'SRS_INSTALLATION' in self.bot.config['DCS']:
+            with open('config/scheduler.json') as file:
+                old: dict = json.load(file)
+            new = deepcopy(old)
+            # search the default config or create one
+            c = -1
+            for i in range(0, len(old['configs'])):
+                if 'installation' not in old['configs'][i]:
+                    c = i
+                    break
+            if c == -1:
+                new['configs'].append(dict())
+                c = len(new['configs']) - 1
             new['configs'][c]['extensions'] = {
-                "SRS": {"config": self.bot.config[old['configs'][c]['installation']]['SRS_CONFIG'].replace('%%', '%')}
+                "SRS": {"installation": self.bot.config['DCS']['SRS_INSTALLATION'].replace('%%', '%')}
             }
-        os.rename('config/scheduler.json', 'config/scheduler.bak')
-        with open('config/scheduler.json', 'w') as file:
-            json.dump(new, file, indent=2)
-            self.log.info('  => config/scheduler.json migrated to new format, please verify!')
+            # migrate the SRS configuration
+            for c in range(0, len(old['configs'])):
+                if 'installation' not in old['configs'][c] or \
+                        'extensions' not in old['configs'][c] or \
+                        'SRS' not in old['configs'][c]['extensions']:
+                    continue
+                new['configs'][c]['extensions'] = {
+                    "SRS": {"config": self.bot.config[old['configs'][c]['installation']]['SRS_CONFIG'].replace('%%', '%')}
+                }
+                dirty = True
+        elif version == '1.2':
+            with open('config/scheduler.json') as file:
+                old: dict = json.load(file)
+            new = deepcopy(old)
+            for config in new['configs']:
+                if 'extensions' in config and 'Tacview' in config['extensions'] and 'path' in config['extensions']['Tacview']:
+                    config['extensions']['Tacview']['tacviewExportPath'] = config['extensions']['Tacview']['path']
+                    del config['extensions']['Tacview']['path']
+                    dirty = True
+        else:
+            return
+        if dirty:
+            os.rename('config/scheduler.json', 'config/scheduler.bak')
+            with open('config/scheduler.json', 'w') as file:
+                json.dump(new, file, indent=2)
+                self.log.info('  => config/scheduler.json migrated to new format, please verify!')
 
     def get_config(self, server: Server) -> Optional[dict]:
         if server.name not in self._config:
@@ -481,16 +494,9 @@ class Scheduler(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def schedule_extensions(self):
-        if 'extensions' not in self.locals['configs'][0]:
-            return
-        for extension, config in self.locals['configs'][0]['extensions'].items():  # type: str, dict
-            if '.' not in extension:
-                ext: Extension = utils.str_to_class('extensions.' + extension)
-            else:
-                ext: Extension = utils.str_to_class(extension)
-            if ext:
-                ext.schedule(config, self.lastrun)
-        self.lastrun = datetime.now()
+        for server in self.bot.servers.values():
+            for ext in server.extensions.values():
+                ext.schedule()
 
     @commands.command(description='Starts a DCS/DCS-SRS server')
     @utils.has_role('DCS Admin')
