@@ -461,7 +461,10 @@ class Server(DataObject):
                         return
             if message:
                 try:
-                    await message.edit(embed=embed)
+                    if not file:
+                        await message.edit(embed=embed)
+                    else:
+                        await message.edit(embed=embed, attachments=[file])
                 except discord.errors.NotFound:
                     message = None
                 except discord.errors.DiscordException as ex:
