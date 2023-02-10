@@ -96,13 +96,16 @@ class Agent(Plugin):
             message = await ctx.send('Starting up DCS servers again ...')
         else:
             self.log.info('DCS World updated to the latest version.\nStarting up DCS servers again ...')
-        for server_name, server in self.bot.servers.items():
+        for server in self.bot.servers.values():
             if server not in servers:
                 # let the scheduler do its job
                 server.maintenance = False
             else:
-                # the server was running before (being in maintenance mode), so start it again
-                await server.startup()
+                try:
+                    # the server was running before (being in maintenance mode), so start it again
+                    await server.startup()
+                except asyncio.TimeoutError:
+                    await ctx.send(f'Timeout while starting {server.name}, please check it manually!')
         self.update_pending = False
         if message:
             await message.delete()

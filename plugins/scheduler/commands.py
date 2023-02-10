@@ -404,7 +404,11 @@ class Scheduler(Plugin):
         if 'shutdown' in method:
             await self.teardown_dcs(server)
         if method == 'restart_with_shutdown':
-            await self.launch_dcs(server, config)
+            try:
+                await self.launch_dcs(server, config)
+            except asyncio.TimeoutError:
+                await self.bot.audit(f"{string.capwords(self.plugin_name)}: Timeout while starting server",
+                                     server=server)
         elif method == 'restart':
             if self.is_mission_change(server, config):
                 await server.stop()
@@ -509,6 +513,14 @@ class Scheduler(Plugin):
                 await ctx.send(f"DCS server \"{server.display_name}\" is stopped.\n"
                                f"Please use {ctx.prefix}start instead.")
                 return
+            if server.status == Status.LOADING:
+                if not server.process.is_running():
+                    server.status = Status.SHUTDOWN
+                else:
+                    if await utils.yn_question(ctx, "Server is in state LOADING. Do you want to kill and restart it?"):
+                        await server.shutdown()
+                    else:
+                        return
             if server.status == Status.SHUTDOWN:
                 msg = await ctx.send(f"DCS server \"{server.display_name}\" starting up ...")
                 # set maintenance flag to prevent auto-stops of this server
@@ -530,12 +542,28 @@ class Scheduler(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def shutdown(self, ctx, *params):
+        async def do_shutdown(server: Server):
+            msg = await ctx.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...")
+            # set maintenance flag to prevent auto-starts of this server
+            server.maintenance = True
+            if params and params[0].casefold() == '-force':
+                await server.shutdown()
+            else:
+                await self.teardown_dcs(server, ctx.message.author)
+            await msg.delete()
+            await ctx.send(f"DCS server \"{server.display_name}\" shut down.\n"
+                           f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
+
         server: Server = await self.bot.get_server(ctx)
         if server:
             config = self.get_config(server)
             if server.status in [Status.UNREGISTERED, Status.LOADING]:
-                await ctx.send('Server is currently starting up. Please wait and try again.')
-                return
+                if params and params[0] == '-force' or \
+                        await utils.yn_question(ctx, f"Server is in state {server.status.name}.\n"
+                                                     f"Do you want to force a shutdown?"):
+                    await do_shutdown(server)
+                else:
+                    return
             elif server.status != Status.SHUTDOWN:
                 if not params or params[0] != '-force':
                     question = f"Do you want to shut down DCS server \"{server.display_name}\"?"
@@ -551,16 +579,7 @@ class Scheduler(Plugin):
                         server.restart_pending = True
                         await ctx.send('Shutdown postponed when server is empty.')
                         return
-                msg = await ctx.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...")
-                # set maintenance flag to prevent auto-starts of this server
-                server.maintenance = True
-                if params and params[0].casefold() == '-force':
-                    await server.shutdown()
-                else:
-                    await self.teardown_dcs(server, ctx.message.author)
-                await msg.delete()
-                await ctx.send(f"DCS server \"{server.display_name}\" shut down.\n"
-                               f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
+                await do_shutdown(server)
             else:
                 await ctx.send(f"DCS server \"{server.display_name}\" is already shut down.")
             if 'extensions' in config:
