@@ -234,7 +234,7 @@ class Main:
             else:
                 for font in font_manager.findSystemFonts('fonts'):
                     font_manager.fontManager.addfont(font)
-                self.log.info('- CJK fonts loaded.')
+                self.log.debug('- CJK fonts loaded.')
 
     def init_bot(self):
         def get_prefix(client, message):

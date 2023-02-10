@@ -16,7 +16,27 @@ DEFAULT_DIR = os.path.normpath(os.path.expandvars(r"%USERPROFILE%\Documents\Tacv
 class Tacview(Extension):
 
     def load_config(self) -> Optional[dict]:
-        return self.server.options['plugins']['Tacview']
+        options = self.server.options['plugins']
+        if 'Tacview' not in options:
+            options['Tacview'] = {
+                "tacviewAutoDiscardFlights": 10,
+                "tacviewDebugMode": 0,
+                "tacviewExportPath": "",
+                "tacviewFlightDataRecordingEnabled": True,
+                "tacviewModuleEnabled": True,
+                "tacviewMultiplayerFlightsAsClient": 2,
+                "tacviewMultiplayerFlightsAsHost": 2,
+                "tacviewRealTimeTelemetryEnabled": True,
+                "tacviewRealTimeTelemetryPassword": "",
+                "tacviewRealTimeTelemetryPort": "42674",
+                "tacviewRemoteControlEnabled": False,
+                "tacviewRemoteControlPassword": "",
+                "tacviewRemoteControlPort": "42675",
+                "tacviewSinglePlayerFlights": 2,
+                "tacviewTerrainExport": 0
+            }
+            self.server.options['plugins'] = options
+        return options['Tacview']
 
     async def prepare(self) -> bool:
         dirty = False
@@ -110,13 +130,26 @@ class Tacview(Extension):
     def verify(self) -> bool:
         dll_installed = os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
                                        r'\Mods\tech\Tacview\bin\tacview.dll')
-        config_exists = 'Tacview' in self.server.options['plugins']
-        if not dll_installed:
-            self.log.error(f"Can't load extension Tacview for server {self.server.name}, tavciew.dll not found!")
-            return False
-        if not config_exists:
-            self.log.error(f"Can't load extension Tacview for server {self.server.name}, "
-                           f"no Tacview section in options.lua found!")
+        exports_installed = os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
+                                           r'\Scripts\TacviewGameExport.lua') & \
+                            os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
+                                           r'\Scripts\Export.lua')
+        if exports_installed:
+            with open(
+                    os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) + r'\Scripts\Export.lua',
+                    'r') as file:
+                for line in file.readlines():
+                    # best case we find the default line Tacview put in the Export.lua
+                    if line.strip() == "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir().." \
+                                       "'Scripts/TacviewGameExport.lua')":
+                        break
+                    # at least we found it, might still be wrong
+                    elif not line.strip().startswith('--') and 'TacviewGameExport.lua'.casefold() in line.casefold():
+                        break
+                else:
+                    exports_installed = False
+        if not dll_installed or not exports_installed:
+            self.log.error(f"  => {self.server.name}: Can't load extension, Tacview not correctly installed.")
             return False
         return True
 

@@ -67,14 +67,14 @@ class Commands(Plugin):
                     c.params = params
                 self.bot.add_command(c)
                 self.commands[cmd['name']] = cmd
-                self.log.info(f"  - Custom command \"{self.bot.config['BOT']['COMMAND_PREFIX']}{cmd['name']}\" registered.")
+                self.log.debug(f"  - Custom command \"{self.bot.config['BOT']['COMMAND_PREFIX']}{cmd['name']}\" registered.")
             except commands.CommandRegistrationError as ex:
-                self.log.info(f"  - Custom command \"{self.bot.config['BOT']['COMMAND_PREFIX']}{cmd['name']}\" NOT registered: {ex}")
+                self.log.warning(f"  - Custom command \"{self.bot.config['BOT']['COMMAND_PREFIX']}{cmd['name']}\" NOT registered: {ex}")
 
     def _unregister_commands(self):
         for cmd in self.commands.keys():
             self.bot.remove_command(cmd)
-            self.log.info(f"  - Custom command \"{self.bot.config['BOT']['COMMAND_PREFIX']}{cmd}\" unregistered.")
+            self.log.debug(f"  - Custom command \"{self.bot.config['BOT']['COMMAND_PREFIX']}{cmd}\" unregistered.")
 
 
 async def setup(bot: DCSServerBot):
