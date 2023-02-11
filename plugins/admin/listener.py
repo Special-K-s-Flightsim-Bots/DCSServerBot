@@ -74,7 +74,7 @@ class AdminEventListener(EventListener):
             server.kick(delinquent, reason)
             player.sendChatMessage(f"User {name} kicked.")
             self.bot.loop.call_soon(asyncio.create_task,
-                                    self.bot.audit(f'kicked player {name}' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                                    self.bot.audit(f'kicked player {delinquent.display_name}' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
                                                    user=player.member))
         elif data['subcommand'] == '911':
             mentions = ''

@@ -9,7 +9,6 @@
   },
   "color": "blue",
   "title": "GreenieBoard (TOP {num_rows})",
-  "description": "{server_name}",
   "elements":
   [
     {

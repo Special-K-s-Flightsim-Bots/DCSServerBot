@@ -334,9 +334,9 @@ class GameMasterMaster(GameMasterAgent):
                 self.eventlistener._campaign('start', servers=servers, name=name)
                 await ctx.send(f"Campaign {name} started.")
             except psycopg2.errors.ExclusionViolation:
-                await ctx.send(f"There is a campaign already running on server {server.name}!")
+                await ctx.send(f"There is a campaign already running on server {server.display_name}!")
             except psycopg2.errors.UniqueViolation:
-                await ctx.send(f"A campaign with this name already exists on server {server.name}!")
+                await ctx.send(f"A campaign with this name already exists on server {server.display_name}!")
         elif command.lower() == 'stop':
             if not server and not name:
                 await ctx.send(f'Usage: {ctx.prefix}campaign stop <name>')

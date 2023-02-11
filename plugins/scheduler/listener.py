@@ -41,7 +41,7 @@ class SchedulerListener(EventListener):
         config = self.plugin.get_config(server)
         self.plugin.init_extensions(server, config)
         for ext in server.extensions.values():
-            if not await ext.is_running() and await ext.startup():
+            if not ext.is_running() and await ext.startup():
                 self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
                 await self.bot.audit(f"{ext.name} started", server=server)
 
@@ -67,8 +67,8 @@ class SchedulerListener(EventListener):
                     await self.plugin.launch_dcs(server, config)
                 elif server.status == Status.STOPPED:
                     if self.plugin.is_mission_change(server, config):
-                        if 'RealWeather' in server.extensions.keys():
-                            await server.extensions['RealWeather'].beforeMissionLoad()
+                        for ext in server.extensions.values():
+                            await ext.beforeMissionLoad()
                         if 'settings' in config['restart']:
                             self.plugin.change_mizfile(server, config)
                         await server.start()
@@ -79,8 +79,8 @@ class SchedulerListener(EventListener):
                 elif server.status in [Status.RUNNING, Status.PAUSED]:
                     if self.plugin.is_mission_change(server, config):
                         await server.stop()
-                        if 'RealWeather' in server.extensions.keys():
-                            await server.extensions['RealWeather'].beforeMissionLoad()
+                        for ext in server.extensions.values():
+                            await ext.beforeMissionLoad()
                         if 'settings' in config['restart']:
                             self.plugin.change_mizfile(server, config)
                         await server.start()
@@ -94,8 +94,8 @@ class SchedulerListener(EventListener):
                 await server.loadNextMission()
                 if self.plugin.is_mission_change(server, config):
                     await server.stop()
-                    if 'RealWeather' in server.extensions.keys():
-                        await server.extensions['RealWeather'].beforeMissionLoad()
+                    for ext in server.extensions.values():
+                        await ext.beforeMissionLoad()
                     if 'settings' in config['restart']:
                         self.plugin.change_mizfile(server, config)
                     await server.start()
@@ -135,7 +135,7 @@ class SchedulerListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         server.restart_pending = False
         for ext in server.extensions.values():
-            if await ext.is_running():
+            if ext.is_running():
                 self.bot.loop.call_soon(asyncio.create_task, ext.onMissionLoadEnd(data))
 
     async def onMissionEnd(self, data: dict) -> None:
@@ -147,7 +147,7 @@ class SchedulerListener(EventListener):
     async def onSimulationStop(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         for ext in server.extensions.values():
-            if await ext.is_running():
+            if ext.is_running():
                 self.bot.loop.call_soon(asyncio.create_task, ext.onSimulationStop(data))
 
     async def onShutdown(self, data: dict) -> None:

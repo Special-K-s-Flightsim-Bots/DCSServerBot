@@ -33,7 +33,7 @@ class Header(report.EmbedElement):
         self.embed.description = f'Information about '
         if isinstance(member, discord.Member):
             self.embed.description += f'member **{member.display_name}**:'
-            self.embed.add_field(name='Discord ID:', value=member.id)
+            self.add_field(name='Discord ID:', value=member.id)
         else:
             self.embed.description += 'a non-member user:'
         last_seen = datetime(1970, 1, 1)
@@ -44,9 +44,9 @@ class Header(report.EmbedElement):
             if row['banned'] == 1:
                 banned = True
         if last_seen != datetime(1970, 1, 1):
-            self.embed.add_field(name='Last seen:', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
+            self.add_field(name='Last seen:', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
         if banned:
-            self.embed.add_field(name='Status', value='Banned')
+            self.add_field(name='Status', value='Banned')
 
 
 class UCIDs(report.EmbedElement):
@@ -64,11 +64,11 @@ class UCIDs(report.EmbedElement):
                 if not cursor.rowcount:
                     return
                 rows = list(cursor.fetchall())
-                self.embed.add_field(name='▬' * 13 + ' Connected UCIDs ' + '▬' * 12, value='_ _', inline=False)
-                self.embed.add_field(name='UCID', value='\n'.join([row['ucid'] for row in rows]))
-                self.embed.add_field(name='DCS Name', value='\n'.join([row['name'] for row in rows]))
+                self.add_field(name='▬' * 13 + ' Connected UCIDs ' + '▬' * 12, value='_ _', inline=False)
+                self.add_field(name='UCID', value='\n'.join([row['ucid'] for row in rows]))
+                self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name']) for row in rows]))
                 if isinstance(member, discord.Member):
-                    self.embed.add_field(name='Validated', value='\n'.join(
+                    self.add_field(name='Validated', value='\n'.join(
                         ['Approved' if row['manual'] is True else 'Not Approved' for row in rows]))
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -93,10 +93,10 @@ class History(report.EmbedElement):
                 if not cursor.rowcount:
                     return
                 rows = cursor.fetchall()
-                self.embed.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
-                self.embed.add_field(name='DCS Name', value='\n'.join([row['name'] or 'n/a' for row in rows]))
-                self.embed.add_field(name='Time', value='\n'.join([f"{row['time']:%y-%m-%d %H:%M:%S}" for row in rows]))
-                self.embed.add_field(name='_ _', value='_ _')
+                self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
+                self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name']) or 'n/a' for row in rows]))
+                self.add_field(name='Time', value='\n'.join([f"{row['time']:%y-%m-%d %H:%M:%S}" for row in rows]))
+                self.add_field(name='_ _', value='_ _')
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
             raise
@@ -107,10 +107,10 @@ class History(report.EmbedElement):
 class ServerInfo(report.EmbedElement):
     def render(self, member: Union[discord.Member, str], player: Optional[Player]):
         if player:
-            self.embed.add_field(name='▬' * 13 + ' Current Activity ' + '▬' * 13, value='_ _', inline=False)
-            self.embed.add_field(name='Active on Server', value=player.server.name)
-            self.embed.add_field(name='DCS Name', value=player.name)
-            self.embed.add_field(name='Slot', value=player.unit_type if player.side != Side.SPECTATOR else 'Spectator')
+            self.add_field(name='▬' * 13 + ' Current Activity ' + '▬' * 13, value='_ _', inline=False)
+            self.add_field(name='Active on Server', value=player.server.display_name)
+            self.add_field(name='DCS Name', value=player.display_name)
+            self.add_field(name='Slot', value=player.unit_type if player.side != Side.SPECTATOR else 'Spectator')
 
 
 class Footer(report.EmbedElement):

@@ -199,17 +199,18 @@ class DCSServerBot(commands.Bot):
                     else:
                         self.log.info(f'  => {string.capwords(plugin)} NOT loaded.')
                 if not self.synced:
-                    self.log.info('- Registering Commands ...')
+                    self.log.debug('- Registering Discord Commands ...')
                     self.tree.copy_global_to(guild=self.guilds[0])
                     await self.tree.sync(guild=self.guilds[0])
                     self.synced = True
+                    self.log.info('- Discord Commands registered.')
                 if 'DISCORD_STATUS' in self.config['BOT']:
                     await self.change_presence(activity=discord.Game(name=self.config['BOT']['DISCORD_STATUS']))
                 # start the UDP listener to accept commands from DCS
                 self.loop.create_task(self.start_udp_listener())
                 self.loop.create_task(self.register_servers())
             else:
-                self.log.warning('Discord connection re-established.')
+                self.log.warning('- Discord connection re-established.')
                 # maybe our external IP got changed...
                 self.external_ip = await utils.get_external_ip() if 'PUBLIC_IP' not in self.config['BOT'] else self.config['BOT']['PUBLIC_IP']
         except Exception as ex:
@@ -277,7 +278,7 @@ class DCSServerBot(commands.Bot):
             if isinstance(user, str):
                 embed.add_field(name='UCID', value=user)
             if server:
-                embed.add_field(name='Server', value=server.name)
+                embed.add_field(name='Server', value=server.display_name)
             embed.set_footer(text=datetime.now().strftime("%d/%m/%y %H:%M:%S"))
             await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
 
@@ -520,7 +521,6 @@ class DCSServerBot(commands.Bot):
             server.process = utils.find_process(exe, server.installation)
             if server.process:
                 break
-        server.options = data['options']
         server.dcs_version = data['dcs_version']
         # update the database and check for server name changes
         conn = self.pool.getconn()

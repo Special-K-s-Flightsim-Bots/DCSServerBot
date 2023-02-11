@@ -4,7 +4,7 @@ from core.data.dataobject import DataObject, DataObjectFactory
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Union, TYPE_CHECKING
-from .. import Status
+from .. import Status, utils
 
 if TYPE_CHECKING:
     from .server import Server
@@ -26,6 +26,10 @@ class Mission(DataObject):
     weather: dict = field(repr=False, default_factory=dict)
     clouds: dict = field(repr=False, default_factory=dict)
     airbases: list = field(repr=False, default_factory=list)
+
+    @property
+    def display_name(self) -> str:
+        return utils.escape_string(self.name)
 
     async def pause(self):
         if self.server.status == Status.RUNNING:

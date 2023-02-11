@@ -78,6 +78,20 @@ class GreenieBoard(Plugin):
                 cursor.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Greenieboard pruned.')
 
+    def rename(self, old_name: str, new_name: str):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE message_persistence SET embed_name = %s '
+                               'WHERE embed_name = %s AND server_name IN (%s, %s)',
+                               (f'greenieboard-{new_name}', f'greenieboard-{old_name}', old_name, new_name))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+
     @commands.command(description='Show carrier landing qualifications', usage='[member]', aliases=['traps'])
     @utils.has_role('DCS')
     @commands.guild_only()
@@ -114,7 +128,7 @@ class GreenieBoard(Plugin):
         finally:
             self.pool.putconn(conn)
         report = Report(self.bot, self.plugin_name, 'traps.json')
-        env = await report.render(ucid=ucid, name=name)
+        env = await report.render(ucid=ucid, name=utils.escape_string(name))
         n = await utils.selection(ctx, embed=env.embed, placeholder="Select a trap for details",
                                   options=[
                                       SelectOption(label=format_landing(x), value=str(idx))

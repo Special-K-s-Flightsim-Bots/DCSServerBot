@@ -96,13 +96,16 @@ class Agent(Plugin):
             message = await ctx.send('Starting up DCS servers again ...')
         else:
             self.log.info('DCS World updated to the latest version.\nStarting up DCS servers again ...')
-        for server_name, server in self.bot.servers.items():
+        for server in self.bot.servers.values():
             if server not in servers:
                 # let the scheduler do its job
                 server.maintenance = False
             else:
-                # the server was running before (being in maintenance mode), so start it again
-                await server.startup()
+                try:
+                    # the server was running before (being in maintenance mode), so start it again
+                    await server.startup()
+                except asyncio.TimeoutError:
+                    await ctx.send(f'Timeout while starting {server.name}, please check it manually!')
         self.update_pending = False
         if message:
             await message.delete()
@@ -143,7 +146,7 @@ class Agent(Plugin):
                 await self.bot.audit(f"changed password", user=ctx.message.author, server=server)
                 await ctx.send('Password has been changed.')
             else:
-                await ctx.send(f"Server \"{server.name}\" has to be stopped or shut down to change the password.")
+                await ctx.send(f"Server \"{server.display_name}\" has to be stopped or shut down to change the password.")
         elif coalition.casefold() in ['red', 'blue']:
             if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
                 password = await utils.input_value(self.bot, ctx, 'Please enter the new password (. for none):', True)
@@ -170,7 +173,7 @@ class Agent(Plugin):
                     await ctx.send('Server restarted.')
                     await self.bot.audit('restarted the server', server=server, user=ctx.message.author)
             else:
-                await ctx.send(f"Server \"{server.name}\" must not be shut down to change coalition "
+                await ctx.send(f"Server \"{server.display_name}\" must not be shut down to change coalition "
                                f"passwords.")
         else:
             await ctx.send(f"Usage: {ctx.prefix}password [red|blue]")
@@ -196,7 +199,8 @@ class Agent(Plugin):
                                     default=server.settings['description'], max_length=2000, required=False)
             password = TextInput(label="Password", placeholder="n/a", default=server.settings['password'],
                                  max_length=20, required=False)
-            max_player = TextInput(label="Max Players", default=server.settings['maxPlayers'], max_length=3, required=True)
+            max_player = TextInput(label="Max Players", default=server.settings['maxPlayers'], max_length=3,
+                                   required=True)
 
             async def on_submit(s, interaction: discord.Interaction):
                 if s.name.value != server.name:
@@ -207,7 +211,8 @@ class Agent(Plugin):
                 server.settings['description'] = s.description.value
                 server.settings['password'] = s.password.value
                 server.settings['maxPlayers'] = int(s.max_player.value)
-                await interaction.response.send_message(f'Server configuration for server "{server.name}" updated.')
+                await interaction.response.send_message(
+                    f'Server configuration for server "{server.display_name}" updated.')
 
         class ConfigView(View):
             @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='cfg_yes', emoji='✅')
@@ -232,7 +237,7 @@ class Agent(Plugin):
                     return True
 
         view = ConfigView()
-        embed = discord.Embed(title=f'Do you want to change the configuration of server "{server.name}"?')
+        embed = discord.Embed(title=f'Do you want to change the configuration of server "{server.display_name}"?')
         msg = await ctx.send(embed=embed, view=view)
         await view.wait()
         await msg.delete()
@@ -268,8 +273,8 @@ class Agent(Plugin):
             async def on_submit(self, interaction: discord.Interaction):
                 reason = self.reason.value or 'n/a'
                 server.kick(self.player, reason)
-                await server.bot.audit(f"kicked player {self.player.name}" + (f' with reason "{self.reason}".' if reason != 'n/a' else '.'), user=interaction.user)
-                await interaction.response.send_message(f"Kicked player {self.player.name}.")
+                await server.bot.audit(f"kicked player {self.player.display_name}" + (f' with reason "{self.reason}".' if reason != 'n/a' else '.'), user=interaction.user)
+                await interaction.response.send_message(f"Kicked player {self.player.display_name}.")
 
         class KickView(View):
             @discord.ui.select(placeholder="Select a player to be kicked", options=[SelectOption(label=x.name, value=str(players.index(x))) for x in players])
@@ -688,11 +693,11 @@ class Master(Agent):
                 conn.commit()
                 await super().ban(self, ctx, user, *args)
             if isinstance(user, discord.Member):
-                await ctx.send(f'Member {user.display_name} banned.')
+                await ctx.send('Member {} banned.'.format(utils.escape_string(user.display_name)))
             else:
                 await ctx.send(f'Player {user} banned.')
-            await self.bot.audit(f'banned ' +
-                                 (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}') +
+            await self.bot.audit('banned ' +
+                                 ('member {}'.format(utils.escape_string(user.display_name)) if isinstance(user, discord.Member) else f' ucid {user}') +
                                  (f' with reason "{reason}"' if reason != 'n/a' else ''),
                                  user=ctx.message.author)
         except (Exception, psycopg2.DatabaseError) as error:
@@ -720,11 +725,11 @@ class Master(Agent):
                 conn.commit()
                 await super().unban(self, ctx, user)
             if isinstance(user, discord.Member):
-                await ctx.send(f'Member {user.display_name} unbanned.')
+                await ctx.send('Member {} unbanned.'.format(utils.escape_string(user.display_name)))
             else:
                 await ctx.send(f'Player {user} unbanned.')
             await self.bot.audit(f'unbanned ' +
-                                 (f'member {user.display_name}' if isinstance(user, discord.Member) else f' ucid {user}'),
+                                 ('member {}'.format(utils.escape_string(user.display_name)) if isinstance(user, discord.Member) else f' ucid {user}'),
                                  user=ctx.message.author)
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
@@ -740,7 +745,7 @@ class Master(Agent):
                 user = self.bot.get_user(ban['discord_id'])
             else:
                 user = None
-            names += (user.name if user else ban['name'] if ban['name'] else '<unknown>') + '\n'
+            names += utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>') + '\n'
             ucids += ban['ucid'] + '\n'
             reasons += ban['reason'] + '\n'
         embed.add_field(name='UCID', value=ucids)

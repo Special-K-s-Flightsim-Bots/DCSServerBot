@@ -140,6 +140,8 @@ class Graph(ReportElement):
     def render(self, width: int, height: int, cols: int, rows: int, elements: List[dict], facecolor: Optional[str] = None):
         plt.style.use('dark_background')
         plt.rcParams['axes.facecolor'] = '2C2F33'
+        if 'CJK_FONT' in self.bot.config['REPORTS']:
+            plt.rcParams['font.family'] = [f"Noto Sans {self.bot.config['REPORTS']['CJK_FONT']}", 'sans-serif']
         self.env.figure = plt.figure(figsize=(width, height))
         if facecolor:
             self.env.figure.set_facecolor(facecolor)

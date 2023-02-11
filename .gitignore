@@ -13,3 +13,5 @@ Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 /reports/
 /export/
 /plugins/test/
+/build/
+/fonts/

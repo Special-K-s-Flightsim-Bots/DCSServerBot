@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import discord
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, cast, Sequence, Union, TYPE_CHECKING
@@ -503,6 +504,10 @@ def embed_to_simpletext(embed: discord.Embed) -> str:
     if embed.footer and embed.footer.text:
         message += '\n' + embed.footer.text
     return message
+
+
+def escape_string(msg: str) -> str:
+    return re.sub(r"([\*\_~])", r"\\\1", msg)
 
 
 async def servers_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:

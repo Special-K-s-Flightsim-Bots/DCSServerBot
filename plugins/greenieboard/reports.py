@@ -101,7 +101,7 @@ class LSORating(report.EmbedElement):
                     for y in deflate_comment(element):
                         comments += '- ' + y + '\n'
             if len(comments) > 0:
-                self.embed.add_field(name=text, value=comments, inline=False)
+                self.add_field(name=text, value=comments, inline=False)
 
 
 class TrapSheet(report.MultiGraphElement):
@@ -186,6 +186,7 @@ class GreenieBoard(EmbedElement):
                    'OVER w AS time FROM greenieboard'
             sql2 = 'SELECT TRIM(grade) as "grade", night FROM greenieboard WHERE player_ucid = %s'
             if server_name:
+                self.embed.description = utils.escape_string(server_name)
                 sql1 += f" WHERE mission_id in (SELECT id FROM missions WHERE server_name = '{server_name}')"
                 sql2 += f" AND mission_id in (SELECT id FROM missions WHERE server_name = '{server_name}')"
             sql1 += ' WINDOW w AS (PARTITION BY player_ucid ORDER BY ID DESC ROWS BETWEEN CURRENT ROW AND 9 FOLLOWING)) ' \
@@ -198,7 +199,7 @@ class GreenieBoard(EmbedElement):
                     pilots = points = landings = ''
                     max_time = datetime.fromisocalendar(1970, 1, 1)
                     for row in cursor.fetchall():
-                        pilots += row['name'] + '\n'
+                        pilots += utils.escape_string(row['name']) + '\n'
                         points += f"{row['points']:.2f}\n"
                         cursor.execute(sql2, (row['player_ucid'], ))
                         i = 0

@@ -1,6 +1,6 @@
 {
   "color": "blue",
-  "title": "{data[server_name]}\nReport for \"{airbase[name]}\"",
+  "title": "{server_name}\nReport for \"{airbase[name]}\"",
   "elements":
   [
     {

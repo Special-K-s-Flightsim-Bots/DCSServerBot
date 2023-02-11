@@ -111,8 +111,8 @@ class GameMasterEventListener(EventListener):
                         player.sendChatMessage(f"You can't join the {coalition} coalition in-between "
                                                f"{self.bot.config[server.installation]['COALITION_LOCK_TIME']} of "
                                                f"leaving a coalition.")
-                        await self.bot.audit(f"{player.name} tried to join a new coalition in-between the time limit.",
-                                             user=player.ucid)
+                        await self.bot.audit(f"{player.display_name} tried to join a new coalition in-between the time "
+                                             f"limit.", user=player.ucid)
                         return
 
                 # set the new coalition

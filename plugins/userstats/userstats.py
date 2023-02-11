@@ -23,6 +23,7 @@ class PlaytimesPerPlane(report.GraphElement):
         else:
             sql += 'AND p.ucid = %s '
         if server_name:
+            self.env.embed.description = utils.escape_string(server_name)
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
         self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)

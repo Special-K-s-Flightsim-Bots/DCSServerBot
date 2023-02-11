@@ -211,7 +211,7 @@ class MissionEventListener(EventListener):
             # only warn for unknown users if it is a non-public server and automatch is on
             if self.bot.config.getboolean('BOT', 'AUTOMATCH') and len(server.settings['password']) > 0:
                 await server.get_channel(Channel.ADMIN).send(
-                    f'Player {player.name} (ucid={player.ucid}) can\'t be matched to a discord user.')
+                    f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.')
         else:
             player.sendChatMessage(self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(player.name, server.name))
         # add the player to the afk list
@@ -301,7 +301,7 @@ class MissionEventListener(EventListener):
                 data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon/Bomblet'))
             # report teamkills from players to admins
             if (player1 is not None) and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
-                name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.name)
+                name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
                 await server.get_channel(Channel.ADMIN).send(
                     f'{name} (ucid={player1.ucid}) is killing team members. Please investigate.'
                 )

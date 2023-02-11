@@ -34,16 +34,30 @@ To enable SRS, support, you need to add the following parts to your [scheduler.j
       [...]
       "extensions": {
         "SRS": {
-          "config": "%USERPROFILE%\\Saved Games\\DCS.openbeta_server\\Config\\SRS.cfg"
+          "config": "%USERPROFILE%\\Saved Games\\DCS.openbeta_server\\Config\\SRS.cfg",
+          "host": "myfancyhost.com",    -- Optional, default is your external IP
+          "port": 5004,                 -- Optional, default is what's written in server.cfg already,
+          "awacs": true,                -- enable AWACS mode
+          "blue_password": "blue",      -- AWACS mode, blue password
+          "red_password": "red",        -- AWACS mode, red password
+          "autostart": true     -- can be false to disable autostart of SRS (default = true)
         }
       }
     }
   ]
 }
 ```
-Where [...] are parts that you have in your scheduler.json anyway. So you need one entry in the default section, 
-pointing to your DCS-SRS installation and one in every server section, where you want to use SRS with. That's all,
-the next time the scheduler starts your server, it will auto-launch SRS and take care of it.
+You need one entry in the default section, pointing to your DCS-SRS installation and one in every server section, 
+where you want to use SRS with. The next time the scheduler starts your server, it will auto-launch SRS and take 
+care of it.
+
+__Optional__ parameters (will change server.cfg if necessary):</br>
+* **host** The hostname or IP to be used in your DCS-SRS-AutoConnectGameGUI.lua. The bot will replace it in there.
+* **port** SRS port
+* **awacs** AWACS mode
+* **blue_password** AWACS mode, password blue.
+* **red_password** AWACS mode, password red.
+
 
 ### Tacview
 Many servers run [Tacview](https://www.tacview.net/) to help people analyse their flight path, weapons employment and 
@@ -59,7 +73,7 @@ To enable Tacview support, again, a change in scheduler.json is needed:
       [...]
       "extensions": {
         "Tacview": {
-          "path": "%USERPROFILE%\\Documents\\Tacview",
+          "tacviewExportPath": "%USERPROFILE%\\Documents\\Tacview", -- global setting (default, can be omitted)
           "delete_after": 30
         }
       }
@@ -70,6 +84,12 @@ To enable Tacview support, again, a change in scheduler.json is needed:
       [...]
       "extensions": {
         "Tacview": {
+          "tacviewExportPath": "%USERPROFILE%\\Documents\\Tacview-instance2",
+          "tacviewRealTimeTelemetryPort": 42674,
+          "tacviewRealTimeTelemetryPassword": "",
+          "tacviewRemoteControlPort": 42675,
+          "tacviewRemoteControlPassword": "",
+          "tacviewPlaybackDelay": 600,
           "show_passwords": false,
           "channel": 837667390242291742
         }
@@ -78,7 +98,13 @@ To enable Tacview support, again, a change in scheduler.json is needed:
   ]
 }
 ```
-__Optional__ parameters:</br>
+__Optional__ parameters (will change options.lua if necessary):</br>
+* **tacviewExportPath** Sets this as the Tacview export path.
+* **tacviewRealTimeTelemetryPort** Sets this as the Tacview realtime port.
+* **tacviewRealTimeTelemetryPassword** Sets this as the Tacview realtime password.
+* **tacviewRemoteControlPort** Sets this as the Tacview remote control port.
+* **tacviewRemoteControlPassword** Sets this as the Tacview remote control password.
+* **tacviewPlaybackDelay** Sets this as the Tacview playback delay.
 * **delete_after** specifies the number of days after which old Tacview files will get deleted by the bot.
 * **show_passwords** specifies whether to show the Tacview passwords in the server embed in your status channel or not.
 * **channel** a channel where your tacview files should be uploaded into on mission end.

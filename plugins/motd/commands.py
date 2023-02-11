@@ -102,7 +102,7 @@ class MessageOfTheDay(Plugin):
                     return
                 player: Player = server.get_player(discord_id=member.id)
                 if not player:
-                    await ctx.send(f"Player {member.display_name} is currently not logged in.")
+                    await ctx.send("Player {} is currently not logged in.".format(utils.escape_string(member.display_name)))
                     return
                 message = await self.eventlistener._on_birth(config, server, player)
             elif 'nudge' in option:

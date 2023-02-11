@@ -39,6 +39,8 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
                     value = default_
                 else:
                     value = ""
+            elif isinstance(value, list):
+                value = '\n'.join(value)
             return super().format_field(value, spec)
     try:
         string_ = NoneFormatter().format(string_, **kwargs)

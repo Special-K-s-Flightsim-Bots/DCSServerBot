@@ -6,7 +6,6 @@
 local base 	    = _G
 local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
-local config	= base.require("DCSServerBotConfig")
 
 function dcsbot.sample(json)
     log.write('DCSServerBot', log.DEBUG, 'Sample: sample()')

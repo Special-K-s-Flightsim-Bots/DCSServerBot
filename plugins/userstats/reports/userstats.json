@@ -1,7 +1,6 @@
 {
   "color": "blue",
   "title": "Statistics for {member_name}",
-  "description": "{server_name}",
   "pagination":
   {
     "param":

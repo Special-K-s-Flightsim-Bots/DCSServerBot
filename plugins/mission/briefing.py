@@ -7,9 +7,9 @@ class Header(report.EmbedElement):
         server: Server = self.bot.servers[server_name]
         sides = utils.get_sides(message, server)
         if Coalition.BLUE in sides:
-            self.embed.add_field(name='Blue Passwd', value=mission_info['passwords']['Blue'] or 'n/a')
+            self.add_field(name='Blue Passwd', value=mission_info['passwords']['Blue'] or 'n/a')
         if Coalition.RED in sides:
-            self.embed.add_field(name='Red Passwd', value=mission_info['passwords']['Red'] or 'n/a')
+            self.add_field(name='Red Passwd', value=mission_info['passwords']['Red'] or 'n/a')
 
 
 class Body(report.EmbedElement):
@@ -17,6 +17,6 @@ class Body(report.EmbedElement):
         server: Server = self.bot.servers[server_name]
         sides = utils.get_sides(message, server)
         if Coalition.BLUE in sides:
-            self.embed.add_field(name='Blue Tasks', value=mission_info['briefing']['descriptionBlueTask'][:1024].strip('\n') or 'n/a', inline=False)
+            self.add_field(name='Blue Tasks', value=mission_info['briefing']['descriptionBlueTask'][:1024].strip('\n') or 'n/a', inline=False)
         if Coalition.RED in sides:
-            self.embed.add_field(name='Red Tasks', value=mission_info['briefing']['descriptionRedTask'][:1024].strip('\n') or 'n/a', inline=False)
+            self.add_field(name='Red Tasks', value=mission_info['briefing']['descriptionRedTask'][:1024].strip('\n') or 'n/a', inline=False)

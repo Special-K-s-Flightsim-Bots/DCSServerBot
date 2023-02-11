@@ -44,7 +44,7 @@ class UserStatisticsAgent(Plugin):
                 conn = self.pool.getconn()
                 try:
                     if await utils.yn_question(ctx, f'I\'m going to **DELETE ALL STATISTICS**\n'
-                                                    f'of server "{server.name}".\n\nAre you sure?'):
+                                                    f'of server "{server.display_name}".\n\nAre you sure?'):
                         with closing(conn.cursor()) as cursor:
                             cursor.execute(
                                 'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE '
@@ -54,7 +54,7 @@ class UserStatisticsAgent(Plugin):
                                 'server_name = %s)', (server.name, ))
                             cursor.execute('DELETE FROM missions WHERE server_name = %s', (server.name, ))
                             conn.commit()
-                        await ctx.send(f'Statistics for server "{server.name}" have been wiped.')
+                        await ctx.send(f'Statistics for server "{server.display_name}" have been wiped.')
                         await self.bot.audit('reset statistics', user=ctx.message.author, server=server)
                 except (Exception, psycopg2.DatabaseError) as error:
                     self.log.exception(error)
@@ -62,7 +62,7 @@ class UserStatisticsAgent(Plugin):
                 finally:
                     self.pool.putconn(conn)
             else:
-                await ctx.send(f'Please stop server "{server.name}" before deleteing the statistics!')
+                await ctx.send(f'Please stop server "{server.display_name}" before deleting the statistics!')
 
     # To allow super()._link() calls
     async def _link(self, ctx, member: discord.Member, ucid: str):

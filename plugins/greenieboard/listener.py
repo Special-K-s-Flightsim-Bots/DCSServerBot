@@ -47,7 +47,8 @@ class GreenieBoardEventListener(EventListener):
             num_rows = config['num_rows'] if 'num_rows' in config else 10
             report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
                                       server, f'greenieboard-{server.name}', channel_id=channel_id)
-            self.bot.loop.call_soon(asyncio.create_task, report.render(server_name=server.name, num_rows=num_rows))
+            self.bot.loop.call_soon(asyncio.create_task, report.render(server_name=server.name,
+                                                                       num_rows=num_rows))
         # shall we render the global board?
         config = self.locals['configs'][0]
         if 'persistent_channel' in config and server == list(self.bot.servers.values())[0]:

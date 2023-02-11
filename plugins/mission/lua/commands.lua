@@ -33,7 +33,6 @@ function dcsbot.registerDCSServer(json)
 	else
 		msg.statistics = true
 	end
-	msg.options = DCS.getUserOptions()
     -- airbases
     msg.airbases = {}
     local airdromes = Terrain.GetTerrainConfig("Airdromes")

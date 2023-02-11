@@ -4,6 +4,7 @@ import asyncio
 import discord
 import os
 import pandas as pd
+import platform
 import psycopg2
 import shutil
 from contextlib import closing
@@ -59,17 +60,17 @@ class CloudHandlerAgent(Plugin):
         else:
             await send(data)
 
-    @commands.command(description='Checks the connection to the DCSServerBot cloud')
+    @commands.command(description='Test the cloud-connection')
     @utils.has_role('Admin')
     @commands.guild_only()
     async def cloud(self, ctx):
-        message = await ctx.send('Checking cloud connection ...')
+        message = await ctx.send(f'Node {platform.node()}: Checking cloud connection ...')
         try:
             await self.get('verify')
-            await ctx.send('Cloud connection established.')
+            await ctx.send(f'Node {platform.node()}: Cloud connection established.')
             return
         except aiohttp.ClientError:
-            await ctx.send('Cloud not connected.')
+            await ctx.send(f'Node {platform.node()}: Cloud not connected.')
         finally:
             await message.delete()
 

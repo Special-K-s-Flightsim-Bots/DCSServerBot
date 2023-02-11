@@ -166,7 +166,14 @@ c) __FILTER Section__ (Optional)
 | MISSION_FILTER | Filter to shorten mission names (if needed)                                                                                                                                                                                       |
 | EVENT_FILTER   | Filter events from the missionstats plugin (optional). See [here](https://wiki.hoggitworld.com/view/DCS_singleton_world) for a complete list of events.                                                                           |
 
-d) __DCS Section__
+d) __REPORTS__ Section (Optional)
+
+| Parameter   | Description                                                                                  |
+|-------------|----------------------------------------------------------------------------------------------|
+| NUM_WORKERS | Number of threads that render a graph.                                                       |
+| CKJ_FONT    | One of TC, JP or KR to support Traditinal Chinese, Japanese or Korean characters in reports. |
+
+e__DCS Section__
 
 | Parameter                       | Description                                                                                                                                   |
 |---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
@@ -181,7 +188,7 @@ d) __DCS Section__
 | MESSAGE_BAN                     | Message a banned user gets when being rejected.                                                                                               |
 | MESSAGE_AFK                     | Message for players that are kicked because of being AFK.                                                                                     |
 
-e) __Server Specific Sections__
+f) __Server Specific Sections__
 
 This section has to be named **exactly** like your Saved Games\<instance> directory. Usual names are DCS.OpenBeta or DCS.openbeta_server.
 If your directory is named DCS instead (stable version), just add these fields to the DCS category above.

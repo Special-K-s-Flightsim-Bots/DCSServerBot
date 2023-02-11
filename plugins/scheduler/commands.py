@@ -44,7 +44,12 @@ class Scheduler(Plugin):
                 json.dump(cfg, f, indent=2)
             return cfg
         else:
-            return super().read_locals()
+            configs = super().read_locals()
+            for cfg in configs['configs']:
+                if 'presets' in cfg and isinstance(cfg['presets'], str):
+                    with open(os.path.expandvars(cfg['presets'])) as file:
+                        cfg['presets'] = json.load(file)
+            return configs
 
     def install(self):
         super().install()
@@ -56,43 +61,56 @@ class Scheduler(Plugin):
                         self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
                         cfg.crash_report_mode = 'silent'
                     elif cfg.crash_report_mode != 'silent':
-                        self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! The Scheduler will '
-                                         'not work properly on DCS crashes, please change it manually to "silent" to '
-                                         'avoid that.')
+                        self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! The Scheduler '
+                                         'will not work properly on DCS crashes, please change it manually to "silent" '
+                                         'to avoid that.')
                 except Exception as ex:
                     self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
     def migrate(self, version: str):
-        if version != '1.1' or 'SRS_INSTALLATION' not in self.bot.config['DCS']:
-            return
-        with open('config/scheduler.json') as file:
-            old: dict = json.load(file)
-        new = deepcopy(old)
-        # search the default config or create one
-        c = -1
-        for i in range(0, len(old['configs'])):
-            if 'installation' not in old['configs'][i]:
-                c = i
-                break
-        if c == -1:
-            new['configs'].append(dict())
-            c = len(new['configs']) - 1
-        new['configs'][c]['extensions'] = {
-            "SRS": {"installation": self.bot.config['DCS']['SRS_INSTALLATION'].replace('%%', '%')}
-        }
-        # migrate the SRS configuration
-        for c in range(0, len(old['configs'])):
-            if 'installation' not in old['configs'][c] or \
-                    'extensions' not in old['configs'][c] or \
-                    'SRS' not in old['configs'][c]['extensions']:
-                continue
+        dirty = False
+        if version == '1.1' and 'SRS_INSTALLATION' in self.bot.config['DCS']:
+            with open('config/scheduler.json') as file:
+                old: dict = json.load(file)
+            new = deepcopy(old)
+            # search the default config or create one
+            c = -1
+            for i in range(0, len(old['configs'])):
+                if 'installation' not in old['configs'][i]:
+                    c = i
+                    break
+            if c == -1:
+                new['configs'].append(dict())
+                c = len(new['configs']) - 1
             new['configs'][c]['extensions'] = {
-                "SRS": {"config": self.bot.config[old['configs'][c]['installation']]['SRS_CONFIG'].replace('%%', '%')}
+                "SRS": {"installation": self.bot.config['DCS']['SRS_INSTALLATION'].replace('%%', '%')}
             }
-        os.rename('config/scheduler.json', 'config/scheduler.bak')
-        with open('config/scheduler.json', 'w') as file:
-            json.dump(new, file, indent=2)
-            self.log.info('  => config/scheduler.json migrated to new format, please verify!')
+            # migrate the SRS configuration
+            for c in range(0, len(old['configs'])):
+                if 'installation' not in old['configs'][c] or \
+                        'extensions' not in old['configs'][c] or \
+                        'SRS' not in old['configs'][c]['extensions']:
+                    continue
+                new['configs'][c]['extensions'] = {
+                    "SRS": {"config": self.bot.config[old['configs'][c]['installation']]['SRS_CONFIG'].replace('%%', '%')}
+                }
+                dirty = True
+        elif version == '1.2':
+            with open('config/scheduler.json') as file:
+                old: dict = json.load(file)
+            new = deepcopy(old)
+            for config in new['configs']:
+                if 'extensions' in config and 'Tacview' in config['extensions'] and 'path' in config['extensions']['Tacview']:
+                    config['extensions']['Tacview']['tacviewExportPath'] = config['extensions']['Tacview']['path']
+                    del config['extensions']['Tacview']['path']
+                    dirty = True
+        else:
+            return
+        if dirty:
+            os.rename('config/scheduler.json', 'config/scheduler.bak')
+            with open('config/scheduler.json', 'w') as file:
+                json.dump(new, file, indent=2)
+                self.log.info('  => config/scheduler.json migrated to new format, please verify!')
 
     def get_config(self, server: Server) -> Optional[dict]:
         if server.name not in self._config:
@@ -224,7 +242,7 @@ class Scheduler(Plugin):
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
                 if ext.verify():
                     server.extensions[extension] = ext
-            if await ext.is_running() and await ext.shutdown():
+            if ext.is_running() and await ext.shutdown():
                 retval.append(ext.name)
                 if not member:
                     self.log.info(f"  => {ext.name} shut down for \"{server.name}\" by "
@@ -344,8 +362,10 @@ class Scheduler(Plugin):
     def is_mission_change(server: Server, config: dict) -> bool:
         if 'settings' in config['restart']:
             return True
-        if 'RealWeather' in server.extensions.keys():
-            return True
+        # check if someone overloaded beforeMissionLoad, which means the mission is likely to be changed
+        for ext in server.extensions.values():
+            if ext.__class__.beforeMissionLoad != Extension.beforeMissionLoad:
+                return True
         return False
 
     async def restart_mission(self, server: Server, config: dict):
@@ -384,12 +404,16 @@ class Scheduler(Plugin):
         if 'shutdown' in method:
             await self.teardown_dcs(server)
         if method == 'restart_with_shutdown':
-            await self.launch_dcs(server, config)
+            try:
+                await self.launch_dcs(server, config)
+            except asyncio.TimeoutError:
+                await self.bot.audit(f"{string.capwords(self.plugin_name)}: Timeout while starting server",
+                                     server=server)
         elif method == 'restart':
             if self.is_mission_change(server, config):
                 await server.stop()
-                if 'RealWeather' in server.extensions.keys():
-                    await server.extensions['RealWeather'].beforeMissionLoad()
+                for ext in server.extensions.values():
+                    await ext.beforeMissionLoad()
                 if 'settings' in config['restart']:
                     self.change_mizfile(server, config)
                 await server.start()
@@ -400,8 +424,8 @@ class Scheduler(Plugin):
             await server.loadNextMission()
             if self.is_mission_change(server, config):
                 await server.stop()
-                if 'RealWeather' in server.extensions.keys():
-                    await server.extensions['RealWeather'].beforeMissionLoad()
+                for ext in server.extensions.values():
+                    await ext.beforeMissionLoad()
                 if 'settings' in config['restart']:
                     self.change_mizfile(server, config)
                 await server.start()
@@ -455,7 +479,7 @@ class Scheduler(Plugin):
                     # if the server is running, and should run, check if all the extensions are running, too
                     if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and target_state == server.status:
                         for ext in server.extensions.values():
-                            if not await ext.is_running() and await ext.startup():
+                            if not ext.is_running() and await ext.startup():
                                 self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
                                 await self.bot.audit(f"{ext.name} started", server=server)
                 except Exception as ex:
@@ -474,16 +498,9 @@ class Scheduler(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def schedule_extensions(self):
-        if 'extensions' not in self.locals['configs'][0]:
-            return
-        for extension, config in self.locals['configs'][0]['extensions'].items():  # type: str, dict
-            if '.' not in extension:
-                ext: Extension = utils.str_to_class('extensions.' + extension)
-            else:
-                ext: Extension = utils.str_to_class(extension)
-            if ext:
-                ext.schedule(config, self.lastrun)
-        self.lastrun = datetime.now()
+        for server in self.bot.servers.values():
+            for ext in server.extensions.values():
+                ext.schedule()
 
     @commands.command(description='Starts a DCS/DCS-SRS server')
     @utils.has_role('DCS Admin')
@@ -493,39 +510,63 @@ class Scheduler(Plugin):
         if server:
             config = self.get_config(server)
             if server.status == Status.STOPPED:
-                await ctx.send(f"DCS server \"{server.name}\" is stopped.\n"
+                await ctx.send(f"DCS server \"{server.display_name}\" is stopped.\n"
                                f"Please use {ctx.prefix}start instead.")
                 return
+            if server.status == Status.LOADING:
+                if not server.process.is_running():
+                    server.status = Status.SHUTDOWN
+                else:
+                    if await utils.yn_question(ctx, "Server is in state LOADING. Do you want to kill and restart it?"):
+                        await server.shutdown()
+                    else:
+                        return
             if server.status == Status.SHUTDOWN:
-                msg = await ctx.send(f"DCS server \"{server.name}\" starting up ...")
+                msg = await ctx.send(f"DCS server \"{server.display_name}\" starting up ...")
                 # set maintenance flag to prevent auto-stops of this server
                 server.maintenance = True
                 try:
                     await self.launch_dcs(server, config, ctx.message.author)
-                    await ctx.send(f"DCS server \"{server.name}\" started.\n"
+                    await ctx.send(f"DCS server \"{server.display_name}\" started.\n"
                                    f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
                 except asyncio.TimeoutError:
-                    await ctx.send(f"Timeout while launching DCS server \"{server.name}\".\n"
+                    await ctx.send(f"Timeout while launching DCS server \"{server.display_name}\".\n"
                                    f"The server might be running anyway, check with {ctx.prefix}status.")
                 finally:
                     await msg.delete()
 
             else:
-                await ctx.send(f"DCS server \"{server.name}\" is already started.")
+                await ctx.send(f"DCS server \"{server.display_name}\" is already started.")
 
     @commands.command(description='Shutdown a DCS/DCS-SRS server')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def shutdown(self, ctx, *params):
+        async def do_shutdown(server: Server):
+            msg = await ctx.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...")
+            # set maintenance flag to prevent auto-starts of this server
+            server.maintenance = True
+            if params and params[0].casefold() == '-force':
+                await server.shutdown()
+            else:
+                await self.teardown_dcs(server, ctx.message.author)
+            await msg.delete()
+            await ctx.send(f"DCS server \"{server.display_name}\" shut down.\n"
+                           f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
+
         server: Server = await self.bot.get_server(ctx)
         if server:
             config = self.get_config(server)
             if server.status in [Status.UNREGISTERED, Status.LOADING]:
-                await ctx.send('Server is currently starting up. Please wait and try again.')
-                return
+                if params and params[0] == '-force' or \
+                        await utils.yn_question(ctx, f"Server is in state {server.status.name}.\n"
+                                                     f"Do you want to force a shutdown?"):
+                    await do_shutdown(server)
+                else:
+                    return
             elif server.status != Status.SHUTDOWN:
                 if not params or params[0] != '-force':
-                    question = f"Do you want to shut down DCS server \"{server.name}\"?"
+                    question = f"Do you want to shut down DCS server \"{server.display_name}\"?"
                     if server.is_populated():
                         result = await utils.populated_question(ctx, question)
                     else:
@@ -538,21 +579,12 @@ class Scheduler(Plugin):
                         server.restart_pending = True
                         await ctx.send('Shutdown postponed when server is empty.')
                         return
-                msg = await ctx.send(f"Shutting down DCS server \"{server.name}\", please wait ...")
-                # set maintenance flag to prevent auto-starts of this server
-                server.maintenance = True
-                if params and params[0].casefold() == '-force':
-                    await server.shutdown()
-                else:
-                    await self.teardown_dcs(server, ctx.message.author)
-                await msg.delete()
-                await ctx.send(f"DCS server \"{server.name}\" shut down.\n"
-                               f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
+                await do_shutdown(server)
             else:
-                await ctx.send(f"DCS server \"{server.name}\" is already shut down.")
+                await ctx.send(f"DCS server \"{server.display_name}\" is already shut down.")
             if 'extensions' in config:
                 for ext in await self.teardown_extensions(server, config, ctx.message.author):
-                    await ctx.send(f"{ext} shut down for server \"{server.name}\".")
+                    await ctx.send(f"{ext} shut down for server \"{server.display_name}\".")
 
     @commands.command(description='Starts a stopped DCS server')
     @utils.has_role('DCS Admin')
@@ -561,17 +593,17 @@ class Scheduler(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             if server.status == Status.STOPPED:
-                msg = await ctx.send(f"Starting server {server.name} ...")
+                msg = await ctx.send(f"Starting server {server.display_name} ...")
                 await server.start()
                 await msg.delete()
-                await ctx.send(f"Server {server.name} started.")
+                await ctx.send(f"Server {server.display_name} started.")
                 await self.bot.audit('started the server', server=server, user=ctx.message.author)
             elif server.status == Status.SHUTDOWN:
-                await ctx.send(f"Server {server.name} is shut down. Use {ctx.prefix}startup to start it up.")
+                await ctx.send(f"Server {server.display_name} is shut down. Use {ctx.prefix}startup to start it up.")
             elif server.status in [Status.RUNNING, Status.PAUSED]:
-                await ctx.send(f"Server {server.name} is already started.")
+                await ctx.send(f"Server {server.display_name} is already started.")
             else:
-                await ctx.send(f"Server {server.name} is still {server.status.name}, please wait ...")
+                await ctx.send(f"Server {server.display_name} is still {server.status.name}, please wait ...")
 
     @commands.command(description='Stops a DCS server')
     @utils.has_role('DCS Admin')
@@ -586,16 +618,16 @@ class Scheduler(Plugin):
                     return
                 await server.stop()
                 await self.bot.audit('stopped the server', server=server, user=ctx.message.author)
-                await ctx.send(f"Server {server.name} stopped.")
+                await ctx.send(f"Server {server.display_name} stopped.")
             elif server.status == Status.STOPPED:
-                await ctx.send(f"Server {server.name} is stopped already. Use {ctx.prefix}shutdown to terminate the "
+                await ctx.send(f"Server {server.display_name} is stopped already. Use {ctx.prefix}shutdown to terminate the "
                                f"dcs.exe process.")
             elif server.status == Status.SHUTDOWN:
-                await ctx.send(f"Server {server.name} is shut down already.")
+                await ctx.send(f"Server {server.display_name} is shut down already.")
             else:
-                await ctx.send(f"Server {server.name} is {server.status.name}, please wait ...")
+                await ctx.send(f"Server {server.display_name} is {server.status.name}, please wait ...")
 
-    @commands.command(description='Status of a DCS server')
+    @commands.command(description='Status of the DCS-servers')
     @utils.has_role('DCS')
     @commands.guild_only()
     async def status(self, ctx):
@@ -604,7 +636,7 @@ class Scheduler(Plugin):
         status = []
         maintenance = []
         for server in self.bot.servers.values():
-            names.append(server.name)
+            names.append(server.display_name)
             status.append(string.capwords(server.status.name.lower()))
             maintenance.append('Y' if server.maintenance else 'N')
         if len(names):
@@ -631,12 +663,12 @@ class Scheduler(Plugin):
                 server.restart_pending = False
                 server.on_empty = dict()
                 server.on_mission_end = dict()
-                await ctx.send(f"Maintenance mode set for server {server.name}.\n"
+                await ctx.send(f"Maintenance mode set for server {server.display_name}.\n"
                                f"The {string.capwords(self.plugin_name)} will be set on hold until you use"
                                f" {ctx.prefix}clear again.")
                 await self.bot.audit("set maintenance flag", user=ctx.message.author, server=server)
             else:
-                await ctx.send(f"Server {server.name} is already in maintenance mode.")
+                await ctx.send(f"Server {server.display_name} is already in maintenance mode.")
 
     @commands.command(description='Clears the servers maintenance flag')
     @utils.has_role('DCS Admin')
@@ -646,11 +678,11 @@ class Scheduler(Plugin):
         if server:
             if server.maintenance:
                 server.maintenance = False
-                await ctx.send(f"Maintenance mode cleared for server {server.name}.\n"
+                await ctx.send(f"Maintenance mode cleared for server {server.display_name}.\n"
                                f"The {string.capwords(self.plugin_name)} will take over the state handling now.")
                 await self.bot.audit("cleared maintenance flag", user=ctx.message.author, server=server)
             else:
-                await ctx.send(f"Server {server.name} is not in maintenance mode.")
+                await ctx.send(f"Server {server.display_name} is not in maintenance mode.")
 
     class PresetView(View):
         def __init__(self, ctx: commands.Context, options: list[discord.SelectOption]):
@@ -749,7 +781,7 @@ class Scheduler(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             if server.status not in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
-                await ctx.send(f"No mission running on server {server.name}.")
+                await ctx.send(f"No mission running on server {server.display_name}.")
                 return
             name = ' '.join(args)
             if not name:
@@ -796,7 +828,7 @@ class Scheduler(Plugin):
                 await server.stop()
             config = self.get_config(server)
             if 'reset' not in config:
-                await ctx.send(f"No \"reset\" parameter found for server {server.name}.")
+                await ctx.send(f"No \"reset\" parameter found for server {server.display_name}.")
                 return
             reset = config['reset']
             if isinstance(reset, list):

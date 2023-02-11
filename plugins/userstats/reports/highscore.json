@@ -1,7 +1,6 @@
 {
   "color": "blue",
   "title": "Highscore (TOP {limit})",
-  "description": "{server_name}",
   "input": [
     {
       "name": "limit",
