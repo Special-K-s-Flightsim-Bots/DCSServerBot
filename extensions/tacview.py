@@ -16,7 +16,10 @@ DEFAULT_DIR = os.path.normpath(os.path.expandvars(r"%USERPROFILE%\Documents\Tacv
 class Tacview(Extension):
 
     def load_config(self) -> Optional[dict]:
-        options = self.server.options['plugins']
+        if self.server.options['plugins']:
+            options = self.server.options['plugins']
+        else:
+            options = {}
         if 'Tacview' not in options:
             options['Tacview'] = {
                 "tacviewAutoDiscardFlights": 10,
