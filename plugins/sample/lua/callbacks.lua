@@ -1,4 +1,3 @@
-local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local config	= base.require("DCSServerBotConfig")
 

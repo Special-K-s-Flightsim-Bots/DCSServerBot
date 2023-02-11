@@ -301,7 +301,7 @@ class MissionEventListener(EventListener):
                 data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon/Bomblet'))
             # report teamkills from players to admins
             if (player1 is not None) and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
-                name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.name)
+                name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
                 await server.get_channel(Channel.ADMIN).send(
                     f'{name} (ucid={player1.ucid}) is killing team members. Please investigate.'
                 )

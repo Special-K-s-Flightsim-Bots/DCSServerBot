@@ -42,9 +42,8 @@ class Sample(Plugin):
         server: Server = await self.bot.get_server(ctx)
         # Calls can be done async (default) or synchronous, which means we will wait for a response from DCS
         data = await server.sendtoDCSSync({
-            "command": "sample",        # command name
-            "message": text,            # the message to transfer
-            "channel": ctx.channel.id   # the channel where the response should go to
+            "command": "sample",    # command name
+            "message": text         # the message to transfer
         })
         await ctx.send(data['message'])
 

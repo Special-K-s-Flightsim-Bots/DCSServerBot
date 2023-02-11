@@ -84,4 +84,4 @@ class AdminEventListener(EventListener):
                     mentions += role.mention
             message = ' '.join(data['params'])
             self.bot.loop.call_soon(asyncio.create_task, server.get_channel(Channel.ADMIN).send(
-                mentions + f" 911 call from player {player.display_name} (ucid={player.ucid}):```{message}```"))
+                mentions + f" 911 call from player {player.name} (ucid={player.ucid}):```{message}```"))

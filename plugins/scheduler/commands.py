@@ -627,7 +627,7 @@ class Scheduler(Plugin):
             else:
                 await ctx.send(f"Server {server.display_name} is {server.status.name}, please wait ...")
 
-    @commands.command(description='Status of a DCS server')
+    @commands.command(description='Status of the DCS-servers')
     @utils.has_role('DCS')
     @commands.guild_only()
     async def status(self, ctx):
