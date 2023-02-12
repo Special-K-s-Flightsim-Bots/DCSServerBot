@@ -46,12 +46,12 @@ class Help(Plugin):
                                      inline=False)
             return help_embed
 
-        async def print_commands(self, *, module: str) -> discord.Embed:
-            commands = [x for x in self.bot.commands if x.module == module]
+        async def print_commands(self, *, plugin: str) -> discord.Embed:
+            commands = [x for x in self.bot.commands if x.module == plugin]
             title = f'{self.bot.user.display_name} Help'
             help_embed = discord.Embed(title=title, color=discord.Color.blue())
-            if module != '__main__':
-                help_embed.description = '**Module: ' + string.capwords(module.split('.')[1]) + '**\n'
+            if plugin != '__main__':
+                help_embed.description = '**Plugin: ' + string.capwords(plugin.split('.')[1]) + '**\n'
             else:
                 help_embed.description = '**Core Commands**\n'
             cmds = []
@@ -76,13 +76,13 @@ class Help(Plugin):
                 help_embed.add_field(name='Description', value='\n'.join(descriptions))
                 help_embed.add_field(name='_ _', value='_ _')
             else:
-                help_embed.add_field(name='There are no commands for your role in this module.', value='_ _')
+                help_embed.add_field(name='There are no commands for your role in this plugin.', value='_ _')
             help_embed.set_footer(text='Use .help [command] if you want help for a specific command.')
             return help_embed
 
         @discord.ui.select(placeholder="Select the plugin you want help for")
         async def callback(self, interaction: Interaction, select: Select):
-            embed = await self.print_commands(module=select.values[0])
+            embed = await self.print_commands(plugin=select.values[0])
             await interaction.response.edit_message(view=self, embed=embed)
 
         @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='❌')
@@ -106,7 +106,7 @@ class Help(Plugin):
         if command:
             embed = await view.print_command(command=command)
         else:
-            embed = await view.print_commands(module='__main__')
+            embed = await view.print_commands(plugin='__main__')
         msg = await ctx.send(embed=embed, view=view)
         try:
             if await view.wait():

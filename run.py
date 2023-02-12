@@ -398,7 +398,8 @@ class Main:
                             self.log.info('  => DCSServerBot updated to latest version.')
                             if modules is True:
                                 self.log.warning('  => requirements.txt has changed. Installing missing modules...')
-                                subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+                                subprocess.check_call([sys.executable, '-m', 'pip', '-q', 'install', '-r',
+                                                       'requirements.txt'])
                             return True
                         except git.exc.GitCommandError:
                             self.log.error('  => Autoupdate failed!')
