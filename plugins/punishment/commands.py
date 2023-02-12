@@ -249,6 +249,10 @@ class PunishmentMaster(PunishmentAgent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def forgive(self, ctx, user: Union[discord.Member, str]):
+        if isinstance(user, str) and len(user) != 32:
+            await ctx.send(f'Usage: {ctx.prefix}forgive <@member|ucid>')
+            return
+
         if await utils.yn_question(ctx, 'This will delete all the punishment points for this user.\n'
                                         'Are you sure (Y/N)?') is True:
             conn = self.pool.getconn()
@@ -278,15 +282,18 @@ class PunishmentMaster(PunishmentAgent):
             finally:
                 self.pool.putconn(conn)
 
-    @commands.command(description='Displays your current penalty points')
+    @commands.command(description='Displays your current penalty points', usage='[member|ucid]')
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def penalty(self, ctx, member: Optional[Union[discord.Member, str]]):
+    async def penalty(self, ctx: commands.Context, member: Optional[Union[discord.Member, str]]):
         if member:
             if not utils.check_roles(['DCS Admin'], ctx.message.author):
                 await ctx.send('You need the DCS Admin role to use this command.')
                 return
             if isinstance(member, str):
+                if len(member) != 32:
+                    await ctx.send(f'Usage: {ctx.prefix}penalty [@member] / [ucid]')
+                    return
                 ucid = member
                 member = self.bot.get_member_by_ucid(ucid) or ucid
             else:
@@ -306,7 +313,7 @@ class PunishmentMaster(PunishmentAgent):
                 cursor.execute("SELECT event, points, time FROM pu_events WHERE init_id = %s ORDER BY time DESC",
                                (ucid, ))
                 if cursor.rowcount == 0:
-                    await ctx.send(f'{member.display_name} has no penalty points.')
+                    await ctx.send('{} has no penalty points.'.format(member.display_name if isinstance(member, discord.Member) else member))
                     return
                 embed = discord.Embed(
                     title="Penalty Points for {}".format(member.display_name if isinstance(member, discord.Member) else member),
