@@ -222,7 +222,7 @@ class GreenieBoard(EmbedElement):
                     footer = ''
                     for grade, text in const.GRADES.items():
                         if grade not in ['WOP', 'OWO', 'TWO', 'WOFD']:
-                            footer += const.DAY_EMOJIS[grade] + ' ' + text + '\n'
+                            footer += const.DAY_EMOJIS[grade] + '\t' + grade.ljust(6) + '\t' + text + '\n'
                     footer += '\nLandings are added at the front, meaning 1 is your latest landing.\n' \
                               'Night landings shown by round markers.'
                     if max_time:
