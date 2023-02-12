@@ -380,7 +380,7 @@ class Scheduler(Plugin):
             return
         # check if the server is populated
         if server.is_populated():
-            if not server.on_empty and 'mission_time' in config['restart']:
+            if not server.on_empty:
                 server.on_empty = {'command': method}
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) else 0
