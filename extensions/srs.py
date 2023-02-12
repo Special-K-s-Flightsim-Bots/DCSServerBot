@@ -108,7 +108,8 @@ class SRS(Extension):
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         if self.locals:
-            value = f"{self.bot.external_ip}:{self.locals['Server Settings']['SERVER_PORT']}"
+            host = self.config['host'] if 'host' in self.config else self.bot.external_ip
+            value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
             show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
             if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] == 'true' and \
                     'External AWACS Mode Settings' in self.locals:
