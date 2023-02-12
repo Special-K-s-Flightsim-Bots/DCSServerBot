@@ -15,7 +15,7 @@ if not exist venv (
     python -m venv venv
 )
 venv\Scripts\python.exe -m pip install --upgrade pip >NUL 2>NUL
-venv\Scripts\pip install -r requirements.txt
+venv\Scripts\pip -q install -r requirements.txt
 if %ERRORLEVEL% NEQ 0 (
     echo Error while updating DCSServerBot. Please check the messages above.
     exit /B %ERRORLEVEL%
