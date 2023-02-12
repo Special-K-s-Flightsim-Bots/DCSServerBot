@@ -49,6 +49,7 @@ class Tacview(Extension):
             if path != DEFAULT_DIR and ('tacviewExportPath' not in options['Tacview'] or
                                         os.path.normpath(options['Tacview']['tacviewExportPath']) != path):
                 options['Tacview']['tacviewExportPath'] = path
+                dirty = True
                 if not os.path.exists(path):
                     os.makedirs(path)
                 self.log.info(f'  => {self.server.name}: Setting ["tacviewExportPath"] = "{path}".')
