@@ -298,3 +298,5 @@ function dcsbot.disableMissionStats()
         dcsbot.mission_stats_enabled = false
     end
 end
+
+env.info("DCSServerBot - MissionStats: mission.lua loaded.")

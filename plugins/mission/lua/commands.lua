@@ -316,18 +316,6 @@ function dcsbot.getWeatherInfo(json)
 	utils.sendBotTable(msg, json.channel)
 end
 
-function basicSerialize(s)
-	if s == nil then
-		return "\"\""
-	else
-		if ((type(s) == 'number') or (type(s) == 'boolean') or (type(s) == 'function') or (type(s) == 'table') or (type(s) == 'userdata') ) then
-			return tostring(s)
-		elseif type(s) == 'string' then
-			return string.format('%q', s)
-		end
-  end
-end
-
 function dcsbot.sendChatMessage(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: sendChatMessage()')
 	local message = json.message
@@ -351,17 +339,7 @@ function dcsbot.sendPopupMessage(json)
 	end
 	time = json.time or 10
 	to = json.to or 'all'
-	net.dostring_in('mission', 'a_do_script(' .. basicSerialize('dcsbot.sendPopupMessage("' .. to .. '", ' .. basicSerialize(message) .. ', ' .. tostring(time) ..')') .. ')')
-end
-
-function dcsbot.do_script(json)
-    log.write(')DCSServerBot', log.DEBUG, 'Mission: do_script()')
-    net.dostring_in('mission', 'a_do_script(' .. basicSerialize(json.script) .. ')')
-end
-
-function dcsbot.do_script_file(json)
-    log.write('DCSServerBot', log.DEBUG, 'Mission: do_script_file()')
-    net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. json.file .. '\\")")')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.sendPopupMessage("' .. to .. '", ' .. utils.basicSerialize(message) .. ', ' .. tostring(time) ..')') .. ')')
 end
 
 function dcsbot.uploadUserRoles(json)

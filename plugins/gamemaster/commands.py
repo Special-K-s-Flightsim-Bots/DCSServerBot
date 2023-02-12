@@ -1,3 +1,4 @@
+import asyncio
 import dateparser
 import discord
 import platform
@@ -133,7 +134,12 @@ class GameMasterAgent(Plugin):
                 })
                 await ctx.send(f"Variable {name} set to {value}.")
             else:
-                data = await server.sendtoDCSSync({"command": "getVariable", "name": name})
+                try:
+                    data = await server.sendtoDCSSync({"command": "getVariable", "name": name})
+                except asyncio.TimeoutError:
+                    await ctx.send('Timeout while retrieving variable. Most likely a lua error occured. '
+                                   'Check your dcs.log.')
+                    return
                 if 'value' in data:
                     await ctx.send(f"Variable {name} has value {data['value']}.")
                 else:
