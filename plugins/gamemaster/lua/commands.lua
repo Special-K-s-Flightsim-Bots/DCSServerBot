@@ -1,5 +1,16 @@
 local base 	= _G
+local utils	= base.require("DCSServerBotUtils")
 local dcsbot= base.dcsbot
+
+function dcsbot.do_script(json)
+    log.write(')DCSServerBot', log.DEBUG, 'GameMaster: do_script()')
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(json.script) .. ')')
+end
+
+function dcsbot.do_script_file(json)
+    log.write('DCSServerBot', log.DEBUG, 'GameMaster: do_script_file()')
+    net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. json.file .. '\\")")')
+end
 
 function dcsbot.setFlag(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: setFlag()')
@@ -22,12 +33,14 @@ end
 
 function dcsbot.getVariable(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: getVariable()')
-    net.dostring_in('mission', 'a_do_script("dcsbot.getVariable(\\"' .. json.name ..'\\", \\"' .. json.channel .. '\\")")')
+    local script = 'dcsbot.getVariable(' .. utils.basicSerialize(json.name) .. ', "' .. json.channel .. '")'
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 
 function dcsbot.setVariable(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: setVariable()')
-    net.dostring_in('mission', 'a_do_script("dcsbot.setVariable(\\"' .. json.name ..'\\", \\"' .. json.value .. '\\")")')
+    local script = 'dcsbot.setVariable(' .. utils.basicSerialize(json.name) .. ', ' .. utils.basicSerialize(json.value) .. ')'
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
 end
 
 -- internal, do not use inside of missions unless you know what you are doing!

@@ -148,7 +148,7 @@ class Plugin(commands.Cog):
         else:
             return {}
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
-        with open(filename) as file:
+        with open(filename, encoding='utf-8') as file:
             return json.load(file)
 
     def get_config(self, server: Server) -> Optional[dict]:

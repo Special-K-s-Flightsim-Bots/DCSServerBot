@@ -1,12 +1,3 @@
--- DCSServerBotUtils.lua
----------------------------------------------------------
--- Credits to the Authors of perun / HypeMan, where I got
--- some ideas or even took / amended some of the code.
--- Wouldn't have been possible or at least not that easy
--- without those, so please check these frameworks out,
--- they might do what you need already and even more than
--- what my little code does here.
----------------------------------------------------------
 local base   		= _G
 
 module('DCSServerBotUtils')
@@ -20,6 +11,7 @@ local string 		= base.string
 local table         = base.table
 local tonumber		= base.tonumber
 local DCS			= base.DCS
+local type			= base.type
 
 local lfs			= require('lfs')
 local TableUtils 	= require('TableUtils')
@@ -150,4 +142,16 @@ function split(str, sep)
       table.insert(result, each)
    end
    return result
+end
+
+function basicSerialize(s)
+	if s == nil then
+		return "\"\""
+	else
+		if ((type(s) == 'number') or (type(s) == 'boolean') or (type(s) == 'function') or (type(s) == 'table') or (type(s) == 'userdata') ) then
+			return tostring(s)
+		elseif type(s) == 'string' then
+			return string.format('%q', s)
+		end
+  end
 end
