@@ -84,7 +84,7 @@ class Sneaker(Extension):
 
     @property
     def version(self) -> str:
-        return "0.0.10"
+        return "0.0.11"
 
     def verify(self) -> bool:
         # check if Sneaker is enabled
