@@ -8,9 +8,15 @@ import psycopg2
 import sys
 from abc import ABC, abstractmethod
 from contextlib import closing, suppress
+
+from discord import Interaction, SelectOption
+from discord.ext import commands
 from discord.ext.commands import Context
 from os import path
 from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast, Union
+
+from discord.ui import View, Button, Select
+
 from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound, \
     ValueNotInRange, ReportException
 from ..data.const import Channel
@@ -152,6 +158,85 @@ class PaginationReport(Report):
             values = self.pagination
         return name, values
 
+    class PaginationReportView(View):
+        def __init__(self, name, values, index, func, *args, **kwargs):
+            super().__init__()
+            self.name = name
+            self.values = values
+            self.index = index
+            self.func = func
+            self.args = args
+            self.kwargs = kwargs
+            select: Select = cast(Select, self.children[0])
+            select.options = [SelectOption(label=x or 'All') for x in values]
+            if self.index == 0:
+                self.children[1].disabled = True
+                self.children[2].disabled = True
+            elif self.index == len(values) - 1:
+                self.children[3].disabled = True
+                self.children[4].disabled = True
+
+        async def render(self, value) -> ReportEnv:
+            self.kwargs[self.name] = value if value != 'All' else None
+            return await self.func(*self.args, **self.kwargs)
+
+        async def paginate(self, value, interaction: discord.Interaction):
+            await interaction.response.defer()
+            env = await self.render(value)
+            try:
+                if self.index == 0:
+                    self.children[1].disabled = True
+                    self.children[2].disabled = True
+                    self.children[3].disabled = False
+                    self.children[4].disabled = False
+                elif self.index == len(self.values) - 1:
+                    self.children[1].disabled = False
+                    self.children[2].disabled = False
+                    self.children[3].disabled = True
+                    self.children[4].disabled = True
+                else:
+                    self.children[1].disabled = False
+                    self.children[2].disabled = False
+                    self.children[3].disabled = False
+                    self.children[4].disabled = False
+                await interaction.edit_original_response(embed=env.embed, view=self, attachments=[
+                    discord.File(env.filename, filename=os.path.basename(env.filename))
+                ] if env.filename else None)
+            finally:
+                if env.filename:
+                    os.remove(env.filename)
+                    env.filename = None
+
+        @discord.ui.select()
+        async def callback(self, interaction: Interaction, select: Select):
+            self.index = self.values.index(select.values[0])
+            await self.paginate(self.values[self.index], interaction)
+
+        @discord.ui.button(label="<<", style=discord.ButtonStyle.secondary)
+        async def on_start(self, interaction: Interaction, button: Button):
+            self.index = 0
+            await self.paginate(self.values[self.index], interaction)
+
+        @discord.ui.button(label="Back", style=discord.ButtonStyle.primary)
+        async def on_left(self, interaction: Interaction, button: Button):
+            self.index -= 1
+            await self.paginate(self.values[self.index], interaction)
+
+        @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
+        async def on_right(self, interaction: Interaction, button: Button):
+            self.index += 1
+            await self.paginate(self.values[self.index], interaction)
+
+        @discord.ui.button(label=">>", style=discord.ButtonStyle.secondary)
+        async def on_end(self, interaction: Interaction, button: Button):
+            self.index = len(self.values) - 1
+            await self.paginate(self.values[self.index], interaction)
+
+        @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
+        async def on_cancel(self, interaction: Interaction, button: Button):
+            await interaction.response.defer()
+            self.stop()
+
     async def render(self, *args, **kwargs) -> ReportEnv:
         name, values = self.read_param(self.report_def['pagination']['param'], **kwargs)
         start_index = 0
@@ -166,44 +251,18 @@ class PaginationReport(Report):
             values = [None]
         func = super().render
 
-        async def pagination(index=0):
-            try:
-                message = None
-                try:
-                    kwargs[name] = values[index]
-                    env = await func(*args, **kwargs)
-                    file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None
-                    with suppress(Exception):
-                        message = await self.ctx.send(embed=env.embed, file=file, delete_after=self.timeout)
-                    if env.filename:
-                        os.remove(env.filename)
-                        env.filename = None
-                except ValueNotInRange as ex:
-                    await self.ctx.send(str(ex))
-                except Exception as ex:
-                    self.log.exception(ex)
-                    await self.ctx.send('An error occurred. Please contact your Admin.')
-
-                if message and (len(values) > 1):
-                    await message.add_reaction('◀️')
-                    await message.add_reaction('⏹️')
-                    await message.add_reaction('▶️')
-                    react = await utils.wait_for_single_reaction(self.bot, self.ctx, message)
-                    if react.emoji == '◀️':
-                        await message.delete()
-                        await pagination((index - 1) if index > 0 else len(values) - 1)
-                    elif react.emoji == '⏹️':
-                        raise asyncio.TimeoutError
-                    elif react.emoji == '▶️':
-                        await message.delete()
-                        await pagination((index + 1) if index < (len(values) - 1) else 0)
-            except asyncio.TimeoutError:
-                if isinstance(self.ctx, discord.DMChannel):
-                    await message.delete()
-                else:
-                    await message.clear_reactions()
-
-        await pagination(start_index)
+        message = None
+        view = self.PaginationReportView(name, values, start_index, func, *args, **kwargs)
+        env = await view.render(values[start_index])
+        try:
+            message = await self.ctx.send(
+                embed=env.embed,
+                view=view,
+                file=discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None)
+            await view.wait()
+        finally:
+            if message:
+                await message.delete()
         return self.env
 
 

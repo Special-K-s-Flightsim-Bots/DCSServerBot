@@ -1,7 +1,6 @@
 import discord
 import string
 from core import DCSServerBot, Plugin
-from discord import Interaction
 from discord.ext import commands
 from discord.ui import View, Select, Button
 from typing import cast, Optional
@@ -19,9 +18,17 @@ class HelpMaster(HelpAgent):
             super().__init__()
             self.bot = bot
             self.ctx = ctx
+            self.options = options
             select: Select = cast(Select, self.children[0])
             select.options = options
+            self.index = 0
             self.result = None
+            if self.index == 0:
+                self.children[1].disabled = True
+                self.children[2].disabled = True
+            elif self.index == len(self.options) - 1:
+                self.children[3].disabled = True
+                self.children[4].disabled = True
 
         async def print_command(self, *, command: str) -> discord.Embed:
             command = command.lstrip(self.ctx.prefix)
@@ -84,18 +91,56 @@ class HelpMaster(HelpAgent):
             help_embed.set_footer(text='Use .help [command] if you want help for a specific command.')
             return help_embed
 
-        @discord.ui.select(placeholder="Select the plugin you want help for")
-        async def callback(self, interaction: Interaction, select: Select):
-            embed = await self.print_commands(plugin=select.values[0])
+        async def paginate(self, plugin: str, interaction: discord.Interaction):
+            embed = await self.print_commands(plugin=plugin)
+            if self.index == 0:
+                self.children[1].disabled = True
+                self.children[2].disabled = True
+                self.children[3].disabled = False
+                self.children[4].disabled = False
+            elif self.index == len(self.options) - 1:
+                self.children[1].disabled = False
+                self.children[2].disabled = False
+                self.children[3].disabled = True
+                self.children[4].disabled = True
+            else:
+                self.children[1].disabled = False
+                self.children[2].disabled = False
+                self.children[3].disabled = False
+                self.children[4].disabled = False
             await interaction.response.edit_message(view=self, embed=embed)
 
-        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='❌')
-        async def cancel(self, interaction: Interaction, button: Button):
-            self.result = None
+        @discord.ui.select(placeholder="Select the plugin you want help for")
+        async def callback(self, interaction: discord.Interaction, select: Select):
+            self.index = [x.value for x in self.options].index(select.values[0])
+            await self.paginate(select.values[0], interaction)
+
+        @discord.ui.button(label="<<", style=discord.ButtonStyle.secondary)
+        async def on_start(self, interaction: discord.Interaction, button: Button):
+            self.index = 0
+            await self.paginate(self.options[self.index].value, interaction)
+
+        @discord.ui.button(label="Back", style=discord.ButtonStyle.primary)
+        async def on_left(self, interaction: discord.Interaction, button: Button):
+            self.index -= 1
+            await self.paginate(self.options[self.index].value, interaction)
+
+        @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
+        async def on_right(self, interaction: discord.Interaction, button: Button):
+            self.index += 1
+            await self.paginate(self.options[self.index].value, interaction)
+
+        @discord.ui.button(label=">>", style=discord.ButtonStyle.secondary)
+        async def on_end(self, interaction: discord.Interaction, button: Button):
+            self.index = len(self.options) - 1
+            await self.paginate(self.options[self.index].value, interaction)
+
+        @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
+        async def on_cancel(self, interaction: discord.Interaction, button: Button):
             await interaction.response.defer()
             self.stop()
 
-        async def interaction_check(self, interaction: Interaction, /) -> bool:
+        async def interaction_check(self, interaction: discord.Interaction, /) -> bool:
             if interaction.user != self.ctx.author:
                 await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
                 return False
