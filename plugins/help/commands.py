@@ -8,7 +8,11 @@ from typing import cast, Optional
 from .listener import HelpListener
 
 
-class Help(Plugin):
+class HelpAgent(Plugin):
+    pass
+
+
+class HelpMaster(HelpAgent):
 
     class HelpView(View):
         def __init__(self, bot: DCSServerBot, ctx: commands.Context, options: list[discord.SelectOption]):
@@ -121,4 +125,6 @@ class Help(Plugin):
 async def setup(bot: DCSServerBot):
     # help is only available on the master
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(Help(bot, HelpListener))
+        await bot.add_cog(HelpMaster(bot, HelpListener))
+    else:
+        await bot.add_cog(HelpAgent(bot, HelpListener))

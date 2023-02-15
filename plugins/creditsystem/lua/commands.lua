@@ -15,7 +15,7 @@ function dcsbot.updateUserPoints(json)
         end
     end
     if name then
-        local script = 'dcsbot._setUserPoints("' .. name .. '", ' .. json.points .. ')'
+        local script = 'dcsbot._setUserPoints(' .. utils.basicSerialize(name) .. ', ' .. json.points .. ')'
         net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
     end
 end
