@@ -69,7 +69,8 @@ class WeatherInfo(report.EmbedElement):
         if server.current_mission and server.current_mission.weather:
             weather = server.current_mission.weather
             self.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
-            self.add_field(name='QNH', value='{:.2f} inHg'.format(weather['qnh'] * const.MMHG_IN_INHG))
+            self.add_field(name='QNH (QFF)', value='{:.2f} inHg\n'.format(weather['qnh'] * const.MMHG_IN_INHG) +
+                                             '{} mmHg\n'.format(weather['qnh']))
             if server.current_mission.clouds and 'preset' in server.current_mission.clouds:
                 self.add_field(name='Clouds', value=server.current_mission.clouds['preset']['readableName'][5:].split('\n')[0].replace('/', '/\n'))
             else:

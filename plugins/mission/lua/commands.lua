@@ -282,7 +282,7 @@ function dcsbot.getWeatherInfo(json)
 		pressureMM = pressureQFE * 0.7500637554192,
 		pressureIN = pressureQFE * 0.0295300586467
 	}
-	local pressureQNH = pressureQFE + pressureQFE * (10^(position.y / (18429.1 + 67.53 * temp + 0.003 * position.y)) - 1)
+	local pressureQNH = pressureQFE + position.y * 0.12017
 	msg.qnh = {
 		pressureHPA = pressureQNH,
 		pressureMM = pressureQNH * 0.7500637554192,
