@@ -419,7 +419,8 @@ class Scheduler(Plugin):
                 await server.start()
             else:
                 await server.current_mission.restart()
-            await self.bot.audit(f"{string.capwords(self.plugin_name)} restarted mission", server=server)
+            await self.bot.audit(f"{string.capwords(self.plugin_name)} restarted mission "
+                                 f"{server.current_mission.display_name}", server=server)
         elif method == 'rotate':
             await server.loadNextMission()
             if self.is_mission_change(server, config):
@@ -429,7 +430,8 @@ class Scheduler(Plugin):
                 if 'settings' in config['restart']:
                     self.change_mizfile(server, config)
                 await server.start()
-            await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated mission", server=server)
+            await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated to mission "
+                                 f"{server.current_mission.display_name}", server=server)
 
     async def check_mission_state(self, server: Server, config: dict):
         if 'restart' in config:

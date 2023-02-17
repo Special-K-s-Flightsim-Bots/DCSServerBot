@@ -86,7 +86,7 @@ class SchedulerListener(EventListener):
                         await server.start()
                     else:
                         await server.current_mission.restart()
-                    message = 'restarted mission'
+                    message = f'restarted mission {server.current_mission.display_name}'
                     if 'user' not in what:
                         message = string.capwords(self.plugin_name) + ' ' + message
                     await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
@@ -99,10 +99,11 @@ class SchedulerListener(EventListener):
                     if 'settings' in config['restart']:
                         self.plugin.change_mizfile(server, config)
                     await server.start()
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated mission", server=server)
+                await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated to mission "
+                                     f"{server.current_mission.display_name}", server=server)
             elif what['command'] == 'load':
                 await server.loadMission(what['id'])
-                message = 'loaded mission'
+                message = f'loaded mission {server.current_mission.display_name}'
                 if 'user' not in what:
                     message = string.capwords(self.plugin_name) + ' ' + message
                 await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
@@ -111,7 +112,7 @@ class SchedulerListener(EventListener):
                 for preset in what['preset']:
                     self.plugin.change_mizfile(server, config, preset)
                 await server.start()
-                await self.bot.audit("changed preset", server=server, user=what['user'])
+                await self.bot.audit(f"changed preset to {what['preset']}", server=server, user=what['user'])
             server.restart_pending = False
 
         server: Server = self.bot.servers[data['server_name']]
@@ -177,6 +178,7 @@ class SchedulerListener(EventListener):
                     await server.stop()
                     cast(Scheduler, self.plugin).change_mizfile(server, config, presets[n])
                     await server.start()
+                    await self.bot.audit(f"changed preset to {presets[n]}", server=server, user=player.member)
             else:
                 player.sendChatMessage(f"There are no presets available to select.")
         elif data['subcommand'] in ['maintenance', 'maint']:
