@@ -7,18 +7,15 @@ import os
 import psycopg2
 import sys
 from abc import ABC, abstractmethod
-from contextlib import closing, suppress
-
+from contextlib import closing
 from discord import Interaction, SelectOption
-from discord.ext import commands
 from discord.ext.commands import Context
+from discord.ui import View, Button, Select, Item
 from os import path
 from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 
-from discord.ui import View, Button, Select
-
 from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound, \
-    ValueNotInRange, ReportException
+    ReportException
 from ..data.const import Channel
 
 if TYPE_CHECKING:
@@ -168,7 +165,13 @@ class PaginationReport(Report):
             self.args = args
             self.kwargs = kwargs
             select: Select = cast(Select, self.children[0])
-            select.options = [SelectOption(label=x or 'All') for x in values]
+            self.formatter = kwargs.get('formatter')
+            if self.formatter:
+                select.options = [SelectOption(label=self.formatter(x) or 'All',
+                                               value=str(idx)) for idx, x in enumerate(self.values)]
+            else:
+                select.options = [SelectOption(label=x or 'All',
+                                               value=str(idx)) for idx, x in enumerate(self.values)]
             if self.index == 0:
                 self.children[1].disabled = True
                 self.children[2].disabled = True
@@ -199,9 +202,13 @@ class PaginationReport(Report):
                     self.children[2].disabled = False
                     self.children[3].disabled = False
                     self.children[4].disabled = False
-                await interaction.edit_original_response(embed=env.embed, view=self, attachments=[
-                    discord.File(env.filename, filename=os.path.basename(env.filename))
-                ] if env.filename else None)
+                if env.filename:
+                    await interaction.edit_original_response(embed=env.embed, view=self, attachments=[
+                            discord.File(env.filename, filename=os.path.basename(env.filename))
+                        ]
+                    )
+                else:
+                    await interaction.edit_original_response(embed=env.embed, view=self, attachments=[])
             finally:
                 if env.filename:
                     os.remove(env.filename)
@@ -209,7 +216,7 @@ class PaginationReport(Report):
 
         @discord.ui.select()
         async def callback(self, interaction: Interaction, select: Select):
-            self.index = self.values.index(select.values[0])
+            self.index = int(select.values[0])
             await self.paginate(self.values[self.index], interaction)
 
         @discord.ui.button(label="<<", style=discord.ButtonStyle.secondary)
@@ -260,6 +267,9 @@ class PaginationReport(Report):
                 view=view,
                 file=discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None)
             await view.wait()
+        except Exception as ex:
+            self.log.exception(ex)
+            raise
         finally:
             if message:
                 await message.delete()

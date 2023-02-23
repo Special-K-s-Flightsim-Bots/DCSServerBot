@@ -7,14 +7,16 @@ import time
 from contextlib import closing
 from copy import deepcopy
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
-from discord import SelectOption
+from datetime import datetime
+from discord import SelectOption, TextStyle
 from discord.ext import commands, tasks
+from discord.ui import View, Select, Modal, TextInput, Item
 from os import path
-from typing import Optional, Union, List, Type
+from typing import Optional, Union, List, Type, Any
 from .listener import GreenieBoardEventListener
 
 
-class GreenieBoard(Plugin):
+class GreenieBoardAgent(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
@@ -137,7 +139,7 @@ class GreenieBoard(Plugin):
         if n:
             report = PaginationReport(self.bot, ctx, self.plugin_name, 'lsoRating.json',
                                       timeout if timeout > 0 else None)
-            await report.render(landings=landings, start_index=int(n))
+            await report.render(landings=landings, start_index=int(n), formatter=format_landing)
         await ctx.message.delete()
 
     @commands.command(description='Display the current greenieboard', usage='[num rows]', aliases=['greenie'])
@@ -172,6 +174,108 @@ class GreenieBoard(Plugin):
                 do_delete(basedir, config['FunkMan']['delete_after'])
 
 
+class GreenieBoardMaster(GreenieBoardAgent):
+    @commands.command(description='Adds a trap to the Greenieboard', usage='<@member|ucid>')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def add_trap(self, ctx: commands.Context, user: Union[discord.Member, str]):
+        if isinstance(user, discord.Member):
+            ucid = self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await ctx.send(f'Member {user.display_name} is not linked.')
+                return
+        elif len(user) != 32:
+            await ctx.send(f'Usage: {ctx.prefix}add_trap <@member|ucid>')
+            return
+        else:
+            ucid = user
+
+        config = self.locals['configs'][0]
+        if 'ratings' not in config:
+            await ctx.send('You need to specify ratings in your greenieboard.json to use add_trap!')
+            return
+        planes = ['AV8BNA', 'F-14A-135-GR', 'F-14B', 'FA-18C_hornet', 'Su-33']
+
+        class TrapModal(Modal):
+            time = TextInput(label='Time (HH24:MI)', style=TextStyle.short, required=True, min_length=5, max_length=5)
+            case = TextInput(label='Case', style=TextStyle.short, required=True, min_length=1, max_length=1)
+            grade = TextInput(label='Grade', style=TextStyle.short, required=True, min_length=1, max_length=4)
+            comment = TextInput(label='LSO Comment', style=TextStyle.long, required=False)
+            wire = TextInput(label='Wire', style=TextStyle.short, required=False, min_length=1, max_length=1)
+
+            def __init__(self, bot: DCSServerBot, *, unit_type: str):
+                super().__init__(title="Enter the trap details")
+                self.bot = bot
+                self.log = bot.log
+                self.pool = bot.pool
+                self.unit_type = unit_type
+                self.success = False
+
+            async def on_submit(self, interaction: discord.Interaction, /) -> None:
+                await interaction.response.defer()
+                time = datetime.strptime(self.time.value, '%H:%M').time()
+                night = time.hour >= 20 or time.hour <= 6
+                if self.case.value not in ['1', '2', '3']:
+                    raise TypeError('Case needs to be one of 1, 2 or 3.')
+                grade = self.grade.value.upper()
+                if grade not in config['ratings'].keys():
+                    raise ValueError("Grade has to be one of " + ', '.join([utils.escape_string(x) for x in config['ratings'].keys()]))
+                if self.wire.value and self.wire.value not in ['1', '2', '3', '4']:
+                    raise TypeError('Wire needs to be one of 1 to 4.')
+
+                conn = self.pool.getconn()
+                try:
+                    with closing(conn.cursor()) as cursor:
+                        cursor.execute('INSERT INTO greenieboard (player_ucid, unit_type, grade, comment, place, '
+                                       'night, points, wire, trapcase) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                                       (ucid, self.unit_type, self.grade.value, self.comment.value, 'n/a', night,
+                                        config['ratings'][grade], self.wire.value, self.case.value))
+                    conn.commit()
+                    self.success = True
+                except (Exception, psycopg2.DatabaseError) as error:
+                    self.log.exception(error)
+                    conn.rollback()
+                    raise
+                finally:
+                    self.pool.putconn(conn)
+
+            async def on_error(self, interaction: discord.Interaction, error: Exception, /) -> None:
+                await interaction.followup.send(error)
+                self.stop()
+
+        class TrapView(View):
+
+            def __init__(self, bot: DCSServerBot):
+                super().__init__()
+                self.bot = bot
+                self.log = bot.log
+                self.success = False
+
+            @discord.ui.select(placeholder='Select the plane for the trap',
+                               options=[SelectOption(label=x) for x in planes])
+            async def callback(self, interaction: discord.Interaction, select: Select):
+                modal = TrapModal(self.bot, unit_type=select.values[0])
+                await interaction.response.send_modal(modal)
+                await modal.wait()
+                self.success = modal.success
+                self.stop()
+
+            async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any], /) -> None:
+                await interaction.followup.send(error)
+                self.stop()
+
+        view = TrapView(self.bot)
+        msg = await ctx.send(view=view)
+        try:
+            await view.wait()
+            if view.success:
+                await ctx.send('Trap added.')
+            else:
+                await ctx.send('Aborted.')
+        finally:
+            await msg.delete()
+
+
 async def setup(bot: DCSServerBot):
     if 'missionstats' not in bot.plugins:
         raise PluginRequiredError('missionstats')
@@ -179,4 +283,7 @@ async def setup(bot: DCSServerBot):
     if not path.exists('config/greenieboard.json'):
         bot.log.info('No greenieboard.json found, copying the sample.')
         shutil.copyfile('config/greenieboard.json.sample', 'config/greenieboard.json')
-    await bot.add_cog(GreenieBoard(bot, GreenieBoardEventListener))
+    if bot.config.getboolean('BOT', 'MASTER') is True:
+        await bot.add_cog(GreenieBoardMaster(bot, GreenieBoardEventListener))
+    else:
+        await bot.add_cog(GreenieBoardAgent(bot, GreenieBoardEventListener))

@@ -34,3 +34,7 @@ class TooManyElements(ReportException):
 class UnknownValue(ReportException):
     def __init__(self, name: str, value: str):
         super().__init__(f'The value {value} is unknown for parameter {name}.')
+
+
+class NothingToPlot(ReportException):
+    pass

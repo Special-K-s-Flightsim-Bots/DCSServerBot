@@ -218,10 +218,7 @@ class Agent(Plugin):
             @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='cfg_yes', emoji='✅')
             async def on_yes(self, interaction: Interaction, button: Button):
                 modal = ConfigModal()
-                try:
-                    await interaction.response.send_modal(modal)
-                except Exception as ex:
-                    print(ex)
+                await interaction.response.send_modal(modal)
                 self.stop()
 
             @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, custom_id='cfg_cancel', emoji='❌')

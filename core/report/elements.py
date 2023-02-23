@@ -12,7 +12,7 @@ from contextlib import closing
 from discord import ButtonStyle, Interaction
 from core import utils
 from core.report.env import ReportEnv
-from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue
+from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
 from core.report.utils import parse_params
 from datetime import timedelta
 from matplotlib import pyplot as plt
@@ -174,6 +174,8 @@ class Graph(ReportElement):
         # check for any exceptions and raise them
         for future in futures:
             if future.exception():
+                if isinstance(future.exception(), NothingToPlot):
+                    return
                 raise future.exception()
         # only render the graph, if we don't have a rendered graph already attached as a file (image)
         if not self.env.filename:

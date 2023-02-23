@@ -4,10 +4,6 @@ import string
 import subprocess
 from core import EventListener, utils, Server, Player, Status
 from os import path
-from typing import cast, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .commands import Scheduler
 
 
 class SchedulerListener(EventListener):
@@ -176,7 +172,7 @@ class SchedulerListener(EventListener):
                 else:
                     n = int(data['params'][0]) - 1
                     await server.stop()
-                    cast(Scheduler, self.plugin).change_mizfile(server, config, presets[n])
+                    self.plugin.change_mizfile(server, config, presets[n])
                     await server.start()
                     await self.bot.audit(f"changed preset to {presets[n]}", server=server, user=player.member)
             else:

@@ -8,7 +8,7 @@ import psycopg2
 import re
 import shutil
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel, Player
+from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError
 from datetime import datetime
 from discord import SelectOption, Interaction
 from discord.ext import commands, tasks
@@ -306,7 +306,7 @@ class Mission(Plugin):
         embed.add_field(name="# Players", value=str(len(server.get_active_players())))
         embed.add_field(name='▬' * 27, value='_ _', inline=False)
         view = self.LoadView(ctx, placeholder="Select a mission to load",
-                             options=[SelectOption(label=os.path.basename(x)[:-4]) for x in missions[:25]])
+                             options=[SelectOption(label=os.path.basename(x)[:-4]) for x in set(missions)[:25]])
         msg = await ctx.send(embed=embed, view=view)
         try:
             if await view.wait():
@@ -373,17 +373,17 @@ class Mission(Plugin):
                     return
                 server.addMission(file)
                 name = file[:-4]
-                await ctx.send(f'Mission "{name}" added.')
+                await ctx.send('Mission "{}" added.'.format(utils.escape_string(name)))
                 if await utils.yn_question(ctx, 'Do you want to load this mission?'):
                     data = await server.sendtoDCSSync({"command": "listMissions"})
                     missions = data['missionList']
                     for idx, mission in enumerate(missions):
                         if os.path.basename(mission) == file:
-                            tmp = await ctx.send(f'Loading mission {name} ...')
+                            tmp = await ctx.send('Loading mission {} ...'.format(utils.escape_string(name)))
                             await server.loadMission(idx + 1)
                             await self.bot.audit("loaded mission", server=server, user=ctx.message.author)
                             await tmp.delete()
-                            await ctx.send(f'Mission {name} loaded.')
+                            await ctx.send('Mission {} loaded.'.format(utils.escape_string(name)))
                             break
             else:
                 await ctx.send(f'There is no file in the Missions directory of server {server.display_name}.')
