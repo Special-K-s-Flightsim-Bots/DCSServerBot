@@ -132,6 +132,11 @@ class PunishmentEventListener(EventListener):
                     conn = self.pool.getconn()
                     try:
                         with closing(conn.cursor()) as cursor:
+                            # get the punishments
+                            cursor.execute('SELECT DISTINCT init_id FROM pu_events WHERE target_id = %s '
+                                           'AND time >= (NOW() - interval \'%s seconds\')',
+                                           (target.ucid, config['forgive']))
+                            initiators = [x[0] for x in cursor.fetchall()]
                             # clean the punishment table from these events
                             cursor.execute('DELETE FROM pu_events WHERE target_id = %s AND time >= (NOW() - interval '
                                            '\'%s seconds\')', (target.ucid, config['forgive']))
@@ -139,6 +144,18 @@ class PunishmentEventListener(EventListener):
                             cursor.execute('DELETE FROM pu_events_sdw WHERE target_id = %s AND time >= (NOW() - '
                                            'interval \'%s seconds\')', (target.ucid, config['forgive']))
                             conn.commit()
+                            names = []
+                            for initiator in initiators:
+                                player = self.bot.get_player_by_ucid(initiator)
+                                if player:
+                                    names.append(player.name)
+                                    player.sendChatMessage(
+                                        f'You have been forgiven by {target.name} and will not be punished '
+                                        f'for your recent actions.')
+                            if not names:
+                                names = ['another player']
+                            target.sendChatMessage(
+                                'You have chosen to forgive {} for their actions.'.format(', '.join(names)))
                     except (Exception, psycopg2.DatabaseError) as error:
                         conn.rollback()
                         self.log.exception(error)
