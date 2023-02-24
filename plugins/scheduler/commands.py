@@ -700,15 +700,15 @@ class Scheduler(Plugin):
             self.result = select.values
             await interaction.response.defer()
 
-        @discord.ui.button(label='OK', style=discord.ButtonStyle.green, emoji='✅')
+        @discord.ui.button(label='OK', style=discord.ButtonStyle.green)
         async def ok(self, interaction: Interaction, button: Button):
             await interaction.response.defer()
             self.stop()
 
-        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='❌')
+        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
         async def cancel(self, interaction: Interaction, button: Button):
-            self.result = None
             await interaction.response.defer()
+            self.result = None
             self.stop()
 
         async def interaction_check(self, interaction: Interaction, /) -> bool:

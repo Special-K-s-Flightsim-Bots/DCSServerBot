@@ -257,7 +257,7 @@ class Mission(Plugin):
             await interaction.response.defer()
             self.stop()
 
-        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='❌')
+        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
         async def cancel(self, interaction: Interaction, button: Button):
             await interaction.response.defer()
             self.stop()
@@ -285,9 +285,8 @@ class Mission(Plugin):
         else:
             server.on_empty = dict()
 
-        question = f"Do you really want to change the mission?"
         if server.is_populated():
-            result = await utils.populated_question(ctx, question)
+            result = await utils.populated_question(ctx, f"Do you really want to change the mission?")
             if not result:
                 await ctx.send('Aborted.')
                 return
@@ -306,7 +305,7 @@ class Mission(Plugin):
         embed.add_field(name="# Players", value=str(len(server.get_active_players())))
         embed.add_field(name='▬' * 27, value='_ _', inline=False)
         view = self.LoadView(ctx, placeholder="Select a mission to load",
-                             options=[SelectOption(label=os.path.basename(x)[:-4]) for x in set(missions)[:25]])
+                             options=[SelectOption(label=os.path.basename(x)[:-4]) for x in list(set(missions))[:25]])
         msg = await ctx.send(embed=embed, view=view)
         try:
             if await view.wait():

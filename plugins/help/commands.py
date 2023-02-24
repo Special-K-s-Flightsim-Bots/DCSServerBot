@@ -1,6 +1,7 @@
 import discord
+import os
 import string
-from core import DCSServerBot, Plugin
+from core import DCSServerBot, Plugin, Report, ReportEnv
 from discord.ext import commands
 from discord.ui import View, Select, Button
 from typing import cast, Optional
@@ -154,17 +155,35 @@ class HelpMaster(HelpAgent):
         view = self.HelpView(self.bot, ctx, options)
         if command:
             embed = await view.print_command(command=command)
+            await ctx.send(embed=embed)
         else:
-            embed = await view.print_commands(plugin='__main__')
-        msg = await ctx.send(embed=embed, view=view)
-        try:
-            if await view.wait():
-                return
-            elif not view.result:
-                return
-        finally:
-            await ctx.message.delete()
-            await msg.delete()
+            try:
+                # shall we display a custom report as greeting page?
+                if os.path.exists(f'reports/{self.plugin_name}/{self.plugin_name}.json'):
+                    report = Report(self.bot, self.plugin_name, filename=f'{self.plugin_name}.json')
+                    env: ReportEnv = await report.render(guild=self.bot.guilds[0],
+                                                         servers=[
+                                                             {
+                                                                 "display_name": x.display_name,
+                                                                 "password": x.settings['password'],
+                                                                 "status": string.capwords(x.status.name),
+                                                                 "num_players": len(x.get_active_players())
+                                                             } for x in self.bot.servers.values()
+                                                         ])
+                    embed = env.embed
+                    if env.filename:
+                        msg = await ctx.send(embed=embed, view=view,
+                                             file=discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None)
+                    else:
+                        msg = await ctx.send(embed=embed, view=view)
+                else:
+                    embed = await view.print_commands(plugin='__main__')
+                    msg = await ctx.send(embed=embed, view=view)
+                if await view.wait() or not view.result:
+                    return
+            finally:
+                await ctx.message.delete()
+                await msg.delete()
 
 
 async def setup(bot: DCSServerBot):

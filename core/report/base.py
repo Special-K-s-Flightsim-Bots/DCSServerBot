@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from contextlib import closing
 from discord import Interaction, SelectOption
 from discord.ext.commands import Context
-from discord.ui import View, Button, Select, Item
+from discord.ui import View, Button, Select
 from os import path
 from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 
@@ -262,10 +262,16 @@ class PaginationReport(Report):
         view = self.PaginationReportView(name, values, start_index, func, *args, **kwargs)
         env = await view.render(values[start_index])
         try:
-            message = await self.ctx.send(
-                embed=env.embed,
-                view=view,
-                file=discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None)
+            try:
+                message = await self.ctx.send(
+                    embed=env.embed,
+                    view=view,
+                    file=discord.File(env.filename,
+                                      filename=os.path.basename(env.filename)) if env.filename else None)
+            finally:
+                if env.filename:
+                    os.remove(env.filename)
+                    env.filename = None
             await view.wait()
         except Exception as ex:
             self.log.exception(ex)
