@@ -544,11 +544,11 @@ class Scheduler(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def shutdown(self, ctx, *params):
-        async def do_shutdown(server: Server):
+        async def do_shutdown(server: Server, force: bool = False):
             msg = await ctx.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...")
             # set maintenance flag to prevent auto-starts of this server
             server.maintenance = True
-            if params and params[0].casefold() == '-force':
+            if force:
                 await server.shutdown()
             else:
                 await self.teardown_dcs(server, ctx.message.author)
@@ -563,7 +563,7 @@ class Scheduler(Plugin):
                 if params and params[0] == '-force' or \
                         await utils.yn_question(ctx, f"Server is in state {server.status.name}.\n"
                                                      f"Do you want to force a shutdown?"):
-                    await do_shutdown(server)
+                    await do_shutdown(server, True)
                 else:
                     return
             elif server.status != Status.SHUTDOWN:
