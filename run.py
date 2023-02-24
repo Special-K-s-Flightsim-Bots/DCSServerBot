@@ -63,7 +63,7 @@ class Main:
         self.db_version = None
         self.install_plugins()
         self.pool = self.init_db()
-        utils.dcs.desanitize(self)
+        utils.desanitize(self)
         self.install_hooks()
         self.install_fonts()
         self.bot: DCSServerBot = self.init_bot()
