@@ -174,7 +174,8 @@ Adding sneaker is quite straightforward, if you looked at the above examples alr
       "extensions": {
         "Sneaker": {
           "cmd": "%USERPROFILE%\\Documents\\GitHub\\sneaker\\sneaker.exe",
-          "bind": "0.0.0.0:8080"
+          "bind": "0.0.0.0:8080",
+          "url": "http://mydnsname:8080"
         }
       }
       [...]

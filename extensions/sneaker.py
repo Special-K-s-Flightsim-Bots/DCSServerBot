@@ -97,4 +97,9 @@ class Sneaker(Extension):
         return True
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        embed.add_field(name='Sneaker', value='enabled')
+        if 'url' in self.config:
+            value = self.config['url']
+        else:
+            value = 'enabled'
+        embed.add_field(name='Sneaker', value=value)
+
