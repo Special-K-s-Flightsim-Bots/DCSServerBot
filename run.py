@@ -1,6 +1,5 @@
 from __future__ import annotations
 import aiofiles
-# noinspection PyPackageRequirements
 import aiohttp
 import asyncio
 import discord

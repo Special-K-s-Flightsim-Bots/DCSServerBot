@@ -81,7 +81,7 @@ class Install:
             conn = None
             try:
                 conn = psycopg2.connect(url)
-                conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT);
+                conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
                 with closing(conn.cursor()) as cursor:
                     passwd = secrets.token_urlsafe(8)
                     try:
