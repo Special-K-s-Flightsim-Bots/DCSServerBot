@@ -3,7 +3,7 @@ local utils	= base.require("DCSServerBotUtils")
 local dcsbot= base.dcsbot
 
 function dcsbot.do_script(json)
-    log.write(')DCSServerBot', log.DEBUG, 'GameMaster: do_script()')
+    log.write('DCSServerBot', log.DEBUG, 'GameMaster: do_script()')
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(json.script) .. ')')
 end
 

@@ -9,12 +9,12 @@ import sys
 import uuid
 from abc import ABC, abstractmethod
 from contextlib import closing
-from discord import ButtonStyle, Interaction
 from core import utils
 from core.report.env import ReportEnv
 from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
 from core.report.utils import parse_params
 from datetime import timedelta
+from discord import ButtonStyle, Interaction
 from matplotlib import pyplot as plt
 from typing import Optional, List, Any, TYPE_CHECKING, Union
 

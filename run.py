@@ -1,7 +1,8 @@
 from __future__ import annotations
-import asyncio
-import aiohttp
 import aiofiles
+# noinspection PyPackageRequirements
+import aiohttp
+import asyncio
 import discord
 import logging
 import os

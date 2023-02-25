@@ -105,7 +105,7 @@ class Agent(Plugin):
                     # the server was running before (being in maintenance mode), so start it again
                     await server.startup()
                 except asyncio.TimeoutError:
-                    await ctx.send(f'Timeout while starting {server.name}, please check it manually!')
+                    await ctx.send(f'Timeout while starting {server.display_name}, please check it manually!')
         self.update_pending = False
         if message:
             await message.delete()
