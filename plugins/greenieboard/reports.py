@@ -3,7 +3,7 @@ import os
 import psycopg2
 import re
 from contextlib import closing
-from core import report, Coalition, Side, utils, EmbedElement
+from core import report, Coalition, Side, utils, EmbedElement, NothingToPlot
 from datetime import datetime
 from plugins.userstats.filter import StatisticsFilter
 from . import ERRORS, DISTANCE_MARKS, GRADES, const
@@ -108,7 +108,7 @@ class TrapSheet(report.MultiGraphElement):
 
     def render(self, landing: dict):
         if 'trapsheet' not in landing or not landing['trapsheet']:
-            return
+            raise NothingToPlot()
         trapsheet = landing['trapsheet']
         if not os.path.exists(landing['trapsheet']):
             self.log.error(f"Can't read trapsheet {landing['trapsheet']}, file not found.")

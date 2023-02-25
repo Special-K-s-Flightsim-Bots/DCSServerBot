@@ -137,7 +137,7 @@ class GameMasterAgent(Plugin):
                 try:
                     data = await server.sendtoDCSSync({"command": "getVariable", "name": name})
                 except asyncio.TimeoutError:
-                    await ctx.send('Timeout while retrieving variable. Most likely a lua error occured. '
+                    await ctx.send('Timeout while retrieving variable. Most likely a lua error occurred. '
                                    'Check your dcs.log.')
                     return
                 if 'value' in data:

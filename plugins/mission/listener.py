@@ -1,8 +1,11 @@
 from __future__ import annotations
 import asyncio
+import discord
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
     Channel, DataObjectFactory
 from datetime import datetime
+from discord.ext import tasks
+from queue import Queue
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -51,6 +54,31 @@ class MissionEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
+        self.queue: dict[discord.TextChannel, Queue[str]] = dict()
+        self.print_queue.start()
+
+    async def shutdown(self):
+        self.print_queue.cancel()
+        await self._work_queue(True)
+
+    async def _work_queue(self, flush: bool = False):
+        for channel in self.queue.keys():
+            if self.queue[channel].empty():
+                continue
+            messages: set = set()
+            while not self.queue[channel].empty():
+                messages.add(self.queue[channel].get())
+                if messages.__sizeof__() > 1900:
+                    if not flush:
+                        break
+                    await channel.send(''.join(messages))
+                    messages.clear()
+            if messages:
+                await channel.send(''.join(messages))
+
+    @tasks.loop(seconds=2)
+    async def print_queue(self):
+        await self._work_queue()
 
     async def sendMessage(self, data):
         server: Server = self.bot.servers[data['server_name']]
@@ -80,7 +108,9 @@ class MissionEventListener(EventListener):
     def _send_chat_message(self, server: Server, message: str) -> None:
         chat_channel = server.get_channel(Channel.CHAT)
         if chat_channel:
-            self.bot.loop.call_soon(asyncio.create_task, chat_channel.send(message))
+            if chat_channel not in self.queue:
+                self.queue[chat_channel] = Queue()
+            self.queue[chat_channel].put(message)
 
     def _display_mission_embed(self, server: Server):
         try:
@@ -279,11 +309,10 @@ class MissionEventListener(EventListener):
             player1 = server.get_player(id=data['arg1'])
             if data['arg3'] != -1:
                 player2 = server.get_player(id=data['arg3'])
-            # TODO: remove if issue with Forrestal is fixed
-            elif data['arg2'] == player1.unit_type:
-                return
             else:
-                player2 = None
+                # TODO: remove if issue with Forrestal is fixed
+                return
+#                player2 = None
             self._send_chat_message(server, self.EVENT_TEXTS[player1.side][data['eventName']].format(
                 'player ' + player1.name, ('player ' + player2.name) if player2 is not None else 'AI',
                 data['arg2'] or 'Cannon/Bomblet'))

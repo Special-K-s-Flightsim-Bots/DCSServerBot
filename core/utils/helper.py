@@ -1,4 +1,5 @@
 import importlib
+import json
 import string
 from datetime import datetime, timedelta
 from typing import Optional
@@ -41,6 +42,8 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
                     value = ""
             elif isinstance(value, list):
                 value = '\n'.join(value)
+            elif isinstance(value, dict):
+                value = json.dumps(value)
             return super().format_field(value, spec)
     try:
         string_ = NoneFormatter().format(string_, **kwargs)

@@ -20,6 +20,7 @@ function dcsbot.resetCampaign(json)
 end
 
 function dcsbot.getFlag(flag, channel)
+    env.info('DCSServerBot - Getting flag ' .. flag)
     msg = {}
     msg.command = 'getFlag'
     msg.value = trigger.misc.getUserFlag(flag)

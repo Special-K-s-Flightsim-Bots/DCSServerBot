@@ -1,7 +1,7 @@
 import discord
+import os
 import string
-from core import DCSServerBot, Plugin
-from discord import Interaction
+from core import DCSServerBot, Plugin, Report, ReportEnv
 from discord.ext import commands
 from discord.ui import View, Select, Button
 from typing import cast, Optional
@@ -19,9 +19,17 @@ class HelpMaster(HelpAgent):
             super().__init__()
             self.bot = bot
             self.ctx = ctx
+            self.options = options
             select: Select = cast(Select, self.children[0])
             select.options = options
+            self.index = 0
             self.result = None
+            if self.index == 0:
+                self.children[1].disabled = True
+                self.children[2].disabled = True
+            elif self.index == len(self.options) - 1:
+                self.children[3].disabled = True
+                self.children[4].disabled = True
 
         async def print_command(self, *, command: str) -> discord.Embed:
             command = command.lstrip(self.ctx.prefix)
@@ -84,18 +92,56 @@ class HelpMaster(HelpAgent):
             help_embed.set_footer(text='Use .help [command] if you want help for a specific command.')
             return help_embed
 
-        @discord.ui.select(placeholder="Select the plugin you want help for")
-        async def callback(self, interaction: Interaction, select: Select):
-            embed = await self.print_commands(plugin=select.values[0])
+        async def paginate(self, plugin: str, interaction: discord.Interaction):
+            embed = await self.print_commands(plugin=plugin)
+            if self.index == 0:
+                self.children[1].disabled = True
+                self.children[2].disabled = True
+                self.children[3].disabled = False
+                self.children[4].disabled = False
+            elif self.index == len(self.options) - 1:
+                self.children[1].disabled = False
+                self.children[2].disabled = False
+                self.children[3].disabled = True
+                self.children[4].disabled = True
+            else:
+                self.children[1].disabled = False
+                self.children[2].disabled = False
+                self.children[3].disabled = False
+                self.children[4].disabled = False
             await interaction.response.edit_message(view=self, embed=embed)
 
-        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='❌')
-        async def cancel(self, interaction: Interaction, button: Button):
-            self.result = None
+        @discord.ui.select(placeholder="Select the plugin you want help for")
+        async def callback(self, interaction: discord.Interaction, select: Select):
+            self.index = [x.value for x in self.options].index(select.values[0])
+            await self.paginate(select.values[0], interaction)
+
+        @discord.ui.button(label="<<", style=discord.ButtonStyle.secondary)
+        async def on_start(self, interaction: discord.Interaction, button: Button):
+            self.index = 0
+            await self.paginate(self.options[self.index].value, interaction)
+
+        @discord.ui.button(label="Back", style=discord.ButtonStyle.primary)
+        async def on_left(self, interaction: discord.Interaction, button: Button):
+            self.index -= 1
+            await self.paginate(self.options[self.index].value, interaction)
+
+        @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
+        async def on_right(self, interaction: discord.Interaction, button: Button):
+            self.index += 1
+            await self.paginate(self.options[self.index].value, interaction)
+
+        @discord.ui.button(label=">>", style=discord.ButtonStyle.secondary)
+        async def on_end(self, interaction: discord.Interaction, button: Button):
+            self.index = len(self.options) - 1
+            await self.paginate(self.options[self.index].value, interaction)
+
+        @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
+        async def on_cancel(self, interaction: discord.Interaction, button: Button):
             await interaction.response.defer()
             self.stop()
 
-        async def interaction_check(self, interaction: Interaction, /) -> bool:
+        async def interaction_check(self, interaction: discord.Interaction, /) -> bool:
             if interaction.user != self.ctx.author:
                 await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
                 return False
@@ -109,17 +155,35 @@ class HelpMaster(HelpAgent):
         view = self.HelpView(self.bot, ctx, options)
         if command:
             embed = await view.print_command(command=command)
+            await ctx.send(embed=embed)
         else:
-            embed = await view.print_commands(plugin='__main__')
-        msg = await ctx.send(embed=embed, view=view)
-        try:
-            if await view.wait():
-                return
-            elif not view.result:
-                return
-        finally:
-            await ctx.message.delete()
-            await msg.delete()
+            try:
+                # shall we display a custom report as greeting page?
+                if os.path.exists(f'reports/{self.plugin_name}/{self.plugin_name}.json'):
+                    report = Report(self.bot, self.plugin_name, filename=f'{self.plugin_name}.json')
+                    env: ReportEnv = await report.render(guild=self.bot.guilds[0],
+                                                         servers=[
+                                                             {
+                                                                 "display_name": x.display_name,
+                                                                 "password": x.settings['password'],
+                                                                 "status": string.capwords(x.status.name),
+                                                                 "num_players": len(x.get_active_players())
+                                                             } for x in self.bot.servers.values()
+                                                         ])
+                    embed = env.embed
+                    if env.filename:
+                        msg = await ctx.send(embed=embed, view=view,
+                                             file=discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None)
+                    else:
+                        msg = await ctx.send(embed=embed, view=view)
+                else:
+                    embed = await view.print_commands(plugin='__main__')
+                    msg = await ctx.send(embed=embed, view=view)
+                if await view.wait() or not view.result:
+                    return
+            finally:
+                await ctx.message.delete()
+                await msg.delete()
 
 
 async def setup(bot: DCSServerBot):

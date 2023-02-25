@@ -6,6 +6,7 @@
         { "label": "DCSServerBot Logs", "directory": ".", "pattern": "dcsserverbot.log*" },
         { "label": "Missions", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\Missions", "pattern": "*.miz" },
         { "label": "Tacview", "directory": "%USERPROFILE%\\Documents\\Tacview", "pattern": "Tacview-*.acmi" },
+        { "label": "Chat Logs", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\logs", "pattern": "chat.*log*" },
         { "label": "Config Files", "directory": ".\\config", "pattern": "*.json" },
         { "label": "dcsserverbot.ini", "directory": ".\\config", "pattern": "dcsserverbot.ini" }
       ]

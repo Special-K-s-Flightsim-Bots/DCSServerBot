@@ -419,7 +419,8 @@ class Scheduler(Plugin):
                 await server.start()
             else:
                 await server.current_mission.restart()
-            await self.bot.audit(f"{string.capwords(self.plugin_name)} restarted mission", server=server)
+            await self.bot.audit(f"{string.capwords(self.plugin_name)} restarted mission "
+                                 f"{server.current_mission.display_name}", server=server)
         elif method == 'rotate':
             await server.loadNextMission()
             if self.is_mission_change(server, config):
@@ -429,7 +430,8 @@ class Scheduler(Plugin):
                 if 'settings' in config['restart']:
                     self.change_mizfile(server, config)
                 await server.start()
-            await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated mission", server=server)
+            await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated to mission "
+                                 f"{server.current_mission.display_name}", server=server)
 
     async def check_mission_state(self, server: Server, config: dict):
         if 'restart' in config:
@@ -542,11 +544,11 @@ class Scheduler(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def shutdown(self, ctx, *params):
-        async def do_shutdown(server: Server):
+        async def do_shutdown(server: Server, force: bool = False):
             msg = await ctx.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...")
             # set maintenance flag to prevent auto-starts of this server
             server.maintenance = True
-            if params and params[0].casefold() == '-force':
+            if force:
                 await server.shutdown()
             else:
                 await self.teardown_dcs(server, ctx.message.author)
@@ -561,7 +563,7 @@ class Scheduler(Plugin):
                 if params and params[0] == '-force' or \
                         await utils.yn_question(ctx, f"Server is in state {server.status.name}.\n"
                                                      f"Do you want to force a shutdown?"):
-                    await do_shutdown(server)
+                    await do_shutdown(server, True)
                 else:
                     return
             elif server.status != Status.SHUTDOWN:
@@ -698,15 +700,15 @@ class Scheduler(Plugin):
             self.result = select.values
             await interaction.response.defer()
 
-        @discord.ui.button(label='OK', style=discord.ButtonStyle.green, emoji='✅')
+        @discord.ui.button(label='OK', style=discord.ButtonStyle.green)
         async def ok(self, interaction: Interaction, button: Button):
             await interaction.response.defer()
             self.stop()
 
-        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, emoji='❌')
+        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
         async def cancel(self, interaction: Interaction, button: Button):
-            self.result = None
             await interaction.response.defer()
+            self.result = None
             self.stop()
 
         async def interaction_check(self, interaction: Interaction, /) -> bool:

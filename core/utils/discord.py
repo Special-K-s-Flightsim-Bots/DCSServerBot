@@ -178,9 +178,15 @@ class SelectView(View):
             self.result = select.values[0]
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, custom_id='sl_cancel', emoji='❌')
+    @discord.ui.button(label='OK', style=discord.ButtonStyle.green, custom_id='sl_ok')
+    async def on_ok(self, interaction: Interaction, button: Button):
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='sl_cancel')
     async def on_cancel(self, interaction: Interaction, button: Button):
         await interaction.response.defer()
+        self.result = None
         self.stop()
 
     async def interaction_check(self, interaction: Interaction, /) -> bool:
@@ -240,13 +246,13 @@ class YNQuestionView(View):
         self.ctx = ctx
         self.result = False
 
-    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='yn_yes', emoji='✅')
+    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='yn_yes')
     async def on_yes(self, interaction: Interaction, button: Button):
         self.result = True
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label='No', style=discord.ButtonStyle.secondary, custom_id='yn_no', emoji='❌')
+    @discord.ui.button(label='No', style=discord.ButtonStyle.red, custom_id='yn_no')
     async def on_no(self, interaction: Interaction, button: Button):
         self.result = False
         await interaction.response.defer()
@@ -281,7 +287,7 @@ class PopulatedQuestionView(View):
         self.ctx = ctx
         self.result = None
 
-    @discord.ui.button(label='Yes', style=discord.ButtonStyle.red, custom_id='pl_yes', emoji='⚠')
+    @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='pl_yes')
     async def on_yes(self, interaction: Interaction, button: Button):
         self.result = 'yes'
         await interaction.response.defer()
@@ -293,7 +299,7 @@ class PopulatedQuestionView(View):
         await interaction.response.defer()
         self.stop()
 
-    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.secondary, custom_id='pl_cancel', emoji='❌')
+    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='pl_cancel')
     async def on_cancel(self, interaction: Interaction, button: Button):
         await interaction.response.defer()
         self.stop()

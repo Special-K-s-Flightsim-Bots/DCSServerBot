@@ -9,14 +9,14 @@ import sys
 import uuid
 from abc import ABC, abstractmethod
 from contextlib import closing
-from discord import ButtonStyle, Interaction
 from core import utils
 from core.report.env import ReportEnv
-from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue
+from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
 from core.report.utils import parse_params
 from datetime import timedelta
+from discord import ButtonStyle, Interaction
 from matplotlib import pyplot as plt
-from typing import Optional, List, Any, TYPE_CHECKING
+from typing import Optional, List, Any, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from core import DCSServerBot
@@ -74,7 +74,16 @@ class Field(EmbedElement):
 
 
 class Table(EmbedElement):
-    def render(self, values: dict, inline: Optional[bool] = True):
+    def render(self, values: Union[dict, list[dict]], obj: Optional[str], inline: Optional[bool] = True):
+        if obj:
+            table = self.env.params[obj]
+            _values: dict = values.copy()
+            values = list[dict]()
+            if isinstance(table, list):
+                for row in table:
+                    values.append({_values[k]: v for k, v in row.items() if k in _values.keys()})
+            elif isinstance(table, dict):
+                values.append({_values[k]: v for k, v in table.items() if k in _values.keys()})
         header = None
         cols = ['', '', '']
         elements = 0
@@ -85,7 +94,7 @@ class Table(EmbedElement):
             if not header:
                 header = list(row.keys())
             for i in range(0, elements):
-                cols[i] += utils.format_string(row[header[i]], '_ _', **self.env.params) + '\n'
+                cols[i] += utils.format_string(str(row[header[i]]), '_ _', **self.env.params) + '\n'
         for i in range(0, elements):
             self.add_field(name=header[i], value=cols[i], inline=inline)
         if inline:
@@ -174,6 +183,8 @@ class Graph(ReportElement):
         # check for any exceptions and raise them
         for future in futures:
             if future.exception():
+                if isinstance(future.exception(), NothingToPlot):
+                    return
                 raise future.exception()
         # only render the graph, if we don't have a rendered graph already attached as a file (image)
         if not self.env.filename:

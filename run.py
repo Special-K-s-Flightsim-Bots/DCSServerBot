@@ -1,7 +1,7 @@
 from __future__ import annotations
-import asyncio
-import aiohttp
 import aiofiles
+import aiohttp
+import asyncio
 import discord
 import logging
 import os
@@ -63,7 +63,7 @@ class Main:
         self.db_version = None
         self.install_plugins()
         self.pool = self.init_db()
-        utils.dcs.desanitize(self)
+        utils.desanitize(self)
         self.install_hooks()
         self.install_fonts()
         self.bot: DCSServerBot = self.init_bot()
@@ -371,7 +371,7 @@ class Main:
         @utils.has_role('Admin')
         @commands.guild_only()
         async def terminate(ctx):
-            if await utils.yn_question(ctx, 'Do you really want to terminate the bot?'):
+            if await utils.yn_question(ctx, f'Do you really want to terminate the bot on node {platform.node()}?'):
                 await ctx.send('Bot will terminate now (and restart automatically, if started by run.cmd).')
                 exit(-1)
 

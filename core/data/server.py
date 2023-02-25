@@ -143,6 +143,12 @@ class Server(DataObject):
             self.event_handler = MissionFileSystemEventHandler(self)
             self.observer = Observer()
             self.observer.start()
+        # check for SLmod and desanitize its MissionScripting.lua
+        for version in range(5, 7):
+            filename = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME'] + f'\\Scripts\\net\\Slmodv7_{version}\\SlmodMissionScripting.lua')
+            if os.path.exists(filename):
+                utils.desanitize(self, filename)
+                break
 
     @property
     def status(self) -> Status:
