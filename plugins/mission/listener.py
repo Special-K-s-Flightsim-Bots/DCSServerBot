@@ -59,9 +59,9 @@ class MissionEventListener(EventListener):
 
     async def shutdown(self):
         self.print_queue.cancel()
+        await self._work_queue(True)
 
-    @tasks.loop(seconds=2)
-    async def print_queue(self):
+    async def _work_queue(self, flush: bool = False):
         for channel in self.queue.keys():
             if self.queue[channel].empty():
                 continue
@@ -69,8 +69,16 @@ class MissionEventListener(EventListener):
             while not self.queue[channel].empty():
                 messages.add(self.queue[channel].get())
                 if messages.__sizeof__() > 1900:
-                    break
-            await channel.send(''.join(messages))
+                    if not flush:
+                        break
+                    await channel.send(''.join(messages))
+                    messages.clear()
+            if messages:
+                await channel.send(''.join(messages))
+
+    @tasks.loop(seconds=2)
+    async def print_queue(self):
+        await self._work_queue()
 
     async def sendMessage(self, data):
         server: Server = self.bot.servers[data['server_name']]
