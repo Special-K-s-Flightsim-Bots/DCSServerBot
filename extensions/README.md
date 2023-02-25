@@ -90,6 +90,7 @@ To enable Tacview support, again, a change in scheduler.json is needed:
           "tacviewRemoteControlPort": 42675,
           "tacviewRemoteControlPassword": "",
           "tacviewPlaybackDelay": 600,
+          "host": "myfancyhost.com",  -- Optional, default is your external IP
           "show_passwords": false,
           "channel": 837667390242291742
         }
@@ -122,7 +123,8 @@ status embed about ports and - if you like - passwords and the version of LotAtc
       [...]
       "extensions": {
         "LotAtc": {
-          "show_passwords": false
+          "show_passwords": false,
+          "host": "myfancyhost.com"  -- Optional, default is your external IP
         }
       }
     }
@@ -174,7 +176,8 @@ Adding sneaker is quite straightforward, if you looked at the above examples alr
       "extensions": {
         "Sneaker": {
           "cmd": "%USERPROFILE%\\Documents\\GitHub\\sneaker\\sneaker.exe",
-          "bind": "0.0.0.0:8080"
+          "bind": "0.0.0.0:8080",
+          "url": "http://mydnsname:8080"
         }
       }
       [...]
