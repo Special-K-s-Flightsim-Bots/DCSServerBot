@@ -356,7 +356,7 @@ class Mission(Plugin):
                 installed = [mission[(mission.rfind('\\') + 1):] for mission in data['missionList']]
                 data = await server.sendtoDCSSync({"command": "listMizFiles"})
                 available = data['missions']
-                files: list = list(set(available) - set(installed))
+                files: list = sorted(list(set(available) - set(installed)))
                 if len(files) == 0:
                     await ctx.send('No (new) mission found to add.')
                     return
