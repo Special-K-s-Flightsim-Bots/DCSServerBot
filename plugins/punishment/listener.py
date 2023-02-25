@@ -137,6 +137,10 @@ class PunishmentEventListener(EventListener):
                                            'AND time >= (NOW() - interval \'%s seconds\')',
                                            (target.ucid, config['forgive']))
                             initiators = [x[0] for x in cursor.fetchall()]
+                            # there were no events, so forgive would not do anything
+                            if not initiators:
+                                target.sendChatMessage('There is nothing to forgive (anymore).')
+                                return
                             # clean the punishment table from these events
                             cursor.execute('DELETE FROM pu_events WHERE target_id = %s AND time >= (NOW() - interval '
                                            '\'%s seconds\')', (target.ucid, config['forgive']))
