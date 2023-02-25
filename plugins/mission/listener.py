@@ -1,8 +1,11 @@
 from __future__ import annotations
 import asyncio
+import discord
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
     Channel, DataObjectFactory
 from datetime import datetime
+from discord.ext import tasks
+from queue import Queue
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -51,6 +54,23 @@ class MissionEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
+        self.queue: dict[discord.TextChannel, Queue[str]] = dict()
+        self.print_queue.start()
+
+    async def shutdown(self):
+        self.print_queue.cancel()
+
+    @tasks.loop(seconds=2)
+    async def print_queue(self):
+        for channel in self.queue.keys():
+            if self.queue[channel].empty():
+                continue
+            messages: set = set()
+            while not self.queue[channel].empty():
+                messages.add(self.queue[channel].get())
+                if messages.__sizeof__() > 1900:
+                    break
+            await channel.send(''.join(messages))
 
     async def sendMessage(self, data):
         server: Server = self.bot.servers[data['server_name']]
@@ -80,7 +100,9 @@ class MissionEventListener(EventListener):
     def _send_chat_message(self, server: Server, message: str) -> None:
         chat_channel = server.get_channel(Channel.CHAT)
         if chat_channel:
-            self.bot.loop.call_soon(asyncio.create_task, chat_channel.send(message))
+            if chat_channel not in self.queue:
+                self.queue[chat_channel] = Queue()
+            self.queue[chat_channel].put(message)
 
     def _display_mission_embed(self, server: Server):
         try:
