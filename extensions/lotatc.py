@@ -62,7 +62,8 @@ class LotAtc(Extension):
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         if self.locals:
-            value = f"{self.bot.external_ip}:{self.locals['port']}" if 'port' in self.locals else ''
+            host = self.config['host'] if 'host' in self.config else self.bot.external_ip
+            value = f"{host}:{self.locals['port']}" if 'port' in self.locals else ''
             show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
             blue = self.locals['blue_password'] if 'blue_password' in self.locals else ''
             red = self.locals['red_password'] if 'red_password' in self.locals else ''
