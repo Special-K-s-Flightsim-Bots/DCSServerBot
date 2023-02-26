@@ -153,6 +153,7 @@ class HelpMaster(HelpAgent):
         options = [discord.SelectOption(label=string.capwords(x), value=f'plugins.{x}.commands') for x in sorted(self.bot.plugins) if x != 'help']
         options.insert(0, discord.SelectOption(label='Core', value='__main__'))
         view = self.HelpView(self.bot, ctx, options)
+        msg = None
         if command:
             embed = await view.print_command(command=command)
             await ctx.send(embed=embed)
@@ -181,9 +182,12 @@ class HelpMaster(HelpAgent):
                     msg = await ctx.send(embed=embed, view=view)
                 if await view.wait() or not view.result:
                     return
+            except Exception as ex:
+                self.log.exception(ex)
             finally:
                 await ctx.message.delete()
-                await msg.delete()
+                if msg:
+                    await msg.delete()
 
 
 async def setup(bot: DCSServerBot):
