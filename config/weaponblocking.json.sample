@@ -1,0 +1,24 @@
+{
+  "configs": [
+    {
+      "installation": "DCS.server1",
+      "restricted_units": [
+        {
+          "unit_type": "FA-18C_hornet",
+          "mode": "whitelist",
+          "weapons": ["M_61", "AIM_9X", "AIM-7P", "AIM_120C"]
+        },
+        {
+          "unit_type": "SA342L",
+          "mode": "blacklist",
+          "weapons": ["GIAT_M621G"]
+        },
+        {
+          "unit_type": "UH-60L",
+          "mode": "whitelist",
+          "weapons": []
+        }
+      ]
+    }
+  ]
+}
