@@ -5,7 +5,7 @@ class WeaponBlockingListener(EventListener):
     async def onMissionEvent(self, data):
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
-        # if self.plugin.get_config(server) and server.status == Status.RUNNING:
+
         if data['eventName'] == 'S_EVENT_SHOT' or data['eventName'] == 'S_EVENT_SHOOTING_START' and 'initiator' in data and len(data['initiator']) > 0:
             initiator = data['initiator']
             unit_type = initiator['unit_type']
@@ -40,11 +40,9 @@ class WeaponBlockingListener(EventListener):
                         if player.member:
                             message = f'Member {player.member.display_name} has been moved to spectators for firing {weapon_name} from {unit_type}.'
                             await server.get_channel(Channel.ADMIN).send(message)
-                            # await self.bot.audit(message)
                         else:
                             message = f"Player {player.name} (ucid={player.ucid}) has been moved to spectators for firing {weapon_name} from {unit_type}."
                             await server.get_channel(Channel.ADMIN).send(message)
-                            # await self.bot.audit(message)
                 
                 if unit_config['mode'] == 'blacklist':
                     # If weapons is defined and that weapon is in the blacklist
@@ -61,8 +59,6 @@ class WeaponBlockingListener(EventListener):
                         if player.member:
                             message = f'Member {player.member.display_name} has been moved to spectators for firing {weapon_name} from {unit_type}.'
                             await server.get_channel(Channel.ADMIN).send(message)
-                            # await self.bot.audit(message)
                         else:
                             message = f"Player {player.name} (ucid={player.ucid}) has been moved to spectators for firing {weapon_name} from {unit_type}."
                             await server.get_channel(Channel.ADMIN).send(message)
-                            # await self.bot.audit(message)
