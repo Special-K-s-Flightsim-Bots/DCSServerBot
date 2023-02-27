@@ -11,15 +11,15 @@ class HelpListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         prefix = self.bot.config['BOT']['CHAT_COMMAND_PREFIX']
         if data['subcommand'] == 'help':
+            player = server.get_player(id=data['from_id'], active=True)
+            if not player:
+                return
             messages = [
                 f'You can use the following commands:\n',
                 f'"{prefix}linkme token" link your user to Discord',
                 f'"{prefix}atis airport" display ATIS information',
                 f'"{prefix}911 <text>"   send an alert to admins (misuse will be punished!)'
             ]
-            player = server.get_player(id=data['from_id'], active=True)
-            if not player:
-                return
             dcs_admin = player.has_discord_roles(['DCS Admin'])
             if dcs_admin:
                 messages.append(f'"{prefix}kick <name>"  kick a user')

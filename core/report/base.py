@@ -175,7 +175,7 @@ class PaginationReport(Report):
             if self.index == 0:
                 self.children[1].disabled = True
                 self.children[2].disabled = True
-            elif self.index == len(values) - 1:
+            if self.index == len(values) - 1:
                 self.children[3].disabled = True
                 self.children[4].disabled = True
 
@@ -242,6 +242,10 @@ class PaginationReport(Report):
         @discord.ui.button(label="Quit", style=discord.ButtonStyle.red)
         async def on_cancel(self, interaction: Interaction, button: Button):
             await interaction.response.defer()
+            self.stop()
+
+        async def on_error(self, interaction: Interaction, error: Exception, item: Item[Any], /) -> None:
+            print(error)
             self.stop()
 
     async def render(self, *args, **kwargs) -> ReportEnv:
