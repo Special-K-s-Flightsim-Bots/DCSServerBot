@@ -196,7 +196,7 @@ class StatsPagination(Pagination):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                if period in [None, 'all', 'day', 'week', 'month', 'year']:
+                if period in [None, 'all', 'day', 'week', 'month', 'year', 'today', 'yesterday']:
                     cursor.execute('SELECT DISTINCT server_name FROM missions')
                 else:
                     cursor.execute('SELECT DISTINCT s.server_name FROM campaigns c, campaigns_servers s WHERE '
