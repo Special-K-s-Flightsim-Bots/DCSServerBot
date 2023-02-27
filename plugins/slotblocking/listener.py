@@ -63,7 +63,7 @@ class SlotBlockingListener(EventListener):
         config = self.plugin.get_config(server)
         if not config or data['id'] == 1:
             return
-        if self._is_vip(config, data):
+        if self._is_vip(config, data) and 'audit' in config['VIP'] and config['VIP']['audit']:
             member = self.bot.get_member_by_ucid(data['ucid'])
             if member:
                 message = f"VIP member {member.display_name} joined"

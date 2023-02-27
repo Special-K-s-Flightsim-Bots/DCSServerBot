@@ -31,8 +31,10 @@ class HelpMaster(HelpAgent):
                 self.children[3].disabled = True
                 self.children[4].disabled = True
 
-        async def print_command(self, *, command: str) -> discord.Embed:
+        async def print_command(self, *, command: str) -> Optional[discord.Embed]:
             command = command.lstrip(self.ctx.prefix)
+            if command not in self.bot.all_commands:
+                return None
             cmd = self.bot.all_commands[command]
             predicates = cmd.checks
             if not predicates:
@@ -150,13 +152,19 @@ class HelpMaster(HelpAgent):
 
     @commands.command(name='help', description='The help command')
     async def help(self, ctx, command: Optional[str]):
-        options = [discord.SelectOption(label=string.capwords(x), value=f'plugins.{x}.commands') for x in sorted(self.bot.plugins) if x != 'help']
+        options = [
+            discord.SelectOption(label=string.capwords(x),
+                                 value=f'plugins.{x}.commands') for x in sorted(self.bot.plugins) if x != 'help'
+        ]
         options.insert(0, discord.SelectOption(label='Core', value='__main__'))
         view = self.HelpView(self.bot, ctx, options)
         msg = None
         if command:
             embed = await view.print_command(command=command)
-            await ctx.send(embed=embed)
+            if embed:
+                await ctx.send(embed=embed)
+            else:
+                await ctx.send(f'Command {command} not found.')
         else:
             try:
                 # shall we display a custom report as greeting page?
