@@ -168,7 +168,7 @@ class Scheduler(Plugin):
         if 'extensions' not in config:
             return
         for extension in config['extensions']:
-            ext: Extension = server.extensions[extension] if extension in server.extensions else None
+            ext: Extension = server.extensions.get(extension, None)
             if not ext:
                 if '.' not in extension:
                     ext = utils.str_to_class('extensions.' + extension)(self.bot, server,
@@ -177,8 +177,6 @@ class Scheduler(Plugin):
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
                 if ext.verify():
                     server.extensions[extension] = ext
-                else:
-                    continue
 
     async def launch_dcs(self, server: Server, config: dict, member: Optional[discord.Member] = None):
         self.init_extensions(server, config)
@@ -209,8 +207,7 @@ class Scheduler(Plugin):
         if 'warn' in config:
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) else 0
-            warn_text = config['warn']['text'] if 'text' in config['warn'] \
-                else '!!! {item} will {what} in {when} !!!'
+            warn_text = config['warn'].get('text', '!!! {item} will {what} in {when} !!!')
             if what == 'restart_with_shutdown':
                 what = 'restart'
                 item = 'server'
@@ -234,7 +231,7 @@ class Scheduler(Plugin):
     async def teardown_extensions(self, server: Server, config: dict, member: Optional[discord.Member] = None) -> list:
         retval = []
         for extension in config['extensions']:  # type: str
-            ext: Extension = server.extensions[extension] if 'extensions' in server.extensions else None
+            ext: Extension = server.extensions.get(extension, None)
             if not ext:
                 if '.' not in extension:
                     ext = utils.str_to_class('extensions.' + extension)(self.bot, server, config['extensions'][extension])
@@ -242,6 +239,8 @@ class Scheduler(Plugin):
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
                 if ext.verify():
                     server.extensions[extension] = ext
+                else:
+                    continue
             if ext.is_running() and await ext.shutdown():
                 retval.append(ext.name)
                 if not member:
@@ -270,7 +269,7 @@ class Scheduler(Plugin):
     async def teardown(self, server: Server, config: dict):
         # if we should not restart populated servers, wait for it to be unpopulated
         populated = server.is_populated()
-        if 'populated' in config and not config['populated'] and populated:
+        if populated and not config.get('populated', True):
             return
         elif not server.restart_pending:
             server.restart_pending = True
@@ -374,7 +373,7 @@ class Scheduler(Plugin):
             return
         method = config['restart']['method']
         # shall we do something at mission end only?
-        if 'mission_end' in config['restart'] and config['restart']['mission_end']:
+        if config['restart'].get('mission_end', False):
             server.on_mission_end = {'command': method}
             server.restart_pending = True
             return
@@ -384,7 +383,7 @@ class Scheduler(Plugin):
                 server.on_empty = {'command': method}
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) else 0
-            if 'populated' in config['restart'] and not config['restart']['populated']:
+            if config['restart'].get('populated', False):
                 if 'max_mission_time' not in config['restart']:
                     server.restart_pending = True
                     return
@@ -442,7 +441,7 @@ class Scheduler(Plugin):
                 asyncio.create_task(self.restart_mission(server, config))
             if 'local_times' in config['restart']:
                 now = datetime.now()
-                if 'mission_end' not in config['restart'] or not config['restart']['mission_end']:
+                if not config['restart'].get('mission_end', False):
                     now += timedelta(seconds=restart_in)
                 for t in config['restart']['local_times']:
                     if utils.is_in_timeframe(now, t):

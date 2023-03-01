@@ -71,7 +71,7 @@ class SchedulerListener(EventListener):
                     message = 'started DCS server'
                     if 'user' not in what:
                         message = string.capwords(self.plugin_name) + ' ' + message
-                    await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
+                    await self.bot.audit(message, server=server, user=what.get('user', None))
                 elif server.status in [Status.RUNNING, Status.PAUSED]:
                     if self.plugin.is_mission_change(server, config):
                         await server.stop()
@@ -85,7 +85,7 @@ class SchedulerListener(EventListener):
                     message = f'restarted mission {server.current_mission.display_name}'
                     if 'user' not in what:
                         message = string.capwords(self.plugin_name) + ' ' + message
-                    await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
+                    await self.bot.audit(message, server=server, user=what.get('user', None))
             elif what['command'] == 'rotate':
                 await server.loadNextMission()
                 if self.plugin.is_mission_change(server, config):
