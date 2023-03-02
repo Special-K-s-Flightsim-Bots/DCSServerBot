@@ -52,11 +52,13 @@ class Sneaker(Extension):
             if self._process:
                 self._process.kill()
             cmd = os.path.basename(self.config['cmd'])
+            self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config\\sneaker.json")
             self._process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
                                              executable=os.path.expandvars(self.config['cmd']))
         else:
             if not self._process:
                 cmd = os.path.basename(self.config['cmd'])
+                self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config {self.config['config']}")
                 self._process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config",
                                                   os.path.expandvars(self.config['config'])],
                                                  executable=os.path.expandvars(self.config['cmd']))
@@ -77,7 +79,7 @@ class Sneaker(Extension):
         return True
 
     def is_running(self) -> bool:
-        if self._process and self._process.poll():
+        if self._process and not self._process.poll():
             return True
         else:
             return False
