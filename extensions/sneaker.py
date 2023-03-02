@@ -77,7 +77,7 @@ class Sneaker(Extension):
         return True
 
     def is_running(self) -> bool:
-        if self._process and self._process.poll():
+        if self._process and not self._process.poll():
             return True
         else:
             return False
