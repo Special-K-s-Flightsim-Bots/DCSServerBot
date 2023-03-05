@@ -244,12 +244,13 @@ class Server(DataObject):
                 return True
         return False
 
-    def move_to_spectators(self, player: Player):
+    def move_to_spectators(self, player: Player, reason: str = 'n/a'):
         self.sendtoDCS({
             "command": "force_player_slot",
             "playerID": player.id,
             "sideID": 0,
-            "slotID": ""
+            "slotID": "",
+            "reason": reason
         })
 
     def kick(self, player: Player, reason: str = 'n/a'):
@@ -486,8 +487,8 @@ class Server(DataObject):
                         await message.edit(embed=embed, attachments=[file])
                 except discord.errors.NotFound:
                     message = None
-                except discord.errors.DiscordException as ex:
-                    self.log.warning(f"Discord error during update of embed {embed_name}: " + str(ex))
+                except Exception as ex:
+                    self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
                     return
             if not message:
                 message = await channel.send(embed=embed, file=file)
