@@ -524,6 +524,7 @@ class DCSServerBot(commands.Bot):
             if server.process:
                 break
         server.dcs_version = data['dcs_version']
+        server.status = Status.STOPPED
         # update the database and check for server name changes
         conn = self.pool.getconn()
         try:

@@ -332,7 +332,7 @@ class Mission(Plugin):
                             await ctx.send(
                                 f'Mission {name} will be loaded when server is empty.')
                         else:
-                            tmp = await ctx.send(f'Loading mission {name} ...')
+                            tmp = await ctx.send('Loading mission {} ...'.format(utils.escape_string(name)))
                             await server.loadMission(missions.index(mission) + 1)
                             await self.bot.audit("loaded mission", server=server, user=ctx.message.author)
                             await tmp.delete()
@@ -659,7 +659,7 @@ class Mission(Plugin):
                 missions = data['missionList']
                 for idx, mission in enumerate(missions):
                     if os.path.normpath(mission) == os.path.normpath(filename):
-                        tmp = await message.channel.send(f'Loading mission {name} ...')
+                        tmp = await message.channel.send('Loading mission {} ...'.format(utils.escape_string(name)))
                         await server.loadMission(idx + 1)
                         await self.bot.audit("loaded mission", server=server, user=message.author)
                         await tmp.delete()

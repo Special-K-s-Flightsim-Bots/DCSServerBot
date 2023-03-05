@@ -78,7 +78,18 @@ class MissionEventListener(EventListener):
 
     @tasks.loop(seconds=2)
     async def print_queue(self):
-        await self._work_queue()
+        try:
+            await self._work_queue()
+            if self.print_queue.seconds == 10:
+                self.print_queue.change_interval(seconds=2)
+        except discord.errors.DiscordException:
+            self.print_queue.change_interval(seconds=10)
+        except Exception as ex:
+            self.log.debug("Exception in print_queue(): " + str(ex))
+
+    @print_queue.before_loop
+    async def before_check(self):
+        await self.bot.wait_until_ready()
 
     async def sendMessage(self, data):
         server: Server = self.bot.servers[data['server_name']]
