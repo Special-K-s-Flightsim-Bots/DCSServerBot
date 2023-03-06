@@ -123,7 +123,7 @@ class HighscoreElement(report.GraphElement):
                     self.axes.set_yticks([])
                     self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
                 else:
-                    scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 20))
+                    scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 10))
                     self.axes.set_xticks(scale)
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
