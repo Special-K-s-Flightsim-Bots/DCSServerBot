@@ -1,3 +1,5 @@
+import math
+
 import discord
 import psycopg2
 import psycopg2.extras
@@ -120,6 +122,9 @@ class HighscoreElement(report.GraphElement):
                     self.axes.set_xticks([])
                     self.axes.set_yticks([])
                     self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
+                else:
+                    scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 20))
+                    self.axes.set_xticks(scale)
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:
