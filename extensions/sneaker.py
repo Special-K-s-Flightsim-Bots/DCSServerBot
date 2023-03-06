@@ -80,7 +80,7 @@ class Sneaker(Extension):
 
     def is_running(self) -> bool:
         if self._process and not self._process.poll():
-            return True
+            return self.server.name in self._servers
         else:
             return False
 

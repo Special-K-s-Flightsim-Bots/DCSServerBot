@@ -56,7 +56,7 @@ class Install:
                 for i in range(0, len(installs)):
                     print(f'{i+1}: {installs[i][0]}')
                 num = int(input('\nPlease specify, which installation you want the bot to use: '))
-                return installs[num][1]
+                return installs[num-1][1]
         except (FileNotFoundError, OSError):
             while dcs_installation is None:
                 dcs_installation = input("Please enter the path to your DCS World installation: ")
