@@ -75,7 +75,7 @@ class Sorties(report.EmbedElement):
                     self.add_field(name='Module', value=planes)
                     self.add_field(name='Sorties', value=sorties)
                     self.add_field(name='Total Flighttime', value=times)
-                    self.set_footer(text='Flighttime is the time you were airborne from takeoff to landing / '
+                    self.embed.set_footer(text='Flighttime is the time you were airborne from takeoff to landing / '
                                                'leave or\nairspawn to landing / leave.')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)

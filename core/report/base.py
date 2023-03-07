@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from contextlib import closing
 from discord import Interaction, SelectOption
 from discord.ext.commands import Context
-from discord.ui import View, Button, Select
+from discord.ui import View, Button, Select, Item
 from os import path
 from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 
