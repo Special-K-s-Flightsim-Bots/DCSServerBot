@@ -38,7 +38,7 @@ class DCSServerBot(commands.Bot):
         plugins: str = self.config['BOT']['PLUGINS']
         if 'OPT_PLUGINS' in self.config['BOT']:
             plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
-        self.plugins: [str] = [p.strip() for p in set(plugins.split(','))]
+        self.plugins: [str] = [p.strip() for p in list(dict.fromkeys(plugins.split(',')))]
         self.audit_channel = None
         self.mission_stats = None
         self.synced: bool = False
