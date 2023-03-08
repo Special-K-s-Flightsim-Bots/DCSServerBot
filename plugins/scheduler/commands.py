@@ -383,7 +383,7 @@ class Scheduler(Plugin):
                 server.on_empty = {'command': method}
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) else 0
-            if config['restart'].get('populated', False):
+            if not config['restart'].get('populated', False):
                 if 'max_mission_time' not in config['restart']:
                     server.restart_pending = True
                     return
