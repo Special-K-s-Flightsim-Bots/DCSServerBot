@@ -1,5 +1,4 @@
 import asyncio
-
 import psycopg2
 from contextlib import closing
 from core import utils
