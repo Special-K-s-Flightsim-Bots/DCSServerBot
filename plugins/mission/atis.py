@@ -25,8 +25,8 @@ class Main(report.EmbedElement):
         self.add_field(name='▬' * 30, value='_ _', inline=False)
         self.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']))
         self.add_field(name='Surface Wind',
-                       value='{}° @ {} kts'.format(int(weather['wind']['atGround']['dir'] + 180) % 360,
-                                                   int(weather['wind']['atGround']['speed'] * const.METER_PER_SECOND_IN_KNOTS)))
+                       value='{}° @ {} kts'.format(data['wind']['dir'],
+                                                   int(data['wind']['speed'] * const.METER_PER_SECOND_IN_KNOTS)))
         visibility = weather['visibility']['distance']
         if weather['enable_fog'] is True:
             visibility = weather['fog']['visibility']

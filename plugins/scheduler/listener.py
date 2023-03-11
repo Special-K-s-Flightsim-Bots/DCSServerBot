@@ -12,19 +12,19 @@ class SchedulerListener(EventListener):
         if method.startswith('load:'):
             server.sendtoDCS({
                 "command": "do_script_file",
-                "file": method[5:].replace('\\', '/')
+                "file": method[5:].strip().replace('\\', '/')
             })
         elif method.startswith('lua:'):
             server.sendtoDCS({
                 "command": "do_script",
-                "script": method[4:]
+                "script": method[4:].strip()
             })
         elif method.startswith('call:'):
             server.sendtoDCS({
-                "command": method[5:]
+                "command": method[5:].strip()
             })
         elif method.startswith('run:'):
-            cmd = method[4:]
+            cmd = method[4:].strip()
             dcs_installation = path.normpath(path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']))
             dcs_home = path.normpath(path.expandvars(self.bot.config[server.installation]['DCS_HOME']))
             cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home,

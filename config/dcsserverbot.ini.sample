@@ -19,6 +19,8 @@ LOGLEVEL = DEBUG
 GREETING_DM = {name}, welcome to {guild}!\nWe have a coalition system running, which means, that you have to chose, which side you want to belong to. Make yourself comfortable on our Discord and join one of the available coalitions by using the command .join <blue|red>.\nOnce you have chosen a coalition, you can't change it for the next 24h, so chose wisely!
 ; Optional, audit channel for special events
 AUDIT_CHANNEL = 123456789012345678
+; Optional, message to be displayed below the bot in Discord
+DISCORD_STATUS = watching people fly
 ; Optional, load optional plugins
 OPT_PLUGINS = slotblocking, punishment, serverstats, greenieboard
 

@@ -57,9 +57,9 @@ class AdminEventListener(EventListener):
         player: Player = server.get_player(id=data['from_id'], active=True)
         if not player:
             return
-        if data['subcommand'] == 'kick' and player and player.has_discord_roles(['DCS Admin']):
+        if data['subcommand'] in ['kick', 'spec'] and player.has_discord_roles(['DCS Admin']):
             if len(data['params']) == 0:
-                player.sendChatMessage("Usage: -kick <name> [reason]")
+                player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}{data['subcommand']} <name> [reason]")
                 return
             params = shlex.split(' '.join(data['params']))
             name = params[0]
@@ -71,11 +71,18 @@ class AdminEventListener(EventListener):
             if not delinquent:
                 player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
                 return
-            server.kick(delinquent, reason)
-            player.sendChatMessage(f"User {name} kicked.")
+            if data['subcommand'] == 'kick':
+                server.kick(delinquent, reason)
+                what = 'kicked'
+            elif data['subcommand'] == 'spec':
+                server.move_to_spectators(delinquent, reason)
+                what = 'moved to spectators'
+            player.sendChatMessage(f"User {name} {what}.")
             self.bot.loop.call_soon(asyncio.create_task,
-                                    self.bot.audit(f'kicked player {delinquent.display_name}' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                                    self.bot.audit(f'Player {delinquent.display_name} {what}' +
+                                                   (f' with reason "{reason}".' if reason != 'n/a' else '.'),
                                                    user=player.member))
+
         elif data['subcommand'] == '911':
             mentions = ''
             for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
