@@ -45,7 +45,7 @@ class Main(report.EmbedElement):
                     int(data['clouds']['thickness'] * const.METER_IN_FEET + 0.5)))
         else:
             self.add_field(name='Clouds', value='n/a')
-        self.add_field(name='QFE', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
-            int(data['qfe']['pressureHPA']), data['qfe']['pressureIN'], int(data['qfe']['pressureMM'])))
-        self.add_field(name='QNH', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
-            int(data['qnh']['pressureHPA']), data['qnh']['pressureIN'], int(data['qnh']['pressureMM'])))
+        self.add_field(name='QFE', value='{} hPa\n{:.2f} inHg'.format(
+            int(data['qfe']['pressureHPA']), data['qfe']['pressureIN']))
+        self.add_field(name='QNH', value='{} hPa\n{:.2f} inHg'.format(
+            int(data['qnh']['pressureHPA']), data['qnh']['pressureIN']))
