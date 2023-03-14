@@ -45,7 +45,9 @@ class SRSSink(Sink):
                     "-n", self.config.get('name', 'DCSSB MusicBox'),
                     "-i", file
                 ],
-                executable=srs_inst + os.path.sep + "DCS-SR-ExternalAudio.exe"
+                executable=srs_inst + os.path.sep + "DCS-SR-ExternalAudio.exe",
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
             )
             while self.process.poll() is None:
                 await asyncio.sleep(1)
