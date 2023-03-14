@@ -83,7 +83,7 @@ class Sneaker(Extension):
         return True
 
     def is_running(self) -> bool:
-        if self._process and not self._process.poll():
+        if self._process and self._process.poll() is None:
             return self.server.name in self._servers
         else:
             return False
@@ -108,4 +108,3 @@ class Sneaker(Extension):
         else:
             value = 'enabled'
         embed.add_field(name='Sneaker', value=value)
-

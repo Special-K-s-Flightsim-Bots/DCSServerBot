@@ -6,6 +6,8 @@ import platform
 import psycopg2
 import re
 import shutil
+import win32gui
+import win32process
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError
 from datetime import datetime
@@ -419,8 +421,11 @@ class Mission(Plugin):
                     server.deleteMission(original.index(mission) + 1)
                     await ctx.send(f'Mission "{name}" removed from list.')
                     if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
-                        os.remove(mission)
-                        await ctx.send(f'Mission "{name}" deleted.')
+                        try:
+                            os.remove(mission)
+                            await ctx.send(f'Mission "{name}" deleted.')
+                        except FileNotFoundError:
+                            await ctx.send(f'Mission "{name}" was already deleted.')
                 break
 
     @commands.command(description='Pauses the current running mission')
@@ -506,6 +511,19 @@ class Mission(Plugin):
                                                     f"{self.bot.config['BOT']['COMMAND_PREFIX']}download of "
                                                     f"dcs.{timestamp}.log\nIf the scheduler is configured for this "
                                                     f"server, it will relaunch it automatically.")
+
+        # check for blocked processes due to window popups
+        while True:
+            for title in ["Can't run", "Login Failed", "DCS Login"]:
+                handle = win32gui.FindWindowEx(None, None, None, title)
+                if handle:
+                    _, pid = win32process.GetWindowThreadProcessId(handle)
+                    for server in self.bot.servers.values():
+                        if server.process and server.process.pid == pid:
+                            await server.shutdown(force=True)
+                            await self.bot.audit(f'Server killed due to a popup with title "{title}".', server=server)
+            else:
+                break
 
         for server_name, server in self.bot.servers.items():
             if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
@@ -613,7 +631,7 @@ class Mission(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore bot messages or messages that does not contain miz attachments
+        # ignore bot messages or messages that do not contain miz attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.miz'):
             return
         server: Server = await self.bot.get_server(message)

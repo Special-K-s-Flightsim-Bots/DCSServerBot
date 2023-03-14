@@ -48,6 +48,7 @@ These commands can be used to administrate the bot itself.
 | DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
 | OvGME        | Install or update mods into your DCS server.                        | yes      |                       | [README](./plugins/ovgme/README.md)        |
 | Commands     | Map executables or shell commands to custom discord commands.       | yes      |                       | [README](./plugins/commands/README.md)     |
+| Music        | Upload and play music over SRS.                                     | yes      |                       | [README](./plugins/music/README.md)        |
 
 *) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot. If you
 want to remove them, overwrite PLUGINS in your dcsserverbot.ini.

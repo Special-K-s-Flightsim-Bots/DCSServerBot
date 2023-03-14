@@ -1,0 +1,16 @@
+{
+  "configs": [
+    {
+      "music_dir": ".\\Music",
+      "sink": {
+        "type": "SRSSink",
+        "mode": 1,
+        "frequency": "40.0",
+        "modulation": "FM",
+        "coalition": "2",
+        "volume": "1.0",
+        "name": "My Music Box"
+      }
+    }
+  ]
+}

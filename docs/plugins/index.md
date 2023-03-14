@@ -36,6 +36,7 @@ Plugin types:
 | DBExporter   | Export the whole DCSServerBot database as json.                     | Optional  |                       |
 | OvGME        | Install or update mods into your DCS server.                        | Optional  |                       |
 | Commands     | Map executables or shell commands to custom discord commands.       | Optional  |                       |
+| Music        | Upload and play music over SRS.                                     | Optional  |                       |
 
 ### How to install 3rd-Party Plugins
 

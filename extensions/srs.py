@@ -86,7 +86,7 @@ class SRS(Extension):
 
     def is_running(self) -> bool:
         if self.process:
-            if self.process.poll():
+            if self.process.poll() is not None:
                 self.process = None
                 return False
             else:
