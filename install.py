@@ -197,8 +197,8 @@ class Install:
             if 'AUDIT_CHANNEL' in config['BOT'] and not check_channel(config['BOT']['AUDIT_CHANNEL']):
                 raise InvalidParameter('BOT', 'AUDIT_CHANNEL', 'Invalid channel.')
             if 'PLUGINS' in config['BOT'] and \
-                    config['BOT']['PLUGINS'] != 'mission, scheduler, help, admin, userstats, missionstats, ' \
-                                                'creditsystem, gamemaster':
+                    config['BOT']['PLUGINS'] != 'dashboard, mission, scheduler, help, admin, userstats, ' \
+                                                'missionstats, creditsystem, gamemaster':
                 print("Please don't change the PLUGINS parameter, use OPT_PLUGINS instead!")
         except KeyError as key:
             raise MissingParameter('BOT', str(key))

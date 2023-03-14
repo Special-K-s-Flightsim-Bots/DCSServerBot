@@ -115,6 +115,8 @@ class DCSServerBot(commands.Bot):
         except commands.ExtensionNotFound:
             self.log.debug(f'- No init.py found for plugin "{plugin}!"')
             pass
+        except commands.ExtensionNotLoaded:
+            pass
 
     async def reload_plugin(self, plugin: str):
         await self.unload_plugin(plugin)

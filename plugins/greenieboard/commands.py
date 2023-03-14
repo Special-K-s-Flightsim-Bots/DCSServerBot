@@ -163,15 +163,18 @@ class GreenieBoardAgent(Plugin):
                     if os.path.isfile(f):
                         os.remove(f)
 
-        for server in self.bot.servers.values():
-            config = self.get_config(server)
-            basedir = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
-            if 'Moose.AIRBOSS' in config and 'delete_after' in config['Moose.AIRBOSS']:
-                basedir += os.path.sep + config['Moose.AIRBOSS']['basedir'] if 'basedir' in config['Moose.AIRBOSS'] else ''
-                do_delete(basedir, config['Moose.AIRBOSS']['delete_after'])
-            elif 'FunkMan' in config and 'delete_after' in config['FunkMan']:
-                basedir += os.path.sep + config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else ''
-                do_delete(basedir, config['FunkMan']['delete_after'])
+        try:
+            for server in self.bot.servers.values():
+                config = self.get_config(server)
+                basedir = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
+                if 'Moose.AIRBOSS' in config and 'delete_after' in config['Moose.AIRBOSS']:
+                    basedir += os.path.sep + config['Moose.AIRBOSS']['basedir'] if 'basedir' in config['Moose.AIRBOSS'] else ''
+                    do_delete(basedir, config['Moose.AIRBOSS']['delete_after'])
+                elif 'FunkMan' in config and 'delete_after' in config['FunkMan']:
+                    basedir += os.path.sep + config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else ''
+                    do_delete(basedir, config['FunkMan']['delete_after'])
+        except Exception as ex:
+            self.log.exception(ex)
 
 
 class GreenieBoardMaster(GreenieBoardAgent):

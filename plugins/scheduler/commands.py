@@ -501,7 +501,10 @@ class Scheduler(Plugin):
     async def schedule_extensions(self):
         for server in self.bot.servers.values():
             for ext in server.extensions.values():
-                ext.schedule()
+                try:
+                    ext.schedule()
+                except Exception as ex:
+                    self.log.exception(ex)
 
     @commands.command(description='Starts a DCS/DCS-SRS server')
     @utils.has_role('DCS Admin')

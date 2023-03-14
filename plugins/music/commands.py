@@ -28,6 +28,7 @@ class Music(Plugin):
     async def cog_unload(self):
         for sink in self.sinks.values():
             await sink.stop()
+        await super().cog_unload()
 
     def get_music_dir(self, server: Server) -> str:
         music_dir = self.get_config(server)['music_dir']
