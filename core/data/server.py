@@ -1,5 +1,7 @@
 from __future__ import annotations
 import asyncio
+import platform
+
 import discord
 import json
 import os
@@ -476,3 +478,25 @@ class Server(DataObject):
 
         if self.status not in status:
             await asyncio.wait_for(wait(status), timeout)
+
+    async def keep_alive(self):
+        # we set a longer timeout in here because, we don't want to risk false restarts
+        timeout = 20 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
+        data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE servers SET last_seen = NOW() WHERE agent_host = %s AND server_name = %s',
+                               (platform.node(), self.name))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+        if data['pause'] and self.status != Status.PAUSED:
+            self.status = Status.PAUSED
+        elif not data['pause'] and self.status != Status.RUNNING:
+            self.status = Status.RUNNING
+        self.current_mission.mission_time = data['mission_time']
+        self.current_mission.real_time = data['real_time']
