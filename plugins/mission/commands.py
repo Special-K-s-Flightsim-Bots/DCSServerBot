@@ -85,7 +85,7 @@ class Mission(Plugin):
                 await ctx.send(f'There is no mission running on server {server.display_name}')
                 return
         else:
-            server.sendtoDCS({"command": "getMissionUpdate", "channel": ctx.channel.id})
+            self.eventlistener._display_mission_embed(server)
 
     @staticmethod
     def format_briefing_list(data: list[Server], marker, marker_emoji):
@@ -534,19 +534,10 @@ class Mission(Plugin):
                     server.process = None
                 continue
             try:
-                # we set a longer timeout in here because, we don't want to risk false restarts
-                timeout = 20 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
-                data = await server.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
+                await server.keep_alive()
                 # remove any hung flag, if the server has responded
                 if server.name in self.hung:
                     del self.hung[server.name]
-                if data['pause'] and server.status != Status.PAUSED:
-                    server.status = Status.PAUSED
-                elif not data['pause'] and server.status != Status.RUNNING:
-                    server.status = Status.RUNNING
-                server.current_mission.mission_time = data['mission_time']
-                server.current_mission.real_time = data['real_time']
-                data['channel'] = server.get_channel(Channel.STATUS).id
                 self.eventlistener._display_mission_embed(server)
             except asyncio.TimeoutError:
                 # check if the server process is still existent
