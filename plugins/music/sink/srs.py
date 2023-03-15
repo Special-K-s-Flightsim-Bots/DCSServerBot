@@ -15,9 +15,6 @@ class SRSSink(Sink):
         super().__init__(bot, server, config)
         self.process: Optional[subprocess.Popen] = None
 
-    def can_play(self) -> bool:
-        return self.server.status == Status.RUNNING
-
     def render(self) -> discord.Embed:
         embed = discord.Embed(colour=discord.Colour.blue())
         embed.add_field(name="Frequency", value=self.config['frequency'] + " " + self.config['modulation'])

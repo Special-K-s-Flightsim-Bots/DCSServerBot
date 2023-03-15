@@ -166,7 +166,6 @@ class Sink(ABC):
         self._current = None
         self._mode = Mode(int(self.config['mode']))
         self.queue = self.DBBackedQueue(bot, server, self.__class__.__name__)
-        self.queue_worker.start()
 
     @property
     def config(self) -> dict:
@@ -175,9 +174,6 @@ class Sink(ABC):
     @config.setter
     def config(self, config: dict) -> None:
         self._config = config
-
-    def can_play(self) -> bool:
-        return True
 
     async def stop(self) -> None:
         if self.queue_worker.is_running():
@@ -230,31 +226,30 @@ class Sink(ABC):
     @tasks.loop(reconnect=True)
     async def queue_worker(self):
         while not self.queue_worker.is_being_cancelled():
-            if self.can_play():
-                if self._mode == Mode.ONCE:
-                    while not self.queue.empty():
-                        if self.queue_worker.is_being_cancelled():
-                            break
-                        file = self.queue.get()
-                        with suppress(Exception):
-                            await self.play(file)
-                elif self._mode == Mode.REPEAT:
-                    for i in range(0, self.queue.qsize()):
-                        if self.queue_worker.is_being_cancelled():
-                            break
-                        file = self.queue.queue[i]
-                        with suppress(Exception):
-                            await self.play(file)
-                elif self._mode in [Mode.SHUFFLE, Mode.SHUFFLE_REPEAT]:
-                    for i in range(0, self.queue.qsize()):
-                        if self.queue_worker.is_being_cancelled():
-                            break
-                        file = choice(self.queue.queue)
-                        with suppress(Exception):
-                            await self.play(file)
-                        if self.mode == Mode.SHUFFLE:
-                            del self.queue.queue[self.queue.queue.index(file)]
-                self._current = None
+            if self._mode == Mode.ONCE:
+                while not self.queue.empty():
+                    if self.queue_worker.is_being_cancelled():
+                        break
+                    file = self.queue.get()
+                    with suppress(Exception):
+                        await self.play(file)
+            elif self._mode == Mode.REPEAT:
+                for i in range(0, self.queue.qsize()):
+                    if self.queue_worker.is_being_cancelled():
+                        break
+                    file = self.queue.queue[i]
+                    with suppress(Exception):
+                        await self.play(file)
+            elif self._mode in [Mode.SHUFFLE, Mode.SHUFFLE_REPEAT]:
+                for i in range(0, self.queue.qsize()):
+                    if self.queue_worker.is_being_cancelled():
+                        break
+                    file = choice(self.queue.queue)
+                    with suppress(Exception):
+                        await self.play(file)
+                    if self.mode == Mode.SHUFFLE:
+                        del self.queue.queue[self.queue.queue.index(file)]
+            self._current = None
             await asyncio.sleep(1)
 
 

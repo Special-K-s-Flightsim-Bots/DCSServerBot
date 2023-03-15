@@ -40,7 +40,7 @@ class Plugin(commands.Cog):
             self.bot.unregister_eventListener(self.eventlistener)
         # delete a possible configuration
         self._config.clear()
-        self.log.info(f'  => {type(self).__name__} unloaded.')
+        self.log.info(f'  => {self.plugin_name} unloaded.')
 
     @staticmethod
     def get_installed_version(plugin: str) -> Optional[str]:

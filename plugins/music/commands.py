@@ -62,15 +62,20 @@ class Music(Plugin):
             if self.sink.current:
                 tag = self.get_tag(self.sink.current)
                 embed.add_field(name='▬' * 13 + " Now Playing " + '▬' * 13, value='_ _', inline=False)
-                embed.add_field(name="Title", value=tag.title[:255])
-                embed.add_field(name='Artist', value=tag.artist[:255] or 'n/a')
-                embed.add_field(name='Album', value=tag.album[:255] or 'n/a')
+                embed.add_field(name="Title", value=tag.title[:255] if tag.title else 'n/a')
+                embed.add_field(name='Artist', value=tag.artist[:255] if tag.artist else 'n/a')
+                embed.add_field(name='Album', value=tag.album[:255] if tag.album else 'n/a')
             embed.add_field(name='▬' * 14 + " Playlist " + '▬' * 14, value='_ _', inline=False)
             playlist = []
             for i in range(0, self.sink.queue.qsize()):
                 playlist.append(f"{i+1}. - {self.titles[self.songs.index(self.sink.queue.queue[i])]}")
             embed.add_field(name='_ _', value='\n'.join(playlist) or '- empty -')
-            footer = "▬" * 37 + "\n▶️ Play | ⏹️ Stop | ⏩ Skip | "
+            footer = "▬" * 37 + "\n"
+            if self.sink.queue_worker.is_running():
+                footer += "⏹️ Stop"
+            else:
+                footer += "▶️ Play"
+            footer += " | ⏩ Skip | "
             if self.sink.mode == Mode.ONCE:
                 footer += "🔁 Repeat"
             else:
@@ -155,7 +160,7 @@ class Music(Plugin):
         if not len(songs):
             await ctx.send("No music uploaded on this server. You can just upload mp3 files in here.")
             return
-        view = self.MusicPlayer(songs=songs,sink=sink)
+        view = self.MusicPlayer(songs=songs, sink=sink)
         embed = view.render_embed()
         msg = await ctx.send(embed=embed, view=view)
         try:
