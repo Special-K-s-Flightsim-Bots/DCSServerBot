@@ -6,19 +6,18 @@ from typing import Optional
 from core import Extension, report, DCSServerBot, Server, Status
 
 
-class Sneaker(Extension):
-    _instance = None
-    _process = None
-    _servers: set[str] = set()
+process: Optional[subprocess.Popen] = None
+servers: set[str] = set()
 
-    def __new__(cls, bot: DCSServerBot, server: Server, config: dict) -> Sneaker:
-        if cls._instance is None:
-            cls._instance = super(Sneaker, cls).__new__(cls)
-            cls.bot = bot
-            cls.log = bot.log
-            cls.server = server
-            cls.config = config
-        return cls._instance
+
+class Sneaker(Extension):
+
+    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
+        super().__init__(bot, server, config)
+        self.bot = bot
+        self.log = bot.log
+        self.server = server
+        self.config = config
 
     def create_config(self):
         cfg = {"servers": []}
@@ -44,53 +43,60 @@ class Sneaker(Extension):
             json.dump(cfg, file, indent=2)
 
     async def startup(self) -> bool:
+        global process, servers
+
+        await super().startup()
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
         if 'config' not in self.config:
             self.create_config()
-            if self._process:
-                self._process.kill()
+            if process:
+                process.kill()
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config\\sneaker.json")
-            self._process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
-                                             executable=os.path.expandvars(self.config['cmd']),
-                                             stdout=subprocess.DEVNULL,
-                                             stderr=subprocess.DEVNULL)
+            process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
+                                       executable=os.path.expandvars(self.config['cmd']),
+                                       stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL)
         else:
-            if not self._process:
+            if not process:
                 cmd = os.path.basename(self.config['cmd'])
                 self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config {self.config['config']}")
-                self._process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config",
-                                                  os.path.expandvars(self.config['config'])],
-                                                 executable=os.path.expandvars(self.config['cmd']),
-                                                 stdout=subprocess.DEVNULL,
-                                                 stderr=subprocess.DEVNULL)
-        self._servers.add(self.server.name)
+                process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config",
+                                            os.path.expandvars(self.config['config'])],
+                                           executable=os.path.expandvars(self.config['cmd']),
+                                           stdout=subprocess.DEVNULL,
+                                           stderr=subprocess.DEVNULL)
+        servers.add(self.server.name)
         return self.is_running()
 
-    async def shutdown(self) -> bool:
-        self._servers.remove(self.server.name)
-        if not self._servers:
-            self._process.kill()
-            self._process = None
+    async def shutdown(self, data: dict) -> bool:
+        global process, servers
+
+        servers.remove(self.server.name)
+        if not servers:
+            process.kill()
+            process = None
         elif 'config' not in self.config:
             self.create_config()
-            self._process.kill()
+            process.kill()
             cmd = os.path.basename(self.config['cmd'])
-            self._process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
-                                             executable=os.path.expandvars(self.config['cmd']))
-        return True
+            process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
+                                       executable=os.path.expandvars(self.config['cmd']))
+        return await super().shutdown(data)
 
     def is_running(self) -> bool:
-        if self._process and self._process.poll() is None:
-            return self.server.name in self._servers
+        global process, servers
+
+        if process and process.poll() is None:
+            return self.server.name in servers
         else:
             return False
 
     @property
     def version(self) -> str:
-        return "0.0.11"
+        return "0.0.12"
 
     def verify(self) -> bool:
         # check if Sneaker is enabled

@@ -37,9 +37,8 @@ class SchedulerListener(EventListener):
         config = self.plugin.get_config(server)
         self.plugin.init_extensions(server, config)
         for ext in server.extensions.values():
-            if not ext.is_running() and await ext.startup():
-                self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
-                await self.bot.audit(f"{ext.name} started", server=server)
+            if not ext.is_running():
+                self.bot.loop.call_soon(asyncio.create_task, ext.startup())
 
     async def onPlayerStart(self, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
@@ -145,7 +144,7 @@ class SchedulerListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         for ext in server.extensions.values():
             if ext.is_running():
-                self.bot.loop.call_soon(asyncio.create_task, ext.onSimulationStop(data))
+                self.bot.loop.call_soon(asyncio.create_task, ext.shutdown(data))
 
     async def onShutdown(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

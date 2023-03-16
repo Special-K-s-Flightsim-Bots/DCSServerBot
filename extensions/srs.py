@@ -64,6 +64,7 @@ class SRS(Extension):
         return True
 
     async def startup(self) -> bool:
+        await super().startup()
         if 'autostart' not in self.config or self.config['autostart']:
             self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
                 os.path.expandvars(self.config['installation']), os.path.expandvars(self.config['config'])))
@@ -72,17 +73,13 @@ class SRS(Extension):
                                             executable=os.path.expandvars(self.config['installation']) + r'\SR-Server.exe')
         return self.is_running()
 
-    async def shutdown(self):
+    async def shutdown(self, data: dict):
         if 'autostart' not in self.config or self.config['autostart']:
             p = self.process or utils.find_process('SR-Server.exe', self.server.installation)
             if p:
                 p.kill()
                 self.process = None
-                return True
-            else:
-                return False
-        else:
-            return True
+        return await super().shutdown(data)
 
     def is_running(self) -> bool:
         if self.process:
