@@ -1,6 +1,7 @@
 local base 		= _G
 local Terrain   = base.require('terrain')
 local UC   		= base.require("utils_common")
+local Weather   = base.require('Weather')
 local dcsbot	= base.dcsbot
 local config	= base.require("DCSServerBotConfig")
 local utils 	= base.require("DCSServerBotUtils")
@@ -273,8 +274,9 @@ function dcsbot.getWeatherInfo(json)
 		y = json.y,
 		z = json.z
 	}
-	local temp, pressure = Weather.getTemperatureAndPressureAtPoint({position = position})
 	local weather = DCS.getCurrentMission().mission.weather
+	Weather.initAtmospere(weather)
+	local temp, pressure = Weather.getTemperatureAndPressureAtPoint({position = position})
 	msg.temp = temp
 	local pressureQFE = pressure / 100
 	msg.qfe = {
@@ -312,7 +314,10 @@ function dcsbot.getWeatherInfo(json)
 		msg.clouds = clouds
 	end
 	msg.turbulence = UC.composeTurbulenceString(weather)
-	msg.wind = UC.composeWindString(weather, position)
+	local wind = Weather.getGroundWindAtPoint({position = position})
+	msg.wind = {}
+	msg.wind.speed = wind.v
+	msg.wind.dir = UC.toPositiveDegrees(wind.a + math.pi)
 	utils.sendBotTable(msg, json.channel)
 end
 

@@ -73,7 +73,7 @@ class Main:
         # Initialize the logger
         log = logging.getLogger(name='dcsserverbot')
         log.setLevel(logging.DEBUG)
-        formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(threadName)s\t%(message)s',
+        formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         fh = RotatingFileHandler('dcsserverbot.log', encoding='utf-8',
                                  maxBytes=int(self.config['BOT']['LOGROTATE_SIZE']),
@@ -416,19 +416,16 @@ class Main:
         return False
 
 
-async def main():
+if __name__ == "__main__":
     if not os.path.exists('config/dcsserverbot.ini'):
         print("Please run 'python install.py' first.")
-    else:
-        Install.verify()
-        await Main().run()
-
-if __name__ == "__main__":
+        exit(-1)
     if int(platform.python_version_tuple()[0]) != 3 or int(platform.python_version_tuple()[1]) not in range(9, 12):
         print("You need Python 3.9 to 3.11 to run DCSServerBot!")
         exit(-1)
     try:
-        asyncio.run(main())
+        Install.verify()
+        asyncio.run(Main().run())
     except discord.errors.LoginFailure:
         print('Invalid Discord TOKEN provided. Please check the documentation.')
     except (KeyboardInterrupt, asyncio.CancelledError):

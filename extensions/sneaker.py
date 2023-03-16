@@ -54,14 +54,18 @@ class Sneaker(Extension):
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config\\sneaker.json")
             self._process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
-                                             executable=os.path.expandvars(self.config['cmd']))
+                                             executable=os.path.expandvars(self.config['cmd']),
+                                             stdout=subprocess.DEVNULL,
+                                             stderr=subprocess.DEVNULL)
         else:
             if not self._process:
                 cmd = os.path.basename(self.config['cmd'])
                 self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config {self.config['config']}")
                 self._process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config",
                                                   os.path.expandvars(self.config['config'])],
-                                                 executable=os.path.expandvars(self.config['cmd']))
+                                                 executable=os.path.expandvars(self.config['cmd']),
+                                                 stdout=subprocess.DEVNULL,
+                                                 stderr=subprocess.DEVNULL)
         self._servers.add(self.server.name)
         return self.is_running()
 
@@ -79,7 +83,7 @@ class Sneaker(Extension):
         return True
 
     def is_running(self) -> bool:
-        if self._process and not self._process.poll():
+        if self._process and self._process.poll() is None:
             return self.server.name in self._servers
         else:
             return False
@@ -104,4 +108,3 @@ class Sneaker(Extension):
         else:
             value = 'enabled'
         embed.add_field(name='Sneaker', value=value)
-

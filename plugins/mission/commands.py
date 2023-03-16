@@ -6,6 +6,8 @@ import platform
 import psycopg2
 import re
 import shutil
+import win32gui
+import win32process
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError
 from datetime import datetime
@@ -83,7 +85,7 @@ class Mission(Plugin):
                 await ctx.send(f'There is no mission running on server {server.display_name}')
                 return
         else:
-            server.sendtoDCS({"command": "getMissionUpdate", "channel": ctx.channel.id})
+            self.eventlistener._display_mission_embed(server)
 
     @staticmethod
     def format_briefing_list(data: list[Server], marker, marker_emoji):
@@ -419,8 +421,11 @@ class Mission(Plugin):
                     server.deleteMission(original.index(mission) + 1)
                     await ctx.send(f'Mission "{name}" removed from list.')
                     if await utils.yn_question(ctx, f'Delete mission "{name}" also from disk?'):
-                        os.remove(mission)
-                        await ctx.send(f'Mission "{name}" deleted.')
+                        try:
+                            os.remove(mission)
+                            await ctx.send(f'Mission "{name}" deleted.')
+                        except FileNotFoundError:
+                            await ctx.send(f'Mission "{name}" was already deleted.')
                 break
 
     @commands.command(description='Pauses the current running mission')
@@ -507,6 +512,19 @@ class Mission(Plugin):
                                                     f"dcs.{timestamp}.log\nIf the scheduler is configured for this "
                                                     f"server, it will relaunch it automatically.")
 
+        # check for blocked processes due to window popups
+        while True:
+            for title in ["Can't run", "Login Failed", "DCS Login"]:
+                handle = win32gui.FindWindowEx(None, None, None, title)
+                if handle:
+                    _, pid = win32process.GetWindowThreadProcessId(handle)
+                    for server in self.bot.servers.values():
+                        if server.process and server.process.pid == pid:
+                            await server.shutdown(force=True)
+                            await self.bot.audit(f'Server killed due to a popup with title "{title}".', server=server)
+            else:
+                break
+
         for server_name, server in self.bot.servers.items():
             if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
@@ -516,19 +534,10 @@ class Mission(Plugin):
                     server.process = None
                 continue
             try:
-                # we set a longer timeout in here because, we don't want to risk false restarts
-                timeout = 20 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
-                data = await server.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
+                await server.keep_alive()
                 # remove any hung flag, if the server has responded
                 if server.name in self.hung:
                     del self.hung[server.name]
-                if data['pause'] and server.status != Status.PAUSED:
-                    server.status = Status.PAUSED
-                elif not data['pause'] and server.status != Status.RUNNING:
-                    server.status = Status.RUNNING
-                server.current_mission.mission_time = data['mission_time']
-                server.current_mission.real_time = data['real_time']
-                data['channel'] = server.get_channel(Channel.STATUS).id
                 self.eventlistener._display_mission_embed(server)
             except asyncio.TimeoutError:
                 # check if the server process is still existent
@@ -613,7 +622,7 @@ class Mission(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore bot messages or messages that does not contain miz attachments
+        # ignore bot messages or messages that do not contain miz attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.miz'):
             return
         server: Server = await self.bot.get_server(message)

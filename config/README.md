@@ -1,31 +1,31 @@
 # Configuration Samples
-In this folder, you'll find some configuration-file samples for the bot and the different available plugins.
+In the subfolder `samples`, you'll find some configuration-file samples for the bot and the different available plugins.
 
-## dcsserverbot.ini.sample
+## dcsserverbot.ini
 This sample can be used as a starting point, when you create your own dcsserverbot.ini file.<br/>
 It is a basic configuration for a dedicated server setup with two dedicated servers being configured to be used with
 the bot. The first instance is the default instance, the 2nd instance is named "instance2". This is what you provide
 with -w to the dcs.exe process or how your Saved Games folder is named. 
 
-## dbexporter.json.sample
+## dbexporter.json
 Simple DB-Exporter sample, that exports two tables only (missions and statistics) on a regular basis (every hour).
 This plugin can be used to export data to another solution like a website, displaying achievement, etc., if that
 should not have access to the database directly for whatever reasons (being remote for instance).
 
-## greenieboard.json.sample
+## greenieboard.json
 This sample contains a proposal for a points system for carrier landings and shows a possibility to configure a 
 persistent embed. In addition, you can see how to configure the Moose.AIRBOSS integration.
 
-## motd.json.sample
+## motd.json
 This sample contains a default section, that is being used for every server, if nothing else is provided and a specific
 section for server "DCS.openbeta_server", that is overwriting the default.
 
-## punishment.json.sample
+## punishment.json
 Again, this sample shows a default setting and two servers. "DCS.openbeta_server" and "instance2", that don't punish
 people that are Discord members (@everyone). This might be useful, if you are running public servers but don't want
 your Discord members to be banned, kicked or whatnot.
 
-## scheduler.json.sample
+## scheduler.json
 The scheduler is a very powerful and thus complex plugin. I tried to pack in as much information that was possible into
 the sample, but you might want to look into the [README](../plugins/scheduler/README.md) as well.
 
@@ -53,7 +53,7 @@ This server runs every day from 12:00 until 24:00. The mission and DCS server re
 (480 mins), but only if nobody is flying on the server (populated = false). Whenever the mission restarts, a random
 preset will be picked out of the provided list ("Winter Daytime", "Summer Daytime").
 
-## slotblocking.json.sample
+## slotblocking.json
 Another powerful plugin is the Slotblocking. The sample shows a default configuration, which is valid for every server.
 In our case, we restrict the Combined Arms slots to people that are members of your Discord and that carry the Donators
 role.
@@ -65,7 +65,7 @@ they bring back the plane intact (landing). Another takeoff will create another 
 the deposit is gone, and they'll finally lose their points. This can be enabled with "use_reservations": true like in 
 the example.
 
-## ovgme.json.sample
+## ovgme.json
 With the OvGME plugin you can install OvGME like packages automatically into your DCS servers. The sample shows two
 possible ways, by either providing a strict version (2.0.1) or by using the term "latest", to get the latest available
 version that is provided in one of the installation directories.

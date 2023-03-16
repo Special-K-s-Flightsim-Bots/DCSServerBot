@@ -122,22 +122,25 @@ class MessageOfTheDay(Plugin):
             else:
                 self.send_message(message, server, config)
 
-        for server_name, server in self.bot.servers.items():
-            config = self.get_config(server)
-            if server.status != Status.RUNNING or not config or 'nudge' not in config:
-                continue
-            config = config['nudge']
-            if server.name not in self.last_nudge:
-                self.last_nudge[server.name] = server.current_mission.mission_time
-            elif server.current_mission.mission_time - self.last_nudge[server.name] > config['delay']:
-                if 'message' in config:
-                    message = utils.format_string(config['message'], server=server)
-                    process_message(message, server, config)
-                elif 'messages' in config:
-                    for cfg in config['messages']:
-                        message = utils.format_string(cfg['message'], server=server)
-                        process_message(message, server, cfg)
-                self.last_nudge[server.name] = server.current_mission.mission_time
+        try:
+            for server_name, server in self.bot.servers.items():
+                config = self.get_config(server)
+                if server.status != Status.RUNNING or not config or 'nudge' not in config:
+                    continue
+                config = config['nudge']
+                if server.name not in self.last_nudge:
+                    self.last_nudge[server.name] = server.current_mission.mission_time
+                elif server.current_mission.mission_time - self.last_nudge[server.name] > config['delay']:
+                    if 'message' in config:
+                        message = utils.format_string(config['message'], server=server)
+                        process_message(message, server, config)
+                    elif 'messages' in config:
+                        for cfg in config['messages']:
+                            message = utils.format_string(cfg['message'], server=server)
+                            process_message(message, server, cfg)
+                    self.last_nudge[server.name] = server.current_mission.mission_time
+        except Exception as ex:
+            self.log.exception(ex)
 
 
 async def setup(bot: DCSServerBot):

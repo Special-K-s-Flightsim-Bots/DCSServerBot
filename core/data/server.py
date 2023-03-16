@@ -1,8 +1,9 @@
 from __future__ import annotations
 import asyncio
+import platform
+
 import discord
 import json
-import luadata
 import os
 import psutil
 import socket
@@ -50,51 +51,6 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
                     self.log.info(f"=> Mission {os.path.basename(mission)[:-4]} deleted from server {self.server.name}.")
 
 
-class SettingsDict(dict):
-    def __init__(self, server: Server, path: str, root: str):
-        super().__init__()
-        self.path = path
-        self.root = root
-        self.mtime = 0
-        self.server = server
-        self.bot = server.bot
-        self.log = server.log
-        self.read_file()
-
-    def read_file(self):
-        self.mtime = os.path.getmtime(self.path)
-        try:
-            data = luadata.read(self.path, encoding='utf-8')
-        except Exception as ex:
-            # TODO: DSMC workaround
-            self.log.debug(f"Exception while reading {self.path}:\n{ex}")
-            data = utils.dsmc_parse_settings(self.path)
-            if not data:
-                self.log.error("- Error while parsing {}!".format(os.path.basename(self.path)))
-                raise ex
-        if data:
-            self.clear()
-            self.update(data)
-
-    def __setitem__(self, key, value):
-        if self.mtime < os.path.getmtime(self.path):
-            self.log.debug(f'{self.path} changed, re-reading from disk.')
-            self.read_file()
-        super().__setitem__(key, value)
-        if len(self):
-            with open(self.path, 'wb') as outfile:
-                self.mtime = os.path.getmtime(self.path)
-                outfile.write((f"{self.root} = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
-        else:
-            self.log.error("- Writing of {} aborted due to empty set.".format(os.path.basename(self.path)))
-
-    def __getitem__(self, item):
-        if self.mtime < os.path.getmtime(self.path):
-            self.log.debug(f'{self.path} changed, re-reading from disk.')
-            self.read_file()
-        return super().__getitem__(item)
-
-
 @dataclass
 @DataObjectFactory.register("Server")
 class Server(DataObject):
@@ -106,8 +62,8 @@ class Server(DataObject):
     embeds: dict[str, Union[int, discord.Message]] = field(repr=False, default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
-    _options: Optional[SettingsDict] = field(default=None, compare=False)
-    _settings: Optional[SettingsDict] = field(default=None, compare=False)
+    _options: Optional[utils.SettingsDict] = field(default=None, compare=False)
+    _settings: Optional[utils.SettingsDict] = field(default=None, compare=False)
     current_mission: Mission = field(default=None, compare=False)
     mission_id: int = field(default=-1, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
@@ -264,14 +220,14 @@ class Server(DataObject):
     def settings(self) -> dict:
         if not self._settings:
             path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
-            self._settings = SettingsDict(self, path, 'cfg')
+            self._settings = utils.SettingsDict(self, path, 'cfg')
         return self._settings
 
     @property
     def options(self) -> dict:
         if not self._options:
             path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\options.lua'
-            self._options = SettingsDict(self, path, 'options')
+            self._options = utils.SettingsDict(self, path, 'options')
         return self._options
 
     def get_current_mission_file(self) -> Optional[str]:
@@ -383,16 +339,20 @@ class Server(DataObject):
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 
-    async def shutdown(self) -> None:
+    async def shutdown(self, force: bool = False) -> None:
         slow_system = self.bot.config.getboolean('BOT', 'SLOW_SYSTEM')
         timeout = 300 if slow_system else 180
-        self.sendtoDCS({"command": "shutdown"})
-        with suppress(asyncio.TimeoutError):
-            await self.wait_for_status_change([Status.STOPPED], timeout)
-        if self.process and self.process.is_running():
-            try:
-                self.process.wait(timeout)
-            except psutil.TimeoutExpired:
+        if not force:
+            self.sendtoDCS({"command": "shutdown"})
+            with suppress(asyncio.TimeoutError):
+                await self.wait_for_status_change([Status.STOPPED], timeout)
+            if self.process and self.process.is_running():
+                try:
+                    self.process.wait(timeout)
+                except psutil.TimeoutExpired:
+                    self.process.kill()
+        else:
+            if self.process and self.process.is_running():
                 self.process.kill()
         # make sure, Windows did all cleanups
         if slow_system:
@@ -518,3 +478,25 @@ class Server(DataObject):
 
         if self.status not in status:
             await asyncio.wait_for(wait(status), timeout)
+
+    async def keep_alive(self):
+        # we set a longer timeout in here because, we don't want to risk false restarts
+        timeout = 20 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
+        data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('UPDATE servers SET last_seen = NOW() WHERE agent_host = %s AND server_name = %s',
+                               (platform.node(), self.name))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+        if data['pause'] and self.status != Status.PAUSED:
+            self.status = Status.PAUSED
+        elif not data['pause'] and self.status != Status.RUNNING:
+            self.status = Status.RUNNING
+        self.current_mission.mission_time = data['mission_time']
+        self.current_mission.real_time = data['real_time']

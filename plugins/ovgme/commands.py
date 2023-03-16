@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import os
 import psycopg2
@@ -13,23 +14,24 @@ OVGME_FOLDERS = ['RootFolder', 'SavedGames']
 
 
 class OvGME(Plugin):
-    def install(self):
-        super().install()
+
+    async def install(self) -> None:
+        await super().install()
         if self.locals and 'configs' in self.locals:
             config = self.locals['configs'][0]
             for folder in OVGME_FOLDERS:
                 if folder not in config:
                     raise PluginConfigurationError(self.plugin_name, folder)
-            self.install_packages()
+            asyncio.create_task(self.install_packages())
 
     async def before_dcs_update(self):
         # uninstall all RootFolder-packages
         for server_name, server in self.bot.servers.items():
-            for package_name, version in self.get_installed_packages(server, 'RootFolder'):
-                self.uninstall_package(server, 'RootFolder', package_name, version)
+            for package_name, version in await self.get_installed_packages(server, 'RootFolder'):
+                await self.uninstall_package(server, 'RootFolder', package_name, version)
 
     async def after_dcs_update(self):
-        self.install_packages()
+        await self.install_packages()
 
     def rename(self, old_name: str, new_name: str):
         conn = self.pool.getconn()
@@ -64,45 +66,44 @@ class OvGME(Plugin):
                 return True
         return False
 
-    def install_packages(self):
+    async def install_packages(self):
         if not self.locals or 'configs' not in self.locals:
             return
         for server_name, server in self.bot.servers.items():
+            # wait for the servers to be registered
+            while server.status == Status.UNREGISTERED:
+                await asyncio.sleep(1)
             config = self.get_config(server)
             if 'packages' not in config:
                 return
+
             for package in config['packages']:
                 version = package['version'] if package['version'] != 'latest' \
                     else self.get_latest_version(package['source'], package['name'])
                 installed = self.check_package(server, package['source'], package['name'])
-                # If the bot is still starting up (default), we're trying to figure out the state of the DCS process
-                for exe in ['DCS_server.exe', 'DCS.exe']:
-                    p = utils.find_process(exe, server.installation)
-                    if p:
-                        break
                 if (not installed or installed != version) and \
-                        (p or server.status != Status.SHUTDOWN):
+                        server.status != Status.SHUTDOWN:
                     self.log.warning(f"  - Server {server.name} needs to be shutdown to install packages.")
                     break
                 maintenance = server.maintenance
                 server.maintenance = True
                 try:
                     if not installed:
-                        if self.install_package(server, package['source'], package['name'], version):
-                            self.log.info(f"  - Package {package['name']}_v{version} installed.")
+                        if await self.install_package(server, package['source'], package['name'], version):
+                            self.log.info(f"- Package {package['name']}_v{version} installed.")
                         else:
-                            self.log.warning(f"  - Package {package['name']}_v{version} not found!")
+                            self.log.warning(f"- Package {package['name']}_v{version} not found!")
                     elif installed != version:
                         if self.is_greater(installed, version):
-                            self.log.debug(f"  - Installed package {package['name']}_v{installed} is newer than the "
+                            self.log.debug(f"- Installed package {package['name']}_v{installed} is newer than the "
                                            f"configured version. Skipping.")
                             continue
-                        if not self.uninstall_package(server, package['source'], package['name'], installed):
-                            self.log.warning(f"  - Package {package['name']}_v{installed} could not be uninstalled!")
-                        elif not self.install_package(server, package['source'], package['name'], version):
-                            self.log.warning(f"  - Package {package['name']}_v{version} could not be installed!")
+                        if not await self.uninstall_package(server, package['source'], package['name'], installed):
+                            self.log.warning(f"- Package {package['name']}_v{installed} could not be uninstalled!")
+                        elif not await self.install_package(server, package['source'], package['name'], version):
+                            self.log.warning(f"- Package {package['name']}_v{version} could not be installed!")
                         else:
-                            self.log.info(f"  - Package {package['name']}_v{installed} updated to v{version}.")
+                            self.log.info(f"- Package {package['name']}_v{installed} updated to v{version}.")
                 finally:
                     if maintenance:
                         server.maintenance = maintenance
@@ -129,7 +130,7 @@ class OvGME(Plugin):
         finally:
             self.pool.putconn(conn)
 
-    def install_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
+    async def install_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
         os.makedirs(os.path.join(path, '.' + server.installation), exist_ok=True)
@@ -183,7 +184,7 @@ class OvGME(Plugin):
                 return True
         return False
 
-    def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
+    async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
         ovgme_path = os.path.join(path, '.' + server.installation, package_name + '_v' + version)
@@ -204,7 +205,11 @@ class OvGME(Plugin):
                         with suppress(Exception):
                             os.removedirs(file)
                 elif lines[i].startswith('x'):
-                    shutil.copy2(os.path.join(ovgme_path, filename), file)
+                    try:
+                        shutil.copy2(os.path.join(ovgme_path, filename), file)
+                    except FileNotFoundError:
+                        self.log.warning(f"Can't recover file {filename}, because it has been removed! "
+                                         f"You might need to run a slow repair.")
         shutil.rmtree(ovgme_path)
         conn = self.pool.getconn()
         try:
@@ -243,7 +248,7 @@ class OvGME(Plugin):
         embed.set_footer(text=footer)
         return embed
 
-    def get_installed_packages(self, server: Server, folder: str) -> list[Tuple[str, str]]:
+    async def get_installed_packages(self, server: Server, folder: str) -> list[Tuple[str, str]]:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -262,7 +267,7 @@ class OvGME(Plugin):
             return
         packages = []
         for folder in OVGME_FOLDERS:
-            packages.extend([(folder, x, y) for x, y in self.get_installed_packages(server, folder)])
+            packages.extend([(folder, x, y) for x, y in await self.get_installed_packages(server, folder)])
         if len(packages) > 0:
             n = await utils.selection_list(self.bot, ctx, packages, self.format_packages, 5, -1, '🆕')
             if n == -1:
@@ -272,10 +277,10 @@ class OvGME(Plugin):
                     await utils.yn_question(ctx, f"Would you like to update package {packages[n][1]}?"):
                 msg = await ctx.send('Updating ...')
                 try:
-                    if not self.uninstall_package(server, packages[n][0], packages[n][1], packages[n][2]):
+                    if not await self.uninstall_package(server, packages[n][0], packages[n][1], packages[n][2]):
                         await ctx.send(f"Package {packages[n][1]}_v{packages[n][2]} could not be uninstalled!")
                         return
-                    elif not self.install_package(server, packages[n][0], packages[n][1], latest):
+                    elif not await self.install_package(server, packages[n][0], packages[n][1], latest):
                         await ctx.send(f"Package {packages[n][1]}_v{latest} could not be installed!")
                         return
                     await ctx.send(f"Package {packages[n][1]} updated from version v{packages[n][2]} to v{latest}.")
@@ -285,7 +290,7 @@ class OvGME(Plugin):
             elif await utils.yn_question(ctx, f"Would you like to uninstall package {packages[n][1]}?"):
                 msg = await ctx.send('Uninstalling ...')
                 try:
-                    if self.uninstall_package(server, packages[n][0], packages[n][1], packages[n][2]):
+                    if await self.uninstall_package(server, packages[n][0], packages[n][1], packages[n][2]):
                         await ctx.send(f"Package {packages[n][1]} uninstalled.")
                     else:
                         await ctx.send(f"Package {packages[n][1]} could not be uninstalled.")

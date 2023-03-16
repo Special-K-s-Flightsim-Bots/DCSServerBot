@@ -12,8 +12,8 @@ from .listener import GameMasterEventListener
 
 class GameMasterAgent(Plugin):
 
-    def install(self):
-        super().install()
+    async def install(self):
+        await super().install()
         for server in self.bot.servers.values():
             if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 self.log.debug(f'  - Updating "{server.name}":serverSettings.lua for coalitions')

@@ -31,7 +31,7 @@ def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, s
                     settings = luadata.read(path, encoding='utf-8')
                 except Exception:
                     # DSMC workaround
-                    settings = utils.dsmc_parse_settings(path)
+                    settings = utils.alternate_parse_settings(path)
                 if 'name' not in settings:
                     settings['name'] = 'DCS Server'
                 if server_name:

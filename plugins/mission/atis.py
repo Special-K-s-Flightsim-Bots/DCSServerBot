@@ -25,8 +25,8 @@ class Main(report.EmbedElement):
         self.add_field(name='▬' * 30, value='_ _', inline=False)
         self.add_field(name='Temperature', value='{:.2f}° C'.format(data['temp']))
         self.add_field(name='Surface Wind',
-                       value='{}° @ {} kts'.format(int(weather['wind']['atGround']['dir'] + 180) % 360,
-                                                   int(weather['wind']['atGround']['speed'] * const.METER_PER_SECOND_IN_KNOTS)))
+                       value='{}° @ {} kts'.format(data['wind']['dir'],
+                                                   int(data['wind']['speed'] * const.METER_PER_SECOND_IN_KNOTS)))
         visibility = weather['visibility']['distance']
         if weather['enable_fog'] is True:
             visibility = weather['fog']['visibility']
@@ -45,7 +45,7 @@ class Main(report.EmbedElement):
                     int(data['clouds']['thickness'] * const.METER_IN_FEET + 0.5)))
         else:
             self.add_field(name='Clouds', value='n/a')
-        self.add_field(name='QFE', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
-            int(data['qfe']['pressureHPA']), data['qfe']['pressureIN'], int(data['qfe']['pressureMM'])))
-        self.add_field(name='QNH', value='{} hPa\n{:.2f} inHg\n{} mmHg'.format(
-            int(data['qnh']['pressureHPA']), data['qnh']['pressureIN'], int(data['qnh']['pressureMM'])))
+        self.add_field(name='QFE', value='{} hPa\n{:.2f} inHg'.format(
+            int(data['qfe']['pressureHPA']), data['qfe']['pressureIN']))
+        self.add_field(name='QNH', value='{} hPa\n{:.2f} inHg'.format(
+            int(data['qnh']['pressureHPA']), data['qnh']['pressureIN']))
