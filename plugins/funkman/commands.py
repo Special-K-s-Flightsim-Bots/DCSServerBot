@@ -7,7 +7,7 @@ from .listener import FunkManEventListener
 
 class FunkMan(Plugin):
 
-    def install(self):
+    async def install(self):
         config = self.locals['configs'][0]
         if 'install' not in config:
             raise PluginConfigurationError(self.plugin_name, 'install')
@@ -32,7 +32,7 @@ class FunkMan(Plugin):
                     config['IMAGEPATH'] = ini['FUNKPLOT']['IMAGEPATH']
             with open('config/funkman.json', 'w') as outfile:
                 json.dump(self.locals, outfile, indent=2)
-        super().install()
+        await super().install()
 
 
 async def setup(bot: DCSServerBot):

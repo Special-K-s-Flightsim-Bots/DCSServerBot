@@ -87,8 +87,7 @@ class SlotBlocking(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    if 'mission' not in bot.plugins:
-        raise PluginRequiredError('mission')
-    if 'creditsystem' not in bot.plugins:
-        raise PluginRequiredError('creditsystem')
+    for plugin in ['mission', 'creditsystem']:
+        if plugin not in bot.plugins:
+            raise PluginRequiredError(plugin)
     await bot.add_cog(SlotBlocking(bot, SlotBlockingListener))

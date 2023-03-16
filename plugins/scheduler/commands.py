@@ -51,8 +51,8 @@ class Scheduler(Plugin):
                         cfg['presets'] = json.load(file)
             return configs
 
-    def install(self):
-        super().install()
+    async def install(self):
+        await super().install()
         for _, installation in utils.findDCSInstallations():
             if installation in self.bot.config:
                 try:

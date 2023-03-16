@@ -28,8 +28,10 @@ class Plugin(commands.Cog):
         self.loop = bot.loop
         self.locals = self.read_locals()
         self._config = dict[str, dict]()
-        self.install()
         self.eventlistener: Type[TEventListener] = eventlistener(self) if eventlistener else None
+
+    async def cog_load(self) -> None:
+        await self.install()
         if self.eventlistener:
             self.bot.register_eventListener(self.eventlistener)
         self.log.debug(f'- Plugin {type(self).__name__} v{self.plugin_version} initialized.')
@@ -63,7 +65,7 @@ class Plugin(commands.Cog):
         with open(file, 'w') as f:
             json.dump(installed, f, indent=2)
 
-    def install(self):
+    async def install(self):
         # don't init the DB on agents, whole DB handling is a master task
         if self.bot.config.getboolean('BOT', 'MASTER') is True:
             self.init_db()
