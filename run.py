@@ -426,7 +426,6 @@ if __name__ == "__main__":
     try:
         Install.verify()
         asyncio.run(Main().run())
-        print("Hier")
     except discord.errors.LoginFailure:
         print('Invalid Discord TOKEN provided. Please check the documentation.')
     except (KeyboardInterrupt, asyncio.CancelledError):
