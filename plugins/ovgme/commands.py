@@ -340,7 +340,7 @@ class OvGME(Plugin):
         folder = OVGME_FOLDERS[n]
         path = os.path.expandvars(config[folder])
         available = [self.parse_filename(x) for x in os.listdir(path) if not x.startswith('.')] or []
-        installed = self.get_installed_packages(server, folder) or []
+        installed = await self.get_installed_packages(server, folder) or []
         files = list(set(available) - set(installed))
         if not len(files):
             await ctx.send(f"No available packages in folder {folder}.")
@@ -350,7 +350,7 @@ class OvGME(Plugin):
             return
         msg = await ctx.send('Installing ...')
         try:
-            if self.install_package(server, folder, files[n][0], files[n][1]):
+            if await self.install_package(server, folder, files[n][0], files[n][1]):
                 await ctx.send(f"Package {files[n][0]} installed.")
             else:
                 await ctx.send(f"Package {files[n][0]} could not be installed.")
