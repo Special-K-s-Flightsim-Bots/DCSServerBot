@@ -44,7 +44,7 @@ class Music(Plugin):
             super().__init__()
             self.sink = sink
             select: Select = cast(Select, self.children[0])
-            self.titles = [self.get_tag(x).title or x for x in songs]
+            self.titles = [self.get_tag(x).title or os.path.basename(x) for x in songs]
             self.songs = songs
             select.options = [
                 SelectOption(label=x[:25], value=str(idx)) for idx, x in enumerate(self.titles)
