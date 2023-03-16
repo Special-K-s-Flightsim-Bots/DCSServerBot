@@ -44,10 +44,10 @@ class Music(Plugin):
             super().__init__()
             self.sink = sink
             select: Select = cast(Select, self.children[0])
-            self.titles = [self.get_tag(x).title for x in songs]
+            self.titles = [self.get_tag(x).title or x for x in songs]
             self.songs = songs
             select.options = [
-                SelectOption(label=x, value=str(idx)) for idx, x in enumerate(self.titles)
+                SelectOption(label=x[:25], value=str(idx)) for idx, x in enumerate(self.titles)
             ]
             self.children[1].emoji = "⏹️" if self.sink.queue_worker.is_running() else "▶️"
             self.children[3].emoji = "🔁" if self.sink.mode == Mode.ONCE else "🔂"
@@ -145,6 +145,9 @@ class Music(Plugin):
             return
         sink = self.sinks.get(server.name, None)
         if not sink:
+            if not self.get_config(server):
+                await ctx.send(f'No config found for server {server.name} in config\\music.json.')
+                return
             config = self.get_config(server)['sink']
             sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(bot=self.bot, server=server,
                                                                                     config=config)
