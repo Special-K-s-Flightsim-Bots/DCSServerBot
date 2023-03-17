@@ -102,7 +102,7 @@ class Bot:
             self.pool.putconn(conn)
 
         if table:
-            return Panel(Group(Panel(msg), Panel(table)), title="Bot", expand=False)
+            return Panel(Group(Panel(msg), Panel(table)), title="Bot")
         else:
             return Panel(msg, title="Bot", padding=1)
 
