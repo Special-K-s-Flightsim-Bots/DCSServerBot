@@ -43,8 +43,8 @@ class Servers:
     def __rich__(self) -> Panel:
         table = Table(expand=True, show_edge=False)
         table.add_column("Status", justify="center")
-        table.add_column("Server Name", justify="left")
-        table.add_column("Mission Name", justify="left")
+        table.add_column("Server Name", justify="left", no_wrap=True)
+        table.add_column("Mission Name", justify="left", no_wrap=True)
         table.add_column("# Players", justify="center")
         table.add_column("# Queue", justify="center")
         for server_name, server in self.bot.servers.items():
@@ -188,6 +188,7 @@ class Dashboard(Plugin):
         with Live(self.layout, refresh_per_second=1, screen=True) as live:
             while not self.update.is_being_cancelled():
                 do_update()
+                live.update(self.layout)
                 await asyncio.sleep(1)
 
 
