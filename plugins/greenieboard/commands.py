@@ -285,7 +285,7 @@ async def setup(bot: DCSServerBot):
     # make sure that we have a proper configuration, take the default one if none is there
     if not path.exists('config/greenieboard.json'):
         bot.log.info('No greenieboard.json found, copying the sample.')
-        shutil.copyfile('config/greenieboard.json.sample', 'config/greenieboard.json')
+        shutil.copyfile('config/sample/greenieboard.json', 'config/greenieboard.json')
     if bot.config.getboolean('BOT', 'MASTER') is True:
         await bot.add_cog(GreenieBoardMaster(bot, GreenieBoardEventListener))
     else:

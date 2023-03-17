@@ -13,10 +13,33 @@ It is a basic configuration for a dedicated server setup with two dedicated serv
 the bot. The first instance is the default instance, the 2nd instance is named "instance2". This is what you provide
 with -w to the dcs.exe process or how your Saved Games folder is named. 
 
+## admin.json
+Default file to support the .download command. Here you can configure which files / patterns you want to support for
+DCS Admin users to download from your server. You see a lot of examples in there already. If you don't want people to
+download specific items, just remove the respective line from your admin.json.
+
+## cloud.json
+This file contains the default settings for the DCSServerBot cloud service. You can add your TOKEN in here, that you
+received from me.
+
+## commands.json
+This shows two examples of custom commands you can create with the commands plugin. One command starts a DCS server
+and the 2nd command runs a `dir` command on your server and returns the output. 
+
+## creditsystem.json
+Sample file to show you the usage of the credit system. You can get credits for kills or for proper landings (see
+greenieboard.json). People can have initial or max points based on their roles and you can give people specific
+discord roles for flight times or credit achievements on your servers. Roles are campaign-based, if you have a 
+campaign configured.
+
 ## dbexporter.json
 Simple DB-Exporter sample, that exports two tables only (missions and statistics) on a regular basis (every hour).
 This plugin can be used to export data to another solution like a website, displaying achievement, etc., if that
 should not have access to the database directly for whatever reasons (being remote for instance).
+
+## funkman.json
+Sample and minimal configuration for the FunkMan plugin. You need at least to point to the place where FunkMan is
+installed. The rest of the parameters will be read from your existing funkman.ini or can be filled in manually.
 
 ## greenieboard.json
 This sample contains a proposal for a points system for carrier landings and shows a possibility to configure a 
@@ -25,6 +48,15 @@ persistent embed. In addition, you can see how to configure the Moose.AIRBOSS in
 ## motd.json
 This sample contains a default section, that is being used for every server, if nothing else is provided and a specific
 section for server "DCS.openbeta_server", that is overwriting the default.
+
+## music.json
+Sample configuration which defines a Music upload directory "Music" in your Saved Games\<instance>\ folders. Besides 
+that, it defines a SRS sink to be used on a specific SRS channel.
+
+## ovgme.json
+With the OvGME plugin you can install OvGME like packages automatically into your DCS servers. The sample shows two
+possible ways, by either providing a strict version (2.0.1) or by using the term "latest", to get the latest available
+version that is provided in one of the installation directories.
 
 ## punishment.json
 Again, this sample shows a default setting and two servers. "DCS.openbeta_server" and "instance2", that don't punish
@@ -71,10 +103,5 @@ There is deposit-like system included, that reserves points when you use a plane
 they bring back the plane intact (landing). Another takeoff will create another deposit. If they crash or get killed, 
 the deposit is gone, and they'll finally lose their points. This can be enabled with "use_reservations": true like in 
 the example.
-
-## ovgme.json
-With the OvGME plugin you can install OvGME like packages automatically into your DCS servers. The sample shows two
-possible ways, by either providing a strict version (2.0.1) or by using the term "latest", to get the latest available
-version that is provided in one of the installation directories.
 
 [plugin documentation]: ../plugins/scheduler.md
