@@ -42,20 +42,15 @@ class Servers:
 
     def __rich__(self) -> Panel:
         table = Table(expand=True, show_edge=False)
-        table.add_column("Status", justify="center")
+        table.add_column("Status", justify="center", min_width=8)
         table.add_column("Server Name", justify="left", no_wrap=True)
         table.add_column("Mission Name", justify="left", no_wrap=True)
-        table.add_column("# Players", justify="center")
-        table.add_column("# Queue", justify="center")
+        table.add_column("Players", justify="center", min_width=4)
         for server_name, server in self.bot.servers.items():
             name = re.sub(self.bot.config['FILTER']['SERVER_FILTER'], '', server.name).strip()
             mission_name = re.sub(self.bot.config['FILTER']['MISSION_FILTER'], '', server.current_mission.name).strip() if server.current_mission else "n/a"
             num_players = f"{len(server.get_active_players()) + 1}/{server.settings['maxPlayers']}"
-            if self.bot.udp_server and server_name in self.bot.udp_server.message_queue:
-                queue_size = self.bot.udp_server.message_queue[server_name].qsize()
-            else:
-                queue_size = 0
-            table.add_row(str.capitalize(server.status.name), name, mission_name, num_players, str(queue_size))
+            table.add_row(str.capitalize(server.status.name), name, mission_name, num_players)
         return Panel(table, title="Servers", padding=1)
 
 
@@ -68,12 +63,13 @@ class Bot:
 
     def __rich__(self) -> Panel:
 
-        msg = f"Node:\t{platform.node()}\n"
-        msg += "Type:\t[bold red]Master[/]\n" if self.bot.master else "Type:\tAgent\n"
+        msg = f"Node:\t\t{platform.node()}\n"
+        msg += "Type:\t\t[bold red]Master[/]\n" if self.bot.master else "Type:\tAgent\n"
         if math.isinf(self.bot.latency):
             msg += "Ping:\t[red]Disconnected![/]"
         else:
-            msg += f"Ping:\t{int(self.bot.latency * 1000)} ms"
+            msg += f"Ping:\t\t{int(self.bot.latency * 1000)} ms\n"
+        msg += f"Threads:\t{len(self.bot.executor._threads)}/{self.bot.executor._max_workers}\n"
 
         conn = self.pool.getconn()
         table = None
@@ -184,11 +180,15 @@ class Dashboard(Plugin):
             self.layout['bot'].update(bot)
             self.layout['log'].update(log)
 
-        do_update()
-        with Live(self.layout, refresh_per_second=1, screen=True):
-            while not self.update.is_being_cancelled():
-                do_update()
-                await asyncio.sleep(1)
+        try:
+            do_update()
+            with Live(self.layout, refresh_per_second=1, screen=True):
+                while not self.update.is_being_cancelled():
+                    do_update()
+                    await asyncio.sleep(1)
+        except Exception as ex:
+            await self.cog_unload()
+            self.log.exception(ex)
 
 
 async def setup(bot: DCSServerBot):
