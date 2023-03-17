@@ -81,3 +81,6 @@ class LotAtc(Extension):
                               '/Mods/services/LotAtc/config.lua'):
             return False
         return True
+
+    async def shutdown(self, data: dict) -> bool:
+        return True

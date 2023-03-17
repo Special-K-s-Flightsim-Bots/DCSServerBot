@@ -158,7 +158,7 @@ class Tacview(Extension):
             return False
         return True
 
-    async def onSimulationStop(self, data: dict):
+    async def shutdown(self, data: dict):
         if 'channel' not in self.config:
             return
         server: Server = self.bot.servers[data['server_name']]
@@ -187,4 +187,4 @@ class Tacview(Extension):
                 await asyncio.sleep(1)
             else:
                 self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
-        return
+        return True

@@ -228,31 +228,6 @@ class Scheduler(Plugin):
                 await asyncio.sleep(1)
                 restart_in -= 1
 
-    async def teardown_extensions(self, server: Server, config: dict, member: Optional[discord.Member] = None) -> list:
-        retval = []
-        for extension in config['extensions']:  # type: str
-            ext: Extension = server.extensions.get(extension, None)
-            if not ext:
-                if '.' not in extension:
-                    ext = utils.str_to_class('extensions.' + extension)(self.bot, server, config['extensions'][extension])
-                else:
-                    ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
-                if ext.verify():
-                    server.extensions[extension] = ext
-                else:
-                    continue
-            if ext.is_running() and await ext.shutdown():
-                retval.append(ext.name)
-                if not member:
-                    self.log.info(f"  => {ext.name} shut down for \"{server.name}\" by "
-                                  f"{string.capwords(self.plugin_name)}.")
-                    await self.bot.audit(f"{string.capwords(self.plugin_name)} shut {ext.name} down", server=server)
-                else:
-                    self.log.info(f"  => {ext.name} shut down for \"{server.name}\" by "
-                                  f"{member.display_name}.")
-                    await self.bot.audit(f"shut {ext.name} down", server=server, user=member)
-        return retval
-
     async def teardown_dcs(self, server: Server, member: Optional[discord.Member] = None):
         self.bot.sendtoBot({"command": "onShutdown", "server_name": server.name})
         await asyncio.sleep(1)
@@ -285,8 +260,6 @@ class Scheduler(Plugin):
             if not server.restart_pending:
                 return
             await self.teardown_dcs(server)
-            if 'extensions' in config:
-                await self.teardown_extensions(server, config)
             server.restart_pending = False
 
     @staticmethod
@@ -480,9 +453,8 @@ class Scheduler(Plugin):
                     # if the server is running, and should run, check if all the extensions are running, too
                     if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and target_state == server.status:
                         for ext in server.extensions.values():
-                            if not ext.is_running() and await ext.startup():
-                                self.log.info(f"  - {ext.name} v{ext.version} launched for \"{server.name}\".")
-                                await self.bot.audit(f"{ext.name} started", server=server)
+                            if not ext.is_running():
+                                await ext.startup()
                 except Exception as ex:
                     self.log.warning("Exception in check_state(): " + str(ex))
 
@@ -586,9 +558,6 @@ class Scheduler(Plugin):
                 await do_shutdown(server)
             else:
                 await ctx.send(f"DCS server \"{server.display_name}\" is already shut down.")
-            if 'extensions' in config:
-                for ext in await self.teardown_extensions(server, config, ctx.message.author):
-                    await ctx.send(f"{ext} shut down for server \"{server.display_name}\".")
 
     @commands.command(description='Starts a stopped DCS server')
     @utils.has_role('DCS Admin')

@@ -44,7 +44,7 @@ class Music(Plugin):
             super().__init__()
             self.sink = sink
             select: Select = cast(Select, self.children[0])
-            self.titles = [self.get_tag(x).title or os.path.basename(x) for x in songs]
+            self.titles = [self.get_tag(x).title or os.path.basename(x)[:-4] for x in songs]
             self.songs = songs
             select.options = [
                 SelectOption(label=x[:25], value=str(idx)) for idx, x in enumerate(self.titles)
@@ -62,7 +62,7 @@ class Music(Plugin):
             if self.sink.current:
                 tag = self.get_tag(self.sink.current)
                 embed.add_field(name='▬' * 13 + " Now Playing " + '▬' * 13, value='_ _', inline=False)
-                embed.add_field(name="Title", value=tag.title[:255] if tag.title else 'n/a')
+                embed.add_field(name="Title", value=tag.title[:255] if tag.title else os.path.basename(self.sink.current)[:-4])
                 embed.add_field(name='Artist', value=tag.artist[:255] if tag.artist else 'n/a')
                 embed.add_field(name='Album', value=tag.album[:255] if tag.album else 'n/a')
             embed.add_field(name='▬' * 14 + " Playlist " + '▬' * 14, value='_ _', inline=False)
@@ -146,7 +146,7 @@ class Music(Plugin):
         sink = self.sinks.get(server.name, None)
         if not sink:
             if not self.get_config(server):
-                await ctx.send(f'No config found for server {server.name} in config\\music.json.')
+                await ctx.send(f"No config\\music.json found or no entry for server {server.name} configured.")
                 return
             config = self.get_config(server)['sink']
             sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(bot=self.bot, server=server,

@@ -26,19 +26,20 @@ class Extension(ABC):
         return True
 
     async def beforeMissionLoad(self) -> bool:
-        return False
+        return True
 
     async def onMissionLoadEnd(self, data: dict) -> bool:
-        return False
-
-    async def onSimulationStop(self, data: dict) -> bool:
-        return False
+        return True
 
     async def startup(self) -> bool:
-        return False
+        self.log.info(f"  => {self.name} v{self.version} launched for \"{self.server.name}\".")
+        await self.bot.audit(f"Extension {self.name} started", server=self.server)
+        return True
 
-    async def shutdown(self) -> bool:
-        return False
+    async def shutdown(self, data: dict) -> bool:
+        self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
+        await self.bot.audit(f"Extension {self.name} shut down", server=self.server)
+        return True
 
     def is_running(self) -> bool:
         return True

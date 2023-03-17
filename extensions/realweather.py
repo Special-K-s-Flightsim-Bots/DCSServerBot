@@ -55,3 +55,6 @@ class RealWeather(Extension):
             self.log.error(f'No config.json found in {rw_home}')
             return False
         return True
+
+    async def shutdown(self, data: dict) -> bool:
+        return True

@@ -81,3 +81,6 @@ class DSMC(Extension):
             self.log.error(f'DSMC not installed in this server.')
             return False
         return True
+
+    async def shutdown(self, data: dict) -> bool:
+        return True
