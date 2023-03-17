@@ -49,7 +49,7 @@ class Servers:
         table.add_column("# Queue", justify="center")
         for server_name, server in self.bot.servers.items():
             name = re.sub(self.bot.config['FILTER']['SERVER_FILTER'], '', server.name).strip()
-            mission_name = re.sub(self.bot.config['FILTER']['MISSION_FILTER'], '', server.current_mission.name).strip if server.current_mission else "n/a"
+            mission_name = re.sub(self.bot.config['FILTER']['MISSION_FILTER'], '', server.current_mission.name).strip() if server.current_mission else "n/a"
             num_players = f"{len(server.get_active_players()) or 1}/{server.settings['maxPlayers']}"
             if self.bot.udp_server and server_name in self.bot.udp_server.message_queue:
                 queue_size = self.bot.udp_server.message_queue[server_name].qsize()
@@ -185,10 +185,9 @@ class Dashboard(Plugin):
             self.layout['log'].update(log)
 
         do_update()
-        with Live(self.layout, refresh_per_second=1, screen=True) as live:
+        with Live(self.layout, refresh_per_second=1, screen=True):
             while not self.update.is_being_cancelled():
                 do_update()
-                live.update(self.layout)
                 await asyncio.sleep(1)
 
 
