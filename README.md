@@ -261,7 +261,7 @@ configuration file. If you want to add multiple groups, separate them by comma (
 | Coalition Red  | People with this role are members of the red coalition (see [Coalitions](./COALITIONS.md)).                                                         |
 
 ### Sample Configuration
-To view some sample configurations for the bot or for each configurable plugin, look [here](./config/README.md).
+To view some sample configurations for the bot or for each configurable plugin, look [here](config/samples/README.md).
 
 ### Auto-Banning
 The bot supports automatically bans / unbans of players from the configured DCS servers, as soon as they leave / join your Discord guild.
