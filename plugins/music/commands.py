@@ -61,14 +61,17 @@ class Music(Plugin):
             embed.title = "Music Player"
             if self.sink.current:
                 tag = self.get_tag(self.sink.current)
+                title = utils.escape_string(tag.title[:255] if tag.title else os.path.basename(self.sink.current)[:-4])
+                artist = utils.escape_string(tag.artist[:255] if tag.artist else 'n/a')
+                album = utils.escape_string(tag.album[:255] if tag.album else 'n/a')
                 embed.add_field(name='▬' * 13 + " Now Playing " + '▬' * 13, value='_ _', inline=False)
-                embed.add_field(name="Title", value=tag.title[:255] if tag.title else os.path.basename(self.sink.current)[:-4])
-                embed.add_field(name='Artist', value=tag.artist[:255] if tag.artist else 'n/a')
-                embed.add_field(name='Album', value=tag.album[:255] if tag.album else 'n/a')
+                embed.add_field(name="Title", value=title)
+                embed.add_field(name='Artist', value=artist)
+                embed.add_field(name='Album', value=album)
             embed.add_field(name='▬' * 14 + " Playlist " + '▬' * 14, value='_ _', inline=False)
             playlist = []
             for i in range(0, self.sink.queue.qsize()):
-                playlist.append(f"{i+1}. - {self.titles[self.songs.index(self.sink.queue.queue[i])]}")
+                playlist.append(f"{i+1}. - {utils.escape_string(self.titles[self.songs.index(self.sink.queue.queue[i])])}")
             embed.add_field(name='_ _', value='\n'.join(playlist) or '- empty -')
             footer = "▬" * 37 + "\n"
             if self.sink.queue_worker.is_running():

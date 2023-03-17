@@ -9,8 +9,8 @@ Userstats needs the Mission plugin to be loaded first.
 ## User Linking
 It is recommended that your users link their Discord ID to their UCID (DCS World ID). The bot can try to do that by 
 itself (AUTOMATCH = true), but might fail, especially, when the in-game names and Discord names of users differ a lot.
-If the AUTOMATCH is disabled or was not successful, users can generate a unique TOKEN that is being sent as a DM with 
-```.linkme```. The TOKEN can then be entered in the in-game chat as a chat-command with ```-linkme TOKEN```.
+If the AUTOMATCH is disabled (default) or was not successful, users can generate a unique TOKEN that is being sent as a 
+DM with ```.linkme```. The TOKEN can then be entered in the in-game chat as a chat-command with ```-linkme TOKEN```.
 
 ## Discord Commands
 

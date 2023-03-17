@@ -39,6 +39,8 @@ class DCSServerBot(commands.Bot):
         if 'OPT_PLUGINS' in self.config['BOT']:
             plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
         self.plugins: [str] = [p.strip() for p in list(dict.fromkeys(plugins.split(',')))]
+        if not self.config.getboolean('BOT', 'USE_DASHBOARD'):
+            self.plugins.remove('dashboard')
         self.audit_channel = None
         self.mission_stats = None
         self.synced: bool = False
@@ -72,7 +74,7 @@ class DCSServerBot(commands.Bot):
                     server.settings['listLoop'] = True
 
     async def register_servers(self):
-        self.log.info('- Searching for running DCS servers, this might take a bit ...')
+        self.log.info('- Searching for running DCS servers (this might take a bit) ...')
         servers = list(self.servers.values())
         timeout = (5 * len(self.servers)) if self.config.getboolean('BOT', 'SLOW_SYSTEM') else (3 * len(self.servers))
         ret = await asyncio.gather(
@@ -204,7 +206,7 @@ class DCSServerBot(commands.Bot):
                     else:
                         self.log.info(f'  => {string.capwords(plugin)} NOT loaded.')
                 if not self.synced:
-                    self.log.debug('- Registering Discord Commands ...')
+                    self.log.info('- Registering Discord Commands (this might take a bit) ...')
                     self.tree.copy_global_to(guild=self.guilds[0])
                     await self.tree.sync(guild=self.guilds[0])
                     self.synced = True
