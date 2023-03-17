@@ -178,16 +178,18 @@ class Dashboard(Plugin):
         log = Log(self.queue)
         bot = Bot(self.bot)
 
-        def do_update():
+        def update_header():
             self.layout['header'].update(header)
+
+        def update_body():
             self.layout['servers'].update(servers)
             self.layout['bot'].update(bot)
             self.layout['log'].update(log)
 
-        do_update()
-        with Live(self.layout, refresh_per_second=1, screen=True) as live:
+        update_body()
+        with Live(update_header(), refresh_per_second=1, screen=True) as live:
             while not self.update.is_being_cancelled():
-                do_update()
+                update_body()
                 live.update(self.layout)
                 await asyncio.sleep(1)
 
