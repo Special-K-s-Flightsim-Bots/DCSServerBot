@@ -873,7 +873,7 @@ class Master(Agent):
 async def setup(bot: DCSServerBot):
     if not os.path.exists('config/admin.json'):
         bot.log.info('No admin.json found, copying the sample.')
-        shutil.copyfile('config/sample/admin.json', 'config/admin.json')
+        shutil.copyfile('config/samples/admin.json', 'config/admin.json')
     if bot.config.getboolean('BOT', 'MASTER') is True:
         await bot.add_cog(Master(bot, AdminEventListener))
     else:
