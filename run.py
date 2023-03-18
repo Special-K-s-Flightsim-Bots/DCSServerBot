@@ -65,7 +65,6 @@ class Main:
         self.pool = self.init_db()
         utils.desanitize(self)
         self.install_hooks()
-        self.install_fonts()
         self.bot: DCSServerBot = self.init_bot()
         self.add_commands()
 
@@ -201,7 +200,7 @@ class Main:
                 raise k
             self.log.debug('  - Hooks installed into {}.'.format(installation))
 
-    def install_fonts(self):
+    async def install_fonts(self):
         if 'CJK_FONT' in self.config['REPORTS']:
             if not os.path.exists('fonts'):
                 os.makedirs('fonts')
@@ -256,6 +255,7 @@ class Main:
                             help_command=None)
 
     async def run(self):
+        await self.install_fonts()
         self.log.info('- Starting {}-Node on {}'.format('Master' if self.config.getboolean(
             'BOT', 'MASTER') is True else 'Agent', platform.node()))
         async with self.bot:

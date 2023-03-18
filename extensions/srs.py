@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import win32api
+import win32con
 from configparser import RawConfigParser
 from core import Extension, DCSServerBot, utils, report, Server
 from typing import Optional
@@ -68,9 +69,15 @@ class SRS(Extension):
         if 'autostart' not in self.config or self.config['autostart']:
             self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
                 os.path.expandvars(self.config['installation']), os.path.expandvars(self.config['config'])))
-            self.process = subprocess.Popen(['SR-Server.exe', '-cfg={}'.format(
-                os.path.expandvars(self.config['config']))],
-                                            executable=os.path.expandvars(self.config['installation']) + r'\SR-Server.exe')
+            if self.bot.config.getboolean(self.server.installation, 'START_MINIMIZED'):
+                info = subprocess.STARTUPINFO()
+                info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+                info.wShowWindow = win32con.SW_MINIMIZE
+            else:
+                info = None
+            self.process = subprocess.Popen(
+                ['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.config['config']))],
+                executable=os.path.expandvars(self.config['installation']) + r'\SR-Server.exe', startupinfo=info)
         return self.is_running()
 
     async def shutdown(self, data: dict):
