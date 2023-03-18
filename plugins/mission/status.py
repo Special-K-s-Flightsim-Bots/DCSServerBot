@@ -99,7 +99,7 @@ class WeatherInfo(report.EmbedElement):
             visibility = weather['visibility']['distance']
             if weather['enable_fog'] is True:
                 visibility = int(weather['fog']['visibility'] * const.METER_IN_FEET + 0.5)
-            self.add_field(name='Visibility', value=f'{visibility:,} ft')
+            self.add_field(name='Visibility', value='{:,} ft'.format(int(visibility)) if visibility < 30000 else '10 km (+)')
 
 
 class ExtensionsInfo(report.EmbedElement):

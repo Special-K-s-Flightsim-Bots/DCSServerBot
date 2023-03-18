@@ -99,6 +99,28 @@ class GameMasterAgent(Plugin):
             else:
                 await ctx.send(f"Usage: {ctx.prefix}popup all|red|blue|user [time] <message>")
 
+    @commands.command(description='Sends a popup to all servers', usage='<coal> [time] <msg>')
+    @utils.has_roles(['DCS Admin', 'GameMaster'])
+    @commands.guild_only()
+    async def broadcast(self, ctx, to, *args):
+        if to.lower() not in ['all', 'red', 'blue']:
+            await ctx.send(f"Usage: {ctx.prefix}broadcast [all|red|blue] [time] <msg>")
+            return
+        for server in self.bot.servers.values():
+            if server.status != Status.RUNNING:
+                await ctx.send(f'Message NOT sent to server {server.display_name} because it is {server.status.name}.')
+                continue
+            if len(args) > 0:
+                if args[0].isnumeric():
+                    time = int(args[0])
+                    i = 1
+                else:
+                    time = -1
+                    i = 0
+                message = ' '.join(args[i:])
+                server.sendPopupMessage(Coalition(to.lower()), message, time, ctx.message.author.display_name)
+                await ctx.send(f'Message sent to server {server.display_name}.')
+
     @commands.command(description='Set or clear a flag inside the mission', usage='<flag> [value]')
     @utils.has_roles(['DCS Admin', 'GameMaster'])
     @commands.guild_only()

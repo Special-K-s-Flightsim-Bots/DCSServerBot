@@ -6,7 +6,7 @@ import psycopg2
 import re
 import socket
 import string
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, Executor
 from contextlib import closing
 from copy import deepcopy
 from core import utils, Server, Status, Channel, DataObjectFactory, Player
@@ -45,7 +45,7 @@ class DCSServerBot(commands.Bot):
         self.mission_stats = None
         self.synced: bool = False
         self.tree.on_error = self.on_app_command_error
-        self.executor = ThreadPoolExecutor(thread_name_prefix='BotExecutor')
+        self.executor = ThreadPoolExecutor(thread_name_prefix='BotExecutor', max_workers=20)
 
     async def close(self):
         await self.audit(message="DCSServerBot stopped.")
@@ -633,12 +633,13 @@ class DCSServerBot(commands.Bot):
                         data = s.server.message_queue[server_name].get()
 
         class MyThreadingUDPServer(ThreadingUDPServer):
-            def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
+            def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler],
+                         executor: Executor):
                 # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                 MyThreadingUDPServer.allow_reuse_address = True
                 MyThreadingUDPServer.max_packet_size = 65504
                 self.message_queue: dict[str, Queue[str]] = {}
-                self.executor = ThreadPoolExecutor(thread_name_prefix='UDPServer')
+                self.executor = executor
                 super().__init__(server_address, request_handler)
 
             def shutdown(self) -> None:
@@ -646,10 +647,9 @@ class DCSServerBot(commands.Bot):
                 for server_name, queue in self.message_queue.items():
                     queue.join()
                     queue.put('')
-                self.executor.shutdown(wait=True)
 
         host = self.config['BOT']['HOST']
         port = int(self.config['BOT']['PORT'])
-        self.udp_server = MyThreadingUDPServer((host, port), RequestHandler)
+        self.udp_server = MyThreadingUDPServer((host, port), RequestHandler, self.executor)
         self.executor.submit(self.udp_server.serve_forever)
         self.log.debug('- Listener started on interface {} port {} accepting commands.'.format(host, port))
