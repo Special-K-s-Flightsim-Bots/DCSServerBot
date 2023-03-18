@@ -64,7 +64,7 @@ class Bot:
     def __rich__(self) -> Panel:
 
         msg = f"Node:\t\t{platform.node()}\n"
-        msg += "Type:\t\t[bold red]Master[/]\n" if self.bot.master else "Type:\tAgent\n"
+        msg += "Type:\t\t[bold red]Master[/]\n" if self.bot.master else "Type:\t\tAgent\n"
         if math.isinf(self.bot.latency):
             msg += "Ping:\t[red]Disconnected![/]"
         else:
