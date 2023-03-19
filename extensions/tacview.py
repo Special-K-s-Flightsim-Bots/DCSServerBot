@@ -117,7 +117,7 @@ class Tacview(Extension):
                 value = 'enabled'
         embed.add_field(name=name, value=value)
 
-    def schedule(self):
+    async def schedule(self):
         # check if autodelete is configured
         if 'delete_after' not in self.config:
             return

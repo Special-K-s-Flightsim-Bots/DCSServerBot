@@ -66,7 +66,7 @@ class Bot:
         msg = f"Node:\t\t{platform.node()}\n"
         msg += "Type:\t\t[bold red]Master[/]\n" if self.bot.master else "Type:\t\tAgent\n"
         if math.isinf(self.bot.latency):
-            msg += "Ping:\t[red]Disconnected![/]"
+            msg += "Ping:\t[red]Disconnected![/]\n"
         else:
             msg += f"Ping:\t\t{int(self.bot.latency * 1000)} ms\n"
         msg += f"Threads:\t{len(self.bot.executor._threads)}/{self.bot.executor._max_workers}\n"

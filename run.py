@@ -88,6 +88,7 @@ class Main:
         ch.setLevel(logging.INFO)
         ch.setFormatter(formatter)
         log.addHandler(ch)
+        # discord.utils.setup_logging(level=logging.DEBUG, root=False, handler=fh, formatter=formatter)
         return log
 
     def install_plugins(self):
@@ -253,14 +254,18 @@ class Main:
                             config=self.config,
                             pool=self.pool,
                             help_command=None,
-                            heartbeat_timeout=60.0)
+                            heartbeat_timeout=120,
+                            assume_unsync_clock=True)
 
     async def run(self):
         await self.install_fonts()
         self.log.info('- Starting {}-Node on {}'.format('Master' if self.config.getboolean(
             'BOT', 'MASTER') is True else 'Agent', platform.node()))
         async with self.bot:
-            await self.bot.start(self.config['BOT']['TOKEN'], reconnect=True)
+            try:
+                await self.bot.start(self.config['BOT']['TOKEN'], reconnect=True)
+            except Exception as ex:
+                self.log.exception(ex)
 
     def add_commands(self):
 

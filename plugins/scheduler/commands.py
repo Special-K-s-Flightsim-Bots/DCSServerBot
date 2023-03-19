@@ -145,7 +145,7 @@ class Scheduler(Plugin):
         return self._config[server.name] if server.name in self._config else None
 
     @staticmethod
-    def check_server_state(server: Server, config: dict) -> Status:
+    async def check_server_state(server: Server, config: dict) -> Status:
         if 'schedule' in config and not server.maintenance:
             warn_times: list[int] = Scheduler.get_warn_times(config)
             restart_in: int = max(warn_times) if len(warn_times) and server.is_populated() else 0
@@ -164,7 +164,7 @@ class Scheduler(Plugin):
                     return Status.SHUTDOWN
         return server.status
 
-    def init_extensions(self, server: Server, config: dict):
+    async def init_extensions(self, server: Server, config: dict):
         if 'extensions' not in config:
             return
         for extension in config['extensions']:
@@ -179,13 +179,13 @@ class Scheduler(Plugin):
                     server.extensions[extension] = ext
 
     async def launch_dcs(self, server: Server, config: dict, member: Optional[discord.Member] = None):
-        self.init_extensions(server, config)
+        await self.init_extensions(server, config)
         for ext in sorted(server.extensions):
             await server.extensions[ext].prepare()
             await server.extensions[ext].beforeMissionLoad()
         # change the weather in the mission if provided
         if not server.maintenance and 'restart' in config and 'settings' in config['restart']:
-            self.change_mizfile(server, config)
+            await self.change_mizfile(server, config)
         self.log.info(f"  => DCS server \"{server.name}\" starting up ...")
         await server.startup()
         if not member:
@@ -263,7 +263,7 @@ class Scheduler(Plugin):
             server.restart_pending = False
 
     @staticmethod
-    def change_mizfile(server: Server, config: dict, presets: Optional[str] = None):
+    async def change_mizfile(server: Server, config: dict, presets: Optional[str] = None):
         def apply_preset(value: dict):
             if 'start_time' in value:
                 miz.start_time = value['start_time']
@@ -387,7 +387,7 @@ class Scheduler(Plugin):
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
                 if 'settings' in config['restart']:
-                    self.change_mizfile(server, config)
+                    await self.change_mizfile(server, config)
                 await server.start()
             else:
                 await server.current_mission.restart()
@@ -400,7 +400,7 @@ class Scheduler(Plugin):
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
                 if 'settings' in config['restart']:
-                    self.change_mizfile(server, config)
+                    await self.change_mizfile(server, config)
                 await server.start()
             await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
@@ -421,7 +421,7 @@ class Scheduler(Plugin):
                         asyncio.create_task(self.restart_mission(server, config))
 
     @staticmethod
-    def check_affinity(server: Server, config: dict):
+    async def check_affinity(server: Server, config: dict):
         if not server.process:
             for exe in ['DCS_server.exe', 'DCS.exe']:
                 server.process = utils.find_process(exe, server.installation)
@@ -442,8 +442,8 @@ class Scheduler(Plugin):
             if config:
                 try:
                     if server.status == Status.RUNNING and 'affinity' in config:
-                        self.check_affinity(server, config)
-                    target_state = self.check_server_state(server, config)
+                        await self.check_affinity(server, config)
+                    target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
                         asyncio.create_task(self.launch_dcs(server, config))
                     elif target_state == Status.SHUTDOWN and server.status in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
@@ -474,7 +474,7 @@ class Scheduler(Plugin):
         for server in self.bot.servers.values():
             for ext in server.extensions.values():
                 try:
-                    ext.schedule()
+                    await ext.schedule()
                 except Exception as ex:
                     self.log.exception(ex)
 
@@ -739,7 +739,7 @@ class Scheduler(Plugin):
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 stopped = True
                 await server.stop()
-            self.change_mizfile(server, config, ','.join(view.result))
+            await self.change_mizfile(server, config, ','.join(view.result))
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if stopped:
                 await server.start()

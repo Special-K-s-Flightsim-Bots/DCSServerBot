@@ -35,7 +35,7 @@ class SchedulerListener(EventListener):
     async def registerDCSServer(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
-        self.plugin.init_extensions(server, config)
+        await self.plugin.init_extensions(server, config)
         for ext in server.extensions.values():
             if not ext.is_running():
                 self.bot.loop.call_soon(asyncio.create_task, ext.startup())
@@ -65,7 +65,7 @@ class SchedulerListener(EventListener):
                         for ext in server.extensions.values():
                             await ext.beforeMissionLoad()
                         if 'settings' in config['restart']:
-                            self.plugin.change_mizfile(server, config)
+                            await self.plugin.change_mizfile(server, config)
                         await server.start()
                     message = 'started DCS server'
                     if 'user' not in what:
@@ -77,7 +77,7 @@ class SchedulerListener(EventListener):
                         for ext in server.extensions.values():
                             await ext.beforeMissionLoad()
                         if 'settings' in config['restart']:
-                            self.plugin.change_mizfile(server, config)
+                            await self.plugin.change_mizfile(server, config)
                         await server.start()
                     else:
                         await server.current_mission.restart()
@@ -92,7 +92,7 @@ class SchedulerListener(EventListener):
                     for ext in server.extensions.values():
                         await ext.beforeMissionLoad()
                     if 'settings' in config['restart']:
-                        self.plugin.change_mizfile(server, config)
+                        await self.plugin.change_mizfile(server, config)
                     await server.start()
                 await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated to mission "
                                      f"{server.current_mission.display_name}", server=server)
@@ -105,7 +105,7 @@ class SchedulerListener(EventListener):
             elif what['command'] == 'preset':
                 await server.stop()
                 for preset in what['preset']:
-                    self.plugin.change_mizfile(server, config, preset)
+                    await self.plugin.change_mizfile(server, config, preset)
                 await server.start()
                 await self.bot.audit(f"changed preset to {what['preset']}", server=server, user=what['user'])
             server.restart_pending = False
@@ -171,7 +171,7 @@ class SchedulerListener(EventListener):
                 else:
                     n = int(data['params'][0]) - 1
                     await server.stop()
-                    self.plugin.change_mizfile(server, config, presets[n])
+                    await self.plugin.change_mizfile(server, config, presets[n])
                     await server.start()
                     await self.bot.audit(f"changed preset to {presets[n]}", server=server, user=player.member)
             else:
