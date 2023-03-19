@@ -33,8 +33,8 @@ class Lardoon(Extension):
             self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
             process = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
                                        executable=os.path.expandvars(self.config['cmd']),
-                                       stdout = subprocess.DEVNULL,
-                                       stderr = subprocess.DEVNULL)
+                                       stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL)
             servers.add(self.server.name)
         return self.is_running()
 
@@ -76,7 +76,7 @@ class Lardoon(Extension):
             value = 'enabled'
         embed.add_field(name='Lardoon', value=value)
 
-    def schedule(self):
+    async def schedule(self):
         global imports, prune
 
         # check if prune is running

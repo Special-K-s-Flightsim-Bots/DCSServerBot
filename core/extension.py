@@ -56,7 +56,7 @@ class Extension(ABC):
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         raise NotImplementedError()
 
-    def schedule(self):
+    async def schedule(self):
         pass
 
     def verify(self) -> bool:

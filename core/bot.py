@@ -18,7 +18,7 @@ from typing import Callable, Optional, Tuple, Union
 from .listener import EventListener
 
 
-class DCSServerBot(commands.Bot):
+class DCSServerBot(commands.AutoShardedBot):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -218,8 +218,9 @@ class DCSServerBot(commands.Bot):
                 self.loop.create_task(self.register_servers())
             else:
                 self.log.warning('- Discord connection re-established.')
-                # maybe our external IP got changed...
+                # maybe our external IP has changed...
                 self.external_ip = await utils.get_external_ip() if 'PUBLIC_IP' not in self.config['BOT'] else self.config['BOT']['PUBLIC_IP']
+                self.log.info('- Here.')
         except Exception as ex:
             self.log.exception(ex)
 
