@@ -252,7 +252,8 @@ class Main:
                             log=self.log,
                             config=self.config,
                             pool=self.pool,
-                            help_command=None)
+                            help_command=None,
+                            heartbeat_timeout=60.0)
 
     async def run(self):
         await self.install_fonts()
