@@ -18,7 +18,7 @@ from typing import Callable, Optional, Tuple, Union
 from .listener import EventListener
 
 
-class DCSServerBot(commands.AutoShardedBot):
+class DCSServerBot(commands.Bot):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

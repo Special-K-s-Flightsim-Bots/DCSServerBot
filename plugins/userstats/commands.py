@@ -157,7 +157,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
             file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
             report = PaginationReport(self.bot, ctx, self.plugin_name, file, timeout if timeout > 0 else None)
             await report.render(member=member if isinstance(member, discord.Member) else ucid,
-                                member_name=member.display_name if isinstance(member, discord.Member) else member,
+                                member_name=utils.escape_string(member.display_name) if isinstance(member, discord.Member) else member,
                                 period=period, server_name=None, flt=flt)
         finally:
             await ctx.message.delete()
@@ -181,8 +181,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
             file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
             report = PaginationReport(self.bot, await ctx.message.author.create_dm(), self.plugin_name,
                                       file, timeout if timeout > 0 else None)
-            await report.render(member=member, member_name=member.display_name, period=period, server_name=None,
-                                flt=flt)
+            await report.render(member=member, member_name=utils.escape_string(member.display_name), period=period,
+                                server_name=None, flt=flt)
         finally:
             await ctx.message.delete()
 
@@ -236,8 +236,9 @@ class UserStatisticsMaster(UserStatisticsAgent):
         finally:
             self.pool.putconn(conn)
             await ctx.message.delete()
-        await ctx.send('Member {} linked to ucid {}'.format(member.display_name, ucid))
-        await self.bot.audit(f'linked member {member.display_name} to ucid {ucid}.', user=ctx.message.author)
+        await ctx.send('Member {} linked to ucid {}'.format(utils.escape_string(member.display_name), ucid))
+        await self.bot.audit('linked member {} to ucid {}.'.format(utils.escape_string(member.display_name), ucid),
+                             user=ctx.message.author)
 
     @commands.command(description='Unlinks a member', usage='<member|ucid>')
     @utils.has_role('DCS Admin')
@@ -263,8 +264,9 @@ class UserStatisticsMaster(UserStatisticsAgent):
             self.pool.putconn(conn)
             await ctx.message.delete()
         if isinstance(member, discord.Member):
-            await ctx.send(f'Member {member.display_name} unlinked.')
-            await self.bot.audit(f'unlinked member {member.display_name}.', user=ctx.message.author)
+            await ctx.send('Member {} unlinked.'.format(utils.escape_string(member.display_name)))
+            await self.bot.audit('unlinked member {}.'.format(utils.escape_string(member.display_name)),
+                                 user=ctx.message.author)
         else:
             await ctx.send(f'ucid {ucid} unlinked.')
             await self.bot.audit(f'unlinked ucid {member}.', user=ctx.message.author)
@@ -345,7 +347,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
         ids = players = members = ''
         for i in range(0, len(data)):
             ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            players += f"{data[i]['name']}\n"
+            players += "{}\n".format(utils.escape_string(data[i]['name']))
             members += f"{data[i]['match'].display_name}\n"
         embed.add_field(name='ID', value=ids)
         embed.add_field(name='DCS Player', value=players)
@@ -377,7 +379,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (unmatched[n]['match'].id, unmatched[n]['ucid']))
                     await self.bot.audit(f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
                                          user=ctx.message.author)
-                    await ctx.send(f"DCS player {unmatched[n]['name']} linked to member {unmatched[n]['match'].display_name}.")
+                    await ctx.send("DCS player {} linked to member {}.".format(utils.escape_string(unmatched[n]['name']),
+                                                                               unmatched[n]['match'].display_name))
             conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)

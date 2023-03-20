@@ -354,11 +354,10 @@ class Main:
         @utils.has_role('Admin')
         @commands.guild_only()
         async def upgrade(ctx):
-            if await utils.yn_question(ctx, 'The bot will check and upgrade to the latest version, if available.\n'
-                                            'Are you sure?'):
+            if await utils.yn_question(ctx, f'Do you want to upgrade node {platform.node()} to the latest version?'):
                 await ctx.send('Checking for a bot upgrade ...')
                 if self.upgrade():
-                    await ctx.send('The bot has upgraded itself.')
+                    await ctx.send(f'Node {platform.node()} has upgraded itself.')
                     running = False
                     for server_name, server in self.bot.servers.items():
                         if server.status != Status.SHUTDOWN:
@@ -371,7 +370,7 @@ class Main:
                                    'scheduler configuration on bot start.')
                     exit(-1)
                 else:
-                    await ctx.send('No bot upgrade found.')
+                    await ctx.send(f'No upgrade found for node {platform.node()}.')
 
         @self.bot.command(description='Terminates the bot process', aliases=['exit'])
         @utils.has_role('Admin')

@@ -21,8 +21,7 @@ class Header(report.EmbedElement):
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(sql)
                 if cursor.rowcount == 0:
-                    self.embed.description = \
-                        f'User "{member if isinstance(member, str) else member.display_name}" is not linked.'
+                    self.embed.description = 'User "{}" is not linked.'.format(utils.escape_string(member if isinstance(member, str) else member.display_name))
                     return
                 rows = list(cursor.fetchall())
         except (Exception, psycopg2.DatabaseError) as error:
@@ -32,7 +31,7 @@ class Header(report.EmbedElement):
             self.bot.pool.putconn(conn)
         self.embed.description = f'Information about '
         if isinstance(member, discord.Member):
-            self.embed.description += f'member **{member.display_name}**:'
+            self.embed.description += 'member **{}**:'.format(utils.escape_string(member.display_name))
             self.add_field(name='Discord ID:', value=member.id)
         else:
             self.embed.description += 'a non-member user:'
@@ -94,7 +93,7 @@ class History(report.EmbedElement):
                     return
                 rows = cursor.fetchall()
                 self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
-                self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name']) or 'n/a' for row in rows]))
+                self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name'] or 'n/a') for row in rows]))
                 self.add_field(name='Time', value='\n'.join([f"{row['time']:%y-%m-%d %H:%M:%S}" for row in rows]))
                 self.add_field(name='_ _', value='_ _')
         except (Exception, psycopg2.DatabaseError) as error:
