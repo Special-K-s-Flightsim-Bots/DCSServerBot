@@ -55,11 +55,17 @@ class MissionEventListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         self.queue: dict[discord.TextChannel, Queue[str]] = dict()
+        self.player_embeds: dict[str, bool] = dict()
+        self.mission_embeds: dict[str, bool] = dict()
         self.print_queue.start()
+        self.update_player_embed.start()
+        self.update_mission_embed.start()
 
     async def shutdown(self):
         self.print_queue.cancel()
         await self._work_queue(True)
+        self.update_player_embed.cancel()
+        self.update_mission_embed.cancel()
 
     async def _work_queue(self, flush: bool = False):
         for channel in self.queue.keys():
@@ -87,34 +93,58 @@ class MissionEventListener(EventListener):
         except Exception as ex:
             self.log.debug("Exception in print_queue(): " + str(ex))
 
+    @tasks.loop(seconds=5)
+    async def update_player_embed(self):
+        for server_name, update in self.player_embeds.items():
+            if update:
+                server = self.bot.servers[server_name]
+                if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+                    report = PersistentReport(self.bot, self.plugin_name, 'players.json', server, 'players_embed')
+                    await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
+                self.player_embeds[server_name] = False
+
+    @tasks.loop(seconds=5)
+    async def update_mission_embed(self):
+        for server_name, update in self.mission_embeds.items():
+            if update:
+                server = self.bot.servers[server_name]
+                if not server.settings:
+                    return
+                players = server.get_active_players()
+                num_players = len(players) + 1
+                report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', server, 'mission_embed')
+                await report.render(server=server, num_players=num_players)
+                self.mission_embeds[server_name] = False
+
     @print_queue.before_loop
     async def before_check(self):
         await self.bot.wait_until_ready()
 
-    async def sendMessage(self, data):
+    async def sendMessage(self, data) -> None:
         server: Server = self.bot.servers[data['server_name']]
         if int(data['channel']) == -1:
             channel = server.get_channel(Channel.CHAT)
         else:
             channel = self.bot.get_channel(int(data['channel']))
         if channel:
-            self.bot.loop.call_soon(asyncio.create_task, channel.send(data['message']))
+            await channel.send(data['message'])
 
-    async def sendEmbed(self, data):
+    async def sendEmbed(self, data) -> None:
         server: Server = self.bot.servers[data['server_name']]
         embed = utils.format_embed(data)
         if 'id' in data and len(data['id']) > 0:
             channel = int(data['channel'])
             if channel == -1:
                 channel = Channel.STATUS
-            return self.bot.loop.call_soon(asyncio.create_task, server.setEmbed(data['id'], embed, channel_id=channel))
+            await server.setEmbed(data['id'], embed, channel_id=channel)
+            return
         else:
             if int(data['channel']) == -1:
                 channel = server.get_channel(Channel.CHAT)
             else:
                 channel = self.bot.get_channel(int(data['channel']))
             if channel:
-                self.bot.loop.call_soon(asyncio.create_task, channel.send(embed=embed))
+                await channel.send(embed=embed)
 
     def _send_chat_message(self, server: Server, message: str) -> None:
         chat_channel = server.get_channel(Channel.CHAT)
@@ -123,23 +153,12 @@ class MissionEventListener(EventListener):
                 self.queue[chat_channel] = Queue()
             self.queue[chat_channel].put(message)
 
-    def _display_mission_embed(self, server: Server):
-        try:
-            if not len(server.settings):
-                return
-            players = server.get_active_players()
-            num_players = len(players) + 1
-            report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', server, 'mission_embed')
-            self.bot.loop.call_soon(asyncio.create_task, report.render(server=server, num_players=num_players))
-        except Exception as ex:
-            self.log.exception(ex)
+    async def _display_mission_embed(self, server: Server):
+        self.mission_embeds[server.name] = True
 
     # Display the list of active players
-    def _display_player_embed(self, server: Server):
-        if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
-            report = PersistentReport(self.bot, self.plugin_name, 'players.json', server, 'players_embed')
-            self.bot.loop.call_soon(asyncio.create_task,
-                                    report.render(server=server, sides=[Coalition.BLUE, Coalition.RED]))
+    async def _display_player_embed(self, server: Server):
+        self.player_embeds[server.name] = True
 
     async def callback(self, data):
         server: Server = self.bot.servers[data['server_name']]
@@ -179,8 +198,8 @@ class MissionEventListener(EventListener):
             server.add_player(player)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now()
-        self._display_mission_embed(server)
-        self._display_player_embed(server)
+        await self._display_mission_embed(server)
+        await self._display_player_embed(server)
 
     async def onMissionLoadBegin(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -191,33 +210,33 @@ class MissionEventListener(EventListener):
         server.current_mission.update(data)
         server.players = dict[int, Player]()
         if server.settings:
-            self._display_mission_embed(server)
-        self._display_player_embed(server)
+            await self._display_mission_embed(server)
+        await self._display_player_embed(server)
 
     async def onMissionLoadEnd(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.current_mission.update(data)
-        self._display_mission_embed(server)
+        await self._display_mission_embed(server)
 
     async def onSimulationStart(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.PAUSED
-        self._display_mission_embed(server)
+        await self._display_mission_embed(server)
 
     async def onSimulationStop(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.STOPPED
-        self._display_mission_embed(server)
+        await self._display_mission_embed(server)
 
     async def onSimulationPause(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.PAUSED
-        self._display_mission_embed(server)
+        await self._display_mission_embed(server)
 
     async def onSimulationResume(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.RUNNING
-        self._display_mission_embed(server)
+        await self._display_mission_embed(server)
 
     async def onPlayerConnect(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -257,8 +276,8 @@ class MissionEventListener(EventListener):
             player.sendChatMessage(self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(player.name, server.name))
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now()
-        self._display_mission_embed(server)
-        self._display_player_embed(server)
+        await self._display_mission_embed(server)
+        await self._display_player_embed(server)
 
     async def onPlayerStop(self, data: dict) -> None:
         if data['id'] == 1:
@@ -269,8 +288,8 @@ class MissionEventListener(EventListener):
             player.active = False
             if player.ucid in server.afk:
                 del server.afk[player.ucid]
-        self._display_mission_embed(server)
-        self._display_player_embed(server)
+        await self._display_mission_embed(server)
+        await self._display_player_embed(server)
 
     async def onPlayerChangeSlot(self, data: dict) -> None:
         if 'side' not in data:
@@ -293,7 +312,7 @@ class MissionEventListener(EventListener):
         finally:
             if player:
                 player.update(data)
-            self._display_player_embed(server)
+            await self._display_player_embed(server)
 
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -314,8 +333,8 @@ class MissionEventListener(EventListener):
                 player.active = False
                 if player.ucid in server.afk:
                     del server.afk[player.ucid]
-                self._display_mission_embed(server)
-                self._display_player_embed(server)
+                await self._display_mission_embed(server)
+                await self._display_player_embed(server)
         elif data['eventName'] == 'friendly_fire' and data['arg1'] != data['arg3']:
             player1 = server.get_player(id=data['arg1'])
             if data['arg3'] != -1:

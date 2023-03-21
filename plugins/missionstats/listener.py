@@ -2,6 +2,7 @@ import asyncio
 import psycopg2
 from contextlib import closing
 from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel
+from discord.ext import tasks
 
 
 class MissionStatisticsEventListener(EventListener):
@@ -41,10 +42,14 @@ class MissionStatisticsEventListener(EventListener):
             self.filter = [x.strip() for x in self.bot.config['FILTER']['EVENT_FILTER'].split(',')]
         else:
             self.filter = []
+        self.update: dict[str, bool] = dict()
+        self.do_update.start()
+
+    async def shutdown(self):
+        self.do_update.cancel()
 
     async def getMissionSituation(self, data):
         self.bot.mission_stats[data['server_name']] = data
-        self._display_mission_stats(data)
 
     def _toggle_mission_stats(self, data):
         server: Server = self.bot.servers[data['server_name']]
@@ -61,18 +66,6 @@ class MissionStatisticsEventListener(EventListener):
 
     async def onMissionLoadEnd(self, data):
         self._toggle_mission_stats(data)
-
-    def _display_mission_stats(self, data):
-        server: Server = self.bot.servers[data['server_name']]
-        # Hide the mission statistics embed, if coalitions are enabled
-        if self.bot.config.getboolean(server.installation, 'DISPLAY_MISSION_STATISTICS') and \
-                not self.bot.config.getboolean(server.installation, 'COALITIONS'):
-            stats = self.bot.mission_stats[data['server_name']]
-            if 'coalitions' in stats:
-                report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server, 'stats_embed')
-                self.bot.loop.call_soon(asyncio.create_task, report.render(stats=stats,
-                                                                           mission_id=server.mission_id,
-                                                                           sides=[Coalition.BLUE, Coalition.RED]))
 
     def _update_database(self, data):
         if data['eventName'] in self.filter:
@@ -124,13 +117,13 @@ class MissionStatisticsEventListener(EventListener):
     async def onMissionEvent(self, data):
         server: Server = self.bot.servers[data['server_name']]
         if self.bot.config.getboolean(server.installation, 'PERSIST_MISSION_STATISTICS'):
-            self._update_database(data)
+            await asyncio.to_thread(self._update_database, data)
         if data['server_name'] in self.bot.mission_stats:
             stats = self.bot.mission_stats[data['server_name']]
             update = False
             if data['eventName'] == 'S_EVENT_BIRTH':
                 initiator = data['initiator']
-                if initiator is not None and len(initiator) > 0:
+                if initiator:
                     category = self.UNIT_CATEGORY[initiator['category']]
                     coalition: Coalition = self.COALITION[initiator['coalition']]
                     # no stats for Neutral
@@ -148,10 +141,10 @@ class MissionStatisticsEventListener(EventListener):
                     elif initiator['type'] == 'STATIC':
                         stats['coalitions'][coalition.name]['statics'].append(unit_name)
                     update = True
-            elif data['eventName'] == 'S_EVENT_KILL' and 'initiator' in data and len(data['initiator']) > 0:
+            elif data['eventName'] == 'S_EVENT_KILL' and data.get('initiator', None):
                 killer = data['initiator']
                 victim = data['target']
-                if killer is not None and len(killer) > 0 and len(victim) > 0:
+                if killer and victim:
                     coalition: Coalition = self.COALITION[killer['coalition']]
                     # no stats for Neutral
                     if coalition == Coalition.NEUTRAL:
@@ -173,7 +166,7 @@ class MissionStatisticsEventListener(EventListener):
                             stats['coalitions'][coalition.name]['kills']['Static'] += 1
                     update = True
             elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT'] and \
-                    'initiator' in data and len(data['initiator']) > 0:
+                    data.get('initiator', None):
                 initiator = data['initiator']
                 category = self.UNIT_CATEGORY[initiator['category']]
                 coalition: Coalition = self.COALITION[initiator['coalition']]
@@ -211,6 +204,22 @@ class MissionStatisticsEventListener(EventListener):
                     update = True
                     chat_channel = server.get_channel(Channel.CHAT)
                     if chat_channel:
-                        self.bot.loop.call_soon(asyncio.create_task, chat_channel.send(message))
+                        await chat_channel.send(message)
             if update:
-                self._display_mission_stats(data)
+                self.update[server.name] = True
+
+    @tasks.loop(seconds=5)
+    async def do_update(self):
+        for server_name, update in self.update.items():
+            if update:
+                server: Server = self.bot.servers[server_name]
+                # Hide the mission statistics embed, if coalitions are enabled
+                if self.bot.config.getboolean(server.installation, 'DISPLAY_MISSION_STATISTICS') and \
+                        not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+                    stats = self.bot.mission_stats[server_name]
+                    if 'coalitions' in stats:
+                        report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server,
+                                                  'stats_embed')
+                        await report.render(stats=stats, mission_id=server.mission_id,
+                                            sides=[Coalition.BLUE, Coalition.RED])
+            self.update[server_name] = False

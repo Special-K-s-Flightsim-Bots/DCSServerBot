@@ -37,7 +37,7 @@ class GreenieBoardEventListener(EventListener):
             from funkman.funkplot.funkplot import FunkPlot
             self.funkplot = FunkPlot(ImagePath=config['FunkMan']['IMAGEPATH'])
 
-    def _update_greenieboard(self, server: Server):
+    async def _update_greenieboard(self, server: Server):
         # shall we render the server specific board?
         config = self.plugin.get_config(server)
         if 'persistent_channel' in config:
@@ -47,8 +47,7 @@ class GreenieBoardEventListener(EventListener):
             num_rows = config['num_rows'] if 'num_rows' in config else 10
             report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
                                       server, f'greenieboard-{server.name}', channel_id=channel_id)
-            self.bot.loop.call_soon(asyncio.create_task, report.render(server_name=server.name,
-                                                                       num_rows=num_rows))
+            await report.render(server_name=server.name, num_rows=num_rows)
         # shall we render the global board?
         config = self.locals['configs'][0]
         if 'persistent_channel' in config and server == list(self.bot.servers.values())[0]:
@@ -58,7 +57,7 @@ class GreenieBoardEventListener(EventListener):
             num_rows = config['num_rows'] if 'num_rows' in config else 10
             report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
                                       server, f'greenieboard', channel_id=channel_id)
-            self.bot.loop.call_soon(asyncio.create_task, report.render(server_name=None, num_rows=num_rows))
+            await report.render(server_name=None, num_rows=num_rows)
 
     async def _send_chat_message(self, player: Player, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -79,7 +78,7 @@ class GreenieBoardEventListener(EventListener):
     async def registerDCSServer(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
         try:
-            self._update_greenieboard(server)
+            await self._update_greenieboard(server)
         except FileNotFoundError as ex:
             self.log.error(f'  => File not found: {ex}')
 
@@ -187,7 +186,7 @@ class GreenieBoardEventListener(EventListener):
                 update = True
             if update:
                 await self._send_chat_message(player, data)
-                self._update_greenieboard(server)
+                await self._update_greenieboard(server)
 
     async def moose_lso_grade(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -196,4 +195,4 @@ class GreenieBoardEventListener(EventListener):
         if player:
             self._process_funkman_event(config, server, player, data)
             await self._send_chat_message(player, data)
-            self._update_greenieboard(server)
+            await self._update_greenieboard(server)

@@ -1,4 +1,3 @@
-import asyncio
 import shlex
 import string
 import subprocess
@@ -38,7 +37,7 @@ class SchedulerListener(EventListener):
         await self.plugin.init_extensions(server, config)
         for ext in server.extensions.values():
             if not ext.is_running():
-                self.bot.loop.call_soon(asyncio.create_task, ext.startup())
+                await ext.startup()
 
     async def onPlayerStart(self, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
@@ -132,7 +131,7 @@ class SchedulerListener(EventListener):
         server.restart_pending = False
         for ext in server.extensions.values():
             if ext.is_running():
-                self.bot.loop.call_soon(asyncio.create_task, ext.onMissionLoadEnd(data))
+                await ext.onMissionLoadEnd(data)
 
     async def onMissionEnd(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -144,7 +143,7 @@ class SchedulerListener(EventListener):
         server: Server = self.bot.servers[data['server_name']]
         for ext in server.extensions.values():
             if ext.is_running():
-                self.bot.loop.call_soon(asyncio.create_task, ext.shutdown(data))
+                await ext.shutdown(data)
 
     async def onShutdown(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

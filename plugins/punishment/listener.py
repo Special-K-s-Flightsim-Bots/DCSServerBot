@@ -69,9 +69,8 @@ class PunishmentEventListener(EventListener):
                     points = points * weight
                 # check if an action should be run immediately
                 if 'action' in penalty:
-                    self.bot.loop.call_soon(asyncio.create_task,
-                                            self.plugin.punish(server, initiator, penalty,
-                                                               penalty['reason'] if 'reason' in penalty else penalty['event']))
+                    await self.plugin.punish(server, initiator, penalty,
+                                             penalty['reason'] if 'reason' in penalty else penalty['event'])
                 # add the event to the database
                 async with self.lock:
                     conn = self.pool.getconn()

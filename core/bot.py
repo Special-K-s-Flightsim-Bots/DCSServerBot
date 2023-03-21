@@ -1,4 +1,5 @@
 import asyncio
+import concurrent
 import discord
 import json
 import platform
@@ -6,7 +7,7 @@ import psycopg2
 import re
 import socket
 import string
-from concurrent.futures import ThreadPoolExecutor, Executor
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from core import utils, Server, Status, Channel, DataObjectFactory, Player
@@ -49,14 +50,17 @@ class DCSServerBot(commands.Bot):
 
     async def close(self):
         await self.audit(message="DCSServerBot stopped.")
-        await super().close()
-        self.log.debug('Shutting down...')
+        self.log.info('Graceful shutdown (this might take a bit) ...')
         if self.udp_server:
-            self.udp_server.shutdown()
+            self.log.debug("- Processing unprocessed messages ...")
+            await asyncio.to_thread(self.udp_server.shutdown)
+            self.log.debug("- All messages processed.")
             self.udp_server.server_close()
         self.log.debug('- Listener stopped.')
         self.executor.shutdown(wait=True)
         self.log.debug('- Executor stopped.')
+        self.log.info('- Unloading Plugins ...')
+        await super().close()
         self.log.info('Shutdown complete.')
 
     def is_master(self) -> bool:
@@ -220,7 +224,6 @@ class DCSServerBot(commands.Bot):
                 self.log.warning('- Discord connection re-established.')
                 # maybe our external IP has changed...
                 self.external_ip = await utils.get_external_ip() if 'PUBLIC_IP' not in self.config['BOT'] else self.config['BOT']['PUBLIC_IP']
-                self.log.info('- Here.')
         except Exception as ex:
             self.log.exception(ex)
 
@@ -623,10 +626,13 @@ class DCSServerBot(commands.Bot):
                                     self.loop.call_soon_threadsafe(f.set_result, data)
                                 if command != 'registerDCSServer':
                                     continue
-                        for listener in self.eventListeners:
-                            if command in listener.commands:
-                                self.loop.call_soon_threadsafe(asyncio.create_task,
-                                                               listener.processEvent(deepcopy(data)))
+                        concurrent.futures.wait(
+                            [
+                                asyncio.run_coroutine_threadsafe(listener.processEvent(deepcopy(data)), self.loop)
+                                for listener in self.eventListeners
+                                if data['command'] in listener.commands
+                            ]
+                        )
                     except Exception as ex:
                         self.log.exception(ex)
                     finally:
@@ -635,22 +641,28 @@ class DCSServerBot(commands.Bot):
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler],
-                         executor: Executor):
+                         bot: DCSServerBot):
+                self.bot = bot
+                self.log = bot.log
+                self.executor = bot.executor
                 # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                 MyThreadingUDPServer.allow_reuse_address = True
                 MyThreadingUDPServer.max_packet_size = 65504
                 self.message_queue: dict[str, Queue[str]] = {}
-                self.executor = executor
                 super().__init__(server_address, request_handler)
 
             def shutdown(self) -> None:
                 super().shutdown()
-                for server_name, queue in self.message_queue.items():
-                    queue.join()
-                    queue.put('')
+                try:
+                    for server_name, queue in self.message_queue.items():
+                        if not queue.empty():
+                            queue.join()
+                        queue.put('')
+                except Exception as ex:
+                    self.log.exception(ex)
 
         host = self.config['BOT']['HOST']
         port = int(self.config['BOT']['PORT'])
-        self.udp_server = MyThreadingUDPServer((host, port), RequestHandler, self.executor)
+        self.udp_server = MyThreadingUDPServer((host, port), RequestHandler, self)
         self.executor.submit(self.udp_server.serve_forever)
         self.log.debug('- Listener started on interface {} port {} accepting commands.'.format(host, port))

@@ -69,7 +69,7 @@ class SlotBlockingListener(EventListener):
                 message = "VIP member {} joined".format(utils.escape_string(member.display_name))
             else:
                 message = "VIP user {}(ucid={} joined".format(utils.escape_string(data['name']), data['ucid'])
-            self.bot.loop.call_soon(asyncio.create_task, self.bot.audit(message, server=server))
+            await self.bot.audit(message, server=server)
 
     async def onPlayerChangeSlot(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
