@@ -85,7 +85,7 @@ class Mission(Plugin):
                 await ctx.send(f'There is no mission running on server {server.display_name}')
                 return
         else:
-            self.eventlistener._display_mission_embed(server)
+            await self.eventlistener._display_mission_embed(server)
 
     @staticmethod
     def format_briefing_list(data: list[Server], marker, marker_emoji):
