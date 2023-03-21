@@ -66,10 +66,11 @@ class Bot:
         msg = f"Node:\t\t{platform.node()}\n"
         msg += "Type:\t\t[bold red]Master[/]\n" if self.bot.master else "Type:\t\tAgent\n"
         if math.isinf(self.bot.latency):
-            msg += "Ping:\t[red]Disconnected![/]\n"
+            msg += "Heartbeat:\t[bold red]Disconnected![/]"
         else:
-            msg += f"Ping:\t\t{int(self.bot.latency * 1000)} ms\n"
-        msg += f"Threads:\t{len(self.bot.executor._threads)}/{self.bot.executor._max_workers}\n"
+            msg += f"Heartbeat:\t{int(self.bot.latency * 1000)} ms"
+        if self.bot.is_ws_ratelimited():
+            msg += "\t[bold red]Rate limited![/]"
 
         conn = self.pool.getconn()
         table = None

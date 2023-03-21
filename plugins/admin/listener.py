@@ -78,10 +78,9 @@ class AdminEventListener(EventListener):
                 server.move_to_spectators(delinquent, reason)
                 what = 'moved to spectators'
             player.sendChatMessage(f"User {name} {what}.")
-            self.bot.loop.call_soon(asyncio.create_task,
-                                    self.bot.audit(f'Player {delinquent.display_name} {what}' +
-                                                   (f' with reason "{reason}".' if reason != 'n/a' else '.'),
-                                                   user=player.member))
+            await self.bot.audit(f'Player {delinquent.display_name} {what}' +
+                                 (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                                 user=player.member)
 
         elif data['subcommand'] == '911':
             mentions = ''
@@ -90,5 +89,6 @@ class AdminEventListener(EventListener):
                 if role:
                     mentions += role.mention
             message = ' '.join(data['params'])
-            self.bot.loop.call_soon(asyncio.create_task, server.get_channel(Channel.ADMIN).send(
-                mentions + f" 911 call from player {player.name} (ucid={player.ucid}):```{message}```"))
+            await server.get_channel(Channel.ADMIN).send(mentions +
+                                                         f" 911 call from player {player.name} (ucid={player.ucid}):"
+                                                         f"```{message}```")

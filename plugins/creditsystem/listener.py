@@ -158,7 +158,8 @@ class CreditSystemListener(EventListener):
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]
             player = cast(CreditPlayer, server.get_player(id=data['arg1']))
-            await self._process_achievements(server, player)
+            if player:
+                await self._process_achievements(server, player)
 
     async def onChatCommand(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

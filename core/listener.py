@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC
-from typing import Union, TypeVar, Any, TYPE_CHECKING
+from typing import Union, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import DCSServerBot, Plugin
@@ -18,14 +18,11 @@ class EventListener(ABC):
         self.loop = plugin.loop
         self.commands: list[str] = [m for m in dir(self) if m not in dir(EventListener) and not m.startswith('_')]
 
-    async def processEvent(self, data: dict[str, Union[str, int]]) -> Any:
-        if data['command'] in self.commands:
-            try:
-                return await getattr(self, data['command'])(data)
-            except Exception as ex:
-                self.log.exception(ex)
-        else:
-            return None
+    async def processEvent(self, data: dict[str, Union[str, int]]) -> None:
+        try:
+            await getattr(self, data['command'])(data)
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def shutdown(self):
         pass

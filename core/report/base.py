@@ -14,8 +14,7 @@ from discord.ui import View, Button, Select, Item
 from os import path
 from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 
-from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound, \
-    ReportException
+from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound
 from ..data.const import Channel
 
 if TYPE_CHECKING:
@@ -95,7 +94,7 @@ class Report:
                             signature = inspect.signature(element_class.render).parameters.keys()
                             render_args = {name: value for name, value in element_args.items() if name in signature}
                             try:
-                                element_class.render(**render_args)
+                                await asyncio.to_thread(element_class.render, **render_args)
                             except Exception as ex:
                                 self.log.exception(ex)
                         else:
@@ -299,8 +298,7 @@ class PersistentReport(Report):
         try:
             env = await super().render(*args, **kwargs)
             file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None
-            self.bot.loop.call_soon(asyncio.create_task, self.server.setEmbed(self.embed_name, env.embed, file,
-                                                                              channel_id=self.channel_id))
+            await self.server.setEmbed(self.embed_name, env.embed, file, channel_id=self.channel_id)
             return env
-        except ReportException as ex:
+        except Exception as ex:
             self.log.exception(ex)

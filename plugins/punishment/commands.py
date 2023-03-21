@@ -66,15 +66,17 @@ class PunishmentAgent(Plugin):
                     "reason": reason
                 })
             if player.member:
-                message = f"Member {player.member.display_name} banned by {self.bot.member.name} for {reason}."
+                message = "Member {} banned by {} for {}.".format(utils.escape_string(player.member.display_name),
+                                                                  utils.escape_string(self.bot.member.name), reason)
                 await server.get_channel(Channel.ADMIN).send(message)
                 await self.bot.audit(message)
                 with suppress(Exception):
                     guild = self.bot.guilds[0]
                     channel = await player.member.create_dm()
-                    await channel.send(f"You have been banned from the DCS servers on {guild.name} for {reason}.\n"
-                                       f"To check your current penalty points, use the "
-                                       f"{self.bot.config['BOT']['COMMAND_PREFIX']}penalty command.")
+                    await channel.send("You have been banned from the DCS servers on {} for {}.\n"
+                                       "To check your current penalty points, use the {}penalty "
+                                       "command.".format(utils.escape_string(guild.name), reason,
+                                                         self.bot.config['BOT']['COMMAND_PREFIX']))
             else:
                 message = f"Player {player.display_name} (ucid={player.ucid}) banned by {self.bot.member.name} " \
                           f"for {reason}."
@@ -299,7 +301,7 @@ class PunishmentMaster(PunishmentAgent):
             else:
                 ucid = self.bot.get_ucid_by_member(member)
                 if not ucid:
-                    await ctx.send(f"Member {member.display_name} is not linked to any DCS user.")
+                    await ctx.send("Member {} is not linked to any DCS user.".format(utils.escape_string(member.display_name)))
                     return
         else:
             member = ctx.message.author

@@ -66,10 +66,10 @@ class SlotBlockingListener(EventListener):
         if self._is_vip(config, data) and 'audit' in config['VIP'] and config['VIP']['audit']:
             member = self.bot.get_member_by_ucid(data['ucid'])
             if member:
-                message = f"VIP member {member.display_name} joined"
+                message = "VIP member {} joined".format(utils.escape_string(member.display_name))
             else:
-                message = f"VIP user {data['name']}(ucid={data['ucid']} joined"
-            self.bot.loop.call_soon(asyncio.create_task, self.bot.audit(message, server=server))
+                message = "VIP user {}(ucid={} joined".format(utils.escape_string(data['name']), data['ucid'])
+            await self.bot.audit(message, server=server)
 
     async def onPlayerChangeSlot(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

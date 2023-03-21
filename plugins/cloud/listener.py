@@ -37,7 +37,7 @@ class CloudListener(EventListener):
                 if cursor.rowcount > 0:
                     row = cursor.fetchone()
                     row['client'] = self.plugin.client
-                    self.bot.loop.call_soon(asyncio.create_task, self.plugin.post('upload', row))
+                    await self.plugin.post('upload', row)
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
         finally:

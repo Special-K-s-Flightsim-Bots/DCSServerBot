@@ -47,12 +47,10 @@ class UserStatisticsEventListener(EventListener):
         super().__init__(plugin)
         self.statistics = set()
 
-    async def processEvent(self, data: dict[str, Union[str, int]]) -> Any:
+    async def processEvent(self, data: dict[str, Union[str, int]]) -> None:
         if (data['command'] == 'registerDCSServer') or \
                 (data['server_name'] in self.statistics and data['command'] in self.commands):
-            return await super().processEvent(data)
-        else:
-            return None
+            await super().processEvent(data)
 
     @staticmethod
     def get_unit_type(player: Union[Player, dict]) -> str:

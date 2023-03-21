@@ -391,13 +391,16 @@ class Agent(Plugin):
         choices: list[discord.SelectOption] = [discord.SelectOption(label=x['label']) for x in config['downloads']]
         select1 = Select(placeholder="What do you want to download?", options=choices)
 
+        def zip_file(filename: str) -> str:
+            with ZipFile(filename + '.zip', 'w') as zipfile:
+                zipfile.write(filename)
+            return zipfile.filename
+
         async def send_file(interaction: Interaction, filename: str, target: str):
             zipped = False
             if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('acmi') and \
                     os.path.getsize(filename) >= 8 * 1024 * 1024:
-                with ZipFile(filename + '.zip', 'w') as zipfile:
-                    zipfile.write(filename)
-                filename = zipfile.filename
+                filename = await asyncio.to_thread(zip_file, filename)
                 zipped = True
             await interaction.response.defer(thinking=True)
             if not target:

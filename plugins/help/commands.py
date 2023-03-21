@@ -151,6 +151,7 @@ class HelpMaster(HelpAgent):
                 return True
 
     @commands.command(name='help', description='The help command')
+    @commands.guild_only()
     async def help(self, ctx, command: Optional[str]):
         options = [
             discord.SelectOption(label=string.capwords(x),
