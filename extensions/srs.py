@@ -16,8 +16,11 @@ class SRS(Extension):
         self.process = None
 
     def load_config(self) -> Optional[dict]:
-        self.cfg.read(os.path.expandvars(self.config['config']), encoding='utf-8')
-        return {s: dict(self.cfg.items(s)) for s in self.cfg.sections()}
+        if 'config' in self.config:
+            self.cfg.read(os.path.expandvars(self.config['config']), encoding='utf-8')
+            return {s: dict(self.cfg.items(s)) for s in self.cfg.sections()}
+        else:
+            return {}
 
     async def prepare(self) -> bool:
         # Set SRS port if necessary
@@ -131,7 +134,7 @@ class SRS(Extension):
             return False
         # do we have a proper config file?
         if 'config' not in self.config or not os.path.exists(os.path.expandvars(self.config['config'])):
-            self.log.debug(f"SRS config not found in {self.config['config']}")
+            self.log.debug(f"SRS config not found for server {self.server.name}")
             return False
         if self.server.installation not in self.config['config']:
             self.log.warning(f"- Please move your SRS configuration from {self.config['config']} to "
