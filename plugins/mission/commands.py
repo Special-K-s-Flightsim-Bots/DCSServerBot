@@ -538,7 +538,7 @@ class Mission(Plugin):
                 # remove any hung flag, if the server has responded
                 if server.name in self.hung:
                     del self.hung[server.name]
-                self.eventlistener._display_mission_embed(server)
+                await self.eventlistener._display_mission_embed(server)
             except asyncio.TimeoutError:
                 # check if the server process is still existent
                 max_hung_minutes = int(self.bot.config['DCS']['MAX_HUNG_MINUTES'])
