@@ -305,7 +305,7 @@ class DCSServerBot(commands.Bot):
         dcs_socket.close()
 
     def get_channel(self, channel_id: int):
-        return super().get_channel(channel_id) if id != -1 else None
+        return super().get_channel(channel_id) if channel_id != -1 else None
 
     def get_ucid_by_name(self, name: str) -> Tuple[Optional[str], Optional[str]]:
         conn = self.pool.getconn()
