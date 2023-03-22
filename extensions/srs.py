@@ -92,12 +92,6 @@ class SRS(Extension):
         return await super().shutdown(data)
 
     def is_running(self) -> bool:
-        if self.process:
-            if self.process.poll() is not None:
-                self.process = None
-                return False
-            else:
-                return True
         server_ip = self.locals['Server Settings']['SERVER_IP'] if 'SERVER_IP' in self.locals['Server Settings'] else '127.0.0.1'
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'
