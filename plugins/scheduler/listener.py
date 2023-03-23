@@ -1,5 +1,4 @@
 import shlex
-import string
 import subprocess
 from core import EventListener, utils, Server, Player, Status
 from os import path
@@ -54,7 +53,7 @@ class SchedulerListener(EventListener):
                 await server.shutdown()
                 message = 'shut down DCS server'
                 if 'user' not in what:
-                    message = string.capwords(self.plugin_name) + ' ' + message
+                    message = self.plugin_name.title() + ' ' + message
                 await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
             if 'restart' in what['command']:
                 if server.status == Status.SHUTDOWN:
@@ -68,7 +67,7 @@ class SchedulerListener(EventListener):
                         await server.start()
                     message = 'started DCS server'
                     if 'user' not in what:
-                        message = string.capwords(self.plugin_name) + ' ' + message
+                        message = self.plugin_name.title() + ' ' + message
                     await self.bot.audit(message, server=server, user=what.get('user', None))
                 elif server.status in [Status.RUNNING, Status.PAUSED]:
                     if self.plugin.is_mission_change(server, config):
@@ -82,7 +81,7 @@ class SchedulerListener(EventListener):
                         await server.current_mission.restart()
                     message = f'restarted mission {server.current_mission.display_name}'
                     if 'user' not in what:
-                        message = string.capwords(self.plugin_name) + ' ' + message
+                        message = self.plugin_name.title() + ' ' + message
                     await self.bot.audit(message, server=server, user=what.get('user', None))
             elif what['command'] == 'rotate':
                 await server.loadNextMission()
@@ -93,13 +92,13 @@ class SchedulerListener(EventListener):
                     if 'settings' in config['restart']:
                         await self.plugin.change_mizfile(server, config)
                     await server.start()
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated to mission "
+                await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                      f"{server.current_mission.display_name}", server=server)
             elif what['command'] == 'load':
                 await server.loadMission(what['id'])
                 message = f'loaded mission {server.current_mission.display_name}'
                 if 'user' not in what:
-                    message = string.capwords(self.plugin_name) + ' ' + message
+                    message = self.plugin_name.title() + ' ' + message
                 await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
             elif what['command'] == 'preset':
                 await server.stop()
@@ -113,12 +112,12 @@ class SchedulerListener(EventListener):
         if data['eventName'] == 'disconnect':
             if not server.is_populated() and server.on_empty:
                 await _process(server, server.on_empty)
-                server.on_empty = dict()
+                server.on_empty.clear()
         elif data['eventName'] == 'mission_end':
             self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
             if server.on_mission_end:
                 await _process(server, server.on_mission_end)
-                server.on_mission_end = dict()
+                server.on_mission_end.clear()
 
     async def onSimulationStart(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -129,6 +128,8 @@ class SchedulerListener(EventListener):
     async def onMissionLoadEnd(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.restart_pending = False
+        server.on_empty.clear()
+        server.on_mission_end.clear()
         for ext in server.extensions.values():
             if ext.is_running():
                 await ext.onMissionLoadEnd(data)
@@ -179,8 +180,8 @@ class SchedulerListener(EventListener):
             if not server.maintenance:
                 server.maintenance = True
                 server.restart_pending = False
-                server.on_empty = dict()
-                server.on_mission_end = dict()
+                server.on_empty.clear()
+                server.on_mission_end.clear()
                 player.sendChatMessage('Maintenance mode enabled.')
                 await self.bot.audit("set maintenance flag", user=player.member, server=server)
             else:
