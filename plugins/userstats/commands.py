@@ -3,7 +3,6 @@ import discord
 import os
 import psycopg2
 import random
-import re
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, Member
@@ -35,133 +34,6 @@ def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *param
 
 
 class UserStatisticsAgent(Plugin):
-
-    @staticmethod
-    def match(name1: str, name2: str) -> int:
-        def compare_words(n1: str, n2: str) -> int:
-            n1 = re.sub('|', '', n1)
-            n1 = re.sub('[._-]', ' ', n1)
-            n2 = re.sub('|', '', n2)
-            n2 = re.sub('[._-]', ' ', n2)
-            n1_words = n1.split()
-            n2_words = n2.split()
-            length = 0
-            for w in n1_words:
-                if w in n2_words:
-                    if len(w) > 3 or length > 0:
-                        length += len(w)
-            return length
-
-        if name1 == name2:
-            return len(name1)
-        # remove any tags
-        n1 = re.sub(r'^[\[\<\(=-].*[-=\)\>\]]', '', name1).strip().casefold()
-        if len(n1) == 0:
-            n1 = name1.casefold()
-        n2 = re.sub(r'^[\[\<\(=-].*[-=\)\>\]]', '', name2).strip().casefold()
-        if len(n2) == 0:
-            n2 = name2.casefold()
-        # if the names are too short, return
-        if (len(n1) <= 3 or len(n2) <= 3) and (n1 != n2):
-            return 0
-        length = max(compare_words(n1, n2), compare_words(n2, n1))
-        if length > 0:
-            return length
-        # remove any special characters
-        n1 = re.sub(r'[^a-zA-Z\d ]', '', n1).strip()
-        n2 = re.sub(r'[^a-zA-Z\d ]', '', n2).strip()
-        if (len(n1) == 0) or (len(n2) == 0):
-            return 0
-        # if the names are too short, return
-        if len(n1) <= 3 or len(n2) <= 3:
-            return 0
-        length = max(compare_words(n1, n2), compare_words(n2, n1))
-        if length > 0:
-            return length
-        # remove any numbers
-        n1 = re.sub(r'[\d ]', '', n1).strip()
-        n2 = re.sub(r'[\d ]', '', n2).strip()
-        if (len(n1) == 0) or (len(n2) == 0):
-            return 0
-        # if the names are too short, return
-        if (len(n1) <= 3 or len(n2) <= 3) and (n1 != n2):
-            return 0
-        return max(compare_words(n1, n2), compare_words(n2, n1))
-
-    def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Optional[discord.Member]:
-        # try to match a DCS user with a Discord member
-        tag_filter = self.bot.config['FILTER']['TAG_FILTER'] if 'TAG_FILTER' in self.bot.config['FILTER'] else None
-        if isinstance(data, dict):
-            if not rematch:
-                member = self.bot.get_member_by_ucid(data['ucid'])
-                if member:
-                    return member
-            # we could not find the user, so try to match them
-            dcs_name = re.sub(tag_filter, '', data['name']).strip() if tag_filter else data['name']
-            # we do not match the default names
-            if dcs_name in ['Player', 'Spieler', 'Jugador', 'Joueur', 'Игрок']:
-                return None
-            # a minimum of 3 characters have to match
-            max_weight = 3
-            best_fit = list[discord.Member]()
-            for member in self.bot.get_all_members():  # type: discord.Member
-                # don't match bot users
-                if member.bot:
-                    continue
-                name = re.sub(tag_filter, '', member.name).strip() if tag_filter else member.name
-                if member.nick:
-                    nickname = re.sub(tag_filter, '', member.nick).strip() if tag_filter else member.nick
-                    weight = max(self.match(dcs_name, nickname), self.match(dcs_name, name))
-                else:
-                    weight = self.match(dcs_name, name)
-                if weight > max_weight:
-                    max_weight = weight
-                    best_fit = [member]
-                elif weight == max_weight:
-                    best_fit.append(member)
-            if len(best_fit) == 1:
-                return best_fit[0]
-            # ambiguous matches
-            elif len(best_fit) > 1 and not rematch:
-                online_match = []
-                gaming_match = []
-                # check for online users
-                for m in best_fit:
-                    if m.status != discord.Status.offline:
-                        online_match.append(m)
-                        if isinstance(m.activity, discord.Game) and 'DCS' in m.activity.name:
-                            gaming_match.append(m)
-                if len(gaming_match) == 1:
-                    return gaming_match[0]
-                elif len(online_match) == 1:
-                    return online_match[0]
-            return None
-        # try to match a Discord member with a DCS user that played on the servers
-        else:
-            max_weight = 0
-            best_fit = None
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    sql = 'SELECT ucid, name from players'
-                    if rematch is False:
-                        sql += ' WHERE discord_id = -1 AND name IS NOT NULL'
-                    cursor.execute(sql)
-                    for row in cursor.fetchall():
-                        name = re.sub(tag_filter, '', data.name).strip() if tag_filter else data.name
-                        if data.nick:
-                            nickname = re.sub(tag_filter, '', data.nick).strip() if tag_filter else data.nick
-                            weight = max(self.match(nickname, row['name']), self.match(name, row['name']))
-                        else:
-                            weight = self.match(name, row[1])
-                        if weight > max_weight:
-                            max_weight = weight
-                            best_fit = row[0]
-                    return best_fit
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
 
     @commands.command(description='Deletes the statistics of a server')
     @utils.has_role('Admin')
@@ -496,7 +368,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 unmatched = []
                 cursor.execute('SELECT ucid, name FROM players WHERE discord_id = -1 AND name IS NOT NULL ORDER BY last_seen DESC')
                 for row in cursor.fetchall():
-                    matched_member = self.match_user(dict(row), True)
+                    matched_member = self.bot.match_user(dict(row), True)
                     if matched_member:
                         unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
                 await message.delete()
@@ -549,7 +421,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL AND '
                                    'manual = FALSE ORDER BY last_seen DESC', (member.id, ))
                     for row in cursor.fetchall():
-                        matched_member = self.match_user(dict(row), True)
+                        matched_member = self.bot.match_user(dict(row), True)
                         if not matched_member:
                             suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member})
                         elif matched_member.id != member.id:
