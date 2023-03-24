@@ -59,7 +59,7 @@ class Lardoon(Extension):
     def version(self) -> str:
         return "0.0.11"
 
-    def verify(self) -> bool:
+    def is_installed(self) -> bool:
         # check if Lardoon is enabled
         if 'enabled' not in self.config or not self.config['enabled']:
             return False

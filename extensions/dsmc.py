@@ -72,7 +72,7 @@ class DSMC(Extension):
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         embed.add_field(name='DSMC', value='enabled')
 
-    def verify(self) -> bool:
+    def is_installed(self) -> bool:
         if 'enabled' not in self.config or not self.config['enabled']:
             return False
         dcs_home = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME'])

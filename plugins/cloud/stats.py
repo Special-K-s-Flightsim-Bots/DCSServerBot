@@ -1,7 +1,6 @@
 import discord
 import matplotlib.pyplot as plt
 import numpy as np
-import string
 from core import report, utils, Pagination
 from matplotlib.axes import Axes
 from matplotlib.patches import ConnectionPatch
@@ -216,7 +215,7 @@ class KDRatio(report.MultiGraphElement):
         for name, value in series.iloc[0].items():
             if name == 'player_ucid':
                 continue
-            labels.append(string.capwords(name, sep='_').replace('_', ' '))
+            labels.append(name.replace('_', ' ').title())
             values.append(value)
         xpos = 0
         bottom = 0
@@ -262,7 +261,7 @@ class KDRatio(report.MultiGraphElement):
         for name, value in series.iloc[0].items():
             if name == 'player_ucid':
                 continue
-            labels.append(string.capwords(name, sep='_').replace('_', ' '))
+            labels.append(name.replace('_', ' ').title())
             values.append(value)
         xpos = 0
         bottom = 0

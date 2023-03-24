@@ -44,7 +44,7 @@ class RealWeather(Extension):
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         embed.add_field(name='RealWeather', value='enabled')
 
-    def verify(self) -> bool:
+    def is_installed(self) -> bool:
         if 'enabled' not in self.config or not self.config['enabled']:
             return False
         rw_home = os.path.expandvars(self.config['installation'])

@@ -1,6 +1,5 @@
 import discord
 import os
-import string
 from core import DCSServerBot, Plugin, Report, ReportEnv
 from discord.ext import commands
 from discord.ui import View, Select, Button
@@ -65,7 +64,7 @@ class HelpMaster(HelpAgent):
             title = f'{self.bot.user.display_name} Help'
             help_embed = discord.Embed(title=title, color=discord.Color.blue())
             if plugin != '__main__':
-                help_embed.description = '**Plugin: ' + string.capwords(plugin.split('.')[1]) + '**\n'
+                help_embed.description = '**Plugin: ' + plugin.split('.')[1].title() + '**\n'
             else:
                 help_embed.description = '**Core Commands**\n'
             cmds = []
@@ -154,7 +153,7 @@ class HelpMaster(HelpAgent):
     @commands.guild_only()
     async def help(self, ctx, command: Optional[str]):
         options = [
-            discord.SelectOption(label=string.capwords(x),
+            discord.SelectOption(label=x.title(),
                                  value=f'plugins.{x}.commands') for x in sorted(self.bot.plugins) if x != 'help'
         ]
         options.insert(0, discord.SelectOption(label='Core', value='__main__'))
@@ -176,7 +175,7 @@ class HelpMaster(HelpAgent):
                                                              {
                                                                  "display_name": x.display_name,
                                                                  "password": x.settings['password'],
-                                                                 "status": string.capwords(x.status.name),
+                                                                 "status": x.status.name.title(),
                                                                  "num_players": len(x.get_active_players())
                                                              } for x in self.bot.servers.values()
                                                          ])

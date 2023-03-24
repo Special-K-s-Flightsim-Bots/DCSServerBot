@@ -1,6 +1,5 @@
 import pandas as pd
 import psycopg2
-import string
 from contextlib import closing
 from core import report, ReportEnv, utils, Side, Coalition
 from dataclasses import dataclass
@@ -117,10 +116,10 @@ class MissionStats(report.EmbedElement):
                             elements[s][name] = value
                     self.add_field(name='_ _', value='\n'.join(elements[Side.BLUE].keys()) or '_ _')
                     if Coalition.BLUE in sides:
-                        self.add_field(name=string.capwords(Side.BLUE.name),
+                        self.add_field(name=Side.BLUE.name.capitalize(),
                                              value='\n'.join([str(x) for x in elements[Side.BLUE].values()]) or '_ _')
                     if Coalition.RED in sides:
-                        self.add_field(name=string.capwords(Side.RED.name),
+                        self.add_field(name=Side.RED.name.capitalize(),
                                              value='\n'.join([str(x) for x in elements[Side.RED].values()]) or '_ _')
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)

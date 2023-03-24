@@ -85,7 +85,7 @@ class Mission(Plugin):
                 await ctx.send(f'There is no mission running on server {server.display_name}')
                 return
         else:
-            await self.eventlistener._display_mission_embed(server)
+            self.eventlistener._display_mission_embed(server)
 
     @staticmethod
     def format_briefing_list(data: list[Server], marker, marker_emoji):
@@ -503,13 +503,10 @@ class Mission(Plugin):
                     if role:
                         mentions += role.mention
                 message = mentions + ' ' + utils.escape_string(message)
-            logdir = os.path.expandvars("%USERPROFILE%\\Saved Games\\" + s.installation + "\\logs\\")
-            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-            shutil.copy2(logdir + 'dcs.log', logdir + f"dcs.{timestamp}.log")
             await s.get_channel(Channel.ADMIN).send(message +
-                                                    f"\nLatest dcs.log can be pulled with "
-                                                    f"{self.bot.config['BOT']['COMMAND_PREFIX']}download of "
-                                                    f"dcs.{timestamp}.log\nIf the scheduler is configured for this "
+                                                    f"\nLatest dcs-<timestamp>.log can be pulled with "
+                                                    f"{self.bot.config['BOT']['COMMAND_PREFIX']}download\n"
+                                                    f"If the scheduler is configured for this "
                                                     f"server, it will relaunch it automatically.")
 
         # check for blocked processes due to window popups
@@ -538,7 +535,7 @@ class Mission(Plugin):
                 # remove any hung flag, if the server has responded
                 if server.name in self.hung:
                     del self.hung[server.name]
-                await self.eventlistener._display_mission_embed(server)
+                self.eventlistener._display_mission_embed(server)
             except asyncio.TimeoutError:
                 # check if the server process is still existent
                 max_hung_minutes = int(self.bot.config['DCS']['MAX_HUNG_MINUTES'])

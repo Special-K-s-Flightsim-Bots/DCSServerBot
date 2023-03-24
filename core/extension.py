@@ -59,5 +59,5 @@ class Extension(ABC):
     async def schedule(self):
         pass
 
-    def verify(self) -> bool:
+    def is_installed(self) -> bool:
         pass
