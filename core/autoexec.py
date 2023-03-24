@@ -15,7 +15,7 @@ class Autoexec:
         file = path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\autoexec.cfg'
         if not path.exists(file):
             return
-        exp = re.compile('(?P<key>.*) = (?P<value>.*)')
+        exp = re.compile('(?P<key>.*)=(?P<value>.*)')
         mydict = dict()
         with open(file, 'r') as cfg:
             for line in [x.strip() for x in cfg.readlines()]:
@@ -25,8 +25,8 @@ class Autoexec:
                     line = line[0:line.find('--')].strip()
                 match = exp.search(line)
                 if match:
-                    key = match.group('key')
-                    value = self.parse(match.group('value'))
+                    key = match.group('key').strip()
+                    value = self.parse(match.group('value').strip())
                     if '.' in key:
                         keys = key.split('.')
                         if keys[0] not in mydict:
