@@ -98,7 +98,7 @@ class Sneaker(Extension):
     def version(self) -> str:
         return "0.0.12"
 
-    def verify(self) -> bool:
+    def is_installed(self) -> bool:
         # check if Sneaker is enabled
         if 'enabled' not in self.config or not self.config['enabled']:
             return False

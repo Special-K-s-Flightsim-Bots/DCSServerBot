@@ -8,7 +8,6 @@ import psycopg2
 import psycopg2.extras
 import shlex
 import shutil
-import string
 import subprocess
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Player, Status, Server, Coalition
@@ -526,7 +525,7 @@ class Agent(Plugin):
                         if 'configs' in data:
                             plugin = message.attachments[0].filename[:-5]
                             if plugin not in self.bot.plugins:
-                                await message.channel.send(f"Plugin {string.capwords(plugin)} is not activated.")
+                                await message.channel.send(f"Plugin {plugin.title()} is not activated.")
                                 return True
                             filename = f"config/{plugin}.json"
                             if os.path.exists(filename) and not \
@@ -537,7 +536,7 @@ class Agent(Plugin):
                             with open(filename, 'w', encoding="utf-8") as outfile:
                                 json.dump(data, outfile, indent=2)
                             await self.bot.reload(plugin)
-                            await message.channel.send(f"Plugin {string.capwords(plugin)} re-configured.")
+                            await message.channel.send(f"Plugin {plugin.title()} re-configured.")
                             return True
                         else:
                             return False

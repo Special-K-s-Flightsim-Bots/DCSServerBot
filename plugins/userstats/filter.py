@@ -1,5 +1,4 @@
 import psycopg2
-import string
 from abc import ABC, abstractmethod
 from contextlib import closing
 from core import DCSServerBot, utils, Pagination, ReportEnv, const
@@ -67,7 +66,7 @@ class PeriodFilter(StatisticsFilter):
         elif period == 'yesterday':
             return 'Yesterdays'
         else:
-            return string.capwords(period) + 'ly'
+            return period.capitalize() + 'ly'
 
 
 class CampaignFilter(StatisticsFilter):
@@ -89,7 +88,7 @@ class CampaignFilter(StatisticsFilter):
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
         if period and period.startswith('campaign:'):
             period = period[9:]
-        return f'Campaign "{string.capwords(period)}"'
+        return f'Campaign "{period.capitalize()}"'
 
 
 class MixedFilter(StatisticsFilter):
@@ -140,7 +139,7 @@ class MissionFilter(StatisticsFilter):
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        return f'Missions containing "{string.capwords(period[8:])}"'
+        return f'Missions containing "{period[8:].title()}"'
 
 
 class MonthFilter(StatisticsFilter):

@@ -115,7 +115,7 @@ def format_period(period: str) -> str:
     if period == 'day':
         return 'Daily'
     else:
-        return string.capwords(period) + 'ly'
+        return period.capitalize() + 'ly'
 
 
 def alternate_parse_settings(path: str):

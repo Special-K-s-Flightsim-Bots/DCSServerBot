@@ -1,7 +1,6 @@
 import asyncio
 import discord
 import psycopg2
-import string
 from contextlib import closing, suppress
 from copy import deepcopy
 from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel
@@ -324,7 +323,7 @@ class PunishmentMaster(PunishmentAgent):
                 total = 0.0
                 for row in cursor.fetchall():
                     times += f"{row['time']:%m/%d %H:%M}\n"
-                    events += string.capwords(' '.join(row['event'].split('_'))) + '\n'
+                    events += ' '.join(row['event'].split('_')).title() + '\n'
                     points += f"{row['points']:.2f}\n"
                     total += row['points']
                 embed.description = f"Total penalty points: {total:.2f}"

@@ -4,6 +4,8 @@ import win32api
 from core import Extension, report
 from typing import Any, Optional, TextIO
 
+ports: dict[int, str] = dict()
+
 
 class LotAtc(Extension):
     @staticmethod
@@ -62,25 +64,28 @@ class LotAtc(Extension):
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         if self.locals:
-            host = self.config['host'] if 'host' in self.config else self.bot.external_ip
-            value = f"{host}:{self.locals['port']}" if 'port' in self.locals else ''
-            show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
-            blue = self.locals['blue_password'] if 'blue_password' in self.locals else ''
-            red = self.locals['red_password'] if 'red_password' in self.locals else ''
+            host = self.config.get('host', self.bot.external_ip)
+            value = f"{host}:{self.locals.get('port', 10310)}"
+            show_passwords = self.config.get('show_passwords', True)
+            blue = self.locals.get('blue_password', '')
+            red = self.locals.get('red_password', '')
             if show_passwords and (blue or red):
                 value += f"\n🔹 Pass: {blue}\n🔸 Pass: {red}"
-            if not len(value):
-                value = '_ _'
             embed.add_field(name='LotAtc', value=value)
 
-    def verify(self) -> bool:
+    def is_installed(self) -> bool:
+        global ports
+
         if not os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
                               '/Mods/services/LotAtc/bin/lotatc.dll'):
             return False
         if not os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
                               '/Mods/services/LotAtc/config.lua'):
             return False
-        return True
-
-    async def shutdown(self, data: dict) -> bool:
+        port = self.locals.get('port', 10310)
+        if port in ports and ports[port] != self.server.name:
+            self.log.error(f"  => LotAtc port {port} already in use by server {ports[port]}!")
+            return False
+        else:
+            ports[port] = self.server.name
         return True

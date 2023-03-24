@@ -1,6 +1,5 @@
 import discord
 import psycopg2
-import string
 from contextlib import closing
 from copy import deepcopy
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, Server
@@ -134,7 +133,7 @@ class CreditSystemMaster(CreditSystemAgent):
             times = events = deltas = ''
             for row in data:
                 times += f"{row['time']:%m/%d %H:%M}\n"
-                events += string.capwords(row['event']) + '\n'
+                events += row['event'].title() + '\n'
                 deltas += f"{row['new_points'] - row['old_points']}\n"
             embed.add_field(name='Time', value=times)
             embed.add_field(name='Event', value=events)

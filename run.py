@@ -9,11 +9,10 @@ import platform
 import psycopg2
 import psycopg2.extras
 import shutil
-import string
 import subprocess
 import sys
 import zipfile
-from core import utils, Server, DCSServerBot, Status
+from core import utils, Server, DCSServerBot, Status, ThreadedConnectionPool
 from contextlib import closing, suppress
 from discord import SelectOption
 from discord.ext import commands
@@ -21,7 +20,6 @@ from install import Install
 from logging.handlers import RotatingFileHandler
 from matplotlib import font_manager
 from pathlib import Path
-from psycopg2 import pool
 from typing import Optional, TYPE_CHECKING
 from version import __version__
 
@@ -109,7 +107,7 @@ class Main:
         # Initialize the database
         pool_min = self.config['BOT']['MASTER_POOL_MIN'] if self.config.getboolean('BOT', 'MASTER') else self.config['BOT']['AGENT_POOL_MIN']
         pool_max = self.config['BOT']['MASTER_POOL_MAX'] if self.config.getboolean('BOT', 'MASTER') else self.config['BOT']['AGENT_POOL_MAX']
-        db_pool = pool.ThreadedConnectionPool(pool_min, pool_max, self.config['BOT']['DATABASE_URL'], sslmode='allow')
+        db_pool = ThreadedConnectionPool(int(pool_min), int(pool_max), self.config['BOT']['DATABASE_URL'], sslmode='allow')
         conn = db_pool.getconn()
         try:
             with suppress(Exception):
@@ -280,7 +278,7 @@ class Main:
                 embed = discord.Embed(title=f'Installed Plugins ({platform.node()})', color=discord.Color.blue())
                 names = versions = ''
                 for plugin in plugins:  # type: Plugin
-                    names += string.capwords(plugin.plugin_name) + '\n'
+                    names += plugin.plugin_name.title() + '\n'
                     versions += plugin.plugin_version + '\n'
                 embed.add_field(name='Name', value=names)
                 embed.add_field(name='Version', value=versions)
@@ -292,7 +290,7 @@ class Main:
                                              embed=embed,
                                              options=[
                                                  SelectOption(
-                                                     label=string.capwords(x.plugin_name),
+                                                     label=x.plugin_name.title(),
                                                      value=x.plugin_name) for x in plugins
                                              ],
                                              max_values=len(plugins))
@@ -302,9 +300,9 @@ class Main:
             for cog in cogs:
                 try:
                     await self.bot.reload(cog)
-                    await ctx.send(f'Plugin {string.capwords(cog)} reloaded.')
+                    await ctx.send(f'Plugin {cog.title()} reloaded.')
                 except commands.ExtensionNotLoaded:
-                    await ctx.send(f'Plugin {string.capwords(cog)} not found.')
+                    await ctx.send(f'Plugin {cog.title()} not found.')
 
         @self.bot.command(description='Rename a server')
         @utils.has_role('Admin')

@@ -1,16 +1,13 @@
 import asyncio
-import concurrent
 import discord
 import json
 import platform
 import psycopg2
-import re
 import socket
-import string
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
-from core import utils, Server, Status, Channel, DataObjectFactory, Player
+from core import utils, Server, Status, Channel, DataObjectFactory, Player, Autoexec
 from datetime import datetime
 from discord.ext import commands
 from queue import Queue
@@ -205,10 +202,8 @@ class DCSServerBot(commands.Bot):
                     self.check_channels(server.installation)
                 self.log.info('- Loading Plugins ...')
                 for plugin in self.plugins:
-                    if await self.load_plugin(plugin.lower()):
-                        self.log.info(f'  => {string.capwords(plugin)} loaded.')
-                    else:
-                        self.log.info(f'  => {string.capwords(plugin)} NOT loaded.')
+                    if not await self.load_plugin(plugin.lower()):
+                        self.log.info(f'  => {plugin.title()} NOT loaded.')
                 if not self.synced:
                     self.log.info('- Registering Discord Commands (this might take a bit) ...')
                     self.tree.copy_global_to(guild=self.guilds[0])
@@ -366,133 +361,6 @@ class DCSServerBot(commands.Bot):
                 return player
         return None
 
-    @staticmethod
-    def match(name1: str, name2: str) -> int:
-        def compare_words(n1: str, n2: str) -> int:
-            n1 = re.sub('|', '', n1)
-            n1 = re.sub('[._-]', ' ', n1)
-            n2 = re.sub('|', '', n2)
-            n2 = re.sub('[._-]', ' ', n2)
-            n1_words = n1.split()
-            n2_words = n2.split()
-            length = 0
-            for w in n1_words:
-                if w in n2_words:
-                    if len(w) > 3 or length > 0:
-                        length += len(w)
-            return length
-
-        if name1 == name2:
-            return len(name1)
-        # remove any tags
-        n1 = re.sub(r'^[\[\<\(=-].*[-=\)\>\]]', '', name1).strip().casefold()
-        if len(n1) == 0:
-            n1 = name1.casefold()
-        n2 = re.sub(r'^[\[\<\(=-].*[-=\)\>\]]', '', name2).strip().casefold()
-        if len(n2) == 0:
-            n2 = name2.casefold()
-        # if the names are too short, return
-        if (len(n1) <= 3 or len(n2) <= 3) and (n1 != n2):
-            return 0
-        length = max(compare_words(n1, n2), compare_words(n2, n1))
-        if length > 0:
-            return length
-        # remove any special characters
-        n1 = re.sub(r'[^a-zA-Z\d ]', '', n1).strip()
-        n2 = re.sub(r'[^a-zA-Z\d ]', '', n2).strip()
-        if (len(n1) == 0) or (len(n2) == 0):
-            return 0
-        # if the names are too short, return
-        if len(n1) <= 3 or len(n2) <= 3:
-            return 0
-        length = max(compare_words(n1, n2), compare_words(n2, n1))
-        if length > 0:
-            return length
-        # remove any numbers
-        n1 = re.sub(r'[\d ]', '', n1).strip()
-        n2 = re.sub(r'[\d ]', '', n2).strip()
-        if (len(n1) == 0) or (len(n2) == 0):
-            return 0
-        # if the names are too short, return
-        if (len(n1) <= 3 or len(n2) <= 3) and (n1 != n2):
-            return 0
-        return max(compare_words(n1, n2), compare_words(n2, n1))
-
-    def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Optional[discord.Member]:
-        # try to match a DCS user with a Discord member
-        tag_filter = self.config['FILTER']['TAG_FILTER'] if 'TAG_FILTER' in self.config['FILTER'] else None
-        if isinstance(data, dict):
-            if not rematch:
-                member = self.get_member_by_ucid(data['ucid'])
-                if member:
-                    return member
-            # we could not find the user, so try to match them
-            dcs_name = re.sub(tag_filter, '', data['name']).strip() if tag_filter else data['name']
-            # we do not match the default names
-            if dcs_name in ['Player', 'Spieler', 'Jugador', 'Joueur', 'Игрок']:
-                return None
-            # a minimum of 3 characters have to match
-            max_weight = 3
-            best_fit = list[discord.Member]()
-            for member in self.get_all_members():  # type: discord.Member
-                # don't match bot users
-                if member.bot:
-                    continue
-                name = re.sub(tag_filter, '', member.name).strip() if tag_filter else member.name
-                if member.nick:
-                    nickname = re.sub(tag_filter, '', member.nick).strip() if tag_filter else member.nick
-                    weight = max(self.match(dcs_name, nickname), self.match(dcs_name, name))
-                else:
-                    weight = self.match(dcs_name, name)
-                if weight > max_weight:
-                    max_weight = weight
-                    best_fit = [member]
-                elif weight == max_weight:
-                    best_fit.append(member)
-            if len(best_fit) == 1:
-                return best_fit[0]
-            # ambiguous matches
-            elif len(best_fit) > 1 and not rematch:
-                online_match = []
-                gaming_match = []
-                # check for online users
-                for m in best_fit:
-                    if m.status != discord.Status.offline:
-                        online_match.append(m)
-                        if isinstance(m.activity, discord.Game) and 'DCS' in m.activity.name:
-                            gaming_match.append(m)
-                if len(gaming_match) == 1:
-                    return gaming_match[0]
-                elif len(online_match) == 1:
-                    return online_match[0]
-            return None
-        # try to match a Discord member with a DCS user that played on the servers
-        else:
-            max_weight = 0
-            best_fit = None
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    sql = 'SELECT ucid, name from players'
-                    if rematch is False:
-                        sql += ' WHERE discord_id = -1 AND name IS NOT NULL'
-                    cursor.execute(sql)
-                    for row in cursor.fetchall():
-                        name = re.sub(tag_filter, '', data.name).strip() if tag_filter else data.name
-                        if data.nick:
-                            nickname = re.sub(tag_filter, '', data.nick).strip() if tag_filter else data.nick
-                            weight = max(self.match(nickname, row['name']), self.match(name, row['name']))
-                        else:
-                            weight = self.match(name, row[1])
-                        if weight > max_weight:
-                            max_weight = weight
-                            best_fit = row[0]
-                    return best_fit
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
-
     def register_eventListener(self, listener: EventListener):
         self.log.debug(f'- Registering EventListener {type(listener).__name__}')
         self.eventListeners.append(listener)
@@ -534,6 +402,37 @@ class DCSServerBot(commands.Bot):
                 break
         server.dcs_version = data['dcs_version']
         server.status = Status.STOPPED
+        # validate server ports
+        dcs_ports: dict[int, str] = dict()
+        webgui_ports: dict[int, str] = dict()
+        webrtc_ports: dict[int, str] = dict()
+        for server in self.servers.values():
+            dcs_port = server.settings.get('port', 10308)
+            if dcs_port in dcs_ports:
+                self.log.error(f'Server "{server.name}" shares its DCS port with server '
+                               f'"{dcs_ports[dcs_port]}"! Registration aborted.')
+                return False
+            else:
+                dcs_ports[dcs_port] = server.name
+            autoexec = Autoexec(bot=self, installation=server.installation)
+            webgui_port = autoexec.webgui_port or 8088
+            if webgui_port in webgui_ports:
+                self.log.error(f'Server "{server.name}" shares its webgui_port with server '
+                               f'"{webgui_ports[webgui_port]}"! Registration aborted.')
+                return False
+            else:
+                webgui_ports[webgui_port] = server.name
+            webrtc_port = autoexec.webrtc_port or 10309
+            if webrtc_port in webrtc_ports:
+                if server.settings['advanced'].get('voice_chat_server', False):
+                    self.log.error(f'Server "{server.name}" shares its webrtc_port port with server '
+                                   f'"{webrtc_ports[webrtc_port]}"! Registration aborted.')
+                else:
+                    self.log.warning(f'Server "{server.name}" shares its webrtc_port port with server '
+                                     f'"{webrtc_ports[webrtc_port]}", but voice chat is disabled.')
+            else:
+                webrtc_ports[webrtc_port] = server.name
+
         # update the database and check for server name changes
         conn = self.pool.getconn()
         try:
@@ -626,13 +525,10 @@ class DCSServerBot(commands.Bot):
                                     self.loop.call_soon_threadsafe(f.set_result, data)
                                 if command != 'registerDCSServer':
                                     continue
-                        concurrent.futures.wait(
-                            [
-                                asyncio.run_coroutine_threadsafe(listener.processEvent(deepcopy(data)), self.loop)
-                                for listener in self.eventListeners
-                                if data['command'] in listener.commands
-                            ]
-                        )
+                        for listener in self.eventListeners:
+                            if command in listener.commands:
+                                self.loop.call_soon_threadsafe(asyncio.create_task,
+                                                               listener.processEvent(deepcopy(data)))
                     except Exception as ex:
                         self.log.exception(ex)
                     finally:

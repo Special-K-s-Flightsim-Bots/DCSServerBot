@@ -5,7 +5,6 @@ import json
 import os
 import platform
 import random
-import string
 from copy import deepcopy
 from discord import Interaction
 from discord.ui import View, Select, Button
@@ -175,7 +174,7 @@ class Scheduler(Plugin):
                                                                         config['extensions'][extension])
                 else:
                     ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
-                if ext.verify():
+                if ext.is_installed():
                     server.extensions[extension] = ext
 
     async def launch_dcs(self, server: Server, config: dict, member: Optional[discord.Member] = None):
@@ -190,8 +189,8 @@ class Scheduler(Plugin):
         await server.startup()
         if not member:
             self.log.info(f"  => DCS server \"{server.name}\" started by "
-                          f"{string.capwords(self.plugin_name)}.")
-            await self.bot.audit(f"{string.capwords(self.plugin_name)} started DCS server", server=server)
+                          f"{self.plugin_name.title()}.")
+            await self.bot.audit(f"{self.plugin_name.title()} started DCS server", server=server)
         else:
             self.log.info(f"  => DCS server \"{server.name}\" started by "
                           f"{member.display_name}.")
@@ -234,8 +233,8 @@ class Scheduler(Plugin):
         await server.shutdown()
         if not member:
             self.log.info(
-                f"  => DCS server \"{server.name}\" shut down by {string.capwords(self.plugin_name)}.")
-            await self.bot.audit(f"{string.capwords(self.plugin_name)} shut down DCS server", server=server)
+                f"  => DCS server \"{server.name}\" shut down by {self.plugin_name.title()}.")
+            await self.bot.audit(f"{self.plugin_name.title()} shut down DCS server", server=server)
         else:
             self.log.info(
                 f"  => DCS server \"{server.name}\" shut down by {member.display_name}.")
@@ -252,8 +251,8 @@ class Scheduler(Plugin):
             restart_in = max(warn_times) if len(warn_times) else 0
             if restart_in > 0 and populated:
                 self.log.info(f"  => DCS server \"{server.name}\" will be shut down "
-                              f"by {string.capwords(self.plugin_name)} in {restart_in} seconds ...")
-                await self.bot.audit(f"{string.capwords(self.plugin_name)} will shut down DCS server in {utils.format_time(restart_in)}",
+                              f"by {self.plugin_name.title()} in {restart_in} seconds ...")
+                await self.bot.audit(f"{self.plugin_name.title()} will shut down DCS server in {utils.format_time(restart_in)}",
                                      server=server)
                 await self.warn_users(server, config, 'shutdown')
             # if the shutdown has been cancelled due to maintenance mode
@@ -379,7 +378,7 @@ class Scheduler(Plugin):
             try:
                 await self.launch_dcs(server, config)
             except asyncio.TimeoutError:
-                await self.bot.audit(f"{string.capwords(self.plugin_name)}: Timeout while starting server",
+                await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
                                      server=server)
         elif method == 'restart':
             if self.is_mission_change(server, config):
@@ -391,7 +390,7 @@ class Scheduler(Plugin):
                 await server.start()
             else:
                 await server.current_mission.restart()
-            await self.bot.audit(f"{string.capwords(self.plugin_name)} restarted mission "
+            await self.bot.audit(f"{self.plugin_name.title()} restarted mission "
                                  f"{server.current_mission.display_name}", server=server)
         elif method == 'rotate':
             await server.loadNextMission()
@@ -402,7 +401,7 @@ class Scheduler(Plugin):
                 if 'settings' in config['restart']:
                     await self.change_mizfile(server, config)
                 await server.start()
-            await self.bot.audit(f"{string.capwords(self.plugin_name)} rotated to mission "
+            await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
 
     async def check_mission_state(self, server: Server, config: dict):
@@ -610,7 +609,7 @@ class Scheduler(Plugin):
         maintenance = []
         for server in self.bot.servers.values():
             names.append(server.display_name)
-            status.append(string.capwords(server.status.name.lower()))
+            status.append(server.status.name.title())
             maintenance.append('Y' if server.maintenance else 'N')
         if len(names):
             embed.add_field(name='Server', value='\n'.join(names))
@@ -637,7 +636,7 @@ class Scheduler(Plugin):
                 server.on_empty = dict()
                 server.on_mission_end = dict()
                 await ctx.send(f"Maintenance mode set for server {server.display_name}.\n"
-                               f"The {string.capwords(self.plugin_name)} will be set on hold until you use"
+                               f"The {self.plugin_name.title()} will be set on hold until you use"
                                f" {ctx.prefix}clear again.")
                 await self.bot.audit("set maintenance flag", user=ctx.message.author, server=server)
             else:
@@ -652,7 +651,7 @@ class Scheduler(Plugin):
             if server.maintenance:
                 server.maintenance = False
                 await ctx.send(f"Maintenance mode cleared for server {server.display_name}.\n"
-                               f"The {string.capwords(self.plugin_name)} will take over the state handling now.")
+                               f"The {self.plugin_name.title()} will take over the state handling now.")
                 await self.bot.audit("cleared maintenance flag", user=ctx.message.author, server=server)
             else:
                 await ctx.send(f"Server {server.display_name} is not in maintenance mode.")

@@ -1,7 +1,6 @@
 import discord
 import matplotlib.pyplot as plt
 import numpy as np
-import string
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
@@ -318,7 +317,7 @@ class KDRatio(report.MultiGraphElement):
                     labels = []
                     values = []
                     for item in dict(cursor.fetchone()).items():
-                        labels.append(string.capwords(item[0], sep='_').replace('_', ' '))
+                        labels.append(item[0].replace('_', ' ').title())
                         values.append(item[1])
                     xpos = 0
                     bottom = 0
@@ -371,7 +370,7 @@ class KDRatio(report.MultiGraphElement):
                     labels = []
                     values = []
                     for item in dict(result).items():
-                        labels.append(string.capwords(item[0], sep='_').replace('_', ' '))
+                        labels.append(item[0].replace('_', ' ').title())
                         values.append(item[1])
                     xpos = 0
                     bottom = 0

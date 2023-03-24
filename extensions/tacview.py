@@ -11,6 +11,8 @@ from typing import Optional
 
 
 DEFAULT_DIR = os.path.normpath(os.path.expandvars(r"%USERPROFILE%\Documents\Tacview"))
+rtt_ports: dict[int, str] = dict()
+rcp_ports: dict[int, str] = dict()
 
 
 class Tacview(Extension):
@@ -90,28 +92,19 @@ class Tacview(Extension):
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         name = 'Tacview'
-        if ('tacviewModuleEnabled' in self.locals and not self.locals['tacviewModuleEnabled']) or \
-                ('tacviewFlightDataRecordingEnabled' in self.locals and
-                 not self.locals['tacviewFlightDataRecordingEnabled']):
+        if not self.locals.get('tacviewModuleEnabled', True):
             value = 'disabled'
         else:
-            show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
-            host = self.config['host'] if 'host' in self.config else self.bot.external_ip
+            show_passwords = self.config.get('show_passwords', True)
+            host = self.config.get('host', self.bot.external_ip)
             value = ''
-            if 'tacviewRealTimeTelemetryPort' in self.locals and len(self.locals['tacviewRealTimeTelemetryPort']) > 0:
-                value += f"{host}:{self.locals['tacviewRealTimeTelemetryPort']}\n"
-            if 'tacviewRealTimeTelemetryEnabled' in self.locals and self.locals['tacviewRealTimeTelemetryEnabled']:
-                name += ' RT'
-                if show_passwords and 'tacviewRealTimeTelemetryPassword' in self.locals and \
-                        len(self.locals['tacviewRealTimeTelemetryPassword']) > 0:
+            if self.locals.get('tacviewRealTimeTelemetryEnabled', True):
+                value += f"{host}:{self.locals.get('tacviewRealTimeTelemetryPort', 42674)}\n"
+                if show_passwords and self.locals.get('tacviewRealTimeTelemetryPassword', None):
                     value += f"Password: {self.locals['tacviewRealTimeTelemetryPassword']}\n"
-            elif show_passwords and 'tacviewHostTelemetryPassword' in self.locals \
-                    and len(self.locals['tacviewHostTelemetryPassword']) > 0:
-                value += f"Password: {self.locals['tacviewHostTelemetryPassword']}\n"
-            if 'tacviewRemoteControlEnabled' in self.locals and self.locals['tacviewRemoteControlEnabled']:
-                value += f"**Remote Ctrl [{self.locals['tacviewRemoteControlPort']}]**\n"
-                if show_passwords and 'tacviewRemoteControlPassword' in self.locals and \
-                        len(self.locals['tacviewRemoteControlPassword']) > 0:
+            if self.locals.get('tacviewRemoteControlEnabled', False):
+                value += f"**Remote Ctrl [{self.locals.get('tacviewRemoteControlPort', 42675)}]**\n"
+                if show_passwords and self.locals.get('tacviewRemoteControlPassword', None):
                     value += f"Password: {self.locals['tacviewRemoteControlPassword']}"
             if len(value) == 0:
                 value = 'enabled'
@@ -132,7 +125,9 @@ class Tacview(Extension):
                     os.remove(f)
         self.lastrun = datetime.now()
 
-    def verify(self) -> bool:
+    def is_installed(self) -> bool:
+        global rtt_ports, rcp_ports
+
         dll_installed = os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
                                        r'\Mods\tech\Tacview\bin\tacview.dll')
         exports_installed = os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
@@ -156,6 +151,18 @@ class Tacview(Extension):
         if not dll_installed or not exports_installed:
             self.log.error(f"  => {self.server.name}: Can't load extension, Tacview not correctly installed.")
             return False
+        rtt_port = self.locals.get('tacviewRealTimeTelemetryPort', 42674)
+        if rtt_port in rtt_ports and rtt_ports[rtt_port] != self.server.name:
+            self.log.error(f"  =>  tacviewRealTimeTelemetryPort {rtt_port} already in use by "
+                           f"server {rtt_ports[rtt_port]}!")
+        else:
+            rtt_ports[rtt_port] = self.server.name
+        rcp_port = self.locals.get('tacviewRemoteControlPort', 42675)
+        if rcp_port in rcp_ports and rcp_ports[rcp_port] != self.server.name:
+            self.log.error(f"  =>  tacviewRemoteControlPort {rcp_port} already in use by "
+                           f"server {rcp_ports[rcp_port]}!")
+        else:
+            rcp_ports[rcp_port] = self.server.name
         return True
 
     async def shutdown(self, data: dict):

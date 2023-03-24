@@ -153,11 +153,11 @@ class MissionEventListener(EventListener):
                 self.queue[chat_channel] = Queue()
             self.queue[chat_channel].put(message)
 
-    async def _display_mission_embed(self, server: Server):
+    def _display_mission_embed(self, server: Server):
         self.mission_embeds[server.name] = True
 
     # Display the list of active players
-    async def _display_player_embed(self, server: Server):
+    def _display_player_embed(self, server: Server):
         self.player_embeds[server.name] = True
 
     async def callback(self, data):
@@ -198,8 +198,8 @@ class MissionEventListener(EventListener):
             server.add_player(player)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now()
-        await self._display_mission_embed(server)
-        await self._display_player_embed(server)
+        self._display_mission_embed(server)
+        self._display_player_embed(server)
 
     async def onMissionLoadBegin(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -210,33 +210,33 @@ class MissionEventListener(EventListener):
         server.current_mission.update(data)
         server.players = dict[int, Player]()
         if server.settings:
-            await self._display_mission_embed(server)
-        await self._display_player_embed(server)
+            self._display_mission_embed(server)
+        self._display_player_embed(server)
 
     async def onMissionLoadEnd(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.current_mission.update(data)
-        await self._display_mission_embed(server)
+        self._display_mission_embed(server)
 
     async def onSimulationStart(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.PAUSED
-        await self._display_mission_embed(server)
+        self._display_mission_embed(server)
 
     async def onSimulationStop(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.STOPPED
-        await self._display_mission_embed(server)
+        self._display_mission_embed(server)
 
     async def onSimulationPause(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.PAUSED
-        await self._display_mission_embed(server)
+        self._display_mission_embed(server)
 
     async def onSimulationResume(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
         server.status = Status.RUNNING
-        await self._display_mission_embed(server)
+        self._display_mission_embed(server)
 
     async def onPlayerConnect(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -276,8 +276,8 @@ class MissionEventListener(EventListener):
             player.sendChatMessage(self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(player.name, server.name))
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now()
-        await self._display_mission_embed(server)
-        await self._display_player_embed(server)
+        self._display_mission_embed(server)
+        self._display_player_embed(server)
 
     async def onPlayerStop(self, data: dict) -> None:
         if data['id'] == 1:
@@ -288,8 +288,8 @@ class MissionEventListener(EventListener):
             player.active = False
             if player.ucid in server.afk:
                 del server.afk[player.ucid]
-        await self._display_mission_embed(server)
-        await self._display_player_embed(server)
+        self._display_mission_embed(server)
+        self._display_player_embed(server)
 
     async def onPlayerChangeSlot(self, data: dict) -> None:
         if 'side' not in data:
@@ -312,7 +312,7 @@ class MissionEventListener(EventListener):
         finally:
             if player:
                 player.update(data)
-            await self._display_player_embed(server)
+            self._display_player_embed(server)
 
     async def onGameEvent(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]
@@ -333,8 +333,8 @@ class MissionEventListener(EventListener):
                 player.active = False
                 if player.ucid in server.afk:
                     del server.afk[player.ucid]
-                await self._display_mission_embed(server)
-                await self._display_player_embed(server)
+                self._display_mission_embed(server)
+                self._display_player_embed(server)
         elif data['eventName'] == 'friendly_fire' and data['arg1'] != data['arg3']:
             player1 = server.get_player(id=data['arg1'])
             if data['arg3'] != -1:

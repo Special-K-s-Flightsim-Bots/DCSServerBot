@@ -1,17 +1,17 @@
 from __future__ import annotations
 import asyncio
-import platform
-
 import discord
 import json
 import os
+import platform
 import psutil
+import psycopg2
 import socket
 import subprocess
-import psycopg2
 import uuid
 import win32con
 from contextlib import closing, suppress
+from core import utils
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -21,7 +21,6 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from .dataobject import DataObject, DataObjectFactory
 from .const import Status, Coalition, Channel
-from core import utils
 
 if TYPE_CHECKING:
     from core import Plugin, Player, Mission, Extension
