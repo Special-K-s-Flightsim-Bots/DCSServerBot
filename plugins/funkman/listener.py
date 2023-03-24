@@ -11,12 +11,17 @@ class FunkManEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        config = self.locals['configs'][0]
-        sys.path.append(config['install'])
-        from funkman.funkplot.funkplot import FunkPlot
+        self.config = self.locals['configs'][0]
+        sys.path.append(self.config['install'])
         from funkman.utils.utils import _GetVal
-        self.funkplot = FunkPlot(ImagePath=config['IMAGEPATH'])
+        self.funkplot = None
         self._GetVal = _GetVal
+
+    def get_funkplot(self):
+        if not self.funkplot:
+            from funkman.funkplot.funkplot import FunkPlot
+            self.funkplot = FunkPlot(ImagePath=self.config['IMAGEPATH'])
+        return self.funkplot
 
     # from FunkBot, to be replaced with a proper function call!
     def _create_lso_embed(self, result: dict) -> discord.Embed:
@@ -109,17 +114,17 @@ class FunkManEventListener(EventListener):
 
     async def moose_bomb_result(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
-        fig, _ = self.funkplot.PlotBombRun(data)
+        fig, _ = self.get_funkplot().PlotBombRun(data)
         await self._send_fig(server, fig, 'CHANNELID_RANGE')
 
     async def moose_strafe_result(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
-        fig, _ = self.funkplot.PlotStrafeRun(data)
+        fig, _ = self.get_funkplot().PlotStrafeRun(data)
         await self._send_fig(server, fig, 'CHANNELID_RANGE')
 
     async def moose_lso_grade(self, data: dict):
         embed = self._create_lso_embed(data)
-        fig, _ = self.funkplot.PlotTrapSheet(data)
+        fig, _ = self.get_funkplot().PlotTrapSheet(data)
         filename = self._save_fig(fig)
         try:
             embed.set_image(url=f"attachment://{filename}")
