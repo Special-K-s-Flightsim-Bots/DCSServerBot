@@ -54,5 +54,6 @@ class HelpListener(EventListener):
             return
         server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['id'])
-        prefix = self.bot.config['BOT']['CHAT_COMMAND_PREFIX']
-        player.sendChatMessage(f'Use "{prefix}help" for commands.')
+        if player:
+            prefix = self.bot.config['BOT']['CHAT_COMMAND_PREFIX']
+            player.sendChatMessage(f'Use "{prefix}help" for commands.')

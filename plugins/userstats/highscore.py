@@ -38,7 +38,6 @@ class HighscorePlaytime(report.GraphElement):
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
                 labels = []
                 values = []
-                self.log.debug(sql)
                 cursor.execute(sql)
                 for row in cursor.fetchall():
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None

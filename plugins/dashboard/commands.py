@@ -91,10 +91,8 @@ class Bot:
                     table.add_column("# Servers", justify="center")
                     for row in cursor.fetchall():
                         table.add_row(row[0], f"{row[2]}/{row[1]}")
-            conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
-            conn.rollback()
         finally:
             self.pool.putconn(conn)
 

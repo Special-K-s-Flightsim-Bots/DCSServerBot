@@ -7,16 +7,16 @@ class ThreadedConnectionPool(_ThreadedConnectionPool):
         self._semaphore = Semaphore(maxconn)
         super().__init__(minconn, maxconn, *args, **kwargs)
 
-    def getconn(self, *args, **kwargs):
+    def getconn(self, key=None):
         self._semaphore.acquire()
         try:
-            return super().getconn(*args, **kwargs)
+            return super().getconn(key)
         except:
             self._semaphore.release()
             raise
 
-    def putconn(self, *args, **kwargs):
+    def putconn(self, conn=None, key=None, close=False):
         try:
-            super().putconn(*args, **kwargs)
+            super().putconn(conn, key, close)
         finally:
             self._semaphore.release()
