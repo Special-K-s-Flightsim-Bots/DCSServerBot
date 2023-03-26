@@ -401,7 +401,7 @@ class MissionEventListener(EventListener):
                     return
             player.sendChatMessage(f"No ATIS information found for {name}.")
         elif data['subcommand'] == 'restart' and player.has_discord_roles(['DCS Admin']):
-            delay = data['params'][0] if len(data['params']) > 0 else 0
+            delay = int(data['params'][0]) if len(data['params']) > 0 else 0
             if delay > 0:
                 message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
             else:

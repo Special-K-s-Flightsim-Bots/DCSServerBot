@@ -4,7 +4,16 @@ local dcsbot	= base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local config	= base.require("DCSServerBotConfig")
 
-local default_names = { 'Player', 'Spieler', 'Jugador', 'Joueur', 'Игрок' }
+local default_names = {
+    'Player',
+    'Joueur',
+    'Spieler',
+    'Игрок',
+    'Jugador',
+    '玩家',
+    'Hráč',
+    '플레이어'
+}
 
 local function locate(table, value)
     for i = 1, #table do

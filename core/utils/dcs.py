@@ -109,7 +109,7 @@ def desanitize(self, _filename: str = None) -> None:
             if line.lstrip().startswith('--'):
                 output.append(line)
                 continue
-            if "sanitizeModule('os')" in line or "sanitizeModule('io')" in line or "sanitizeModule('lfs')" in line:
+            if "sanitizeModule('io')" in line or "sanitizeModule('lfs')" in line:
                 line = line.replace('sanitizeModule', '--sanitizeModule')
                 dirty = True
             elif "_G['require'] = nil" in line or "_G['package'] = nil" in line:

@@ -368,7 +368,7 @@ class Scheduler(Plugin):
             if not server.restart_pending or not server.is_populated():
                 return
             else:
-                server.on_empty = dict()
+                server.on_empty.clear()
         else:
             server.restart_pending = True
 
@@ -633,8 +633,8 @@ class Scheduler(Plugin):
                     return
                 server.maintenance = True
                 server.restart_pending = False
-                server.on_empty = dict()
-                server.on_mission_end = dict()
+                server.on_empty.clear()
+                server.on_mission_end.clear()
                 await ctx.send(f"Maintenance mode set for server {server.display_name}.\n"
                                f"The {self.plugin_name.title()} will be set on hold until you use"
                                f" {ctx.prefix}clear again.")

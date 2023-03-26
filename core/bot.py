@@ -1,4 +1,5 @@
 import asyncio
+import concurrent
 import discord
 import json
 import platform
@@ -625,7 +626,25 @@ class DCSServerBot(commands.Bot):
                 if 'server_name' not in data:
                     self.log.warning('Message without server_name received: {}'.format(data))
                     return
+                self.log.debug('{}->HOST: {}'.format(data['server_name'], json.dumps(data)))
                 server_name = data['server_name']
+                command = data['command']
+                if command == 'registerDCSServer':
+                    if not self.register_server(data):
+                        self.log.error(f"Error while registering server {server_name}.")
+                        return
+                elif (server_name not in self.servers or
+                      self.servers[server_name].status == Status.UNREGISTERED):
+                    self.log.debug(f"Command {command} for unregistered server {server_name} received, ignoring.")
+                    return
+                if 'channel' in data and data['channel'].startswith('sync-'):
+                    if data['channel'] in self.listeners:
+                        f = self.listeners[data['channel']]
+                        if not f.done():
+                            self.loop.call_soon_threadsafe(f.set_result, data)
+                        if command != 'registerDCSServer':
+                            return
+
                 if server_name not in s.server.message_queue:
                     s.server.message_queue[server_name] = Queue()
                     s.server.executor.submit(s.process, server_name)
@@ -635,28 +654,13 @@ class DCSServerBot(commands.Bot):
                 data = s.server.message_queue[server_name].get()
                 while len(data):
                     try:
-                        self.log.debug('{}->HOST: {}'.format(data['server_name'], json.dumps(data)))
-                        command = data['command']
-                        if command == 'registerDCSServer':
-                            if not self.register_server(data):
-                                self.log.error(f"Error while registering server {server_name}. Exiting worker thread.")
-                                return
-                        elif (data['server_name'] not in self.servers or
-                              self.servers[data['server_name']].status == Status.UNREGISTERED):
-                            self.log.debug(f"Command {command} for unregistered server {data['server_name']} received, "
-                                           f"ignoring.")
-                            continue
-                        if 'channel' in data and data['channel'].startswith('sync-'):
-                            if data['channel'] in self.listeners:
-                                f = self.listeners[data['channel']]
-                                if not f.done():
-                                    self.loop.call_soon_threadsafe(f.set_result, data)
-                                if command != 'registerDCSServer':
-                                    continue
-                        for listener in self.eventListeners:
-                            if command in listener.commands:
-                                self.loop.call_soon_threadsafe(asyncio.create_task,
-                                                               listener.processEvent(deepcopy(data)))
+                        concurrent.futures.wait(
+                            [
+                                asyncio.run_coroutine_threadsafe(listener.processEvent(deepcopy(data)), self.loop)
+                                for listener in self.eventListeners
+                                if data['command'] in listener.commands
+                            ]
+                        )
                     except Exception as ex:
                         self.log.exception(ex)
                     finally:
