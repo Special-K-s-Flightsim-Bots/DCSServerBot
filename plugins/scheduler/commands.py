@@ -795,9 +795,13 @@ class Scheduler(Plugin):
             stopped = False
             if server.status in [Status.RUNNING, Status.PAUSED]:
                 if not await utils.yn_question(ctx, 'Do you want me to stop the server to reset the mission?'):
+                    await ctx.send('Aborted.')
                     return
                 stopped = True
                 await server.stop()
+            elif not await utils.yn_question(ctx, 'Do you want to reset the mission?'):
+                await ctx.send('Aborted.')
+                return
             config = self.get_config(server)
             if 'reset' not in config:
                 await ctx.send(f"No \"reset\" parameter found for server {server.display_name}.")

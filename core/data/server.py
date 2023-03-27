@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import discord
+import inspect
 import json
 import os
 import platform
@@ -149,6 +150,7 @@ class Server(DataObject):
                     elif self.observer.emitters:
                         self.observer.unschedule_all()
                         self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
+            # self.log.info(f"{self.name}-{inspect.stack()[1][3]}: Status {self._status.name} => {status.name}")
             self._status = status
             self.status_change.set()
             self.status_change.clear()
@@ -322,6 +324,11 @@ class Server(DataObject):
         else:
             self.log.error(f"No executable found to start a DCS server in {basepath}!")
             return
+        # check if all missions are existing
+        missions = [x for x in self.settings['missionList'] if os.path.exists(x)]
+        if len(missions) != len(self.settings['missionList']):
+            self.settings['missionList'] = missions
+            self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.installation))
         if self.bot.config.getboolean(self.installation, 'START_MINIMIZED'):
             info = subprocess.STARTUPINFO()

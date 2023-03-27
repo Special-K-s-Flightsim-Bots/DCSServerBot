@@ -56,7 +56,7 @@ class AgentServerStats(Plugin):
         env = await report.render(period=period, server_name=server_name, agent_host=platform.node())
         file = discord.File(env.filename) if env.filename else None
         await ctx.send(embed=env.embed, file=file)
-        if env.filename:
+        if env.filename and os.path.exists(env.filename):
             os.remove(env.filename)
 
     @commands.command(description='Shows servers load', usage='[period]')

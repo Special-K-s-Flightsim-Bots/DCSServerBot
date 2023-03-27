@@ -209,7 +209,7 @@ class PaginationReport(Report):
                 else:
                     await interaction.edit_original_response(embed=env.embed, view=self, attachments=[])
             finally:
-                if env.filename:
+                if env.filename and os.path.exists(env.filename):
                     os.remove(env.filename)
                     env.filename = None
 
@@ -272,7 +272,7 @@ class PaginationReport(Report):
                     file=discord.File(env.filename,
                                       filename=os.path.basename(env.filename)) if env.filename else None)
             finally:
-                if env.filename:
+                if env.filename and os.path.exists(env.filename):
                     os.remove(env.filename)
                     env.filename = None
             await view.wait()
@@ -295,6 +295,7 @@ class PersistentReport(Report):
         self.channel_id = channel_id
 
     async def render(self, *args, **kwargs) -> ReportEnv:
+        env = None
         try:
             env = await super().render(*args, **kwargs)
             file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None
@@ -302,3 +303,6 @@ class PersistentReport(Report):
             return env
         except Exception as ex:
             self.log.exception(ex)
+        finally:
+            if env and env.filename and os.path.exists(env.filename):
+                os.remove(env.filename)

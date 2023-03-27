@@ -113,10 +113,12 @@ class SchedulerListener(EventListener):
         if data['eventName'] == 'disconnect':
             if not server.is_populated() and server.on_empty:
                 self.bot.loop.call_soon(asyncio.create_task, self._process(server, server.on_empty.copy()))
+                server.on_empty.clear()
         elif data['eventName'] == 'mission_end':
             self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
             if server.on_mission_end:
                 self.bot.loop.call_soon(asyncio.create_task, self._process(server, server.on_mission_end.copy()))
+                server.on_mission_end.clear()
 
     async def onSimulationStart(self, data: dict) -> None:
         server: Server = self.bot.servers[data['server_name']]

@@ -321,6 +321,24 @@ class DCSServerBot(commands.Bot):
         finally:
             self.pool.putconn(conn)
 
+    def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> Optional[Union[discord.Member, str]]:
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                sql = 'SELECT discord_id, name FROM players WHERE ucid = %s'
+                if verified:
+                    sql += ' AND discord_id <> -1 AND manual IS TRUE'
+                cursor.execute(sql, (ucid, ))
+                if cursor.rowcount == 1:
+                    row = cursor.fetchone()
+                    return self.guilds[0].get_member(row[0]) or row[1]
+                else:
+                    return None
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
     def get_ucid_by_member(self, member: discord.Member, verified: Optional[bool] = False) -> Optional[str]:
         conn = self.pool.getconn()
         try:
@@ -627,24 +645,14 @@ class DCSServerBot(commands.Bot):
                     self.log.warning('Message without server_name received: {}'.format(data))
                     return
                 self.log.debug('{}->HOST: {}'.format(data['server_name'], json.dumps(data)))
-                server_name = data['server_name']
-                command = data['command']
-                if command == 'registerDCSServer':
-                    if not self.register_server(data):
-                        self.log.error(f"Error while registering server {server_name}.")
-                        return
-                elif (server_name not in self.servers or
-                      self.servers[server_name].status == Status.UNREGISTERED):
-                    self.log.debug(f"Command {command} for unregistered server {server_name} received, ignoring.")
-                    return
                 if 'channel' in data and data['channel'].startswith('sync-'):
                     if data['channel'] in self.listeners:
                         f = self.listeners[data['channel']]
                         if not f.done():
                             self.loop.call_soon_threadsafe(f.set_result, data)
-                        if command != 'registerDCSServer':
+                        if data['command'] != 'registerDCSServer':
                             return
-
+                server_name = data['server_name']
                 if server_name not in s.server.message_queue:
                     s.server.message_queue[server_name] = Queue()
                     s.server.executor.submit(s.process, server_name)
@@ -654,6 +662,17 @@ class DCSServerBot(commands.Bot):
                 data = s.server.message_queue[server_name].get()
                 while len(data):
                     try:
+                        server_name = data['server_name']
+                        command = data['command']
+                        if command == 'registerDCSServer':
+                            if not self.register_server(data):
+                                self.log.error(f"Error while registering server {server_name}.")
+                                return
+                        elif (server_name not in self.servers or
+                              self.servers[server_name].status == Status.UNREGISTERED):
+                            self.log.debug(
+                                f"Command {command} for unregistered server {server_name} received, ignoring.")
+                            continue
                         concurrent.futures.wait(
                             [
                                 asyncio.run_coroutine_threadsafe(listener.processEvent(deepcopy(data)), self.loop)

@@ -160,3 +160,7 @@ def is_banned(self, ucid: str):
         self.log.exception(error)
     finally:
         self.pool.putconn(conn)
+
+
+def is_ucid(ucid: str) -> bool:
+    return len(ucid) == 32 and ucid.isalnum() and ucid == ucid.lower()

@@ -1,16 +1,14 @@
 import math
-
-import discord
 import psycopg2
 import psycopg2.extras
 from contextlib import closing
-from core import report, utils, Side, Coalition
+from core import report, utils, Side
 from .filter import StatisticsFilter
 
 
 class HighscorePlaytime(report.GraphElement):
 
-    def render(self, server_name: str, period: str, limit: int, message: discord.Message, flt: StatisticsFilter):
+    def render(self, server_name: str, period: str, limit: int, sides: list[Side], flt: StatisticsFilter):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - " \
               "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
@@ -18,16 +16,6 @@ class HighscorePlaytime(report.GraphElement):
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
             self.env.embed.description = utils.escape_string(server_name)
             if server_name in self.bot.servers:
-                server = self.bot.servers[server_name]
-                tmp = utils.get_sides(message, server)
-                sides = [0]
-                if Coalition.RED in tmp:
-                    sides.append(Side.RED.value)
-                if Coalition.BLUE in tmp:
-                    sides.append(Side.BLUE.value)
-                # in this specific case, we want to display all data, if in public channels
-                if len(sides) == 0:
-                    sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
@@ -59,7 +47,7 @@ class HighscorePlaytime(report.GraphElement):
 
 class HighscoreElement(report.GraphElement):
 
-    def render(self, server_name: str, period: str, limit: int, kill_type: str, message: discord.Message, flt: StatisticsFilter):
+    def render(self, server_name: str, period: str, limit: int, kill_type: str, sides: list[Side], flt: StatisticsFilter):
         sql_parts = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',
@@ -89,16 +77,6 @@ class HighscoreElement(report.GraphElement):
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
             if server_name in self.bot.servers:
-                server = self.bot.servers[server_name]
-                tmp = utils.get_sides(message, server)
-                sides = [0]
-                if Coalition.RED in tmp:
-                    sides.append(Side.RED.value)
-                if Coalition.BLUE in tmp:
-                    sides.append(Side.BLUE.value)
-                # in this specific case, we want to display all data, if in public channels
-                if len(sides) == 0:
-                    sides = [0, 1, 2]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0 ORDER BY 3 DESC LIMIT {limit}'
