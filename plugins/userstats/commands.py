@@ -117,10 +117,12 @@ class UserStatisticsMaster(UserStatisticsAgent):
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
         self.expire_token.start()
-        self.persistent_highscore.start()
+        if 'configs' in self.locals:
+            self.persistent_highscore.start()
 
     async def cog_unload(self):
-        self.persistent_highscore.cancel()
+        if 'configs' in self.locals:
+            self.persistent_highscore.cancel()
         self.expire_token.cancel()
         await super().cog_unload()
 
