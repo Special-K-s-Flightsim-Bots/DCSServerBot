@@ -301,6 +301,29 @@ class Agent(Plugin):
         await view.wait()
         await msg.delete()
 
+    def update_bans(self, data: Optional[dict] = None):
+        banlist = []
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute('SELECT ucid, reason FROM bans')
+                banlist = [dict(row) for row in cursor.fetchall()]
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+        if data is not None:
+            servers = [self.bot.servers[data['server_name']]]
+        else:
+            servers = self.bot.servers.values()
+        for server in servers:
+            for ban in banlist:
+                server.sendtoDCS({
+                    "command": "ban",
+                    "ucid": ban['ucid'],
+                    "reason": ban['reason']
+                })
+
     @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [reason]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
@@ -772,29 +795,6 @@ class Master(Agent):
             self.bot.log.exception(error)
         finally:
             self.bot.pool.putconn(conn)
-
-    def update_bans(self, data: Optional[dict] = None):
-        banlist = []
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT ucid, reason FROM bans')
-                banlist = [dict(row) for row in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-        if data is not None:
-            servers = [self.bot.servers[data['server_name']]]
-        else:
-            servers = self.bot.servers.values()
-        for server in servers:
-            for ban in banlist:
-                server.sendtoDCS({
-                    "command": "ban",
-                    "ucid": ban['ucid'],
-                    "reason": ban['reason']
-                })
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
