@@ -334,7 +334,7 @@ class CreditSystemMaster(CreditSystemAgent):
             for row in self.get_credits(ucid):
                 campaigns[row[1]] = {
                     "points": row[2],
-                    "playtime": self.eventlistener._get_flighttime(ucid, row[0])
+                    "playtime": self.eventlistener.get_flighttime(ucid, row[0])
                 }
 
             for campaign_name, value in campaigns.items():

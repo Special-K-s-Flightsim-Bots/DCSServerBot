@@ -93,7 +93,7 @@ This will delete the punishments to this user that are not executed already and 
 
 Auto-unban when the user reached <= this amount of points.
 
-### Weight per Flighthours
+### Weight per Flight hours
 
 Weight punishment by flight hours. This will be the sum of flight hours over all servers handled by this bot.
 

@@ -144,22 +144,22 @@ class OvGME(Plugin):
                 os.makedirs(ovgme_path, exist_ok=True)
                 if os.path.isfile(filename) and file == package_name + '_v' + version + '.zip':
                     with open(os.path.join(ovgme_path, 'install.log'), 'w') as log:
-                        with zipfile.ZipFile(filename, 'r') as zip:
-                            for name in zip.namelist():
+                        with zipfile.ZipFile(filename, 'r') as zfile:
+                            for name in zfile.namelist():
                                 orig = os.path.join(target, name)
                                 if os.path.exists(orig) and os.path.isfile(orig):
                                     log.write(f"x {name}\n")
                                     shutil.copy2(orig, os.path.join(ovgme_path, name))
                                 else:
                                     log.write(f"w {name}\n")
-                                zip.extract(name, target)
+                                zfile.extract(name, target)
                 else:
                     with open(os.path.join(ovgme_path, 'install.log'), 'w') as log:
                         def backup(p, names) -> list[str]:
-                            dir = p[len(os.path.join(path, package_name + '_v' + version)):].replace('\\', '/').lstrip('/')
+                            _dir = p[len(os.path.join(path, package_name + '_v' + version)):].replace('\\', '/').lstrip('/')
                             for name in names:
-                                if len(dir):
-                                    name = dir + '/' + name
+                                if len(_dir):
+                                    name = _dir + '/' + name
                                 orig = os.path.join(target, name)
                                 if os.path.exists(orig) and os.path.isfile(orig):
                                     log.write(f"x {name}\n")

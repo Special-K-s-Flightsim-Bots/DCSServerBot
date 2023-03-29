@@ -14,7 +14,7 @@ FunkMan supports the following Moose modules:
 * AIRBOSS
 * RANGE (Bombing & Strafing)
 
-For samples on how to configure FunkMan support into Moose, see the respective samples in the samples directory.
+For samples on how to configure FunkMan support into Moose, see the respective samples in the "samples" directory.
 
 {: .note }
 > You need to set the DCSServerBot port to be used by FunkMan.

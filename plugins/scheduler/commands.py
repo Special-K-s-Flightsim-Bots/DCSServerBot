@@ -167,7 +167,7 @@ class Scheduler(Plugin):
         if 'extensions' not in config:
             return
         for extension in config['extensions']:
-            ext: Extension = server.extensions.get(extension, None)
+            ext: Extension = server.extensions.get(extension)
             if not ext:
                 if '.' not in extension:
                     ext = utils.str_to_class('extensions.' + extension)(self.bot, server,
@@ -809,9 +809,9 @@ class Scheduler(Plugin):
             reset = config['reset']
             if isinstance(reset, list):
                 for cmd in reset:
-                    self.eventlistener._run(server, cmd)
+                    self.eventlistener.run(server, cmd)
             elif isinstance(reset, str):
-                self.eventlistener._run(server, reset)
+                self.eventlistener.run(server, reset)
             else:
                 await ctx.send('Incorrect format of "reset" parameter in scheduler.json')
             if stopped:

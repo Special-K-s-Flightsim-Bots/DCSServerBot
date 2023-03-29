@@ -1,41 +1,19 @@
-import asyncio
 import discord
 import psycopg2
 import shlex
 from contextlib import closing
-from core import EventListener, Player, Server, Channel
+from core import EventListener, Player, Server, Channel, event, chat_command
 
 
 class AdminEventListener(EventListener):
 
-    def _updateBans(self, data=None):
-        banlist = []
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT ucid, reason FROM bans')
-                banlist = [dict(row) for row in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-        if data is not None:
-            servers = [self.bot.servers[data['server_name']]]
-        else:
-            servers = self.bot.servers.values()
-        for server in servers:
-            for ban in banlist:
-                server.sendtoDCS({
-                    "command": "ban",
-                    "ucid": ban['ucid'],
-                    "reason": ban['reason']
-                })
-
-    async def registerDCSServer(self, data):
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
         # upload the current bans to the server
-        self._updateBans(data)
+        self.plugin.update_bans(data)
 
-    async def ban(self, data):
+    @event(name="ban")
+    async def ban(self, server: Server, data: dict) -> None:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -52,43 +30,58 @@ class AdminEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    async def onChatCommand(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        player: Player = server.get_player(id=data['from_id'], active=True)
-        if not player:
+    @chat_command(name="kick", roles=['DCS Admin'], usage="<name>", help="kick a user")
+    async def kick(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(
+                f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}kick <name> [reason]")
             return
-        if data['subcommand'] in ['kick', 'spec'] and player.has_discord_roles(['DCS Admin']):
-            if len(data['params']) == 0:
-                player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}{data['subcommand']} <name> [reason]")
-                return
-            params = shlex.split(' '.join(data['params']))
-            name = params[0]
-            if len(params) > 1:
-                reason = ' '.join(params[1:])
-            else:
-                reason = 'n/a'
-            delinquent: Player = server.get_player(name=name, active=True)
-            if not delinquent:
-                player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
-                return
-            if data['subcommand'] == 'kick':
-                server.kick(delinquent, reason)
-                what = 'kicked'
-            elif data['subcommand'] == 'spec':
-                server.move_to_spectators(delinquent, reason)
-                what = 'moved to spectators'
-            player.sendChatMessage(f"User {name} {what}.")
-            await self.bot.audit(f'Player {delinquent.display_name} {what}' +
-                                 (f' with reason "{reason}".' if reason != 'n/a' else '.'),
-                                 user=player.member)
+        params = shlex.split(' '.join(params))
+        name = params[0]
+        if len(params) > 1:
+            reason = ' '.join(params[1:])
+        else:
+            reason = 'n/a'
+        delinquent: Player = server.get_player(name=name, active=True)
+        if not delinquent:
+            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
+            return
+        server.kick(delinquent, reason)
+        player.sendChatMessage(f"User {name} kicked.")
+        await self.bot.audit(f'Player {delinquent.display_name} kicked' +
+                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                             user=player.member)
 
-        elif data['subcommand'] == '911':
-            mentions = ''
-            for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
-                role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
-                if role:
-                    mentions += role.mention
-            message = ' '.join(data['params'])
-            await server.get_channel(Channel.ADMIN).send(mentions +
-                                                         f" 911 call from player {player.name} (ucid={player.ucid}):"
-                                                         f"```{message}```")
+    @chat_command(name="spec", roles=['DCS Admin'], usage="<name>", help="moves a user to spectators")
+    async def spec(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(
+                f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}spec <name> [reason]")
+            return
+        params = shlex.split(' '.join(params))
+        name = params[0]
+        if len(params) > 1:
+            reason = ' '.join(params[1:])
+        else:
+            reason = 'n/a'
+        delinquent: Player = server.get_player(name=name, active=True)
+        if not delinquent:
+            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
+            return
+        server.move_to_spectators(delinquent, reason)
+        player.sendChatMessage(f"User {name} moved to spectators.")
+        await self.bot.audit(f'Player {delinquent.display_name} moved to spectators' +
+                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                             user=player.member)
+
+    @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
+    async def call911(self, server: Server, player: Player, params: list[str]):
+        mentions = ''
+        for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
+            role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
+            if role:
+                mentions += role.mention
+        message = ' '.join(params)
+        await server.get_channel(Channel.ADMIN).send(mentions +
+                                                     f" 911 call from player {player.name} (ucid={player.ucid}):"
+                                                     f"```{message}```")

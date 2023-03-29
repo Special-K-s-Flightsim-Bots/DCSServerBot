@@ -771,6 +771,29 @@ class Master(Agent):
         finally:
             self.bot.pool.putconn(conn)
 
+    def update_bans(self, data: Optional[dict] = None):
+        banlist = []
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute('SELECT ucid, reason FROM bans')
+                banlist = [dict(row) for row in cursor.fetchall()]
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+        if data is not None:
+            servers = [self.bot.servers[data['server_name']]]
+        else:
+            servers = self.bot.servers.values()
+        for server in servers:
+            for ban in banlist:
+                server.sendtoDCS({
+                    "command": "ban",
+                    "ucid": ban['ucid'],
+                    "reason": ban['reason']
+                })
+
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         self.bot.log.debug(f'Member {member.display_name} has left the discord')
@@ -781,7 +804,7 @@ class Master(Agent):
                     self.bot.log.debug(f'- Auto-ban member {member.display_name} on the DCS servers')
                     cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                    'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
-                    self.eventlistener._updateBans()
+                    self.update_bans()
                 self.bot.log.debug(f'- Delete stats of member {member.display_name}')
                 cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
                                'discord_id = %s)', (member.id, ))
@@ -801,7 +824,7 @@ class Master(Agent):
                 self.bot.log.debug(f'- Ban member {member.display_name} on the DCS servers.')
                 cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
-                self.eventlistener._updateBans()
+                self.update_bans()
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -820,7 +843,7 @@ class Master(Agent):
                     # auto-unban them if they were auto-banned
                     cursor.execute('DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE '
                                    'discord_id = %s)', (member.id, ))
-                    self.eventlistener._updateBans()
+                    self.update_bans()
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)

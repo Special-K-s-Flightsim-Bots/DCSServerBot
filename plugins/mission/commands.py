@@ -5,7 +5,6 @@ import os
 import platform
 import psycopg2
 import re
-import shutil
 import win32gui
 import win32process
 from contextlib import closing
@@ -85,7 +84,7 @@ class Mission(Plugin):
                 await ctx.send(f'There is no mission running on server {server.display_name}')
                 return
         else:
-            self.eventlistener._display_mission_embed(server)
+            self.eventlistener.display_mission_embed(server)
 
     @staticmethod
     def format_briefing_list(data: list[Server], marker, marker_emoji):
@@ -535,7 +534,7 @@ class Mission(Plugin):
                 # remove any hung flag, if the server has responded
                 if server.name in self.hung:
                     del self.hung[server.name]
-                self.eventlistener._display_mission_embed(server)
+                self.eventlistener.display_mission_embed(server)
             except asyncio.TimeoutError:
                 # check if the server process is still existent
                 max_hung_minutes = int(self.bot.config['DCS']['MAX_HUNG_MINUTES'])

@@ -1,6 +1,5 @@
-import asyncio
 import re
-from core import EventListener, Plugin, Server, Side, Status, utils
+from core import EventListener, Plugin, Server, Side, Status, utils, event
 from typing import Union, cast
 from plugins.creditsystem.player import CreditPlayer
 
@@ -9,8 +8,8 @@ class SlotBlockingListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
 
-    async def registerDCSServer(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
         config: dict = self.plugin.get_config(server)
         if config:
             server.sendtoDCS({
@@ -58,8 +57,8 @@ class SlotBlockingListener(EventListener):
             return utils.check_roles(config['VIP']['discord'], member) if member else False
         return False
 
-    async def onPlayerConnect(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onPlayerConnect")
+    async def onPlayerConnect(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if not config or data['id'] == 1:
             return
@@ -71,8 +70,8 @@ class SlotBlockingListener(EventListener):
                 message = "VIP user {}(ucid={} joined".format(utils.escape_string(data['name']), data['ucid'])
             await self.bot.audit(message, server=server)
 
-    async def onPlayerChangeSlot(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onPlayerChangeSlot")
+    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if not config:
             return
@@ -90,8 +89,8 @@ class SlotBlockingListener(EventListener):
                 if int(data['sub_slot']) == 0:
                     player.deposit = self._get_costs(server, data)
 
-    async def onMissionEvent(self, data):
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onMissionEvent")
+    async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if not config:
             return
@@ -106,8 +105,8 @@ class SlotBlockingListener(EventListener):
                 if player and player.sub_slot == 0:
                     player.deposit = self._get_costs(server, player)
 
-    async def onGameEvent(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onGameEvent")
+    async def onGameEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if not config or 'restricted' not in config or server.status != Status.RUNNING:
             return

@@ -3,7 +3,7 @@ import discord
 import sys
 import uuid
 import matplotlib.figure
-from core import EventListener, Plugin, Server
+from core import EventListener, Plugin, Server, event
 from matplotlib import pyplot as plt
 
 
@@ -24,7 +24,7 @@ class FunkManEventListener(EventListener):
         return self.funkplot
 
     # from FunkBot, to be replaced with a proper function call!
-    def _create_lso_embed(self, result: dict) -> discord.Embed:
+    def create_lso_embed(self, result: dict) -> discord.Embed:
         actype = self._GetVal(result, "airframe", "Unkown")
         Tgroove = self._GetVal(result, "Tgroove", "?", 1)
         player = self._GetVal(result, "name", "Ghostrider")
@@ -90,14 +90,14 @@ class FunkManEventListener(EventListener):
         return embed
 
     @staticmethod
-    def _save_fig(fig: matplotlib.figure.Figure) -> str:
+    def save_fig(fig: matplotlib.figure.Figure) -> str:
         filename = f'{uuid.uuid4()}.png'
         fig.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
         plt.close(fig)
         return filename
 
-    async def _send_fig(self, server: Server, fig: matplotlib.figure.Figure, channel: str):
-        filename = self._save_fig(fig)
+    async def send_fig(self, server: Server, fig: matplotlib.figure.Figure, channel: str):
+        filename = self.save_fig(fig)
         try:
             config = self.plugin.get_config(server)
             channel = self.bot.get_channel(int(config[channel]))
@@ -106,29 +106,29 @@ class FunkManEventListener(EventListener):
             if os.path.exists(filename):
                 os.remove(filename)
 
-    async def moose_text(self, data: dict):
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="moose_text")
+    async def moose_text(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         channel = self.bot.get_channel(int(config['CHANNELID_MAIN']))
         await channel.send(data['text'])
 
-    async def moose_bomb_result(self, data: dict):
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="moose_bomb_result")
+    async def moose_bomb_result(self, server: Server, data: dict) -> None:
         fig, _ = self.get_funkplot().PlotBombRun(data)
-        await self._send_fig(server, fig, 'CHANNELID_RANGE')
+        await self.send_fig(server, fig, 'CHANNELID_RANGE')
 
-    async def moose_strafe_result(self, data: dict):
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="moose_strafe_result")
+    async def moose_strafe_result(self, server: Server, data: dict) -> None:
         fig, _ = self.get_funkplot().PlotStrafeRun(data)
-        await self._send_fig(server, fig, 'CHANNELID_RANGE')
+        await self.send_fig(server, fig, 'CHANNELID_RANGE')
 
-    async def moose_lso_grade(self, data: dict):
-        embed = self._create_lso_embed(data)
+    @event(name="moose_lso_grade")
+    async def moose_lso_grade(self, server: Server, data: dict) -> None:
+        embed = self.create_lso_embed(data)
         fig, _ = self.get_funkplot().PlotTrapSheet(data)
-        filename = self._save_fig(fig)
+        filename = self.save_fig(fig)
         try:
             embed.set_image(url=f"attachment://{filename}")
-            server: Server = self.bot.servers[data['server_name']]
             config = self.plugin.get_config(server)
             channel = self.bot.get_channel(int(config['CHANNELID_AIRBOSS']))
             await channel.send(embed=embed, file=discord.File(filename))

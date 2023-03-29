@@ -66,7 +66,7 @@ If the AUTOMATCH is disabled or was not successful, users can generate a unique 
 
 This plugin comes with 3 custom reports where 2 of them are available in two different shapes.
 * userstats.json
-* userstats.campaign.json (for campaign statisics)
+* userstats.campaign.json (for campaign statistics)
 * highscore.json
 * highscore-campaign.json (for campaign statistics)
 * info.json

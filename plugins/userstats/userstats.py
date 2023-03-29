@@ -323,10 +323,10 @@ class KDRatio(report.MultiGraphElement):
                     bottom = 0
                     width = 0.2
                     # there is something to be drawn
-                    sum = np.sum(values)
-                    if sum > 0:
+                    _sum = np.sum(values)
+                    if _sum > 0:
                         for i in range(len(values)):
-                            height = values[i] / sum
+                            height = values[i] / _sum
                             ax.bar(xpos, height, width, bottom=bottom)
                             ypos = bottom + ax.patches[i].get_height() / 2
                             bottom += height
@@ -376,10 +376,10 @@ class KDRatio(report.MultiGraphElement):
                     bottom = 0
                     width = 0.2
                     # there is something to be drawn
-                    sum = np.sum(values)
-                    if sum > 0:
+                    _sum = np.sum(values)
+                    if _sum > 0:
                         for i in range(len(values)):
-                            height = values[i] / sum
+                            height = values[i] / _sum
                             ax.bar(xpos, height, width, bottom=bottom)
                             ypos = bottom + ax.patches[i].get_height() / 2
                             bottom += height

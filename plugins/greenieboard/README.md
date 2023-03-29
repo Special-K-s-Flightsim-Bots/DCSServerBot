@@ -148,8 +148,8 @@ to /reports/userstats and add or replace the following snippet (change col and r
             }
 ```
 include_bolters = true will include bolters to the count of traps</br>
-include_waveoffs = true will include waveoffs to the count of traps</br>
+include_waveoffs = true will include wave-offs to the count of traps</br>
 
 ## Known Issues
-If you see a double-posted persistent board on a Master / Agent configuration and you set the persistent board in the
+If you see a double-posted persistent board on a Master / Agent configuration, and you set the persistent board in the
 default section of your greenieboard.json, you should set "persistent_board": false on the Agent bot.

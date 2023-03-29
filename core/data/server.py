@@ -1,7 +1,6 @@
 from __future__ import annotations
 import asyncio
 import discord
-import inspect
 import json
 import os
 import platform

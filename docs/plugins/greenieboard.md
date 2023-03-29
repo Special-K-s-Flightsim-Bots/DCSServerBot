@@ -167,7 +167,7 @@ to `/reports/userstats` and add or replace the following snippet (change col and
 
 `include_bolters` = true will include bolters to the count of traps
 
-`include_waveoffs` = true will include waveoffs to the count of traps
+`include_waveoffs` = true will include wave-offs to the count of traps
 
 [link]: https://flightcontrol-master.github.io/MOOSE_DOCS_DEVELOP/Documentation/Ops.Airboss.html
 [FunkMan]: https://github.com/funkyfranky/FunkMan

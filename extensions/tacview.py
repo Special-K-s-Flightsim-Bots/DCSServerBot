@@ -100,11 +100,11 @@ class Tacview(Extension):
             value = ''
             if self.locals.get('tacviewRealTimeTelemetryEnabled', True):
                 value += f"{host}:{self.locals.get('tacviewRealTimeTelemetryPort', 42674)}\n"
-                if show_passwords and self.locals.get('tacviewRealTimeTelemetryPassword', None):
+                if show_passwords and self.locals.get('tacviewRealTimeTelemetryPassword'):
                     value += f"Password: {self.locals['tacviewRealTimeTelemetryPassword']}\n"
             if self.locals.get('tacviewRemoteControlEnabled', False):
                 value += f"**Remote Ctrl [{self.locals.get('tacviewRemoteControlPort', 42675)}]**\n"
-                if show_passwords and self.locals.get('tacviewRemoteControlPassword', None):
+                if show_passwords and self.locals.get('tacviewRemoteControlPassword'):
                     value += f"Password: {self.locals['tacviewRemoteControlPassword']}"
             if len(value) == 0:
                 value = 'enabled'

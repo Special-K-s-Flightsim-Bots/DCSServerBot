@@ -1,4 +1,3 @@
-import asyncio
 import os
 import psycopg2
 import re
@@ -6,7 +5,7 @@ import string
 import sys
 import uuid
 from contextlib import closing
-from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport
+from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
@@ -37,7 +36,7 @@ class GreenieBoardEventListener(EventListener):
             from funkman.funkplot.funkplot import FunkPlot
             self.funkplot = FunkPlot(ImagePath=config['FunkMan']['IMAGEPATH'])
 
-    async def _update_greenieboard(self, server: Server):
+    async def update_greenieboard(self, server: Server):
         # shall we render the server specific board?
         config = self.plugin.get_config(server)
         if 'persistent_channel' in config:
@@ -59,7 +58,7 @@ class GreenieBoardEventListener(EventListener):
                                       server, f'greenieboard', channel_id=channel_id)
             await report.render(server_name=None, num_rows=num_rows)
 
-    async def _send_chat_message(self, player: Player, data: dict):
+    async def send_chat_message(self, player: Player, data: dict):
         server: Server = self.bot.servers[data['server_name']]
         chat_channel = server.get_channel(Channel.CHAT)
         if chat_channel is not None:
@@ -75,14 +74,14 @@ class GreenieBoardEventListener(EventListener):
                 await chat_channel.send(self.EVENT_TEXTS[player.side]['landing'].format(
                     player.name, carrier, data['grade'].replace('_', '\\_'), details))
 
-    async def registerDCSServer(self, data: dict):
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
         try:
-            await self._update_greenieboard(server)
+            await self.update_greenieboard(server)
         except FileNotFoundError as ex:
             self.log.error(f'  => File not found: {ex}')
 
-    def _process_lso_event(self, config: dict, server: Server, player: Player, data: dict):
+    def process_lso_event(self, config: dict, server: Server, player: Player, data: dict):
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
         night = time > 20 * 3600 or time < 6 * 3600
         points = data['points'] if 'points' in data else config['ratings'][data['grade']]
@@ -108,7 +107,7 @@ class GreenieBoardEventListener(EventListener):
             self.pool.putconn(conn)
 
     @staticmethod
-    def _normalize_airboss_lso_rating(grade: str) -> Optional[str]:
+    def normalize_airboss_lso_rating(grade: str) -> Optional[str]:
         if '<SH>' in grade:
             grade = grade[:-4]
         if grade == 'CUT':
@@ -135,18 +134,18 @@ class GreenieBoardEventListener(EventListener):
             self.log.error(f'GreenieBoard: No trapsheet with pattern ({filename}) could be found!')
             return None
 
-    def _process_airboss_event(self, config: dict, server: Server, player: Player, data: dict):
-        data['grade'] = self._normalize_airboss_lso_rating(data['grade'])
+    def process_airboss_event(self, config: dict, server: Server, player: Player, data: dict):
+        data['grade'] = self.normalize_airboss_lso_rating(data['grade'])
         data['trapsheet'] = self.get_trapsheet(config, server, player, data)
-        self._process_lso_event(config, server, player, data)
+        self.process_lso_event(config, server, player, data)
 
-    def _process_sc_event(self, config: dict, server: Server, player: Player, data: dict):
+    def process_sc_event(self, config: dict, server: Server, player: Player, data: dict):
         data['details'] = get_element(data['comment'], 'details')
         data['grade'] = get_element(data['comment'], 'grade').replace('---', '--')
         data['wire'] = get_element(data['comment'], 'wire')
-        self._process_lso_event(config, server, player, data)
+        self.process_lso_event(config, server, player, data)
 
-    def _process_funkman_event(self, config: dict, server: Server, player: Player, data: dict):
+    def process_funkman_event(self, config: dict, server: Server, player: Player, data: dict):
         if data['grade'] != 'WO':
             filepath = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + \
                        os.path.sep + (config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')
@@ -159,17 +158,17 @@ class GreenieBoardEventListener(EventListener):
             data['trapsheet'] = filename
         else:
             del data['trapsheet']
-        data['grade'] = self._normalize_airboss_lso_rating(data['grade'])
+        data['grade'] = self.normalize_airboss_lso_rating(data['grade'])
         data['place'] = {
             'name': data['carriername']
         }
         data['time'] = sum(x * int(t) for x, t in zip([3600, 60, 1], data['mitime'].split(":"))) - int(server.current_mission.start_time)
-        self._process_lso_event(config, server, player, data)
+        self.process_lso_event(config, server, player, data)
 
-    async def onMissionEvent(self, data: dict):
+    @event(name="onMissionEvent")
+    async def onMissionEvent(self, server: Server, data: dict) -> None:
         if 'initiator' not in data:
             return
-        server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         # ignore SC / Moose.AIRBOSS events, if FunkMan is enabled
         if 'FunkMan' in config:
@@ -179,20 +178,20 @@ class GreenieBoardEventListener(EventListener):
             update = False
             if 'Moose.AIRBOSS' in config:
                 if data['eventName'] == 'S_EVENT_AIRBOSS':
-                    self._process_airboss_event(config, server, player, data)
+                    self.process_airboss_event(config, server, player, data)
                     update = True
             elif data['eventName'] == 'S_EVENT_LANDING_QUALITY_MARK':
-                self._process_sc_event(config, server, player, data)
+                self.process_sc_event(config, server, player, data)
                 update = True
             if update:
-                await self._send_chat_message(player, data)
-                await self._update_greenieboard(server)
+                await self.send_chat_message(player, data)
+                await self.update_greenieboard(server)
 
-    async def moose_lso_grade(self, data: dict):
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="moose_lso_grade")
+    async def moose_lso_grade(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         player: Player = server.get_player(name=data['name']) if 'name' in data else None
         if player:
-            self._process_funkman_event(config, server, player, data)
-            await self._send_chat_message(player, data)
-            await self._update_greenieboard(server)
+            self.process_funkman_event(config, server, player, data)
+            await self.send_chat_message(player, data)
+            await self.update_greenieboard(server)

@@ -1,7 +1,7 @@
 import psycopg2
 from contextlib import closing
-from core import EventListener, Plugin, Status, Server, Side, Player, Channel
-from typing import Union, Any
+from core import EventListener, Plugin, Status, Server, Side, Player, Channel, event, chat_command
+from typing import Union
 
 
 class UserStatisticsEventListener(EventListener):
@@ -47,10 +47,12 @@ class UserStatisticsEventListener(EventListener):
         super().__init__(plugin)
         self.statistics = set()
 
-    async def processEvent(self, data: dict[str, Union[str, int]]) -> None:
-        if (data['command'] == 'registerDCSServer') or \
-                (data['server_name'] in self.statistics and data['command'] in self.commands):
-            await super().processEvent(data)
+    async def processEvent(self, name: str, server: Server, data: dict) -> None:
+        try:
+            if name == 'registerDCSServer' or server.name in self.statistics:
+                await super().processEvent(name, server, data)
+        except Exception as ex:
+            self.log.exception(ex)
 
     @staticmethod
     def get_unit_type(player: Union[Player, dict]) -> str:
@@ -60,8 +62,8 @@ class UserStatisticsEventListener(EventListener):
             unit_type += ' (Crew)'
         return unit_type
 
-    async def registerDCSServer(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['statistics']:
             self.statistics.add(server.name)
         if server.status == Status.STOPPED:
@@ -136,8 +138,8 @@ class UserStatisticsEventListener(EventListener):
             finally:
                 self.pool.putconn(conn)
 
-    async def onMissionLoadEnd(self, data):
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -160,8 +162,8 @@ class UserStatisticsEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    async def onSimulationStop(self, data):
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onSimulationStop")
+    async def onSimulationStop(self, server: Server, data: dict) -> None:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -174,10 +176,10 @@ class UserStatisticsEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    async def onPlayerChangeSlot(self, data):
+    @event(name="onPlayerChangeSlot")
+    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         if 'side' not in data:
             return
-        server: Server = self.bot.servers[data['server_name']]
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -192,12 +194,13 @@ class UserStatisticsEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    async def disableUserStats(self, data):
-        self.statistics.discard(data['server_name'])
-        await self.onSimulationStop(data)
+    @event(name="disableUserStats")
+    async def disableUserStats(self, server: Server, data: dict) -> None:
+        self.statistics.discard(server.name)
+        await self.onSimulationStop(server, data)
 
-    async def onGameEvent(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onGameEvent")
+    async def onGameEvent(self, server: Server, data: dict) -> None:
         # ignore game events until the server is not initialized correctly
         if server.status != Status.RUNNING:
             return
@@ -325,39 +328,36 @@ class UserStatisticsEventListener(EventListener):
                         finally:
                             self.pool.putconn(conn)
 
-    async def onChatCommand(self, data: dict) -> None:
-        if data['subcommand'] == 'linkme':
-            server: Server = self.bot.servers[data['server_name']]
-            player: Player = server.get_player(id=data['from_id'])
-            if not player:
-                return
-            if len(data['params']):
-                token = data['params'][0]
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token, ))
-                        if cursor.rowcount == 0:
-                            player.sendChatMessage('Invalid token.')
-                            await server.get_channel(Channel.ADMIN).send(f'Player {player.display_name} '
-                                                                         f'(ucid={player.ucid}) entered a '
-                                                                         f'non-existent linking token.')
-                        else:
-                            discord_id = cursor.fetchone()[0]
-                            player.member = self.bot.guilds[0].get_member(discord_id)
-                            player.verified = True
-                            cursor.execute('DELETE FROM players WHERE ucid = %s', (token, ))
-                            await self.bot.audit(
-                                f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
-                                user=player.member)
-                            player.sendChatMessage('Your user has been linked!')
-                        conn.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
-            else:
-                player.sendChatMessage(f"Syntax: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme token\n"
-                                       f"You get the token with {self.bot.config['BOT']['COMMAND_PREFIX']}linkme in "
-                                       f"our Discord.")
+    @chat_command(name="linkme", roles=['DCS Admin'], usage="<token>", help="link your user to Discord")
+    async def linkme(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(f"Syntax: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme token\n"
+                                   f"You get the token with {self.bot.config['BOT']['COMMAND_PREFIX']}linkme in "
+                                   f"our Discord.")
+            return
+
+        token = params[0]
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
+                if cursor.rowcount == 0:
+                    player.sendChatMessage('Invalid token.')
+                    await server.get_channel(Channel.ADMIN).send(f'Player {player.display_name} '
+                                                                 f'(ucid={player.ucid}) entered a '
+                                                                 f'non-existent linking token.')
+                else:
+                    discord_id = cursor.fetchone()[0]
+                    player.member = self.bot.guilds[0].get_member(discord_id)
+                    player.verified = True
+                    cursor.execute('DELETE FROM players WHERE ucid = %s', (token,))
+                    await self.bot.audit(
+                        f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
+                        user=player.member)
+                    player.sendChatMessage('Your user has been linked!')
+                conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)

@@ -1,15 +1,14 @@
-import asyncio
 import psycopg2
-from core import EventListener, Server, Player, Side
+from core import EventListener, Server, Player, Side, event
 from contextlib import closing
 
 
 class CloudListener(EventListener):
 
-    async def onPlayerChangeSlot(self, data: dict) -> None:
+    @event(name="onPlayerChangeSlot")
+    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         if 'side' not in data or data['id'] == 1:
             return
-        server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         if 'token' not in config:
             return

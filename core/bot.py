@@ -660,24 +660,24 @@ class DCSServerBot(commands.Bot):
 
             def process(s, server_name: str):
                 data = s.server.message_queue[server_name].get()
+                server: Server = self.servers[server_name]
                 while len(data):
                     try:
-                        server_name = data['server_name']
                         command = data['command']
                         if command == 'registerDCSServer':
                             if not self.register_server(data):
                                 self.log.error(f"Error while registering server {server_name}.")
                                 return
-                        elif (server_name not in self.servers or
-                              self.servers[server_name].status == Status.UNREGISTERED):
+                        elif server_name not in self.servers or server.status == Status.UNREGISTERED:
                             self.log.debug(
                                 f"Command {command} for unregistered server {server_name} received, ignoring.")
                             continue
                         concurrent.futures.wait(
                             [
-                                asyncio.run_coroutine_threadsafe(listener.processEvent(deepcopy(data)), self.loop)
+                                asyncio.run_coroutine_threadsafe(listener.processEvent(command, server, deepcopy(data)),
+                                                                 self.loop)
                                 for listener in self.eventListeners
-                                if data['command'] in listener.commands
+                                if listener.has_event(command)
                             ]
                         )
                     except Exception as ex:

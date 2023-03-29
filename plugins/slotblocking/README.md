@@ -73,7 +73,7 @@ creditsystem.json:
 }
 ```
 
-### One Life per User (get new lifes per pvp kills)
+### One Life per User (get new lives per pvp kills)
 slotblocking.json:
 ```json
 {

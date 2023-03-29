@@ -97,12 +97,12 @@ These commands can be used to administrate the bot itself.
 
 ## Plugin MissionStats
 
-| Command                   | Parameter                        | Channel                     | Role | Description                                                                                       |
-|---------------------------|----------------------------------|-----------------------------|------|---------------------------------------------------------------------------------------------------|
-| .missionstats             |                                  | status-/chat-/admin-channel | DCS  | Display the current mission situation for red and blue and the achievments in kills and captures. |
-| .sorties                  | [@member / Player Name] [period] | all                         | DCS  | Display the number of sorties and real flight time per module / period.                           |
-| .modulestats / .modstats  | [@member / Player Name] [period] | all                         | DCS  | Display module and weapon statistics per module.                                                  |
-| .refuelings / .refuel     | [@member / Player Name] [period] | all                         | DCS  | Display refuelings per module.                                                                    |
+| Command                   | Parameter                        | Channel                     | Role | Description                                                                                         |
+|---------------------------|----------------------------------|-----------------------------|------|-----------------------------------------------------------------------------------------------------|
+| .missionstats             |                                  | status-/chat-/admin-channel | DCS  | Display the current mission situation for red and blue and the achievements in kills and captures.  |
+| .sorties                  | [@member / Player Name] [period] | all                         | DCS  | Display the number of sorties and real flight time per module / period.                             |
+| .modulestats / .modstats  | [@member / Player Name] [period] | all                         | DCS  | Display module and weapon statistics per module.                                                    |
+| .refuelings / .refuel     | [@member / Player Name] [period] | all                         | DCS  | Display refuelings per module.                                                                      |
 
 ## Plugin OvGME
 

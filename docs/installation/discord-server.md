@@ -20,9 +20,9 @@ If you want to use the bot with two DCS servers you need to create 6 channels:
 - `srv2-status`, `srv2-admin`, `srv2-chat`
 
 {: .note }
-> The channel names can be choosen freely.
+> The channel names can be chosen freely.
 
-You should add one additional channel for audit messages, e. g. `srv-audit`.
+You should add one additional channel for audit messages, e.g. `srv-audit`.
 This channel is optional, but it is best practise to use it.
 
 # Create Roles
@@ -30,9 +30,9 @@ The bot uses 4 roles with different level of rights to the commands (see command
 - Admin: Can everything that `DCS Admin`can do, but is also able to run commands (executables or scripts) on the Windows server
 - DCS Admin: Can control all aspects of an DCS server (includes rights of GameMaster and DCS role)
 - GameMaster: Is able to change missions and to change triggers, flags etc. within a mission (Includes rights of DCS role)
-- DCS: Every Player who should be able to request statistics or status infomations
+- DCS: Every Player who should be able to request statistics or status information
 
-The easiest way is to create four role with these names, because per deault the bot try to search and use this roles.
+The easiest way is to create four role with these names, because per default the bot try to search and use these roles.
 But you can change the role names the bot uses by changing the file `dcsserverbot.ini` after installation.
 
 Example of custom role names:
@@ -44,7 +44,7 @@ GameMaster = DcsSrvBot-GameMaster
 DCS = DcsSrvBot-DcsUser
 ```
 
-Maybe you have already some roles and you want the bot to use them.
+Maybe you have already some roles, and you want the bot to use them.
 Every Discord member has to read your rules and got the role members after accepting them.
 And you have a role DiscordAdmins which should have the rights of DCS Admin.
 Then you can use this:

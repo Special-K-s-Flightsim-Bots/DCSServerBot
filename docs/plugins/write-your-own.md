@@ -29,7 +29,7 @@ README.md               => Each plugin should have a documentation
 
 ## Configuration
 
-Each plugin _can_ use a json file to keep its config parameters. There json files are stored in ./config
+Each plugin _can_ use a json file to keep its config parameters. There json files are stored in ./config,
 and it is a good habit to provide a sample for it.
 As each plugin might need a different configuration for each server and maybe some default configuration,
 the layout of the config files is as follows:
@@ -94,12 +94,16 @@ class Sample(Plugin):
         super().__init__(bot, eventlistener)
         # do something when the plugin is initialized
     
+    async def cog_load(self) -> None:
+        await super().cog_load()
+        # do something (asynchronous) when the plugin is loaded
+        
     async def cog_unload(self):
-        super.cog_unload()
+        await super().cog_unload()
         # do something when the plugin is unloaded
 
-    def install(self):
-        super.install()
+    async def install(self):
+        await super().install()
         # do something when the plugin is installed for the first (!) time
 
     def migrate(self, version: str) -> None:
@@ -139,72 +143,92 @@ You have access to the following class variables:
 * self.commands: a list of commands implemented by this listener (autofilled) 
 
 ```python
-from core import EventListener, Server, Plugin, Player
+from core import EventListener, Server, Plugin, Player, event, chat_command
 
 class SampleEventListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
         # do something when the listener is initialized
         
-    async def registerDCSServer(self, data: dict) -> None:
+    async def shutdown(self):
+        await super().shutdown()
+        # do something when the plugin is shut down
+        
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
         # called, when a DCS server is found and initialized
         # dict contains a dictionary with a lot of server information, like name, mission, active players,
         # weather and whatnot.
+        ...
     
-    # the following callbacks are derived from the Hooks environment:
+    # The following callbacks are derived from the Hooks environment.
+    # No "name" parameter means the event name is the method name.
+    @event()
     async def onMissionLoadBegin(self, data: dict) -> None:
-        pass
+        ...
 
+    @event()
     async def onMissionLoadEnd(self, data: dict) -> None:
-        pass
+        ...
     
+    @event()
     async def onSimulationStart(self, data: dict) -> None:
-        pass
+        ...
     
+    @event()
     async def onSimulationStop(self, data: dict) -> None:
-        pass
+        ...
     
+    @event()
     async def onSimulationPause(self, data: dict) -> None:
-        pass
+        ...
     
+    @event()
     async def onSimulationResume(self, data: dict) -> None:
-        pass
+        ...
     
+    @event()
     async def onPlayerConnect(self, data: dict) -> None:
-        pass
+        ...
     
+    @event()
     async def onPlayerStart(self, data: dict) -> None:
-        pass
+        ...
     
+    @event()
     async def onPlayerStop(self, data: dict) -> None:
-        pass
+        ...
     
+    @event()
     async def onPlayerChangeSlot(self, data: dict) -> None:
-        pass
+        ...
     
+    @event()
     async def onGameEvent(self, data: dict) -> None:
-        pass
+        ...
     
+    @event()
     async def onChatMessage(self, data: dict) -> None:
-        pass
+        ...
 
-    # onChatCommand is called, whenever a command is fired in the ingame-chat
-    async def onChatCommand(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        player: Player = server.get_player(id=data['from_id'])
-        if data['subcommand'] == 'atis':
-            # can be used by everyone ...
-            pass
-        elif data['subcommand'] == 'restart' and player.has_discord_roles(['DCS Admin']):
-            # can only be used by the DCS Admin role ...
-            pass
-
-    async def myCustomCommand(self, data: dict) -> None:
+    @event(name="myCustomCommand")
+    async def myCustomCommand(self, server: Server, data: dict) -> None:
         # any custom command, which can be sent from the lua environment by using
         # local msg = {}
         # msg.command = 'myCustomCommand'
         # msg.param = { ... } -- all that goes into the dict
         # dcsbot.sendBotTable(msg)
+        ...
+
+    @chat_command(name="atis", usage="<airport>", help="ATIS information")
+    async def atis(self, server: Server, player: Player, params: list[str]) -> None:
+        # can be used by everyone
+        ...
+    
+    @chat_command(name="restart", usage="[time]", help="Restart the server in [time] seconds", roles=["DCS Admin"])
+    async def restart(self, server: Server, player: Player, params: list[str]) -> None:
+        # can be used by DCS Admin only
+        ...
 ```
 
 ## Main Files
@@ -224,6 +248,7 @@ from core import Plugin, utils, Server, DCSServerBot
 from discord.ext import commands
 from .listener import SampleEventListener
 
+
 class SampleAgent(Plugin):
     @commands.command(description='Agent-command', usage='<text>')
     @utils.has_role('DCS')
@@ -236,6 +261,7 @@ class SampleAgent(Plugin):
             # just for documentation purposes, Agents, only implement server-specific commands!
             pass
 
+        
 class SampleMaster(SampleAgent):
     @commands.command(description='Master-only command')
     @utils.has_role('DCS')
@@ -243,6 +269,7 @@ class SampleMaster(SampleAgent):
     async def master(self, ctx):
         await ctx.send(f'This command is running on node {platform.node()}')
 
+        
 async def setup(bot: DCSServerBot):
     if bot.config.getboolean('BOT', 'MASTER') is True:
         await bot.add_cog(SampleMaster(bot, SampleEventListener))
@@ -264,8 +291,7 @@ environment. To achieve this, you just need to place a file named callbacks.lua 
 
 ```lua
 local dcsbot	= base.dcsbot
-
-local myplugin = myplugin or {} 
+local myplugin  = myplugin or {} 
 
 --[[
 If you want to dynamically load some lua into your mission, you do this in your onMissionLoadEnd hook.
@@ -348,12 +374,12 @@ async def sample(self, ctx, text: str):
 
 b) EventListener
 
-In your EventListener, you receive commands from a DCS server. And sure - that server tells you its name
-with every command it sends to you:
+In your EventListener, you receive commands from a DCS server, so you get the server already in your method calls:
 
 ```python
-async def onChatCommand(self, data: dict) -> None:
-    server: Server = self.bot.servers[data['server_name']]
+@event(name="onChatMessage")
+async def onChatMessage(self, server: Server, data: dict) -> None:
+    ...
 ```
 
 ### Mission
@@ -376,8 +402,8 @@ This can be achieved by asking your server about the player and providing the re
 `get_player()` method:
 
 ```python
-async def onChatCommand(self, data: dict) -> None:
-    server: Server = self.bot.servers[data['server_name']]
+@event()
+async def onChatMessage(self, server: Server, data: dict) -> None:
     player: Player = server.get_player(id=data['from_id'])
 ```
 
@@ -387,8 +413,8 @@ As DCSServerBot stores a link between DCS players and Discord members, you surel
 member information, too:
 
 ```python
-async def onChatCommand(self, data: dict) -> None:
-    server: Server = self.bot.servers[data['server_name']]
+@event()
+async def onChatCommand(self, server: Server, data: dict) -> None:
     player: Player = server.get_player(id=data['from_id'])
     if player.member:
         self.log.info(f"Player {player.name} is member {player.member.display_name}!")
@@ -449,7 +475,7 @@ if necessary:
 ### Database Table Migration
 
 Just implement a script named "update_vX.Y.sql", where X.Y is there version where you want to migrate **FROM**.
-To migrate the database from plugin vesion 1.0 to 1.1, you need to implement a script named update_v1.0.sql.
+To migrate the database from plugin version 1.0 to 1.1, you need to implement a script named update_v1.0.sql.
 
 _update_v1.0.sql:_
 ```sql

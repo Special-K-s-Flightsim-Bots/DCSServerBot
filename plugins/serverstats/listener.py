@@ -1,4 +1,4 @@
-from core import EventListener, Plugin
+from core import EventListener, Plugin, event, Server
 
 
 class ServerStatsListener(EventListener):
@@ -6,5 +6,6 @@ class ServerStatsListener(EventListener):
         super().__init__(plugin)
         self.fps = {}
 
-    async def perfmon(self, data):
-        self.fps[data['server_name']] = data['fps']
+    @event(name="perfmon")
+    async def perfmon(self, server: Server, data: dict):
+        self.fps[server.name] = data['fps']

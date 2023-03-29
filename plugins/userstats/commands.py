@@ -567,7 +567,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     server: Server = list(self.bot.servers.values())[0]
                     server_name = None
                 kwargs = config['highscore'].get('params', {})
-                period = kwargs.get('period', None)
+                period = kwargs.get('period')
                 flt = StatisticsFilter.detect(self.bot, period) if period else None
                 file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
                 embed_name = 'highscore-' + (server_name or 'all')
