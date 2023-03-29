@@ -1,7 +1,7 @@
 from __future__ import annotations
 import inspect
 from dataclasses import MISSING
-from typing import TypeVar, TYPE_CHECKING, Any, Self, Type
+from typing import TypeVar, TYPE_CHECKING, Any, Type
 
 if TYPE_CHECKING:
     from core import DCSServerBot, Plugin, Server, Player
@@ -57,7 +57,7 @@ class EventListenerMeta(type):
     __events__: dict[str, Event]
     __chat_commands__: dict[str, ChatCommand]
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+    def __new__(cls, *args: Any, **kwargs: Any):
         name, bases, attrs = args
         events = {}
         chat_commands = {}
@@ -82,7 +82,7 @@ class EventListener(metaclass=EventListenerMeta):
     __chat_commands__: dict[str, ChatCommand]
     __all_commands__: dict[str, ChatCommand]
 
-    def __new__(cls, plugin: Plugin) -> Self:
+    def __new__(cls, plugin: Plugin):
         self = super().__new__(cls)
         self.__events__ = cls.__events__
         self.__chat_commands__ = cls.__chat_commands__
