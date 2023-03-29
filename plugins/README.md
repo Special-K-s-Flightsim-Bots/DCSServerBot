@@ -22,7 +22,7 @@ README.md               => Each plugin should have a documentation
 ```
 
 ## Configuration
-Each plugin _can_ use a json file to keep its config parameters. There json files are stored in ./config
+Each plugin _can_ use a json file to keep its config parameters. There json files are stored in ./config,
 and it is a good habit to provide a sample for it.
 As each plugin might need a different configuration for each server and maybe some default configuration,
 the layout of the config files is as follows:
@@ -409,7 +409,7 @@ if necessary:
 
 ### Database Table Migration
 Just implement a script named "update_vX.Y.sql", where X.Y is there version where you want to migrate **FROM**.
-To migrate the database from plugin vesion 1.0 to 1.1, you need to implement a script named update_v1.0.sql.
+To migrate the database from plugin version 1.0 to 1.1, you need to implement a script named update_v1.0.sql.
 
 _update_v1.0.sql:_
 ```sql

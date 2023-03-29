@@ -72,10 +72,10 @@ The following parameters can be used to configure the bot:
 
 # Section \[REPORTS\] (Optional)
 
-| Parameter   | Description                                                                                  |
-|-------------|----------------------------------------------------------------------------------------------|
-| NUM_WORKERS | Number of threads that render a graph.                                                       |
-| CKJ_FONT    | One of TC, JP or KR to support Traditinal Chinese, Japanese or Korean characters in reports. |
+| Parameter   | Description                                                                                   |
+|-------------|-----------------------------------------------------------------------------------------------|
+| NUM_WORKERS | Number of threads that render a graph.                                                        |
+| CKJ_FONT    | One of TC, JP or KR to support Traditional Chinese, Japanese or Korean characters in reports. |
 
 # Section \[DCS Section\]
 

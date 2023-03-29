@@ -1,12 +1,13 @@
 import sys
-from core import EventListener, Server
+from core import EventListener, Server, event
 from .sink import Sink
 
 
 class MusicEventListener(EventListener):
-    async def registerDCSServer(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        if not self.plugin.sinks.get(server.name, None):
+
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
+        if not self.plugin.sinks.get(server.name):
             if not self.plugin.get_config(server):
                 self.log.warning(f"No config\\music.json found or no entry for server {server.name} configured.")
                 return
@@ -17,18 +18,18 @@ class MusicEventListener(EventListener):
         if server.get_active_players():
             await self.plugin.sinks[server.name].start()
 
-    async def onPlayerStart(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onPlayerStart")
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
         if len(server.get_active_players()) == 1:
             await self.plugin.sinks[server.name].start()
 
-    async def onPlayerStop(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onPlayerStop")
+    async def onPlayerStop(self, server: Server, data: dict) -> None:
         if not server.get_active_players():
             await self.plugin.sinks[server.name].stop()
 
-    async def onGameEvent(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onGameEvent")
+    async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'disconnect':
             if not server.get_active_players():
                 await self.plugin.sinks[server.name].stop()

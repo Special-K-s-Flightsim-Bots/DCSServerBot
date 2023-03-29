@@ -1,15 +1,15 @@
 import discord
 import psycopg2
 from contextlib import closing
-from core import EventListener, Server, Status, utils
+from core import EventListener, Server, Status, utils, event, chat_command, Player
 from typing import cast
 from .player import CreditPlayer
 
 
 class CreditSystemListener(EventListener):
 
-    async def registerDCSServer(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config:
             server.sendtoDCS({
@@ -19,7 +19,7 @@ class CreditSystemListener(EventListener):
             })
 
     @staticmethod
-    def _get_points_per_kill(config: dict, data: dict) -> int:
+    def get_points_per_kill(config: dict, data: dict) -> int:
         default = 1
         if 'points_per_kill' in config:
             for unit in config['points_per_kill']:
@@ -37,7 +37,7 @@ class CreditSystemListener(EventListener):
         return default if data['victimCategory'] != 'Structures' else 0
 
     @staticmethod
-    def _get_initial_points(player: CreditPlayer, config: dict) -> int:
+    def get_initial_points(player: CreditPlayer, config: dict) -> int:
         if not config or 'initial_points' not in config:
             return 0
         if isinstance(config['initial_points'], int):
@@ -51,14 +51,14 @@ class CreditSystemListener(EventListener):
                     return element['default']
         return 0
 
-    async def onPlayerStart(self, data: dict) -> None:
+    @event(name="onPlayerStart")
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
             return
-        server: Server = self.bot.servers[data['server_name']]
         config = self.plugin.get_config(server)
         player = cast(CreditPlayer, server.get_player(id=data['id']))
         if player.points == -1:
-            player.points = self._get_initial_points(player, config)
+            player.points = self.get_initial_points(player, config)
             player.audit('init', player.points, 'Initial points received')
         else:
             server.sendtoDCS({
@@ -69,16 +69,16 @@ class CreditSystemListener(EventListener):
         if config:
             player.sendChatMessage(f"{player.name}, you currently have {player.points} credit points.")
 
-    async def addUserPoints(self, data: dict) -> None:
+    @event(name="addUserPoints")
+    async def addUserPoints(self, server: Server, data: dict) -> None:
         if data['points'] != 0:
-            server: Server = self.bot.servers[data['server_name']]
             player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
             old_points = player.points
             player.points += data['points']
             if old_points != player.points:
                 player.audit('mission', old_points, 'Unknown mission achievement')
 
-    def _get_flighttime(self, ucid: str, campaign_id: int) -> int:
+    def get_flighttime(self, ucid: str, campaign_id: int) -> int:
         sql = 'SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime ' \
               'FROM statistics s, missions m, campaigns c, campaigns_servers cs ' \
               'WHERE s.player_ucid = %s AND c.id = %s AND s.mission_id = m.id AND cs.campaign_id = c.id ' \
@@ -93,7 +93,7 @@ class CreditSystemListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    async def _process_achievements(self, server: Server, player: CreditPlayer):
+    async def process_achievements(self, server: Server, player: CreditPlayer):
         # only members can achieve roles
         member = player.member
         if not member:
@@ -103,7 +103,7 @@ class CreditSystemListener(EventListener):
             return
 
         campaign_id, _ = utils.get_running_campaign(server)
-        playtime = self._get_flighttime(player.ucid, campaign_id) / 3600.0
+        playtime = self.get_flighttime(player.ucid, campaign_id) / 3600.0
         sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
         role = None
         for achievement in sorted_achievements:
@@ -140,8 +140,8 @@ class CreditSystemListener(EventListener):
                     except discord.Forbidden:
                         self.log.error('The bot needs the Manage Roles permission!')
 
-    async def onGameEvent(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onGameEvent")
+    async def onGameEvent(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if not config or server.status != Status.RUNNING:
             return
@@ -150,7 +150,7 @@ class CreditSystemListener(EventListener):
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                 # Multicrew - pilot and all crew members gain points
                 for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
-                    ppk = self._get_points_per_kill(config, data)
+                    ppk = self.get_points_per_kill(config, data)
                     if ppk:
                         old_points = player.points
                         player.points += ppk
@@ -159,87 +159,85 @@ class CreditSystemListener(EventListener):
             server: Server = self.bot.servers[data['server_name']]
             player = cast(CreditPlayer, server.get_player(id=data['arg1']))
             if player:
-                await self._process_achievements(server, player)
+                await self.process_achievements(server, player)
 
-    async def onChatCommand(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['from_id']))
-        if not player:
+    @chat_command(name="credits", help="displays your credits")
+    async def credits(self, server: Server, player: Player, params: list[str]):
+        message = f"You currently have {player.points} credit points"
+        if player.deposit > 0:
+            message += f", {player.deposit} on deposit"
+        message += '.'
+        player.sendChatMessage(message)
+
+    @chat_command(name="donate", help="donate points to another player")
+    async def donate(self, server: Server, player: Player, params: list[str]):
+        if len(params) < 2:
+            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}donate player points")
             return
-        if data['subcommand'] == 'credits':
-            message = f"You currently have {player.points} credit points"
-            if player.deposit > 0:
-                message += f", {player.deposit} on deposit"
-            message += '.'
-            player.sendChatMessage(message)
+        name = ' '.join(params[:-1])
+        donation = int(params[-1])
+        if donation > player.points:
+            player.sendChatMessage(f"You can't donate {donation} credit points as you only have {player.points}!")
+            return
+        elif donation <= 0:
+            player.sendChatMessage(f"Donation has to be a positive value.")
+            return
+        receiver: CreditPlayer = cast(CreditPlayer, server.get_player(name=name))
+        if not receiver:
+            player.sendChatMessage(f"Player {name} not found.")
+            return
+        config = self.plugin.get_config(server)
+        if 'max_points' in config and (receiver.points + donation) > config['max_points']:
+            player.sendChatMessage(f"Player {receiver} would overrun the configured maximum points with this "
+                                   f"donation. Aborted.")
+            return
+        old_points_player = player.points
+        old_points_receiver = receiver.points
+        player.points -= donation
+        player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
+        receiver.points += donation
+        receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
+        player.sendChatMessage(f"You've donated {donation} credit points to player {name}.")
+        receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")
 
-        elif data['subcommand'] == 'donate':
-            if len(data['params']) < 2:
-                player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}donate player points")
-                return
-            name = ' '.join(data['params'][:-1])
-            donation = int(data['params'][-1])
-            if donation > player.points:
-                player.sendChatMessage(f"You can't donate {donation} credit points as you only have {player.points}!")
-                return
-            elif donation <= 0:
-                player.sendChatMessage(f"Donation has to be a positive value.")
-                return
-            receiver: CreditPlayer = cast(CreditPlayer, server.get_player(name=name))
-            if not receiver:
-                player.sendChatMessage(f"Player {name} not found.")
-                return
-            config = self.plugin.get_config(server)
-            if 'max_points' in config and (receiver.points + donation) > config['max_points']:
-                player.sendChatMessage(f"Player {receiver} would overrun the configured maximum points with this "
-                                       f"donation. Aborted.")
-                return
-            old_points_player = player.points
-            old_points_receiver = receiver.points
-            player.points -= donation
-            player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
-            receiver.points += donation
-            receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
-            player.sendChatMessage(f"You've donated {donation} credit points to player {name}.")
-            receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")
+    @chat_command(name="tip", help="tip a GCI with points")
+    async def tip(self, server: Server, player: Player, params: list[str]):
+        player: CreditPlayer = cast(CreditPlayer, player)
 
-        elif data['subcommand'] == 'tip':
-            server: Server = self.bot.servers[data['server_name']]
-            player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['from_id']))
+        if not params:
+            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points [gci_number]")
+            return
 
-            if not len(data['params']):
-                player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points [gci_number]")
-                return
-            
-            donation = int(data['params'][0])
-            if len(data['params']) > 1:
-                gci_index = int(data['params'][1]) - 1
-            else:
-                gci_index = -1
+        donation = int(params[0])
+        if len(params) > 1:
+            gci_index = int(params[1]) - 1
+        else:
+            gci_index = -1
 
-            active_gci = list[CreditPlayer]()
-            for p in server.get_active_players():
-                if player.side == p.side and p.unit_type == "forward_observer":
-                    active_gci.append(cast(CreditPlayer, p))
-            if not len(active_gci):
-                player.sendChatMessage(f"There is currently no {player.side.name} GCI active on this server.")
-                return
-            elif len(active_gci) == 1:
-                gci_index = 0
+        active_gci = list[CreditPlayer]()
+        for p in server.get_active_players():
+            if player.side == p.side and p.unit_type == "forward_observer":
+                active_gci.append(cast(CreditPlayer, p))
+        if not len(active_gci):
+            player.sendChatMessage(f"There is currently no {player.side.name} GCI active on this server.")
+            return
+        elif len(active_gci) == 1:
+            gci_index = 0
 
-            if gci_index not in range(0, len(active_gci)):
-                player.sendChatMessage(f"Multiple GCIs found, use \"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points GCI-number\".")
-                for i, gci in enumerate(active_gci):
-                    player.sendChatMessage(f"{i+1}) {gci.name}")
-                return
-            else:
-                receiver = active_gci[gci_index]
+        if gci_index not in range(0, len(active_gci)):
+            player.sendChatMessage(
+                f"Multiple GCIs found, use \"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points GCI-number\".")
+            for i, gci in enumerate(active_gci):
+                player.sendChatMessage(f"{i + 1}) {gci.name}")
+            return
+        else:
+            receiver = active_gci[gci_index]
 
-            old_points_player = player.points
-            old_points_receiver = receiver.points
-            player.points -= donation
-            player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
-            receiver.points += donation
-            receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
-            player.sendChatMessage(f"You've donated {donation} credit points to GCI {receiver.name}.")
-            receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")
+        old_points_player = player.points
+        old_points_receiver = receiver.points
+        player.points -= donation
+        player.audit('donation', old_points_player, f"Donation to player {receiver.name}")
+        receiver.points += donation
+        receiver.audit('donation', old_points_receiver, f"Donation from player {player.name}")
+        player.sendChatMessage(f"You've donated {donation} credit points to GCI {receiver.name}.")
+        receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")

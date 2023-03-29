@@ -10,7 +10,7 @@ If you want to support Blue and Red coalitions in your Discord and your DCS serv
 As there are major changes to how the bot behaves with COALITIONS enabled, I decided to have a separate documentation 
 about it. It has redundant information in it, which is usually a bad idea, but I thought it might be easier for you
 guys to have everything in one place.<br/>
-Coalitions are implemented by slot blocking, but can use the recenly added feature of coalition passwords in DCS, too.
+Coalitions are implemented by slot blocking, but can use the recently added feature of coalition passwords in DCS, too.
 
 {: .note }
 > With COALITIONS enabled, some persistent displays will not appear in your server status channels (or will be changed)
@@ -82,4 +82,4 @@ coalition use, which means, that the data they display is filtered to data that 
 | .leave            |            | all                         | DCS                    | Leave the current coalition.                                                                             |
 | .players          |            | status-/chat-/admin-channel | DCS                    | Lists the players currently active on the server (for your coalition only!).                             |
 | .briefing/.brief  |            | all                         | DCS                    | Shows the description / briefing of the running mission (for your coalition only!).                      |
-| .missionstats     |            | status-/chat-/admin-channel | DCS                    | Display the current mission situation for either red or blue and the achievments in kills and captures.  |
+| .missionstats     |            | status-/chat-/admin-channel | DCS                    | Display the current mission situation for either red or blue and the achievements in kills and captures. |

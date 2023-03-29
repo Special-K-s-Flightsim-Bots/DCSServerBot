@@ -5,7 +5,7 @@ import psycopg2
 import random
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
-    DataObjectFactory, Member
+    DataObjectFactory, Member, Coalition, Side, PersistentReport, Channel
 from discord.ext import commands, tasks
 from typing import Union, Optional, Tuple
 from .filter import StatisticsFilter
@@ -117,8 +117,12 @@ class UserStatisticsMaster(UserStatisticsAgent):
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
         self.expire_token.start()
+        if 'configs' in self.locals:
+            self.persistent_highscore.start()
 
     async def cog_unload(self):
+        if 'configs' in self.locals:
+            self.persistent_highscore.cancel()
         self.expire_token.cancel()
         await super().cog_unload()
 
@@ -152,7 +156,11 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 await ctx.send('Please provide a valid period or campaign name.')
                 return
             if isinstance(member, str):
-                ucid, member = self.bot.get_ucid_by_name(member)
+                if utils.is_ucid(member):
+                    ucid = member
+                    member = self.bot.get_member_or_name_by_ucid(ucid)
+                else:
+                    ucid, member = self.bot.get_ucid_by_name(member)
             else:
                 ucid = self.bot.get_ucid_by_member(member)
             file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
@@ -210,13 +218,22 @@ class UserStatisticsMaster(UserStatisticsAgent):
             file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
             if not server:
                 report = PaginationReport(self.bot, ctx, self.plugin_name, file, timeout if timeout > 0 else None)
-                await report.render(period=period, message=ctx.message, flt=flt, server_name=None)
+                await report.render(period=period, sides=None, flt=flt, server_name=None)
             else:
+                tmp = utils.get_sides(ctx.message, server)
+                sides = [0]
+                if Coalition.RED in tmp:
+                    sides.append(Side.RED.value)
+                if Coalition.BLUE in tmp:
+                    sides.append(Side.BLUE.value)
+                # in this specific case, we want to display all data, if in public channels
+                if len(sides) == 0:
+                    sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
                 report = Report(self.bot, self.plugin_name, file)
-                env = await report.render(period=period, message=ctx.message, server_name=server.name, flt=flt)
+                env = await report.render(period=period, server_name=server.name, sides=sides, flt=flt)
                 file = discord.File(env.filename)
                 await ctx.send(embed=env.embed, file=file, delete_after=timeout if timeout > 0 else None)
-                if file:
+                if env.filename and os.path.exists(env.filename):
                     os.remove(env.filename)
         finally:
             await ctx.message.delete()
@@ -507,7 +524,17 @@ class UserStatisticsMaster(UserStatisticsAgent):
             self.pool.putconn(conn)
             await ctx.message.delete()
 
-    @tasks.loop(hours=1.0)
+    @commands.command(description='Show inactive users')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def inactive(self, ctx: commands.Context, *param) -> None:
+        period = ' '.join(param) if len(param) else None
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        report = Report(self.bot, self.plugin_name, 'inactive.json')
+        env = await report.render(period=period)
+        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+
+    @tasks.loop(hours=1)
     async def expire_token(self):
         conn = self.pool.getconn()
         try:
@@ -521,15 +548,35 @@ class UserStatisticsMaster(UserStatisticsAgent):
         finally:
             self.pool.putconn(conn)
 
-    @commands.command(description='Show inactive users')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def inactive(self, ctx: commands.Context, *param) -> None:
-        period = ' '.join(param) if len(param) else None
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-        report = Report(self.bot, self.plugin_name, 'inactive.json')
-        env = await report.render(period=period)
-        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+    @tasks.loop(hours=1)
+    async def persistent_highscore(self):
+        def get_server_by_installation(installation: str) -> Optional[Server]:
+            for server in self.bot.servers.values():
+                if server.installation == installation:
+                    return server
+            return None
+
+        try:
+            for config in self.locals['configs']:
+                if 'highscore' not in config:
+                    continue
+                if "installation" in config:
+                    server: Server = get_server_by_installation(config['installation'])
+                    server_name = server.name
+                else:
+                    server: Server = list(self.bot.servers.values())[0]
+                    server_name = None
+                kwargs = config['highscore'].get('params', {})
+                period = kwargs.get('period')
+                flt = StatisticsFilter.detect(self.bot, period) if period else None
+                file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
+                embed_name = 'highscore-' + (server_name or 'all')
+                sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
+                report = PersistentReport(self.bot, self.plugin_name, file, server, embed_name,
+                                          channel_id=config['highscore'].get('channel', Channel.STATUS))
+                await report.render(server_name=server_name, flt=flt, sides=sides, **kwargs)
+        except Exception as ex:
+            self.log.exception(ex)
 
 
 async def setup(bot: DCSServerBot):

@@ -71,7 +71,7 @@ function getCategory(id)
 	if id ~= nil and id ~= "" then
 		_killed_target_category = DCS.getUnitTypeAttribute(id, "category")
 
-		-- Below, simple hack to get the propper category when DCS API is not returning correct value
+		-- Below, simple hack to get the proper category when DCS API is not returning correct value
 		if _killed_target_category == nil then
 			local _killed_target_cat_check_ship = DCS.getUnitTypeAttribute(id, "DeckLevel")
 			local _killed_target_cat_check_plane = DCS.getUnitTypeAttribute(id, "WingSpan")
@@ -115,7 +115,7 @@ function getMulticrewAllParameters(PlayerId)
 			_master_type = DCS.getUnitType(_master_slot)
 
 		else
-			-- Deal with the special slots addded by Combined Arms and Spectators
+			-- Deal with the special slots added by Combined Arms and Spectators
 			if string.find(_player_slot, 'artillery_commander') then
 				_master_type = "artillery_commander"
 			elseif string.find(_player_slot, 'instructor') then

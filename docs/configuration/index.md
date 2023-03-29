@@ -6,7 +6,7 @@ nav_order: 3
 # Configuration
 
 The configuration of DCSServerBot is done in the file `dcsserverbot.ini`.
-You will find a describtion for all settings in the subsection.
+You will find a description for all settings in the subsection.
 
 The bot must disable some security settings of your DCS server. See details under Desanitization.
 

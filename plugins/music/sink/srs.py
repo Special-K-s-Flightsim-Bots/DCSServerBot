@@ -2,7 +2,7 @@ import asyncio
 import discord
 import subprocess
 import os
-from core import DCSServerBot, Server, Status
+from core import DCSServerBot, Server
 from discord import TextStyle
 from discord.ui import Modal, TextInput
 from typing import Optional

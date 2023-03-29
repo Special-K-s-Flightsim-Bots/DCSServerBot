@@ -146,7 +146,7 @@ class Music(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        sink = self.sinks.get(server.name, None)
+        sink = self.sinks.get(server.name)
         if not sink:
             if not self.get_config(server):
                 await ctx.send(f"No config\\music.json found or no entry for server {server.name} configured.")

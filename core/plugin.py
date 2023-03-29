@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 class Plugin(commands.Cog):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
+        super().__init__()
         self.plugin_name = type(self).__module__.split('.')[-2]
         self.plugin_version = getattr(sys.modules['plugins.' + self.plugin_name], '__version__')
         self.bot: DCSServerBot = bot

@@ -11,11 +11,11 @@ Or you can use a package manager of your choice like [Winget] or [Chocolaty]:
 - `choco install python`
 - `winget install python`
 
-After installtion run this command for a quick test:
+After installation run this command for a quick test:
 
 ```python --version```
 
-On the first start all needed Python modules will be installed in an [virtual environment] in the subfolder `venv`.
+On the first start all needed Python modules will be installed in an [virtual environment] in the sub-folder `venv`.
 If you want to know the needed modules take a look at `requirements.txt`.
 
 [Python]: https://www.python.org/

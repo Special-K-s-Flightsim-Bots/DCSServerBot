@@ -89,3 +89,6 @@ class LotAtc(Extension):
         else:
             ports[port] = self.server.name
         return True
+
+    async def shutdown(self, data: dict) -> bool:
+        return True

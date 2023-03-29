@@ -35,4 +35,4 @@ get the idea) and dir as a shell command.
 ```
 **Attention:**</br>
 * DCSServerBot needs to have the permissions to launch the respective executable!
-* Do not run long running shell scripts!
+* Do not run long-running shell scripts!

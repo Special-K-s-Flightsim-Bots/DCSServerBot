@@ -75,16 +75,17 @@ class Sneaker(Extension):
         global process, servers
 
         servers.remove(self.server.name)
-        if not servers:
+        if process and not servers:
             process.kill()
             process = None
+            return await super().shutdown(data)
         elif 'config' not in self.config:
             self.create_config()
             process.kill()
             cmd = os.path.basename(self.config['cmd'])
             process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
                                        executable=os.path.expandvars(self.config['cmd']))
-        return await super().shutdown(data)
+        return True
 
     def is_running(self) -> bool:
         global process, servers

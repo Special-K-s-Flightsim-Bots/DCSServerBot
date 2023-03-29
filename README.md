@@ -172,7 +172,7 @@ d) __REPORTS__ Section (Optional)
 | Parameter   | Description                                                                                  |
 |-------------|----------------------------------------------------------------------------------------------|
 | NUM_WORKERS | Number of threads that render a graph.                                                       |
-| CKJ_FONT    | One of TC, JP or KR to support Traditinal Chinese, Japanese or Korean characters in reports. |
+| CKJ_FONT    | One of TC, JP or KR to support Traditional Chinese, Japanese or Korean characters in reports. |
 
 e__DCS Section__
 
@@ -204,7 +204,7 @@ If your directory is named DCS instead (stable version), just add these fields t
 | ADMIN_CHANNEL              | The ID of the admin-commands channel to be used for the specific DCS server. Must be unique for every DCS server instance configured.                                                      |
 | AFK_TIME                   | Number of seconds a player is considered AFK when being on spectators for longer than AFK_TIME seconds. Default is -1 (disabled).                                                          |
 | CHAT_LOG                   | true (default), log all chat messages from players in Saved Games\<installation>\Logs\chat.log                                                                                             |
-| CHAT_LOGROTATE_COUNT       | Number of chatlogs to keep (default = 10).                                                                                                                                                 |
+| CHAT_LOGROTATE_COUNT       | Number of chat-logs to keep (default = 10).                                                                                                                                                |
 | CHAT_LOGROTATE_SIZE        | Max size of a chat.log until it gets rotated (default 1 MB).                                                                                                                               |
 | MISSIONS_DIR               | (Optional) If you want to use a central missions directory for multiple servers, you can set it in here.                                                                                   |
 | PING_ADMIN_ON_CRASH        | Define if the role DCS Admin should be pinged when a server crash is being detected (default = true).                                                                                      |

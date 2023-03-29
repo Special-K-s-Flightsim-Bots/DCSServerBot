@@ -73,9 +73,10 @@ class Agent(Plugin):
         if len(tasks):
             await asyncio.gather(*tasks)
         if ctx:
-            await ctx.send('Updating DCS World. Please wait, this might take some time ...')
+            await ctx.send(f"Updating {self.bot.config['DCS']['DCS_INSTALLATION']} ...\n"
+                           f"Please wait, this might take some time.")
         else:
-            self.log.info('Updating DCS World ...')
+            self.log.info(f"Updating {self.bot.config['DCS']['DCS_INSTALLATION']} ...")
         for plugin in self.bot.cogs.values():  # type: Plugin
             await plugin.before_dcs_update()
         # disable any popup on the remote machine
@@ -90,10 +91,11 @@ class Agent(Plugin):
             await plugin.after_dcs_update()
         message = None
         if ctx:
-            await ctx.send('DCS World updated to the latest version.')
+            await ctx.send(f"{self.bot.config['DCS']['DCS_INSTALLATION']} updated to the latest version.")
             message = await ctx.send('Starting up DCS servers again ...')
         else:
-            self.log.info('DCS World updated to the latest version.\nStarting up DCS servers again ...')
+            self.log.info(f"{self.bot.config['DCS']['DCS_INSTALLATION']} updated to the latest version. "
+                          f"Starting up DCS servers again ...")
         for server in self.bot.servers.values():
             if server not in servers:
                 # let the scheduler do its job
@@ -771,6 +773,29 @@ class Master(Agent):
         finally:
             self.bot.pool.putconn(conn)
 
+    def update_bans(self, data: Optional[dict] = None):
+        banlist = []
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                cursor.execute('SELECT ucid, reason FROM bans')
+                banlist = [dict(row) for row in cursor.fetchall()]
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+        if data is not None:
+            servers = [self.bot.servers[data['server_name']]]
+        else:
+            servers = self.bot.servers.values()
+        for server in servers:
+            for ban in banlist:
+                server.sendtoDCS({
+                    "command": "ban",
+                    "ucid": ban['ucid'],
+                    "reason": ban['reason']
+                })
+
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         self.bot.log.debug(f'Member {member.display_name} has left the discord')
@@ -781,7 +806,7 @@ class Master(Agent):
                     self.bot.log.debug(f'- Auto-ban member {member.display_name} on the DCS servers')
                     cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                    'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
-                    self.eventlistener._updateBans()
+                    self.update_bans()
                 self.bot.log.debug(f'- Delete stats of member {member.display_name}')
                 cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
                                'discord_id = %s)', (member.id, ))
@@ -801,7 +826,7 @@ class Master(Agent):
                 self.bot.log.debug(f'- Ban member {member.display_name} on the DCS servers.')
                 cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
-                self.eventlistener._updateBans()
+                self.update_bans()
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
@@ -820,7 +845,7 @@ class Master(Agent):
                     # auto-unban them if they were auto-banned
                     cursor.execute('DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE '
                                    'discord_id = %s)', (member.id, ))
-                    self.eventlistener._updateBans()
+                    self.update_bans()
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.bot.log.exception(error)

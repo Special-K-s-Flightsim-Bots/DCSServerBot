@@ -41,7 +41,7 @@ Now you see the general information of your new App.
   - Read Message History
   - Add Reactions
 - Press `Copy` on the generated URL and paste it into the browser of your choice
-- Select the guild / Dicord server the bot has to be added to and confirm the permissions
+- Select the guild / Discord server the bot has to be added to and confirm the permissions
 - This will add the bot to the selected server
 
 {: .important }

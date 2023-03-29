@@ -167,7 +167,7 @@ class Scheduler(Plugin):
         if 'extensions' not in config:
             return
         for extension in config['extensions']:
-            ext: Extension = server.extensions.get(extension, None)
+            ext: Extension = server.extensions.get(extension)
             if not ext:
                 if '.' not in extension:
                     ext = utils.str_to_class('extensions.' + extension)(self.bot, server,
@@ -368,7 +368,7 @@ class Scheduler(Plugin):
             if not server.restart_pending or not server.is_populated():
                 return
             else:
-                server.on_empty = dict()
+                server.on_empty.clear()
         else:
             server.restart_pending = True
 
@@ -633,8 +633,8 @@ class Scheduler(Plugin):
                     return
                 server.maintenance = True
                 server.restart_pending = False
-                server.on_empty = dict()
-                server.on_mission_end = dict()
+                server.on_empty.clear()
+                server.on_mission_end.clear()
                 await ctx.send(f"Maintenance mode set for server {server.display_name}.\n"
                                f"The {self.plugin_name.title()} will be set on hold until you use"
                                f" {ctx.prefix}clear again.")
@@ -795,9 +795,13 @@ class Scheduler(Plugin):
             stopped = False
             if server.status in [Status.RUNNING, Status.PAUSED]:
                 if not await utils.yn_question(ctx, 'Do you want me to stop the server to reset the mission?'):
+                    await ctx.send('Aborted.')
                     return
                 stopped = True
                 await server.stop()
+            elif not await utils.yn_question(ctx, 'Do you want to reset the mission?'):
+                await ctx.send('Aborted.')
+                return
             config = self.get_config(server)
             if 'reset' not in config:
                 await ctx.send(f"No \"reset\" parameter found for server {server.display_name}.")
@@ -805,9 +809,9 @@ class Scheduler(Plugin):
             reset = config['reset']
             if isinstance(reset, list):
                 for cmd in reset:
-                    self.eventlistener._run(server, cmd)
+                    self.eventlistener.run(server, cmd)
             elif isinstance(reset, str):
-                self.eventlistener._run(server, reset)
+                self.eventlistener.run(server, reset)
             else:
                 await ctx.send('Incorrect format of "reset" parameter in scheduler.json')
             if stopped:

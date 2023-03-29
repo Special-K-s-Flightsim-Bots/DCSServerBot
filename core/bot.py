@@ -1,4 +1,5 @@
 import asyncio
+import concurrent
 import discord
 import json
 import platform
@@ -320,6 +321,24 @@ class DCSServerBot(commands.Bot):
         finally:
             self.pool.putconn(conn)
 
+    def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> Optional[Union[discord.Member, str]]:
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                sql = 'SELECT discord_id, name FROM players WHERE ucid = %s'
+                if verified:
+                    sql += ' AND discord_id <> -1 AND manual IS TRUE'
+                cursor.execute(sql, (ucid, ))
+                if cursor.rowcount == 1:
+                    row = cursor.fetchone()
+                    return self.guilds[0].get_member(row[0]) or row[1]
+                else:
+                    return None
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
     def get_ucid_by_member(self, member: discord.Member, verified: Optional[bool] = False) -> Optional[str]:
         conn = self.pool.getconn()
         try:
@@ -625,6 +644,14 @@ class DCSServerBot(commands.Bot):
                 if 'server_name' not in data:
                     self.log.warning('Message without server_name received: {}'.format(data))
                     return
+                self.log.debug('{}->HOST: {}'.format(data['server_name'], json.dumps(data)))
+                if 'channel' in data and data['channel'].startswith('sync-'):
+                    if data['channel'] in self.listeners:
+                        f = self.listeners[data['channel']]
+                        if not f.done():
+                            self.loop.call_soon_threadsafe(f.set_result, data)
+                        if data['command'] != 'registerDCSServer':
+                            return
                 server_name = data['server_name']
                 if server_name not in s.server.message_queue:
                     s.server.message_queue[server_name] = Queue()
@@ -633,30 +660,26 @@ class DCSServerBot(commands.Bot):
 
             def process(s, server_name: str):
                 data = s.server.message_queue[server_name].get()
+                server: Server = self.servers[server_name]
                 while len(data):
                     try:
-                        self.log.debug('{}->HOST: {}'.format(data['server_name'], json.dumps(data)))
                         command = data['command']
                         if command == 'registerDCSServer':
                             if not self.register_server(data):
-                                self.log.error(f"Error while registering server {server_name}. Exiting worker thread.")
+                                self.log.error(f"Error while registering server {server_name}.")
                                 return
-                        elif (data['server_name'] not in self.servers or
-                              self.servers[data['server_name']].status == Status.UNREGISTERED):
-                            self.log.debug(f"Command {command} for unregistered server {data['server_name']} received, "
-                                           f"ignoring.")
+                        elif server_name not in self.servers or server.status == Status.UNREGISTERED:
+                            self.log.debug(
+                                f"Command {command} for unregistered server {server_name} received, ignoring.")
                             continue
-                        if 'channel' in data and data['channel'].startswith('sync-'):
-                            if data['channel'] in self.listeners:
-                                f = self.listeners[data['channel']]
-                                if not f.done():
-                                    self.loop.call_soon_threadsafe(f.set_result, data)
-                                if command != 'registerDCSServer':
-                                    continue
-                        for listener in self.eventListeners:
-                            if command in listener.commands:
-                                self.loop.call_soon_threadsafe(asyncio.create_task,
-                                                               listener.processEvent(deepcopy(data)))
+                        concurrent.futures.wait(
+                            [
+                                asyncio.run_coroutine_threadsafe(listener.processEvent(command, server, deepcopy(data)),
+                                                                 self.loop)
+                                for listener in self.eventListeners
+                                if listener.has_event(command)
+                            ]
+                        )
                     except Exception as ex:
                         self.log.exception(ex)
                     finally:

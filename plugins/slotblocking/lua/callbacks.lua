@@ -70,7 +70,7 @@ function slotblock.onPlayerTryChangeSlot(playerID, side, slotID)
     local group_name = DCS.getUnitProperty(slotID, DCS.UNIT_GROUPNAME)
     local unit_type = DCS.getUnitType(slotID)
     local points
-    if not dcsbot.params['slotblocking'] or not dcsbot.params['slotblocking']['restricted'] then
+    if not dcsbot.params or not dcsbot.params['slotblocking'] or not dcsbot.params['slotblocking']['restricted'] then
         return
     end
     -- check levels if any

@@ -1,12 +1,97 @@
 from __future__ import annotations
-from abc import ABC
-from typing import Union, TypeVar, TYPE_CHECKING
+import inspect
+from dataclasses import MISSING
+from typing import TypeVar, TYPE_CHECKING, Any, Type
 
 if TYPE_CHECKING:
-    from core import DCSServerBot, Plugin
+    from core import DCSServerBot, Plugin, Server, Player
 
 
-class EventListener(ABC):
+def event(name: str = MISSING, cls: Type[Event] = MISSING, **attrs) -> Any:
+    if cls is MISSING:
+        cls = Event
+
+    def decorator(func):
+        if isinstance(func, Event):
+            raise TypeError('Callback is already an Event')
+        return cls(func, name=name, **attrs)
+
+    return decorator
+
+
+class Event:
+    def __init__(self, func, **kwargs):
+        self.name: str = kwargs.get('name') or func.__name__
+        self.callback = func
+
+    async def __call__(self, listener: EventListener, server: Server, data: dict) -> None:
+        await self.callback(listener, server, data)
+
+
+def chat_command(name: str = MISSING, cls: Type[ChatCommand] = MISSING, **attrs) -> Any:
+    if cls is MISSING:
+        cls = ChatCommand
+
+    def decorator(func):
+        if isinstance(func, ChatCommand):
+            raise TypeError('Callback is already a ChatCommand')
+        return cls(func, name=name, **attrs)
+
+    return decorator
+
+
+class ChatCommand:
+    def __init__(self, func, **kwargs):
+        self.name: str = kwargs.get('name') or func.__name__
+        self.help: str = inspect.cleandoc(kwargs.get('help', ''))
+        self.roles: list[str] = kwargs.get('roles', [])
+        self.usage: str = kwargs.get('usage')
+        self.aliases: list[str] = kwargs.get('aliases', [])
+        self.callback = func
+
+    async def __call__(self, listener: EventListener, server: Server, player: Player, params: dict) -> None:
+        await self.callback(listener, server, player, params)
+
+
+class EventListenerMeta(type):
+    __events__: dict[str, Event]
+    __chat_commands__: dict[str, ChatCommand]
+
+    def __new__(cls, *args: Any, **kwargs: Any):
+        name, bases, attrs = args
+        events = {}
+        chat_commands = {}
+        new_cls = super().__new__(cls, name, bases, attrs, **kwargs)
+        for base in reversed(new_cls.__mro__):
+            for elem, value in base.__dict__.items():
+                if elem in events:
+                    del events[elem]
+                if elem in chat_commands:
+                    del chat_commands[elem]
+                if isinstance(value, Event):
+                    events[elem] = value
+                elif isinstance(value, ChatCommand):
+                    chat_commands[elem] = value
+        new_cls.__events__ = events
+        new_cls.__chat_commands__ = chat_commands
+        return new_cls
+
+
+class EventListener(metaclass=EventListenerMeta):
+    __events__: dict[str, Event]
+    __chat_commands__: dict[str, ChatCommand]
+    __all_commands__: dict[str, ChatCommand]
+
+    def __new__(cls, plugin: Plugin):
+        self = super().__new__(cls)
+        self.__events__ = cls.__events__
+        self.__chat_commands__ = cls.__chat_commands__
+        self.__all_commands__ = {}
+        for key, value in self.__chat_commands__.items():
+            self.__all_commands__[key] = value
+            for alias in value.aliases:
+                self.__all_commands__[alias] = value
+        return self
 
     def __init__(self, plugin: Plugin):
         self.plugin: Plugin = plugin
@@ -16,13 +101,34 @@ class EventListener(ABC):
         self.pool = plugin.pool
         self.locals: dict = plugin.locals
         self.loop = plugin.loop
-        self.commands: list[str] = [m for m in dir(self) if m not in dir(EventListener) and not m.startswith('_')]
 
-    async def processEvent(self, data: dict[str, Union[str, int]]) -> None:
+    @property
+    def events(self) -> Any:
+        return self.__events__.values()
+
+    @property
+    def chat_commands(self) -> Any:
+        return self.__chat_commands__.values()
+
+    def has_event(self, name: str) -> bool:
+        return name in self.__events__
+
+    async def processEvent(self, name: str, server: Server, data: dict) -> None:
         try:
-            await getattr(self, data['command'])(data)
+            await self.__events__[name](self, server, data)
         except Exception as ex:
             self.log.exception(ex)
+
+    @event(name="onChatCommand")
+    async def onChatCommand(self, server: Server, data: dict) -> None:
+        server: Server = self.bot.servers[data['server_name']]
+        player: Player = server.get_player(id=data['from_id'], active=True)
+        command = self.__all_commands__.get(data['subcommand'])
+        if not command or not player:
+            return
+        if command.roles and not player.has_discord_roles(command.roles):
+            return
+        await command(self, server, player, data.get('params'))
 
     async def shutdown(self):
         pass

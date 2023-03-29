@@ -4,7 +4,7 @@ import logging
 import os
 import psycopg2
 from contextlib import closing
-from core import EventListener, Side, Coalition, Channel, utils
+from core import EventListener, Side, Coalition, Channel, utils, event, chat_command
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from typing import Optional, TYPE_CHECKING
@@ -19,8 +19,8 @@ class GameMasterEventListener(EventListener):
         super().__init__(plugin)
         self.chat_log = dict()
 
-    async def registerDCSServer(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
         if self.bot.config.getboolean(server.installation, 'CHAT_LOG') and server.installation not in self.chat_log:
             self.chat_log[server.installation] = logging.getLogger(name=f'chat-{server.installation}')
             self.chat_log[server.installation].setLevel(logging.INFO)
@@ -34,8 +34,8 @@ class GameMasterEventListener(EventListener):
             fh.setFormatter(formatter)
             self.chat_log[server.installation].addHandler(fh)
 
-    async def onChatMessage(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onChatMessage")
+    async def onChatMessage(self, server: Server, data: dict) -> None:
         player: Player = server.get_player(id=data['from_id'])
         if self.bot.config.getboolean(server.installation, 'CHAT_LOG'):
             self.chat_log[server.installation].info(f"{player.ucid}\t{player.name}\t{data['to']}\t{data['message']}")
@@ -52,7 +52,7 @@ class GameMasterEventListener(EventListener):
             if 'from_id' in data and data['from_id'] != 1 and len(data['message']) > 0:
                 await chat_channel.send(data['from_name'] + ': ' + data['message'])
 
-    def _get_coalition(self, server: Server, player: Player) -> Optional[Coalition]:
+    def get_coalition(self, server: Server, player: Player) -> Optional[Coalition]:
         if not player.coalition:
             conn = self.bot.pool.getconn()
             try:
@@ -68,7 +68,7 @@ class GameMasterEventListener(EventListener):
                 self.bot.pool.putconn(conn)
         return player.coalition
 
-    def _get_coalition_password(self, server: Server, coalition: Coalition) -> Optional[str]:
+    def get_coalition_password(self, server: Server, coalition: Coalition) -> Optional[str]:
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -81,8 +81,8 @@ class GameMasterEventListener(EventListener):
         finally:
             self.bot.pool.putconn(conn)
 
-    async def onPlayerStart(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onPlayerStart")
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] != 1 and self.bot.config.getboolean(server.installation, 'COALITIONS'):
             player: Player = server.get_player(id=data['id'])
             if player.has_discord_roles(['DCS Admin', 'GameMaster']):
@@ -101,14 +101,75 @@ class GameMasterEventListener(EventListener):
             data['from_id'] = data['id']
             data['subcommand'] = 'coalition'
             await self.onChatCommand(data)
-            if self._get_coalition_password(server, player.coalition):
+            if self.get_coalition_password(server, player.coalition):
                 data['subcommand'] = 'password'
                 await self.onChatCommand(data)
 
-    async def join(self, data: dict):
-        server: Server = self.bot.servers[data['server_name']]
-        player: Player = server.get_player(id=data['from_id'], active=True)
-        coalition = data['params'][0] if len(data['params']) > 0 else ''
+    def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
+                 description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                if command == 'add':
+                    cursor.execute('INSERT INTO campaigns (name, description, start, stop) VALUES (%s, %s, %s, %s)',
+                                   (name, description, start, end))
+                    if servers:
+                        cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
+                        campaign_id = cursor.fetchone()[0]
+                        for server in servers:
+                            # add this server to the server list
+                            cursor.execute('INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING',
+                                           (campaign_id, server.name))
+                elif command == 'start':
+                    cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s AND NOW() BETWEEN start AND '
+                                   'COALESCE(stop, NOW())', (name,))
+                    if cursor.rowcount == 0:
+                        cursor.execute('INSERT INTO campaigns (name) VALUES (%s)', (name,))
+                    if servers:
+                        cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s AND NOW() BETWEEN start AND '
+                                       'COALESCE(stop, NOW())', (name,))
+                        # don't use currval() in here, as we can't rely on the sequence name
+                        campaign_id = cursor.fetchone()[0]
+                        for server in servers:
+                            cursor.execute("INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                                           (campaign_id, server.name,))
+                elif command == 'stop':
+                    cursor.execute('UPDATE campaigns SET stop = NOW() WHERE name ILIKE %s AND NOW() BETWEEN start AND '
+                                   'COALESCE(stop, NOW())', (name,))
+                elif command == 'delete':
+                    cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
+                    campaign_id = cursor.fetchone()[0]
+                    cursor.execute('DELETE FROM campaigns_servers WHERE campaign_id = %s', (campaign_id,))
+                    cursor.execute('DELETE FROM campaigns WHERE id = %s', (campaign_id,))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError):
+            conn.rollback()
+            raise
+        finally:
+            self.pool.putconn(conn)
+
+    @event(name="startCampaign")
+    async def startCampaign(self, server: Server, data: dict) -> None:
+        name = data['name'] or '_internal_'
+        try:
+            self.campaign('start', servers=[server], name=name)
+        except psycopg2.errors.UniqueViolation:
+            await self.resetCampaign(data)
+
+    @event(name="stopCampaign")
+    async def stopCampaign(self, server: Server, data: dict) -> None:
+        _, name = utils.get_running_campaign(server)
+        self.campaign('delete', name=name)
+
+    @event(name="resetCampaign")
+    async def resetCampaign(self, server: Server, data: dict) -> None:
+        _, name = utils.get_running_campaign(server)
+        self.campaign('delete', name=name)
+        self.campaign('start', servers=[server])
+
+    @chat_command(name="join", usage="<coalition>", help="join a coalition")
+    async def join(self, server: Server, player: Player, params: list[str]):
+        coalition = params[0] if params else ''
         if coalition.casefold() not in ['blue', 'red']:
             player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join <blue|red>")
             return
@@ -154,7 +215,7 @@ class GameMasterEventListener(EventListener):
             self.bot.pool.putconn(conn)
 
         # welcome them in DCS
-        password = self._get_coalition_password(server, player.coalition)
+        password = self.get_coalition_password(server, player.coalition)
         player.sendChatMessage(f'Welcome to the {coalition} side!')
         if password:
             player.sendChatMessage(f"Your coalition password is {password}.")
@@ -172,10 +233,9 @@ class GameMasterEventListener(EventListener):
         except discord.Forbidden:
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
-    async def leave(self, data):
-        server: Server = self.bot.servers[data['server_name']]
-        player: Player = server.get_player(id=data['from_id'], active=True)
-        if not self._get_coalition(server, player):
+    @chat_command(name="leave", help="leave your coalition")
+    async def leave(self, server: Server, player: Player, params: list[str]):
+        if not self.get_coalition(server, player):
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
                                    f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
             return
@@ -207,112 +267,50 @@ class GameMasterEventListener(EventListener):
         finally:
             player.coalition = None
 
-    def _campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
-                  description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if command == 'add':
-                    cursor.execute('INSERT INTO campaigns (name, description, start, stop) VALUES (%s, %s, %s, %s)',
-                                   (name, description, start, end))
-                    if servers:
-                        cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
-                        campaign_id = cursor.fetchone()[0]
-                        for server in servers:
-                            # add this server to the server list
-                            cursor.execute('INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING',
-                                           (campaign_id, server.name))
-                elif command == 'start':
-                    cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s AND NOW() BETWEEN start AND '
-                                   'COALESCE(stop, NOW())', (name,))
-                    if cursor.rowcount == 0:
-                        cursor.execute('INSERT INTO campaigns (name) VALUES (%s)', (name,))
-                    if servers:
-                        cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s AND NOW() BETWEEN start AND '
-                                       'COALESCE(stop, NOW())', (name,))
-                        # don't use currval() in here, as we can't rely on the sequence name
-                        campaign_id = cursor.fetchone()[0]
-                        for server in servers:
-                            cursor.execute("INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                                           (campaign_id, server.name,))
-                elif command == 'stop':
-                    cursor.execute('UPDATE campaigns SET stop = NOW() WHERE name ILIKE %s AND NOW() BETWEEN start AND '
-                                   'COALESCE(stop, NOW())', (name,))
-                elif command == 'delete':
-                    cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
-                    campaign_id = cursor.fetchone()[0]
-                    cursor.execute('DELETE FROM campaigns_servers WHERE campaign_id = %s', (campaign_id,))
-                    cursor.execute('DELETE FROM campaigns WHERE id = %s', (campaign_id,))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError):
-            conn.rollback()
-            raise
-        finally:
-            self.pool.putconn(conn)
+    @chat_command(name="red", help="join the red side")
+    async def red(self, server: Server, player: Player, params: list[str]):
+        await self.join(server, player, ["red"])
 
-    async def startCampaign(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        name = data['name'] or '_internal_'
-        try:
-            self._campaign('start', servers=[server], name=name)
-        except psycopg2.errors.UniqueViolation:
-            await self.resetCampaign(data)
+    @chat_command(name="blue", help="join the blue side")
+    async def blue(self, server: Server, player: Player, params: list[str]):
+        await self.join(server, player, ["blue"])
 
-    async def stopCampaign(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        _, name = utils.get_running_campaign(server)
-        self._campaign('delete', name=name)
+    @chat_command(name="coalition", help="displays your current coalition")
+    async def coalition(self, server: Server, player: Player, params: list[str]):
+        coalition = self.get_coalition(server, player)
+        if coalition:
+            player.sendChatMessage(f"You are a member of the {coalition.name} coalition.")
+        else:
+            player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
+                                   f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
 
-    async def resetCampaign(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        _, name = utils.get_running_campaign(server)
-        self._campaign('delete', name=name)
-        self._campaign('start', servers=[server])
-
-    async def onChatCommand(self, data):
-        server: Server = self.bot.servers[data['server_name']]
-        player: Player = server.get_player(id=data['from_id'])
-        if not player:
+    @chat_command(name="password", aliases=["passwd"], help="displays the coalition password")
+    async def password(self, server: Server, player: Player, params: list[str]):
+        coalition = self.get_coalition(server, player)
+        if not coalition:
+            player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
+                                   f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
             return
-        coalition = self._get_coalition(server, player)
-        prefix = self.bot.config['BOT']['CHAT_COMMAND_PREFIX']
-        if self.bot.config.getboolean(server.installation, 'COALITIONS') and \
-                not player.has_discord_roles(['DCS Admin', 'GameMaster']):
-            if data['subcommand'] == 'join':
-                await self.join(data)
-            elif data['subcommand'] == 'red':
-                data["params"] = ["red"]
-                await self.join(data)
-            elif data['subcommand'] == 'blue':
-                data["params"] = ["blue"]
-                await self.join(data)
-            elif data['subcommand'] == 'leave':
-                await self.leave(data)
-            elif data['subcommand'] == 'coalition':
-                player.sendChatMessage(f"You are a member of the {coalition.name} coalition." if coalition else f"You are not a member of any coalition. You can join one with {prefix}join blue|red.")
-            elif data['subcommand'] in ['password', 'passwd']:
-                if not coalition:
-                    player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
-                                           f"{prefix}join blue|red.")
-                    return
-                password = self._get_coalition_password(server, player.coalition)
-                if password:
-                    player.sendChatMessage(f"Your coalition password is {password}.")
-                else:
-                    player.sendChatMessage("There is no password set for your coalition.")
-        if data['subcommand'] == 'flag' and player.has_discord_roles(['DCS Admin', 'GameMaster']):
-            if len(data['params']) == 0:
-                player.sendChatMessage(f"Usage: {prefix}flag <flag> [value]")
-                return
-            flag = data['params'][0]
-            if len(data['params']) > 1:
-                value = int(data['params'][1])
-                server.sendtoDCS({
-                    "command": "setFlag",
-                    "flag": flag,
-                    "value": value
-                })
-                player.sendChatMessage(f"Flag {flag} set to {value}.")
-            else:
-                response = await server.sendtoDCSSync({"command": "getFlag", "flag": flag})
-                player.sendChatMessage(f"Flag {flag} has value {response['value']}.")
+        password = self.get_coalition_password(server, player.coalition)
+        if password:
+            player.sendChatMessage(f"Your coalition password is {password}.")
+        else:
+            player.sendChatMessage("There is no password set for your coalition.")
+
+    @chat_command(name="flag", roles=['DCS Admin', 'GameMaster'], usage="<flag> [value]", help="reads or sets a flag")
+    async def flag(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}flag <flag> [value]")
+            return
+        flag = params[0]
+        if len(params) > 1:
+            value = int(params[1])
+            server.sendtoDCS({
+                "command": "setFlag",
+                "flag": flag,
+                "value": value
+            })
+            player.sendChatMessage(f"Flag {flag} set to {value}.")
+        else:
+            response = await server.sendtoDCSSync({"command": "getFlag", "flag": flag})
+            player.sendChatMessage(f"Flag {flag} has value {response['value']}.")

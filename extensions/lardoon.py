@@ -45,7 +45,9 @@ class Lardoon(Extension):
         if process and not servers:
             process.kill()
             process = None
-        return await super().shutdown(data)
+            return await super().shutdown(data)
+        else:
+            return True
 
     def is_running(self) -> bool:
         global process, servers

@@ -13,7 +13,7 @@ It can be used to start specific tasks like backups or other game servers with D
 > DCSServerBot needs to have the permissions to launch the respective executable!
 
 {: .important }
-> Do not run long running shell scripts!
+> Do not run long-running shell scripts!
 
 ## Configuration
 

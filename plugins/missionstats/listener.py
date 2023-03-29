@@ -1,7 +1,7 @@
 import asyncio
 import psycopg2
 from contextlib import closing
-from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel
+from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel, event
 from discord.ext import tasks
 
 
@@ -48,24 +48,25 @@ class MissionStatisticsEventListener(EventListener):
     async def shutdown(self):
         self.do_update.cancel()
 
-    async def getMissionSituation(self, data):
-        self.bot.mission_stats[data['server_name']] = data
+    @event(name="getMissionSituation")
+    async def getMissionSituation(self, server: Server, data: dict) -> None:
+        self.bot.mission_stats[server.name] = data
 
-    def _toggle_mission_stats(self, data):
-        server: Server = self.bot.servers[data['server_name']]
+    def _toggle_mission_stats(self, server: Server):
         if self.bot.config.getboolean(server.installation, 'MISSION_STATISTICS'):
             server.sendtoDCS({"command": "enableMissionStats"})
             server.sendtoDCS({"command": "getMissionSituation", "channel": server.get_channel(Channel.STATUS).id})
         else:
             server.sendtoDCS({"command": "disableMissionStats"})
 
-    async def registerDCSServer(self, data):
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['channel'].startswith('sync') and server.status in [Status.RUNNING, Status.PAUSED]:
-            self._toggle_mission_stats(data)
+            self._toggle_mission_stats(server)
 
-    async def onMissionLoadEnd(self, data):
-        self._toggle_mission_stats(data)
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        self._toggle_mission_stats(server)
 
     def _update_database(self, data):
         if data['eventName'] in self.filter:
@@ -114,8 +115,8 @@ class MissionStatisticsEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    async def onMissionEvent(self, data):
-        server: Server = self.bot.servers[data['server_name']]
+    @event(name="onMissionEvent")
+    async def onMissionEvent(self, server: Server, data: dict) -> None:
         if self.bot.config.getboolean(server.installation, 'PERSIST_MISSION_STATISTICS'):
             await asyncio.to_thread(self._update_database, data)
         if data['server_name'] in self.bot.mission_stats:
@@ -141,7 +142,7 @@ class MissionStatisticsEventListener(EventListener):
                     elif initiator['type'] == 'STATIC':
                         stats['coalitions'][coalition.name]['statics'].append(unit_name)
                     update = True
-            elif data['eventName'] == 'S_EVENT_KILL' and data.get('initiator', None):
+            elif data['eventName'] == 'S_EVENT_KILL' and data.get('initiator'):
                 killer = data['initiator']
                 victim = data['target']
                 if killer and victim:
@@ -165,8 +166,7 @@ class MissionStatisticsEventListener(EventListener):
                         else:
                             stats['coalitions'][coalition.name]['kills']['Static'] += 1
                     update = True
-            elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT'] and \
-                    data.get('initiator', None):
+            elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT'] and data.get('initiator'):
                 initiator = data['initiator']
                 category = self.UNIT_CATEGORY[initiator['category']]
                 coalition: Coalition = self.COALITION[initiator['coalition']]
