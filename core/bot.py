@@ -230,14 +230,11 @@ class DCSServerBot(commands.Bot):
         elif isinstance(err, commands.NoPrivateMessage):
             await ctx.send(f"{ctx.command.name} can't be used in a DM.")
         elif isinstance(err, commands.MissingRequiredArgument):
-            cmd = ctx.command.name + ' '
-            if ctx.command.usage:
-                cmd += ctx.command.usage
-            else:
-                cmd += ' '.join([f'<{name}>' if param.required else f'[{name}]' for name, param in ctx.command.params.items()])
-            await ctx.send(f"Usage: {ctx.prefix}{cmd}")
+            await ctx.send(f"Usage: {ctx.prefix}{ctx.command.name} {ctx.command.signature}")
         elif isinstance(err, commands.errors.CheckFailure):
             await ctx.send(f"You don't have the permission to use {ctx.command.name}!")
+        elif isinstance(err, commands.DisabledCommand):
+            pass
         elif isinstance(err, asyncio.TimeoutError):
             await ctx.send('A timeout occurred. Is the DCS server running?')
         else:

@@ -32,9 +32,9 @@ class HelpMaster(HelpAgent):
 
         async def print_command(self, *, command: str) -> Optional[discord.Embed]:
             command = command.lstrip(self.ctx.prefix)
-            if command not in self.bot.all_commands:
+            cmd = self.bot.all_commands.get(command)
+            if not cmd or not cmd.enabled:
                 return None
-            cmd = self.bot.all_commands[command]
             predicates = cmd.checks
             if not predicates:
                 check = True
@@ -45,13 +45,7 @@ class HelpMaster(HelpAgent):
             help_embed = discord.Embed(color=discord.Color.blue())
             help_embed.title = f'Command: {self.ctx.prefix}{cmd.name}'
             help_embed.description = cmd.description
-            usage = f'{self.ctx.prefix}{cmd.name}'
-            if cmd.usage:
-                usage += f' {cmd.usage}'
-            elif cmd.params:
-                usage += ' ' + ' '.join(
-                    [f'<{name}>' if param.required else f'[{name}]' for name, param in cmd.params.items()])
-            help_embed.add_field(name='Usage', value=usage, inline=False)
+            help_embed.add_field(name='Usage', value=f'{self.ctx.prefix}{cmd.name} {cmd.signature}', inline=False)
             if cmd.usage:
                 help_embed.set_footer(text='<> mandatory, [] non-mandatory')
             if cmd.aliases:
@@ -60,7 +54,7 @@ class HelpMaster(HelpAgent):
             return help_embed
 
         async def print_commands(self, *, plugin: str) -> discord.Embed:
-            commands = [x for x in self.bot.commands if x.module == plugin]
+            commands = [x for x in self.bot.commands if x.module == plugin and x.enabled]
             title = f'{self.bot.user.display_name} Help'
             help_embed = discord.Embed(title=title, color=discord.Color.blue())
             if plugin != '__main__':

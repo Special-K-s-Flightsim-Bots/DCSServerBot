@@ -58,7 +58,11 @@ class Plugin(commands.Cog):
                 for idx, check in enumerate(cmd.checks.copy()):
                     if 'has_role' in check.__qualname__:
                         cmd.checks.pop(idx)
-                        cmd.checks.append(utils.has_roles(params['roles']).predicate)
+                if len(params['roles']):
+                    cmd.checks.append(utils.has_roles(params['roles'].copy()).predicate)
+                del params['roles']
+            if params:
+                cmd.update(**params)
 
     @staticmethod
     def get_installed_version(plugin: str) -> Optional[str]:

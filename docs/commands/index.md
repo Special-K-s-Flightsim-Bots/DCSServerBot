@@ -120,17 +120,17 @@ These commands can be used to administrate the bot itself.
 
 ## Plugin Scheduler
 
-| Command      | Parameter | Channel       | Role      | Description                                                                                                                                   |
-|--------------|-----------|---------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| .startup     |           | admin-channel | DCS Admin | Starts a dedicated DCS server process.                                                                                                        |
-| .shutdown    | [-force]  | admin-channel | DCS Admin | Shuts the dedicated DCS server process down.<br/>If `-force` is used, no player check will be executed and no onShutdown command will be run.   |
-| .start       |           | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                                                  |
-| .stop        |           | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                           |
-| .status      |           | all           | DCS       | Shows the status of all configured DCS servers.                                                                                               |
-| .maintenance |           | admin-channel | DCS Admin | Sets the servers maintenance mode.                                                                                                            |
-| .clear       |           | admin-channel | DCS Admin | Clears the maintenance state of a server.                                                                                                     |
-| .preset      |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. Multiple selections will apply all presets at once.                                      |
-| .reset       |           | admin-channel | DCS Admin | Calls a configurable reset command.                                                                                                           |
+| Command      | Parameter | Channel       | Role      | Description                                                                                                                                    |
+|--------------|-----------|---------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| .startup     |           | admin-channel | DCS Admin | Starts a dedicated DCS server process.                                                                                                         |
+| .shutdown    | [-force]  | admin-channel | DCS Admin | Shuts the dedicated DCS server process down.<br/>If `-force` is used, no player check will be executed and no onShutdown command will be run.  |
+| .start       |           | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                                                   |
+| .stop        |           | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                            |
+| .status      |           | all           | DCS       | Shows the status of all configured DCS servers.                                                                                                |
+| .maintenance |           | admin-channel | DCS Admin | Sets the servers maintenance mode.                                                                                                             |
+| .clear       |           | admin-channel | DCS Admin | Clears the maintenance state of a server.                                                                                                      |
+| .preset      |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. Multiple selections will apply all presets at once.                                       |
+| .reset       |           | admin-channel | DCS Admin | Calls a configurable reset command.                                                                                                            |
 
 ## Plugin ServerStats
 
@@ -153,3 +153,36 @@ These commands can be used to administrate the bot itself.
 | .mislinks / .mislinked |                                           | all     | DCS Admin | Checks if a DCS user is possibly mismatched with the wrong member (might still be correct though!). |
 | .reset_statistics      |                                           | all     | Admin     | Resets the statistics for this server.                                                              |
 | .linkme                |                                           | all     | DCS       | Link a discord user to a DCS user (user self-service).                                              |
+
+## Changing Commands
+If you want to change the name, aliases or permissions of an existing command or you want to disable it, you can do that
+by adding a "commands"-section to your "plugin".json configuration file.
+
+Example (admin.json):
+```json
+{
+  "commands": {
+    "bans": {
+      "roles": ["Admin"],
+      "name": "prohibiciones",
+      "aliases": ["bans"],
+      "brief": "lista de prohibiciones",
+      "description": "mostrar una lista de todas las prohibiciones en sus servidores"
+    },
+    "update": {
+      "enabled": false
+    }
+  },
+  "configs": [
+    {
+      "downloads": [
+        { "label": "DCS Logs", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\logs", "pattern": "dcs*.log" },
+        [...]
+      ]
+    }
+  ]
+}
+```
+This changes the command name of "bans" to its spanish name "prohibiciones" and gives it some documentation.
+It keeps the original name as an alias. Only users belonging to the Admin group are allowed to run this command.
+And it disables the "admin" command, so nobody can use or even see it anymore.
