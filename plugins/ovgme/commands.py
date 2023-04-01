@@ -277,7 +277,7 @@ class OvGME(Plugin):
                 derived.installed = derived.get_installed()
                 derived.available = derived.get_available()
                 derived.embed = embed
-                derived.update()
+                derived.render()
 
             def get_installed(derived) -> list[Tuple[str, str, str]]:
                 installed = []
@@ -300,7 +300,15 @@ class OvGME(Plugin):
                         available.extend(packages)
                 return list(set(available) - set(derived.installed))
 
-            def update(derived):
+            async def shutdown(derived, interaction: discord.Interaction):
+                await interaction.response.defer()
+                derived.embed.set_footer(text=f"Shutting down {server.name}, please wait ...")
+                await interaction.edit_original_response(embed=derived.embed)
+                await server.shutdown()
+                derived.render()
+                await interaction.edit_original_response(embed=derived.embed, view=derived)
+
+            def render(derived):
                 derived.embed.clear_fields()
                 if derived.installed:
                     derived.embed.add_field(name='_ _', value='**The following mods are currently installed:**',
@@ -320,24 +328,36 @@ class OvGME(Plugin):
                 else:
                     derived.embed.add_field(name='_ _', value='There are no mods installed.', inline=False)
 
-                if len(derived.children) == 4:
-                    derived.remove_item(derived.children[2])
-                select = Select(placeholder="Select a package to install / update",
-                                options=[SelectOption(label=x[1] + '_' + x[2], value=str(idx))
-                                         for idx, x in enumerate(derived.available)],
-                                disabled=not derived.available,
-                                row=0)
-                select.callback = derived.install
-                derived.add_item(select)
-                if len(derived.children) == 4:
-                    derived.remove_item(derived.children[2])
-                select: Select = Select(placeholder="Select a package to uninstall",
-                                        options=[SelectOption(label=x[1] + '_' + x[2], value=str(idx))
-                                                 for idx, x in enumerate(derived.installed)],
-                                        disabled=not derived.installed,
-                                        row=1)
-                select.callback = derived.uninstall
-                derived.add_item(select)
+                derived.clear_items()
+                if derived.available and server.status == Status.SHUTDOWN:
+                    select = Select(placeholder="Select a package to install / update",
+                                    options=[SelectOption(label=x[1] + '_' + x[2], value=str(idx))
+                                             for idx, x in enumerate(derived.available)],
+                                    row=0)
+                    select.callback = derived.install
+                    derived.add_item(select)
+                if derived.installed and server.status == Status.SHUTDOWN:
+                    select = Select(placeholder="Select a package to uninstall",
+                                    options=[SelectOption(label=x[1] + '_' + x[2], value=str(idx))
+                                             for idx, x in enumerate(derived.installed)],
+                                    disabled=not derived.installed or server.status != Status.SHUTDOWN,
+                                    row=1)
+                    select.callback = derived.uninstall
+                    derived.add_item(select)
+                button = Button(label="Add", style=discord.ButtonStyle.primary, row=2)
+                button.callback = derived.add
+                derived.add_item(button)
+                if server.status != Status.SHUTDOWN:
+                    button = Button(label="Shutdown", style=discord.ButtonStyle.secondary, row=2)
+                    button.callback = derived.shutdown
+                    derived.add_item(button)
+                    derived.embed.set_footer(text=f"⚠️ Server {server.name} needs to be shut down to change mods.")
+                else:
+                    if len(derived.children) > 2:
+                        derived.remove_item(derived.children[1])
+                button = Button(label="Quit", style=discord.ButtonStyle.red, row=2)
+                button.callback = derived.cancel
+                derived.add_item(button)
 
             async def install(derived, interaction: discord.Interaction):
                 await interaction.response.defer()
@@ -357,7 +377,7 @@ class OvGME(Plugin):
                             derived.embed.set_footer(text=f"Package {package} updated.")
                             derived.installed = derived.get_installed()
                             derived.available = derived.get_available()
-                            derived.update()
+                            derived.render()
                     else:
                         derived.embed.set_footer(text=f"Installing package {package}, please wait ...")
                         await interaction.edit_original_response(embed=derived.embed)
@@ -367,7 +387,7 @@ class OvGME(Plugin):
                             derived.embed.set_footer(text=f"Package {package} installed.")
                             derived.installed = derived.get_installed()
                             derived.available = derived.get_available()
-                            derived.update()
+                            derived.render()
                     await interaction.edit_original_response(embed=derived.embed, view=derived)
                 except Exception as ex:
                     self.log.exception(ex)
@@ -383,11 +403,10 @@ class OvGME(Plugin):
                     derived.embed.set_footer(text=f"Package {package} uninstalled.")
                     derived.installed = derived.get_installed()
                     derived.available = derived.get_available()
-                    derived.update()
+                    derived.render()
                 await interaction.edit_original_response(embed=derived.embed, view=derived)
 
-            @discord.ui.button(label="Add", style=discord.ButtonStyle.primary, row=2)
-            async def add(derived, interaction: discord.Interaction, button: Button):
+            async def add(derived, interaction: discord.Interaction):
                 class UploadModal(Modal, title="Enter the mod URL"):
                     url = TextInput(label="URL", placeholder='https://...', style=TextStyle.short, required=True)
                     filename = TextInput(label="Filename (optional)", placeholder="name_vX.Y.Z", style=TextStyle.short,
@@ -426,11 +445,10 @@ class OvGME(Plugin):
                         child.disabled = False
                     embed.remove_footer()
                     derived.available = derived.get_available()
-                    derived.update()
+                    derived.render()
                     await interaction.edit_original_response(embed=derived.embed, view=derived)
 
-            @discord.ui.button(label="Quit", style=discord.ButtonStyle.red, row=2)
-            async def cancel(derived, interaction: discord.Interaction, button: Button):
+            async def cancel(derived, interaction: discord.Interaction):
                 derived.stop()
 
         embed = discord.Embed(title="Package Manager", color=discord.Color.blue())
