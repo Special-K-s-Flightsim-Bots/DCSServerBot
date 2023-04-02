@@ -85,7 +85,8 @@ class Agent(Plugin):
         startupinfo.wShowWindow = subprocess.SW_HIDE
         subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
             self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
-        utils.desanitize(self)
+        if self.bot.config.getboolean('BOT', 'DESANITIZE'):
+            utils.desanitize(self)
         # run after_dcs_update() in all plugins
         for plugin in self.bot.cogs.values():  # type: Plugin
             await plugin.after_dcs_update()

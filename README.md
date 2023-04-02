@@ -138,18 +138,30 @@ a) __BOT Section__
 | AUTOMATCH           | If false, users have to match themselves using the .linkme command (see [README](./plugins/userstats/README.md)). If true, the bot will do a best-guess-match.                                                                                                                                                                                                                                                       |
 | DISCORD_STATUS      | (Optional) status to be displayed below the bots avatar in Discord.                                                                                                                                                                                                                                                                                                                                                  |
 | GREETING_DM         | A greeting message, that people will receive as a DM in Discord, if they join your guild.                                                                                                                                                                                                                                                                                                                            |
-| LOGLEVEL            | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).                                                                                                                                                                                                                                                                                                                       |
-| LOGROTATE_COUNT     | Number of logfiles to keep (default: 5).                                                                                                                                                                                                                                                                                                                                                                             |
-| LOGROTATE_SIZE      | Number of bytes until which a logfile is rotated (default: 10 MB).                                                                                                                                                                                                                                                                                                                                                   |
 | MESSAGE_TIMEOUT     | General timeout for popup messages (default 10 seconds).                                                                                                                                                                                                                                                                                                                                                             | 
 | MESSAGE_AUTODELETE  | Delete messages after a specific amount of seconds. This is true for all statistics embeds, LSO analysis, greenieboard, but no usual user commands.                                                                                                                                                                                                                                                                  |
+| DESANITIZE          | Whether to desanitize MissionScriping.lua or not (default = yes).                                                                                                                                                                                                                                                                                                                                                    |
 | AUDIT_CHANNEL       | (Optional) The ID of an audit channel where audit events will be logged into. For security reasons, it is recommended that no users can delete messages in this channel.                                                                                                                                                                                                                                             |
-| MASTER_POOL_MIN     | Minimum number of database connections in the pool (on MASTER).                                                                                                                                                                                                                                                                                                                                                      |
-| MASTER_POOL_MAX     | Maximum number of database connections in the pool (on MASTER).                                                                                                                                                                                                                                                                                                                                                      |
-| AGENT_POOL_MIN      | Minimum number of database connections in the pool (on AGENT).                                                                                                                                                                                                                                                                                                                                                       |
-| AGENT_POOL_MAX      | Maximum number of database connections in the pool (on AGENT).                                                                                                                                                                                                                                                                                                                                                       |
 
-b) __ROLES Section__
+b) __LOGGING Section__
+
+| Parameter           | Description                                                                                     |
+|---------------------|-------------------------------------------------------------------------------------------------|
+| LOGLEVEL            | The level of logging that is written into the logfile (DEBUG, INFO, WARNING, ERROR, CRITICAL).  |
+| LOGROTATE_COUNT     | Number of logfiles to keep (default: 5).                                                        |
+| LOGROTATE_SIZE      | Number of bytes until which a logfile is rotated (default: 10 MB).                              |
+
+c) __DB Section__
+
+| Parameter           | Description                                                      |
+|---------------------|------------------------------------------------------------------|
+| MASTER_POOL_MIN     | Minimum number of database connections in the pool (on MASTER).  |
+| MASTER_POOL_MAX     | Maximum number of database connections in the pool (on MASTER).  |
+| AGENT_POOL_MIN      | Minimum number of database connections in the pool (on AGENT).   |
+| AGENT_POOL_MAX      | Maximum number of database connections in the pool (on AGENT).   |
+
+
+d) __ROLES Section__
 
 | Parameter      | Description                                                                                                                   |
 |----------------|-------------------------------------------------------------------------------------------------------------------------------|
@@ -158,7 +170,7 @@ b) __ROLES Section__
 | DCS            | The role of users being able to see their statistics and mission information (usually the general user role in your Discord). |
 | GameMaster     | Members of this role can run commands that affect the mission behaviour or handle coalition specific details.                 |
 
-c) __FILTER Section__ (Optional)
+e) __FILTER Section__ (Optional)
 
 | Parameter      | Description                                                                                                                                                                                                                       |
 |----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -167,14 +179,14 @@ c) __FILTER Section__ (Optional)
 | MISSION_FILTER | Filter to shorten mission names (if needed)                                                                                                                                                                                       |
 | EVENT_FILTER   | Filter events from the missionstats plugin (optional). See [here](https://wiki.hoggitworld.com/view/DCS_singleton_world) for a complete list of events.                                                                           |
 
-d) __REPORTS__ Section (Optional)
+f) __REPORTS__ Section (Optional)
 
 | Parameter   | Description                                                                                  |
 |-------------|----------------------------------------------------------------------------------------------|
 | NUM_WORKERS | Number of threads that render a graph.                                                       |
 | CKJ_FONT    | One of TC, JP or KR to support Traditional Chinese, Japanese or Korean characters in reports. |
 
-e__DCS Section__
+g) __DCS Section__
 
 | Parameter                       | Description                                                                                                                                   |
 |---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
@@ -189,7 +201,7 @@ e__DCS Section__
 | MESSAGE_BAN                     | Message a banned user gets when being rejected.                                                                                               |
 | MESSAGE_AFK                     | Message for players that are kicked because of being AFK.                                                                                     |
 
-f) __Server Specific Sections__
+h) __Server Specific Sections__
 
 This section has to be named **exactly** like your Saved Games\<instance> directory. Usual names are DCS.OpenBeta or DCS.openbeta_server.
 If your directory is named DCS instead (stable version), just add these fields to the DCS category above.

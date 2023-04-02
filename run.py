@@ -61,7 +61,8 @@ class Main:
         self.db_version = None
         self.install_plugins()
         self.pool = self.init_db()
-        utils.desanitize(self)
+        if self.config.getboolean('BOT', 'DESANITIZE'):
+            utils.desanitize(self)
         self.install_hooks()
         self.bot: DCSServerBot = self.init_bot()
         self.add_commands()
@@ -73,12 +74,9 @@ class Main:
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         fh = RotatingFileHandler('dcsserverbot.log', encoding='utf-8',
-                                 maxBytes=int(self.config['BOT']['LOGROTATE_SIZE']),
-                                 backupCount=int(self.config['BOT']['LOGROTATE_COUNT']))
-        if 'LOGLEVEL' in self.config['BOT']:
-            fh.setLevel(LOGLEVEL[self.config['BOT']['LOGLEVEL']])
-        else:
-            fh.setLevel(logging.DEBUG)
+                                 maxBytes=int(self.config['LOGGING']['LOGROTATE_SIZE']),
+                                 backupCount=int(self.config['LOGGING']['LOGROTATE_COUNT']))
+        fh.setLevel(LOGLEVEL[self.config['LOGGING']['LOGLEVEL']])
         fh.setFormatter(formatter)
         fh.doRollover()
         log.addHandler(fh)
@@ -105,8 +103,8 @@ class Main:
 
     def init_db(self):
         # Initialize the database
-        pool_min = self.config['BOT']['MASTER_POOL_MIN'] if self.config.getboolean('BOT', 'MASTER') else self.config['BOT']['AGENT_POOL_MIN']
-        pool_max = self.config['BOT']['MASTER_POOL_MAX'] if self.config.getboolean('BOT', 'MASTER') else self.config['BOT']['AGENT_POOL_MAX']
+        pool_min = self.config['DB']['MASTER_POOL_MIN'] if self.config.getboolean('BOT', 'MASTER') else self.config['DB']['AGENT_POOL_MIN']
+        pool_max = self.config['DB']['MASTER_POOL_MAX'] if self.config.getboolean('BOT', 'MASTER') else self.config['DB']['AGENT_POOL_MAX']
         db_pool = ThreadedConnectionPool(int(pool_min), int(pool_max), self.config['BOT']['DATABASE_URL'], sslmode='allow')
         conn = db_pool.getconn()
         try:
