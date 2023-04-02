@@ -1,9 +1,8 @@
-import discord
 import os
 import psycopg2
 import re
 from contextlib import closing
-from core import report, Coalition, Side, utils, EmbedElement, NothingToPlot
+from core import report, Side, utils, EmbedElement, NothingToPlot
 from datetime import datetime
 from plugins.userstats.filter import StatisticsFilter
 from . import ERRORS, DISTANCE_MARKS, GRADES, const
@@ -124,7 +123,7 @@ class TrapSheet(report.MultiGraphElement):
 
 
 class HighscoreTraps(report.GraphElement):
-    def render(self, server_name: str, period: str, limit: int, message: discord.Message, flt: StatisticsFilter,
+    def render(self, server_name: str, period: str, limit: int, sides: list[Side], flt: StatisticsFilter,
                include_bolters: bool = False, include_waveoffs: bool = False):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, COUNT(g.*) AS value " \
               "FROM greenieboard g, missions m, statistics s, players p " \
@@ -133,16 +132,6 @@ class HighscoreTraps(report.GraphElement):
         if server_name:
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
             if server_name in self.bot.servers:
-                server = self.bot.servers[server_name]
-                tmp = utils.get_sides(message, server)
-                sides = [0]
-                if Coalition.RED in tmp:
-                    sides.append(Side.RED.value)
-                if Coalition.BLUE in tmp:
-                    sides.append(Side.BLUE.value)
-                # in this specific case, we want to display all data, if in public channels
-                if len(sides) == 0:
-                    sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         if not include_bolters:
             sql += ' AND g.grade <> \'B\''
@@ -190,7 +179,7 @@ class GreenieBoard(EmbedElement):
                 sql1 += f" WHERE mission_id in (SELECT id FROM missions WHERE server_name = '{server_name}')"
                 sql2 += f" AND mission_id in (SELECT id FROM missions WHERE server_name = '{server_name}')"
             sql1 += ' WINDOW w AS (PARTITION BY player_ucid ORDER BY ID DESC ROWS BETWEEN CURRENT ROW AND 9 FOLLOWING)) ' \
-                   'g, players p WHERE g.player_ucid = p.ucid AND g.rn = 1 GROUP BY 1, 2, 3 ORDER BY 3 DESC LIMIT %s'
+                    'g, players p WHERE g.player_ucid = p.ucid AND g.rn = 1 GROUP BY 1, 2, 3 ORDER BY 3 DESC LIMIT %s'
             sql2 += ' ORDER BY ID DESC LIMIT 10'
 
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:

@@ -1,15 +1,21 @@
+from __future__ import annotations
 import io
 import luadata
 import os
 import tempfile
 import zipfile
 from datetime import datetime
-from typing import Union
+from typing import Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core import DCSServerBot
 
 
 class MizFile:
 
-    def __init__(self, filename: str):
+    def __init__(self, bot: DCSServerBot, filename: str):
+        self.bot = bot
+        self.log = bot.log
         self.filename = filename
         self.mission = dict()
         self._load()
@@ -31,8 +37,11 @@ class MizFile:
                     else:
                         zout.writestr(item, "mission = " + luadata.serialize(self.mission, 'utf-8', indent='\t',
                                                                              indent_level=0))
-        os.remove(self.filename)
-        os.rename(tmpname, self.filename)
+        try:
+            os.remove(self.filename)
+            os.rename(tmpname, self.filename)
+        except PermissionError:
+            self.log.error(f"Can't change mission, please check permissions on {self.filename}!")
 
     @property
     def start_time(self) -> int:

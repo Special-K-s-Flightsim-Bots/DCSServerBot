@@ -119,6 +119,9 @@ class Tacview(Extension):
             return
         now = time.time()
         path = self.server.options['plugins']['Tacview'].get('tacviewExportPath', DEFAULT_DIR)
+        if not os.path.exists(path):
+            self.log.error(f"{path} does not exist and is set as your tacviewExportPath!")
+            return
         for f in [os.path.join(path, x) for x in os.listdir(path)]:
             if os.stat(f).st_mtime < (now - self.config['delete_after'] * 86400):
                 if os.path.isfile(f):

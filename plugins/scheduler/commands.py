@@ -311,7 +311,7 @@ class Scheduler(Plugin):
                     return
             elif isinstance(config['restart']['settings'], list):
                 presets = random.choice(config['restart']['settings'])
-        miz = MizFile(filename)
+        miz = MizFile(server.bot, filename)
         for preset in [x.strip() for x in presets.split(',')]:
             if preset not in config['presets']:
                 server.log.error(f'Preset {preset} not found, ignored.')
@@ -759,7 +759,7 @@ class Scheduler(Plugin):
             if not name:
                 await ctx.send(f'Usage: {ctx.prefix}add_preset <name>')
                 return
-            miz = MizFile(server.current_mission.filename)
+            miz = MizFile(self.bot, server.current_mission.filename)
             if 'presets' not in self.locals['configs'][0]:
                 self.locals['configs'][0]['presets'] = dict()
             if name in self.locals['configs'][0]['presets'] and \
