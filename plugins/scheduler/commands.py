@@ -701,6 +701,8 @@ class Scheduler(Plugin):
         if not presets:
             await ctx.send('No presets available, please configure them in your scheduler.json.')
             return
+        if len(presets) > 25:
+            self.log.warning("You have more than 25 presets created, you can only choose from 25!")
 
         if server.status in [Status.PAUSED, Status.RUNNING]:
             question = 'Do you want to stop the server to change the mission preset?'
@@ -717,7 +719,7 @@ class Scheduler(Plugin):
         else:
             result = None
 
-        view = self.PresetView(ctx, presets)
+        view = self.PresetView(ctx, presets[:25])
         msg = await ctx.send(view=view)
         try:
             if await view.wait():

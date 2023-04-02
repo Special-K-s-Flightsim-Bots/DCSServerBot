@@ -353,8 +353,9 @@ class OvGME(Plugin):
                     derived.add_item(button)
                     derived.embed.set_footer(text=f"⚠️ Server {server.name} needs to be shut down to change mods.")
                 else:
-                    if len(derived.children) > 2:
-                        derived.remove_item(derived.children[1])
+                    for i in range(1, len(derived.children)):
+                        if isinstance(derived.children[i], Button) and derived.children[i].label == "Shutdown":
+                            derived.remove_item(derived.children[i])
                 button = Button(label="Quit", style=discord.ButtonStyle.red, row=2)
                 button.callback = derived.cancel
                 derived.add_item(button)

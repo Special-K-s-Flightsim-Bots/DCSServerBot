@@ -2,7 +2,7 @@ import asyncio
 import discord
 import subprocess
 import os
-from core import DCSServerBot, Server
+from core import DCSServerBot, Server, Status
 from discord import TextStyle
 from discord.ui import Modal, TextInput
 from typing import Optional
@@ -24,6 +24,9 @@ class SRSSink(Sink):
     async def play(self, file: str) -> None:
         if self.current and self.process:
             await self.skip()
+        if self.server.status != Status.RUNNING:
+            await self.stop()
+            return
         try:
             try:
                 srs_inst = os.path.expandvars(self.server.extensions['SRS'].config['installation'])

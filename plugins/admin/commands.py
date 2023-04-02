@@ -279,7 +279,7 @@ class Agent(Plugin):
         class KickView(View):
             @discord.ui.select(placeholder="Select a player to be kicked",
                                options=[SelectOption(label=x.name,
-                                                     value=str(players.index(x))) for x in players])
+                                                     value=str(idx)) for idx, x in enumerate(players) if idx < 25])
             async def callback(self, interaction: Interaction, select: Select):
                 modal = KickModal(players[int(select.values[0])])
                 await interaction.response.send_modal(modal)
