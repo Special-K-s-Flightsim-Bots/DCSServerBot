@@ -328,7 +328,7 @@ class UserStatisticsEventListener(EventListener):
                         finally:
                             self.pool.putconn(conn)
 
-    @chat_command(name="linkme", roles=['DCS Admin'], usage="<token>", help="link your user to Discord")
+    @chat_command(name="linkme", usage="<token>", help="link your user to Discord")
     async def linkme(self, server: Server, player: Player, params: list[str]):
         if not params:
             player.sendChatMessage(f"Syntax: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme token\n"
