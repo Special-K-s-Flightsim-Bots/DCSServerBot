@@ -3,10 +3,12 @@ import importlib
 import json
 import luadata
 import os
+import psycopg2
 import re
 import string
+from contextlib import closing
 from datetime import datetime, timedelta
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from core import Server
@@ -154,6 +156,58 @@ def alternate_parse_settings(path: str):
                     else:
                         settings[match.group('key')] = parse(match.group('value'))
     return settings
+
+
+def get_all_servers(self) -> list[str]:
+    retval: list[str] = list()
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute(f"SELECT server_name FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')")
+            return [row[0] for row in cursor.fetchall()]
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
+
+
+def get_all_players(self, **kwargs) -> list[Tuple[str, str]]:
+    name = kwargs.get('name')
+    ucid = kwargs.get('ucid')
+    sql = "SELECT ucid, name FROM players"
+    if name:
+        sql += ' WHERE name ILIKE %s'
+        name = f'%{name}%'
+    elif ucid:
+        sql += ' WHERE ucid ILIKE %s'
+        ucid = f'%{ucid}%'
+    sql += ' ORDER BY 2 LIMIT 25'
+
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute(sql, (name or ucid, ))
+            return [(row[0], row[1]) for row in cursor.fetchall()]
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
+
+
+def is_banned(self, ucid: str):
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute(f"SELECT COUNT(*) FROM bans WHERE ucid = %s", (ucid,))
+            return cursor.fetchone()[0] > 0
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
+
+
+def is_ucid(ucid: str) -> bool:
+    return len(ucid) == 32 and ucid.isalnum() and ucid == ucid.lower()
 
 
 class SettingsDict(dict):

@@ -46,8 +46,8 @@ If you are a server admin of a large server and not part of DGSA, the "DCS Globa
       "host": "dcsserverbot-prod.herokuapp.com",
       "token": "<secret token>",                      -- You need to contact me for a token, if you want to use this service.
       "port": 443,    
-      "dcs-ban": true,                                -- Auto-ban globally banned DCS players (default).
-      "discord-ban": true                             -- Auto-ban globally banned Discord members (default).
+      "dcs-ban": false,                               -- Auto-ban globally banned DCS players (default = false).
+      "discord-ban": false                            -- Auto-ban globally banned Discord members (default = false).
     }
   ]
 }

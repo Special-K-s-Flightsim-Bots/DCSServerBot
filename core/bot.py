@@ -49,7 +49,7 @@ class DCSServerBot(commands.Bot):
 
     async def close(self):
         await self.audit(message="DCSServerBot stopped.")
-        self.log.info('Graceful shutdown (this might take a bit) ...')
+        self.log.info('Graceful shutdown ...')
         if self.udp_server:
             self.log.debug("- Processing unprocessed messages ...")
             await asyncio.to_thread(self.udp_server.shutdown)
@@ -371,9 +371,9 @@ class DCSServerBot(commands.Bot):
         finally:
             self.pool.putconn(conn)
 
-    def get_player_by_ucid(self, ucid: str) -> Optional[Player]:
+    def get_player_by_ucid(self, ucid: str, active: Optional[bool] = True) -> Optional[Player]:
         for server in self.servers.values():
-            player = server.get_player(ucid=ucid, active=True)
+            player = server.get_player(ucid=ucid, active=active)
             if player:
                 return player
         return None

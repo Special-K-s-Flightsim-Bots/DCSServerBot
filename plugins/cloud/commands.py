@@ -95,17 +95,53 @@ class CloudHandlerMaster(CloudHandlerAgent):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
-        if ('dcs-ban' not in self.config or self.config['dcs-ban']) and \
-                ('discord-ban' not in self.config or self.config['discord-ban']):
+        if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
             self.master_bans.start()
         if 'token' in self.config:
             self.cloud_sync.start()
 
+    async def cog_load(self) -> None:
+        await super().cog_load()
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("""
+                    SELECT count(distinct agent_host) as num_bots, count(distinct server_name) as num_servers 
+                    FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')
+                """)
+                if cursor.rowcount == 0:
+                    num_bots = num_servers = 0
+                else:
+                    row = cursor.fetchone()
+                    num_bots = row[0]
+                    num_servers = row[1]
+            _, dcs_version = utils.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
+            bot = {
+                "guild_id": self.bot.guilds[0].id,
+                "bot_version": f"{self.bot.version}.{self.bot.sub_version}",
+                "variant": "DCSServerBot",
+                "dcs_version": dcs_version,
+                "python_version": '.'.join(platform.python_version_tuple()),
+                "num_bots": num_bots,
+                "num_servers": num_servers,
+                "plugins": [
+                    {
+                        "name": p.plugin_name,
+                        "version": p.plugin_version
+                    } for p in self.bot.cogs.values()
+                ]
+            }
+            await self.post('register', bot)
+            self.log.debug("Bot registered with the Cloud.")
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.debug("Error while registering with the Cloud.")
+        finally:
+            self.pool.putconn(conn)
+
     async def cog_unload(self):
         if 'token' in self.config:
             self.cloud_sync.cancel()
-        if ('dcs-ban' not in self.config or self.config['dcs-ban']) and \
-                ('discord-ban' not in self.config or self.config['discord-ban']):
+        if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
             self.master_bans.cancel()
         await super().cog_unload()
 
@@ -164,13 +200,13 @@ class CloudHandlerMaster(CloudHandlerAgent):
     async def master_bans(self):
         conn = self.pool.getconn()
         try:
-            if 'dcs-ban' not in self.config or self.config['dcs-ban']:
+            if self.config.get('dcs-ban', False):
                 with closing(conn.cursor()) as cursor:
                     for ban in (await self.get('bans')):
                         cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) '
                                        'ON CONFLICT DO NOTHING', (ban['ucid'], self.plugin_name, ban['reason']))
                 conn.commit()
-            if 'discord-ban' not in self.config or self.config['discord-ban']:
+            if self.config.get('discord-ban', False):
                 bans: list[dict] = await self.get('discord-bans')
                 users_to_ban = [await self.bot.fetch_user(x['discord_id']) for x in bans]
                 guild = self.bot.guilds[0]

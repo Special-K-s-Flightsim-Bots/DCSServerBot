@@ -21,14 +21,14 @@ Plugin types:
 |--------------|---------------------------------------------------------------------|-----------|-----------------------|
 | GameMaster   | Interaction with the running mission (inform users, set flags, etc) | Mandatory |                       |
 | Mission      | Handling of missions, compared to the WebGUI.                       | Mandatory | GameMaster            |
-| Scheduler    | Autostart / -stop of servers or missions, change weather, etc.      | Default   | Mission               |
 | Admin        | Admin commands to manage your DCS server.                           | Default   |                       |
+| Scheduler    | Autostart / -stop of servers or missions, change weather, etc.      | Default   | Mission               |
 | UserStats    | Users statistics system.                                            | Default   | Mission               |
 | CreditSystem | User credits, based on achievements.                                | Default   | Mission               |
 | MissionStats | Detailed users statistics / mission statistics.                     | Default   | Userstats             |
+| Cloud        | Cloud-based statistics and global ban system.                       | Default   | Userstats             |
 | Punishment   | Punish users for teamhits or teamkills.                             | Optional  | Mission               |
 | SlotBlocking | Slotblocking either based on units or a point based system.         | Optional  | Mission, Creditsystem |
-| Cloud        | Cloud-based statistics and global ban system.                       | Optional  | Userstats             |
 | ServerStats  | Server statistics for your DCS servers.                             | Optional  | Userstats             |
 | GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS)   | Optional  | Missionstats          |
 | MOTD         | Generates a message of the day.                                     | Optional  | Mission, Missionstats |
