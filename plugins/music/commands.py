@@ -100,7 +100,11 @@ class MusicMaster(MusicAgent):
             for att in message.attachments:
                 if att.filename[-4:] not in ['.mp3', '.ogg']:
                     continue
-                filename = self.get_music_dir() + os.path.sep + att.filename
+                if len(att.filename) > 100:
+                    ext = att.filename[-4:]
+                    filename = self.get_music_dir() + os.path.sep + (att.filename[:-4])[:96] + ext
+                else:
+                    filename = self.get_music_dir() + os.path.sep + att.filename
                 ctx = utils.ContextWrapper(message)
                 if os.path.exists(filename):
                     if await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?') is False:
@@ -126,6 +130,7 @@ class MusicMaster(MusicAgent):
     @app_commands.autocomplete(song=all_songs_autocomplete)
     async def add_song(self, interaction: discord.Interaction, playlist: str, song: str):
         p = Playlist(self.bot, playlist)
+        song = os.path.join(self.get_music_dir(), song)
         p.add(song)
         title = get_tag(song).title or os.path.basename(song)
         await interaction.response.send_message(
@@ -138,6 +143,7 @@ class MusicMaster(MusicAgent):
     async def del_song(self, interaction: discord.Interaction, playlist: str, song: str):
         p = Playlist(self.bot, playlist)
         try:
+            song = os.path.join(self.get_music_dir(), song)
             p.remove(song)
             title = get_tag(song).title or os.path.basename(song)
             await interaction.response.send_message(
