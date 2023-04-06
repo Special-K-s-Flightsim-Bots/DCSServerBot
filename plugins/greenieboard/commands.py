@@ -167,7 +167,7 @@ class GreenieBoardMaster(GreenieBoardAgent):
             await report.render(landings=landings, start_index=int(n), formatter=format_landing)
         await ctx.message.delete()
 
-    @commands.hybrid_command(description='Display the current greenieboard', usage='[num rows]', aliases=['greenie'])
+    @commands.command(description='Display the current greenieboard', usage='[num rows]', aliases=['greenie'])
     @utils.has_role('DCS')
     @commands.guild_only()
     @app_commands.rename(num_rows='rows')
