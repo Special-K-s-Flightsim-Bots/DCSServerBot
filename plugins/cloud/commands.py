@@ -102,6 +102,8 @@ class CloudHandlerMaster(CloudHandlerAgent):
 
     async def cog_load(self) -> None:
         await super().cog_load()
+        if not self.config.get('register', True):
+            return
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:

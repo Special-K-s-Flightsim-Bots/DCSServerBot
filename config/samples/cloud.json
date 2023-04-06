@@ -4,6 +4,7 @@
       "protocol": "https",
       "host": "dcsserverbot-prod.herokuapp.com",
       "port": 443,
+      "register": true,
       "dcs-ban": false,
       "discord-ban": false
     }

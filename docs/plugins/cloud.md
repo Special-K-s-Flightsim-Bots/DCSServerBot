@@ -46,12 +46,17 @@ If you are a server admin of a large server and not part of DGSA, the "DCS Globa
       "host": "dcsserverbot-prod.herokuapp.com",
       "token": "<secret token>",                      -- You need to contact me for a token, if you want to use this service.
       "port": 443,    
+      "register": true,                               -- Register online to allow general statistics of installations
       "dcs-ban": false,                               -- Auto-ban globally banned DCS players (default = false).
       "discord-ban": false                            -- Auto-ban globally banned Discord members (default = false).
     }
   ]
 }
 ```
+The online registration helps me to better understand which installations are out there. There is no personal
+information sent to the cloud and you can always see what is being sent (dcsserverbot.log) and disable it, if you feel
+uncomfortable with it. I would appreciate, if you send me that little bit of data, as it helps me (and you) in
+maintaining the solutions that are out in the wild.
 
 ## Discord Commands
 
