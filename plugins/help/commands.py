@@ -32,7 +32,11 @@ async def command_picker(interaction: discord.Interaction, current: str) -> list
         print(ex)
 
 
-class HelpMaster(Plugin):
+class HelpAgent(Plugin):
+    pass
+
+
+class HelpMaster(HelpAgent):
 
     class HelpView(View):
         def __init__(self, bot: DCSServerBot, ctx: commands.Context, options: list[discord.SelectOption]):
@@ -232,4 +236,4 @@ async def setup(bot: DCSServerBot):
     if bot.config.getboolean('BOT', 'MASTER') is True:
         await bot.add_cog(HelpMaster(bot, HelpListener))
     else:
-        await bot.add_cog(Plugin(bot, HelpListener))
+        await bot.add_cog(HelpAgent(bot, HelpListener))
