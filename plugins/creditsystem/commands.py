@@ -214,7 +214,7 @@ class CreditSystemMaster(CreditSystemAgent):
         finally:
             self.pool.putconn(conn)
 
-    @commands.hybrid_command(description='Donate credits to another member', usage='<member> <credits>')
+    @commands.command(description='Donate credits to another member', usage='<member> <credits>')
     @utils.has_role('DCS')
     @commands.guild_only()
     async def donate(self, ctx, to: discord.Member, donation: int):
@@ -308,7 +308,7 @@ class CreditSystemMaster(CreditSystemAgent):
         finally:
             self.pool.putconn(conn)
 
-    @commands.hybrid_command(description='Displays your current player profile')
+    @commands.command(description='Displays your current player profile')
     @utils.has_role('DCS')
     @commands.guild_only()
     async def profile(self, ctx: commands.Context, member: Optional[discord.Member] = None) -> None:

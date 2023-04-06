@@ -178,9 +178,8 @@ class HelpMaster(HelpAgent):
             else:
                 return True
 
-    @commands.hybrid_command(name='help', description='The help command')
+    @commands.command(name='help', description='The help command')
     @commands.guild_only()
-    @app_commands.autocomplete(command=command_picker)
     async def help(self, ctx, command: Optional[str]):
         options = [
             discord.SelectOption(label=x.title(),
