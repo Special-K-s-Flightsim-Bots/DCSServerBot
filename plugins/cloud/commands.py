@@ -88,7 +88,7 @@ class CloudHandlerAgent(Plugin):
                                 "reason": ban["reason"]
                             })
         except aiohttp.ClientError:
-            self.log.error('- Cloud service not responding.')
+            self.log.warning('- Cloud service not responding.')
 
 
 class CloudHandlerMaster(CloudHandlerAgent):
@@ -131,10 +131,13 @@ class CloudHandlerMaster(CloudHandlerAgent):
                     } for p in self.bot.cogs.values()
                 ]
             }
+            self.log.debug("Registering with this data: " + str(bot))
             await self.post('register', bot)
-            self.log.debug("Bot registered with the Cloud.")
+            self.log.debug("Bot registered.")
+        except aiohttp.ClientError:
+            self.log.debug('Bot could not register due to service unavailability. Ignored.')
         except (Exception, psycopg2.DatabaseError) as error:
-            self.log.debug("Error while registering with the Cloud.")
+            self.log.debug("Error while registering: " + str(error))
         finally:
             self.pool.putconn(conn)
 
@@ -222,7 +225,7 @@ class CloudHandlerMaster(CloudHandlerAgent):
                     reason = next(x['reason'] for x in bans if x['discord_id'] == user.id)
                     await guild.ban(user, reason='DGSA: ' + reason)
         except aiohttp.ClientError:
-            self.log.error('- Cloud service not responding.')
+            self.log.warning('- Cloud service not responding.')
         except discord.Forbidden:
             self.log.warn('- DCSServerBot does not have the permission to ban users.')
         except (Exception, psycopg2.DatabaseError) as error:

@@ -29,26 +29,27 @@ These commands can be used to administrate the bot itself.
 | .unregister |           | admin-channel | Admin   | Unregisters the current server from this agent.<br/>Only needed, if the very same server is going to be started on another machine connected to another agent (see "Moving a Server from one Location to Another" below). |
 
 ### List of supported Plugins
-| Plugin       | Scope                                                               | Optional | Depending on          | Documentation                              |
-|--------------|---------------------------------------------------------------------|----------|-----------------------|--------------------------------------------|
-| GameMaster   | Interaction with the running mission (inform users, set flags, etc) | no       |                       | [README](./plugins/gamemaster/README.md)   |
-| Mission      | Handling of missions, compared to the WebGUI.                       | no       | GameMaster            | [README](./plugins/mission/README.md)      |
-| Scheduler    | Autostart / -stop of servers or missions, change weather, etc.      | yes*     | Mission               | [README](./plugins/scheduler/README.md)    |
-| Admin        | Admin commands to manage your DCS server.                           | yes*     |                       | [README](./plugins/admin/README.md)        |
-| UserStats    | Users statistics system.                                            | yes*     | Mission               | [README](./plugins/userstats/README.md)    |
-| CreditSystem | User credits, based on achievements.                                | yes*     | Mission               | [README](./plugins/creditsystem/README.md) |
-| MissionStats | Detailed users statistics / mission statistics.                     | yes*     | Userstats             | [README](./plugins/missionstats/README.md) |
-| Punishment   | Punish users for teamhits or teamkills.                             | yes      | Mission               | [README](./plugins/punishment/README.md)   |
-| SlotBlocking | Slotblocking either based on units or a point based system.         | yes      | Mission, Creditsystem | [README](./plugins/slotblocking/README.md) |
-| Cloud        | Cloud-based statistics and global ban system.                       | yes      | Userstats             | [README](./plugins/cloud/README.md)        |
-| ServerStats  | Server statistics for your DCS servers.                             | yes      | Userstats             | [README](./plugins/serverstats/README.md)  |
-| GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS)   | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
-| MOTD         | Generates a message of the day.                                     | yes      | Mission, Missionstats | [README](./plugins/motd/README.md)         |
-| FunkMan      | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)       | yes      |                       | [README](./plugins/funkman/README.md)      |
-| DBExporter   | Export the whole DCSServerBot database as json.                     | yes      |                       | [README](./plugins/dbexporter/README.md)   |
-| OvGME        | Install or update mods into your DCS server.                        | yes      |                       | [README](./plugins/ovgme/README.md)        |
-| Commands     | Map executables or shell commands to custom discord commands.       | yes      |                       | [README](./plugins/commands/README.md)     |
-| Music        | Upload and play music over SRS.                                     | yes      |                       | [README](./plugins/music/README.md)        |
+| Plugin       | Scope                                                                 | Optional | Depending on          | Documentation                              |
+|--------------|-----------------------------------------------------------------------|----------|-----------------------|--------------------------------------------|
+| GameMaster   | Interaction with the running mission (inform users, set flags, etc)   | no       |                       | [README](./plugins/gamemaster/README.md)   |
+| Mission      | Handling of missions, compared to the WebGUI.                         | no       | GameMaster            | [README](./plugins/mission/README.md)      |
+| Scheduler    | Autostart / -stop of servers or missions, change weather, etc.        | yes*     | Mission               | [README](./plugins/scheduler/README.md)    |
+| Admin        | Admin commands to manage your DCS server.                             | yes*     |                       | [README](./plugins/admin/README.md)        |
+| UserStats    | Users statistics system.                                              | yes*     | Mission               | [README](./plugins/userstats/README.md)    |
+| CreditSystem | User credits, based on achievements.                                  | yes*     | Mission               | [README](./plugins/creditsystem/README.md) |
+| MissionStats | Detailed users statistics / mission statistics.                       | yes*     | Userstats             | [README](./plugins/missionstats/README.md) |
+| Punishment   | Punish users for teamhits or teamkills.                               | yes      | Mission               | [README](./plugins/punishment/README.md)   |
+| SlotBlocking | Slotblocking either based on units or a point based system.           | yes      | Mission, Creditsystem | [README](./plugins/slotblocking/README.md) |
+| Cloud        | Cloud-based statistics and global ban system.                         | yes      | Userstats             | [README](./plugins/cloud/README.md)        |
+| ServerStats  | Server statistics for your DCS servers.                               | yes      | Userstats             | [README](./plugins/serverstats/README.md)  |
+| GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS)     | yes      | Missionstats          | [README](./plugins/greenieboard/README.md) |
+| MOTD         | Generates a message of the day.                                       | yes      | Mission, Missionstats | [README](./plugins/motd/README.md)         |
+| FunkMan      | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)         | yes      |                       | [README](./plugins/funkman/README.md)      |
+| DBExporter   | Export the whole DCSServerBot database as json.                       | yes      |                       | [README](./plugins/dbexporter/README.md)   |
+| OvGME        | Install or update mods into your DCS server.                          | yes      |                       | [README](./plugins/ovgme/README.md)        |
+| Commands     | Map executables or shell commands to custom discord commands.         | yes      |                       | [README](./plugins/commands/README.md)     |
+| Music        | Upload and play music over SRS.                                       | yes      |                       | [README](./plugins/music/README.md)        |
+| Backup       | Backup your servers, database and bot configuration to a cloud drive. | yes      |                       | [README](./plugins/backup/README.md)       |
 
 *) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot. If you
 want to remove them, overwrite PLUGINS in your dcsserverbot.ini.

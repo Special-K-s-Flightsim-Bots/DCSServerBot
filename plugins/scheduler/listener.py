@@ -1,13 +1,11 @@
 import asyncio
-import shlex
-import subprocess
 from core import EventListener, utils, Server, Player, Status, event, chat_command
 from os import path
 
 
 class SchedulerListener(EventListener):
 
-    def run(self, server: Server, method: str) -> None:
+    async def run(self, server: Server, method: str) -> None:
         if method.startswith('load:'):
             server.sendtoDCS({
                 "command": "do_script_file",
@@ -26,10 +24,10 @@ class SchedulerListener(EventListener):
             cmd = method[4:].strip()
             dcs_installation = path.normpath(path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']))
             dcs_home = path.normpath(path.expandvars(self.bot.config[server.installation]['DCS_HOME']))
-            cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home,
-                                      server=server, config=self.bot.config)
+            cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home, server=server,
+                                      config=self.bot.config)
             self.log.debug('Launching command: ' + cmd)
-            subprocess.run(shlex.split(cmd), shell=True)
+            await asyncio.create_subprocess_shell(cmd)
 
     async def process(self, server: Server, what: dict) -> None:
         config = self.plugin.get_config(server)
@@ -124,7 +122,7 @@ class SchedulerListener(EventListener):
     async def onSimulationStart(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onMissionStart' in config:
-            self.run(server, config['onMissionStart'])
+            await self.run(server, config['onMissionStart'])
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
@@ -139,7 +137,7 @@ class SchedulerListener(EventListener):
     async def onMissionEnd(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onMissionEnd' in config:
-            self.run(server, config['onMissionEnd'])
+            await self.run(server, config['onMissionEnd'])
 
     @event(name="onSimulationStop")
     async def onSimulationStop(self, server: Server, data: dict) -> None:
@@ -151,7 +149,7 @@ class SchedulerListener(EventListener):
     async def onShutdown(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onShutdown' in config:
-            self.run(server, config['onShutdown'])
+            await self.run(server, config['onShutdown'])
 
     @chat_command(name="preset", aliases=["presets"], roles=['DCS Admin'], usage="<preset>",
                   help="load a specific weather preset")
@@ -164,7 +162,8 @@ class SchedulerListener(EventListener):
                 for i in range(0, len(presets)):
                     preset = presets[i]
                     message += f"{i + 1} {preset}\n"
-                message += f"\nUse -{data['subcommand']} <number> to load that preset (mission will be restarted!)"
+                message += f"\nUse {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}preset <number> to load that preset " \
+                           f"(mission will be restarted!)"
                 player.sendUserMessage(message, 30)
             else:
                 n = int(params[0]) - 1

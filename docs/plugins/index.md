@@ -17,26 +17,27 @@ Plugin types:
 - Default plugins are enabled by default, but can be disabled. To remove them, overwrite `PLUGINS` in your `dcsserverbot.ini`.
 - Optional plugins are disabled by default, but can be enabled by adding `OPT_PLUGINS` in your `dcsserverbot.ini`.
 
-| Plugin       | Scope                                                               | Type      | Depending on          |
-|--------------|---------------------------------------------------------------------|-----------|-----------------------|
-| GameMaster   | Interaction with the running mission (inform users, set flags, etc) | Mandatory |                       |
-| Mission      | Handling of missions, compared to the WebGUI.                       | Mandatory | GameMaster            |
-| Admin        | Admin commands to manage your DCS server.                           | Default   |                       |
-| Scheduler    | Autostart / -stop of servers or missions, change weather, etc.      | Default   | Mission               |
-| UserStats    | Users statistics system.                                            | Default   | Mission               |
-| CreditSystem | User credits, based on achievements.                                | Default   | Mission               |
-| MissionStats | Detailed users statistics / mission statistics.                     | Default   | Userstats             |
-| Cloud        | Cloud-based statistics and global ban system.                       | Default   | Userstats             |
-| Punishment   | Punish users for teamhits or teamkills.                             | Optional  | Mission               |
-| SlotBlocking | Slotblocking either based on units or a point based system.         | Optional  | Mission, Creditsystem |
-| ServerStats  | Server statistics for your DCS servers.                             | Optional  | Userstats             |
-| GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS)   | Optional  | Missionstats          |
-| MOTD         | Generates a message of the day.                                     | Optional  | Mission, Missionstats |
-| FunkMan      | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)       | Optional  |                       |
-| DBExporter   | Export the whole DCSServerBot database as json.                     | Optional  |                       |
-| OvGME        | Install or update mods into your DCS server.                        | Optional  |                       |
-| Commands     | Map executables or shell commands to custom discord commands.       | Optional  |                       |
-| Music        | Upload and play music over SRS.                                     | Optional  |                       |
+| Plugin       | Scope                                                                  | Type      | Depending on          |
+|--------------|------------------------------------------------------------------------|-----------|-----------------------|
+| GameMaster   | Interaction with the running mission (inform users, set flags, etc)    | Mandatory |                       |
+| Mission      | Handling of missions, compared to the WebGUI.                          | Mandatory | GameMaster            |
+| Admin        | Admin commands to manage your DCS server.                              | Default   |                       |
+| Scheduler    | Autostart / -stop of servers or missions, change weather, etc.         | Default   | Mission               |
+| UserStats    | Users statistics system.                                               | Default   | Mission               |
+| CreditSystem | User credits, based on achievements.                                   | Default   | Mission               |
+| MissionStats | Detailed users statistics / mission statistics.                        | Default   | Userstats             |
+| Cloud        | Cloud-based statistics and global ban system.                          | Default   | Userstats             |
+| Punishment   | Punish users for teamhits or teamkills.                                | Optional  | Mission               |
+| SlotBlocking | Slotblocking either based on units or a point based system.            | Optional  | Mission, Creditsystem |
+| ServerStats  | Server statistics for your DCS servers.                                | Optional  | Userstats             |
+| GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS)      | Optional  | Missionstats          |
+| MOTD         | Generates a message of the day.                                        | Optional  | Mission, Missionstats |
+| FunkMan      | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)          | Optional  |                       |
+| DBExporter   | Export the whole DCSServerBot database as json.                        | Optional  |                       |
+| OvGME        | Install or update mods into your DCS server.                           | Optional  |                       |
+| Commands     | Map executables or shell commands to custom discord commands.          | Optional  |                       |
+| Music        | Upload and play music over SRS.                                        | Optional  |                       |
+| Backup       | Backup your servers, database and bot configuration to a cloud drive.  | Optional  |                       |
 
 ### How to install 3rd-Party Plugins
 

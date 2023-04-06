@@ -6,6 +6,7 @@ import os
 import psycopg2
 import re
 import string
+import unicodedata
 from contextlib import closing
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple
@@ -30,6 +31,11 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
         start_time = end_time = parse_time(timeframe)
     check_time = time.replace(year=start_time.year, month=start_time.month, day=start_time.day, second=0, microsecond=0)
     return start_time <= check_time <= end_time
+
+
+def is_match_daystate(time: datetime, daystate: str) -> bool:
+    state = daystate[time.weekday()]
+    return state.upper() == 'Y'
 
 
 def str_to_class(name):
@@ -118,6 +124,23 @@ def format_period(period: str) -> str:
         return 'Daily'
     else:
         return period.capitalize() + 'ly'
+
+
+def slugify(value, allow_unicode=False):
+    """
+    Taken from https://github.com/django/django/blob/master/django/utils/text.py
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+    dashes to single dashes. Remove characters that aren't alphanumerics,
+    underscores, or hyphens. Convert to lowercase. Also strip leading and
+    trailing whitespace, dashes, and underscores.
+    """
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize('NFKC', value)
+    else:
+        value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value.lower())
+    return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 
 def alternate_parse_settings(path: str):
