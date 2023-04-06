@@ -100,10 +100,10 @@ class GameMasterEventListener(EventListener):
             })
             data['from_id'] = data['id']
             data['subcommand'] = 'coalition'
-            await self.onChatCommand(data)
+            await self.onChatCommand(server, data)
             if self.get_coalition_password(server, player.coalition):
                 data['subcommand'] = 'password'
-                await self.onChatCommand(data)
+                await self.onChatCommand(server, data)
 
     def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
                  description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):

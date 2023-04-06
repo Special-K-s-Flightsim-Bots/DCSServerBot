@@ -311,7 +311,7 @@ class Scheduler(Plugin):
                     return
             elif isinstance(config['restart']['settings'], list):
                 presets = random.choice(config['restart']['settings'])
-        miz = MizFile(filename)
+        miz = MizFile(server.bot, filename)
         for preset in [x.strip() for x in presets.split(',')]:
             if preset not in config['presets']:
                 server.log.error(f'Preset {preset} not found, ignored.')
@@ -701,6 +701,8 @@ class Scheduler(Plugin):
         if not presets:
             await ctx.send('No presets available, please configure them in your scheduler.json.')
             return
+        if len(presets) > 25:
+            self.log.warning("You have more than 25 presets created, you can only choose from 25!")
 
         if server.status in [Status.PAUSED, Status.RUNNING]:
             question = 'Do you want to stop the server to change the mission preset?'
@@ -717,7 +719,7 @@ class Scheduler(Plugin):
         else:
             result = None
 
-        view = self.PresetView(ctx, presets)
+        view = self.PresetView(ctx, presets[:25])
         msg = await ctx.send(view=view)
         try:
             if await view.wait():
@@ -759,7 +761,7 @@ class Scheduler(Plugin):
             if not name:
                 await ctx.send(f'Usage: {ctx.prefix}add_preset <name>')
                 return
-            miz = MizFile(server.current_mission.filename)
+            miz = MizFile(self.bot, server.current_mission.filename)
             if 'presets' not in self.locals['configs'][0]:
                 self.locals['configs'][0]['presets'] = dict()
             if name in self.locals['configs'][0]['presets'] and \

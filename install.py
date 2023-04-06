@@ -72,12 +72,16 @@ class Install:
 
     @staticmethod
     def get_database_url() -> Optional[str]:
-        if not utils.is_open('127.0.0.1', 5432):
-            print('No PostgreSQL installation found. Please install PostgreSQL and re-run the installation.')
-            exit(-1)
+        port = 5432
+        if not utils.is_open('127.0.0.1', port):
+            print('No PostgreSQL installation found.')
+            port = input('Enter the port to your PostgreSQL database or ENTER if you need to install it: ')
+            if not port.isnumeric():
+                print('Aborting.')
+                exit(-1)
         while True:
             passwd = getpass('Please enter your PostgreSQL master password: ')
-            url = f'postgres://postgres:{passwd}@localhost:5432/postgres'
+            url = f'postgres://postgres:{passwd}@localhost:{port}/postgres'
             conn = None
             try:
                 conn = psycopg2.connect(url)
@@ -91,7 +95,7 @@ class Install:
                         while True:
                             passwd = getpass("Please enter your password for user 'dcsserverbot': ")
                             try:
-                                conn2 = psycopg2.connect(f"postgres://dcsserverbot:{passwd}@localhost:5432/dcsserverbot")
+                                conn2 = psycopg2.connect(f"postgres://dcsserverbot:{passwd}@localhost:{port}/dcsserverbot")
                                 conn2.close()
                                 break
                             except psycopg2.Error:
@@ -101,7 +105,7 @@ class Install:
                         cursor.execute("GRANT ALL PRIVILEGES ON DATABASE dcsserverbot TO dcsserverbot")
                         cursor.execute("ALTER DATABASE dcsserverbot OWNER TO dcsserverbot")
                     print("PostgreSQL user and database created.")
-                    return f"postgres://dcsserverbot:{passwd}@localhost:5432/dcsserverbot"
+                    return f"postgres://dcsserverbot:{passwd}@localhost:{port}/dcsserverbot"
             except psycopg2.OperationalError:
                 print("Wrong password. Try again!")
             except psycopg2.Error as ex:
@@ -198,7 +202,7 @@ class Install:
                 raise InvalidParameter('BOT', 'AUDIT_CHANNEL', 'Invalid channel.')
             if 'PLUGINS' in config['BOT'] and \
                     config['BOT']['PLUGINS'] != 'dashboard, mission, scheduler, help, admin, userstats, ' \
-                                                'missionstats, creditsystem, gamemaster':
+                                                'missionstats, creditsystem, gamemaster, cloud':
                 print("Please don't change the PLUGINS parameter, use OPT_PLUGINS instead!")
         except KeyError as key:
             raise MissingParameter('BOT', str(key))

@@ -4,10 +4,11 @@ import discord
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, cast, Sequence, Union, TYPE_CHECKING
+from typing import Optional, cast, Union, TYPE_CHECKING
 from discord import Interaction, app_commands, SelectOption
 from discord.ext import commands
 from discord.ui import Button, View, Select
+from .helper import get_all_players
 
 from . import config
 
@@ -531,31 +532,32 @@ async def players_autocomplete(interaction: discord.Interaction, current: str) -
     return choices[:25]
 
 
+async def all_users_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    choice = interaction.data['options'][0]['value']
+    try:
+        if choice == 'Player':
+            return [
+                app_commands.Choice(name=name, value=ucid)
+                for ucid, name in get_all_players(interaction.client, name=current)
+            ]
+        elif choice == 'Member':
+            return [
+                app_commands.Choice(name=member.display_name, value=str(member.id))
+                for idx, member in enumerate(interaction.client.get_all_members())
+                if idx < 25 and (not current or current.casefold() in member.display_name.casefold())
+            ]
+        elif choice == 'UCID':
+            return [
+                app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
+                for ucid, name in get_all_players(interaction.client, ucid=current)
+            ]
+    except Exception as ex:
+        print(ex)
+
+
 @dataclass
 class ContextWrapper(commands.Context):
     message: discord.Message
 
-    async def send(
-        self,
-        content: Optional[str] = None,
-        *,
-        tts: bool = False,
-        embed: Optional[discord.Embed] = None,
-        embeds: Optional[Sequence[discord.Embed]] = None,
-        file: Optional[discord.File] = None,
-        files: Optional[Sequence[discord.File]] = None,
-        stickers: Optional[Sequence[Union[discord.GuildSticker, discord.StickerItem]]] = None,
-        delete_after: Optional[float] = None,
-        nonce: Optional[Union[str, int]] = None,
-        allowed_mentions: Optional[discord.AllowedMentions] = None,
-        reference: Optional[Union[discord.Message, discord.MessageReference, discord.PartialMessage]] = None,
-        mention_author: Optional[bool] = None,
-        view: Optional[View] = None,
-        suppress_embeds: bool = False,
-        ephemeral: bool = False
-    ) -> discord.Message:
-        return await self.message.channel.send(content, tts=tts, embed=embed, embeds=embeds, file=file, files=files,
-                                               stickers=stickers, delete_after=delete_after, nonce=nonce,
-                                               allowed_mentions=allowed_mentions, reference=reference,
-                                               mention_author=mention_author, view=view,
-                                               suppress_embeds=suppress_embeds)
+    async def send(self, *args, **kwargs) -> discord.Message:
+        return await self.message.channel.send(*args, **kwargs)

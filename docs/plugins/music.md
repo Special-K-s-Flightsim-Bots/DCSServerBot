@@ -34,11 +34,12 @@ but it is only used as a default configuration, as long as you haven't changed a
 
 ## Discord Commands
 
-| Command | Parameter                        | Channel        | Role       | Description                                                       |
-|---------|----------------------------------|----------------|------------|-------------------------------------------------------------------|
-| .music  | -clear                           | admin-channel  | DCS Admin  | The music player. Create your serverside playlist. Or -clear it.  |
-
-**Attention:** "period" can either be a period [day, week, month, year] or a campaign name!
+| Command   | Parameter         | Channel       | Role      | Description                                                     |
+|-----------|-------------------|---------------|-----------|-----------------------------------------------------------------|
+| .music    |                   | admin-channel | DCS Admin | The music player. Assign a playlist to your server and play it. |
+| .playlist |                   | all           | DCS Admin | Manage playlists.                                               |
+| /add_song | <playlist> <song> | all           | DCS Admin | Add a song to a playlist (or create a new one with that song).  |
+| /del_song | <playlist> <song> | all           | DCS Admin | Delete a song from a playlist.                                  |
 
 ## Database Tables
 

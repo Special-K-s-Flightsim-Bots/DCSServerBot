@@ -36,6 +36,33 @@ To use the persistent highscore, you need to add a file named userstats.json to 
   ]
 }
 ```
+More highscores per server are supported, if you provide a list instead:
+```json
+{
+  "configs": [
+    {
+      "installation": "DCS.openbeta_server",
+      "highscore": [
+        {
+          "channel": 826772687216181456,
+          "params": {
+            "period": "day",
+            "limit": 3
+          }
+        },
+        {
+          "channel": 826772687216181456,
+          "params": {
+            "period": "month",
+            "limit": 10
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
 
 ## User Linking
 

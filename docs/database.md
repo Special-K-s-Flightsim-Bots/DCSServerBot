@@ -91,11 +91,10 @@ Plugin: [MissionStats]
 | comment     | TEXT                             | Comment for LSO ratings, BDA, etc.                                                     |
 | time        | TIMESTAMP NOT NULL DEFAULT NOW() | Time of the event in local time.                                                       |
 
-## MUSIC
+## MUSIC_CONFIG
 
 Plugin: [Music]
 
-### music_config
 | Column      | Type                             | Description                             |
 |-------------|----------------------------------|-----------------------------------------|
 | sink_type   | TEXT                             | sink type, currently SRSSink only.      |
@@ -103,13 +102,15 @@ Plugin: [Music]
 | param       | TEXT NOT NULL                    | config parameter                        |
 | value       | TEXT                             | config value                            |
 
-### music_playlists
-| Column      | Type                        | Description                           |
-|-------------|-----------------------------|---------------------------------------|
-| sink_type   | TEXT                        | sink type, currently SRSSink only.    |
-| server_name | TEXT NOT NULL DEFAULT 'ALL' | server name, the config is valid for. |
-| song_id     | NUMBER                      | id of the song (for ordering)         |
-| song_file   | TEXT                        | filepath to the song                  |
+## MUSIC_PLAYLISTS
+
+Plugin: [Music]
+
+| Column      | Type                        | Description                   |
+|-------------|-----------------------------|-------------------------------|
+| name        | TEXT                        | The playlists name.           |
+| song_id     | NUMBER                      | id of the song (for ordering) |
+| song_file   | TEXT                        | filepath to the song          |
 
 ## PLAYERS
 
