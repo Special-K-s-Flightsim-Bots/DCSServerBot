@@ -124,8 +124,8 @@ async def all_songs_autocomplete(
         title = get_tag(song).title or os.path.basename(song)
         if current and current.casefold() not in title.casefold():
             continue
-        ret.append(app_commands.Choice(name=title, value=song))
-    return ret
+        ret.append(app_commands.Choice(name=title[:100], value=os.path.basename(song)))
+    return ret[:25]
 
 
 async def songs_autocomplete(
@@ -138,5 +138,5 @@ async def songs_autocomplete(
         title = get_tag(song).title or os.path.basename(song)
         if current and current.casefold() not in title.casefold():
             continue
-        ret.append(app_commands.Choice(name=title, value=song))
+        ret.append(app_commands.Choice(name=title[:100], value=os.path.basename(song)))
     return ret
