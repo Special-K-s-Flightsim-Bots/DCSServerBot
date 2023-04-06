@@ -20,16 +20,16 @@ class MusicEventListener(EventListener):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        if len(server.get_active_players()) == 1:
+        if len(server.get_active_players()) == 1 and server.name in self.plugin.sinks:
             await self.plugin.sinks[server.name].start()
 
     @event(name="onPlayerStop")
     async def onPlayerStop(self, server: Server, data: dict) -> None:
-        if not server.get_active_players():
+        if not server.get_active_players() and server.name in self.plugin.sinks:
             await self.plugin.sinks[server.name].stop()
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'disconnect':
-            if not server.get_active_players():
+            if not server.get_active_players() and server.name in self.plugin.sinks:
                 await self.plugin.sinks[server.name].stop()
