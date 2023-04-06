@@ -4,7 +4,7 @@ import discord
 import logging
 import os
 import sys
-from core import Plugin, DCSServerBot, utils, Server, TEventListener
+from core import Plugin, DCSServerBot, utils, Server, TEventListener, PluginInstallationError
 from discord import app_commands
 from discord.ext import commands
 from pathlib import Path
@@ -21,6 +21,8 @@ class MusicAgent(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
+        if not self.locals:
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
         self.sinks: dict[str, Sink] = dict()
         logging.getLogger(name='eyed3.mp3.headers').setLevel(logging.FATAL)
 

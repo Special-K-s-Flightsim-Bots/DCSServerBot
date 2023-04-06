@@ -2,13 +2,18 @@ import discord
 import json
 import os
 from copy import deepcopy
-from core import DCSServerBot, Plugin, PluginRequiredError, Server, Player
+from core import DCSServerBot, Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError
 from discord.ext import commands
 from typing import Optional
 from .listener import SlotBlockingListener
 
 
 class SlotBlocking(Plugin):
+
+    def __init__(self, bot: DCSServerBot, eventlistener: TEventListener):
+        super().__init__(bot, eventlistener=eventlistener)
+        if not self.locals:
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
 
     def migrate(self, version: str):
         if version != '1.3' or \

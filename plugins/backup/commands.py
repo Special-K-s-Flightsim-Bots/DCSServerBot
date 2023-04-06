@@ -8,13 +8,15 @@ from datetime import datetime
 from zipfile import ZipFile
 from discord.ext import tasks
 
-from core import Plugin, DCSServerBot, utils
+from core import Plugin, DCSServerBot, utils, PluginInstallationError
 
 
 class BackupAgent(Plugin):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
+        if not self.locals:
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
         self.schedule.start()
 
     def cog_unload(self):

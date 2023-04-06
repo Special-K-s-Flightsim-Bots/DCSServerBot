@@ -200,21 +200,25 @@ class Plugin(commands.Cog):
         pass
 
 
-class PluginRequiredError(Exception):
+class PluginError(Exception):
+    pass
+
+
+class PluginRequiredError(PluginError):
     def __init__(self, plugin: str):
         super().__init__(f'Required plugin "{plugin.title()}" is missing!')
 
 
-class PluginConflictError(Exception):
+class PluginConflictError(PluginError):
     def __init__(self, plugin1: str, plugin2: str):
         super().__init__(f'Plugin "{plugin1.title()}" conflicts with plugin "{plugin2.title()}"!')
 
 
-class PluginConfigurationError(Exception):
+class PluginConfigurationError(PluginError):
     def __init__(self, plugin: str, option: str):
         super().__init__(f'Option "{option}" missing in {plugin}.json!')
 
 
-class PluginInstallationError(Exception):
+class PluginInstallationError(PluginError):
     def __init__(self, plugin: str, reason: str):
         super().__init__(f'Plugin "{plugin.title()}" could not be installed: {reason}')

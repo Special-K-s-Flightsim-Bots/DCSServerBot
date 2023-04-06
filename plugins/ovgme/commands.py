@@ -7,7 +7,7 @@ import re
 import shutil
 import zipfile
 from contextlib import closing, suppress
-from core import Status, Plugin, DCSServerBot, PluginConfigurationError, utils, Server
+from core import Status, Plugin, DCSServerBot, PluginConfigurationError, utils, Server, PluginInstallationError
 from discord import SelectOption, TextStyle
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
@@ -21,12 +21,16 @@ class OvGME(Plugin):
 
     async def install(self) -> None:
         await super().install()
-        if self.locals and 'configs' in self.locals:
+        if not self.locals:
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
+        if 'configs' in self.locals:
             config = self.locals['configs'][0]
             for folder in OVGME_FOLDERS:
                 if folder not in config:
                     raise PluginConfigurationError(self.plugin_name, folder)
             asyncio.create_task(self.install_packages())
+        else:
+            raise PluginConfigurationError(plugin=self.plugin_name, option='configs')
 
     async def before_dcs_update(self):
         # uninstall all RootFolder-packages
@@ -410,10 +414,10 @@ class OvGME(Plugin):
             async def add(derived, interaction: discord.Interaction):
                 class UploadModal(Modal, title="Enter the mod URL"):
                     url = TextInput(label="URL", placeholder='https://...', style=TextStyle.short, required=True)
-                    filename = TextInput(label="Filename (optional)", placeholder="name_vX.Y.Z", style=TextStyle.short,
-                                         required=False)
-                    dest = TextInput(label="Destination (S / R)", style=TextStyle.short, required=True, min_length=1,
-                                     max_length=1)
+                    filename = TextInput(label="Filename-override (optional)", placeholder="name_vX.Y.Z",
+                                         style=TextStyle.short, required=False)
+                    dest = TextInput(label="Destination (S=Saved Games / R=Root Folder)", style=TextStyle.short,
+                                     required=True, min_length=1, max_length=1)
 
                     async def on_submit(_, interaction: discord.Interaction) -> None:
                         await interaction.response.defer()
