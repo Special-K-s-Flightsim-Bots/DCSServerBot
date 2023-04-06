@@ -47,7 +47,7 @@ class MusicAgent(Plugin):
         sink = self.sinks.get(server.name)
         if not sink:
             if not self.get_config(server):
-                await ctx.send(f"No config\\music.json found or no entry for server {server.name} configured.")
+                await ctx.send(f"No entry for server {server.name} configured in your {self.plugin_name}.json.")
                 return
             config = self.get_config(server)['sink']
             sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(bot=self.bot,
