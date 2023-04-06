@@ -245,7 +245,7 @@ If you use any other method of desanitization, DCSServerBot checks, if additiona
 Your MissionScripting.lua will look like this afterwards:
 ```lua
 do
-	--sanitizeModule('os')
+	sanitizeModule('os')
 	--sanitizeModule('io')
 	--sanitizeModule('lfs')
 	--_G['require'] = nil
