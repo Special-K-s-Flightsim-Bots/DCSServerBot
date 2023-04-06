@@ -43,7 +43,7 @@ class DCSServerBot(commands.Bot):
             self.plugins.remove('dashboard')
         self.audit_channel = None
         self.mission_stats = None
-        self.synced: bool = False
+        self.synced: bool = not self.master
         self.tree.on_error = self.on_app_command_error
         self.executor = ThreadPoolExecutor(thread_name_prefix='BotExecutor', max_workers=20)
 
