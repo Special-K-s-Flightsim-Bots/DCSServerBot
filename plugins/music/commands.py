@@ -96,10 +96,12 @@ class MusicMaster(MusicAgent):
         if not utils.check_roles([x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')],
                                  message.author):
             return
+        delete = True
         try:
             for att in message.attachments:
                 if att.filename[-4:] not in ['.mp3', '.ogg']:
-                    continue
+                    delete = False
+                    return
                 if len(att.filename) > 100:
                     ext = att.filename[-4:]
                     filename = self.get_music_dir() + os.path.sep + (att.filename[:-4])[:96] + ext
@@ -122,7 +124,11 @@ class MusicMaster(MusicAgent):
         except Exception as ex:
             self.log.exception(ex)
         finally:
-            await message.delete()
+            if delete:
+                await message.delete()
+
+
+class MusicMasterOnly(MusicMaster):
 
     @app_commands.command(description="Add a song to a playlist")
     @utils.app_has_role('DCS Admin')
@@ -153,7 +159,10 @@ class MusicMaster(MusicAgent):
 
 
 async def setup(bot: DCSServerBot):
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(MusicMaster(bot, MusicEventListener))
+    if bot.config.getboolean('BOT', 'MASTER'):
+        if bot.config.getboolean('BOT', 'MASTER_ONLY'):
+            await bot.add_cog(MusicMasterOnly(bot, MusicEventListener))
+        else:
+            await bot.add_cog(MusicMaster(bot, MusicEventListener))
     else:
         await bot.add_cog(MusicAgent(bot, MusicEventListener))
