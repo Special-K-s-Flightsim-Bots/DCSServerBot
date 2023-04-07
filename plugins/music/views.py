@@ -184,6 +184,8 @@ class PlaylistEditor(PlayerBase):
             playlist = []
             options = []
             for idx, song in enumerate(self.playlist.items):
+                if idx == 25:
+                    break
                 title = self.all_titles[self.all_songs.index(song)] or os.path.basename(song)
                 playlist.append(
                     f"{idx + 1}. - {utils.escape_string(title)}")
@@ -197,7 +199,8 @@ class PlaylistEditor(PlayerBase):
             else:
                 embed.add_field(name='_ _', value='- empty -')
             select = Select(placeholder="Add a song to the playlist",
-                            options=[SelectOption(label=x, value=str(idx)) for idx, x in enumerate(self.all_titles)],
+                            options=[SelectOption(label=x,
+                                                  value=str(idx)) for idx, x in enumerate(self.all_titles) if idx < 25],
                             row=row)
             select.callback = self.add
             self.add_item(select)
