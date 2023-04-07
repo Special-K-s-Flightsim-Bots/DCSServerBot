@@ -167,8 +167,7 @@ class GameMasterEventListener(EventListener):
         self.campaign('delete', name=name)
         self.campaign('start', servers=[server])
 
-    @chat_command(name="join", usage="<coalition>", help="join a coalition")
-    async def join(self, server: Server, player: Player, params: list[str]):
+    async def _join(self, server: Server, player: Player, params: list[str]):
         coalition = params[0] if params else ''
         if coalition.casefold() not in ['blue', 'red']:
             player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join <blue|red>")
@@ -233,6 +232,10 @@ class GameMasterEventListener(EventListener):
         except discord.Forbidden:
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
+    @chat_command(name="join", usage="<coalition>", help="join a coalition")
+    async def join(self, server: Server, player: Player, params: list[str]):
+        await self._join(server, player, params)
+
     @chat_command(name="leave", help="leave your coalition")
     async def leave(self, server: Server, player: Player, params: list[str]):
         if not self.get_coalition(server, player):
@@ -269,11 +272,11 @@ class GameMasterEventListener(EventListener):
 
     @chat_command(name="red", help="join the red side")
     async def red(self, server: Server, player: Player, params: list[str]):
-        await self.join(server, player, ["red"])
+        await self._join(server, player, ["red"])
 
     @chat_command(name="blue", help="join the blue side")
     async def blue(self, server: Server, player: Player, params: list[str]):
-        await self.join(server, player, ["blue"])
+        await self._join(server, player, ["blue"])
 
     @chat_command(name="coalition", help="displays your current coalition")
     async def coalition(self, server: Server, player: Player, params: list[str]):

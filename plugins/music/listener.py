@@ -12,8 +12,8 @@ class MusicEventListener(EventListener):
                 self.log.warning(f"No config\\music.json found or no entry for server {server.name} configured.")
                 return
             config = self.plugin.get_config(server)['sink']
-            sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(bot=self.bot, server=server,
-                                                                                    config=config)
+            sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(
+                bot=self.bot, server=server, config=config, music_dir=self.plugin.get_config(server)['music_dir'])
             self.plugin.sinks[server.name] = sink
         if server.get_active_players():
             await self.plugin.sinks[server.name].start()

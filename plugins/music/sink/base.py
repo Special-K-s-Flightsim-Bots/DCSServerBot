@@ -1,5 +1,6 @@
 import asyncio
 import discord
+import os
 import psycopg2
 from abc import ABC
 from contextlib import suppress, closing
@@ -79,12 +80,13 @@ class DBConfig(dict):
 
 class Sink(ABC):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
+    def __init__(self, bot: DCSServerBot, server: Server, config: dict, music_dir: str):
         self.bot = bot
         self.log = bot.log
         self.pool = bot.pool
         self.server = server
         self._config = DBConfig(bot, server, self.__class__.__name__, default=config)
+        self.music_dir = music_dir
         self._current = None
         self._mode = Mode(int(self.config['mode']))
         self.songs: list[str] = []
@@ -196,7 +198,7 @@ class Sink(ABC):
     async def queue_worker(self):
         while not self.queue_worker.is_being_cancelled():
             with suppress(Exception):
-                await self.play(self.songs[self.idx])
+                await self.play(os.path.join(self.music_dir, self.songs[self.idx]))
             self._current = None
             if self._mode == Mode.SHUFFLE:
                 self.idx = randrange(len(self.songs)) if self.songs else 0

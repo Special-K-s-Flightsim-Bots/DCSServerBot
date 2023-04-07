@@ -11,8 +11,8 @@ from . import SinkInitError, Sink
 
 class SRSSink(Sink):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
-        super().__init__(bot, server, config)
+    def __init__(self, bot: DCSServerBot, server: Server, config: dict, music_dir: str):
+        super().__init__(bot, server, config, music_dir)
         self.process: Optional[subprocess.Popen] = None
 
     def render(self) -> discord.Embed:
@@ -22,6 +22,7 @@ class SRSSink(Sink):
         return embed
 
     async def play(self, file: str) -> None:
+        self.log.debug(f"Playing {file} ...")
         if self.current and self.process:
             await self.skip()
         if self.server.status != Status.RUNNING:

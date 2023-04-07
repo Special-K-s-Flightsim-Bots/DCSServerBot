@@ -13,23 +13,24 @@ from .utils import get_tag, Playlist
 
 class PlayerBase(View):
 
-    def __init__(self, bot: DCSServerBot):
+    def __init__(self, bot: DCSServerBot, music_dir: str):
         super().__init__()
         self.bot = bot
         self.log = bot.log
         self.pool = bot.pool
+        self.music_dir = music_dir
+
+    def get_titles(self, songs: list[str]) -> list[str]:
+        return [get_tag(os.path.join(self.music_dir, x)).title or x[:-4] for x in songs]
 
 
 class MusicPlayer(PlayerBase):
 
-    def __init__(self, bot: DCSServerBot, sink: Sink, playlists: list[str]):
-        super().__init__(bot)
+    def __init__(self, bot: DCSServerBot, music_dir: str, sink: Sink, playlists: list[str]):
+        super().__init__(bot, music_dir)
         self.sink = sink
         self.playlists = playlists
-        self.titles = self.get_titles()
-
-    def get_titles(self) -> list:
-        return [get_tag(x).title or os.path.basename(x)[:-4] for x in self.sink.songs]
+        self.titles = self.get_titles(self.sink.songs)
 
     def render(self) -> discord.Embed:
         embed = self.sink.render()
@@ -110,7 +111,7 @@ class MusicPlayer(PlayerBase):
         if running:
             await self.sink.stop()
         self.sink.playlist = interaction.data['values'][0]
-        self.titles = self.get_titles()
+        self.titles = self.get_titles(self.sink.songs)
         if running:
             await self.sink.start()
         await interaction.edit_original_response(view=self, embed=self.render())
@@ -155,14 +156,11 @@ class MusicPlayer(PlayerBase):
 
 class PlaylistEditor(PlayerBase):
 
-    def __init__(self, bot: DCSServerBot, songs: list[str], playlist: Optional[str] = None):
-        super().__init__(bot)
+    def __init__(self, bot: DCSServerBot, music_dir: str, songs: list[str], playlist: Optional[str] = None):
+        super().__init__(bot, music_dir)
         self.playlist = Playlist(bot, playlist) if playlist else None
         self.all_songs = songs
         self.all_titles = self.get_titles(self.all_songs)
-
-    def get_titles(self, songs: list[str]) -> list[str]:
-        return [get_tag(x).title or os.path.basename(x)[:-4] for x in songs]
 
     def get_all_playlists(self) -> list[str]:
         conn = self.pool.getconn()
@@ -186,7 +184,7 @@ class PlaylistEditor(PlayerBase):
             for idx, song in enumerate(self.playlist.items):
                 if idx == 25:
                     break
-                title = self.all_titles[self.all_songs.index(song)] or os.path.basename(song)
+                title = self.all_titles[self.all_songs.index(song)] or song
                 playlist.append(
                     f"{idx + 1}. - {utils.escape_string(title)}")
                 options.append(SelectOption(label=title[:25], value=str(idx)))
@@ -273,6 +271,7 @@ class PlaylistEditor(PlayerBase):
                 try:
                     with closing(conn.cursor()) as cursor:
                         cursor.execute('DELETE FROM music_playlists WHERE name = %s', (self.playlist.name, ))
+                        cursor.execute('DELETE FROM music_servers WHERE playlist_name = %s', (self.playlist.name,))
                     conn.commit()
                     self.playlist = None
                 except (Exception, psycopg2.DatabaseError) as error:
