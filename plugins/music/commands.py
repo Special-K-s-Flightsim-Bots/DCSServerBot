@@ -50,15 +50,14 @@ class MusicAgent(Plugin):
                 await ctx.send(f"No entry for server {server.name} configured in your {self.plugin_name}.json.")
                 return
             config = self.get_config(server)['sink']
-            sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(bot=self.bot,
-                                                                                    server=server,
-                                                                                    config=config)
+            sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(
+                bot=self.bot, server=server, config=config, music_dir=self.get_config(server)['music_dir'])
             self.sinks[server.name] = sink
         playlists = get_all_playlists(self.bot)
         if not playlists:
             await ctx.send(f"You don't have any playlists to play. Please create them with {ctx.prefix}playlist")
             return
-        view = MusicPlayer(self.bot, sink=sink, playlists=playlists)
+        view = MusicPlayer(self.bot, music_dir=self.get_music_dir(), sink=sink, playlists=playlists)
         msg = await ctx.send(embed=view.render(), view=view)
         try:
             while not view.is_finished():
@@ -75,12 +74,12 @@ class MusicMaster(MusicAgent):
     @commands.guild_only()
     async def playlist(self, ctx: commands.Context):
         # list the songs ordered by modified timestamp descending (latest first)
-        songs = [file.__str__() for file in sorted(Path(self.get_music_dir()).glob('*.mp3'),
+        songs = [file.name for file in sorted(Path(self.get_music_dir()).glob('*.mp3'),
                                                    key=lambda x: x.stat().st_mtime, reverse=True)]
         if not len(songs):
             await ctx.send("No music uploaded on this server. You can just upload mp3 files in here.")
             return
-        view = PlaylistEditor(self.bot, songs)
+        view = PlaylistEditor(self.bot, self.get_music_dir(), songs)
         msg = await ctx.send(embed=view.render(), view=view)
         try:
             await view.wait()
@@ -136,8 +135,8 @@ class MusicMasterOnly(MusicMaster):
     @app_commands.autocomplete(song=all_songs_autocomplete)
     async def add_song(self, interaction: discord.Interaction, playlist: str, song: str):
         p = Playlist(self.bot, playlist)
-        song = os.path.join(self.get_music_dir(), song)
         p.add(song)
+        song = os.path.join(self.get_music_dir(), song)
         title = get_tag(song).title or os.path.basename(song)
         await interaction.response.send_message(
             '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist))
@@ -149,8 +148,8 @@ class MusicMasterOnly(MusicMaster):
     async def del_song(self, interaction: discord.Interaction, playlist: str, song: str):
         p = Playlist(self.bot, playlist)
         try:
-            song = os.path.join(self.get_music_dir(), song)
             p.remove(song)
+            song = os.path.join(self.get_music_dir(), song)
             title = get_tag(song).title or os.path.basename(song)
             await interaction.response.send_message(
                 '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist))
