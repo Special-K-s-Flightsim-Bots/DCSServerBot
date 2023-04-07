@@ -39,6 +39,10 @@ class DCSServerBot(commands.Bot):
         if 'OPT_PLUGINS' in self.config['BOT']:
             plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
         self.plugins: [str] = [p.strip() for p in list(dict.fromkeys(plugins.split(',')))]
+        # make sure, cloud is loaded last
+        if 'cloud' in self.plugins:
+            self.plugins.remove('cloud')
+            self.plugins.append('cloud')
         if not self.config.getboolean('BOT', 'USE_DASHBOARD'):
             self.plugins.remove('dashboard')
         self.audit_channel = None
