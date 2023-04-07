@@ -28,7 +28,7 @@ class Plugin(commands.Cog):
         self.pool = bot.pool
         self.loop = bot.loop
         self.locals = self.read_locals()
-        if 'commands' in self.locals:
+        if self.plugin_name != 'commands' and 'commands' in self.locals:
             self.change_commands(self.locals['commands'])
         self._config = dict[str, dict]()
         self.eventlistener: Type[TEventListener] = eventlistener(self) if eventlistener else None
