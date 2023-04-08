@@ -117,14 +117,15 @@ async def all_songs_autocomplete(
         current: str,
 ) -> list[app_commands.Choice[str]]:
     ret = []
+    music_dir = interaction.client.cogs['MusicMasterOnly'].get_music_dir()
     for song in [
-        file.__str__() for file in sorted
+        file.name for file in sorted
         (Path(interaction.command.binding.get_music_dir()).glob('*.mp3'),
          key=lambda x: x.stat().st_mtime, reverse=True)]:
-        title = get_tag(song).title or os.path.basename(song)
+        title = get_tag(os.path.join(music_dir, song)).title or song
         if current and current.casefold() not in title.casefold():
             continue
-        ret.append(app_commands.Choice(name=title[:100], value=os.path.basename(song)))
+        ret.append(app_commands.Choice(name=title[:100], value=song))
     return ret[:25]
 
 
@@ -132,11 +133,12 @@ async def songs_autocomplete(
         interaction: discord.Interaction,
         current: str,
 ) -> list[app_commands.Choice[str]]:
+    music_dir = interaction.client.cogs['MusicMasterOnly'].get_music_dir()
     playlist = Playlist(interaction.client, interaction.data['options'][0]['value'])
     ret = []
     for song in playlist.items:
-        title = get_tag(song).title or os.path.basename(song)
+        title = get_tag(os.path.join(music_dir, song)).title or song
         if current and current.casefold() not in title.casefold():
             continue
-        ret.append(app_commands.Choice(name=title[:100], value=os.path.basename(song)))
+        ret.append(app_commands.Choice(name=title[:100], value=song))
     return ret
