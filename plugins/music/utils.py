@@ -12,7 +12,8 @@ from pathlib import Path
 
 @lru_cache(maxsize=None)
 def get_tag(file) -> Tag:
-    return eyed3.load(file).tag
+    audio = eyed3.load(file)
+    return audio.tag if audio else Tag()
 
 
 class Playlist:
