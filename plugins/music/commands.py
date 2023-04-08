@@ -75,7 +75,7 @@ class MusicMaster(MusicAgent):
     async def playlist(self, ctx: commands.Context):
         # list the songs ordered by modified timestamp descending (latest first)
         songs = [file.name for file in sorted(Path(self.get_music_dir()).glob('*.mp3'),
-                                                   key=lambda x: x.stat().st_mtime, reverse=True)]
+                                              key=lambda x: x.stat().st_mtime, reverse=True)]
         if not len(songs):
             await ctx.send("No music uploaded on this server. You can just upload mp3 files in here.")
             return
