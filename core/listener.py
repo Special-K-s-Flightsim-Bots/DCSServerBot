@@ -49,7 +49,7 @@ class ChatCommand:
         self.aliases: list[str] = kwargs.get('aliases', [])
         self.callback = func
 
-    async def __call__(self, listener: EventListener, server: Server, player: Player, params: dict) -> None:
+    async def __call__(self, listener: EventListener, server: Server, player: Player, params: list[str]) -> None:
         await self.callback(listener, server, player, params)
 
 
