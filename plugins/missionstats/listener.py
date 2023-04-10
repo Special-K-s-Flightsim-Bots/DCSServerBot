@@ -55,7 +55,7 @@ class MissionStatisticsEventListener(EventListener):
     def _toggle_mission_stats(self, server: Server):
         if self.bot.config.getboolean(server.installation, 'MISSION_STATISTICS'):
             server.sendtoDCS({"command": "enableMissionStats"})
-            server.sendtoDCS({"command": "getMissionSituation", "channel": server.get_channel(Channel.STATUS).id})
+            server.sendtoDCS({"command": "getMissionSituation"})
         else:
             server.sendtoDCS({"command": "disableMissionStats"})
 

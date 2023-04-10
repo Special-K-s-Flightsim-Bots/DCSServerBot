@@ -1,57 +1,23 @@
 from __future__ import annotations
 import asyncio
 import discord
-import json
 import os
-import platform
-import psutil
 import psycopg2
-import socket
-import subprocess
 import uuid
-import win32con
-from contextlib import closing, suppress
+from contextlib import closing
 from core import utils
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileSystemEvent
-from .dataobject import DataObject, DataObjectFactory
+from .dataobject import DataObject
 from .const import Status, Coalition, Channel
 
 if TYPE_CHECKING:
-    from core import Plugin, Player, Mission, Extension
-
-
-class MissionFileSystemEventHandler(FileSystemEventHandler):
-    def __init__(self, server: Server):
-        self.server = server
-        self.bot = server.bot
-        self.log = server.log
-
-    def on_created(self, event: FileSystemEvent):
-        path: str = os.path.normpath(event.src_path)
-        if path.endswith('.miz'):
-            self.server.addMission(path)
-            self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
-
-    def on_deleted(self, event: FileSystemEvent):
-        path: str = os.path.normpath(event.src_path)
-        if path.endswith('.miz'):
-            for idx, mission in enumerate(self.server.settings['missionList']):
-                if mission == path:
-                    if (idx + 1) == self.server.mission_id:
-                        self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
-                        return
-                    self.server.deleteMission(idx + 1)
-                    self.log.info(f"=> Mission {os.path.basename(mission)[:-4]} deleted from server {self.server.name}.")
+    from core import Player, Mission, Extension
 
 
 @dataclass
-@DataObjectFactory.register("Server")
 class Server(DataObject):
     name: str = field(compare=False)
     installation: str
@@ -75,6 +41,7 @@ class Server(DataObject):
     extensions: dict[str, Extension] = field(default_factory=dict, compare=False)
     _lock: asyncio.Lock = field(init=False, compare=False)
     afk: dict[str, datetime] = field(default_factory=dict, compare=False)
+    listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
 
     def __post_init__(self):
         super().__post_init__()
@@ -90,20 +57,12 @@ class Server(DataObject):
                     self.embeds[row[0]] = row[1]
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
-            conn.rollback()
         finally:
             self.pool.putconn(conn)
-        # enable autoscan for missions changes
-        if self.bot.config.getboolean('BOT', 'AUTOSCAN'):
-            self.event_handler = MissionFileSystemEventHandler(self)
-            self.observer = Observer()
-            self.observer.start()
-        # check for SLmod and desanitize its MissionScripting.lua
-        for version in range(5, 7):
-            filename = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME'] + f'\\Scripts\\net\\Slmodv7_{version}\\SlmodMissionScripting.lua')
-            if os.path.exists(filename):
-                utils.desanitize(self, filename)
-                break
+
+    @property
+    def is_remote(self) -> bool:
+        raise NotImplemented()
 
     @property
     def status(self) -> Status:
@@ -115,41 +74,11 @@ class Server(DataObject):
 
     @property
     def missions_dir(self) -> str:
-        if 'MISSIONS_DIR' in self.bot.config[self.installation]:
-            return os.path.expandvars(self.bot.config[self.installation]['MISSIONS_DIR'])
-        else:
-            return os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + os.path.sep + 'Missions'
+        raise NotImplemented()
 
     @status.setter
     def status(self, status: Status):
         if status != self._status:
-            if self.bot.config.getboolean('BOT', 'AUTOSCAN'):
-                if self._status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTDOWN] \
-                        and status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-                    if not self.observer.emitters:
-                        self.observer.schedule(self.event_handler, self.missions_dir, recursive=False)
-                        self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder enabled.')
-                elif status == Status.SHUTDOWN:
-                    if self._status == Status.UNREGISTERED:
-                        # make sure all missions in the directory are in the mission list ...
-                        directory = Path(self.missions_dir)
-                        missions = self.settings['missionList']
-                        i: int = 0
-                        for file in directory.glob('*.miz'):
-                            if str(file) not in missions:
-                                missions.append(str(file))
-                                i += 1
-                        # make sure the list is written to serverSettings.lua
-                        self.settings['missionList'] = missions
-                        if i:
-                            self.log.info(f"  => {self.name}: {i} missions auto-added to the mission list")
-                        if len(missions) > 25:
-                            self.log.warning(f"  => {self.name}: You have more than 25 missions registered!"
-                                             f" You won't see them all in {self.bot.config['BOT']['COMMAND_PREFIX']}load!")
-                    elif self.observer.emitters:
-                        self.observer.unschedule_all()
-                        self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
-            # self.log.info(f"{self.name}-{inspect.stack()[1][3]}: Status {self._status.name} => {status.name}")
             self._status = status
             self.status_change.set()
             self.status_change.clear()
@@ -218,58 +147,28 @@ class Server(DataObject):
 
     @property
     def settings(self) -> dict:
-        if not self._settings:
-            path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
-            self._settings = utils.SettingsDict(self, path, 'cfg')
-        return self._settings
+        raise NotImplemented()
 
     @property
     def options(self) -> dict:
-        if not self._options:
-            path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\options.lua'
-            self._options = utils.SettingsDict(self, path, 'options')
-        return self._options
+        raise NotImplemented()
 
-    def get_current_mission_file(self) -> Optional[str]:
-        if not self.current_mission or not self.current_mission.filename:
-            settings = self.settings
-            start_index = int(settings['listStartIndex'])
-            if start_index <= len(settings['missionList']):
-                filename = settings['missionList'][start_index - 1]
-            else:
-                filename = None
-            if not filename or not os.path.exists(filename):
-                for idx, filename in enumerate(settings['missionList']):
-                    if os.path.exists(filename):
-                        settings['listStartIndex'] = idx + 1
-                        break
-                else:
-                    filename = None
-        else:
-            filename = self.current_mission.filename
-        return filename
+    async def get_current_mission_file(self) -> Optional[str]:
+        raise NotImplemented()
 
     def sendtoDCS(self, message: dict):
-        # As Lua does not support large numbers, convert them to strings
-        for key, value in message.items():
-            if type(value) == int:
-                message[key] = str(value)
-        msg = json.dumps(message)
-        self.log.debug(f"HOST->{self.name}: {msg}")
-        dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        dcs_socket.sendto(msg.encode('utf-8'), (self.host, int(self.port)))
-        dcs_socket.close()
+        raise NotImplemented()
 
     async def sendtoDCSSync(self, message: dict, timeout: Optional[int] = 5.0):
         future = self.bot.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
         message['channel'] = token
-        self.bot.listeners[token] = future
+        self.listeners[token] = future
         try:
             self.sendtoDCS(message)
             return await asyncio.wait_for(future, timeout)
         finally:
-            del self.bot.listeners[token]
+            del self.listeners[token]
 
     def sendChatMessage(self, coalition: Coalition, message: str, sender: str = None):
         if coalition == Coalition.ALL:
@@ -293,78 +192,13 @@ class Server(DataObject):
         })
 
     def rename(self, new_name: str, update_settings: bool = False) -> None:
-        # call rename() in all Plugins
-        for plugin in self.bot.cogs.values():  # type: Plugin
-            plugin.rename(self.name, new_name)
-        # rename the entries in the main database tables
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                               (new_name, self.name))
-                cursor.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                               (new_name, self.name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-        if update_settings:
-            self.settings['name'] = new_name
-        self.name = new_name
+        raise NotImplemented()
 
     async def startup(self) -> None:
-        basepath = os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION'])
-        for exe in ['DCS_server.exe', 'DCS.exe']:
-            path = basepath + f'\\bin\\{exe}'
-            if os.path.exists(path):
-                break
-        else:
-            self.log.error(f"No executable found to start a DCS server in {basepath}!")
-            return
-        # check if all missions are existing
-        missions = [x for x in self.settings['missionList'] if os.path.exists(x)]
-        if len(missions) != len(self.settings['missionList']):
-            self.settings['missionList'] = missions
-            self.log.warning('Removed non-existent missions from serverSettings.lua')
-        self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.installation))
-        if self.bot.config.getboolean(self.installation, 'START_MINIMIZED'):
-            info = subprocess.STARTUPINFO()
-            info.dwFlags = subprocess.STARTF_USESHOWWINDOW
-            info.wShowWindow = win32con.SW_MINIMIZE
-        else:
-            info = None
-        p = subprocess.Popen(
-            [exe, '--server', '--norender', '-w', self.installation], executable=path, startupinfo=info
-        )
-        with suppress(Exception):
-            self.process = Process(p.pid)
-        timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
-        self.status = Status.LOADING
-        await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
+        raise NotImplemented()
 
     async def shutdown(self, force: bool = False) -> None:
-        slow_system = self.bot.config.getboolean('BOT', 'SLOW_SYSTEM')
-        timeout = 300 if slow_system else 180
-        if not force:
-            self.sendtoDCS({"command": "shutdown"})
-            with suppress(asyncio.TimeoutError):
-                await self.wait_for_status_change([Status.STOPPED], timeout)
-            if self.process and self.process.is_running():
-                try:
-                    self.process.wait(timeout)
-                except psutil.TimeoutExpired:
-                    self.process.kill()
-        else:
-            if self.process and self.process.is_running():
-                self.process.kill()
-        # make sure, Windows did all cleanups
-        if slow_system:
-            await asyncio.sleep(10)
-        if self.status != Status.SHUTDOWN:
-            self.status = Status.SHUTDOWN
-        self.process = None
+        raise NotImplemented()
 
     async def stop(self) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING]:
@@ -429,47 +263,7 @@ class Server(DataObject):
 
     async def setEmbed(self, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None,
                        channel_id: Optional[Union[Channel, int]] = Channel.STATUS) -> None:
-        async with self._lock:
-            message = None
-            channel = self.bot.get_channel(channel_id) if isinstance(channel_id, int) else self.get_channel(channel_id)
-            if embed_name in self.embeds:
-                if isinstance(self.embeds[embed_name],  discord.Message):
-                    message = self.embeds[embed_name]
-                else:
-                    try:
-                        message = await channel.fetch_message(self.embeds[embed_name])
-                        self.embeds[embed_name] = message
-                    except discord.errors.NotFound:
-                        message = None
-                    except discord.errors.DiscordException as ex:
-                        self.log.warning(f"Discord error during setEmbed({embed_name}): " + str(ex))
-                        return
-            if message:
-                try:
-                    if not file:
-                        await message.edit(embed=embed)
-                    else:
-                        await message.edit(embed=embed, attachments=[file])
-                except discord.errors.NotFound:
-                    message = None
-                except Exception as ex:
-                    self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
-                    return
-            if not message:
-                message = await channel.send(embed=embed, file=file)
-                self.embeds[embed_name] = message
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute('INSERT INTO message_persistence (server_name, embed_name, embed) VALUES (%s, '
-                                       '%s, %s) ON CONFLICT (server_name, embed_name) DO UPDATE SET '
-                                       'embed=excluded.embed', (self.name, embed_name, message.id))
-                    conn.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
+        raise NotImplemented()
 
     def get_channel(self, channel: Channel) -> discord.TextChannel:
         if channel not in self._channels:
@@ -483,25 +277,3 @@ class Server(DataObject):
 
         if self.status not in status:
             await asyncio.wait_for(wait(status), timeout)
-
-    async def keep_alive(self):
-        # we set a longer timeout in here because, we don't want to risk false restarts
-        timeout = 20 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
-        data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE servers SET last_seen = NOW() WHERE agent_host = %s AND server_name = %s',
-                               (platform.node(), self.name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-        if data['pause'] and self.status != Status.PAUSED:
-            self.status = Status.PAUSED
-        elif not data['pause'] and self.status != Status.RUNNING:
-            self.status = Status.RUNNING
-        self.current_mission.mission_time = data['mission_time']
-        self.current_mission.real_time = data['real_time']

@@ -99,11 +99,9 @@ class GameMasterEventListener(EventListener):
                 "coalition": side.value
             })
             data['from_id'] = data['id']
-            data['subcommand'] = 'coalition'
-            await self.onChatCommand(data)
+            await self._coalition(server, player)
             if self.get_coalition_password(server, player.coalition):
-                data['subcommand'] = 'password'
-                await self.onChatCommand(data)
+                await self._password(server, player)
 
     def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
                  description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
@@ -167,8 +165,7 @@ class GameMasterEventListener(EventListener):
         self.campaign('delete', name=name)
         self.campaign('start', servers=[server])
 
-    @chat_command(name="join", usage="<coalition>", help="join a coalition")
-    async def join(self, server: Server, player: Player, params: list[str]):
+    async def _join(self, server: Server, player: Player, params: list[str]):
         coalition = params[0] if params else ''
         if coalition.casefold() not in ['blue', 'red']:
             player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join <blue|red>")
@@ -233,6 +230,10 @@ class GameMasterEventListener(EventListener):
         except discord.Forbidden:
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
+    @chat_command(name="join", usage="<coalition>", help="join a coalition")
+    async def join(self, server: Server, player: Player, params: list[str]):
+        await self._join(server, player, params)
+
     @chat_command(name="leave", help="leave your coalition")
     async def leave(self, server: Server, player: Player, params: list[str]):
         if not self.get_coalition(server, player):
@@ -269,14 +270,13 @@ class GameMasterEventListener(EventListener):
 
     @chat_command(name="red", help="join the red side")
     async def red(self, server: Server, player: Player, params: list[str]):
-        await self.join(server, player, ["red"])
+        await self._join(server, player, ["red"])
 
     @chat_command(name="blue", help="join the blue side")
     async def blue(self, server: Server, player: Player, params: list[str]):
-        await self.join(server, player, ["blue"])
+        await self._join(server, player, ["blue"])
 
-    @chat_command(name="coalition", help="displays your current coalition")
-    async def coalition(self, server: Server, player: Player, params: list[str]):
+    async def _coalition(self, server: Server, player: Player):
         coalition = self.get_coalition(server, player)
         if coalition:
             player.sendChatMessage(f"You are a member of the {coalition.name} coalition.")
@@ -284,8 +284,11 @@ class GameMasterEventListener(EventListener):
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
                                    f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
 
-    @chat_command(name="password", aliases=["passwd"], help="displays the coalition password")
-    async def password(self, server: Server, player: Player, params: list[str]):
+    @chat_command(name="coalition", help="displays your current coalition")
+    async def coalition(self, server: Server, player: Player, params: list[str]):
+        await self._coalition(server, player)
+
+    async def _password(self, server: Server, player: Player):
         coalition = self.get_coalition(server, player)
         if not coalition:
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
@@ -296,6 +299,10 @@ class GameMasterEventListener(EventListener):
             player.sendChatMessage(f"Your coalition password is {password}.")
         else:
             player.sendChatMessage("There is no password set for your coalition.")
+
+    @chat_command(name="password", aliases=["passwd"], help="displays the coalition password")
+    async def password(self, server: Server, player: Player, params: list[str]):
+        await self._password(server, player)
 
     @chat_command(name="flag", roles=['DCS Admin', 'GameMaster'], usage="<flag> [value]", help="reads or sets a flag")
     async def flag(self, server: Server, player: Player, params: list[str]):

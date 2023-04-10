@@ -3,7 +3,8 @@ import discord
 import psycopg2
 from contextlib import closing, suppress
 from copy import deepcopy
-from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel
+from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, \
+    PluginInstallationError
 from discord.ext import tasks, commands
 from typing import Type, Union, Optional
 from .listener import PunishmentEventListener
@@ -12,6 +13,8 @@ from .listener import PunishmentEventListener
 class PunishmentAgent(Plugin):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
+        if not self.locals:
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
         self.check_punishments.start()
 
     async def cog_unload(self):

@@ -8,7 +8,7 @@ from contextlib import closing
 from copy import deepcopy
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
 from datetime import datetime
-from discord import SelectOption, TextStyle
+from discord import SelectOption, TextStyle, app_commands
 from discord.ext import commands, tasks
 from discord.ui import View, Select, Modal, TextInput, Item
 from os import path
@@ -94,7 +94,32 @@ class GreenieBoardAgent(Plugin):
         finally:
             self.pool.putconn(conn)
 
-    @commands.command(description='Show carrier landing qualifications', usage='[member]', aliases=['traps'])
+    @tasks.loop(hours=24.0)
+    async def auto_delete(self):
+        def do_delete(path: str, days: int):
+            now = time.time()
+            for f in [os.path.join(path, x) for x in os.listdir(path)]:
+                if os.stat(f).st_mtime < (now - days * 86400):
+                    if os.path.isfile(f):
+                        os.remove(f)
+
+        try:
+            for server in self.bot.servers.values():
+                config = self.get_config(server)
+                basedir = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
+                if 'Moose.AIRBOSS' in config and 'delete_after' in config['Moose.AIRBOSS']:
+                    basedir += os.path.sep + config['Moose.AIRBOSS']['basedir'] if 'basedir' in config['Moose.AIRBOSS'] else ''
+                    do_delete(basedir, config['Moose.AIRBOSS']['delete_after'])
+                elif 'FunkMan' in config and 'delete_after' in config['FunkMan']:
+                    basedir += os.path.sep + config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else ''
+                    do_delete(basedir, config['FunkMan']['delete_after'])
+        except Exception as ex:
+            self.log.exception(ex)
+
+
+class GreenieBoardMaster(GreenieBoardAgent):
+
+    @commands.command(description='Show carrier landing qualifications', usage='[member|name]', aliases=['traps'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def carrier(self, ctx, member: Optional[Union[discord.Member, str]], *params):
@@ -145,6 +170,7 @@ class GreenieBoardAgent(Plugin):
     @commands.command(description='Display the current greenieboard', usage='[num rows]', aliases=['greenie'])
     @utils.has_role('DCS')
     @commands.guild_only()
+    @app_commands.rename(num_rows='rows')
     async def greenieboard(self, ctx, num_rows: Optional[int] = 10):
         try:
             timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
@@ -152,32 +178,9 @@ class GreenieBoardAgent(Plugin):
                                       timeout if timeout > 0 else None)
             await report.render(server_name=None, num_rows=num_rows)
         finally:
-            await ctx.message.delete()
+            if not ctx.interaction:
+                await ctx.message.delete()
 
-    @tasks.loop(hours=24.0)
-    async def auto_delete(self):
-        def do_delete(path: str, days: int):
-            now = time.time()
-            for f in [os.path.join(path, x) for x in os.listdir(path)]:
-                if os.stat(f).st_mtime < (now - days * 86400):
-                    if os.path.isfile(f):
-                        os.remove(f)
-
-        try:
-            for server in self.bot.servers.values():
-                config = self.get_config(server)
-                basedir = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
-                if 'Moose.AIRBOSS' in config and 'delete_after' in config['Moose.AIRBOSS']:
-                    basedir += os.path.sep + config['Moose.AIRBOSS']['basedir'] if 'basedir' in config['Moose.AIRBOSS'] else ''
-                    do_delete(basedir, config['Moose.AIRBOSS']['delete_after'])
-                elif 'FunkMan' in config and 'delete_after' in config['FunkMan']:
-                    basedir += os.path.sep + config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else ''
-                    do_delete(basedir, config['FunkMan']['delete_after'])
-        except Exception as ex:
-            self.log.exception(ex)
-
-
-class GreenieBoardMaster(GreenieBoardAgent):
     @commands.command(description='Adds a trap to the Greenieboard', usage='<@member|ucid>')
     @utils.has_role('DCS')
     @commands.guild_only()

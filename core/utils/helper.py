@@ -3,10 +3,13 @@ import importlib
 import json
 import luadata
 import os
+import psycopg2
 import re
 import string
+import unicodedata
+from contextlib import closing
 from datetime import datetime, timedelta
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from core import Server
@@ -28,6 +31,11 @@ def is_in_timeframe(time: datetime, timeframe: str) -> bool:
         start_time = end_time = parse_time(timeframe)
     check_time = time.replace(year=start_time.year, month=start_time.month, day=start_time.day, second=0, microsecond=0)
     return start_time <= check_time <= end_time
+
+
+def is_match_daystate(time: datetime, daystate: str) -> bool:
+    state = daystate[time.weekday()]
+    return state.upper() == 'Y'
 
 
 def str_to_class(name):
@@ -118,6 +126,23 @@ def format_period(period: str) -> str:
         return period.capitalize() + 'ly'
 
 
+def slugify(value, allow_unicode=False):
+    """
+    Taken from https://github.com/django/django/blob/master/django/utils/text.py
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+    dashes to single dashes. Remove characters that aren't alphanumerics,
+    underscores, or hyphens. Convert to lowercase. Also strip leading and
+    trailing whitespace, dashes, and underscores.
+    """
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize('NFKC', value)
+    else:
+        value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value.lower())
+    return re.sub(r'[-\s]+', '-', value).strip('-_')
+
+
 def alternate_parse_settings(path: str):
     def parse(value: str) -> Union[int, str, bool]:
         if value.startswith('"'):
@@ -154,6 +179,58 @@ def alternate_parse_settings(path: str):
                     else:
                         settings[match.group('key')] = parse(match.group('value'))
     return settings
+
+
+def get_all_servers(self) -> list[str]:
+    retval: list[str] = list()
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute(f"SELECT server_name FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')")
+            return [row[0] for row in cursor.fetchall()]
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
+
+
+def get_all_players(self, **kwargs) -> list[Tuple[str, str]]:
+    name = kwargs.get('name')
+    ucid = kwargs.get('ucid')
+    sql = "SELECT ucid, name FROM players"
+    if name:
+        sql += ' WHERE name ILIKE %s'
+        name = f'%{name}%'
+    elif ucid:
+        sql += ' WHERE ucid ILIKE %s'
+        ucid = f'%{ucid}%'
+    sql += ' ORDER BY 2 LIMIT 25'
+
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute(sql, (name or ucid, ))
+            return [(row[0], row[1]) for row in cursor.fetchall()]
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
+
+
+def is_banned(self, ucid: str):
+    conn = self.pool.getconn()
+    try:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute(f"SELECT COUNT(*) FROM bans WHERE ucid = %s", (ucid,))
+            return cursor.fetchone()[0] > 0
+    except (Exception, psycopg2.DatabaseError) as error:
+        self.log.exception(error)
+    finally:
+        self.pool.putconn(conn)
+
+
+def is_ucid(ucid: str) -> bool:
+    return len(ucid) == 32 and ucid.isalnum() and ucid == ucid.lower()
 
 
 class SettingsDict(dict):

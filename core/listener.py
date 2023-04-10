@@ -49,7 +49,7 @@ class ChatCommand:
         self.aliases: list[str] = kwargs.get('aliases', [])
         self.callback = func
 
-    async def __call__(self, listener: EventListener, server: Server, player: Player, params: dict) -> None:
+    async def __call__(self, listener: EventListener, server: Server, player: Player, params: list[str]) -> None:
         await self.callback(listener, server, player, params)
 
 
@@ -121,7 +121,6 @@ class EventListener(metaclass=EventListenerMeta):
 
     @event(name="onChatCommand")
     async def onChatCommand(self, server: Server, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
         player: Player = server.get_player(id=data['from_id'], active=True)
         command = self.__all_commands__.get(data['subcommand'])
         if not command or not player:

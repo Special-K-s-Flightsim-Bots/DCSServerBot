@@ -1,5 +1,6 @@
 import asyncio
 import discord
+import os
 import psycopg2
 from abc import ABC
 from contextlib import suppress, closing
@@ -7,9 +8,8 @@ from core import DCSServerBot, Server
 from discord.ext import tasks
 from discord.ui import Modal
 from enum import Enum
-from queue import Queue
-from random import choice
-from typing import Optional, Any
+from random import randrange
+from typing import Optional
 
 __all__ = [
     "Mode",
@@ -19,10 +19,8 @@ __all__ = [
 
 
 class Mode(Enum):
-    ONCE = 1
-    REPEAT = 2
-    SHUFFLE = 3
-    SHUFFLE_REPEAT = 4
+    REPEAT = 1
+    SHUFFLE = 2
 
 
 class DBConfig(dict):
@@ -82,90 +80,66 @@ class DBConfig(dict):
 
 class Sink(ABC):
 
-    class DBBackedQueue:
-        def __init__(self, bot: DCSServerBot, server: Server, sink_type: str):
-            self.log = bot.log
-            self.pool = bot.pool
-            self.server = server
-            self.sink_type = sink_type
-            self._queue = Queue()
-            # initialize the playlist if there is one stored in the database
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT song_file FROM music_playlists WHERE sink_type = %s and server_name = %s '
-                                   'ORDER BY song_id', (self.sink_type, self.server.name))
-                    for row in cursor.fetchall():
-                        self._queue.put(row[0])
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
-
-        def empty(self) -> bool:
-            return self._queue.empty()
-
-        def qsize(self) -> int:
-            return self._queue.qsize()
-
-        @property
-        def queue(self) -> Any:
-            return self._queue.queue
-
-        def put(self, item, block: bool = True, timeout: Optional[float] = None):
-            ret = self._queue.put(item, block, timeout)
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute("INSERT INTO music_playlists (sink_type, server_name, song_id, song_file) "
-                                   "VALUES (%s, %s, nextval('music_song_id_seq'), %s)",
-                                   (self.sink_type, self.server.name, item))
-                conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-                conn.rollback()
-            finally:
-                self.pool.putconn(conn)
-            return ret
-
-        def get(self, block: bool = True, timeout: Optional[float] = None):
-            item = self._queue.get(block, timeout)
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('DELETE FROM music_playlists WHERE sink_type = %s AND server_name = %s '
-                                   'AND song_file = %s', (self.sink_type, self.server.name, item))
-                conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-                conn.rollback()
-            finally:
-                self.pool.putconn(conn)
-            return item
-
-        def clear(self):
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('DELETE FROM music_playlists WHERE sink_type = %s AND server_name = %s ',
-                                   (self.sink_type, self.server.name))
-                conn.commit()
-                self.queue.clear()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-                conn.rollback()
-            finally:
-                self.pool.putconn(conn)
-
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
+    def __init__(self, bot: DCSServerBot, server: Server, config: dict, music_dir: str):
         self.bot = bot
         self.log = bot.log
         self.pool = bot.pool
         self.server = server
         self._config = DBConfig(bot, server, self.__class__.__name__, default=config)
+        self.music_dir = music_dir
         self._current = None
         self._mode = Mode(int(self.config['mode']))
-        self.queue = self.DBBackedQueue(bot, server, self.__class__.__name__)
+        self.songs: list[str] = []
+        self._playlist = None
+        self.playlist = self._get_active_playlist()
+        self.idx = 0 if (self._mode == Mode.REPEAT or not len(self.songs)) else randrange(len(self.songs))
+
+    def _get_active_playlist(self) -> Optional[str]:
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT playlist_name FROM music_servers WHERE server_name = %s',
+                               (self.server.name,))
+                return cursor.fetchone()[0] if cursor.rowcount > 0 else None
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
+    def _read_playlist(self) -> list[str]:
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT song_file FROM music_playlists WHERE name = %s',
+                               (self._playlist,))
+                return [x[0] for x in cursor.fetchall()]
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+        finally:
+            self.pool.putconn(conn)
+
+    @property
+    def playlist(self) -> str:
+        return self._playlist
+
+    @playlist.setter
+    def playlist(self, playlist: str) -> None:
+        if playlist:
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('INSERT INTO music_servers (server_name, playlist_name) '
+                                   'VALUES (%s, %s) ON CONFLICT (server_name) DO UPDATE '
+                                   'SET playlist_name = excluded.playlist_name',
+                                   (self.server.name, playlist))
+                conn.commit()
+                self._playlist = playlist
+                self.songs = self._read_playlist()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+                conn.rollback()
+            finally:
+                self.pool.putconn(conn)
 
     @property
     def config(self) -> dict:
@@ -174,6 +148,9 @@ class Sink(ABC):
     @config.setter
     def config(self, config: dict) -> None:
         self._config = config
+
+    def is_running(self) -> bool:
+        return self.queue_worker.is_running()
 
     async def stop(self) -> None:
         if self.queue_worker.is_running():
@@ -193,12 +170,6 @@ class Sink(ABC):
 
     async def pause(self) -> None:
         return
-
-    def add(self, file: str):
-        self.queue.put(file)
-
-    def clear(self):
-        self.queue.clear()
 
     @property
     def current(self) -> str:
@@ -226,30 +197,15 @@ class Sink(ABC):
     @tasks.loop(reconnect=True)
     async def queue_worker(self):
         while not self.queue_worker.is_being_cancelled():
-            if self._mode == Mode.ONCE:
-                while not self.queue.empty():
-                    if self.queue_worker.is_being_cancelled():
-                        break
-                    file = self.queue.get()
-                    with suppress(Exception):
-                        await self.play(file)
-            elif self._mode == Mode.REPEAT:
-                for i in range(0, self.queue.qsize()):
-                    if self.queue_worker.is_being_cancelled():
-                        break
-                    file = self.queue.queue[i]
-                    with suppress(Exception):
-                        await self.play(file)
-            elif self._mode in [Mode.SHUFFLE, Mode.SHUFFLE_REPEAT]:
-                for i in range(0, self.queue.qsize()):
-                    if self.queue_worker.is_being_cancelled():
-                        break
-                    file = choice(self.queue.queue)
-                    with suppress(Exception):
-                        await self.play(file)
-                    if self.mode == Mode.SHUFFLE:
-                        del self.queue.queue[self.queue.queue.index(file)]
+            with suppress(Exception):
+                await self.play(os.path.join(self.music_dir, self.songs[self.idx]))
             self._current = None
+            if self._mode == Mode.SHUFFLE:
+                self.idx = randrange(len(self.songs)) if self.songs else 0
+            elif self._mode == Mode.REPEAT:
+                self.idx += 1
+                if self.idx == len(self.songs):
+                    self.idx = 0
             await asyncio.sleep(1)
 
 

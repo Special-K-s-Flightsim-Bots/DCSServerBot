@@ -1,3 +1,4 @@
+import aiohttp
 import asyncio
 import discord
 import os
@@ -6,9 +7,12 @@ import re
 import shutil
 import zipfile
 from contextlib import closing, suppress
-from core import Status, Plugin, DCSServerBot, PluginConfigurationError, utils, Server
+from core import Status, Plugin, DCSServerBot, PluginConfigurationError, utils, Server, PluginInstallationError
+from discord import SelectOption, TextStyle
 from discord.ext import commands
+from discord.ui import View, Select, Button, Modal, TextInput
 from typing import Optional, Tuple
+from urllib.parse import urlparse, unquote
 
 OVGME_FOLDERS = ['RootFolder', 'SavedGames']
 
@@ -17,17 +21,21 @@ class OvGME(Plugin):
 
     async def install(self) -> None:
         await super().install()
-        if self.locals and 'configs' in self.locals:
+        if not self.locals:
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
+        if 'configs' in self.locals:
             config = self.locals['configs'][0]
             for folder in OVGME_FOLDERS:
                 if folder not in config:
                     raise PluginConfigurationError(self.plugin_name, folder)
             asyncio.create_task(self.install_packages())
+        else:
+            raise PluginConfigurationError(plugin=self.plugin_name, option='configs')
 
     async def before_dcs_update(self):
         # uninstall all RootFolder-packages
         for server_name, server in self.bot.servers.items():
-            for package_name, version in await self.get_installed_packages(server, 'RootFolder'):
+            for package_name, version in self.get_installed_packages(server, 'RootFolder'):
                 await self.uninstall_package(server, 'RootFolder', package_name, version)
 
     async def after_dcs_update(self):
@@ -248,7 +256,7 @@ class OvGME(Plugin):
         embed.set_footer(text=footer)
         return embed
 
-    async def get_installed_packages(self, server: Server, folder: str) -> list[Tuple[str, str]]:
+    def get_installed_packages(self, server: Server, folder: str) -> list[Tuple[str, str]]:
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
@@ -259,103 +267,204 @@ class OvGME(Plugin):
             self.pool.putconn(conn)
 
     @commands.command(description='Display installed packages')
-    @utils.has_roles(['Admin', 'DCS Admin'])
+    @utils.has_roles(['Admin'])
     @commands.guild_only()
     async def packages(self, ctx):
         server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        packages = []
-        for folder in OVGME_FOLDERS:
-            packages.extend([(folder, x, y) for x, y in await self.get_installed_packages(server, folder)])
-        if len(packages) > 0:
-            n = await utils.selection_list(self.bot, ctx, packages, self.format_packages, 5, -1, '🆕')
-            if n == -1:
-                return
-            latest = self.get_latest_version(packages[n][0], packages[n][1])
-            if latest != packages[n][2] and \
-                    await utils.yn_question(ctx, f"Would you like to update package {packages[n][1]}?"):
-                msg = await ctx.send('Updating ...')
+
+        class PackageView(View):
+
+            def __init__(derived, embed: discord.Embed):
+                super().__init__()
+                derived.installed = derived.get_installed()
+                derived.available = derived.get_available()
+                derived.embed = embed
+                derived.render()
+
+            def get_installed(derived) -> list[Tuple[str, str, str]]:
+                installed = []
+                for folder in OVGME_FOLDERS:
+                    packages = [(folder, x, y) for x, y in self.get_installed_packages(server, folder)]
+                    if packages:
+                        installed.extend(packages)
+                return installed
+
+            def get_available(derived) -> list[Tuple[str, str, str]]:
+                available = []
+                config = self.get_config(server)
+                for folder in OVGME_FOLDERS:
+                    packages = [
+                        (folder, *self.parse_filename(x))
+                        for x in os.listdir(os.path.expandvars(config[folder]))
+                        if not x.startswith('.')
+                    ]
+                    if packages:
+                        available.extend(packages)
+                return list(set(available) - set(derived.installed))
+
+            async def shutdown(derived, interaction: discord.Interaction):
+                await interaction.response.defer()
+                derived.embed.set_footer(text=f"Shutting down {server.name}, please wait ...")
+                await interaction.edit_original_response(embed=derived.embed)
+                await server.shutdown()
+                derived.render()
+                await interaction.edit_original_response(embed=derived.embed, view=derived)
+
+            def render(derived):
+                derived.embed.clear_fields()
+                if derived.installed:
+                    derived.embed.add_field(name='_ _', value='**The following mods are currently installed:**',
+                                            inline=False)
+                    packages = versions = update = ''
+                    for i in range(0, len(derived.installed)):
+                        packages += derived.installed[i][1] + '\n'
+                        versions += derived.installed[i][2] + '\n'
+                        latest = self.get_latest_version(derived.installed[i][0], derived.installed[i][1])
+                        if latest != derived.installed[i][2]:
+                            update += latest + '\n'
+                        else:
+                            update += '_ _\n'
+                    derived.embed.add_field(name='Package', value=packages)
+                    derived.embed.add_field(name='Version', value=versions)
+                    derived.embed.add_field(name='Update', value=update)
+                else:
+                    derived.embed.add_field(name='_ _', value='There are no mods installed.', inline=False)
+
+                derived.clear_items()
+                if derived.available and server.status == Status.SHUTDOWN:
+                    select = Select(placeholder="Select a package to install / update",
+                                    options=[SelectOption(label=x[1] + '_' + x[2], value=str(idx))
+                                             for idx, x in enumerate(derived.available)],
+                                    row=0)
+                    select.callback = derived.install
+                    derived.add_item(select)
+                if derived.installed and server.status == Status.SHUTDOWN:
+                    select = Select(placeholder="Select a package to uninstall",
+                                    options=[SelectOption(label=x[1] + '_' + x[2], value=str(idx))
+                                             for idx, x in enumerate(derived.installed)],
+                                    disabled=not derived.installed or server.status != Status.SHUTDOWN,
+                                    row=1)
+                    select.callback = derived.uninstall
+                    derived.add_item(select)
+                button = Button(label="Add", style=discord.ButtonStyle.primary, row=2)
+                button.callback = derived.add
+                derived.add_item(button)
+                if server.status != Status.SHUTDOWN:
+                    button = Button(label="Shutdown", style=discord.ButtonStyle.secondary, row=2)
+                    button.callback = derived.shutdown
+                    derived.add_item(button)
+                    derived.embed.set_footer(text=f"⚠️ Server {server.name} needs to be shut down to change mods.")
+                else:
+                    for i in range(1, len(derived.children)):
+                        if isinstance(derived.children[i], Button) and derived.children[i].label == "Shutdown":
+                            derived.remove_item(derived.children[i])
+                button = Button(label="Quit", style=discord.ButtonStyle.red, row=2)
+                button.callback = derived.cancel
+                derived.add_item(button)
+
+            async def install(derived, interaction: discord.Interaction):
+                await interaction.response.defer()
                 try:
-                    if not await self.uninstall_package(server, packages[n][0], packages[n][1], packages[n][2]):
-                        await ctx.send(f"Package {packages[n][1]}_v{packages[n][2]} could not be uninstalled!")
-                        return
-                    elif not await self.install_package(server, packages[n][0], packages[n][1], latest):
-                        await ctx.send(f"Package {packages[n][1]}_v{latest} could not be installed!")
-                        return
-                    await ctx.send(f"Package {packages[n][1]} updated from version v{packages[n][2]} to v{latest}.")
-                    return
-                finally:
-                    await msg.delete()
-            elif await utils.yn_question(ctx, f"Would you like to uninstall package {packages[n][1]}?"):
-                msg = await ctx.send('Uninstalling ...')
-                try:
-                    if await self.uninstall_package(server, packages[n][0], packages[n][1], packages[n][2]):
-                        await ctx.send(f"Package {packages[n][1]} uninstalled.")
+                    folder, package, version = derived.available[int(interaction.data['values'][0])]
+                    current = self.check_package(server, folder, package)
+                    if current:
+                        derived.embed.set_footer(text=f"Updating package {package}, please wait ...")
+                        await interaction.edit_original_response(embed=derived.embed)
+                        if not await self.uninstall_package(server, folder, package, current):
+                            derived.embed.set_footer(text=f"Package {package}_v{version} could not be uninstalled!")
+                            await interaction.edit_original_response(embed=derived.embed)
+                        elif not await self.install_package(server, folder, package, version):
+                            derived.embed.set_footer(text=f"Package {package}_v{version} could not be installed!")
+                            await interaction.edit_original_response(embed=derived.embed)
+                        else:
+                            derived.embed.set_footer(text=f"Package {package} updated.")
+                            derived.installed = derived.get_installed()
+                            derived.available = derived.get_available()
+                            derived.render()
                     else:
-                        await ctx.send(f"Package {packages[n][1]} could not be uninstalled.")
-                finally:
-                    await msg.delete()
-        else:
-            await ctx.send(f"No packages installed on {server.name}.")
+                        derived.embed.set_footer(text=f"Installing package {package}, please wait ...")
+                        await interaction.edit_original_response(embed=derived.embed)
+                        if not await self.install_package(server, folder, package, version):
+                            derived.embed.set_footer(text=f"Installation of package {package} failed.")
+                        else:
+                            derived.embed.set_footer(text=f"Package {package} installed.")
+                            derived.installed = derived.get_installed()
+                            derived.available = derived.get_available()
+                            derived.render()
+                    await interaction.edit_original_response(embed=derived.embed, view=derived)
+                except Exception as ex:
+                    self.log.exception(ex)
 
-    @staticmethod
-    def format_folders(data, marker, marker_emoji):
-        embed = discord.Embed(title='Select a Folder', color=discord.Color.blue())
-        ids = folders = ''
-        for i in range(0, len(data)):
-            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            folders += data[i] + '\n'
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Folder', value=folders)
-        return embed
+            async def uninstall(derived, interaction: discord.Interaction):
+                await interaction.response.defer()
+                folder, package, version = derived.installed[int(interaction.data['values'][0])]
+                derived.embed.set_footer(text=f"Uninstalling package {package}, please wait ...")
+                await interaction.edit_original_response(embed=derived.embed)
+                if not await self.uninstall_package(server, folder, package, version):
+                    derived.embed.set_footer(text=f"Package {package}_v{version} could not be uninstalled!")
+                else:
+                    derived.embed.set_footer(text=f"Package {package} uninstalled.")
+                    derived.installed = derived.get_installed()
+                    derived.available = derived.get_available()
+                    derived.render()
+                await interaction.edit_original_response(embed=derived.embed, view=derived)
 
-    @staticmethod
-    def format_files(data, marker, marker_emoji):
-        embed = discord.Embed(title='Available Plugins', color=discord.Color.blue())
-        ids = files = versions = ''
-        for i in range(0, len(data)):
-            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            files += data[i][0] + '\n'
-            versions += data[i][1] + '\n'
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='File', value=files)
-        embed.add_field(name='Version', value=versions)
-        return embed
+            async def add(derived, interaction: discord.Interaction):
+                class UploadModal(Modal, title="Enter the mod URL"):
+                    url = TextInput(label="URL", placeholder='https://...', style=TextStyle.short, required=True)
+                    filename = TextInput(label="Filename-override (optional)", placeholder="name_vX.Y.Z",
+                                         style=TextStyle.short, required=False)
+                    dest = TextInput(label="Destination (S=Saved Games / R=Root Folder)", style=TextStyle.short,
+                                     required=True, min_length=1, max_length=1)
 
-    @commands.command(description='Install an OvGME package')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def add_package(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
-            return
-        config = self.get_config(server)
-        if not config:
-            await ctx.send(f"No plugin configuration found for server {server.name}.")
-            return
-        n = await utils.selection_list(self.bot, ctx, OVGME_FOLDERS, self.format_folders)
-        if n == -1:
-            return
-        folder = OVGME_FOLDERS[n]
-        path = os.path.expandvars(config[folder])
-        available = [self.parse_filename(x) for x in os.listdir(path) if not x.startswith('.')] or []
-        installed = await self.get_installed_packages(server, folder) or []
-        files = list(set(available) - set(installed))
-        if not len(files):
-            await ctx.send(f"No available packages in folder {folder}.")
-            return
-        n = await utils.selection_list(self.bot, ctx, files, self.format_files)
-        if n == -1:
-            return
-        msg = await ctx.send('Installing ...')
+                    async def on_submit(_, interaction: discord.Interaction) -> None:
+                        await interaction.response.defer()
+
+                async def download(modal: UploadModal):
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(modal.url.value) as response:
+                            if response.status == 200:
+                                path = os.path.expandvars(self.get_config(server)[
+                                                              OVGME_FOLDERS[0] if modal.dest.value == 'R' else
+                                                              OVGME_FOLDERS[1]])
+                                if modal.filename.value:
+                                    filename = modal.filename.value
+                                else:
+                                    filename = os.path.basename(unquote(urlparse(modal.url.value).path))
+                                self.log.debug(f"Downloading file {filename} from {modal.url.value} ...")
+                                with open(os.path.join(path, filename), 'wb') as outfile:
+                                    outfile.write(await response.read())
+                                self.log.debug(f"File {filename} downloaded.")
+
+                modal = UploadModal()
+                await interaction.response.send_modal(modal)
+                if not await modal.wait():
+                    derived.embed.set_footer(text=f"Downloading {modal.url.value} , please wait ...")
+                    for child in derived.children:
+                        child.disabled = True
+                    await interaction.edit_original_response(embed=derived.embed, view=derived)
+                    await download(modal)
+                    for child in derived.children:
+                        child.disabled = False
+                    embed.remove_footer()
+                    derived.available = derived.get_available()
+                    derived.render()
+                    await interaction.edit_original_response(embed=derived.embed, view=derived)
+
+            async def cancel(derived, interaction: discord.Interaction):
+                derived.stop()
+
+        embed = discord.Embed(title="Package Manager", color=discord.Color.blue())
+        embed.description = f"Install or uninstall mod packages to {server.name}"
+        view = PackageView(embed)
+        msg = await ctx.send(embed=embed, view=view)
         try:
-            if await self.install_package(server, folder, files[n][0], files[n][1]):
-                await ctx.send(f"Package {files[n][0]} installed.")
-            else:
-                await ctx.send(f"Package {files[n][0]} could not be installed.")
+            await view.wait()
         finally:
-            await msg.delete()
+            if msg:
+                await msg.delete()
 
 
 async def setup(bot: DCSServerBot):

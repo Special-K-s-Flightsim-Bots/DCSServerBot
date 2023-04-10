@@ -19,7 +19,7 @@ class RealWeather(Extension):
         try:
             with open(os.path.expandvars(rw_home + '\\config.json')) as infile:
                 cfg = json.load(infile)
-                filename = self.server.get_current_mission_file()
+                filename = await self.server.get_current_mission_file()
                 if not filename:
                     self.log.warning("No mission configured, can't apply real weather.")
                     return False

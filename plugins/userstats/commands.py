@@ -556,25 +556,36 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     return server
             return None
 
+        async def render_highscore(highscore: dict):
+            kwargs = highscore.get('params', {})
+            period = kwargs.get('period')
+            flt = StatisticsFilter.detect(self.bot, period) if period else None
+            file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
+            embed_name = 'highscore-' + (server_name or 'all') + '-' + period
+            sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
+            report = PersistentReport(self.bot, self.plugin_name, file, server, embed_name,
+                                      channel_id=highscore.get('channel', Channel.STATUS))
+            await report.render(server_name=server_name, flt=flt, sides=sides, **kwargs)
+
         try:
             for config in self.locals['configs']:
                 if 'highscore' not in config:
                     continue
                 if "installation" in config:
                     server: Server = get_server_by_installation(config['installation'])
+                    if not server:
+                        self.log.error(f"Server {config['installation']} is not registered.")
+                        return
                     server_name = server.name
                 else:
                     server: Server = list(self.bot.servers.values())[0]
                     server_name = None
-                kwargs = config['highscore'].get('params', {})
-                period = kwargs.get('period')
-                flt = StatisticsFilter.detect(self.bot, period) if period else None
-                file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
-                embed_name = 'highscore-' + (server_name or 'all')
-                sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
-                report = PersistentReport(self.bot, self.plugin_name, file, server, embed_name,
-                                          channel_id=config['highscore'].get('channel', Channel.STATUS))
-                await report.render(server_name=server_name, flt=flt, sides=sides, **kwargs)
+                if isinstance(config['highscore'], list):
+                    for highscore in config['highscore']:
+                        await render_highscore(highscore)
+                else:
+                    await render_highscore(config['highscore'])
+
         except Exception as ex:
             self.log.exception(ex)
 

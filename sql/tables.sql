@@ -1,5 +1,8 @@
 CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);
 INSERT INTO version (version) VALUES ('v1.6') ON CONFLICT (version) DO NOTHING;
 CREATE TABLE IF NOT EXISTS plugins (plugin TEXT PRIMARY KEY, version TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS servers (server_name TEXT PRIMARY KEY, agent_host TEXT NOT NULL, host TEXT NOT NULL DEFAULT '127.0.0.1', port BIGINT NOT NULL, blue_password TEXT, red_password TEXT, last_seen TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS servers (server_name TEXT PRIMARY KEY, agent_host TEXT NOT NULL, host TEXT NOT NULL DEFAULT '127.0.0.1', port BIGINT NOT NULL, status_channel BIGINT NOT NULL DEFAULT -1, chat_channel BIGINT NOT NULL DEFAULT -1, blue_password TEXT, red_password TEXT, last_seen TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS message_persistence (server_name TEXT NOT NULL, embed_name TEXT NOT NULL, embed BIGINT NOT NULL, PRIMARY KEY (server_name, embed_name));
+CREATE TABLE IF NOT EXISTS agents (guild_id BIGINT NOT NULL, node TEXT NOT NULL, master BOOLEAN NOT NULL, last_seen TIMESTAMP DEFAULT NOW(), PRIMARY KEY (guild_id, node));
+CREATE TABLE IF NOT EXISTS config_agents (guild_id BIGINT NOT NULL, node TEXT NOT NULL, param TEXT NOT NULL, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS intercom (id SERIAL PRIMARY KEY, agent TEXT NOT NULL, time TIMESTAMP NOT NULL DEFAULT NOW(), data JSON);

@@ -652,7 +652,7 @@ class Mission(Plugin):
                             outfile.write(await response.read())
                     else:
                         await message.channel.send(f'Error {response.status} while reading MIZ file!')
-            if not self.bot.config.getboolean('BOT', 'AUTOSCAN'):
+            if not self.bot.config.getboolean(server.installation, 'AUTOSCAN'):
                 server.addMission(filename)
             name = os.path.basename(filename)[:-4]
             await message.channel.send(f'Mission "{name}" uploaded and added.' if not exists else f"Mission {name} replaced.")

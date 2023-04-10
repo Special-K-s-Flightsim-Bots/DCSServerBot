@@ -11,10 +11,13 @@ from contextlib import closing
 from copy import deepcopy
 from core import utils, Server, Status, Channel, DataObjectFactory, Player, Autoexec
 from datetime import datetime
-from discord.ext import commands
+from discord.ext import commands, tasks
+from psycopg2.extras import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Callable, Optional, Tuple, Union
+
+from .data.serverproxy import ServerProxy
 from .listener import EventListener
 
 
@@ -25,7 +28,6 @@ class DCSServerBot(commands.Bot):
         self.member: Optional[discord.Member] = None
         self.version: str = kwargs['version']
         self.sub_version: str = kwargs['sub_version']
-        self.listeners = {}
         self.eventListeners: list[EventListener] = []
         self.external_ip: Optional[str] = None
         self.udp_server = None
@@ -33,23 +35,31 @@ class DCSServerBot(commands.Bot):
         self.pool = kwargs['pool']
         self.log = kwargs['log']
         self.config = kwargs['config']
-        self.master: bool = self.config.getboolean('BOT', 'MASTER')
-        self.master_only: bool = self.config.getboolean('BOT', 'MASTER_ONLY')
         plugins: str = self.config['BOT']['PLUGINS']
         if 'OPT_PLUGINS' in self.config['BOT']:
             plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
         self.plugins: [str] = [p.strip() for p in list(dict.fromkeys(plugins.split(',')))]
-        if not self.config.getboolean('BOT', 'USE_DASHBOARD'):
+        # make sure, cloud is loaded last
+        if 'cloud' in self.plugins:
+            self.plugins.remove('cloud')
+            self.plugins.append('cloud')
+        if 'dashboard' in self.plugins and not self.config.getboolean('BOT', 'USE_DASHBOARD'):
             self.plugins.remove('dashboard')
         self.audit_channel = None
         self.mission_stats = None
         self.synced: bool = False
         self.tree.on_error = self.on_app_command_error
+        self.executor = None
+
+    async def start(self, token: str, *, reconnect: bool = True) -> None:
         self.executor = ThreadPoolExecutor(thread_name_prefix='BotExecutor', max_workers=20)
+        self.init_servers()
+        self.synced: bool = False
+        await super().start(token, reconnect=reconnect)
 
     async def close(self):
-        await self.audit(message="DCSServerBot stopped.")
-        self.log.info('Graceful shutdown (this might take a bit) ...')
+        await self.audit(message="Master Bot stopped.")
+        self.log.info('Graceful shutdown ...')
         if self.udp_server:
             self.log.debug("- Processing unprocessed messages ...")
             await asyncio.to_thread(self.udp_server.shutdown)
@@ -58,12 +68,15 @@ class DCSServerBot(commands.Bot):
         self.log.debug('- Listener stopped.')
         self.executor.shutdown(wait=True)
         self.log.debug('- Executor stopped.')
+        self.intercom.cancel()
+        self.log.info('- Intercom stopped.')
         self.log.info('- Unloading Plugins ...')
         await super().close()
-        self.log.info('Shutdown complete.')
+        self.log.info('Master Bot stopped.')
 
-    def is_master(self) -> bool:
-        return self.master
+    @staticmethod
+    def is_master() -> bool:
+        return True
 
     def init_servers(self):
         for server_name, installation in utils.findDCSInstallations():
@@ -94,8 +107,6 @@ class DCSServerBot(commands.Bot):
                 num += 1
         if num == 0:
             self.log.info('- No running servers found.')
-        self.log.info('DCSServerBot started, accepting commands.')
-        await self.audit(message="DCSServerBot started.")
 
     async def load_plugin(self, plugin: str) -> bool:
         try:
@@ -126,10 +137,6 @@ class DCSServerBot(commands.Bot):
     async def reload_plugin(self, plugin: str):
         await self.unload_plugin(plugin)
         await self.load_plugin(plugin)
-
-    async def start(self, token: str, *, reconnect: bool = True) -> None:
-        self.init_servers()
-        await super().start(token, reconnect=reconnect)
 
     def check_roles(self, roles: list, server: Optional[Server] = None):
         for role in roles:
@@ -195,17 +202,23 @@ class DCSServerBot(commands.Bot):
                         self.log.warning(f'     - {guild.name}')
                     self.log.warning('  => Remove it from one guild and restart the bot.')
                 self.member = self.guilds[0].get_member(self.user.id)
-                self.external_ip = await utils.get_external_ip() if 'PUBLIC_IP' not in self.config['BOT'] else self.config['BOT']['PUBLIC_IP']
                 self.log.info('- Checking Roles & Channels ...')
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
                 for server in self.servers.values():
                     if self.config.getboolean(server.installation, 'COALITIONS'):
                         self.check_roles(['Coalition Red', 'Coalition Blue'], server)
                     self.check_channels(server.installation)
+                self.external_ip = await utils.get_external_ip() if 'PUBLIC_IP' not in self.config['BOT'] else \
+                    self.config['BOT']['PUBLIC_IP']
                 self.log.info('- Loading Plugins ...')
                 for plugin in self.plugins:
                     if not await self.load_plugin(plugin.lower()):
                         self.log.info(f'  => {plugin.title()} NOT loaded.')
+                # start the intercom
+                self.intercom.start()
+                # start the UDP listener to accept commands from DCS
+                await self.start_udp_listener()
+                await self.register_servers()
                 if not self.synced:
                     self.log.info('- Registering Discord Commands (this might take a bit) ...')
                     self.tree.copy_global_to(guild=self.guilds[0])
@@ -214,9 +227,8 @@ class DCSServerBot(commands.Bot):
                     self.log.info('- Discord Commands registered.')
                 if 'DISCORD_STATUS' in self.config['BOT']:
                     await self.change_presence(activity=discord.Game(name=self.config['BOT']['DISCORD_STATUS']))
-                # start the UDP listener to accept commands from DCS
-                self.loop.create_task(self.start_udp_listener())
-                self.loop.create_task(self.register_servers())
+                self.log.info('Master Bot started.')
+                await self.audit(message="DCSServerBot Master started.")
             else:
                 self.log.warning('- Discord connection re-established.')
                 # maybe our external IP has changed...
@@ -230,14 +242,11 @@ class DCSServerBot(commands.Bot):
         elif isinstance(err, commands.NoPrivateMessage):
             await ctx.send(f"{ctx.command.name} can't be used in a DM.")
         elif isinstance(err, commands.MissingRequiredArgument):
-            cmd = ctx.command.name + ' '
-            if ctx.command.usage:
-                cmd += ctx.command.usage
-            else:
-                cmd += ' '.join([f'<{name}>' if param.required else f'[{name}]' for name, param in ctx.command.params.items()])
-            await ctx.send(f"Usage: {ctx.prefix}{cmd}")
+            await ctx.send(f"Usage: {ctx.prefix}{ctx.command.name} {ctx.command.signature}")
         elif isinstance(err, commands.errors.CheckFailure):
             await ctx.send(f"You don't have the permission to use {ctx.command.name}!")
+        elif isinstance(err, commands.DisabledCommand):
+            pass
         elif isinstance(err, asyncio.TimeoutError):
             await ctx.send('A timeout occurred. Is the DCS server running?')
         else:
@@ -290,16 +299,26 @@ class DCSServerBot(commands.Bot):
             embed.set_footer(text=datetime.now().strftime("%d/%m/%y %H:%M:%S"))
             await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
 
-    def sendtoBot(self, message: dict):
-        message['channel'] = '-1'
-        msg = json.dumps(message)
-        self.log.debug('HOST->HOST: {}'.format(msg))
-        dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        host = self.config['BOT']['HOST']
-        if host == '0.0.0.0':
-            host = '127.0.0.1'
-        dcs_socket.sendto(msg.encode('utf-8'), (host, int(self.config['BOT']['PORT'])))
-        dcs_socket.close()
+    def sendtoBot(self, data: dict, agent: Optional[str] = None):
+        if agent:
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute("INSERT INTO intercom (agent, data) VALUES (%s, %s)", (agent, Json(data)))
+                conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+                conn.rollback()
+            finally:
+                self.pool.putconn(conn)
+        else:
+            msg = json.dumps(data)
+            dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            host = self.config['BOT']['HOST']
+            if host == '0.0.0.0':
+                host = '127.0.0.1'
+            dcs_socket.sendto(msg.encode('utf-8'), (host, int(self.config['BOT']['PORT'])))
+            dcs_socket.close()
 
     def get_channel(self, channel_id: int):
         return super().get_channel(channel_id) if channel_id != -1 else None
@@ -374,9 +393,9 @@ class DCSServerBot(commands.Bot):
         finally:
             self.pool.putconn(conn)
 
-    def get_player_by_ucid(self, ucid: str) -> Optional[Player]:
+    def get_player_by_ucid(self, ucid: str, active: Optional[bool] = True) -> Optional[Player]:
         for server in self.servers.values():
-            player = server.get_player(ucid=ucid, active=True)
+            player = server.get_player(ucid=ucid, active=active)
             if player:
                 return player
         return None
@@ -612,9 +631,12 @@ class DCSServerBot(commands.Bot):
         self.log.debug(f"Server {server.name} initialized")
         return True
 
+    def register_remote_server(self, data: dict):
+        self.log.info(f"Registering remote server {data['server_name']}.")
+        self.servers[data['server_name']] = ServerProxy(
+            bot=self, name=data['server_name'], installation="remote", host="remote", port=-1)
+
     async def get_server(self, ctx: Union[commands.Context, discord.Interaction, discord.Message, str]) -> Optional[Server]:
-        if self.master and len(self.servers) == 1 and self.master_only:
-            return list(self.servers.values())[0]
         for server_name, server in self.servers.items():
             if isinstance(ctx, commands.Context) or isinstance(ctx, discord.Interaction) \
                     or isinstance(ctx, discord.Message):
@@ -635,7 +657,27 @@ class DCSServerBot(commands.Bot):
                     return server
         return None
 
-    async def start_udp_listener(self):
+    @tasks.loop(seconds=1, reconnect=True)
+    async def intercom(self):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("SELECT id, data FROM intercom WHERE agent = %s",
+                               ("Master" if self.is_master() else platform.node(), ))
+                for row in cursor.fetchall():
+                    data = row[1]
+                    if data['command'] == 'registerDCSServer':
+                        self.register_remote_server(data)
+                    self.sendtoBot(data)
+                    cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+
+    async def start_udp_listener(self) -> asyncio.Future:
         class RequestHandler(BaseRequestHandler):
 
             def handle(s):
@@ -644,38 +686,42 @@ class DCSServerBot(commands.Bot):
                 if 'server_name' not in data:
                     self.log.warning('Message without server_name received: {}'.format(data))
                     return
-                self.log.debug('{}->HOST: {}'.format(data['server_name'], json.dumps(data)))
+                server_name = data['server_name']
+                self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
+                server = self.servers[server_name]
+                if server.is_remote:
+                    self.log.warning(f"Server {server.name} is running twice, on nodes {platform.node()} and {server.agent}!")
+                    return
                 if 'channel' in data and data['channel'].startswith('sync-'):
-                    if data['channel'] in self.listeners:
-                        f = self.listeners[data['channel']]
+                    if data['channel'] in server.listeners:
+                        f = server.listeners[data['channel']]
                         if not f.done():
                             self.loop.call_soon_threadsafe(f.set_result, data)
                         if data['command'] != 'registerDCSServer':
                             return
-                server_name = data['server_name']
-                if server_name not in s.server.message_queue:
-                    s.server.message_queue[server_name] = Queue()
-                    s.server.executor.submit(s.process, server_name)
-                s.server.message_queue[server_name].put(data)
+                if server.name not in s.server.message_queue:
+                    s.server.message_queue[server.name] = Queue()
+                    s.server.executor.submit(s.process, server)
+                s.server.message_queue[server.name].put(data)
 
-            def process(s, server_name: str):
-                data = s.server.message_queue[server_name].get()
-                server: Server = self.servers[server_name]
+            def process(s, server: Server):
+                data = s.server.message_queue[server.name].get()
                 while len(data):
                     try:
                         command = data['command']
                         if command == 'registerDCSServer':
-                            if not self.register_server(data):
-                                self.log.error(f"Error while registering server {server_name}.")
+                            if not server.is_remote and not self.register_server(data):
+                                self.log.error(f"Error while registering server {server.name}.")
                                 return
-                        elif server_name not in self.servers or server.status == Status.UNREGISTERED:
+                        elif server.name not in self.servers or server.status == Status.UNREGISTERED:
                             self.log.debug(
-                                f"Command {command} for unregistered server {server_name} received, ignoring.")
+                                f"Command {command} for unregistered server {server.name} received, ignoring.")
                             continue
                         concurrent.futures.wait(
                             [
-                                asyncio.run_coroutine_threadsafe(listener.processEvent(command, server, deepcopy(data)),
-                                                                 self.loop)
+                                asyncio.run_coroutine_threadsafe(
+                                    listener.processEvent(command, server, deepcopy(data)), self.loop
+                                )
                                 for listener in self.eventListeners
                                 if listener.has_event(command)
                             ]
@@ -683,8 +729,8 @@ class DCSServerBot(commands.Bot):
                     except Exception as ex:
                         self.log.exception(ex)
                     finally:
-                        s.server.message_queue[server_name].task_done()
-                        data = s.server.message_queue[server_name].get()
+                        s.server.message_queue[server.name].task_done()
+                        data = s.server.message_queue[server.name].get()
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler],
@@ -692,11 +738,14 @@ class DCSServerBot(commands.Bot):
                 self.bot = bot
                 self.log = bot.log
                 self.executor = bot.executor
-                # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
-                MyThreadingUDPServer.allow_reuse_address = True
-                MyThreadingUDPServer.max_packet_size = 65504
-                self.message_queue: dict[str, Queue[str]] = {}
-                super().__init__(server_address, request_handler)
+                try:
+                    # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
+                    MyThreadingUDPServer.allow_reuse_address = True
+                    MyThreadingUDPServer.max_packet_size = 65504
+                    self.message_queue: dict[str, Queue[str]] = {}
+                    super().__init__(server_address, request_handler)
+                except Exception as ex:
+                    self.log.exception(ex)
 
             def shutdown(self) -> None:
                 super().shutdown()
@@ -711,5 +760,6 @@ class DCSServerBot(commands.Bot):
         host = self.config['BOT']['HOST']
         port = int(self.config['BOT']['PORT'])
         self.udp_server = MyThreadingUDPServer((host, port), RequestHandler, self)
-        self.executor.submit(self.udp_server.serve_forever)
+        future = asyncio.wrap_future(self.executor.submit(self.udp_server.serve_forever))
         self.log.debug('- Listener started on interface {} port {} accepting commands.'.format(host, port))
+        return future

@@ -21,12 +21,11 @@ class DataObject:
 
 class DataObjectFactory:
     _instance = None
-    _registry = dict[str, Any]()
+    _registry = dict[str, DataObject]()
 
     def __new__(cls) -> DataObjectFactory:
         if cls._instance is None:
             cls._instance = super(DataObjectFactory, cls).__new__(cls)
-            cls._methods = dict[str, DataObject]()
         return cls._instance
 
     @classmethod

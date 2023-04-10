@@ -1,6 +1,7 @@
 import discord
 import json
-from core import DCSServerBot, Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition
+from core import DCSServerBot, Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
+    PluginInstallationError
 from discord.ext import tasks, commands
 from os import path
 from typing import Optional, TYPE_CHECKING, Type
@@ -14,6 +15,8 @@ class MessageOfTheDay(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
+        if not self.locals:
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
         self.last_nudge = dict[str, int]()
         self.nudge.start()
 

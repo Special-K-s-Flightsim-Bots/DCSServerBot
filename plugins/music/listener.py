@@ -12,24 +12,24 @@ class MusicEventListener(EventListener):
                 self.log.warning(f"No config\\music.json found or no entry for server {server.name} configured.")
                 return
             config = self.plugin.get_config(server)['sink']
-            sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(bot=self.bot, server=server,
-                                                                                    config=config)
+            sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(
+                bot=self.bot, server=server, config=config, music_dir=self.plugin.get_config(server)['music_dir'])
             self.plugin.sinks[server.name] = sink
         if server.get_active_players():
             await self.plugin.sinks[server.name].start()
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        if len(server.get_active_players()) == 1:
+        if len(server.get_active_players()) == 1 and server.name in self.plugin.sinks:
             await self.plugin.sinks[server.name].start()
 
     @event(name="onPlayerStop")
     async def onPlayerStop(self, server: Server, data: dict) -> None:
-        if not server.get_active_players():
+        if not server.get_active_players() and server.name in self.plugin.sinks:
             await self.plugin.sinks[server.name].stop()
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'disconnect':
-            if not server.get_active_players():
+            if not server.get_active_players() and server.name in self.plugin.sinks:
                 await self.plugin.sinks[server.name].stop()

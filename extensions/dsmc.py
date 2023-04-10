@@ -55,7 +55,7 @@ class DSMC(Extension):
         return True
 
     async def beforeMissionLoad(self) -> bool:
-        filename = self.server.get_current_mission_file()
+        filename = await self.server.get_current_mission_file()
         if not filename or not filename.startswith('DSMC'):
             return False
         if not filename[-7:-4].isnumeric():
