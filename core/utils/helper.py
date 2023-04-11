@@ -3,11 +3,9 @@ import importlib
 import json
 import luadata
 import os
-import psycopg2
 import re
 import string
 import unicodedata
-from contextlib import closing
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple
 
@@ -183,15 +181,12 @@ def alternate_parse_settings(path: str):
 
 def get_all_servers(self) -> list[str]:
     retval: list[str] = list()
-    conn = self.pool.getconn()
-    try:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute(f"SELECT server_name FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')")
-            return [row[0] for row in cursor.fetchall()]
-    except (Exception, psycopg2.DatabaseError) as error:
-        self.log.exception(error)
-    finally:
-        self.pool.putconn(conn)
+    with self.pool.connection() as conn:
+        return [
+            row[0] for row in conn.execute(
+                "SELECT server_name FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')"
+            ).fetchall()
+        ]
 
 
 def get_all_players(self, **kwargs) -> list[Tuple[str, str]]:
@@ -206,27 +201,13 @@ def get_all_players(self, **kwargs) -> list[Tuple[str, str]]:
         ucid = f'%{ucid}%'
     sql += ' ORDER BY 2 LIMIT 25'
 
-    conn = self.pool.getconn()
-    try:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute(sql, (name or ucid, ))
-            return [(row[0], row[1]) for row in cursor.fetchall()]
-    except (Exception, psycopg2.DatabaseError) as error:
-        self.log.exception(error)
-    finally:
-        self.pool.putconn(conn)
+    with self.pool.connection() as conn:
+        return [(row[0], row[1]) for row in conn.execute(sql, (name or ucid, )).fetchall()]
 
 
 def is_banned(self, ucid: str):
-    conn = self.pool.getconn()
-    try:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute(f"SELECT COUNT(*) FROM bans WHERE ucid = %s", (ucid,))
-            return cursor.fetchone()[0] > 0
-    except (Exception, psycopg2.DatabaseError) as error:
-        self.log.exception(error)
-    finally:
-        self.pool.putconn(conn)
+    with self.pool.connection() as conn:
+        return conn.execute(f"SELECT COUNT(*) FROM bans WHERE ucid = %s", (ucid,)).fetchone()[0] > 0
 
 
 def is_ucid(ucid: str) -> bool:

@@ -3,8 +3,7 @@ import math
 import os
 import platform
 import psutil
-import psycopg2
-from contextlib import closing
+import psycopg
 from core import utils, Plugin, DCSServerBot, TEventListener, Status, PluginRequiredError, Report, PaginationReport, \
     Server
 from discord.ext import tasks, commands
@@ -16,7 +15,9 @@ class AgentServerStats(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
+        self.cleanup.add_exception_type(psycopg.DatabaseError)
         self.cleanup.start()
+        self.schedule.add_exception_type(psycopg.DatabaseError)
         self.schedule.start()
         self.io_counters = {}
         self.net_io_counters = None
@@ -27,17 +28,10 @@ class AgentServerStats(Plugin):
         await super().cog_unload()
 
     def rename(self, old_name: str, new_name: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s',
-                               (new_name, old_name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s',
+                             (new_name, old_name))
 
     @staticmethod
     def get_params(*params) -> Tuple[bool, Optional[str]]:
@@ -79,65 +73,52 @@ class AgentServerStats(Plugin):
 
     @tasks.loop(minutes=1.0)
     async def schedule(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                for server_name, server in self.bot.servers.items():
-                    if server.status not in [Status.RUNNING, Status.PAUSED]:
-                        continue
-                    users = len(server.get_active_players())
-                    if not server.process or not server.process.is_running():
-                        for exe in ['DCS_server.exe', 'DCS.exe']:
-                            server.process = utils.find_process(exe, server.installation)
-                            if server.process:
-                                break
-                        else:
-                            self.log.warning(f"Could not find a running DCS instance for server {server_name}, "
-                                             f"skipping server load gathering.")
-                            continue
-                    cpu = server.process.cpu_percent()
-                    memory = server.process.memory_full_info()
-                    io_counters = server.process.io_counters()
-                    if server.process.pid not in self.io_counters:
-                        write_bytes = read_bytes = 0
-                    else:
-                        write_bytes = io_counters.write_bytes - self.io_counters[server.process.pid].write_bytes
-                        read_bytes = io_counters.read_bytes - self.io_counters[server.process.pid].read_bytes
-                    self.io_counters[server.process.pid] = io_counters
-                    net_io_counters = psutil.net_io_counters(pernic=False)
-                    if not self.net_io_counters:
-                        bytes_sent = bytes_recv = 0
-                    else:
-                        bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
-                        bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
-                    self.net_io_counters = net_io_counters
-                    ping = (self.bot.latency * 1000) if not math.isinf(self.bot.latency) else -1
-                    if server_name in self.eventlistener.fps:
-                        cursor.execute('INSERT INTO serverstats (server_name, agent_host, mission_id, users, status, '
-                                       'cpu, mem_total, mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, '
-                                       'fps, ping) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                                       (server_name, platform.node(), server.mission_id, users, server.status.name, cpu,
-                                        memory.private, memory.rss, read_bytes, write_bytes, bytes_sent, bytes_recv,
-                                        self.eventlistener.fps[server_name], ping))
-                        conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        for server_name, server in self.bot.servers.items():
+            if server.status not in [Status.RUNNING, Status.PAUSED]:
+                continue
+            users = len(server.get_active_players())
+            if not server.process or not server.process.is_running():
+                for exe in ['DCS_server.exe', 'DCS.exe']:
+                    server.process = utils.find_process(exe, server.installation)
+                    if server.process:
+                        break
+                else:
+                    self.log.warning(f"Could not find a running DCS instance for server {server_name}, "
+                                     f"skipping server load gathering.")
+                    continue
+            cpu = server.process.cpu_percent()
+            memory = server.process.memory_full_info()
+            io_counters = server.process.io_counters()
+            if server.process.pid not in self.io_counters:
+                write_bytes = read_bytes = 0
+            else:
+                write_bytes = io_counters.write_bytes - self.io_counters[server.process.pid].write_bytes
+                read_bytes = io_counters.read_bytes - self.io_counters[server.process.pid].read_bytes
+            self.io_counters[server.process.pid] = io_counters
+            net_io_counters = psutil.net_io_counters(pernic=False)
+            if not self.net_io_counters:
+                bytes_sent = bytes_recv = 0
+            else:
+                bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
+                bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
+            self.net_io_counters = net_io_counters
+            ping = (self.bot.latency * 1000) if not math.isinf(self.bot.latency) else -1
+            if server_name in self.eventlistener.fps:
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute("""
+                        INSERT INTO serverstats (server_name, agent_host, mission_id, users, status, cpu, mem_total, 
+                                                 mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, fps, ping) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (server_name, platform.node(), server.mission_id, users, server.status.name, cpu,
+                          memory.private, memory.rss, read_bytes, write_bytes, bytes_sent, bytes_recv,
+                          self.eventlistener.fps[server_name], ping))
 
     @tasks.loop(hours=12.0)
     async def cleanup(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("DELETE FROM serverstats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("DELETE FROM serverstats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
 
 
 class MasterServerStats(AgentServerStats):

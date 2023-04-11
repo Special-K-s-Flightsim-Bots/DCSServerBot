@@ -4,7 +4,6 @@ import discord
 import json
 import os
 import psutil
-import psycopg2
 import socket
 import subprocess
 import win32con
@@ -125,19 +124,13 @@ class ServerImpl(Server):
         for plugin in self.bot.cogs.values():  # type: Plugin
             plugin.rename(self.name, new_name)
         # rename the entries in the main database tables
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                               (new_name, self.name))
-                cursor.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                               (new_name, self.name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
+                                   (new_name, self.name))
+                    cursor.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
+                                   (new_name, self.name))
         if update_settings:
             self.settings['name'] = new_name
         self.name = new_name
@@ -225,15 +218,11 @@ class ServerImpl(Server):
             if not message:
                 message = await channel.send(embed=embed, file=file)
                 self.embeds[embed_name] = message
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute('INSERT INTO message_persistence (server_name, embed_name, embed) VALUES (%s, '
-                                       '%s, %s) ON CONFLICT (server_name, embed_name) DO UPDATE SET '
-                                       'embed=excluded.embed', (self.name, embed_name, message.id))
-                    conn.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute("""
+                            INSERT INTO message_persistence (server_name, embed_name, embed) 
+                            VALUES (%s, %s, %s) 
+                            ON CONFLICT (server_name, embed_name) 
+                            DO UPDATE SET embed=excluded.embed
+                        """, (self.name, embed_name, message.id))

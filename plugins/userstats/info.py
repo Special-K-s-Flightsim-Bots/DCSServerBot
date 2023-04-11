@@ -1,9 +1,9 @@
 import discord
-import psycopg2
 from contextlib import closing
 from core import report, Side, Player, DataObjectFactory, Member, utils
 from datetime import datetime
 from typing import Union, Optional
+from psycopg.rows import dict_row
 
 
 class Header(report.EmbedElement):
@@ -16,19 +16,13 @@ class Header(report.EmbedElement):
         else:
             sql += f"'{member.id}'"
         sql += ' GROUP BY p.ucid, b.ucid'
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(sql)
                 if cursor.rowcount == 0:
                     self.embed.description = 'User "{}" is not linked.'.format(utils.escape_string(member if isinstance(member, str) else member.display_name))
                     return
                 rows = list(cursor.fetchall())
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            raise
-        finally:
-            self.bot.pool.putconn(conn)
         self.embed.description = f'Information about '
         if isinstance(member, discord.Member):
             self.embed.description += 'member **{}**:'.format(utils.escape_string(member.display_name))
@@ -56,51 +50,37 @@ class UCIDs(report.EmbedElement):
                    f"p.ucid = '{member}' OR LOWER(p.name) ILIKE '{member.casefold()}' "
         else:
             sql += f"'{member.id}'"
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql)
-                if not cursor.rowcount:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                rows = cursor.execute(sql).fetchall()
+                if not rows:
                     return
-                rows = list(cursor.fetchall())
                 self.add_field(name='▬' * 13 + ' Connected UCIDs ' + '▬' * 12, value='_ _', inline=False)
                 self.add_field(name='UCID', value='\n'.join([row['ucid'] for row in rows]))
                 self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name']) for row in rows]))
                 if isinstance(member, discord.Member):
                     self.add_field(name='Validated', value='\n'.join(
                         ['Approved' if row['manual'] is True else 'Not Approved' for row in rows]))
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            raise
-        finally:
-            self.bot.pool.putconn(conn)
 
 
 class History(report.EmbedElement):
     def render(self, member: Union[discord.Member, str]):
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.discord_id = '
-                if isinstance(member, str):
-                    sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
-                           f"p.ucid = '{member}' OR LOWER(p.name) ILIKE '{member.casefold()}' "
-                else:
-                    sql += f"'{member.id}'"
-                sql += ' GROUP BY name ORDER BY time DESC LIMIT 10'
-                cursor.execute(sql)
-                if not cursor.rowcount:
+        sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.discord_id = '
+        if isinstance(member, str):
+            sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
+                   f"p.ucid = '{member}' OR LOWER(p.name) ILIKE '{member.casefold()}' "
+        else:
+            sql += f"'{member.id}'"
+        sql += ' GROUP BY name ORDER BY time DESC LIMIT 10'
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                rows = cursor.execute(sql).fetchall()
+                if not rows:
                     return
-                rows = cursor.fetchall()
                 self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
                 self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name'] or 'n/a') for row in rows]))
                 self.add_field(name='Time', value='\n'.join([f"{row['time']:%y-%m-%d %H:%M:%S}" for row in rows]))
                 self.add_field(name='_ _', value='_ _')
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            raise
-        finally:
-            self.bot.pool.putconn(conn)
 
 
 class ServerInfo(report.EmbedElement):

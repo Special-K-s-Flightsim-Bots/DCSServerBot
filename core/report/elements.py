@@ -1,13 +1,12 @@
 from __future__ import annotations
-import concurrent
 import discord
 import inspect
 import numpy as np
 import os
-import psycopg2
 import sys
 import uuid
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from core import utils
 from core.report.env import ReportEnv
@@ -16,6 +15,7 @@ from core.report.utils import parse_params
 from datetime import timedelta
 from discord import ButtonStyle, Interaction
 from matplotlib import pyplot as plt
+from psycopg.rows import dict_row
 from typing import Optional, List, Any, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
@@ -155,7 +155,7 @@ class Graph(ReportElement):
         if facecolor:
             self.env.figure.set_facecolor(facecolor)
         futures = []
-        with concurrent.futures.ThreadPoolExecutor(
+        with ThreadPoolExecutor(
                 max_workers=int(self.env.bot.config['REPORTS']['NUM_WORKERS'])) as executor:
             for element in elements:
                 if 'params' in element:
@@ -203,26 +203,20 @@ class Graph(ReportElement):
 
 class SQLField(EmbedElement):
     def render(self, sql: str, inline: Optional[bool] = True):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount > 0:
                     row = cursor.fetchone()
                     name = list(row.keys())[0]
                     value = row[0]
                     self.add_field(name=name, value=value, inline=inline)
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class SQLTable(EmbedElement):
     def render(self, sql: str, inline: Optional[bool] = True):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 header = None
                 cols = []
@@ -241,10 +235,6 @@ class SQLTable(EmbedElement):
                 if elements % 3 and inline:
                     for i in range(0, 3 - elements % 3):
                         self.add_field(name='_ _', value='_ _')
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class BarChart(GraphElement):
@@ -290,9 +280,8 @@ class BarChart(GraphElement):
 
 class SQLBarChart(BarChart):
     def render(self, sql: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 1:
                     super().render(cursor.fetchone())
@@ -304,10 +293,6 @@ class SQLBarChart(BarChart):
                     super().render(values)
                 else:
                     super().render({})
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class PieChart(GraphElement):
@@ -346,9 +331,8 @@ class PieChart(GraphElement):
 
 class SQLPieChart(PieChart):
     def render(self, sql: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 1:
                     super().render(cursor.fetchone())
@@ -360,7 +344,3 @@ class SQLPieChart(PieChart):
                     super().render(values)
                 else:
                     super().render({})
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)

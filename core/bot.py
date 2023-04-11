@@ -3,7 +3,6 @@ import concurrent
 import discord
 import json
 import platform
-import psycopg2
 import re
 import socket
 from concurrent.futures import ThreadPoolExecutor
@@ -12,7 +11,8 @@ from copy import deepcopy
 from core import utils, Server, Status, Channel, DataObjectFactory, Player, Autoexec
 from datetime import datetime
 from discord.ext import commands, tasks
-from psycopg2.extras import Json
+from psycopg.rows import dict_row
+from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Callable, Optional, Tuple, Union
@@ -301,16 +301,9 @@ class DCSServerBot(commands.Bot):
 
     def sendtoBot(self, data: dict, agent: Optional[str] = None):
         if agent:
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute("INSERT INTO intercom (agent, data) VALUES (%s, %s)", (agent, Json(data)))
-                conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-                conn.rollback()
-            finally:
-                self.pool.putconn(conn)
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute("INSERT INTO intercom (agent, data) VALUES (%s, %s)", (agent, Json(data)))
         else:
             msg = json.dumps(data)
             dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -324,8 +317,7 @@ class DCSServerBot(commands.Bot):
         return super().get_channel(channel_id) if channel_id != -1 else None
 
     def get_ucid_by_name(self, name: str) -> Tuple[Optional[str], Optional[str]]:
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 search = f'%{name}%'
                 cursor.execute('SELECT ucid, name FROM players WHERE LOWER(name) like LOWER(%s) '
@@ -335,14 +327,9 @@ class DCSServerBot(commands.Bot):
                     return res[0], res[1]
                 else:
                     return None, None
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
     def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> Optional[Union[discord.Member, str]]:
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 sql = 'SELECT discord_id, name FROM players WHERE ucid = %s'
                 if verified:
@@ -353,14 +340,9 @@ class DCSServerBot(commands.Bot):
                     return self.guilds[0].get_member(row[0]) or row[1]
                 else:
                     return None
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
     def get_ucid_by_member(self, member: discord.Member, verified: Optional[bool] = False) -> Optional[str]:
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 sql = 'SELECT ucid FROM players WHERE discord_id = %s '
                 if verified:
@@ -371,14 +353,9 @@ class DCSServerBot(commands.Bot):
                     return cursor.fetchone()[0]
                 else:
                     return None
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
     def get_member_by_ucid(self, ucid: str, verified: Optional[bool] = False) -> Optional[discord.Member]:
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 sql = 'SELECT discord_id FROM players WHERE ucid = %s AND discord_id <> -1'
                 if verified:
@@ -388,10 +365,6 @@ class DCSServerBot(commands.Bot):
                     return self.guilds[0].get_member(cursor.fetchone()[0])
                 else:
                     return None
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
     def get_player_by_ucid(self, ucid: str, active: Optional[bool] = True) -> Optional[Player]:
         for server in self.servers.values():
@@ -504,28 +477,21 @@ class DCSServerBot(commands.Bot):
         else:
             max_weight = 0
             best_fit = None
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    sql = 'SELECT ucid, name from players'
-                    if rematch is False:
-                        sql += ' WHERE discord_id = -1 AND name IS NOT NULL'
-                    cursor.execute(sql)
-                    for row in cursor.fetchall():
-                        name = re.sub(tag_filter, '', data.name).strip() if tag_filter else data.name
-                        if data.nick:
-                            nickname = re.sub(tag_filter, '', data.nick).strip() if tag_filter else data.nick
-                            weight = max(self.match(nickname, row['name']), self.match(name, row['name']))
-                        else:
-                            weight = self.match(name, row[1])
-                        if weight > max_weight:
-                            max_weight = weight
-                            best_fit = row[0]
-                    return best_fit
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
+            with self.pool.connection() as conn:
+                sql = 'SELECT ucid, name from players'
+                if rematch is False:
+                    sql += ' WHERE discord_id = -1 AND name IS NOT NULL'
+                for row in conn.execute(sql).fetchall():
+                    name = re.sub(tag_filter, '', data.name).strip() if tag_filter else data.name
+                    if data.nick:
+                        nickname = re.sub(tag_filter, '', data.nick).strip() if tag_filter else data.nick
+                        weight = max(self.match(nickname, row['name']), self.match(name, row['name']))
+                    else:
+                        weight = self.match(name, row[1])
+                    if weight > max_weight:
+                        max_weight = weight
+                        best_fit = row[0]
+                return best_fit
 
     def register_eventListener(self, listener: EventListener):
         self.log.debug(f'- Registering EventListener {type(listener).__name__}')
@@ -600,34 +566,33 @@ class DCSServerBot(commands.Bot):
                 webrtc_ports[webrtc_port] = server.name
 
         # update the database and check for server name changes
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT server_name FROM servers WHERE agent_host=%s AND host=%s AND port=%s',
-                               (platform.node(), data['host'], data['port']))
-                if cursor.rowcount == 1:
-                    server_name = cursor.fetchone()[0]
-                    if server_name != data['server_name']:
-                        if len(utils.findDCSInstallations(server_name)) == 0:
-                            self.log.info(f"Auto-renaming server \"{server_name}\" to \"{data['server_name']}\"")
-                            server.rename(data['server_name'])
-                            if server_name in self.servers:
-                                del self.servers[server_name]
-                        else:
-                            self.log.warning(
-                                f"Registration of server \"{data['server_name']}\" aborted due to UDP port conflict.")
-                            del self.servers[data['server_name']]
-                            return False
-                cursor.execute('INSERT INTO servers (server_name, agent_host, host, port) VALUES(%s, %s, %s, '
-                               '%s) ON CONFLICT (server_name) DO UPDATE SET agent_host=excluded.agent_host, '
-                               'host=excluded.host, port=excluded.port, last_seen=NOW()',
-                               (data['server_name'], platform.node(), data['host'], data['port']))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                    cursor.execute('SELECT server_name FROM servers WHERE agent_host=%s AND host=%s AND port=%s',
+                                   (platform.node(), data['host'], data['port']))
+                    if cursor.rowcount == 1:
+                        server_name = cursor.fetchone()[0]
+                        if server_name != data['server_name']:
+                            if len(utils.findDCSInstallations(server_name)) == 0:
+                                self.log.info(f"Auto-renaming server \"{server_name}\" to \"{data['server_name']}\"")
+                                server.rename(data['server_name'])
+                                if server_name in self.servers:
+                                    del self.servers[server_name]
+                            else:
+                                self.log.warning(
+                                    f"Registration of server \"{data['server_name']}\" aborted due to UDP port conflict.")
+                                del self.servers[data['server_name']]
+                                return False
+                    cursor.execute("""
+                        INSERT INTO servers (server_name, agent_host, host, port) 
+                        VALUES(%s, %s, %s, %s) 
+                        ON CONFLICT (server_name) DO UPDATE 
+                        SET agent_host=excluded.agent_host, 
+                            host=excluded.host, 
+                            port=excluded.port, 
+                            last_seen=NOW()
+                    """, (data['server_name'], platform.node(), data['host'], data['port']))
         self.log.debug(f"Server {server.name} initialized")
         return True
 
@@ -659,23 +624,16 @@ class DCSServerBot(commands.Bot):
 
     @tasks.loop(seconds=1, reconnect=True)
     async def intercom(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("SELECT id, data FROM intercom WHERE agent = %s",
-                               ("Master" if self.is_master() else platform.node(), ))
-                for row in cursor.fetchall():
-                    data = row[1]
-                    if data['command'] == 'registerDCSServer':
-                        self.register_remote_server(data)
-                    self.sendtoBot(data)
-                    cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.pipeline():
+                with conn.transaction():
+                    for row in conn.execute("SELECT id, data FROM intercom WHERE agent = %s",
+                                            ("Master" if self.is_master() else platform.node(), )).fetchall():
+                        data = row[1]
+                        if data['command'] == 'registerDCSServer':
+                            self.register_remote_server(data)
+                        self.sendtoBot(data)
+                        conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
     async def start_udp_listener(self) -> asyncio.Future:
         class RequestHandler(BaseRequestHandler):

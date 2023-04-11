@@ -1,8 +1,6 @@
 from __future__ import annotations
 import json
 import os
-import psycopg2
-import psycopg2.extras
 import sys
 from contextlib import closing
 from copy import deepcopy
@@ -123,45 +121,39 @@ class Plugin(commands.Cog):
         pass
 
     def init_db(self) -> None:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT version FROM plugins WHERE plugin = %s', (self.plugin_name,))
-                # first installation
-                if cursor.rowcount == 0:
-                    tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
-                    if path.exists(tables_file):
-                        with open(tables_file) as tables_sql:
-                            for query in tables_sql.readlines():
-                                self.log.debug(query.rstrip())
-                                cursor.execute(query.rstrip())
-                    cursor.execute('INSERT INTO plugins (plugin, version) VALUES (%s, %s) ON CONFLICT (plugin) DO '
-                                   'NOTHING', (self.plugin_name, self.plugin_version))
-                    self.log.info(f'  => {self.plugin_name.title()} installed.')
-                else:
-                    installed = cursor.fetchone()[0]
-                    # old variant, to be migrated
-                    if installed.startswith('v'):
-                        installed = installed[1:]
-                    while installed != self.plugin_version:
-                        updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
-                        if path.exists(updates_file):
-                            with open(updates_file) as updates_sql:
-                                for query in updates_sql.readlines():
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('SELECT version FROM plugins WHERE plugin = %s', (self.plugin_name,))
+                    # first installation
+                    if cursor.rowcount == 0:
+                        tables_file = f'./plugins/{self.plugin_name}/db/tables.sql'
+                        if path.exists(tables_file):
+                            with open(tables_file) as tables_sql:
+                                for query in tables_sql.readlines():
                                     self.log.debug(query.rstrip())
                                     cursor.execute(query.rstrip())
-                        ver, rev = installed.split('.')
-                        installed = ver + '.' + str(int(rev) + 1)
-                        self.migrate(installed)
-                        self.log.info(f'  => {self.plugin_name.title()} migrated to version {installed}.')
-                    cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
-                                   (self.plugin_version, self.plugin_name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+                        cursor.execute('INSERT INTO plugins (plugin, version) VALUES (%s, %s) ON CONFLICT (plugin) DO '
+                                       'NOTHING', (self.plugin_name, self.plugin_version))
+                        self.log.info(f'  => {self.plugin_name.title()} installed.')
+                    else:
+                        installed = cursor.fetchone()[0]
+                        # old variant, to be migrated
+                        if installed.startswith('v'):
+                            installed = installed[1:]
+                        while installed != self.plugin_version:
+                            updates_file = f'./plugins/{self.plugin_name}/db/update_v{installed}.sql'
+                            if path.exists(updates_file):
+                                with open(updates_file) as updates_sql:
+                                    for query in updates_sql.readlines():
+                                        self.log.debug(query.rstrip())
+                                        cursor.execute(query.rstrip())
+                            ver, rev = installed.split('.')
+                            installed = ver + '.' + str(int(rev) + 1)
+                            self.migrate(installed)
+                            self.log.info(f'  => {self.plugin_name.title()} migrated to version {installed}.')
+                        cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
+                                       (self.plugin_version, self.plugin_name))
 
     def read_locals(self) -> dict:
         if path.exists(f'./config/{self.plugin_name}.json'):

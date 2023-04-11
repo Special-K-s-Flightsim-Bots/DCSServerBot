@@ -1,7 +1,6 @@
 import discord
 import json
 import os
-import psycopg2
 import shutil
 import time
 from contextlib import closing
@@ -12,6 +11,7 @@ from discord import SelectOption, TextStyle, app_commands
 from discord.ext import commands, tasks
 from discord.ui import View, Select, Modal, TextInput, Item
 from os import path
+from psycopg.rows import dict_row
 from typing import Optional, Union, List, Type, Any
 from .listener import GreenieBoardEventListener
 
@@ -72,27 +72,20 @@ class GreenieBoardAgent(Plugin):
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Greenieboard ...')
-        with closing(conn.cursor()) as cursor:
-            if ucids:
-                for ucid in ucids:
-                    cursor.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
-            elif days > 0:
-                cursor.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
+        if ucids:
+            for ucid in ucids:
+                conn.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
+        elif days > 0:
+            conn.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Greenieboard pruned.')
 
     def rename(self, old_name: str, new_name: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE message_persistence SET embed_name = %s '
-                               'WHERE embed_name = %s AND server_name IN (%s, %s)',
-                               (f'greenieboard-{new_name}', f'greenieboard-{old_name}', old_name, new_name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('UPDATE message_persistence SET embed_name = %s '
+                                   'WHERE embed_name = %s AND server_name IN (%s, %s)',
+                                   (f'greenieboard-{new_name}', f'greenieboard-{old_name}', old_name, new_name))
 
     @tasks.loop(hours=24.0)
     async def auto_delete(self):
@@ -139,9 +132,8 @@ class GreenieBoardMaster(GreenieBoardAgent):
         landings = List[dict]
         num_landings = max(self.locals['configs'][0]['num_landings'], 25)
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.trapcase, g.wire, "
                                "g.time, g.points, g.trapsheet FROM greenieboard g, players p WHERE p.ucid = %s "
                                "AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
@@ -150,10 +142,6 @@ class GreenieBoardMaster(GreenieBoardAgent):
                                    delete_after=timeout if timeout > 0 else None)
                     return
                 landings = [dict(row) for row in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
         report = Report(self.bot, self.plugin_name, 'traps.json')
         env = await report.render(ucid=ucid, name=utils.escape_string(name))
         n = await utils.selection(ctx, embed=env.embed, placeholder="Select a trap for details",
@@ -229,21 +217,14 @@ class GreenieBoardMaster(GreenieBoardAgent):
                 if self.wire.value and self.wire.value not in ['1', '2', '3', '4']:
                     raise TypeError('Wire needs to be one of 1 to 4.')
 
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute('INSERT INTO greenieboard (player_ucid, unit_type, grade, comment, place, '
-                                       'night, points, wire, trapcase) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                                       (ucid, self.unit_type, self.grade.value, self.comment.value, 'n/a', night,
-                                        config['ratings'][grade], self.wire.value, self.case.value))
-                    conn.commit()
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        with closing(conn.cursor()) as cursor:
+                            cursor.execute('INSERT INTO greenieboard (player_ucid, unit_type, grade, comment, place, '
+                                           'night, points, wire, trapcase) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                                           (ucid, self.unit_type, self.grade.value, self.comment.value, 'n/a', night,
+                                            config['ratings'][grade], self.wire.value, self.case.value))
                     self.success = True
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                    raise
-                finally:
-                    self.pool.putconn(conn)
 
             async def on_error(self, interaction: discord.Interaction, error: Exception, /) -> None:
                 await interaction.followup.send(error)

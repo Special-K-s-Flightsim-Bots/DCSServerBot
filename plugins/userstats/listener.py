@@ -1,4 +1,3 @@
-import psycopg2
 from contextlib import closing
 from core import EventListener, Plugin, Status, Server, Side, Player, Channel, event, chat_command
 from typing import Union
@@ -70,129 +69,103 @@ class UserStatisticsEventListener(EventListener):
             return
         # registering a running instance
         if data['channel'].startswith('sync-') and 'current_mission' in data:
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    mission_id = -1
-                    cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
-                    if cursor.rowcount == 1:
-                        row = cursor.fetchone()
-                        if row[1] == data['current_mission']:
-                            mission_id = row[0]
-                        else:
-                            self.log.warning('The mission in the database does not match the mission that is live '
-                                             'on this server. Fixing...')
-                    if mission_id == -1:
-                        # close ambiguous missions
-                        if cursor.rowcount >= 1:
-                            cursor.execute(self.SQL_MISSION_HANDLING['close_all_statistics'], (server.name,))
-                            cursor.execute(self.SQL_MISSION_HANDLING['close_all_missions'], (server.name,))
-                        # create a new mission
-                        cursor.execute(self.SQL_MISSION_HANDLING['start_mission'], (server.name,
-                                                                                    data['current_mission'],
-                                                                                    data['current_map']))
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    with closing(conn.cursor()) as cursor:
+                        mission_id = -1
                         cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
                         if cursor.rowcount == 1:
-                            mission_id = cursor.fetchone()[0]
-                        else:
-                            self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
-                                           'gathered for this session.')
-                    server.mission_id = mission_id
-                    if mission_id != -1:
-                        # initialize active players
-                        players = server.get_active_players()
-                        ucids = []
-                        for player in players:
-                            ucids.append(player.ucid)
-                            # make sure we get slot changes that might have occurred in the meantime
-                            cursor.execute(self.SQL_MISSION_HANDLING['check_player'], (mission_id, player.ucid))
-                            player_started = False
+                            row = cursor.fetchone()
+                            if row[1] == data['current_mission']:
+                                mission_id = row[0]
+                            else:
+                                self.log.warning('The mission in the database does not match the mission that is live '
+                                                 'on this server. Fixing...')
+                        if mission_id == -1:
+                            # close ambiguous missions
+                            if cursor.rowcount >= 1:
+                                cursor.execute(self.SQL_MISSION_HANDLING['close_all_statistics'], (server.name,))
+                                cursor.execute(self.SQL_MISSION_HANDLING['close_all_missions'], (server.name,))
+                            # create a new mission
+                            cursor.execute(self.SQL_MISSION_HANDLING['start_mission'], (server.name,
+                                                                                        data['current_mission'],
+                                                                                        data['current_map']))
+                            cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
                             if cursor.rowcount == 1:
-                                # the player is there already ...
-                                if cursor.fetchone()[0] != player.unit_type:
-                                    # ... but with a different aircraft, so close the old session
-                                    cursor.execute(self.SQL_MISSION_HANDLING['stop_player'],
-                                                   (mission_id, player.ucid))
-                                else:
-                                    # session will be kept
-                                    player_started = True
-                            if not player_started and player.side != Side.SPECTATOR:
-                                # only warn for unknown users if it is a non-public server and automatch is on
-                                if not player.member and self.bot.config.getboolean('BOT', 'AUTOMATCH') and \
-                                        len(server.settings['password']) > 0:
-                                    await server.get_channel(Channel.ADMIN).send(
-                                        'Player {} (ucid={}) can\'t be matched to a discord user.'.format(
-                                            data['name'], data['ucid']))
-                                cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
-                                               (mission_id, player.ucid, self.get_unit_type(player),
-                                                player.side.value))
-                        # close dead entries in the database (if existent)
-                        cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
-                        for row in cursor.fetchall():
-                            if row[0] not in ucids:
-                                cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, row[0]))
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                conn.rollback()
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
+                                mission_id = cursor.fetchone()[0]
+                            else:
+                                self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
+                                               'gathered for this session.')
+                        server.mission_id = mission_id
+                        if mission_id != -1:
+                            # initialize active players
+                            players = server.get_active_players()
+                            ucids = []
+                            for player in players:
+                                ucids.append(player.ucid)
+                                # make sure we get slot changes that might have occurred in the meantime
+                                cursor.execute(self.SQL_MISSION_HANDLING['check_player'], (mission_id, player.ucid))
+                                player_started = False
+                                if cursor.rowcount == 1:
+                                    # the player is there already ...
+                                    if cursor.fetchone()[0] != player.unit_type:
+                                        # ... but with a different aircraft, so close the old session
+                                        cursor.execute(self.SQL_MISSION_HANDLING['stop_player'],
+                                                       (mission_id, player.ucid))
+                                    else:
+                                        # session will be kept
+                                        player_started = True
+                                if not player_started and player.side != Side.SPECTATOR:
+                                    # only warn for unknown users if it is a non-public server and automatch is on
+                                    if not player.member and self.bot.config.getboolean('BOT', 'AUTOMATCH') and \
+                                            len(server.settings['password']) > 0:
+                                        await server.get_channel(Channel.ADMIN).send(
+                                            'Player {} (ucid={}) can\'t be matched to a discord user.'.format(
+                                                data['name'], data['ucid']))
+                                    cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
+                                                   (mission_id, player.ucid, self.get_unit_type(player),
+                                                    player.side.value))
+                            # close dead entries in the database (if existent)
+                            cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
+                            for row in cursor.fetchall():
+                                if row[0] not in ucids:
+                                    cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, row[0]))
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute(self.SQL_MISSION_HANDLING['close_all_statistics'], (server.name,))
-                cursor.execute(self.SQL_MISSION_HANDLING['close_all_missions'], (server.name,))
-                cursor.execute(self.SQL_MISSION_HANDLING['start_mission'], (server.name,
-                                                                            data['current_mission'],
-                                                                            data['current_map']))
-                cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
-                if cursor.rowcount == 1:
-                    server.mission_id = cursor.fetchone()[0]
-                else:
-                    server.mission_id = -1
-                    self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
-                                   'gathered for this session.')
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(self.SQL_MISSION_HANDLING['close_all_statistics'], (server.name,))
+                    cursor.execute(self.SQL_MISSION_HANDLING['close_all_missions'], (server.name,))
+                    cursor.execute(self.SQL_MISSION_HANDLING['start_mission'], (server.name,
+                                                                                data['current_mission'],
+                                                                                data['current_map']))
+                    cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
+                    if cursor.rowcount == 1:
+                        server.mission_id = cursor.fetchone()[0]
+                    else:
+                        server.mission_id = -1
+                        self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
+                                       'gathered for this session.')
 
     @event(name="onSimulationStop")
     async def onSimulationStop(self, server: Server, data: dict) -> None:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute(self.SQL_MISSION_HANDLING['close_statistics'], (server.mission_id,))
-                cursor.execute(self.SQL_MISSION_HANDLING['close_mission'], (server.mission_id,))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute(self.SQL_MISSION_HANDLING['close_statistics'], (server.mission_id,))
+                conn.execute(self.SQL_MISSION_HANDLING['close_mission'], (server.mission_id,))
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         if 'side' not in data:
             return
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, data['ucid']))
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, data['ucid']))
                 if Side(data['side']) != Side.SPECTATOR:
-                    cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
-                                   (server.mission_id, data['ucid'], self.get_unit_type(data), data['side']))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+                    conn.execute(self.SQL_MISSION_HANDLING['start_player'],
+                                 (server.mission_id, data['ucid'], self.get_unit_type(data), data['side']))
 
     @event(name="disableUserStats")
     async def disableUserStats(self, server: Server, data: dict) -> None:
@@ -210,21 +183,13 @@ class UserStatisticsEventListener(EventListener):
                 if not player:
                     self.log.warning(f"Player id={data['arg1']} not found. Can't close their statistics.")
                     return
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute(self.SQL_MISSION_HANDLING['stop_player'],
-                                       (server.mission_id, player.ucid))
-                        conn.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute(self.SQL_MISSION_HANDLING['stop_player'],
+                                   (server.mission_id, player.ucid))
         elif data['eventName'] == 'kill':
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
+            with self.pool.connection() as conn:
+                with conn.transaction():
                     # Player is not an AI
                     if data['arg1'] != -1:
                         if data['arg4'] != -1:
@@ -255,7 +220,7 @@ class UserStatisticsEventListener(EventListener):
                         if kill_type in self.SQL_EVENT_UPDATES.keys():
                             pilot: Player = server.get_player(id=data['arg1'])
                             for crew_member in server.get_crew_members(pilot):
-                                cursor.execute(self.SQL_EVENT_UPDATES[kill_type], (server.mission_id, crew_member.ucid))
+                                conn.execute(self.SQL_EVENT_UPDATES[kill_type], (server.mission_id, crew_member.ucid))
 
                     # Victim is not an AI
                     if data['arg4'] != -1:
@@ -285,30 +250,17 @@ class UserStatisticsEventListener(EventListener):
                         if death_type in self.SQL_EVENT_UPDATES.keys():
                             pilot: Player = server.get_player(id=data['arg4'])
                             for crew_member in server.get_crew_members(pilot):
-                                cursor.execute(self.SQL_EVENT_UPDATES[death_type], (server.mission_id, crew_member.ucid))
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-                conn.rollback()
-            finally:
-                self.pool.putconn(conn)
+                                conn.execute(self.SQL_EVENT_UPDATES[death_type], (server.mission_id, crew_member.ucid))
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'pilot_death']:
             if data['arg1'] != -1:
                 if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
-                    conn = self.pool.getconn()
-                    try:
-                        with closing(conn.cursor()) as cursor:
+                    with self.pool.connection() as conn:
+                        with conn.transaction():
                             player: Player = server.get_player(id=data['arg1'])
                             if not player:
                                 return
-                            cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
-                                           (server.mission_id, player.ucid))
-                            conn.commit()
-                    except (Exception, psycopg2.DatabaseError) as error:
-                        self.log.exception(error)
-                        conn.rollback()
-                    finally:
-                        self.pool.putconn(conn)
+                            conn.execute(self.SQL_EVENT_UPDATES[data['eventName']],
+                                         (server.mission_id, player.ucid))
         elif data['eventName'] in ['eject']:
             if data['arg1'] != -1:
                 if data['eventName'] in self.SQL_EVENT_UPDATES.keys():
@@ -316,17 +268,10 @@ class UserStatisticsEventListener(EventListener):
                     pilot: Player = server.get_player(id=data['arg1'])
                     crew_members = server.get_crew_members(pilot)
                     if len(crew_members) == 1:
-                        conn = self.pool.getconn()
-                        try:
-                            with closing(conn.cursor()) as cursor:
-                                cursor.execute(self.SQL_EVENT_UPDATES[data['eventName']],
-                                               (server.mission_id, crew_members[0].ucid))
-                                conn.commit()
-                        except (Exception, psycopg2.DatabaseError) as error:
-                            self.log.exception(error)
-                            conn.rollback()
-                        finally:
-                            self.pool.putconn(conn)
+                        with self.pool.connection() as conn:
+                            with conn.transaction():
+                                conn.execute(self.SQL_EVENT_UPDATES[data['eventName']],
+                                             (server.mission_id, crew_members[0].ucid))
 
     @chat_command(name="linkme", usage="<token>", help="link your user to Discord")
     async def linkme(self, server: Server, player: Player, params: list[str]):
@@ -337,27 +282,21 @@ class UserStatisticsEventListener(EventListener):
             return
 
         token = params[0]
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
-                if cursor.rowcount == 0:
-                    player.sendChatMessage('Invalid token.')
-                    await server.get_channel(Channel.ADMIN).send(f'Player {player.display_name} '
-                                                                 f'(ucid={player.ucid}) entered a '
-                                                                 f'non-existent linking token.')
-                else:
-                    discord_id = cursor.fetchone()[0]
-                    player.member = self.bot.guilds[0].get_member(discord_id)
-                    player.verified = True
-                    cursor.execute('DELETE FROM players WHERE ucid = %s', (token,))
-                    await self.bot.audit(
-                        f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
-                        user=player.member)
-                    player.sendChatMessage('Your user has been linked!')
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
+                    if cursor.rowcount == 0:
+                        player.sendChatMessage('Invalid token.')
+                        await server.get_channel(Channel.ADMIN).send(f'Player {player.display_name} '
+                                                                     f'(ucid={player.ucid}) entered a '
+                                                                     f'non-existent linking token.')
+                    else:
+                        discord_id = cursor.fetchone()[0]
+                        player.member = self.bot.guilds[0].get_member(discord_id)
+                        player.verified = True
+                        cursor.execute('DELETE FROM players WHERE ucid = %s', (token,))
+                        await self.bot.audit(
+                            f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
+                            user=player.member)
+                        player.sendChatMessage('Your user has been linked!')

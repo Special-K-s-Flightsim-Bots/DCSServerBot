@@ -1,8 +1,7 @@
 import math
-import psycopg2
-import psycopg2.extras
 from contextlib import closing
 from core import report, utils, Side
+from psycopg.rows import dict_row
 from .filter import StatisticsFilter
 
 
@@ -21,13 +20,11 @@ class HighscorePlaytime(report.GraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 labels = []
                 values = []
-                cursor.execute(sql)
-                for row in cursor.fetchall():
+                for row in cursor.execute(sql).fetchall():
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
@@ -39,10 +36,6 @@ class HighscorePlaytime(report.GraphElement):
                     self.axes.set_xticks([])
                     self.axes.set_yticks([])
                     self.axes.text(0, 0, 'No data available.', ha='center', va='center', size=15)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class HighscoreElement(report.GraphElement):
@@ -81,13 +74,11 @@ class HighscoreElement(report.GraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0 ORDER BY 3 DESC LIMIT {limit}'
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute(sql)
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 labels = []
                 values = []
-                for row in cursor.fetchall():
+                for row in cursor.execute(sql).fetchall():
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
@@ -102,7 +93,3 @@ class HighscoreElement(report.GraphElement):
                 else:
                     scale = range(0, math.ceil(max(values) + 1), math.ceil(max(values) / 10))
                     self.axes.set_xticks(scale)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)

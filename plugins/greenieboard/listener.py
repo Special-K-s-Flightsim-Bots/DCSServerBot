@@ -1,10 +1,8 @@
 import os
-import psycopg2
 import re
 import string
 import sys
 import uuid
-from contextlib import closing
 from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event
 from matplotlib import pyplot as plt
 from pathlib import Path
@@ -91,20 +89,15 @@ class GreenieBoardEventListener(EventListener):
             cp.points += points
         case = data['case'] if 'case' in data else 1 if not night else 3
         wire = data['wire'] if 'wire' in data else None
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, "
-                               "trapcase, wire, night, points, trapsheet) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                               (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(),
-                                data['details'], data['place']['name'], case, wire, night, points,
-                                data['trapsheet'] if 'trapsheet' in data else None))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, 
+                                              wire, night, points, trapsheet) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(), data['details'],
+                      data['place']['name'], case, wire, night, points,
+                      data['trapsheet'] if 'trapsheet' in data else None))
 
     @staticmethod
     def normalize_airboss_lso_rating(grade: str) -> Optional[str]:

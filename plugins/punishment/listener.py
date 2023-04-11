@@ -1,5 +1,4 @@
 import asyncio
-import psycopg2
 from contextlib import closing
 from core import EventListener, Plugin, Server, Player, Status, event, chat_command
 
@@ -11,27 +10,19 @@ class PunishmentEventListener(EventListener):
         self.lock = asyncio.Lock()
 
     def _get_flight_hours(self, player: Player) -> int:
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(hop_off, NOW()) - hop_on)))) / '
-                               '3600, 0) AS playtime FROM statistics WHERE player_ucid = %s', (player.ucid, ))
+                cursor.execute("""
+                    SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(hop_off, NOW()) - hop_on)))) / 3600, 0) 
+                           AS playtime 
+                    FROM statistics WHERE player_ucid = %s
+                """, (player.ucid, ))
                 return cursor.fetchone()[0] if cursor.rowcount > 0 else 0
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
     def _get_punishment_points(self, player: Player) -> int:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("SELECT COALESCE(SUM(points), 0) FROM pu_events WHERE init_id = %s", (player.ucid, ))
-                return int(cursor.fetchone()[0])
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            return conn.execute("SELECT COALESCE(SUM(points), 0) FROM pu_events WHERE init_id = %s",
+                                (player.ucid, )).fetchone()[0]
 
     async def _punish(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
@@ -73,22 +64,13 @@ class PunishmentEventListener(EventListener):
                                              penalty['reason'] if 'reason' in penalty else penalty['event'])
                 # add the event to the database
                 async with self.lock:
-                    conn = self.pool.getconn()
-                    try:
-                        with closing(conn.cursor()) as cursor:
-                            cursor.execute('INSERT INTO pu_events (init_id, target_id, server_name, event, points) '
-                                           'VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING', (initiator.ucid,
-                                                                                                  target.ucid if
-                                                                                                  target else None,
-                                                                                                  data['server_name'],
-                                                                                                  data['eventName'],
-                                                                                                  points))
-                            conn.commit()
-                    except (Exception, psycopg2.DatabaseError) as error:
-                        conn.rollback()
-                        self.log.exception(error)
-                    finally:
-                        self.pool.putconn(conn)
+                    with self.pool.connection() as conn:
+                        with conn.transaction():
+                            conn.execute("""
+                                INSERT INTO pu_events (init_id, target_id, server_name, event, points) 
+                                VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
+                            """, (initiator.ucid, target.ucid if target else None, data['server_name'],
+                                  data['eventName'], points))
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict):
@@ -124,8 +106,7 @@ class PunishmentEventListener(EventListener):
         if data['id'] == 1:
             return
         # check if someone was banned on server A and tries to sneak into server B on another node
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT reason FROM bans WHERE ucid = %s', (data['ucid'], ))
                 if cursor.rowcount > 0:
@@ -137,10 +118,6 @@ class PunishmentEventListener(EventListener):
                             "ucid": data['ucid'],
                             "reason": reason
                         })
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -159,42 +136,41 @@ class PunishmentEventListener(EventListener):
             return
 
         async with self.lock:
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    # get the punishments
-                    cursor.execute('SELECT DISTINCT init_id FROM pu_events WHERE target_id = %s '
-                                   'AND time >= (NOW() - interval \'%s seconds\')',
-                                   (target.ucid, config['forgive']))
-                    initiators = [x[0] for x in cursor.fetchall()]
-                    # there were no events, so forgive would not do anything
-                    if not initiators:
-                        target.sendChatMessage('There is nothing to forgive (anymore).')
-                        return
-                    # clean the punishment table from these events
-                    cursor.execute('DELETE FROM pu_events WHERE target_id = %s AND time >= (NOW() - interval '
-                                   '\'%s seconds\')', (target.ucid, config['forgive']))
-                    # cancel pending punishment tasks
-                    cursor.execute('DELETE FROM pu_events_sdw WHERE target_id = %s AND time >= (NOW() - '
-                                   'interval \'%s seconds\')', (target.ucid, config['forgive']))
-                    conn.commit()
-                    names = []
-                    for initiator in initiators:
-                        player = self.bot.get_player_by_ucid(initiator)
-                        if player:
-                            names.append(player.name)
-                            player.sendChatMessage(
-                                f'You have been forgiven by {target.name} and will not be punished '
-                                f'for your recent actions.')
-                    if not names:
-                        names = ['another player']
-                    target.sendChatMessage(
-                        'You have chosen to forgive {} for their actions.'.format(', '.join(names)))
-            except (Exception, psycopg2.DatabaseError) as error:
-                conn.rollback()
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    with closing(conn.cursor()) as cursor:
+                        # get the punishments
+                        initiators = [
+                            x[0] for x in cursor.execute("""
+                                SELECT DISTINCT init_id 
+                                FROM pu_events 
+                                WHERE target_id = %s AND time >= (NOW() - interval '%s seconds)'
+                            """, (target.ucid, config['forgive'])).fetchall()
+                        ]
+                        # there were no events, so forgive would not do anything
+                        if not initiators:
+                            target.sendChatMessage('There is nothing to forgive (anymore).')
+                            return
+                        # clean the punishment table from these events
+                        cursor.execute("""
+                            DELETE FROM pu_events WHERE target_id = %s AND time >= (NOW() - interval '%s seconds')
+                        """, (target.ucid, config['forgive']))
+                        # cancel pending punishment tasks
+                        cursor.execute("""
+                            DELETE FROM pu_events_sdw WHERE target_id = %s AND time >= (NOW() - interval '%s seconds')
+                        """, (target.ucid, config['forgive']))
+                        names = []
+                        for initiator in initiators:
+                            player = self.bot.get_player_by_ucid(initiator)
+                            if player:
+                                names.append(player.name)
+                                player.sendChatMessage(
+                                    f'You have been forgiven by {target.name} and will not be punished '
+                                    f'for your recent actions.')
+                        if not names:
+                            names = ['another player']
+                        target.sendChatMessage(
+                            'You have chosen to forgive {} for their actions.'.format(', '.join(names)))
 
     @chat_command(name="penalty", help="displays your penalty points")
     async def penalty(self, server: Server, player: Player, params: list[str]):

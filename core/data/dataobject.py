@@ -3,15 +3,15 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
-    import psycopg2.pool
     from core import DCSServerBot
     from logging import Logger
+    from psycopg_pool import ConnectionPool
 
 
 @dataclass
 class DataObject:
     bot: DCSServerBot = field(compare=False, repr=False)
-    pool: psycopg2.pool.ThreadedConnectionPool = field(compare=False, repr=False, init=False)
+    pool: ConnectionPool = field(compare=False, repr=False, init=False)
     log: Logger = field(compare=False, repr=False, init=False)
 
     def __post_init__(self):

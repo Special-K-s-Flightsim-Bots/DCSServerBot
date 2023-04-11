@@ -1,14 +1,12 @@
 import discord
 import os
-import psycopg2
-from contextlib import closing
 from core import utils, DCSServerBot
 from discord import SelectOption, TextStyle
 from discord.ui import View, Select, Button, TextInput, Modal
 from typing import Optional
 
 from .sink import Sink, Mode
-from .utils import get_tag, Playlist
+from .utils import get_tag, Playlist, get_all_playlists
 
 
 class PlayerBase(View):
@@ -162,17 +160,6 @@ class PlaylistEditor(PlayerBase):
         self.all_songs = songs
         self.all_titles = self.get_titles(self.all_songs)
 
-    def get_all_playlists(self) -> list[str]:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT DISTINCT name FROM music_playlists ORDER BY 1')
-                return [row[0] for row in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-
     def render(self) -> discord.Embed:
         embed = discord.Embed(title="Playlist Editor", colour=discord.Colour.blue())
         self.clear_items()
@@ -207,7 +194,7 @@ class PlaylistEditor(PlayerBase):
             button.callback = self.del_playlist
             self.add_item(button)
         else:
-            all_playlists = self.get_all_playlists()
+            all_playlists = get_all_playlists(self.bot)
             if all_playlists:
                 select = Select(placeholder="Select a playlist to edit",
                                 options=[SelectOption(label=x) for x in all_playlists], row=row)
@@ -267,18 +254,11 @@ class PlaylistEditor(PlayerBase):
         await interaction.response.send_modal(modal)
         if not await modal.wait():
             if str(modal.name.value).casefold() == 'yes':
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute('DELETE FROM music_playlists WHERE name = %s', (self.playlist.name, ))
-                        cursor.execute('DELETE FROM music_servers WHERE playlist_name = %s', (self.playlist.name,))
-                    conn.commit()
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute('DELETE FROM music_playlists WHERE name = %s', (self.playlist.name, ))
+                        conn.execute('DELETE FROM music_servers WHERE playlist_name = %s', (self.playlist.name,))
                     self.playlist = None
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
         embed = self.render()
         await interaction.edit_original_response(embed=embed, view=self)
 

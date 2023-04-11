@@ -1,5 +1,4 @@
 import discord
-import psycopg2
 from contextlib import closing
 from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report, PaginationReport, Status, Server
 from discord.ext import commands
@@ -34,12 +33,11 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Missionstats ...')
-        with closing(conn.cursor()) as cursor:
-            if ucids:
-                for ucid in ucids:
-                    cursor.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
-            elif days > 0:
-                cursor.execute(f"DELETE FROM missionstats WHERE time < (DATE(NOW()) - interval '{days} days')")
+        if ucids:
+            for ucid in ucids:
+                conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
+        elif days > 0:
+            conn.execute(f"DELETE FROM missionstats WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Missionstats pruned.')
 
     @commands.command(description='Display statistics about sorties', usage='[user] [period]')
@@ -94,29 +92,23 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
         if period and not flt:
             await ctx.send('Please provide a valid period or campaign name.')
             return
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if isinstance(member, discord.Member):
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s ORDER BY last_seen DESC LIMIT 1',
-                                   (member.id, ))
-                    ucid = cursor.fetchone()[0] if cursor.rowcount > 0 else None
-                else:
-                    ucid, member = self.bot.get_ucid_by_name(member)
-                if not ucid:
-                    await ctx.send('This user is not linked correctly.')
-                    return
-                cursor.execute("SELECT DISTINCT slot, COUNT(*) FROM statistics WHERE player_ucid =  %s AND slot NOT "
-                               "IN ('forward_observer', 'instructor', 'observer', 'artillery_commander') GROUP BY 1 "
-                               "ORDER BY 2 DESC", (ucid, ))
-                if cursor.rowcount == 0:
-                    await ctx.send('No statistics found for this user.', delete_after=timeout if timeout > 0 else None)
-                    return
-                modules = [row[0] for row in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        if isinstance(member, discord.Member):
+            ucid = self.bot.get_ucid_by_member(member)
+        else:
+            ucid, member = self.bot.get_ucid_by_name(member)
+        if not ucid:
+            await ctx.send('This user is not linked correctly.')
+            return
+        with self.pool.connection() as conn:
+            modules = [row[0] for row in conn.execute("""
+                SELECT DISTINCT slot, COUNT(*) FROM statistics 
+                WHERE player_ucid =  %s 
+                AND slot NOT IN ('forward_observer', 'instructor', 'observer', 'artillery_commander') 
+                GROUP BY 1 ORDER BY 2 DESC
+            """, (ucid, )).fetchall()]
+            if not modules:
+                await ctx.send('No statistics found for this user.', delete_after=timeout if timeout > 0 else None)
+                return
         await ctx.message.delete()
         n = await utils.selection_list(self.bot, ctx, modules, self.format_modules)
         if n != -1:

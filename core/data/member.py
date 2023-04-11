@@ -1,5 +1,4 @@
 import discord
-import psycopg2
 from contextlib import closing
 from core import DataObjectFactory, DataObject
 from dataclasses import dataclass, field
@@ -14,22 +13,15 @@ class Member(DataObject):
 
     def __post_init__(self):
         super().__post_init__()
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, '
-                               'manual FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid WHERE '
-                               'p.discord_id = %s', (self.member.id, ))
-                banned = False
-                for row in cursor.fetchall():
-                    self.ucids[row[0]] = row[2]
-                    if row[1] is True:
-                        banned = True
-                self.banned = banned
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            banned = False
+            for row in conn.execute('SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, '
+                                    'manual FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid WHERE '
+                                    'p.discord_id = %s', (self.member.id, )).fetchall():
+                self.ucids[row[0]] = row[2]
+                if row[1] is True:
+                    banned = True
+            self.banned = banned
 
     @property
     def verified(self):
@@ -40,45 +32,25 @@ class Member(DataObject):
 
     @verified.setter
     def verified(self, flag: bool):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                ucids = list(self.ucids.keys())
-                for ucid in ucids:
-                    cursor.execute('UPDATE players SET manual = %s WHERE ucid = %s', (flag, ucid))
-                    self.ucids[ucid] = flag
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    ucids = list(self.ucids.keys())
+                    for ucid in ucids:
+                        cursor.execute('UPDATE players SET manual = %s WHERE ucid = %s', (flag, ucid))
+                        self.ucids[ucid] = flag
 
     def link(self, ucid: str, validated: bool = True):
         self.ucids[ucid] = validated
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
-                               (self.member.id, validated, ucid))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
+                             (self.member.id, validated, ucid))
 
     def unlink(self, ucid):
         if ucid not in self.ucids:
             return
         del self.ucids[ucid]
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))

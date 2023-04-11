@@ -1,8 +1,8 @@
 import asyncio
-import psycopg2
 from contextlib import closing
 from core import utils
 from core.report.errors import ValueNotInRange
+from psycopg.rows import dict_row
 from typing import Any, List, Tuple
 
 
@@ -34,18 +34,12 @@ async def parse_input(self, kwargs: dict, params: List[Any]):
             elif 'default' in param:
                 new_args[param['name']] = param['default']
         elif 'sql' in param:
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+            with self.pool.connection() as conn:
+                with closing(conn.cursor(row_factory=dict_row)) as cursor:
                     cursor.execute(utils.format_string(param['sql'], **kwargs), kwargs)
                     if cursor.rowcount == 1:
                         for name, value in cursor.fetchone().items():
                             new_args[name] = value
-            except psycopg2.DatabaseError as error:
-                self.log.exception(error)
-                raise
-            finally:
-                self.pool.putconn(conn)
         elif 'callback' in param:
             try:
                 data: dict = await kwargs['server'].sendtoDCSSync({

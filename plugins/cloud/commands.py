@@ -4,11 +4,14 @@ import discord
 import os
 import pandas as pd
 import platform
-import psycopg2
 import shutil
 from contextlib import closing
+
+import psycopg
+
 from core import Plugin, DCSServerBot, utils, TEventListener, PaginationReport, Status
 from discord.ext import commands, tasks
+from psycopg.rows import dict_row
 from typing import Type, Any, Optional, Union
 from .listener import CloudListener
 
@@ -35,6 +38,7 @@ class CloudHandlerAgent(Plugin):
         self.session = aiohttp.ClientSession(raise_for_status=True, headers=headers)
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
         if 'dcs-ban' not in self.config or self.config['dcs-ban']:
+            self.cloud_bans.add_exception_type(aiohttp.ClientError)
             self.cloud_bans.start()
 
     async def cog_unload(self):
@@ -97,16 +101,20 @@ class CloudHandlerMaster(CloudHandlerAgent):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
+            self.master_bans.add_exception_type(aiohttp.ClientError)
+            self.master_bans.add_exception_type(discord.Forbidden)
+            self.master_bans.add_exception_type(psycopg.DatabaseError)
             self.master_bans.start()
         if 'token' in self.config:
+            self.cloud_sync.add_exception_type(aiohttp.ClientError)
+            self.cloud_sync.add_exception_type(psycopg.DatabaseError)
             self.cloud_sync.start()
 
     async def cog_load(self) -> None:
         await super().cog_load()
         if not self.config.get('register', True):
             return
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute("""
                     SELECT count(distinct agent_host) as num_bots, count(distinct server_name) as num_servers 
@@ -118,6 +126,7 @@ class CloudHandlerMaster(CloudHandlerAgent):
                     row = cursor.fetchone()
                     num_bots = row[0]
                     num_servers = row[1]
+        try:
             _, dcs_version = utils.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
             bot = {
                 "guild_id": self.bot.guilds[0].id,
@@ -139,10 +148,8 @@ class CloudHandlerMaster(CloudHandlerAgent):
             self.log.debug("Bot registered.")
         except aiohttp.ClientError:
             self.log.debug('Bot could not register due to service unavailability. Ignored.')
-        except (Exception, psycopg2.DatabaseError) as error:
+        except Exception as error:
             self.log.debug("Error while registering: " + str(error))
-        finally:
-            self.pool.putconn(conn)
 
     async def cog_unload(self):
         if 'token' in self.config:
@@ -158,9 +165,8 @@ class CloudHandlerMaster(CloudHandlerAgent):
         if 'token' not in self.config:
             await ctx.send('No cloud sync configured.')
             return
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
+        with self.pool.connection() as conn:
+            with conn.transaction():
                 sql = 'UPDATE players SET synced = false'
                 if member:
                     if isinstance(member, str):
@@ -168,16 +174,11 @@ class CloudHandlerMaster(CloudHandlerAgent):
                     else:
                         sql += ' WHERE discord_id = %s'
                         member = member.id
-                cursor.execute(sql, (member, ))
-                conn.commit()
+                conn.execute(sql, (member, ))
                 await ctx.send('Resync with cloud triggered.')
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
 
-    @commands.command(description='Generate Cloud Statistics', usage='[@member]', aliases=['cstats', 'globalstats', 'gstats'])
+    @commands.command(description='Generate Cloud Statistics', usage='[@member]',
+                      aliases=['cstats', 'globalstats', 'gstats'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def cloudstats(self, ctx, member: Optional[discord.Member] = None):
@@ -189,7 +190,8 @@ class CloudHandlerMaster(CloudHandlerAgent):
                 member = ctx.message.author
             ucid = self.bot.get_ucid_by_member(member)
             if not ucid:
-                await ctx.send(f'The account is not properly linked. Use {ctx.prefix}linkme to link your Discord and DCS accounts.')
+                await ctx.send(f'The account is not properly linked. '
+                               f'Use {ctx.prefix}linkme to link your Discord and DCS accounts.')
                 return
             response = await self.get(f'stats/{ucid}')
             if not len(response):
@@ -197,76 +199,70 @@ class CloudHandlerMaster(CloudHandlerAgent):
                 return
             df = pd.DataFrame(response)
             timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'cloudstats.json', timeout if timeout > 0 else None)
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'cloudstats.json',
+                                      timeout if timeout > 0 else None)
             await report.render(member=member, data=df, guild=None)
         finally:
             await ctx.message.delete()
 
     @tasks.loop(minutes=15.0)
     async def master_bans(self):
-        conn = self.pool.getconn()
-        try:
-            if self.config.get('dcs-ban', False):
-                with closing(conn.cursor()) as cursor:
-                    for ban in (await self.get('bans')):
-                        cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) '
-                                       'ON CONFLICT DO NOTHING', (ban['ucid'], self.plugin_name, ban['reason']))
-                conn.commit()
-            if self.config.get('discord-ban', False):
-                bans: list[dict] = await self.get('discord-bans')
-                users_to_ban = [await self.bot.fetch_user(x['discord_id']) for x in bans]
-                guild = self.bot.guilds[0]
-                guild_bans = [entry async for entry in guild.bans()]
-                banned_users = [x.user for x in guild_bans if x.reason and x.reason.startswith('DGSA:')]
-                # unban users that should not be banned anymore
-                for user in [x for x in banned_users if x not in users_to_ban]:
-                    await guild.unban(user, reason='DGSA: ban revoked.')
-                # ban users that were not banned yet
-                for user in [x for x in users_to_ban if x not in banned_users]:
-                    if user.id == self.bot.owner_id:
-                        continue
-                    reason = next(x['reason'] for x in bans if x['discord_id'] == user.id)
-                    await guild.ban(user, reason='DGSA: ' + reason)
-        except aiohttp.ClientError:
-            self.log.warning('- Cloud service not responding.')
-        except discord.Forbidden:
-            self.log.warn('- DCSServerBot does not have the permission to ban users.')
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        if self.config.get('dcs-ban', False):
+            # TODO: ban with channel!
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    with closing(conn.cursor()) as cursor:
+                        for ban in (await self.get('bans')):
+                            cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) '
+                                           'ON CONFLICT DO NOTHING', (ban['ucid'], self.plugin_name, ban['reason']))
+        if self.config.get('discord-ban', False):
+            bans: list[dict] = await self.get('discord-bans')
+            users_to_ban = [await self.bot.fetch_user(x['discord_id']) for x in bans]
+            guild = self.bot.guilds[0]
+            guild_bans = [entry async for entry in guild.bans()]
+            banned_users = [x.user for x in guild_bans if x.reason and x.reason.startswith('DGSA:')]
+            # unban users that should not be banned anymore
+            for user in [x for x in banned_users if x not in users_to_ban]:
+                await guild.unban(user, reason='DGSA: ban revoked.')
+            # ban users that were not banned yet
+            for user in [x for x in users_to_ban if x not in banned_users]:
+                if user.id == self.bot.owner_id:
+                    continue
+                reason = next(x['reason'] for x in bans if x['discord_id'] == user.id)
+                await guild.ban(user, reason='DGSA: ' + reason)
 
     @tasks.loop(minutes=1.0)
     async def cloud_sync(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute('SELECT ucid FROM players WHERE synced IS FALSE AND discord_id <> -1 ORDER BY '
-                               'last_seen DESC LIMIT 10')
-                for row in cursor.fetchall():
-                    cursor.execute('SELECT s.player_ucid, m.mission_theatre, s.slot, SUM(s.kills) as kills, '
-                                   'SUM(s.pvp) as pvp, SUM(deaths) as deaths, SUM(ejections) as ejections, '
-                                   'SUM(crashes) as crashes, SUM(teamkills) as teamkills, SUM(kills_planes) AS '
-                                   'kills_planes, SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS '
-                                   'kills_ships, SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, '
-                                   'SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, '
-                                   'SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships, '
-                                   'SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, '
-                                   'SUM(takeoffs) as takeoffs, SUM(landings) as landings, ROUND(SUM( '
-                                   'EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, '
-                                   'missions m WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = '
-                                   'm.id GROUP BY 1, 2, 3', (row['ucid'], ))
-                    for line in cursor.fetchall():
-                        line['client'] = self.client
-                        await self.post('upload', line)
-                    cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.pipeline():
+                with conn.transaction():
+                    with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                        for row in cursor.execute("""
+                            SELECT ucid FROM players 
+                            WHERE synced IS FALSE AND discord_id <> -1 
+                            ORDER BY last_seen DESC 
+                            LIMIT 10
+                        """).fetchall():
+                            cursor.execute("""
+                                SELECT s.player_ucid, m.mission_theatre, s.slot, 
+                                       SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
+                                       SUM(ejections) as ejections, SUM(crashes) as crashes, 
+                                       SUM(teamkills) as teamkills, SUM(kills_planes) AS kills_planes, 
+                                       SUM(kills_helicopters) AS kills_helicopters, SUM(kills_ships) AS kills_ships, 
+                                       SUM(kills_sams) AS kills_sams, SUM(kills_ground) AS kills_ground, 
+                                       SUM(deaths_pvp) as deaths_pvp, SUM(deaths_planes) AS deaths_planes, 
+                                       SUM(deaths_helicopters) AS deaths_helicopters, SUM(deaths_ships) AS deaths_ships,
+                                       SUM(deaths_sams) AS deaths_sams, SUM(deaths_ground) AS deaths_ground, 
+                                       SUM(takeoffs) as takeoffs, SUM(landings) as landings, 
+                                       ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime 
+                                FROM statistics s, missions m 
+                                WHERE s.player_ucid = %s AND s.hop_off IS NOT null AND s.mission_id = m.id 
+                                GROUP BY 1, 2, 3
+                            """, (row['ucid'], ))
+                            for line in cursor.fetchall():
+                                line['client'] = self.client
+                                await self.post('upload', line)
+                            cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
 
 
 async def setup(bot: DCSServerBot):

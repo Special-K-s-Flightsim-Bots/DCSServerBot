@@ -16,5 +16,4 @@ from .mizfile import *
 from .plugin import *
 from .utils import *
 from .report import *
-from .pool import *
 from .services import *

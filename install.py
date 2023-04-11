@@ -1,5 +1,5 @@
 import os
-import psycopg2
+import psycopg
 import secrets
 import socket
 import winreg
@@ -8,7 +8,6 @@ from contextlib import closing, suppress
 from getpass import getpass
 from os import path
 from core import utils
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from typing import Optional, Tuple
 
 
@@ -74,46 +73,36 @@ class Install:
     def get_database_url() -> Optional[str]:
         port = 5432
         if not utils.is_open('127.0.0.1', port):
-            print('No PostgreSQL installation found.')
-            port = input('Enter the port to your PostgreSQL database or ENTER if you need to install it: ')
+            print('No PostgreSQL-database found on port 5432.')
+            port = input('Enter the port to your PostgreSQL-database or press ENTER if you need to install it first: ')
             if not port.isnumeric():
                 print('Aborting.')
                 exit(-1)
         while True:
-            passwd = getpass('Please enter your PostgreSQL master password: ')
+            passwd = getpass('Please enter your PostgreSQL master password (user=postgres): ')
             url = f'postgres://postgres:{passwd}@localhost:{port}/postgres'
-            conn = None
-            try:
-                conn = psycopg2.connect(url)
-                conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            with psycopg.connect(url, autocommit=True) as conn:
                 with closing(conn.cursor()) as cursor:
                     passwd = secrets.token_urlsafe(8)
                     try:
                         cursor.execute("CREATE USER dcsserverbot WITH ENCRYPTED PASSWORD %s", (passwd, ))
-                    except psycopg2.Error:
+                    except psycopg.Error:
                         print('Existing dcsserverbot database found.')
                         while True:
                             passwd = getpass("Please enter your password for user 'dcsserverbot': ")
                             try:
-                                conn2 = psycopg2.connect(f"postgres://dcsserverbot:{passwd}@localhost:{port}/dcsserverbot")
-                                conn2.close()
+                                with psycopg.connect(
+                                        f"postgres://dcsserverbot:{passwd}@localhost:{port}/dcsserverbot"):
+                                    pass
                                 break
-                            except psycopg2.Error:
+                            except psycopg.Error:
                                 print("Wrong password. Try again.")
-                    with suppress(psycopg2.Error):
+                    with suppress(psycopg.Error):
                         cursor.execute("CREATE DATABASE dcsserverbot")
                         cursor.execute("GRANT ALL PRIVILEGES ON DATABASE dcsserverbot TO dcsserverbot")
                         cursor.execute("ALTER DATABASE dcsserverbot OWNER TO dcsserverbot")
-                    print("PostgreSQL user and database created.")
+                    print("Database user and database created.")
                     return f"postgres://dcsserverbot:{passwd}@localhost:{port}/dcsserverbot"
-            except psycopg2.OperationalError:
-                print("Wrong password. Try again!")
-            except psycopg2.Error as ex:
-                print(ex)
-                return None
-            finally:
-                if conn:
-                    conn.close()
 
     @staticmethod
     def install():
@@ -163,10 +152,9 @@ class Install:
     def verify():
         def check_database(url: str) -> bool:
             try:
-                conn = psycopg2.connect(url)
-                conn.close()
-                return True
-            except psycopg2.Error:
+                with psycopg.connect(url):
+                    return True
+            except psycopg.Error:
                 return False
 
         def check_channel(channel: str) -> bool:

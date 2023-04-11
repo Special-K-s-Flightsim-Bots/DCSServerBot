@@ -17,6 +17,9 @@ if __name__ == "__main__":
         print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
     try:
         Install.verify()
+        asyncio.set_event_loop_policy(
+            asyncio.WindowsSelectorEventLoopPolicy()
+        )
         asyncio.run(Main().run())
     except (KeyboardInterrupt, asyncio.CancelledError):
         exit(-1)

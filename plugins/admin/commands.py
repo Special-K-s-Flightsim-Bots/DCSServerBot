@@ -4,8 +4,6 @@ import discord
 import json
 import os
 import platform
-import psycopg2
-import psycopg2.extras
 import shlex
 import shutil
 import subprocess
@@ -15,10 +13,10 @@ from discord import Interaction, SelectOption
 from discord.ext import commands, tasks
 from discord.ui import Select, View, Button, Modal, TextInput
 from pathlib import Path
+from psycopg.rows import dict_row
 from typing import Union, List, Optional
 from zipfile import ZipFile
 from .listener import AdminEventListener
-
 
 STATUS_EMOJI = {
     Status.LOADING: '🔄',
@@ -155,16 +153,10 @@ class Agent(Plugin):
                     "command": "setCoalitionPassword",
                     ("redPassword" if coalition.casefold() == 'red' else "bluePassword"): password or ''
                 })
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format('blue_password' if coalition.casefold() == 'blue' else 'red_password'), (password, server.name))
-                        conn.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format('blue_password' if coalition.casefold() == 'blue' else 'red_password'),
+                                     (password, server.name))
                 await self.bot.audit(f"changed password for coalition {coalition}",
                                      user=ctx.message.author, server=server)
                 if server.status != Status.STOPPED and \
@@ -303,16 +295,10 @@ class Agent(Plugin):
         await msg.delete()
 
     def update_bans(self, data: Optional[dict] = None):
-        banlist = []
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute('SELECT ucid, reason FROM bans')
                 banlist = [dict(row) for row in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
         if data is not None:
             servers = [self.bot.servers[data['server_name']]]
         else:
@@ -333,55 +319,47 @@ class Agent(Plugin):
             reason = ' '.join(args)
         else:
             reason = 'n/a'
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if isinstance(user, discord.Member):
-                    # a player can have multiple ucids
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
-                    ucids = [row[0] for row in cursor.fetchall()]
-                else:
-                    # ban a specific ucid only
-                    ucids = [user]
-                for ucid in ucids:
-                    for server in self.bot.servers.values():
-                        server.sendtoDCS({
-                            "command": "ban",
-                            "ucid": ucid,
-                            "reason": reason
-                        })
-                        player = server.get_player(ucid=ucid)
-                        if player:
-                            player.banned = True
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        if isinstance(user, discord.Member):
+            # a player can have multiple ucids
+            with self.pool.connection() as conn:
+                ucids = [
+                    row[0] for row in
+                    conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, )).fetchall()
+                ]
+        else:
+            # ban a specific ucid only
+            ucids = [user]
+        for ucid in ucids:
+            for server in self.bot.servers.values():
+                server.sendtoDCS({
+                    "command": "ban",
+                    "ucid": ucid,
+                    "reason": reason
+                })
+                player = server.get_player(ucid=ucid)
+                if player:
+                    player.banned = True
 
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member|ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unban(self, ctx, user: Union[discord.Member, str]):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if isinstance(user, discord.Member):
-                    # a player can have multiple ucids
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
-                    ucids = [row[0] for row in cursor.fetchall()]
-                else:
-                    # unban a specific ucid only
-                    ucids = [user]
-                for ucid in ucids:
-                    for server in self.bot.servers.values():
-                        server.sendtoDCS({"command": "unban", "ucid": ucid})
-                        player = server.get_player(ucid=ucid)
-                        if player:
-                            player.banned = False
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        if isinstance(user, discord.Member):
+            # a player can have multiple ucids
+            with self.pool.connection() as conn:
+                ucids = [
+                    row[0] for row in
+                    conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, )).fetchall()
+                ]
+        else:
+            # unban a specific ucid only
+            ucids = [user]
+        for ucid in ucids:
+            for server in self.bot.servers.values():
+                server.sendtoDCS({"command": "unban", "ucid": ucid})
+                player = server.get_player(ucid=ucid)
+                if player:
+                    player.banned = False
 
     @commands.command(description='Moves a user to spectators', usage='<name>')
     @utils.has_role('DCS Admin')
@@ -660,41 +638,34 @@ class Master(Agent):
             await ctx.send('Aborted.')
             return
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if view.what in ['users', 'non-members']:
-                    sql = f"SELECT ucid FROM players WHERE last_seen < (DATE(NOW()) - interval '{view.age} days')"
-                    if view.what == 'non-members':
-                        sql += ' AND discord_id = -1'
-
-                    cursor.execute(sql)
-                    ucids = [row[0] for row in cursor.fetchall()]
-                    if not ucids:
-                        await ctx.send('No players to prune.')
-                        return
-                    if not await utils.yn_question(ctx, f"This will delete {len(ucids)} players incl. their stats "
-                                                        f"from the database.\nAre you sure?"):
-                        return
-                    for plugin in self.bot.cogs.values():  # type: Plugin
-                        await plugin.prune(conn, ucids=ucids)
-                    for ucid in ucids:
-                        cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                    await ctx.send(f"{len(ucids)} players pruned.")
-                elif view.what == 'data':
-                    days = int(view.age)
-                    if not await utils.yn_question(ctx, f"This will delete all data older than {days} days from the "
-                                                        f"database.\nAre you sure?"):
-                        return
-                    for plugin in self.bot.cogs.values():  # type: Plugin
-                        await plugin.prune(conn, days=days)
-                    await ctx.send(f"All data older than {days} days pruned.")
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.bot.log.exception(error)
-        finally:
-            self.bot.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.pipeline():
+                with conn.transaction():
+                    with closing(conn.cursor()) as cursor:
+                        if view.what in ['users', 'non-members']:
+                            sql = f"SELECT ucid FROM players WHERE last_seen < (DATE(NOW()) - interval '{view.age} days')"
+                            if view.what == 'non-members':
+                                sql += ' AND discord_id = -1'
+                            ucids = [row[0] for row in cursor.execute(sql).fetchall()]
+                            if not ucids:
+                                await ctx.send('No players to prune.')
+                                return
+                            if not await utils.yn_question(ctx, f"This will delete {len(ucids)} players incl. their stats "
+                                                                f"from the database.\nAre you sure?"):
+                                return
+                            for plugin in self.bot.cogs.values():  # type: Plugin
+                                await plugin.prune(conn, ucids=ucids)
+                            for ucid in ucids:
+                                cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
+                            await ctx.send(f"{len(ucids)} players pruned.")
+                        elif view.what == 'data':
+                            days = int(view.age)
+                            if not await utils.yn_question(ctx, f"This will delete all data older than {days} days from the "
+                                                                f"database.\nAre you sure?"):
+                                return
+                            for plugin in self.bot.cogs.values():  # type: Plugin
+                                await plugin.prune(conn, days=days)
+                            await ctx.send(f"All data older than {days} days pruned.")
         await self.bot.audit(f'pruned the database', user=ctx.message.author)
 
     @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [reason]')
@@ -705,65 +676,53 @@ class Master(Agent):
             reason = ' '.join(args)
         else:
             reason = 'n/a'
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if isinstance(user, discord.Member):
-                    # a player can have multiple ucids
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
-                    ucids = [row[0] for row in cursor.fetchall()]
-                else:
-                    # ban a specific ucid only
-                    ucids = [user]
-                for ucid in ucids:
-                    cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
-                                   (ucid, ctx.message.author.display_name, reason))
-                conn.commit()
-                await super().ban(self, ctx, user, *args)
-            if isinstance(user, discord.Member):
-                await ctx.send('Member {} banned.'.format(utils.escape_string(user.display_name)))
-            else:
-                await ctx.send(f'Player {user} banned.')
-            await self.bot.audit('banned ' +
-                                 ('member {}'.format(utils.escape_string(user.display_name)) if isinstance(user, discord.Member) else f' ucid {user}') +
-                                 (f' with reason "{reason}"' if reason != 'n/a' else ''),
-                                 user=ctx.message.author)
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.bot.log.exception(error)
-        finally:
-            self.bot.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    if isinstance(user, discord.Member):
+                        # a player can have multiple ucids
+                        cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
+                        ucids = [row[0] for row in cursor.fetchall()]
+                    else:
+                        # ban a specific ucid only
+                        ucids = [user]
+                    for ucid in ucids:
+                        cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
+                                       (ucid, ctx.message.author.display_name, reason))
+        await super().ban(self, ctx, user, *args)
+        if isinstance(user, discord.Member):
+            await ctx.send('Member {} banned.'.format(utils.escape_string(user.display_name)))
+        else:
+            await ctx.send(f'Player {user} banned.')
+        await self.bot.audit('banned ' +
+                             ('member {}'.format(utils.escape_string(user.display_name)) if isinstance(user, discord.Member) else f' ucid {user}') +
+                             (f' with reason "{reason}"' if reason != 'n/a' else ''),
+                             user=ctx.message.author)
 
     @commands.command(description='Unbans a user by ucid or discord id', usage='<member|ucid>')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def unban(self, ctx, user: Union[discord.Member, str]):
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if isinstance(user, discord.Member):
-                    # a player can have multiple ucids
-                    cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
-                    ucids = [row[0] for row in cursor.fetchall()]
-                else:
-                    # unban a specific ucid only
-                    ucids = [user]
-                for ucid in ucids:
-                    cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
-                conn.commit()
-                await super().unban(self, ctx, user)
-            if isinstance(user, discord.Member):
-                await ctx.send('Member {} unbanned.'.format(utils.escape_string(user.display_name)))
-            else:
-                await ctx.send(f'Player {user} unbanned.')
-            await self.bot.audit(f'unbanned ' +
-                                 ('member {}'.format(utils.escape_string(user.display_name)) if isinstance(user, discord.Member) else f' ucid {user}'),
-                                 user=ctx.message.author)
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.bot.log.exception(error)
-        finally:
-            self.bot.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    if isinstance(user, discord.Member):
+                        # a player can have multiple ucids
+                        cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
+                        ucids = [row[0] for row in cursor.fetchall()]
+                    else:
+                        # unban a specific ucid only
+                        ucids = [user]
+                    for ucid in ucids:
+                        cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
+        await super().unban(self, ctx, user)
+        if isinstance(user, discord.Member):
+            await ctx.send('Member {} unbanned.'.format(utils.escape_string(user.display_name)))
+        else:
+            await ctx.send(f'Player {user} unbanned.')
+        await self.bot.audit(f'unbanned ' +
+                             ('member {}'.format(utils.escape_string(user.display_name)) if isinstance(user, discord.Member) else f' ucid {user}'),
+                             user=ctx.message.author)
 
     def format_bans(self, rows):
         embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
@@ -785,74 +744,61 @@ class Master(Agent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def bans(self, ctx):
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, '
-                               'b.reason FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid')
-                rows = list(cursor.fetchall())
-                await utils.pagination(self.bot, ctx, rows, self.format_bans, 20)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-        finally:
-            self.bot.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                    rows = list(cursor.execute("""
+                        SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason 
+                        FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid
+                        """).fetchall())
+        await utils.pagination(self.bot, ctx, rows, self.format_bans, 20)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         self.bot.log.debug(f'Member {member.display_name} has left the discord')
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if self.bot.config.getboolean('BOT', 'AUTOBAN'):
-                    self.bot.log.debug(f'- Auto-ban member {member.display_name} on the DCS servers')
-                    cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
-                                   'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
-                    self.update_bans()
-                self.bot.log.debug(f'- Delete stats of member {member.display_name}')
-                cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
-                               'discord_id = %s)', (member.id, ))
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                    if self.bot.config.getboolean('BOT', 'AUTOBAN'):
+                        self.bot.log.debug(f'- Auto-ban member {member.display_name} on the DCS servers')
+                        cursor.execute("""
+                            INSERT INTO bans SELECT ucid, 'DCSServerBot', 'Player left guild.' 
+                            FROM players WHERE discord_id = %s 
+                            ON CONFLICT DO NOTHING
+                            """, (member.id, ))
+                        self.update_bans()
+                    self.bot.log.debug(f'- Delete stats of member {member.display_name}')
+                    cursor.execute("""
+                        DELETE FROM statistics 
+                        WHERE player_ucid IN (
+                            SELECT ucid FROM players WHERE discord_id = %s
+                        )
+                        """, (member.id, ))
 
     @commands.Cog.listener()
     async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
         self.bot.log.debug(f"Member {member.display_name} has been banned.")
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
+        with self.pool.connection() as conn:
+            with conn.transaction():
                 self.bot.log.debug(f'- Ban member {member.display_name} on the DCS servers.')
-                cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
-                               'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
+                conn.execute("""
+                    INSERT INTO bans SELECT ucid, 'DCSServerBot', 'Player left guild.' 
+                    FROM players 
+                    WHERE discord_id = %s ON CONFLICT DO NOTHING
+                """, (member.id, ))
                 self.update_bans()
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
         self.bot.log.debug('Member {} has joined guild {}'.format(member.display_name, member.guild.name))
         if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
             self.bot.log.debug('Remove possible bans from DCS servers.')
-            conn = self.bot.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
+            with self.pool.connection() as conn:
+                with conn.transaction():
                     # auto-unban them if they were auto-banned
-                    cursor.execute('DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE '
-                                   'discord_id = %s)', (member.id, ))
-                    self.update_bans()
-                    conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.bot.log.exception(error)
-                conn.rollback()
-            finally:
-                self.bot.pool.putconn(conn)
+                    conn.execute('DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE discord_id = %s)',
+                                 (member.id, ))
+            self.update_bans()
         if 'GREETING_DM' in self.bot.config['BOT']:
             channel = await member.create_dm()
             await channel.send(self.bot.config['BOT']['GREETING_DM'].format(name=member.name, guild=member.guild.name))
@@ -862,8 +808,8 @@ class Master(Agent):
         # ignore bot messages or messages that does not contain json attachments
         if message.author.bot or not message.attachments or \
                 not (
-                        message.attachments[0].filename.endswith('.json') or
-                        message.attachments[0].filename == 'dcsserverbot.ini'
+                    message.attachments[0].filename.endswith('.json') or
+                    message.attachments[0].filename == 'dcsserverbot.ini'
                 ):
             return
         # only Admin role is allowed to upload json files in channels

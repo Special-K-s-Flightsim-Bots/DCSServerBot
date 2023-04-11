@@ -1,7 +1,5 @@
 import discord
-import psycopg2
 import shlex
-from contextlib import closing
 from core import EventListener, Player, Server, Channel, event, chat_command
 
 
@@ -14,21 +12,16 @@ class AdminEventListener(EventListener):
 
     @event(name="ban")
     async def ban(self, server: Server, data: dict) -> None:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
-                               (data['ucid'], 'DCSServerBot', data['reason']))
-                for server in self.bot.servers.values():
-                    server.sendtoDCS({
-                        "command": "ban",
-                        "ucid": data['ucid'],
-                        "reason": data['reason']
-                    })
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
+                             (data['ucid'], 'DCSServerBot', data['reason']))
+        for server in self.bot.servers.values():
+            server.sendtoDCS({
+                "command": "ban",
+                "ucid": data['ucid'],
+                "reason": data['reason']
+            })
 
     @chat_command(name="kick", roles=['DCS Admin'], usage="<name>", help="kick a user")
     async def kick(self, server: Server, player: Player, params: list[str]):

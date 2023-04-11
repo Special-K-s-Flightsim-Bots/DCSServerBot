@@ -3,7 +3,7 @@ import logging
 import logging.handlers
 import math
 import platform
-import psycopg2
+import psycopg
 import re
 from contextlib import closing
 from core import Service, ServiceRegistry
@@ -53,7 +53,8 @@ class Servers:
         table.add_column("Players", justify="center", min_width=4)
         for server_name, server in self.bot.servers.items():
             name = re.sub(self.bot.config['FILTER']['SERVER_FILTER'], '', server.name).strip()
-            mission_name = re.sub(self.bot.config['FILTER']['MISSION_FILTER'], '', server.current_mission.name).strip() if server.current_mission else "n/a"
+            mission_name = re.sub(self.bot.config['FILTER']['MISSION_FILTER'], '',
+                                  server.current_mission.name).strip() if server.current_mission else "n/a"
             num_players = f"{len(server.get_active_players()) + 1}/{server.settings['maxPlayers']}"
             table.add_row(server.status.name.title(), name, mission_name, num_players)
         return Panel(table, title="Servers", padding=1)
@@ -76,34 +77,22 @@ class Bot:
         if self.bot.is_ws_ratelimited():
             msg += "\t[bold red]Rate limited![/]"
 
-        conn = self.pool.getconn()
-        table = None
-        try:
+        table = Table(expand=True, show_edge=False)
+        table.add_column("Node", justify="left")
+        table.add_column("# Servers", justify="center")
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute("SELECT s1.agent_host, COUNT(s1.server_name), COUNT(s2.server_name) FROM "
-                               "(SELECT agent_host, server_name FROM servers "
-                               "WHERE last_seen > (DATE(NOW()) - interval '1 week')) s1 "
-                               "LEFT OUTER JOIN "
-                               "(SELECT agent_host, server_name FROM servers "
-                               "WHERE last_seen > (NOW() - interval '1 minute')) s2 "
-                               "ON (s1.agent_host = s2.agent_host AND s1.server_name = s2.server_name) "
-                               "WHERE s1.agent_host <> %s "
-                               "GROUP BY 1", (platform.node(), ))
-                if cursor.rowcount > 0:
-                    table = Table(expand=True, show_edge=False)
-                    table.add_column("Node", justify="left")
-                    table.add_column("# Servers", justify="center")
-                    for row in cursor.fetchall():
-                        table.add_row(row[0], f"{row[2]}/{row[1]}")
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-
-        if table:
-            return Panel(Group(Panel(msg), Panel(table)), title="Bot")
-        else:
-            return Panel(msg, title="Bot", padding=1)
+                for row in cursor.execute("""
+                    SELECT s1.agent_host, COUNT(s1.server_name), COUNT(s2.server_name) FROM (
+                        SELECT agent_host, server_name FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')
+                    ) s1 LEFT OUTER JOIN (
+                        SELECT agent_host, server_name FROM servers WHERE last_seen > (NOW() - interval '1 minute')
+                    ) s2 ON (s1.agent_host = s2.agent_host AND s1.server_name = s2.server_name) 
+                    WHERE s1.agent_host <> %s 
+                    GROUP BY 1
+                """, (platform.node(), )).fetchall():
+                    table.add_row(row[0], f"{row[2]}/{row[1]}")
+        return Panel(Group(Panel(msg), Panel(table)), title="Bot")
 
 
 class Log:
@@ -187,6 +176,7 @@ class Dashboard(Service):
         else:
             self.bot = cast(EventListenerService, ServiceRegistry.get("EventListener"))
         self.hook_logging()
+        self.update.add_exception_type(psycopg.DatabaseError)
         self.update.start()
 
     async def stop(self):

@@ -1,4 +1,3 @@
-import psycopg2
 from abc import ABC, abstractmethod
 from contextlib import closing
 from core import DCSServerBot, utils, Pagination, ReportEnv, const
@@ -192,8 +191,7 @@ class StatsPagination(Pagination):
         self.log = env.bot.log
 
     def values(self, period: str, **kwargs) -> list[str]:
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 if period in [None, 'all', 'day', 'week', 'month', 'year', 'today', 'yesterday']:
                     cursor.execute('SELECT DISTINCT server_name FROM missions')
@@ -201,7 +199,3 @@ class StatsPagination(Pagination):
                     cursor.execute('SELECT DISTINCT s.server_name FROM campaigns c, campaigns_servers s WHERE '
                                    'c.id = s.campaign_id AND c.name ILIKE %s', (period,))
                 return [x[0] for x in cursor.fetchall()]
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)

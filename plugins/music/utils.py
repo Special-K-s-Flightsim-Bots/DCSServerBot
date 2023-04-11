@@ -1,8 +1,6 @@
 import discord
 import eyed3
 import os
-import psycopg2
-from contextlib import closing
 from core import DCSServerBot
 from discord import app_commands
 from eyed3.id3 import Tag
@@ -23,16 +21,12 @@ class Playlist:
         self.pool = bot.pool
         self.playlist = playlist
         # initialize the playlist if there is one stored in the database
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT song_file FROM music_playlists WHERE name = %s ORDER BY song_id',
-                               (self.playlist,))
-                self._items = [row[0] for row in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            self._items = [
+                row[0] for row in conn.execute(
+                    'SELECT song_file FROM music_playlists WHERE name = %s ORDER BY song_id',
+                    (self.playlist,)).fetchall()
+            ]
 
     @property
     def name(self) -> str:
@@ -49,57 +43,29 @@ class Playlist:
         return len(self._items)
 
     def add(self, item: str) -> None:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("INSERT INTO music_playlists (name, song_id, song_file) "
-                               "VALUES (%s, nextval('music_song_id_seq'), %s)",
-                               (self.playlist, item))
-            conn.commit()
-            self._items.append(item)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("INSERT INTO music_playlists (name, song_id, song_file) "
+                             "VALUES (%s, nextval('music_song_id_seq'), %s)",
+                             (self.playlist, item))
+                self._items.append(item)
 
     def remove(self, item: str) -> None:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('DELETE FROM music_playlists WHERE name = %s AND song_file = %s', (self.playlist, item))
-            conn.commit()
-            self._items.remove(item)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('DELETE FROM music_playlists WHERE name = %s AND song_file = %s', (self.playlist, item))
+                self._items.remove(item)
 
     def clear(self) -> None:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('DELETE FROM music_playlists WHERE name = %s ', (self.playlist,))
-            conn.commit()
-            self._items.clear()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('DELETE FROM music_playlists WHERE name = %s ', (self.playlist,))
+                self._items.clear()
 
 
 def get_all_playlists(bot: DCSServerBot) -> list[str]:
-    conn = bot.pool.getconn()
-    try:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute('SELECT DISTINCT name FROM music_playlists')
-            return [x[0] for x in cursor.fetchall()]
-    except (Exception, psycopg2.DatabaseError) as error:
-        bot.log.exception(error)
-    finally:
-        bot.pool.putconn(conn)
+    with bot.pool.connection() as conn:
+        return [x[0] for x in conn.execute('SELECT DISTINCT name FROM music_playlists ORDER BY 1').fetchall()]
 
 
 async def playlist_autocomplete(

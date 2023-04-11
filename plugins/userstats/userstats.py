@@ -1,12 +1,11 @@
 import discord
 import matplotlib.pyplot as plt
 import numpy as np
-import psycopg2
-import psycopg2.extras
 from contextlib import closing
 from core import report, utils
 from matplotlib.axes import Axes
 from matplotlib.patches import ConnectionPatch
+from psycopg.rows import dict_row
 from typing import Union
 from .filter import StatisticsFilter
 
@@ -28,13 +27,11 @@ class PlaytimesPerPlane(report.GraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += ' GROUP BY s.slot ORDER BY 2'
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 labels = []
                 values = []
-                for row in cursor.fetchall():
+                for row in cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,)).fetchall():
                     labels.insert(0, row['slot'])
                     values.insert(0, row['playtime'] / 3600.0)
                 self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
@@ -49,10 +46,6 @@ class PlaytimesPerPlane(report.GraphElement):
                 if cursor.rowcount == 0:
                     self.axes.set_xticks([])
                     self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class PlaytimesPerServer(report.GraphElement):
@@ -71,31 +64,27 @@ class PlaytimesPerServer(report.GraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += ' GROUP BY 1'
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
-                if cursor.rowcount > 0:
-                    def func(pct, allvals):
-                        absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return utils.convert_time(absolute)
+        labels = []
+        values = []
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                for row in cursor.execute(sql,
+                                          (member.id if isinstance(member, discord.Member) else member,)).fetchall():
+                    labels.insert(0, row['server_name'])
+                    values.insert(0, row['playtime'])
 
-                    labels = []
-                    values = []
-                    for row in cursor.fetchall():
-                        labels.insert(0, row['server_name'])
-                        values.insert(0, row['playtime'])
-                    patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
-                                                    wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
-                    plt.setp(pcts, color='black', fontweight='bold')
-                    self.axes.set_title('Server Time', color='white', fontsize=25)
-                    self.axes.axis('equal')
-                else:
-                    self.axes.set_visible(False)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        if values:
+            def func(pct, allvals):
+                absolute = int(round(pct / 100. * np.sum(allvals)))
+                return utils.convert_time(absolute)
+
+            patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
+                                                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+            plt.setp(pcts, color='black', fontweight='bold')
+            self.axes.set_title('Server Time', color='white', fontsize=25)
+            self.axes.axis('equal')
+        else:
+            self.axes.set_visible(False)
 
 
 class PlaytimesPerMap(report.GraphElement):
@@ -113,31 +102,26 @@ class PlaytimesPerMap(report.GraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += ' GROUP BY m.mission_theatre'
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
-                if cursor.rowcount > 0:
-                    def func(pct, allvals):
-                        absolute = int(round(pct / 100. * np.sum(allvals)))
-                        return utils.convert_time(absolute)
+        labels = []
+        values = []
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                for row in cursor.execute(sql,
+                                          (member.id if isinstance(member, discord.Member) else member,)).fetchall():
+                    labels.insert(0, row['mission_theatre'])
+                    values.insert(0, row['playtime'])
+        if values:
+            def func(pct, allvals):
+                absolute = int(round(pct / 100. * np.sum(allvals)))
+                return utils.convert_time(absolute)
 
-                    labels = []
-                    values = []
-                    for row in cursor.fetchall():
-                        labels.insert(0, row['mission_theatre'])
-                        values.insert(0, row['playtime'])
-                    patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
-                                                    wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
-                    plt.setp(pcts, color='black', fontweight='bold')
-                    self.axes.set_title('Time per Map', color='white', fontsize=25)
-                    self.axes.axis('equal')
-                else:
-                    self.axes.set_visible(False)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+            patches, texts, pcts = self.axes.pie(values, labels=labels, autopct=lambda pct: func(pct, values),
+                                                 wedgeprops={'linewidth': 3.0, 'edgecolor': 'black'}, normalize=True)
+            plt.setp(pcts, color='black', fontweight='bold')
+            self.axes.set_title('Time per Map', color='white', fontsize=25)
+            self.axes.axis('equal')
+        else:
+            self.axes.set_visible(False)
 
 
 class RecentActivities(report.GraphElement):
@@ -156,28 +140,25 @@ class RecentActivities(report.GraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += ' GROUP BY day'
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                labels = []
-                values = []
-                cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
-                self.axes.set_title('Recent Activities', color='white', fontsize=25)
-                self.axes.set_yticks([])
-                for row in cursor.fetchall():
+        labels = []
+        values = []
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                for row in cursor.execute(sql,
+                                          (member.id if isinstance(member, discord.Member) else member,)).fetchall():
                     labels.append(row['day'])
                     values.append(row['playtime'] / 3600.0)
+
+                self.axes.set_title('Recent Activities', color='white', fontsize=25)
+                self.axes.set_yticks([])
                 self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
-                for i in range(0, len(values)):
-                    self.axes.annotate('{:.1f} h'.format(values[i]), xy=(
-                        labels[i], values[i]), ha='center', va='bottom', weight='bold')
-                if cursor.rowcount == 0:
+                if values:
+                    for i in range(0, len(values)):
+                        self.axes.annotate('{:.1f} h'.format(values[i]), xy=(
+                            labels[i], values[i]), ha='center', va='bottom', weight='bold')
+                else:
                     self.axes.set_xticks([])
                     self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class FlightPerformance(report.GraphElement):
@@ -195,9 +176,8 @@ class FlightPerformance(report.GraphElement):
             sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
@@ -221,10 +201,6 @@ class FlightPerformance(report.GraphElement):
                         self.axes.set_visible(False)
                 else:
                     self.axes.set_visible(False)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class KDRatio(report.MultiGraphElement):
@@ -246,9 +222,8 @@ class KDRatio(report.MultiGraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         retval = []
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 if cursor.rowcount > 0:
                     def func(pct, allvals):
@@ -287,10 +262,6 @@ class KDRatio(report.MultiGraphElement):
                         ax.set_visible(False)
                 else:
                     ax.set_visible(False)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
         return retval
 
     def draw_kill_types(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
@@ -308,9 +279,8 @@ class KDRatio(report.MultiGraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         retval = False
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 # if no data was found, return False as no chart was drawn
                 if cursor.rowcount > 0:
@@ -340,10 +310,6 @@ class KDRatio(report.MultiGraphElement):
                                     bbox_to_anchor=(-2.4, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
                         # Chart was drawn, return True
                         retval = True
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
         return retval
 
     def draw_death_types(self, ax: Axes, legend: bool, member: Union[discord.Member, str], server_name: str,
@@ -360,9 +326,8 @@ class KDRatio(report.MultiGraphElement):
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         retval = False
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,))
                 result = cursor.fetchone()
                 # if no data was found, return False as no chart was drawn
@@ -394,10 +359,6 @@ class KDRatio(report.MultiGraphElement):
                                       bbox_to_anchor=(0.6, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
                         # Chart was drawn, return True
                         retval = True
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
         return retval
 
     def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):

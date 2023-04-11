@@ -4,17 +4,18 @@ import asyncio
 import logging
 import os
 import platform
-import psycopg2
 import shutil
 import zipfile
-from contextlib import closing, suppress
+from contextlib import closing
+
+from psycopg.rows import dict_row
+
 from core import utils, ServiceRegistry
-from core.pool import ThreadedConnectionPool
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from matplotlib import font_manager
 from pathlib import Path
-from psycopg2.extras import RealDictCursor
+from psycopg_pool import ConnectionPool
 from services import Dashboard, BotService, EventListenerService
 from typing import cast
 from version import __version__
@@ -75,17 +76,15 @@ class Main:
         return log
 
     def init_db(self):
-        db_pool = ThreadedConnectionPool(int(self.config['DB']['MASTER_POOL_MIN']),
-                                         int(self.config['DB']['MASTER_POOL_MAX']),
-                                         self.config['BOT']['DATABASE_URL'],
-                                         sslmode='allow')
+        db_pool = ConnectionPool(self.config['BOT']['DATABASE_URL'],
+                                 min_size=int(self.config['DB']['MASTER_POOL_MIN']),
+                                 max_size=int(self.config['DB']['MASTER_POOL_MAX']))
         return db_pool
 
     def update_db(self):
         # Initialize the database
-        conn = self.pool.getconn()
-        try:
-            with suppress(Exception):
+        with self.pool.connection() as conn:
+            with conn.transaction():
                 with closing(conn.cursor()) as cursor:
                     # check if there is an old database already
                     cursor.execute("SELECT tablename FROM pg_catalog.pg_tables "
@@ -115,19 +114,13 @@ class Main:
                             cursor.execute('SELECT version FROM version')
                             self.db_version = cursor.fetchone()[0]
                             self.log.info(f"Database updated to {self.db_version}.")
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.log.exception(error)
-            raise error
-        finally:
-            self.pool.putconn(conn)
         # Make sure we only get back floats, not Decimal
-        dec2float = psycopg2.extensions.new_type(
-            psycopg2.extensions.DECIMAL.values,
-            'DEC2FLOAT',
-            lambda value, curs: float(value) if value is not None else None)
-        psycopg2.extensions.register_type(dec2float)
+# TODO
+#        dec2float = psycopg.extensions.new_type(
+#            psycopg.extensions.DECIMAL.values,
+#            'DEC2FLOAT',
+#            lambda value, curs: float(value) if value is not None else None)
+#        psycopg.extensions.register_type(dec2float)
 
     def install_hooks(self):
         self.log.info('- Configure DCS installations ...')
@@ -214,45 +207,29 @@ class Main:
                 self.log.debug('- CJK fonts loaded.')
 
     def register(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("INSERT INTO agents (guild_id, node, master) VALUES (%s, %s, False) "
-                               "ON CONFLICT (guild_id, node) DO UPDATE SET master = False",
-                               (self.guild_id, platform.node()))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.log.exception(error)
-            raise error
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("INSERT INTO agents (guild_id, node, master) VALUES (%s, %s, False) "
+                             "ON CONFLICT (guild_id, node) DO UPDATE SET master = False",
+                             (self.guild_id, platform.node()))
 
     def is_master(self) -> bool:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=RealDictCursor)) as cursor:
-                cursor.execute("UPDATE agents SET last_seen = NOW() WHERE guild_id = %s and node = %s",
-                               (self.guild_id, platform.node()))
-                cursor.execute("SELECT * FROM agents WHERE guild_id = %s FOR UPDATE SKIP LOCKED", (self.guild_id, ))
-                for row in cursor.fetchall():
-                    if row['master']:
-                        if row['node'] == platform.node():
-                            return True
-                        elif (datetime.now() - row['last_seen']).seconds < 60:
-                            return False
-                cursor.execute('UPDATE agents SET master = False WHERE guild_id = %s', (self.guild_id, ))
-                cursor.execute('UPDATE agents SET master = True WHERE guild_id = %s and node = %s',
-                               (self.guild_id, platform.node()))
-            conn.commit()
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                    cursor.execute("UPDATE agents SET last_seen = NOW() WHERE guild_id = %s and node = %s",
+                                   (self.guild_id, platform.node()))
+                    cursor.execute("SELECT * FROM agents WHERE guild_id = %s FOR UPDATE SKIP LOCKED", (self.guild_id, ))
+                    for row in cursor.fetchall():
+                        if row['master']:
+                            if row['node'] == platform.node():
+                                return True
+                            elif (datetime.now() - row['last_seen']).seconds < 60:
+                                return False
+                    cursor.execute('UPDATE agents SET master = False WHERE guild_id = %s', (self.guild_id, ))
+                    cursor.execute('UPDATE agents SET master = True WHERE guild_id = %s and node = %s',
+                                   (self.guild_id, platform.node()))
             return True
-
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.log.exception(error)
-            raise error
-        finally:
-            self.pool.putconn(conn)
 
     async def run(self):
         async with ServiceRegistry(main=self) as registry:

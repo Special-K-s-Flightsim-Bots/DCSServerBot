@@ -2,7 +2,7 @@ from __future__ import annotations
 import discord
 import logging
 import os
-import psycopg2
+import psycopg
 from contextlib import closing
 from core import EventListener, Side, Coalition, Channel, utils, event, chat_command
 from datetime import datetime
@@ -54,32 +54,23 @@ class GameMasterEventListener(EventListener):
 
     def get_coalition(self, server: Server, player: Player) -> Optional[Coalition]:
         if not player.coalition:
-            conn = self.bot.pool.getconn()
-            try:
+            with self.pool.connection() as conn:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT coalition FROM coalitions WHERE server_name = %s and player_ucid = %s '
-                                   'AND coalition_leave IS NULL', (server.name, player.ucid))
+                    cursor.execute("""
+                        SELECT coalition FROM coalitions 
+                        WHERE server_name = %s and player_ucid = %s AND coalition_leave IS NULL
+                    """, (server.name, player.ucid))
                     coalition = cursor.fetchone()[0] if cursor.rowcount == 1 else None
                     if coalition:
                         player.coalition = Coalition(coalition)
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.bot.log.exception(error)
-            finally:
-                self.bot.pool.putconn(conn)
         return player.coalition
 
     def get_coalition_password(self, server: Server, coalition: Coalition) -> Optional[str]:
-        conn = self.bot.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
-                               (server.name,))
-                row = cursor.fetchone()
+                row = cursor.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
+                                     (server.name,)).fetchone()
                 return row[0] if coalition == Coalition.BLUE else row[1]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-        finally:
-            self.bot.pool.putconn(conn)
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -105,53 +96,47 @@ class GameMasterEventListener(EventListener):
 
     def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
                  description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if command == 'add':
-                    cursor.execute('INSERT INTO campaigns (name, description, start, stop) VALUES (%s, %s, %s, %s)',
-                                   (name, description, start, end))
-                    if servers:
-                        cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
-                        campaign_id = cursor.fetchone()[0]
-                        for server in servers:
-                            # add this server to the server list
-                            cursor.execute('INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING',
-                                           (campaign_id, server.name))
-                elif command == 'start':
-                    cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s AND NOW() BETWEEN start AND '
-                                   'COALESCE(stop, NOW())', (name,))
-                    if cursor.rowcount == 0:
-                        cursor.execute('INSERT INTO campaigns (name) VALUES (%s)', (name,))
-                    if servers:
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    if command == 'add':
+                        cursor.execute('INSERT INTO campaigns (name, description, start, stop) VALUES (%s, %s, %s, %s)',
+                                       (name, description, start, end))
+                        if servers:
+                            cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
+                            campaign_id = cursor.fetchone()[0]
+                            for server in servers:
+                                # add this server to the server list
+                                cursor.execute('INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING',
+                                               (campaign_id, server.name))
+                    elif command == 'start':
                         cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s AND NOW() BETWEEN start AND '
                                        'COALESCE(stop, NOW())', (name,))
-                        # don't use currval() in here, as we can't rely on the sequence name
+                        if cursor.rowcount == 0:
+                            cursor.execute('INSERT INTO campaigns (name) VALUES (%s)', (name,))
+                        if servers:
+                            cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s AND NOW() BETWEEN start AND '
+                                           'COALESCE(stop, NOW())', (name,))
+                            # don't use currval() in here, as we can't rely on the sequence name
+                            campaign_id = cursor.fetchone()[0]
+                            for server in servers:
+                                cursor.execute("INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                                               (campaign_id, server.name,))
+                    elif command == 'stop':
+                        cursor.execute('UPDATE campaigns SET stop = NOW() WHERE name ILIKE %s AND NOW() '
+                                       'BETWEEN start AND COALESCE(stop, NOW())', (name,))
+                    elif command == 'delete':
+                        cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
                         campaign_id = cursor.fetchone()[0]
-                        for server in servers:
-                            cursor.execute("INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                                           (campaign_id, server.name,))
-                elif command == 'stop':
-                    cursor.execute('UPDATE campaigns SET stop = NOW() WHERE name ILIKE %s AND NOW() BETWEEN start AND '
-                                   'COALESCE(stop, NOW())', (name,))
-                elif command == 'delete':
-                    cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
-                    campaign_id = cursor.fetchone()[0]
-                    cursor.execute('DELETE FROM campaigns_servers WHERE campaign_id = %s', (campaign_id,))
-                    cursor.execute('DELETE FROM campaigns WHERE id = %s', (campaign_id,))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError):
-            conn.rollback()
-            raise
-        finally:
-            self.pool.putconn(conn)
+                        cursor.execute('DELETE FROM campaigns_servers WHERE campaign_id = %s', (campaign_id,))
+                        cursor.execute('DELETE FROM campaigns WHERE id = %s', (campaign_id,))
 
     @event(name="startCampaign")
     async def startCampaign(self, server: Server, data: dict) -> None:
         name = data['name'] or '_internal_'
         try:
             self.campaign('start', servers=[server], name=name)
-        except psycopg2.errors.UniqueViolation:
+        except psycopg.errors.UniqueViolation:
             await self.resetCampaign(data)
 
     @event(name="stopCampaign")
@@ -181,35 +166,32 @@ class GameMasterEventListener(EventListener):
             return
 
         # update the database
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                # check if the player is eligible to change the coalitions
-                cursor.execute("SELECT coalition FROM coalitions WHERE server_name = %s AND player_ucid = %s "
-                               "AND coalition_leave > (NOW() - interval %s)",
-                               (server.name, player.ucid, self.bot.config[server.installation]['COALITION_LOCK_TIME']))
-                if cursor.rowcount == 1:
-                    if cursor.fetchone()[0] != coalition.casefold():
-                        player.sendChatMessage(f"You can't join the {coalition} coalition in-between "
-                                               f"{self.bot.config[server.installation]['COALITION_LOCK_TIME']} of "
-                                               f"leaving a coalition.")
-                        await self.bot.audit(f"{player.display_name} tried to join a new coalition in-between the time "
-                                             f"limit.", user=player.ucid)
-                        return
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    # check if the player is eligible to change the coalitions
+                    cursor.execute("""
+                        SELECT coalition FROM coalitions 
+                        WHERE server_name = %s AND player_ucid = %s AND coalition_leave > (NOW() - interval %s)
+                    """, (server.name, player.ucid, self.bot.config[server.installation]['COALITION_LOCK_TIME']))
+                    if cursor.rowcount == 1:
+                        if cursor.fetchone()[0] != coalition.casefold():
+                            player.sendChatMessage(f"You can't join the {coalition} coalition in-between "
+                                                   f"{self.bot.config[server.installation]['COALITION_LOCK_TIME']} of "
+                                                   f"leaving a coalition.")
+                            await self.bot.audit(
+                                f"{player.display_name} tried to join a new coalition in-between the time limit.",
+                                user=player.ucid)
+                            return
 
-                # set the new coalition
-                cursor.execute('INSERT INTO coalitions (server_name, player_ucid, coalition, coalition_leave) '
-                               'VALUES (%s, %s, %s, NULL) '
-                               'ON CONFLICT (server_name, player_ucid) DO UPDATE '
-                               'SET coalition = excluded.coalition, coalition_leave = excluded.coalition_leave',
-                               (server.name, player.ucid, coalition))
-                player.coalition = Coalition(coalition)
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
+                    # set the new coalition
+                    cursor.execute("""
+                        INSERT INTO coalitions (server_name, player_ucid, coalition, coalition_leave) 
+                        VALUES (%s, %s, %s, NULL) 
+                        ON CONFLICT (server_name, player_ucid) DO UPDATE 
+                        SET coalition = excluded.coalition, coalition_leave = excluded.coalition_leave
+                    """, (server.name, player.ucid, coalition))
+                    player.coalition = Coalition(coalition)
 
         # welcome them in DCS
         password = self.get_coalition_password(server, player.coalition)
@@ -241,18 +223,12 @@ class GameMasterEventListener(EventListener):
                                    f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
             return
         # update the database
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE coalitions SET coalition_leave = NOW() WHERE server_name = %s '
-                               'AND player_ucid = %s', (server.name, player.ucid))
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute(
+                    'UPDATE coalitions SET coalition_leave = NOW() WHERE server_name = %s AND player_ucid = %s',
+                    (server.name, player.ucid))
                 player.sendChatMessage(f"You've left the {player.coalition.name} coalition!")
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
         # remove discord roles
         try:
             if player.member:

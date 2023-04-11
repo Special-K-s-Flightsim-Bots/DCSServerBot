@@ -1,9 +1,9 @@
 import discord
-import psycopg2
 from contextlib import closing
 from copy import deepcopy
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, Server
 from discord.ext import commands
+from psycopg.rows import dict_row
 from typing import Optional, cast, Union
 from .listener import CreditSystemListener
 from .player import CreditPlayer
@@ -56,39 +56,32 @@ class CreditSystemMaster(CreditSystemAgent):
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Creditsystem ...')
-        with closing(conn.cursor()) as cursor:
-            if ucids:
-                for ucid in ucids:
-                    cursor.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))
-                    cursor.execute('DELETE FROM credits_log WHERE player_ucid = %s', (ucid,))
+        if ucids:
+            for ucid in ucids:
+                conn.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))
+                conn.execute('DELETE FROM credits_log WHERE player_ucid = %s', (ucid,))
         self.log.debug('Creditsystem pruned.')
 
     def get_credits(self, ucid: str) -> list[dict]:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits FROM campaigns c LEFT '
-                               'OUTER JOIN credits s ON (c.id = s.campaign_id AND s.player_ucid = %s) WHERE NOW() '
-                               'BETWEEN c.start AND COALESCE(c.stop, NOW()) GROUP BY 1, 2',
-                               (ucid, ))
-                return list(cursor.fetchall())
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                return list(cursor.execute("""
+                    SELECT c.id, c.name, COALESCE(SUM(s.points), 0) AS credits 
+                    FROM campaigns c LEFT OUTER JOIN credits s ON (c.id = s.campaign_id AND s.player_ucid = %s) 
+                    WHERE NOW() BETWEEN c.start AND COALESCE(c.stop, NOW()) 
+                    GROUP BY 1, 2
+                """, (ucid, )).fetchall())
 
     def get_credits_log(self, ucid: str) -> list[dict]:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT s.event, s.old_points, s.new_points, remark, time FROM credits_log s, '
-                               'campaigns c WHERE s.player_ucid = %s AND s.campaign_id = c.id AND NOW() BETWEEN '
-                               'c.start AND COALESCE(c.stop, NOW()) ORDER BY s.time DESC LIMIT 10', (ucid, ))
-                return list(cursor.fetchall())
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                return list(cursor.execute("""
+                    SELECT s.event, s.old_points, s.new_points, remark, time 
+                    FROM credits_log s, campaigns c 
+                    WHERE s.player_ucid = %s AND s.campaign_id = c.id 
+                    AND NOW() BETWEEN c.start AND COALESCE(c.stop, NOW()) 
+                    ORDER BY s.time DESC LIMIT 10
+                """, (ucid, )).fetchall())
 
     @commands.command(description='Displays your current credits')
     @utils.has_role('DCS')
@@ -104,7 +97,8 @@ class CreditSystemMaster(CreditSystemAgent):
             else:
                 ucid = self.bot.get_ucid_by_member(member)
                 if not ucid:
-                    await ctx.send("Member {} is not linked to any DCS user.".format(utils.escape_string(member.display_name)))
+                    await ctx.send(
+                        "Member {} is not linked to any DCS user.".format(utils.escape_string(member.display_name)))
                     return
         else:
             member = ctx.message.author
@@ -118,7 +112,8 @@ class CreditSystemMaster(CreditSystemAgent):
             await ctx.send('{} has no campaign credits.'.format(utils.escape_string(member.display_name)))
             return
         embed = discord.Embed(
-            title="Campaign Credits for {}".format(utils.escape_string(member.display_name) if isinstance(member, discord.Member) else member),
+            title="Campaign Credits for {}".format(utils.escape_string(member.display_name)
+                                                   if isinstance(member, discord.Member) else member),
             color=discord.Color.blue())
         campaigns = points = ''
         for row in data:
@@ -159,7 +154,8 @@ class CreditSystemMaster(CreditSystemAgent):
     async def admin_donate(self, ctx, to: discord.Member, donation: int):
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:
-            await ctx.send('{} needs to properly link their DCS account to receive donations.'.format(utils.escape_string(to.display_name)))
+            await ctx.send('{} needs to properly link their DCS account to receive '
+                           'donations.'.format(utils.escape_string(to.display_name)))
             return
         data = self.get_credits(receiver)
         if not data:
@@ -174,45 +170,45 @@ class CreditSystemMaster(CreditSystemAgent):
             p_receiver = cast(CreditPlayer, server.get_player(ucid=receiver))
             if p_receiver:
                 break
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if not p_receiver:
-                    cursor.execute('SELECT COALESCE(SUM(points), 0) FROM credits WHERE campaign_id = %s AND '
-                                   'player_ucid = %s', (data[n][0], receiver))
-                    old_points_receiver = cursor.fetchone()[0]
-                else:
-                    old_points_receiver = p_receiver.points
-                if 'max_points' in self.locals['configs'][0] and \
-                        (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
-                    await ctx.send('Member {} would overrun the configured maximum points with this donation. Aborted.'.format(utils.escape_string(to.display_name)))
-                    return
-                if p_receiver:
-                    p_receiver.points += donation
-                    p_receiver.audit('donation', old_points_receiver, f'Donation from member '
-                                                                      f'{ctx.message.author.display_name}')
-                else:
-                    cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) VALUES (%s, %s, '
-                                   '%s) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = credits.points + '
-                                   'EXCLUDED.points', (data[n][0], receiver, donation))
-                    cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
-                                   (data[n][0], receiver))
-                    new_points_receiver = cursor.fetchone()[0]
-                    cursor.execute('INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, '
-                                   'remark) VALUES (%s, %s, %s, %s, %s, %s)', (data[n][0], 'donation', receiver,
-                                                                               old_points_receiver, new_points_receiver,
-                                                                               f'Credit points change by Admin '
-                                                                               f'{ctx.message.author.display_name}'))
-            conn.commit()
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    if not p_receiver:
+                        old_points_receiver = cursor.execute("""
+                            SELECT COALESCE(SUM(points), 0) 
+                            FROM credits 
+                            WHERE campaign_id = %s AND player_ucid = %s
+                        """, (data[n][0], receiver)).fetchone()[0]
+                    else:
+                        old_points_receiver = p_receiver.points
+                    if 'max_points' in self.locals['configs'][0] and \
+                            (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
+                        await ctx.send('Member {} would overrun the configured maximum points with this donation. '
+                                       'Aborted.'.format(utils.escape_string(to.display_name)))
+                        return
+                    if p_receiver:
+                        p_receiver.points += donation
+                        p_receiver.audit('donation', old_points_receiver, f'Donation from member '
+                                                                          f'{ctx.message.author.display_name}')
+                    else:
+                        cursor.execute("""
+                            INSERT INTO credits (campaign_id, player_ucid, points) 
+                            VALUES (%s, %s, %s) 
+                            ON CONFLICT (campaign_id, player_ucid) DO UPDATE 
+                            SET points = credits.points + EXCLUDED.points
+                        """, (data[n][0], receiver, donation))
+                        cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
+                                       (data[n][0], receiver))
+                        new_points_receiver = cursor.fetchone()[0]
+                        cursor.execute("""
+                            INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (data[n][0], 'donation', receiver, old_points_receiver, new_points_receiver,
+                              f'Credit points change by Admin {ctx.message.author.display_name}'))
             if donation > 0:
                 await ctx.send(to.mention + f' you just received {donation} credit points from an Admin.')
             else:
                 await ctx.send(to.mention + f' your credits were decreased by {donation} credit points by an Admin.')
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
 
     @commands.command(description='Donate credits to another member', usage='<member> <credits>')
     @utils.has_role('DCS')
@@ -229,7 +225,8 @@ class CreditSystemMaster(CreditSystemAgent):
             return
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:
-            await ctx.send('{} needs to properly link their DCS account to receive donations.'.format(utils.escape_string(to.display_name)))
+            await ctx.send('{} needs to properly link their DCS account to receive '
+                           'donations.'.format(utils.escape_string(to.display_name)))
             return
         donor = self.bot.get_ucid_by_member(ctx.message.author)
         if not donor:
@@ -257,56 +254,57 @@ class CreditSystemMaster(CreditSystemAgent):
             p_receiver = cast(CreditPlayer, server.get_player(ucid=receiver))
             if p_receiver:
                 break
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                if not p_receiver:
-                    cursor.execute('SELECT COALESCE(SUM(points), 0) FROM credits WHERE campaign_id = %s AND '
-                                   'player_ucid = %s', (data[n][0], receiver))
-                    old_points_receiver = cursor.fetchone()[0]
-                else:
-                    old_points_receiver = p_receiver.points
-                if 'max_points' in self.locals['configs'][0] and \
-                        (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
-                    await ctx.send('Member {} would overrun the configured maximum points with this donation. Aborted.'.format(utils.escape_string(to.display_name)))
-                    return
-                if p_donor:
-                    p_donor.points -= donation
-                    p_donor.audit('donation', data[n][2], f'Donation to member {to.display_name}')
-                else:
-                    cursor.execute('UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s',
-                                   (donation, data[n][0], donor))
-                    cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
-                                   (data[n][0], donor))
-                    new_points_donor = cursor.fetchone()[0]
-                    cursor.execute('INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, '
-                                   'remark) VALUES (%s, %s, %s, %s, %s, %s)', (data[n][0], 'donation', donor,
-                                                                               data[n][2], new_points_donor,
-                                                                               f'Donation to member {to.display_name}'))
-                if p_receiver:
-                    p_receiver.points += donation
-                    p_receiver.audit('donation', old_points_receiver, f'Donation from member '
-                                                                      f'{ctx.message.author.display_name}')
-                else:
-                    cursor.execute('INSERT INTO credits (campaign_id, player_ucid, points) VALUES (%s, %s, '
-                                   '%s) ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = credits.points + '
-                                   'EXCLUDED.points', (data[n][0], receiver, donation))
-                    cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
-                                   (data[n][0], receiver))
-                    new_points_receiver = cursor.fetchone()[0]
-                    cursor.execute('INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, '
-                                   'remark) VALUES (%s, %s, %s, %s, %s, %s)', (data[n][0], 'donation', receiver,
-                                                                               old_points_receiver, new_points_receiver,
-                                                                               f'Donation from member '
-                                                                               f'{ctx.message.author.display_name}'))
-            conn.commit()
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    if not p_receiver:
+                        cursor.execute("""
+                            SELECT COALESCE(SUM(points), 0) FROM credits WHERE campaign_id = %s AND player_ucid = %s
+                        """, (data[n][0], receiver))
+                        old_points_receiver = cursor.fetchone()[0]
+                    else:
+                        old_points_receiver = p_receiver.points
+                    if 'max_points' in self.locals['configs'][0] and \
+                            (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
+                        await ctx.send('Member {} would overrun the configured maximum points with this donation. '
+                                       'Aborted.'.format(utils.escape_string(to.display_name)))
+                        return
+                    if p_donor:
+                        p_donor.points -= donation
+                        p_donor.audit('donation', data[n][2], f'Donation to member {to.display_name}')
+                    else:
+                        cursor.execute("""
+                            UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s
+                        """, (donation, data[n][0], donor))
+                        cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
+                                       (data[n][0], donor))
+                        new_points_donor = cursor.fetchone()[0]
+                        cursor.execute("""
+                            INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (data[n][0], 'donation', donor, data[n][2], new_points_donor,
+                              f'Donation to member {to.display_name}'))
+                    if p_receiver:
+                        p_receiver.points += donation
+                        p_receiver.audit('donation', old_points_receiver, f'Donation from member '
+                                                                          f'{ctx.message.author.display_name}')
+                    else:
+                        cursor.execute("""
+                            INSERT INTO credits (campaign_id, player_ucid, points) 
+                            VALUES (%s, %s, %s) 
+                            ON CONFLICT (campaign_id, player_ucid) DO UPDATE 
+                            SET points = credits.points + EXCLUDED.points
+                        """, (data[n][0], receiver, donation))
+                        cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
+                                       (data[n][0], receiver))
+                        new_points_receiver = cursor.fetchone()[0]
+                        cursor.execute("""
+                            INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (data[n][0], 'donation', receiver, old_points_receiver, new_points_receiver,
+                              f'Donation from member {ctx.message.author.display_name}'))
             await ctx.send(to.mention + f' you just received {donation} credit points from ' +
                            '{}!'.format(utils.escape_string(ctx.message.author.display_name)))
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
 
     @commands.command(description='Displays your current player profile')
     @utils.has_role('DCS')

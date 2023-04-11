@@ -2,10 +2,11 @@ import asyncio
 import dateparser
 import discord
 import platform
-import psycopg2
+import psycopg
 from contextlib import closing
 from core import DCSServerBot, Plugin, utils, Report, Status, Server, Coalition, Channel, Player
 from discord.ext import commands
+from psycopg.rows import dict_row
 from typing import Optional
 from .listener import GameMasterEventListener
 
@@ -18,21 +19,17 @@ class GameMasterAgent(Plugin):
             if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 self.log.debug(f'  - Updating "{server.name}":serverSettings.lua for coalitions')
                 advanced = server.settings['advanced']
-                if advanced['allow_players_pool'] != self.bot.config.getboolean(server.installation, 'ALLOW_PLAYERS_POOL'):
-                    advanced['allow_players_pool'] = self.bot.config.getboolean(server.installation, 'ALLOW_PLAYERS_POOL')
+                if advanced['allow_players_pool'] != self.bot.config.getboolean(server.installation,
+                                                                                'ALLOW_PLAYERS_POOL'):
+                    advanced['allow_players_pool'] = self.bot.config.getboolean(server.installation,
+                                                                                'ALLOW_PLAYERS_POOL')
                     server.settings['advanced'] = advanced
 
     def rename(self, old_name: str, new_name: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s',
+                             (new_name, old_name))
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -207,35 +204,38 @@ class GameMasterAgent(Plugin):
                                         f'{platform.node()}?') is False:
             await ctx.send('Aborted.')
             return
-        for server in self.bot.servers.values():
-            if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
-                continue
-            roles = {
-                "red": discord.utils.get(ctx.guild.roles, name=self.bot.config[server.installation]['Coalition Red']),
-                "blue": discord.utils.get(ctx.guild.roles, name=self.bot.config[server.installation]['Coalition Blue'])
-            }
-            conn = self.bot.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT p.ucid, p.discord_id, c.coalition FROM players p, coalitions c '
-                                   'WHERE p.ucid = c.player_ucid and c.server_name = %s AND c.coalition IS NOT NULL',
-                                   (server.name,))
-                    for row in cursor.fetchall():
-                        if row[1] != -1:
-                            member = self.bot.guilds[0].get_member(row[1])
-                            await member.remove_roles(roles[row[2]])
-                        cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
-                                       (server.name, row[0]))
-                conn.commit()
-                await ctx.send(f'Coalition bindings reset for all players on node {platform.node()}.')
-            except discord.Forbidden:
-                await ctx.send('The bot is missing the "Manage Roles" permission.')
-                await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.bot.log.exception(error)
-                conn.rollback()
-            finally:
-                self.bot.pool.putconn(conn)
+        try:
+            with self.pool.connection() as conn:
+                with conn.pipeline():
+                    with conn.transaction():
+                        with closing(conn.cursor()) as cursor:
+                            for server in self.bot.servers.values():
+                                if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+                                    continue
+                                roles = {
+                                    "red": discord.utils.get(
+                                        ctx.guild.roles,
+                                        name=self.bot.config[server.installation]['Coalition Red']
+                                    ),
+                                    "blue": discord.utils.get(
+                                        ctx.guild.roles,
+                                        name=self.bot.config[server.installation]['Coalition Blue']
+                                    )
+                                }
+                                for row in cursor.execute("""
+                                    SELECT p.ucid, p.discord_id, c.coalition 
+                                    FROM players p, coalitions c 
+                                    WHERE p.ucid = c.player_ucid and c.server_name = %s AND c.coalition IS NOT NULL
+                                """, (server.name,)).fetchall():
+                                    if row[1] != -1:
+                                        member = self.bot.guilds[0].get_member(row[1])
+                                        await member.remove_roles(roles[row[2]])
+                                    cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
+                                                   (server.name, row[0]))
+                    await ctx.send(f'Coalition bindings reset for all players on node {platform.node()}.')
+        except discord.Forbidden:
+            await ctx.send('The bot is missing the "Manage Roles" permission.')
+            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
 
 class GameMasterMaster(GameMasterAgent):
@@ -246,9 +246,8 @@ class GameMasterMaster(GameMasterAgent):
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Gamemaster ...')
-        with closing(conn.cursor()) as cursor:
-            if days > 0:
-                cursor.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
+        if days > 0:
+            conn.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Gamemaster pruned.')
 
     @commands.command(description='Deprecated', hidden=True)
@@ -322,36 +321,36 @@ class GameMasterMaster(GameMasterAgent):
                        end_time: Optional[str]):
         server: Server = await self.bot.get_server(ctx)
         if not command:
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                    cursor.execute(f"SELECT id, name, description, start, stop FROM campaigns WHERE NOW() "
-                                   f"BETWEEN start AND COALESCE(stop, NOW())")
+            with self.pool.connection() as conn:
+                with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                    cursor.execute("""
+                        SELECT id, name, description, start, stop 
+                        FROM campaigns 
+                        WHERE NOW() BETWEEN start AND COALESCE(stop, NOW())
+                    """)
                     if cursor.rowcount > 0:
                         report = Report(self.bot, self.plugin_name, 'campaign.json')
                         env = await report.render(campaign=dict(cursor.fetchone()), title='Active Campaign')
                         await ctx.send(embed=env.embed)
                     else:
                         await ctx.send('No running campaign found.')
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
         elif command.lower() == 'add':
             if not name or not start_time:
                 await ctx.send(f"Usage: {ctx.prefix}.campaign add <name> <start> [stop]")
                 return
-            description = await utils.input_value(self.bot, ctx, 'Please enter a short description for this campaign '
-                                                             '(. for none):')
+            description = await utils.input_value(self.bot, ctx,
+                                                  'Please enter a short description for this campaign (. for none):')
             servers: list[Server] = await self.get_campaign_servers(ctx)
             try:
-                self.eventlistener.campaign('add', servers=servers, name=name, description=description,
-                                            start=dateparser.parse(start_time, settings={'TIMEZONE': 'UTC'}) if start_time else None,
-                                            end=dateparser.parse(end_time, settings={'TIMEZONE': 'UTC'}) if end_time else None)
+                self.eventlistener.campaign(
+                    'add', servers=servers, name=name, description=description,
+                    start=dateparser.parse(start_time, settings={'TIMEZONE': 'UTC'}) if start_time else None,
+                    end=dateparser.parse(end_time, settings={'TIMEZONE': 'UTC'}) if end_time else None
+                )
                 await ctx.send(f"Campaign {name} added.")
-            except psycopg2.errors.ExclusionViolation:
+            except psycopg.errors.ExclusionViolation:
                 await ctx.send(f"A campaign is already configured for this timeframe!")
-            except psycopg2.errors.UniqueViolation:
+            except psycopg.errors.UniqueViolation:
                 await ctx.send(f"A campaign with this name already exists!")
         elif command.lower() == 'start':
             try:
@@ -361,9 +360,9 @@ class GameMasterMaster(GameMasterAgent):
                 servers: list[Server] = await self.get_campaign_servers(ctx)
                 self.eventlistener.campaign('start', servers=servers, name=name)
                 await ctx.send(f"Campaign {name} started.")
-            except psycopg2.errors.ExclusionViolation:
+            except psycopg.errors.ExclusionViolation:
                 await ctx.send(f"There is a campaign already running on server {server.display_name}!")
-            except psycopg2.errors.UniqueViolation:
+            except psycopg.errors.UniqueViolation:
                 await ctx.send(f"A campaign with this name already exists on server {server.display_name}!")
         elif command.lower() == 'stop':
             if not server and not name:
@@ -396,14 +395,17 @@ class GameMasterMaster(GameMasterAgent):
             else:
                 await ctx.send('Aborted.')
         elif command.lower() == 'list':
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+            with self.pool.connection() as conn:
+                with closing(conn.cursor(row_factory=dict_row)) as cursor:
                     if name != "-all":
-                        cursor.execute(f"SELECT id, name, description, start, stop FROM campaigns WHERE "
-                                       f"COALESCE(stop, NOW()) >= NOW() ORDER BY start DESC")
+                        cursor.execute("""
+                            SELECT id, name, description, start, stop 
+                            FROM campaigns 
+                            WHERE COALESCE(stop, NOW()) >= NOW() 
+                            ORDER BY start DESC
+                        """)
                     else:
-                        cursor.execute(f"SELECT id, name, description, start, stop FROM campaigns ORDER BY start DESC")
+                        cursor.execute("SELECT id, name, description, start, stop FROM campaigns ORDER BY start DESC")
                     if cursor.rowcount > 0:
                         campaigns = [dict(row) for row in cursor.fetchall()]
                         n = await utils.selection_list(self.bot, ctx, campaigns, self.format_campaigns)
@@ -413,10 +415,6 @@ class GameMasterMaster(GameMasterAgent):
                             await ctx.send(embed=env.embed)
                     else:
                         await ctx.send('No campaigns found.')
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
         else:
             await ctx.send(f"Usage: {ctx.prefix}.campaign <add|start|stop|delete|list>")
 

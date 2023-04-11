@@ -2,7 +2,6 @@ from __future__ import annotations
 import asyncio
 import discord
 import os
-import psycopg2
 import uuid
 from contextlib import closing
 from core import utils
@@ -47,18 +46,11 @@ class Server(DataObject):
         super().__post_init__()
         self._lock = asyncio.Lock()
         self.status_change = asyncio.Event()
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                # read persisted messages for this server
-                cursor.execute('SELECT embed_name, embed FROM message_persistence WHERE server_name = %s',
-                               (self.name, ))
-                for row in cursor.fetchall():
-                    self.embeds[row[0]] = row[1]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            # read persisted messages for this server
+            for row in conn.execute('SELECT embed_name, embed FROM message_persistence WHERE server_name = %s',
+                                    (self.name, )).fetchall():
+                self.embeds[row[0]] = row[1]
 
     @property
     def is_remote(self) -> bool:

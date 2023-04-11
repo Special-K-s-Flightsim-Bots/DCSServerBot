@@ -1,14 +1,14 @@
 import asyncio
 import json
 import platform
-import psycopg2
+import psycopg
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from core import Server, DataObjectFactory, utils, Status, ServerImpl
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
-from psycopg2.extras import Json
+from psycopg.types.json import Json
 from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Tuple, Callable
 
@@ -22,6 +22,7 @@ class EventListenerService(Service):
         self.udp_server = None
         self.executor = None
         self.loop = asyncio.get_event_loop()
+        self.intercom.add_exception_type(psycopg.DatabaseError)
 
     async def start(self):
         await super().start()
@@ -83,38 +84,28 @@ class EventListenerService(Service):
         self.log.info('DCSServerBot Agent started.')
 
     def sendtoMaster(self, data: dict):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("INSERT INTO intercom (agent, data) VALUES ('Master', %s)", (Json(data), ))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.pipeline():
+                with conn.transaction():
+                    conn.execute("INSERT INTO intercom (agent, data) VALUES ('Master', %s)", (Json(data), ))
 
-    @tasks.loop(seconds=1, reconnect=True)
+    @tasks.loop(seconds=1)
     async def intercom(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("SELECT id, data FROM intercom WHERE agent = %s", (platform.node(), ))
-                for row in cursor.fetchall():
-                    data = row[1]
-                    server_name = data['server_name']
-                    if server_name not in self.servers:
-                        self.log.warning(f"Command {data['command']} for unknown server {server_name} received, ignoring")
-                    else:
-                        server: ServerImpl = self.servers[server_name]
-                        server.sendtoDCS({"command": "registerDCSServer"})
-                    cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.pipeline():
+                with conn.transaction():
+                    with closing(conn.cursor()) as cursor:
+                        for row in cursor.execute("SELECT id, data FROM intercom WHERE agent = %s",
+                                                  (platform.node(), )).fetchall():
+                            data = row[1]
+                            server_name = data['server_name']
+                            if server_name not in self.servers:
+                                self.log.warning(
+                                    f"Command {data['command']} for unknown server {server_name} received, ignoring")
+                            else:
+                                server: ServerImpl = self.servers[server_name]
+                                server.sendtoDCS({"command": "registerDCSServer"})
+                            cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
     async def start_udp_listener(self):
         class RequestHandler(BaseRequestHandler):

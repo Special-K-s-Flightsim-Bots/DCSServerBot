@@ -1,6 +1,5 @@
 import json
 import os
-import psycopg2
 from contextlib import closing
 from core import Plugin, DCSServerBot, TEventListener, utils
 from discord.ext import tasks, commands
@@ -25,20 +24,18 @@ class DBExporter(Plugin):
         await super().cog_unload()
 
     def do_export(self, table_filter: List[str]):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND "
-                               "table_name not in ('pu_events_sdw', 'servers', 'message_persistence')")
-                for table in (x[0] for x in cursor.fetchall() if x[0] not in table_filter):
-                    cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t')
-                    if cursor.rowcount > 0:
-                        with open(f'export/{table}.json', 'w') as file:
-                            file.writelines([json.dumps(x[0]) + '\n' for x in cursor.fetchall()])
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.pipeline():
+                with closing(conn.cursor()) as cursor:
+                    for table in [x[0] for x in cursor.execute("""
+                        SELECT table_name FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name not in ('pu_events_sdw', 'servers', 'message_persistence')
+                    """).fetchall() if x[0] not in table_filter]:
+                        cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t')
+                        if cursor.rowcount > 0:
+                            with open(f'export/{table}.json', 'w') as file:
+                                file.writelines([json.dumps(x[0]) + '\n' for x in cursor.fetchall()])
 
     @commands.command(description='Exports database tables as json.')
     @utils.has_role('Admin')

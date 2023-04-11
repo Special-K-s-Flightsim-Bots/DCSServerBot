@@ -2,7 +2,6 @@ import aiohttp
 import asyncio
 import discord
 import os
-import psycopg2
 import re
 import shutil
 import zipfile
@@ -11,6 +10,7 @@ from core import Status, Plugin, DCSServerBot, PluginConfigurationError, utils, 
 from discord import SelectOption, TextStyle
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
+from psycopg.rows import dict_row
 from typing import Optional, Tuple
 from urllib.parse import urlparse, unquote
 
@@ -42,17 +42,9 @@ class OvGME(Plugin):
         await self.install_packages()
 
     def rename(self, old_name: str, new_name: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s',
-                               (new_name, old_name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     @staticmethod
     def parse_filename(filename: str) -> Optional[Tuple[str, str]]:
@@ -129,14 +121,12 @@ class OvGME(Plugin):
         return max_version
 
     def check_package(self, server: Server, folder: str, package_name: str) -> Optional[str]:
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT version FROM ovgme_packages WHERE server_name = %s AND package_name = %s AND '
-                               'folder = %s', (server.name, package_name, folder))
+                cursor.execute(
+                    'SELECT version FROM ovgme_packages WHERE server_name = %s AND package_name = %s AND folder = %s',
+                    (server.name, package_name, folder))
                 return cursor.fetchone()[0] if cursor.rowcount == 1 else None
-        finally:
-            self.pool.putconn(conn)
 
     async def install_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         config = self.get_config(server)
@@ -177,18 +167,12 @@ class OvGME(Plugin):
                             return []
 
                         shutil.copytree(filename, target, ignore=backup, dirs_exist_ok=True)
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute('INSERT INTO ovgme_packages (server_name, package_name, version, folder) '
-                                       'VALUES (%s, %s, %s, %s)', (server.name, package_name, version,
-                                                                   folder))
-                    conn.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute("""
+                            INSERT INTO ovgme_packages (server_name, package_name, version, folder) 
+                            VALUES (%s, %s, %s, %s)
+                        """, (server.name, package_name, version, folder))
                 return True
         return False
 
@@ -219,17 +203,12 @@ class OvGME(Plugin):
                         self.log.warning(f"Can't recover file {filename}, because it has been removed! "
                                          f"You might need to run a slow repair.")
         shutil.rmtree(ovgme_path)
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('DELETE FROM ovgme_packages WHERE server_name = %s AND folder = %s AND package_name = '
-                               '%s AND version = %s', (server.name, folder, package_name, version))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    DELETE FROM ovgme_packages 
+                    WHERE server_name = %s AND folder = %s AND package_name = %s AND version = %s
+                """, (server.name, folder, package_name, version))
         return True
 
     def format_packages(self, data, marker, marker_emoji):
@@ -257,14 +236,14 @@ class OvGME(Plugin):
         return embed
 
     def get_installed_packages(self, server: Server, folder: str) -> list[Tuple[str, str]]:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT * FROM ovgme_packages WHERE server_name = %s AND folder = %s',
-                               (server.name, folder))
-                return [(x['package_name'], x['version']) for x in cursor.fetchall()]
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                return [
+                    (x['package_name'], x['version']) for x in cursor.execute(
+                        """
+                        SELECT * FROM ovgme_packages WHERE server_name = %s AND folder = %s
+                        """, (server.name, folder)).fetchall()
+                ]
 
     @commands.command(description='Display installed packages')
     @utils.has_roles(['Admin'])

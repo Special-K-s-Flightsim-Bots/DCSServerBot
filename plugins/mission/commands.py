@@ -3,7 +3,6 @@ import asyncio
 import discord
 import os
 import platform
-import psycopg2
 import re
 import win32gui
 import win32process
@@ -33,22 +32,14 @@ class Mission(Plugin):
         await super().cog_unload()
 
     def rename(self, old_name: str, new_name: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Mission ...')
-        with closing(conn.cursor()) as cursor:
-            if days > 0:
-                cursor.execute(f"DELETE FROM missions WHERE mission_end < (DATE(NOW()) - interval '{days} days')")
+        if days > 0:
+            conn.execute(f"DELETE FROM missions WHERE mission_end < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Mission pruned.')
 
     @commands.command(description='Lists the registered DCS servers')
@@ -105,17 +96,11 @@ class Mission(Plugin):
     @commands.guild_only()
     async def briefing(self, ctx):
         def read_passwords(server_name: str) -> dict:
-            conn = self.pool.getconn()
-            try:
+            with self.pool.connection() as conn:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
-                                   (server_name,))
-                    row = cursor.fetchone()
+                    row = cursor.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
+                                         (server_name,)).fetchone()
                     return {"Blue": row[0], "Red": row[1]}
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
 
         server: Server = await self.bot.get_server(ctx)
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])

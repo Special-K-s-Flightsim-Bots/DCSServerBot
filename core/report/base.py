@@ -4,10 +4,8 @@ import discord
 import inspect
 import json
 import os
-import psycopg2
 import sys
 from abc import ABC, abstractmethod
-from contextlib import closing
 from discord import Interaction, SelectOption
 from discord.ext.commands import Context
 from discord.ui import View, Button, Select, Item
@@ -131,15 +129,8 @@ class PaginationReport(Report):
         name = param['name']
         values = None
         if 'sql' in param:
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(param['sql'], kwargs)
-                    values = list(x[0] for x in cursor.fetchall())
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
+            with self.pool.connection() as conn:
+                values = [x(0) for x in conn.execute(param['sql'], kwargs).fetchall()]
         elif 'values' in param:
             values = param['values']
         elif 'obj' in param:

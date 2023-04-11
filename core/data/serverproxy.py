@@ -1,9 +1,6 @@
-from dataclasses import dataclass
-
 import discord
-import psycopg2
+from dataclasses import dataclass
 from core import Server, Channel
-from contextlib import closing
 from typing import Optional, Union
 
 
@@ -13,18 +10,10 @@ class ServerProxy(Server):
 
     def __post_init__(self):
         super().__post_init__()
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                # read persisted messages for this server
-                cursor.execute('SELECT agent_host FROM servers WHERE server_name = %s',
-                               (self.name, ))
-                if cursor.rowcount != 0:
-                    self.agent = cursor.fetchone()[0]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            # read persisted messages for this server
+            self.agent = conn.execute('SELECT agent_host FROM servers WHERE server_name = %s',
+                                      (self.name, )).fetchone()[0]
 
     @property
     def is_remote(self) -> bool:
@@ -109,15 +98,11 @@ class ServerProxy(Server):
             if not message:
                 message = await channel.send(embed=embed, file=file)
                 self.embeds[embed_name] = message
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute('INSERT INTO message_persistence (server_name, embed_name, embed) VALUES (%s, '
-                                       '%s, %s) ON CONFLICT (server_name, embed_name) DO UPDATE SET '
-                                       'embed=excluded.embed', (self.name, embed_name, message.id))
-                    conn.commit()
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute("""
+                            INSERT INTO message_persistence (server_name, embed_name, embed) 
+                            VALUES (%s, %s, %s) 
+                            ON CONFLICT (server_name, embed_name) 
+                            DO UPDATE SET embed=excluded.embed
+                        """, (self.name, embed_name, message.id))

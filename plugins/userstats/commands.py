@@ -1,12 +1,13 @@
 import asyncio
 import discord
 import os
-import psycopg2
+import psycopg
 import random
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, Member, Coalition, Side, PersistentReport, Channel
 from discord.ext import commands, tasks
+from psycopg.rows import dict_row
 from typing import Union, Optional, Tuple
 from .filter import StatisticsFilter
 from .listener import UserStatisticsEventListener
@@ -42,26 +43,24 @@ class UserStatisticsAgent(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if server:
             if server.status not in [Status.RUNNING, Status.PAUSED]:
-                conn = self.pool.getconn()
-                try:
-                    if await utils.yn_question(ctx, f'I\'m going to **DELETE ALL STATISTICS**\n'
-                                                    f'of server "{server.display_name}".\n\nAre you sure?'):
-                        with closing(conn.cursor()) as cursor:
-                            cursor.execute(
-                                'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE '
-                                'server_name = %s)', (server.name, ))
-                            cursor.execute(
-                                'DELETE FROM missionstats WHERE mission_id in (SELECT id FROM missions WHERE '
-                                'server_name = %s)', (server.name, ))
-                            cursor.execute('DELETE FROM missions WHERE server_name = %s', (server.name, ))
-                            conn.commit()
-                        await ctx.send(f'Statistics for server "{server.display_name}" have been wiped.')
-                        await self.bot.audit('reset statistics', user=ctx.message.author, server=server)
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
+                if await utils.yn_question(ctx, f'I\'m going to **DELETE ALL STATISTICS**\n'
+                                                f'of server "{server.display_name}".\n\nAre you sure?'):
+                    with self.pool.connection() as conn:
+                        with conn.transaction():
+                            with closing(conn.cursor()) as cursor:
+                                cursor.execute("""
+                                    DELETE FROM statistics WHERE mission_id in (
+                                        SELECT id FROM missions WHERE server_name = %s
+                                    )
+                                    """, (server.name, ))
+                                cursor.execute("""
+                                    DELETE FROM missionstats WHERE mission_id in (
+                                        SELECT id FROM missions WHERE server_name = %s
+                                    )
+                                """, (server.name, ))
+                                cursor.execute('DELETE FROM missions WHERE server_name = %s', (server.name, ))
+                    await ctx.send(f'Statistics for server "{server.display_name}" have been wiped.')
+                    await self.bot.audit('reset statistics', user=ctx.message.author, server=server)
             else:
                 await ctx.send(f'Please stop server "{server.display_name}" before deleting the statistics!')
 
@@ -116,6 +115,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
 
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
+        self.expire_token.add_exception_type(psycopg.DatabaseError)
         self.expire_token.start()
         if 'configs' in self.locals:
             self.persistent_highscore.start()
@@ -128,12 +128,11 @@ class UserStatisticsMaster(UserStatisticsAgent):
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Userstats ...')
-        with closing(conn.cursor()) as cursor:
-            if ucids:
-                for ucid in ucids:
-                    cursor.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
-            elif days > 0:
-                cursor.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
+        if ucids:
+            for ucid in ucids:
+                conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
+        elif days > 0:
+            conn.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Userstats pruned.')
 
     @commands.command(brief='Shows player statistics',
@@ -243,17 +242,9 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @commands.guild_only()
     async def link(self, ctx, member: discord.Member, ucid: str):
         await super()._link(ctx, member, ucid)
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-            await ctx.message.delete()
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
         await ctx.send('Member {} linked to ucid {}'.format(utils.escape_string(member.display_name), ucid))
         await self.bot.audit('linked member {} to ucid {}.'.format(utils.escape_string(member.display_name), ucid),
                              user=ctx.message.author)
@@ -270,17 +261,9 @@ class UserStatisticsMaster(UserStatisticsAgent):
             await ctx.send('UCID/Member not linked.')
             return
         await super()._unlink(ctx, member)
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-            await ctx.message.delete()
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
         if isinstance(member, discord.Member):
             await ctx.send('Member {} unlinked.'.format(utils.escape_string(member.display_name)))
             await self.bot.audit('unlinked member {}.'.format(utils.escape_string(member.display_name)),
@@ -378,33 +361,33 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @commands.guild_only()
     async def linkcheck(self, ctx):
         message = await ctx.send('Please wait, this might take a bit ...')
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                # check all unmatched players
-                unmatched = []
-                cursor.execute('SELECT ucid, name FROM players WHERE discord_id = -1 AND name IS NOT NULL ORDER BY last_seen DESC')
-                for row in cursor.fetchall():
-                    matched_member = self.bot.match_user(dict(row), True)
-                    if matched_member:
-                        unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
-                await message.delete()
-                if len(unmatched) == 0:
-                    await ctx.send('No unmatched member could be matched.')
-                    return
-                n = await utils.selection_list(self.bot, ctx, unmatched, self.format_unmatched)
-                if n != -1:
-                    cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (unmatched[n]['match'].id, unmatched[n]['ucid']))
-                    await self.bot.audit(f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
-                                         user=ctx.message.author)
-                    await ctx.send("DCS player {} linked to member {}.".format(utils.escape_string(unmatched[n]['name']),
-                                                                               unmatched[n]['match'].display_name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            # check all unmatched players
+            unmatched = []
+            for row in conn.execute("""
+                SELECT ucid, name FROM players 
+                WHERE discord_id = -1 AND name IS NOT NULL 
+                ORDER BY last_seen DESC
+            """).fetchall():
+                matched_member = self.bot.match_user(dict(row), True)
+                if matched_member:
+                    unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
+            await message.delete()
+            if len(unmatched) == 0:
+                await ctx.send('No unmatched member could be matched.')
+                return
+        n = await utils.selection_list(self.bot, ctx, unmatched, self.format_unmatched)
+        if n != -1:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
+                                 (unmatched[n]['match'].id, unmatched[n]['ucid']))
+                    await self.bot.audit(
+                        f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
+                        user=ctx.message.author)
+                    await ctx.send(
+                        "DCS player {} linked to member {}.".format(utils.escape_string(unmatched[n]['name']),
+                                                                    unmatched[n]['match'].display_name))
 
     @staticmethod
     def format_suspicious(data, marker, marker_emoji):
@@ -426,46 +409,46 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @commands.guild_only()
     async def mislinks(self, ctx):
         await ctx.send('Please wait, this might take a bit ...')
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 # check all matched members
                 suspicious = []
                 for member in self.bot.get_all_members():
                     # ignore bots
                     if member.bot:
                         continue
-                    cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL AND '
-                                   'manual = FALSE ORDER BY last_seen DESC', (member.id, ))
-                    for row in cursor.fetchall():
+                    for row in cursor.execute("""
+                        SELECT ucid, name FROM players 
+                        WHERE discord_id = %s AND name IS NOT NULL AND manual = FALSE 
+                        ORDER BY last_seen DESC
+                    """, (member.id, )).fetchall():
                         matched_member = self.bot.match_user(dict(row), True)
                         if not matched_member:
                             suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member})
                         elif matched_member.id != member.id:
-                            suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member, "match": matched_member})
+                            suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member,
+                                               "match": matched_member})
                 if len(suspicious) == 0:
                     await ctx.send('No mislinked players found.')
                     return
-                n = await utils.selection_list(self.bot, ctx, suspicious, self.format_suspicious)
-                if n != -1:
-                    cursor.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
-                                   (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
-                                    'match' in suspicious[n],
-                                    suspicious[n]['ucid']))
-                    await self.bot.audit(f"unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.",
-                                         user=ctx.message.author)
+        n = await utils.selection_list(self.bot, ctx, suspicious, self.format_suspicious)
+        if n != -1:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
+                                 (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
+                                  'match' in suspicious[n], suspicious[n]['ucid']))
+                    await self.bot.audit(
+                        f"unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.",
+                        user=ctx.message.author)
                     if 'match' in suspicious[n]:
-                        await self.bot.audit(f"linked ucid {suspicious[n]['ucid']} to user {suspicious[n]['match'].display_name}.",
-                                             user=ctx.message.author)
-                        await ctx.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked and re-linked to member {suspicious[n]['match'].display_name}.")
+                        await self.bot.audit(
+                            f"linked ucid {suspicious[n]['ucid']} to user {suspicious[n]['match'].display_name}.",
+                            user=ctx.message.author)
+                        await ctx.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked and re-linked to "
+                                       f"member {suspicious[n]['match'].display_name}.")
                     else:
                         await ctx.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked.")
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
 
     @commands.command(description='Link your DCS and Discord user')
     @utils.has_role('DCS')
@@ -482,47 +465,39 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 await ctx.send("I do not have permission to send you a DM!\n"
                                "Please change your privacy settings to allow this!")
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s ORDER BY manual',
-                               (ctx.message.author.id, ))
-                for row in cursor.fetchall():
-                    if len(row[0]) == 4:
-                        await send_token(ctx, row[0])
-                        return
-                    elif row[1] is False:
-                        if not await utils.yn_question(ctx, 'Automatic user mapping found.\n'
-                                                            'Do you want to re-link your user?'):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    for row in cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s ORDER BY manual',
+                                              (ctx.message.author.id, )).fetchall():
+                        if len(row[0]) == 4:
+                            await send_token(ctx, row[0])
                             return
-                        else:
-                            for server in self.bot.servers.values():
-                                player = server.get_player(ucid=row[0])
-                                if player:
-                                    player.member = None
-                                    continue
-                            cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
+                        elif row[1] is False:
+                            if not await utils.yn_question(ctx, 'Automatic user mapping found.\n'
+                                                                'Do you want to re-link your user?'):
+                                return
+                            else:
+                                for server in self.bot.servers.values():
+                                    player = server.get_player(ucid=row[0])
+                                    if player:
+                                        player.member = None
+                                        continue
+                                cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
+                                break
+                        elif not await utils.yn_question(ctx, '__Verified__ user mapping found.\n'
+                                                              'Have you switched from Steam to Standalone or your PC?'):
+                            return
+                    # in the very unlikely event that we have generated the very same random number twice
+                    while True:
+                        try:
+                            token = str(random.randrange(1000, 9999))
+                            cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
+                                           (token, ctx.message.author.id))
                             break
-                    elif not await utils.yn_question(ctx, '__Verified__ user mapping found.\n'
-                                                          'Have you switched from Steam to Standalone or your PC?'):
-                        return
-                # in the very unlikely event that we have generated the very same random number twice
-                while True:
-                    try:
-                        token = str(random.randrange(1000, 9999))
-                        cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
-                                       (token, ctx.message.author.id))
-                        break
-                    except psycopg2.DatabaseError:
-                        pass
-                await send_token(ctx, token)
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-            await ctx.message.delete()
+                        except psycopg.DatabaseError:
+                            pass
+            await send_token(ctx, token)
 
     @commands.command(description='Show inactive users')
     @utils.has_role('DCS Admin')
@@ -536,17 +511,10 @@ class UserStatisticsMaster(UserStatisticsAgent):
 
     @tasks.loop(hours=1)
     async def expire_token(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("DELETE FROM players WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(NOW()) - interval '2 "
-                               "days')")
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute(
+                    "DELETE FROM players WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(NOW()) - interval '2 days')")
 
     @tasks.loop(hours=1)
     async def persistent_highscore(self):

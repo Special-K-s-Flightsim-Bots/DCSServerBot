@@ -1,7 +1,6 @@
 import asyncio
 import discord
 import os
-import psycopg2
 from abc import ABC
 from contextlib import suppress, closing
 from core import DCSServerBot, Server
@@ -37,36 +36,25 @@ class DBConfig(dict):
 
     def read(self):
         data = dict()
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT param, value FROM music_config WHERE sink_type = %s AND server_name = %s',
-                               (self.sink_type, self.server.name))
-                for row in cursor.fetchall():
+                for row in cursor.execute(
+                        'SELECT param, value FROM music_config WHERE sink_type = %s AND server_name = %s',
+                        (self.sink_type, self.server.name)).fetchall():
                     data[row[0]] = row[1]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
         if data:
             self.clear()
             self.update(data)
 
     def write(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('DELETE FROM music_config WHERE sink_type = %s AND server_name = %s',
-                               (self.sink_type, self.server.name))
-                for name, value in self.items():
-                    cursor.execute('INSERT INTO music_config (sink_type, server_name, param, value) '
-                                   'VALUES (%s, %s, %s, %s)', (self.sink_type, self.server.name, name, value))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('DELETE FROM music_config WHERE sink_type = %s AND server_name = %s',
+                                   (self.sink_type, self.server.name))
+                    for name, value in self.items():
+                        cursor.execute('INSERT INTO music_config (sink_type, server_name, param, value) '
+                                       'VALUES (%s, %s, %s, %s)', (self.sink_type, self.server.name, name, value))
 
     def _load(self, new: dict):
         for k, v in new.items():
@@ -95,28 +83,19 @@ class Sink(ABC):
         self.idx = 0 if (self._mode == Mode.REPEAT or not len(self.songs)) else randrange(len(self.songs))
 
     def _get_active_playlist(self) -> Optional[str]:
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT playlist_name FROM music_servers WHERE server_name = %s',
                                (self.server.name,))
                 return cursor.fetchone()[0] if cursor.rowcount > 0 else None
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
     def _read_playlist(self) -> list[str]:
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT song_file FROM music_playlists WHERE name = %s',
-                               (self._playlist,))
-                return [x[0] for x in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+                return [
+                    x[0] for x in cursor.execute('SELECT song_file FROM music_playlists WHERE name = %s',
+                                                 (self._playlist,)).fetchall()
+                ]
 
     @property
     def playlist(self) -> str:
@@ -125,21 +104,15 @@ class Sink(ABC):
     @playlist.setter
     def playlist(self, playlist: str) -> None:
         if playlist:
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('INSERT INTO music_servers (server_name, playlist_name) '
-                                   'VALUES (%s, %s) ON CONFLICT (server_name) DO UPDATE '
-                                   'SET playlist_name = excluded.playlist_name',
-                                   (self.server.name, playlist))
-                conn.commit()
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute("""
+                        INSERT INTO music_servers (server_name, playlist_name) 
+                        VALUES (%s, %s) ON CONFLICT (server_name) DO UPDATE 
+                        SET playlist_name = excluded.playlist_name
+                    """, (self.server.name, playlist))
                 self._playlist = playlist
                 self.songs = self._read_playlist()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-                conn.rollback()
-            finally:
-                self.pool.putconn(conn)
 
     @property
     def config(self) -> dict:
