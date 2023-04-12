@@ -6,14 +6,6 @@ from typing import Optional, Union
 
 @dataclass
 class ServerProxy(Server):
-    agent: str = None
-
-    def __post_init__(self):
-        super().__post_init__()
-        with self.pool.connection() as conn:
-            # read persisted messages for this server
-            self.agent = conn.execute('SELECT agent_host FROM servers WHERE server_name = %s',
-                                      (self.name, )).fetchone()[0]
 
     @property
     def is_remote(self) -> bool:
@@ -40,7 +32,8 @@ class ServerProxy(Server):
         return data["return"]
 
     def sendtoDCS(self, message: dict):
-        self.bot.sendtoBot(message, agent=self.agent)
+        message['server_name'] = self.name
+        self.bot.sendtoBot(message, agent=self.host)
 
     # TODO
     def rename(self, new_name: str, update_settings: bool = False) -> None:
@@ -52,10 +45,10 @@ class ServerProxy(Server):
                 "new_name": new_name,
                 "update_settings": update_settings
             }
-        }, agent=self.agent)
+        }, agent=self.host)
 
     async def startup(self) -> None:
-        self.bot.sendtoBot({"command": "intercom", "object": "Server", "method": "startup"}, agent=self.agent)
+        self.bot.sendtoBot({"command": "intercom", "object": "Server", "method": "startup"}, agent=self.host)
 
     async def shutdown(self, force: bool = False) -> None:
         self.bot.sendtoBot({
@@ -65,7 +58,7 @@ class ServerProxy(Server):
             "params": {
                 "force": force
             }
-        }, agent=self.agent)
+        }, agent=self.host)
 
     async def setEmbed(self, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None,
                        channel_id: Optional[Union[Channel, int]] = Channel.STATUS) -> None:

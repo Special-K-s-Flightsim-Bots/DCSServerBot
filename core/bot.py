@@ -587,7 +587,8 @@ class DCSServerBot(commands.Bot):
     def register_remote_server(self, data: dict):
         self.log.info(f"Registering remote server {data['server_name']}.")
         self.servers[data['server_name']] = ServerProxy(
-            bot=self, name=data['server_name'], installation="remote", host="remote", port=-1)
+            bot=self, name=data['server_name'], installation=data['installation'], host=data['agent'], port=-1
+        )
 
     async def get_server(self, ctx: Union[commands.Context, discord.Interaction, discord.Message, str]) -> Optional[Server]:
         for server_name, server in self.servers.items():
@@ -640,9 +641,6 @@ class DCSServerBot(commands.Bot):
                 server_name = data['server_name']
                 self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
                 server = self.servers[server_name]
-                if server.is_remote:
-                    self.log.warning(f"Server {server.name} is running twice, on nodes {platform.node()} and {server.agent}!")
-                    return
                 if 'channel' in data and data['channel'].startswith('sync-'):
                     if data['channel'] in server.listeners:
                         f = server.listeners[data['channel']]

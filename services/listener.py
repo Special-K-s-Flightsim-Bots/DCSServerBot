@@ -130,18 +130,22 @@ class EventListenerService(Service):
                     self.log.warning('Message without server_name received: {}'.format(data))
                     return
                 server_name = data['server_name']
+                command = data['command']
                 if server_name not in self.servers:
-                    self.log.warning(f"Command {data['command']} for unknown server {server_name} received.")
+                    self.log.warning(f"Command {command} for unknown server {server_name} received, ignoring.")
                     return
-                self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
+                server: ServerImpl = self.servers[server_name]
+                self.log.debug('{}->HOST: {}'.format(server.name, json.dumps(data)))
                 if 'channel' in data and data['channel'].startswith('sync-'):
-                    server: ServerImpl = self.servers[server_name]
                     if data['channel'] in server.listeners:
                         f = server.listeners[data['channel']]
                         if not f.done():
                             self.loop.call_soon_threadsafe(f.set_result, data)
-                        if data['command'] != 'registerDCSServer':
+                        if command != 'registerDCSServer':
                             return
+                if command == 'registerDCSServer':
+                    data['installation'] = server.installation
+                    data['agent'] = platform.node()
                 self.sendtoMaster(data)
 
         class MyThreadingUDPServer(ThreadingUDPServer):
