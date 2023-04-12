@@ -117,7 +117,7 @@ class EventListenerService(Service):
                                     f"Command {data['command']} for unknown server {server_name} received, ignoring")
                             else:
                                 server: ServerImpl = self.servers[server_name]
-                                server.sendtoDCS({"command": "registerDCSServer"})
+                                server.sendtoDCS(data)
                             cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
     async def start_udp_listener(self):

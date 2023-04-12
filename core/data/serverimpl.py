@@ -3,6 +3,7 @@ import asyncio
 import discord
 import json
 import os
+import platform
 import psutil
 import socket
 import subprocess
@@ -51,6 +52,21 @@ class ServerImpl(Server):
 
     def __post_init__(self):
         super().__post_init__()
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    INSERT INTO servers (server_name, agent_host, host, port, status_channel, chat_channel) 
+                    VALUES(%s, %s, %s, %s, %s, %s) 
+                    ON CONFLICT (server_name) DO UPDATE 
+                    SET agent_host=excluded.agent_host, 
+                        host=excluded.host, 
+                        port=excluded.port,
+                        status_channel=excluded.status_channel,
+                        chat_channel=excluded.chat_channel, 
+                        last_seen=NOW()
+                """, (self.name, platform.node(), self.host, self.port,
+                      self.bot.config[self.installation][Channel.STATUS.value],
+                      self.bot.config[self.installation][Channel.CHAT.value]))
         # enable autoscan for missions changes
         if self.bot.config.getboolean(self.installation, 'AUTOSCAN'):
             self.event_handler = MissionFileSystemEventHandler(self)

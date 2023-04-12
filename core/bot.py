@@ -565,32 +565,22 @@ class DCSServerBot(commands.Bot):
 
         # update the database and check for server name changes
         with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                    cursor.execute('SELECT server_name FROM servers WHERE agent_host=%s AND host=%s AND port=%s',
-                                   (platform.node(), data['host'], data['port']))
-                    if cursor.rowcount == 1:
-                        server_name = cursor.fetchone()[0]
-                        if server_name != data['server_name']:
-                            if len(utils.findDCSInstallations(server_name)) == 0:
-                                self.log.info(f"Auto-renaming server \"{server_name}\" to \"{data['server_name']}\"")
-                                server.rename(data['server_name'])
-                                if server_name in self.servers:
-                                    del self.servers[server_name]
-                            else:
-                                self.log.warning(
-                                    f"Registration of server \"{data['server_name']}\" aborted due to UDP port conflict.")
-                                del self.servers[data['server_name']]
-                                return False
-                    cursor.execute("""
-                        INSERT INTO servers (server_name, agent_host, host, port) 
-                        VALUES(%s, %s, %s, %s) 
-                        ON CONFLICT (server_name) DO UPDATE 
-                        SET agent_host=excluded.agent_host, 
-                            host=excluded.host, 
-                            port=excluded.port, 
-                            last_seen=NOW()
-                    """, (data['server_name'], platform.node(), data['host'], data['port']))
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                cursor.execute('SELECT server_name FROM servers WHERE agent_host=%s AND host=%s AND port=%s',
+                               (platform.node(), data['host'], data['port']))
+                if cursor.rowcount == 1:
+                    server_name = cursor.fetchone()[0]
+                    if server_name != data['server_name']:
+                        if len(utils.findDCSInstallations(server_name)) == 0:
+                            self.log.info(f"Auto-renaming server \"{server_name}\" to \"{data['server_name']}\"")
+                            server.rename(data['server_name'])
+                            if server_name in self.servers:
+                                del self.servers[server_name]
+                        else:
+                            self.log.warning(
+                                f"Registration of server \"{data['server_name']}\" aborted due to UDP port conflict.")
+                            del self.servers[data['server_name']]
+                            return False
         self.log.debug(f"Server {server.name} initialized")
         return True
 
@@ -622,16 +612,19 @@ class DCSServerBot(commands.Bot):
 
     @tasks.loop(seconds=1, reconnect=True)
     async def intercom(self):
-        with self.pool.connection() as conn:
-            with conn.pipeline():
-                with conn.transaction():
-                    for row in conn.execute("SELECT id, data FROM intercom WHERE agent = %s",
-                                            ("Master" if self.is_master() else platform.node(), )).fetchall():
-                        data = row[1]
-                        if data['command'] == 'registerDCSServer':
-                            self.register_remote_server(data)
-                        self.sendtoBot(data)
-                        conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
+        try:
+            with self.pool.connection() as conn:
+                with conn.pipeline():
+                    with conn.transaction():
+                        for row in conn.execute("SELECT id, data FROM intercom WHERE agent = %s",
+                                                ("Master" if self.is_master() else platform.node(), )).fetchall():
+                            data = row[1]
+                            if data['command'] == 'registerDCSServer':
+                                self.register_remote_server(data)
+                            self.sendtoBot(data)
+                            conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def start_udp_listener(self) -> asyncio.Future:
         class RequestHandler(BaseRequestHandler):
