@@ -215,7 +215,7 @@ class Main:
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("INSERT INTO agents (guild_id, node, master) VALUES (%s, %s, False) "
-                             "ON CONFLICT (guild_id, node) DO UPDATE SET master = False",
+                             "ON CONFLICT (guild_id, node) DO NOTHING",
                              (self.guild_id, platform.node()))
 
     def is_master(self) -> bool:
@@ -224,16 +224,16 @@ class Main:
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
                     cursor.execute("UPDATE agents SET last_seen = NOW() WHERE guild_id = %s and node = %s",
                                    (self.guild_id, platform.node()))
-                    cursor.execute("SELECT * FROM agents WHERE guild_id = %s FOR UPDATE SKIP LOCKED", (self.guild_id, ))
+                    cursor.execute("SELECT * FROM agents WHERE guild_id = %s FOR UPDATE", (self.guild_id, ))
                     for row in cursor.fetchall():
-                        self.log.info(f"{row['node']} = {row['master']}")
                         if row['master']:
                             if row['node'] == platform.node():
                                 return True
-                            elif (datetime.now() - row['last_seen']).seconds > 60:
-                                self.log.info('Master not responding, taking over!')
+                            elif (datetime.now() - row['last_seen']).seconds < 60:
                                 return False
-                    cursor.execute('UPDATE agents SET master = False WHERE guild_id = %s', (self.guild_id, ))
+                    self.log.info('Master not responding, taking over!')
+                    cursor.execute('UPDATE agents SET master = False WHERE guild_id = %s and node != %s',
+                                   (self.guild_id, platform.node()))
                     cursor.execute('UPDATE agents SET master = True WHERE guild_id = %s and node = %s',
                                    (self.guild_id, platform.node()))
             return True
