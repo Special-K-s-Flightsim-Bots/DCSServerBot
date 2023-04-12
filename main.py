@@ -222,9 +222,9 @@ class Main:
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                    cursor.execute("SELECT * FROM agents WHERE guild_id = %s FOR UPDATE", (self.guild_id, ))
                     cursor.execute("UPDATE agents SET last_seen = NOW() WHERE guild_id = %s and node = %s",
                                    (self.guild_id, platform.node()))
-                    cursor.execute("SELECT * FROM agents WHERE guild_id = %s FOR UPDATE", (self.guild_id, ))
                     for row in cursor.fetchall():
                         if row['master']:
                             if row['node'] == platform.node():
