@@ -1,5 +1,4 @@
 import discord
-from contextlib import closing
 from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report, PaginationReport, Status, Server
 from discord.ext import commands
 from plugins.userstats.commands import parse_params

@@ -3,7 +3,6 @@ import asyncio
 import discord
 import os
 import uuid
-from contextlib import closing
 from core import utils
 from dataclasses import dataclass, field
 from datetime import datetime

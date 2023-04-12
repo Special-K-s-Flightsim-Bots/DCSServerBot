@@ -43,8 +43,6 @@ class DCSServerBot(commands.Bot):
         if 'cloud' in self.plugins:
             self.plugins.remove('cloud')
             self.plugins.append('cloud')
-        if 'dashboard' in self.plugins and not self.config.getboolean('BOT', 'USE_DASHBOARD'):
-            self.plugins.remove('dashboard')
         self.audit_channel = None
         self.mission_stats = None
         self.synced: bool = False
@@ -640,6 +638,8 @@ class DCSServerBot(commands.Bot):
 
             def handle(s):
                 data = json.loads(s.request[0].strip())
+                if len(data) > 8 * 1024:
+                    self.log.error(f"Command {data['command']} response is > 8kB!")
                 # ignore messages not containing server names
                 if 'server_name' not in data:
                     self.log.warning('Message without server_name received: {}'.format(data))

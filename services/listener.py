@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import platform
 import psycopg
 from concurrent.futures import ThreadPoolExecutor
@@ -9,6 +10,7 @@ from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
 from psycopg.types.json import Json
+from shutil import copytree
 from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Tuple, Callable
 
@@ -21,6 +23,10 @@ class EventListenerService(Service):
         self.servers: dict[str, ServerImpl] = dict()
         self.udp_server = None
         self.executor = None
+        plugins: str = self.config['BOT']['PLUGINS']
+        if 'OPT_PLUGINS' in self.config['BOT']:
+            plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
+        self.plugins: [str] = [p.strip() for p in list(dict.fromkeys(plugins.split(',')))]
         self.loop = asyncio.get_event_loop()
         self.intercom.add_exception_type(psycopg.DatabaseError)
 
@@ -60,6 +66,13 @@ class EventListenerService(Service):
                 # TODO: can be removed if bug in net.load_next_mission() is fixed
                 if 'listLoop' not in server.settings or not server.settings['listLoop']:
                     server.settings['listLoop'] = True
+            for plugin_name in self.plugins:
+                source_path = f'./plugins/{plugin_name}/lua'
+                if os.path.exists(source_path):
+                    target_path = os.path.expandvars(self.config[installation]['DCS_HOME'] +
+                                                     f'\\Scripts\\net\\DCSServerBot\\{plugin_name}\\')
+                    copytree(source_path, target_path, dirs_exist_ok=True)
+                    self.log.debug(f'  => Luas installed into {installation}')
 
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers (this might take a bit) ...')

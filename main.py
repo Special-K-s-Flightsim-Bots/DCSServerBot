@@ -7,14 +7,13 @@ import platform
 import shutil
 import zipfile
 from contextlib import closing
-
-from psycopg.rows import dict_row
-
 from core import utils, ServiceRegistry
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from matplotlib import font_manager
 from pathlib import Path
+from psycopg.errors import UndefinedTable
+from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 from services import Dashboard, BotService, EventListenerService
 from typing import cast
@@ -45,10 +44,16 @@ class Main:
         if self.config['BOT'].getboolean('DESANITIZE'):
             utils.desanitize(self)
         self.install_hooks()
-        self.register()
-        if self.is_master():
+        try:
+            master = self.is_master()
+        except UndefinedTable:
+            # should only happen when an upgrade to 3.0 is needed
+            self.log.info("Updating database for DCSServerBot 3.x ...")
+            master = True
+        if master:
             self.install_plugins()
             self.update_db()
+            self.register()
 
     @staticmethod
     def read_config():
@@ -221,10 +226,12 @@ class Main:
                                    (self.guild_id, platform.node()))
                     cursor.execute("SELECT * FROM agents WHERE guild_id = %s FOR UPDATE SKIP LOCKED", (self.guild_id, ))
                     for row in cursor.fetchall():
+                        self.log.info(f"{row['node']} = {row['master']}")
                         if row['master']:
                             if row['node'] == platform.node():
                                 return True
-                            elif (datetime.now() - row['last_seen']).seconds < 60:
+                            elif (datetime.now() - row['last_seen']).seconds > 60:
+                                self.log.info('Master not responding, taking over!')
                                 return False
                     cursor.execute('UPDATE agents SET master = False WHERE guild_id = %s', (self.guild_id, ))
                     cursor.execute('UPDATE agents SET master = True WHERE guild_id = %s and node = %s',

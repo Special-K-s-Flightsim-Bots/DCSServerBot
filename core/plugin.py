@@ -84,16 +84,7 @@ class Plugin(commands.Cog):
             json.dump(installed, f, indent=2)
 
     async def install(self):
-        # don't init the DB on agents, whole DB handling is a master task
-        if self.bot.config.getboolean('BOT', 'MASTER') is True:
-            self.init_db()
-        else:
-            version = self.get_installed_version(self.plugin_name)
-            if not version:
-                self.set_installed_version(self.plugin_name, self.plugin_version)
-            elif version != self.plugin_version:
-                self.migrate(self.plugin_version)
-                self.set_installed_version(self.plugin_name, self.plugin_version)
+        self.init_db()
         for server in self.bot.servers.values():
             source_path = f'./plugins/{self.plugin_name}/lua'
             if path.exists(source_path):
