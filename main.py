@@ -222,21 +222,38 @@ class Main:
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                    master = False
+                    count = 0
                     cursor.execute("SELECT * FROM agents WHERE guild_id = %s FOR UPDATE", (self.guild_id, ))
-                    cursor.execute("UPDATE agents SET last_seen = NOW() WHERE guild_id = %s and node = %s",
-                                   (self.guild_id, platform.node()))
                     for row in cursor.fetchall():
                         if row['master']:
+                            count += 1
                             if row['node'] == platform.node():
-                                return True
-                            elif (datetime.now() - row['last_seen']).seconds < 60:
-                                return False
-                    self.log.info('Master not responding, taking over!')
-                    cursor.execute('UPDATE agents SET master = False WHERE guild_id = %s and node != %s',
-                                   (self.guild_id, platform.node()))
-                    cursor.execute('UPDATE agents SET master = True WHERE guild_id = %s and node = %s',
-                                   (self.guild_id, platform.node()))
-            return True
+                                master = True
+                            # the old master is dead, we probably need to take over
+                            elif (datetime.now() - row['last_seen']).seconds > 60:
+                                cursor.execute('UPDATE agents SET master = False WHERE guild_id = %s and node = %s',
+                                               (self.guild_id, row['node']))
+                                count -= 1
+                    # no master there, we're the master now
+                    if count == 0:
+                        cursor.execute('UPDATE agents SET master = True, last_seen = NOW() '
+                                       'WHERE guild_id = %s and node = %s',
+                                       (self.guild_id, platform.node()))
+                        master = True
+                    # there is only one master, might be me, might be others
+                    elif count == 1:
+                        cursor.execute('UPDATE agents SET master = %s, last_seen = NOW() '
+                                       'WHERE guild_id = %s and node = %s',
+                                       (master, self.guild_id, platform.node()))
+                    # split brain detected, so step back
+                    else:
+                        self.log.warning("Split brain detected, stepping back from master.")
+                        cursor.execute('UPDATE agents SET master = False, last_seen = NOW() '
+                                       'WHERE guild_id = %s and node = %s',
+                                       (self.guild_id, platform.node()))
+                        master = False
+            return master
 
     async def run(self):
         async with ServiceRegistry(main=self) as registry:
