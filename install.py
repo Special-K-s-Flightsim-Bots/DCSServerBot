@@ -222,7 +222,8 @@ class Install:
                                                "Don't use the port of your DCS server (""10308), webgui_port (8088) or "
                                                "webrtc_port (""10309)!")
                     ports.add(config[installation]['DCS_PORT'])
-                if not path.exists(os.path.expandvars(config[installation]['DCS_HOME'])):
+                dcs_home = os.path.expandvars(config[installation]['DCS_HOME'])
+                if dcs_home.upper() != 'REMOTE' and not path.exists(dcs_home):
                     # ignore missing directories in the DCS section, as people might have a serverSettings.lua in their
                     # DCS folder but no server configured
                     if installation == 'DCS':
