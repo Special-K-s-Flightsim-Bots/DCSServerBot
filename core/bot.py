@@ -11,7 +11,6 @@ from copy import deepcopy
 from core import utils, Server, Status, Channel, DataObjectFactory, Player, Autoexec
 from datetime import datetime
 from discord.ext import commands, tasks
-from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
@@ -565,7 +564,7 @@ class DCSServerBot(commands.Bot):
 
         # update the database and check for server name changes
         with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+            with closing(conn.cursor()) as cursor:
                 cursor.execute('SELECT server_name FROM servers WHERE agent_host=%s AND host=%s AND port=%s',
                                (platform.node(), data['host'], data['port']))
                 if cursor.rowcount == 1:

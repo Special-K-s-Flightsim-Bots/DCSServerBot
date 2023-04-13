@@ -1,6 +1,5 @@
 from __future__ import annotations
 import asyncio
-import discord
 import json
 import os
 import platform
@@ -12,7 +11,7 @@ from contextlib import closing, suppress
 from core import utils, Server
 from dataclasses import dataclass
 from psutil import Process
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from .dataobject import DataObjectFactory
@@ -84,8 +83,7 @@ class ServerImpl(Server):
     def is_remote(self) -> bool:
         return False
 
-    @property
-    def missions_dir(self) -> str:
+    async def get_missions_dir(self) -> str:
         if 'MISSIONS_DIR' in self.bot.config[self.installation]:
             return os.path.expandvars(self.bot.config[self.installation]['MISSIONS_DIR'])
         else:
@@ -202,43 +200,3 @@ class ServerImpl(Server):
         if self.status != Status.SHUTDOWN:
             self.status = Status.SHUTDOWN
         self.process = None
-
-    async def setEmbed(self, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None,
-                       channel_id: Optional[Union[Channel, int]] = Channel.STATUS) -> None:
-        async with self._lock:
-            message = None
-            channel = self.bot.get_channel(channel_id) if isinstance(channel_id, int) else self.get_channel(channel_id)
-            if embed_name in self.embeds:
-                if isinstance(self.embeds[embed_name],  discord.Message):
-                    message = self.embeds[embed_name]
-                else:
-                    try:
-                        message = await channel.fetch_message(self.embeds[embed_name])
-                        self.embeds[embed_name] = message
-                    except discord.errors.NotFound:
-                        message = None
-                    except discord.errors.DiscordException as ex:
-                        self.log.warning(f"Discord error during setEmbed({embed_name}): " + str(ex))
-                        return
-            if message:
-                try:
-                    if not file:
-                        await message.edit(embed=embed)
-                    else:
-                        await message.edit(embed=embed, attachments=[file])
-                except discord.errors.NotFound:
-                    message = None
-                except Exception as ex:
-                    self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
-                    return
-            if not message:
-                message = await channel.send(embed=embed, file=file)
-                self.embeds[embed_name] = message
-                with self.pool.connection() as conn:
-                    with conn.transaction():
-                        conn.execute("""
-                            INSERT INTO message_persistence (server_name, embed_name, embed) 
-                            VALUES (%s, %s, %s) 
-                            ON CONFLICT (server_name, embed_name) 
-                            DO UPDATE SET embed=excluded.embed
-                        """, (self.name, embed_name, message.id))

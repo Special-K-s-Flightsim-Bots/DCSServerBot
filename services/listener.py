@@ -12,7 +12,7 @@ from discord.ext import tasks
 from psycopg.types.json import Json
 from shutil import copytree
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Tuple, Callable
+from typing import Tuple, Callable, Optional
 
 
 @ServiceRegistry.register("EventListener")
@@ -112,13 +112,33 @@ class EventListenerService(Service):
                                                   (platform.node(), )).fetchall():
                             data = row[1]
                             server_name = data['server_name']
+                            command = data['command']
                             if server_name not in self.servers:
                                 self.log.warning(
-                                    f"Command {data['command']} for unknown server {server_name} received, ignoring")
+                                    f"Command {command} for unknown server {server_name} received, ignoring")
                             else:
                                 server: ServerImpl = self.servers[server_name]
-                                server.sendtoDCS(data)
+                                if command == 'rpc':
+                                    if data.get('object') == 'Server':
+                                        rc = await self.rpc(server, data)
+                                        if rc:
+                                            self.sendtoMaster(rc)
+                                    else:
+                                        self.log.warning('RPC command received for unknown object.')
+                                else:
+                                    server.sendtoDCS(data)
                             cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
+
+    async def rpc(self, server: ServerImpl, data: dict) -> Optional[dict]:
+        func = getattr(server, data.get('method'))
+        if not func:
+            return
+        kwargs = data.get('params', {})
+        if asyncio.iscoroutinefunction(func):
+            rc = await func(**kwargs)
+        else:
+            rc = func(**kwargs)
+        return rc
 
     async def start_udp_listener(self):
         class RequestHandler(BaseRequestHandler):

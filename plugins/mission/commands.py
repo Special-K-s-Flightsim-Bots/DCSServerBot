@@ -611,7 +611,7 @@ class Mission(Plugin):
         if not server or not utils.check_roles([x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')], message.author):
             return
         att = message.attachments[0]
-        filename = server.missions_dir + os.path.sep + att.filename
+        filename = await server.get_missions_dir() + os.path.sep + att.filename
         try:
             ctx = utils.ContextWrapper(message)
             stopped = False

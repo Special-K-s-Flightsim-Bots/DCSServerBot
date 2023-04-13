@@ -1,7 +1,6 @@
-import discord
 from dataclasses import dataclass
-from core import Server, Channel
-from typing import Optional, Union
+from core import Server
+from typing import Optional
 
 
 @dataclass
@@ -11,9 +10,14 @@ class ServerProxy(Server):
     def is_remote(self) -> bool:
         return True
 
-    @property
-    def missions_dir(self) -> str:
-        return ""  # TODO
+    async def get_missions_dir(self) -> str:
+        data = await self.sendtoDCSSync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "missions_dir",
+            "server_name": self.name
+        })
+        return data["missions_dir"]
 
     @property
     def settings(self) -> dict:
@@ -25,11 +29,12 @@ class ServerProxy(Server):
 
     async def get_current_mission_file(self) -> Optional[str]:
         data = await self.sendtoDCSSync({
-            "command": "intercom",
+            "command": "rpc",
             "object": "Server",
-            "method": "get_current_mission_file"
+            "method": "get_current_mission_file",
+            "server_name": self.name
         })
-        return data["return"]
+        return data["current_mission_file"]
 
     def sendtoDCS(self, message: dict):
         message['server_name'] = self.name
@@ -37,65 +42,26 @@ class ServerProxy(Server):
 
     # TODO
     def rename(self, new_name: str, update_settings: bool = False) -> None:
-        self.bot.sendtoBot({
-            "command": "intercom",
+        self.sendtoDCS({
+            "command": "rpc",
             "object": "Server",
             "method": "rename",
             "params": {
                 "new_name": new_name,
                 "update_settings": update_settings
-            }
-        }, agent=self.host)
+            },
+            "server_name": self.name
+        })
 
     async def startup(self) -> None:
-        self.bot.sendtoBot({"command": "intercom", "object": "Server", "method": "startup"}, agent=self.host)
+        self.sendtoDCS({"command": "rpc", "object": "Server", "method": "startup", "server_name": self.name})
 
     async def shutdown(self, force: bool = False) -> None:
-        self.bot.sendtoBot({
+        self.sendtoDCS({
             "command": "intercom",
             "object": "Server",
             "method": "shutdown",
             "params": {
                 "force": force
             }
-        }, agent=self.host)
-
-    async def setEmbed(self, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None,
-                       channel_id: Optional[Union[Channel, int]] = Channel.STATUS) -> None:
-        async with self._lock:
-            message = None
-            channel = self.bot.get_channel(channel_id) if isinstance(channel_id, int) else self.get_channel(channel_id)
-            if embed_name in self.embeds:
-                if isinstance(self.embeds[embed_name],  discord.Message):
-                    message = self.embeds[embed_name]
-                else:
-                    try:
-                        message = await channel.fetch_message(self.embeds[embed_name])
-                        self.embeds[embed_name] = message
-                    except discord.errors.NotFound:
-                        message = None
-                    except discord.errors.DiscordException as ex:
-                        self.log.warning(f"Discord error during setEmbed({embed_name}): " + str(ex))
-                        return
-            if message:
-                try:
-                    if not file:
-                        await message.edit(embed=embed)
-                    else:
-                        await message.edit(embed=embed, attachments=[file])
-                except discord.errors.NotFound:
-                    message = None
-                except Exception as ex:
-                    self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
-                    return
-            if not message:
-                message = await channel.send(embed=embed, file=file)
-                self.embeds[embed_name] = message
-                with self.pool.connection() as conn:
-                    with conn.transaction():
-                        conn.execute("""
-                            INSERT INTO message_persistence (server_name, embed_name, embed) 
-                            VALUES (%s, %s, %s) 
-                            ON CONFLICT (server_name, embed_name) 
-                            DO UPDATE SET embed=excluded.embed
-                        """, (self.name, embed_name, message.id))
+        })

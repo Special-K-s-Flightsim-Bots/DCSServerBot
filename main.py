@@ -231,7 +231,7 @@ class Main:
                             if row['node'] == platform.node():
                                 master = True
                             # the old master is dead, we probably need to take over
-                            elif (datetime.now() - row['last_seen']).seconds > 60:
+                            elif (datetime.now() - row['last_seen']).seconds > 10:
                                 cursor.execute('UPDATE agents SET master = False WHERE guild_id = %s and node = %s',
                                                (self.guild_id, row['node']))
                                 count -= 1
