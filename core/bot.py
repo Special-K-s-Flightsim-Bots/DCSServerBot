@@ -585,9 +585,11 @@ class DCSServerBot(commands.Bot):
 
     def register_remote_server(self, data: dict):
         self.log.info(f"Registering remote server {data['server_name']}.")
-        self.servers[data['server_name']] = ServerProxy(
+        proxy = ServerProxy(
             bot=self, name=data['server_name'], installation=data['installation'], host=data['agent'], port=-1
         )
+        proxy.status = Status.STOPPED
+        self.servers[data['server_name']] = proxy
 
     async def get_server(self, ctx: Union[commands.Context, discord.Interaction, discord.Message, str]) -> Optional[Server]:
         for server_name, server in self.servers.items():

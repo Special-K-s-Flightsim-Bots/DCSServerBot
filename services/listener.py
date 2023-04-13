@@ -164,6 +164,7 @@ class EventListenerService(Service):
                         if command != 'registerDCSServer':
                             return
                 if command == 'registerDCSServer':
+                    self.log.info(f"Registering server {server.name} on Master node ...")
                     data['installation'] = server.installation
                     data['agent'] = platform.node()
                 self.sendtoMaster(data)
