@@ -493,19 +493,6 @@ class Mission(Plugin):
                                                     f"If the scheduler is configured for this "
                                                     f"server, it will relaunch it automatically.")
 
-        # check for blocked processes due to window popups
-        while True:
-            for title in ["Can't run", "Login Failed", "DCS Login"]:
-                handle = win32gui.FindWindowEx(None, None, None, title)
-                if handle:
-                    _, pid = win32process.GetWindowThreadProcessId(handle)
-                    for server in self.bot.servers.values():
-                        if server.process and server.process.pid == pid:
-                            await server.shutdown(force=True)
-                            await self.bot.audit(f'Server killed due to a popup with title "{title}".', server=server)
-            else:
-                break
-
         for server_name, server in self.bot.servers.items():
             if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue

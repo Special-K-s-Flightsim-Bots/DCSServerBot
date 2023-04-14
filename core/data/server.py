@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import discord
 import os
+import platform
 import uuid
 from core import utils
 from dataclasses import dataclass, field
@@ -304,3 +305,18 @@ class Server(DataObject):
                             ON CONFLICT (server_name, embed_name) 
                             DO UPDATE SET embed=excluded.embed
                         """, (self.name, embed_name, message.id))
+
+    async def keep_alive(self):
+        # we set a longer timeout in here because, we don't want to risk false restarts
+        timeout = 20 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
+        data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE servers SET last_seen = NOW() WHERE agent_host = %s AND server_name = %s',
+                             (platform.node(), self.name))
+        if data['pause'] and self.status != Status.PAUSED:
+            self.status = Status.PAUSED
+        elif not data['pause'] and self.status != Status.RUNNING:
+            self.status = Status.RUNNING
+        self.current_mission.mission_time = data['mission_time']
+        self.current_mission.real_time = data['real_time']
