@@ -2,6 +2,8 @@ import asyncio
 import json
 import os
 import platform
+from queue import Queue
+
 import psycopg
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
@@ -251,12 +253,33 @@ class EventListenerService(Service):
                             self.loop.call_soon_threadsafe(f.set_result, data)
                         if command != 'registerDCSServer':
                             return
-                if command == 'registerDCSServer':
-                    self.register_server(data)
-                    self.log.info(f"Registering server {server.name} on Master node ...")
-                    data['installation'] = server.installation
-                    data['agent'] = platform.node()
-                self.sendtoMaster(data)
+                if server.name not in s.server.message_queue:
+                    s.server.message_queue[server.name] = Queue()
+                    s.server.executor.submit(s.process, server)
+                s.server.message_queue[server.name].put(data)
+
+            def process(s, server: Server):
+                data = s.server.message_queue[server.name].get()
+                while len(data):
+                    try:
+                        command = data['command']
+                        if command == 'registerDCSServer':
+                            if not server.is_remote and not self.register_server(data):
+                                self.log.error(f"Error while registering server {server.name}.")
+                                return
+                            self.log.info(f"Registering server {server.name} on Master node ...")
+                            data['installation'] = server.installation
+                            data['agent'] = platform.node()
+                        elif server.status == Status.UNREGISTERED:
+                            self.log.debug(
+                                f"Command {command} for unregistered server {server.name} received, ignoring.")
+                            continue
+                        self.sendtoMaster(data)
+                    except Exception as ex:
+                        self.log.exception(ex)
+                    finally:
+                        s.server.message_queue[server.name].task_done()
+                        data = s.server.message_queue[server.name].get()
 
         class MyThreadingUDPServer(ThreadingUDPServer):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler],
@@ -266,7 +289,18 @@ class EventListenerService(Service):
                     # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                     MyThreadingUDPServer.allow_reuse_address = True
                     MyThreadingUDPServer.max_packet_size = 65504
+                    self.message_queue: dict[str, Queue[str]] = {}
                     super().__init__(server_address, request_handler)
+                except Exception as ex:
+                    self.log.exception(ex)
+
+            def shutdown(self) -> None:
+                super().shutdown()
+                try:
+                    for server_name, queue in self.message_queue.items():
+                        if not queue.empty():
+                            queue.join()
+                        queue.put('')
                 except Exception as ex:
                     self.log.exception(ex)
 

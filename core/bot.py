@@ -629,7 +629,7 @@ class DCSServerBot(commands.Bot):
         except Exception as ex:
             self.log.exception(ex)
 
-    async def start_udp_listener(self) -> asyncio.Future:
+    async def start_udp_listener(self):
         class RequestHandler(BaseRequestHandler):
 
             def handle(s):
@@ -668,7 +668,7 @@ class DCSServerBot(commands.Bot):
                             if not server.is_remote and not self.register_server(data):
                                 self.log.error(f"Error while registering server {server.name}.")
                                 return
-                        elif server.name not in self.servers or server.status == Status.UNREGISTERED:
+                        elif server.status == Status.UNREGISTERED:
                             self.log.debug(
                                 f"Command {command} for unregistered server {server.name} received, ignoring.")
                             continue
@@ -717,4 +717,3 @@ class DCSServerBot(commands.Bot):
         self.udp_server = MyThreadingUDPServer((host, port), RequestHandler, self)
         future = asyncio.wrap_future(self.executor.submit(self.udp_server.serve_forever))
         self.log.debug('- Listener started on interface {} port {} accepting commands.'.format(host, port))
-        return future
