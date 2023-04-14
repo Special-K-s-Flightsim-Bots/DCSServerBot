@@ -285,6 +285,7 @@ class EventListenerService(Service):
             def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler],
                          listener: EventListenerService):
                 self.log = listener.log
+                self.executor = listener.executor
                 try:
                     # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                     MyThreadingUDPServer.allow_reuse_address = True
