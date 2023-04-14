@@ -298,6 +298,7 @@ class DCSServerBot(commands.Bot):
 
     def sendtoBot(self, data: dict, agent: Optional[str] = None):
         if agent:
+            self.log.debug('HOST->{}: {}'.format(data['server_name'], json.dumps(data)))
             with self.pool.connection() as conn:
                 with conn.transaction():
                     conn.execute("INSERT INTO intercom (agent, data) VALUES (%s, %s)", (agent, Json(data)))
@@ -641,7 +642,11 @@ class DCSServerBot(commands.Bot):
                     return
                 server_name = data['server_name']
                 self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
-                server = self.servers[server_name]
+                server = self.servers.get(server_name) or None
+                if not server:
+                    self.log.debug(
+                        f"Command {data['command']} for unregistered server {server_name} received, ignoring.")
+                    return
                 if 'channel' in data and data['channel'].startswith('sync-'):
                     if data['channel'] in server.listeners:
                         f = server.listeners[data['channel']]

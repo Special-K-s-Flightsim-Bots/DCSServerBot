@@ -1,5 +1,7 @@
 from __future__ import annotations
 import asyncio
+from contextlib import suppress
+
 import discord
 import os
 import platform
@@ -67,6 +69,7 @@ class Server(DataObject):
     @status.setter
     def status(self, status: Status):
         if status != self._status:
+            self.log.info(f"Server {self.name} changing status from {self._status.name} to {status.name}")
             self._status = status
             self.status_change.set()
             self.status_change.clear()
@@ -183,9 +186,6 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def startup(self) -> None:
-        raise NotImplemented()
-
-    async def shutdown(self, force: bool = False) -> None:
         raise NotImplemented()
 
     async def stop(self) -> None:
@@ -320,3 +320,10 @@ class Server(DataObject):
             self.status = Status.RUNNING
         self.current_mission.mission_time = data['mission_time']
         self.current_mission.real_time = data['real_time']
+
+    async def shutdown(self, force: bool = False) -> None:
+        slow_system = self.bot.config.getboolean('BOT', 'SLOW_SYSTEM')
+        timeout = 300 if slow_system else 180
+        self.sendtoDCS({"command": "shutdown"})
+        with suppress(asyncio.TimeoutError):
+            await self.wait_for_status_change([Status.STOPPED], timeout)

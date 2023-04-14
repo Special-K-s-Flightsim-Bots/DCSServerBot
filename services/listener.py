@@ -5,7 +5,7 @@ import platform
 import psycopg
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
-from core import Server, DataObjectFactory, utils, Status, ServerImpl
+from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
@@ -96,6 +96,91 @@ class EventListenerService(Service):
             self.log.info('- No running servers found.')
         self.log.info('DCSServerBot Agent started.')
 
+    def register_server(self, data: dict) -> bool:
+        installations = utils.findDCSInstallations(data['server_name'])
+        if len(installations) == 0:
+            self.log.error(f"No server {data['server_name']} found in any serverSettings.lua.\n"
+                           f"Please check your server configurations!")
+            return False
+        _, installation = installations[0]
+        if installation not in self.config:
+            self.log.error(f"No section found for server {data['server_name']} in your dcsserverbot.ini.\n"
+                           f"Please add a configuration for it!")
+            return False
+        self.log.debug(f"  => Registering DCS-Server \"{data['server_name']}\"")
+        # check for protocol incompatibilities
+        if data['hook_version'] != self.version:
+            self.log.error('Server \"{}\" has wrong Hook version installed. Please update lua files and restart '
+                           'server. Registration ignored.'.format(data['server_name']))
+            return False
+        # register the server in the internal datastructures
+        if data['server_name'] in self.servers:
+            server: Server = self.servers[data['server_name']]
+        else:
+            # a new server is to be registered
+            server = self.servers[data['server_name']] = \
+                DataObjectFactory().new(Server.__name__, bot=self, name=data['server_name'],
+                                        installation=installation, host=self.config[installation]['DCS_HOST'],
+                                        port=self.config[installation]['DCS_PORT'])
+        # set the PID
+        for exe in ['DCS_server.exe', 'DCS.exe']:
+            server.process = utils.find_process(exe, server.installation)
+            if server.process:
+                break
+        server.dcs_version = data['dcs_version']
+        server.status = Status.STOPPED
+        # validate server ports
+        dcs_ports: dict[int, str] = dict()
+        webgui_ports: dict[int, str] = dict()
+        webrtc_ports: dict[int, str] = dict()
+        for server in self.servers.values():
+            dcs_port = server.settings.get('port', 10308)
+            if dcs_port in dcs_ports:
+                self.log.error(f'Server "{server.name}" shares its DCS port with server '
+                               f'"{dcs_ports[dcs_port]}"! Registration aborted.')
+                return False
+            else:
+                dcs_ports[dcs_port] = server.name
+            autoexec = Autoexec(bot=self, installation=server.installation)
+            webgui_port = autoexec.webgui_port or 8088
+            if webgui_port in webgui_ports:
+                self.log.error(f'Server "{server.name}" shares its webgui_port with server '
+                               f'"{webgui_ports[webgui_port]}"! Registration aborted.')
+                return False
+            else:
+                webgui_ports[webgui_port] = server.name
+            webrtc_port = autoexec.webrtc_port or 10309
+            if webrtc_port in webrtc_ports:
+                if server.settings['advanced'].get('voice_chat_server', False):
+                    self.log.error(f'Server "{server.name}" shares its webrtc_port port with server '
+                                   f'"{webrtc_ports[webrtc_port]}"! Registration aborted.')
+                else:
+                    self.log.warning(f'Server "{server.name}" shares its webrtc_port port with server '
+                                     f'"{webrtc_ports[webrtc_port]}", but voice chat is disabled.')
+            else:
+                webrtc_ports[webrtc_port] = server.name
+
+        # update the database and check for server name changes
+        with self.pool.connection() as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT server_name FROM servers WHERE agent_host=%s AND host=%s AND port=%s',
+                               (platform.node(), data['host'], data['port']))
+                if cursor.rowcount == 1:
+                    server_name = cursor.fetchone()[0]
+                    if server_name != data['server_name']:
+                        if len(utils.findDCSInstallations(server_name)) == 0:
+                            self.log.info(f"Auto-renaming server \"{server_name}\" to \"{data['server_name']}\"")
+                            server.rename(data['server_name'])
+                            if server_name in self.servers:
+                                del self.servers[server_name]
+                        else:
+                            self.log.warning(
+                                f"Registration of server \"{data['server_name']}\" aborted due to UDP port conflict.")
+                            del self.servers[data['server_name']]
+                            return False
+        self.log.debug(f"Server {server.name} initialized")
+        return True
+
     def sendtoMaster(self, data: dict):
         with self.pool.connection() as conn:
             with conn.pipeline():
@@ -129,7 +214,8 @@ class EventListenerService(Service):
                                     server.sendtoDCS(data)
                             cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
-    async def rpc(self, server: ServerImpl, data: dict) -> Optional[dict]:
+    @staticmethod
+    async def rpc(server: ServerImpl, data: dict) -> Optional[dict]:
         func = getattr(server, data.get('method'))
         if not func:
             return
@@ -151,10 +237,10 @@ class EventListenerService(Service):
                     return
                 server_name = data['server_name']
                 command = data['command']
-                if server_name not in self.servers:
+                server: ServerImpl = self.servers.get(server_name)
+                if not server:
                     self.log.warning(f"Command {command} for unknown server {server_name} received, ignoring.")
                     return
-                server: ServerImpl = self.servers[server_name]
                 self.log.debug('{}->HOST: {}'.format(server.name, json.dumps(data)))
                 if 'channel' in data and data['channel'].startswith('sync-'):
                     if data['channel'] in server.listeners:
@@ -164,6 +250,7 @@ class EventListenerService(Service):
                         if command != 'registerDCSServer':
                             return
                 if command == 'registerDCSServer':
+                    self.register_server(data)
                     self.log.info(f"Registering server {server.name} on Master node ...")
                     data['installation'] = server.installation
                     data['agent'] = platform.node()

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from core import Server
+from core import Server, Status
 from typing import Optional
 
 
@@ -54,14 +54,14 @@ class ServerProxy(Server):
         })
 
     async def startup(self) -> None:
-        self.sendtoDCS({"command": "rpc", "object": "Server", "method": "startup", "server_name": self.name})
+        await self.sendtoDCSSync({"command": "rpc", "object": "Server", "method": "startup", "server_name": self.name})
 
     async def shutdown(self, force: bool = False) -> None:
-        self.sendtoDCS({
-            "command": "rpc",
-            "object": "Server",
-            "method": "shutdown",
-            "params": {
-                "force": force
-            }
-        })
+        await super().shutdown(force)
+        if self.status != Status.SHUTDOWN:
+            self.sendtoDCS({
+                "command": "rpc",
+                "object": "Server",
+                "method": "terminate",
+                "server_name": self.name
+            })

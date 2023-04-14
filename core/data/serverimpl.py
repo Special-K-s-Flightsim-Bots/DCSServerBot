@@ -180,23 +180,13 @@ class ServerImpl(Server):
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 
     async def shutdown(self, force: bool = False) -> None:
-        slow_system = self.bot.config.getboolean('BOT', 'SLOW_SYSTEM')
-        timeout = 300 if slow_system else 180
         if not force:
-            self.sendtoDCS({"command": "shutdown"})
-            with suppress(asyncio.TimeoutError):
-                await self.wait_for_status_change([Status.STOPPED], timeout)
-            if self.process and self.process.is_running():
-                try:
-                    self.process.wait(timeout)
-                except psutil.TimeoutExpired:
-                    self.process.kill()
-        else:
-            if self.process and self.process.is_running():
-                self.process.kill()
-        # make sure, Windows did all cleanups
-        if slow_system:
-            await asyncio.sleep(10)
+            await super().shutdown(force)
+        self.terminate()
         if self.status != Status.SHUTDOWN:
             self.status = Status.SHUTDOWN
+
+    def terminate(self) -> None:
+        if self.process and self.process.is_running():
+            self.process.kill()
         self.process = None
