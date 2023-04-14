@@ -58,7 +58,7 @@ class ServerProxy(Server):
 
     async def shutdown(self, force: bool = False) -> None:
         self.sendtoDCS({
-            "command": "intercom",
+            "command": "rpc",
             "object": "Server",
             "method": "shutdown",
             "params": {
