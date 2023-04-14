@@ -20,6 +20,7 @@ class EventListenerService(Service):
 
     def __init__(self, main):
         super().__init__(main)
+        self.version = self.config['BOT']['VERSION']
         self.servers: dict[str, ServerImpl] = dict()
         self.udp_server = None
         self.executor = None
@@ -207,7 +208,8 @@ class EventListenerService(Service):
                                     if data.get('object') == 'Server':
                                         rc = await self.rpc(server, data)
                                         if rc:
-                                            self.sendtoMaster(rc)
+                                            data['return'] = rc
+                                            self.sendtoMaster(data)
                                     else:
                                         self.log.warning('RPC command received for unknown object.')
                                 else:

@@ -14,10 +14,9 @@ class ServerProxy(Server):
         data = await self.sendtoDCSSync({
             "command": "rpc",
             "object": "Server",
-            "method": "missions_dir",
-            "server_name": self.name
+            "method": "missions_dir"
         })
-        return data["missions_dir"]
+        return data["return"]
 
     @property
     def settings(self) -> dict:
@@ -31,10 +30,9 @@ class ServerProxy(Server):
         data = await self.sendtoDCSSync({
             "command": "rpc",
             "object": "Server",
-            "method": "get_current_mission_file",
-            "server_name": self.name
+            "method": "get_current_mission_file"
         })
-        return data["current_mission_file"]
+        return data["return"]
 
     def sendtoDCS(self, message: dict):
         message['server_name'] = self.name
@@ -49,8 +47,7 @@ class ServerProxy(Server):
             "params": {
                 "new_name": new_name,
                 "update_settings": update_settings
-            },
-            "server_name": self.name
+            }
         })
 
     async def startup(self) -> None:
