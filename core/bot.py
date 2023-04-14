@@ -14,7 +14,7 @@ from discord.ext import commands, tasks
 from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union, cast
 
 from .data.serverproxy import ServerProxy
 from .listener import EventListener
@@ -531,7 +531,8 @@ class DCSServerBot(commands.Bot):
             if server.process:
                 break
         server.dcs_version = data['dcs_version']
-        server.status = Status.STOPPED
+        if server.status != Status.LOADING:
+            server.status = Status.STOPPED
         # validate server ports
         dcs_ports: dict[int, str] = dict()
         webgui_ports: dict[int, str] = dict()
@@ -584,13 +585,21 @@ class DCSServerBot(commands.Bot):
         self.log.debug(f"Server {server.name} initialized")
         return True
 
-    def register_remote_server(self, data: dict):
-        self.log.info(f"Registering remote server {data['server_name']}.")
-        proxy = ServerProxy(
-            bot=self, name=data['server_name'], installation=data['installation'], host=data['agent'], port=-1
-        )
-        proxy.status = Status.STOPPED
-        self.servers[data['server_name']] = proxy
+    def register_remote_server(self, data: dict) -> ServerProxy:
+        proxy = self.servers.get(data['server_name'])
+        if proxy:
+            self.log.debug(f"Remote server {proxy.name} already registered, registration ignored.")
+        else:
+            self.log.info(f"Registering remote server {data['server_name']}.")
+            proxy = ServerProxy(
+                bot=self, name=data['server_name'], installation=data['installation'], host=data['agent'], port=-1
+            )
+            self.servers[data['server_name']] = proxy
+        if data['channel'].startswith('sync-'):
+            proxy.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
+        else:
+            proxy.status = Status.STOPPED
+        return proxy
 
     async def get_server(self, ctx: Union[commands.Context, discord.Interaction, discord.Message, str]) -> Optional[Server]:
         for server_name, server in self.servers.items():
@@ -622,9 +631,15 @@ class DCSServerBot(commands.Bot):
                         for row in conn.execute("SELECT id, data FROM intercom WHERE agent = %s",
                                                 ("Master" if self.is_master() else platform.node(), )).fetchall():
                             data = row[1]
+                            if len(data) > 8*1024:
+                                self.log.error(f"Command {data['command']}: payload is longer than 8 KB!")
+                            self.log.debug(f"{data['server_name']}->HOST: {json.dumps(data)}")
                             if data['command'] == 'registerDCSServer':
-                                self.register_remote_server(data)
-                            self.sendtoBot(data)
+                                server = self.register_remote_server(data)
+                                if server.name not in self.udp_server.message_queue:
+                                    self.udp_server.message_queue[server.name] = Queue()
+                                    self.udp_server.executor.submit(self.udp_server.process, server)
+                            self.udp_server.message_queue[data['server_name']].put(data)
                             conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
         except Exception as ex:
             self.log.exception(ex)
@@ -632,10 +647,8 @@ class DCSServerBot(commands.Bot):
     async def start_udp_listener(self):
         class RequestHandler(BaseRequestHandler):
 
-            def handle(s):
-                data = json.loads(s.request[0].strip())
-                if len(data) > 8 * 1024:
-                    self.log.error(f"Command {data['command']} response is > 8kB!")
+            def handle(derived):
+                data: dict = json.loads(derived.request[0].strip())
                 # ignore messages not containing server names
                 if 'server_name' not in data:
                     self.log.warning('Message without server_name received: {}'.format(data))
@@ -647,21 +660,29 @@ class DCSServerBot(commands.Bot):
                     self.log.debug(
                         f"Command {data['command']} for unregistered server {server_name} received, ignoring.")
                     return
-                if 'channel' in data and data['channel'].startswith('sync-'):
-                    if data['channel'] in server.listeners:
-                        f = server.listeners[data['channel']]
-                        if not f.done():
-                            self.loop.call_soon_threadsafe(f.set_result, data)
-                        if data['command'] != 'registerDCSServer':
-                            return
-                if server.name not in s.server.message_queue:
-                    s.server.message_queue[server.name] = Queue()
-                    s.server.executor.submit(s.process, server)
-                s.server.message_queue[server.name].put(data)
+                udp_server: MyThreadingUDPServer = cast(MyThreadingUDPServer, derived.server)
+                if server.name not in udp_server.message_queue:
+                    udp_server.message_queue[server.name] = Queue()
+                    udp_server.executor.submit(udp_server.process, server)
+                udp_server.message_queue[server.name].put(data)
 
-            def process(s, server: Server):
-                data = s.server.message_queue[server.name].get()
-                while len(data):
+        class MyThreadingUDPServer(ThreadingUDPServer):
+            def __init__(derived, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler],
+                         bot: DCSServerBot):
+                derived.bot = bot
+                derived.executor = bot.executor
+                try:
+                    # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
+                    MyThreadingUDPServer.allow_reuse_address = True
+                    MyThreadingUDPServer.max_packet_size = 65504
+                    derived.message_queue: dict[str, Queue[dict]] = {}
+                    super().__init__(server_address, request_handler)
+                except Exception as ex:
+                    self.log.exception(ex)
+
+            def process(derived, server: Server):
+                data = derived.message_queue[server.name].get()
+                while data:
                     try:
                         command = data['command']
                         if command == 'registerDCSServer':
@@ -672,6 +693,13 @@ class DCSServerBot(commands.Bot):
                             self.log.debug(
                                 f"Command {command} for unregistered server {server.name} received, ignoring.")
                             continue
+                        if 'channel' in data and data['channel'].startswith('sync-'):
+                            if data['channel'] in server.listeners:
+                                f = server.listeners[data['channel']]
+                                if not f.done():
+                                    self.loop.call_soon_threadsafe(f.set_result, data)
+                                if data['command'] != 'registerDCSServer':
+                                    continue
                         concurrent.futures.wait(
                             [
                                 asyncio.run_coroutine_threadsafe(
@@ -684,36 +712,21 @@ class DCSServerBot(commands.Bot):
                     except Exception as ex:
                         self.log.exception(ex)
                     finally:
-                        s.server.message_queue[server.name].task_done()
-                        data = s.server.message_queue[server.name].get()
+                        derived.message_queue[server.name].task_done()
+                        data = derived.message_queue[server.name].get()
 
-        class MyThreadingUDPServer(ThreadingUDPServer):
-            def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler],
-                         bot: DCSServerBot):
-                self.bot = bot
-                self.log = bot.log
-                self.executor = bot.executor
-                try:
-                    # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
-                    MyThreadingUDPServer.allow_reuse_address = True
-                    MyThreadingUDPServer.max_packet_size = 65504
-                    self.message_queue: dict[str, Queue[str]] = {}
-                    super().__init__(server_address, request_handler)
-                except Exception as ex:
-                    self.log.exception(ex)
-
-            def shutdown(self) -> None:
+            def shutdown(derived) -> None:
                 super().shutdown()
                 try:
-                    for server_name, queue in self.message_queue.items():
+                    for server_name, queue in derived.message_queue.items():
                         if not queue.empty():
                             queue.join()
-                        queue.put('')
+                        queue.put({})
                 except Exception as ex:
                     self.log.exception(ex)
 
         host = self.config['BOT']['HOST']
         port = int(self.config['BOT']['PORT'])
         self.udp_server = MyThreadingUDPServer((host, port), RequestHandler, self)
-        future = asyncio.wrap_future(self.executor.submit(self.udp_server.serve_forever))
+        self.executor.submit(self.udp_server.serve_forever)
         self.log.debug('- Listener started on interface {} port {} accepting commands.'.format(host, port))

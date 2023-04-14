@@ -1,9 +1,7 @@
 from __future__ import annotations
-import asyncio
 import json
 import os
 import platform
-import psutil
 import socket
 import subprocess
 import win32con
@@ -149,7 +147,7 @@ class ServerImpl(Server):
             self.settings['name'] = new_name
         self.name = new_name
 
-    async def startup(self) -> None:
+    def do_startup(self):
         basepath = os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION'])
         for exe in ['DCS_server.exe', 'DCS.exe']:
             path = basepath + f'\\bin\\{exe}'
@@ -175,6 +173,9 @@ class ServerImpl(Server):
         )
         with suppress(Exception):
             self.process = Process(p.pid)
+
+    async def startup(self) -> None:
+        self.do_startup()
         timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
@@ -183,8 +184,7 @@ class ServerImpl(Server):
         if not force:
             await super().shutdown(force)
         self.terminate()
-        if self.status != Status.SHUTDOWN:
-            self.status = Status.SHUTDOWN
+        self.status = Status.SHUTDOWN
 
     def terminate(self) -> None:
         if self.process and self.process.is_running():

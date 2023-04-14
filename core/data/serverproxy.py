@@ -51,7 +51,15 @@ class ServerProxy(Server):
         })
 
     async def startup(self) -> None:
-        await self.sendtoDCSSync({"command": "rpc", "object": "Server", "method": "startup", "server_name": self.name})
+        self.sendtoDCS({
+            "command": "rpc",
+            "object": "Server",
+            "method": "do_startup",
+            "server_name": self.name
+        })
+        timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
+        self.status = Status.LOADING
+        await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 
     async def shutdown(self, force: bool = False) -> None:
         await super().shutdown(force)
@@ -62,3 +70,4 @@ class ServerProxy(Server):
                 "method": "terminate",
                 "server_name": self.name
             })
+        self.status = Status.SHUTDOWN

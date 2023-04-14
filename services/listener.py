@@ -2,8 +2,6 @@ import asyncio
 import json
 import os
 import platform
-from queue import Queue
-
 import psycopg
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
@@ -12,6 +10,7 @@ from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
 from psycopg.types.json import Json
+from queue import Queue
 from shutil import copytree
 from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Tuple, Callable, Optional
@@ -69,13 +68,14 @@ class EventListenerService(Service):
                 # TODO: can be removed if bug in net.load_next_mission() is fixed
                 if 'listLoop' not in server.settings or not server.settings['listLoop']:
                     server.settings['listLoop'] = True
+                self.log.info(f"- Installing Plugins into {installation} ...")
                 for plugin_name in self.plugins:
                     source_path = f'./plugins/{plugin_name}/lua'
                     if os.path.exists(source_path):
                         target_path = os.path.expandvars(self.config[installation]['DCS_HOME'] +
                                                          f'\\Scripts\\net\\DCSServerBot\\{plugin_name}\\')
                         copytree(source_path, target_path, dirs_exist_ok=True)
-                        self.log.debug(f'  => Luas installed into {installation}')
+                        self.log.info(f'  => Plugin {plugin_name.capitalize()} installed.')
 
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers (this might take a bit) ...')
@@ -246,8 +246,8 @@ class EventListenerService(Service):
                     self.log.warning(f"Command {command} for unknown server {server_name} received, ignoring.")
                     return
                 self.log.debug('{}->HOST: {}'.format(server.name, json.dumps(data)))
-                if 'channel' in data and data['channel'].startswith('sync-'):
-                    if data['channel'] in server.listeners:
+                if 'channel' in data and data['channel']:
+                    if data['channel'] in server.listeners.keys():
                         f = server.listeners[data['channel']]
                         if not f.done():
                             self.loop.call_soon_threadsafe(f.set_result, data)

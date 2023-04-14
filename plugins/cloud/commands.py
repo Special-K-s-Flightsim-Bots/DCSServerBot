@@ -20,7 +20,7 @@ class CloudHandlerAgent(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
-        if not len(self.read_locals()):
+        if not len(self.locals):
             raise commands.ExtensionFailed(self.plugin_name, FileNotFoundError("No cloud.json available."))
         self.config = self.locals['configs'][0]
         headers = {
