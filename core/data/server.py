@@ -433,6 +433,9 @@ class Server(DataObject):
         async with self._lock:
             message = None
             channel = self.bot.get_channel(channel_id) if isinstance(channel_id, int) else self.get_channel(channel_id)
+            if not channel:
+                self.log.error(f"Channel {channel_id} not found, can't create / modify embed!")
+                return
             if embed_name in self.embeds:
                 if isinstance(self.embeds[embed_name],  discord.Message):
                     message = self.embeds[embed_name]
