@@ -6,7 +6,7 @@ import psycopg
 from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
-from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, Channel
+from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
@@ -91,21 +91,21 @@ class EventListenerService(Service):
             if isinstance(ret[i], asyncio.TimeoutError):
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                 server.status = Status.SHUTDOWN
-                self.log.debug(f"Registering shutdown server {server.name} on Master node ...")
-                self.sendtoMaster({
-                    "command": "registerDCSServer",
-                    "server_name": server.name,
-                    "channel": server.get_channel(Channel.STATUS),
-                    "status": server.status.value,
-                    "installation": server.installation,
-                    "settings": server.settings,
-                    "options": server.options
-                })
             elif isinstance(ret[i], Exception):
                 self.log.exception(ret[i])
             else:
+                self.register_server(ret[i])
                 self.log.info(f'  => Running DCS server "{servers[i].name}" registered.')
                 num += 1
+            self.log.debug(f"Registering server {server.name} on Master node ...")
+            self.sendtoMaster({
+                "command": "init",
+                "server_name": server.name,
+                "status": server.status.name,
+                "installation": server.installation,
+                "settings": server.settings,
+                "options": server.options
+            })
         if num == 0:
             self.log.info('- No running servers found.')
         self.log.info('DCSServerBot Agent started.')
@@ -142,7 +142,8 @@ class EventListenerService(Service):
             if server.process:
                 break
         server.dcs_version = data['dcs_version']
-        server.status = Status.STOPPED
+        if server.status != Status.LOADING:
+            server.status = Status.STOPPED
         # validate server ports
         dcs_ports: dict[int, str] = dict()
         webgui_ports: dict[int, str] = dict()
@@ -261,16 +262,16 @@ class EventListenerService(Service):
                     self.log.warning(f"Command {command} for unknown server {server_name} received, ignoring.")
                     return
                 self.log.debug('{}->HOST: {}'.format(server.name, json.dumps(data)))
-                if 'channel' in data and data['channel']:
-                    if data['channel'] in server.listeners.keys():
-                        f = server.listeners[data['channel']]
-                        if not f.done():
-                            self.loop.call_soon_threadsafe(f.set_result, data)
-                        if command != 'registerDCSServer':
-                            return
                 if server.name not in s.server.message_queue:
                     s.server.message_queue[server.name] = Queue()
                     s.server.executor.submit(s.process, server)
+                channel = data.get('channel')
+                if channel and channel in server.listeners.keys():
+                    f = server.listeners[channel]
+                    if not f.done():
+                        self.loop.call_soon_threadsafe(f.set_result, data)
+#                        if command != 'registerDCSServer':
+                    return
                 s.server.message_queue[server.name].put(data)
 
             def process(s, server: Server):
@@ -279,14 +280,10 @@ class EventListenerService(Service):
                     try:
                         command = data['command']
                         if command == 'registerDCSServer':
-                            if not server.is_remote and not self.register_server(data):
+                            if not self.register_server(data):
                                 self.log.error(f"Error while registering server {server.name}.")
                                 return
-                            self.log.info(f"Registering running server {server.name} on Master node ...")
-                            data["status"] = server.status.value
-                            data['installation'] = server.installation
-                            data['settings'] = server.settings
-                            data['options'] = server.options
+                            self.log.info(f"Registering server {server.name} on Master node ...")
                         elif server.status == Status.UNREGISTERED:
                             self.log.debug(
                                 f"Command {command} for unregistered server {server.name} received, ignoring.")

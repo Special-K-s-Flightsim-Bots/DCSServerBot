@@ -585,12 +585,12 @@ class DCSServerBot(commands.Bot):
         self.log.debug(f"Server {server.name} initialized")
         return True
 
-    def register_remote_server(self, data: dict) -> ServerProxy:
+    def init_remote_server(self, data: dict) -> ServerProxy:
         proxy = self.servers.get(data['server_name'])
         if proxy:
-            self.log.debug(f"Remote server {proxy.name} already registered, registration ignored.")
+            self.log.debug(f"Remote server {proxy.name} already initialized, ignored.")
         else:
-            self.log.info(f"Registering remote server {data['server_name']}.")
+            self.log.info(f"Initializing remote server {data['server_name']}.")
             proxy = ServerProxy(
                 bot=self, name=data['server_name'], installation=data['installation'], host=data['agent'], port=-1
             )
@@ -632,8 +632,8 @@ class DCSServerBot(commands.Bot):
                             data = row[1]
                             self.log.debug(f'### SIZE: {len(data)}')
                             self.log.debug(f"{data['agent']}->MASTER: {json.dumps(data)}")
-                            if data['command'] == 'registerDCSServer':
-                                server = self.register_remote_server(data)
+                            if data['command'] == 'init':
+                                server = self.init_remote_server(data)
                                 if server.name not in self.udp_server.message_queue:
                                     self.udp_server.message_queue[server.name] = Queue()
                                     self.udp_server.executor.submit(self.udp_server.process, server)
