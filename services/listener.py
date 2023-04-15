@@ -101,7 +101,7 @@ class EventListenerService(Service):
             self.sendtoMaster({
                 "command": "init",
                 "server_name": server.name,
-                "status": server.status.name,
+                "status": server.status.value,
                 "installation": server.installation,
                 "settings": server.settings,
                 "options": server.options
