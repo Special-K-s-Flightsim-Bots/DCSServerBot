@@ -1,4 +1,5 @@
 import os
+import winreg
 
 METER_IN_FEET = 3.28084
 METER_PER_SECOND_IN_KNOTS = 1.94384
@@ -34,3 +35,9 @@ MONTH = {
 }
 
 SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
+if not os.path.exists(SAVED_GAMES):
+    SAVED_GAMES = winreg.QueryValueEx(
+        winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                       r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders", 0),
+        '{4C5C32FF-BB9D-43b0-B5B4-2D72E54EAAA4}'
+    )[0]

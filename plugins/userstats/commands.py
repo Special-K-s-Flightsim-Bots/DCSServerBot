@@ -573,6 +573,9 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     continue
                 if "installation" in config:
                     server: Server = get_server_by_installation(config['installation'])
+                    if not server:
+                        self.log.error(f"Server {config['installation']} is not registered.")
+                        return
                     server_name = server.name
                 else:
                     server: Server = list(self.bot.servers.values())[0]
