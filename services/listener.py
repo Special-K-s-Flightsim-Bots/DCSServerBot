@@ -105,7 +105,7 @@ class EventListenerService(Service):
             self.sendtoMaster({
                 "command": "init",
                 "server_name": server.name,
-                "status": server.status.value,
+                "status": server.status,
                 "installation": server.installation,
                 "settings": server.settings,
                 "options": server.options
@@ -146,8 +146,12 @@ class EventListenerService(Service):
             if server.process:
                 break
         server.dcs_version = data['dcs_version']
-        if server.status == Status.UNREGISTERED:
+        if 'players' not in data:
             server.status = Status.STOPPED
+        elif data['pause']:
+            server.status = Status.PAUSED
+        else:
+            server.status = Status.RUNNING
         # validate server ports
         dcs_ports: dict[int, str] = dict()
         webgui_ports: dict[int, str] = dict()
@@ -293,7 +297,7 @@ class EventListenerService(Service):
                             if not self.register_server(data):
                                 self.log.error(f"Error while registering server {server.name}.")
                                 return
-                            self.log.info(f"Registering server {server.name} on Master node ...")
+                            self.log.debug(f"Registering server {server.name} on Master node ...")
                         elif server.status == Status.UNREGISTERED:
                             self.log.debug(
                                 f"Command {command} for unregistered server {server.name} received, ignoring.")
