@@ -81,6 +81,14 @@ class EventListenerService(Service):
                                                          f'\\Scripts\\net\\DCSServerBot\\{plugin_name}\\')
                         copytree(source_path, target_path, dirs_exist_ok=True)
                         self.log.info(f'  => Plugin {plugin_name.capitalize()} installed.')
+                self.sendtoMaster({
+                    "command": "init",
+                    "server_name": server.name,
+                    "status": Status.UNREGISTERED.value,
+                    "installation": server.installation,
+                    "settings": server.settings,
+                    "options": server.options
+                })
 
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers (this might take a bit) ...')
@@ -93,25 +101,14 @@ class EventListenerService(Service):
         num = 0
         for i, server in enumerate(self.servers.values()):
             if isinstance(ret[i], asyncio.TimeoutError):
-                self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                 server.status = Status.SHUTDOWN
+                self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
             elif isinstance(ret[i], Exception):
                 self.log.exception(ret[i])
             else:
-                self.register_server(ret[i])
-                self.log.info(f'  => Running DCS server "{servers[i].name}" registered.')
                 num += 1
-            self.log.debug(f"Registering server {server.name} on Master node ...")
-            self.sendtoMaster({
-                "command": "init",
-                "server_name": server.name,
-                "status": server.status.value,
-                "installation": server.installation,
-                "settings": server.settings,
-                "options": server.options
-            })
         if num == 0:
-            self.log.info('- No running servers found.')
+            self.log.info('- No running local servers found.')
         self.log.info('DCSServerBot Agent started.')
 
     def register_server(self, data: dict) -> bool:
@@ -201,7 +198,7 @@ class EventListenerService(Service):
                                 f"Registration of server \"{data['server_name']}\" aborted due to UDP port conflict.")
                             del self.servers[data['server_name']]
                             return False
-        self.log.debug(f"Server {server.name} initialized")
+        self.log.info(f"  => DCS-Server \"{data['server_name']}\" registered.")
         return True
 
     def sendtoMaster(self, data: dict):
@@ -285,8 +282,8 @@ class EventListenerService(Service):
                     f = server.listeners[channel]
                     if not f.done():
                         self.loop.call_soon_threadsafe(f.set_result, data)
-#                        if command != 'registerDCSServer':
-                    return
+                        if command != 'registerDCSServer':
+                            return
                 s.server.message_queue[server.name].put(data)
 
             def process(s, server: Server):

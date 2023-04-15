@@ -97,12 +97,13 @@ class DCSServerBot(commands.Bot):
             return_exceptions=True
         )
         num = 0
-        for i in range(0, len(servers)):
+        for i, server in enumerate(self.servers.values()):
             if isinstance(ret[i], asyncio.TimeoutError):
-                servers[i].status = Status.SHUTDOWN
-                self.log.debug(f'  => Timeout while trying to contact DCS server "{servers[i].name}".')
+                server.status = Status.SHUTDOWN
+                self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
+            elif isinstance(ret[i], Exception):
+                self.log.exception(ret[i])
             else:
-                self.log.info(f'  => Running DCS server "{servers[i].name}" registered.')
                 num += 1
         if num == 0:
             self.log.info('- No running local servers found.')
@@ -512,7 +513,7 @@ class DCSServerBot(commands.Bot):
             self.log.error(f"No section found for server {data['server_name']} in your dcsserverbot.ini.\n"
                            f"Please add a configuration for it!")
             return False
-        self.log.info(f"  => Registering DCS-Server \"{data['server_name']}\"")
+        self.log.debug(f"  => Registering DCS-Server \"{data['server_name']}\"")
         # check for protocol incompatibilities
         if data['hook_version'] != self.version:
             self.log.error('Server \"{}\" has wrong Hook version installed. Please update lua files and restart '
@@ -584,7 +585,7 @@ class DCSServerBot(commands.Bot):
                                 f"Registration of server \"{data['server_name']}\" aborted due to UDP port conflict.")
                             del self.servers[data['server_name']]
                             return False
-        self.log.debug(f"Server {server.name} initialized")
+        self.log.info(f"  => DCS-Server \"{data['server_name']}\" registered.")
         return True
 
     def init_remote_server(self, data: dict) -> ServerProxy:
@@ -596,7 +597,6 @@ class DCSServerBot(commands.Bot):
             self.servers[data['server_name']] = proxy
             proxy.settings = data.get('settings')
             proxy.options = data.get('options')
-        self.log.info(f"- Initializing remote server {data['server_name']}.")
         proxy.status = Status(data['status'])
         return proxy
 
@@ -638,7 +638,8 @@ class DCSServerBot(commands.Bot):
                                 if server.name not in self.udp_server.message_queue:
                                     self.udp_server.message_queue[server.name] = Queue()
                                     self.udp_server.executor.submit(self.udp_server.process, server)
-                            self.udp_server.message_queue[data['server_name']].put(data)
+                            else:
+                                self.udp_server.message_queue[data['server_name']].put(data)
                             conn.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
         except Exception as ex:
             self.log.exception(ex)
@@ -685,9 +686,12 @@ class DCSServerBot(commands.Bot):
                     try:
                         command = data['command']
                         if command == 'registerDCSServer':
-                            if not server.is_remote and not self.register_server(data):
-                                self.log.error(f"Error while registering server {server.name}.")
-                                return
+                            if not server.is_remote:
+                                if self.register_server(data):
+                                    self.log.error(f"Error while registering server {server.name}.")
+                                    return
+                            else:
+                                self.log.info(f"  => DCS-Server \"{data['server_name']}\" registered.")
                         elif server.status == Status.UNREGISTERED:
                             self.log.debug(
                                 f"Command {command} for unregistered server {server.name} received, ignoring.")
