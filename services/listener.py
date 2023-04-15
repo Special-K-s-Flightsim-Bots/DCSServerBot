@@ -235,7 +235,7 @@ class EventListenerService(Service):
                                 else:
                                     self.log.warning('RPC command received for unknown object.')
                                 if obj:
-                                    rc = await self.rpc(server, data)
+                                    rc = await self.rpc(obj, data)
                                     if rc:
                                         data['return'] = rc
                                         self.sendtoMaster(data)
