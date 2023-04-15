@@ -105,7 +105,7 @@ class DCSServerBot(commands.Bot):
                 self.log.info(f'  => Running DCS server "{servers[i].name}" registered.')
                 num += 1
         if num == 0:
-            self.log.info('- No running servers found.')
+            self.log.info('- No running local servers found.')
 
     async def load_plugin(self, plugin: str) -> bool:
         try:
@@ -512,7 +512,7 @@ class DCSServerBot(commands.Bot):
             self.log.error(f"No section found for server {data['server_name']} in your dcsserverbot.ini.\n"
                            f"Please add a configuration for it!")
             return False
-        self.log.debug(f"  => Registering DCS-Server \"{data['server_name']}\"")
+        self.log.info(f"  => Registering DCS-Server \"{data['server_name']}\"")
         # check for protocol incompatibilities
         if data['hook_version'] != self.version:
             self.log.error('Server \"{}\" has wrong Hook version installed. Please update lua files and restart '
@@ -589,16 +589,14 @@ class DCSServerBot(commands.Bot):
 
     def init_remote_server(self, data: dict) -> ServerProxy:
         proxy = self.servers.get(data['server_name'])
-        if proxy:
-            self.log.debug(f"Remote server {proxy.name} already initialized, ignored.")
-        else:
-            self.log.info(f"Initializing remote server {data['server_name']}.")
+        if not proxy:
             proxy = ServerProxy(
                 bot=self, name=data['server_name'], installation=data['installation'], host=data['agent'], port=-1
             )
             self.servers[data['server_name']] = proxy
             proxy.settings = data.get('settings')
             proxy.options = data.get('options')
+        self.log.info(f"- Initializing remote server {data['server_name']}.")
         proxy.status = Status(data['status'])
         return proxy
 

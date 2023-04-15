@@ -244,6 +244,7 @@ class EventListenerService(Service):
                                 if server_name not in self.servers:
                                     self.log.warning(
                                         f"Command {command} for unknown server {server_name} received, ignoring")
+                                else:
                                     server: ServerImpl = self.servers[server_name]
                                     server.sendtoDCS(data)
                             cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
