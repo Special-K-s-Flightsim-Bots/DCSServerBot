@@ -87,10 +87,19 @@ class EventListenerService(Service):
             return_exceptions=True
         )
         num = 0
-        for i in range(0, len(servers)):
+        for i, server in enumerate(self.servers.values()):
             if isinstance(ret[i], asyncio.TimeoutError):
-                servers[i].status = Status.SHUTDOWN
-                self.log.debug(f'  => Timeout while trying to contact DCS server "{servers[i].name}".')
+                self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
+                server.status = Status.SHUTDOWN
+                self.log.debug(f"Registering shutdown server {server.name} on Master node ...")
+                self.sendtoMaster({
+                    "command": "registerDCSServer",
+                    "server_name": server.name,
+                    "status": server.status.value,
+                    "installation": server.installation,
+                    "settings": server.settings,
+                    "options": server.options
+                })
             elif isinstance(ret[i], Exception):
                 self.log.exception(ret[i])
             else:
@@ -191,6 +200,7 @@ class EventListenerService(Service):
             with conn.pipeline():
                 with conn.transaction():
                     conn.execute("INSERT INTO intercom (agent, data) VALUES ('Master', %s)", (Json(data), ))
+                    self.log.debug(f"HOST->MASTER: {json.dumps(data)}")
 
     @tasks.loop(seconds=1)
     async def intercom(self):
@@ -201,8 +211,9 @@ class EventListenerService(Service):
                         for row in cursor.execute("SELECT id, data FROM intercom WHERE agent = %s",
                                                   (platform.node(), )).fetchall():
                             data = row[1]
+                            self.log.debug(f'### SIZE: {len(data)}')
                             server_name = data['server_name']
-                            self.log.debug(f"{server_name}->HOST: {json.dumps(data)}")
+                            self.log.debug(f"MASTER->HOST: {json.dumps(data)}")
                             command = data['command']
                             if server_name not in self.servers:
                                 self.log.warning(
@@ -270,7 +281,8 @@ class EventListenerService(Service):
                             if not server.is_remote and not self.register_server(data):
                                 self.log.error(f"Error while registering server {server.name}.")
                                 return
-                            self.log.info(f"Registering server {server.name} on Master node ...")
+                            self.log.info(f"Registering running server {server.name} on Master node ...")
+                            data["status"] = server.status.value
                             data['installation'] = server.installation
                             data['settings'] = server.settings
                             data['options'] = server.options

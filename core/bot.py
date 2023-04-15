@@ -298,7 +298,7 @@ class DCSServerBot(commands.Bot):
 
     def sendtoBot(self, data: dict, agent: Optional[str] = None):
         if agent:
-            self.log.debug('HOST->{}: {}'.format(data['server_name'], json.dumps(data)))
+            self.log.debug('MASTER->{}: {}'.format(data['agent'], json.dumps(data)))
             with self.pool.connection() as conn:
                 with conn.transaction():
                     conn.execute("INSERT INTO intercom (agent, data) VALUES (%s, %s)", (agent, Json(data)))
@@ -597,10 +597,7 @@ class DCSServerBot(commands.Bot):
             self.servers[data['server_name']] = proxy
             proxy.settings = data.get('settings')
             proxy.options = data.get('options')
-        if data['channel'].startswith('sync-'):
-            proxy.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
-        else:
-            proxy.status = Status.STOPPED
+        proxy.status = Status(data['status'])
         return proxy
 
     async def get_server(self, ctx: Union[commands.Context, discord.Interaction, discord.Message, str]) -> Optional[Server]:
@@ -633,9 +630,8 @@ class DCSServerBot(commands.Bot):
                         for row in conn.execute("SELECT id, data FROM intercom WHERE agent = %s",
                                                 ("Master" if self.is_master() else platform.node(), )).fetchall():
                             data = row[1]
-                            if len(data) > 8*1024:
-                                self.log.error(f"Command {data['command']}: payload is longer than 8 KB!")
-                            self.log.debug(f"{data['server_name']}->HOST: {json.dumps(data)}")
+                            self.log.debug(f'### SIZE: {len(data)}')
+                            self.log.debug(f"{data['agent']}->MASTER: {json.dumps(data)}")
                             if data['command'] == 'registerDCSServer':
                                 server = self.register_remote_server(data)
                                 if server.name not in self.udp_server.message_queue:
