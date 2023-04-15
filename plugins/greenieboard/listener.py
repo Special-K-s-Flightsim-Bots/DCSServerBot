@@ -139,6 +139,9 @@ class GreenieBoardEventListener(EventListener):
         self.process_lso_event(config, server, player, data)
 
     def process_funkman_event(self, config: dict, server: Server, player: Player, data: dict):
+        if 'FunkMan' not in config:
+            self.log.warning("Can't process FunkMan event as FunkMan is not configured in your greenieboard.json!")
+            return
         if data['grade'] != 'WO':
             filepath = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + \
                        os.path.sep + (config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')

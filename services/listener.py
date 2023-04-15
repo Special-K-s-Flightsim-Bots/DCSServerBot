@@ -3,6 +3,7 @@ import json
 import os
 import platform
 import psycopg
+import sys
 from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
@@ -35,6 +36,9 @@ class EventListenerService(Service):
 
     async def start(self):
         await super().start()
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('DELETE FROM intercom WHERE agent = %s', (self.agent, ))
         self.executor = ThreadPoolExecutor(thread_name_prefix='EventExecutor', max_workers=20)
         await self.start_udp_listener()
         self.init_servers()
@@ -43,6 +47,7 @@ class EventListenerService(Service):
 
     async def stop(self):
         self.log.info('Graceful shutdown ...')
+        self.log.info('- Unregister with the Master')
         if self.udp_server:
             self.log.debug("- Processing unprocessed messages ...")
             await asyncio.to_thread(self.udp_server.shutdown)
@@ -213,7 +218,7 @@ class EventListenerService(Service):
                         for row in cursor.execute("SELECT id, data FROM intercom WHERE agent = %s",
                                                   (platform.node(), )).fetchall():
                             data = row[1]
-                            self.log.debug(f'### SIZE: {len(data)}')
+                            self.log.debug(f'### SIZE: {sys.getsizeof(data)}')
                             server_name = data['server_name']
                             self.log.debug(f"MASTER->HOST: {json.dumps(data)}")
                             command = data['command']
@@ -223,20 +228,25 @@ class EventListenerService(Service):
                             else:
                                 server: ServerImpl = self.servers[server_name]
                                 if command == 'rpc':
+                                    obj = None
                                     if data.get('object') == 'Server':
+                                        obj = server
+                                    elif data.get('object') == 'Agent':
+                                        obj = self
+                                    else:
+                                        self.log.warning('RPC command received for unknown object.')
+                                    if obj:
                                         rc = await self.rpc(server, data)
                                         if rc:
                                             data['return'] = rc
                                             self.sendtoMaster(data)
-                                    else:
-                                        self.log.warning('RPC command received for unknown object.')
                                 else:
                                     server.sendtoDCS(data)
                             cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
     @staticmethod
-    async def rpc(server: ServerImpl, data: dict) -> Optional[dict]:
-        func = attrgetter(data.get('method'))(server)
+    async def rpc(obj: object, data: dict) -> Optional[dict]:
+        func = attrgetter(data.get('method'))(obj)
         if not func:
             return
         kwargs = data.get('params', {})

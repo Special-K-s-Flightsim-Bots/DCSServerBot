@@ -39,6 +39,8 @@ class Main:
         self.config = self.read_config()
         self.guild_id = int(self.config['BOT']['GUILD_ID'])
         self.log = self.init_logger()
+        self.log.info(f'DCSServerBot v{BOT_VERSION}.{SUB_VERSION} starting up ...')
+        self.log.info(f'- Python version {platform.python_version()} detected.')
         self.db_version = None
         self.pool = self.init_db()
         if self.config['BOT'].getboolean('DESANITIZE'):
@@ -53,7 +55,7 @@ class Main:
         if master:
             self.install_plugins()
             self.update_db()
-            self.register()
+        self.register()
 
     @staticmethod
     def read_config():
@@ -256,10 +258,19 @@ class Main:
                         master = False
             return master
 
+    def get_active_agents(self):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    return [row[0] for row in cursor.execute("""
+                        SELECT node FROM agents 
+                        WHERE guild_id = %s
+                        AND master is False 
+                        AND last_seen > (DATE(NOW()) - interval '1 minute')
+                    """, (self.guild_id, ))]
+
     async def run(self):
         async with ServiceRegistry(main=self) as registry:
-            self.log.info(f'DCSServerBot v{BOT_VERSION}.{SUB_VERSION} starting up ...')
-            self.log.info(f'- Python version {platform.python_version()} detected.')
             asyncio.create_task(registry.new("Monitoring").start())
             master = self.is_master()
             if master:
@@ -268,6 +279,13 @@ class Main:
                 # asyncio.create_task(config.start())
                 bot = cast(BotService, registry.new("Bot"))
                 asyncio.create_task(bot.start(token=self.config['BOT']['TOKEN']))
+                # ask any active agent to register its servers with us
+                for agent in self.get_active_agents():
+                    bot.bot.sendtoBot({
+                        "command": "rpc",
+                        "object": "Agent",
+                        "method": "register_servers"
+                    }, agent=agent)
             else:
                 els = cast(EventListenerService, registry.new("EventListener"))
                 asyncio.create_task(els.start())

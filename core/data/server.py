@@ -69,7 +69,6 @@ class Server(DataObject):
     @status.setter
     def status(self, status: Status):
         if status != self._status:
-            self.log.info(f"Server {self.name} changing status from {self._status.name} to {status.name}")
             self._status = status
             self.status_change.set()
             self.status_change.clear()

@@ -5,6 +5,7 @@ import json
 import platform
 import re
 import socket
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
@@ -52,6 +53,9 @@ class DCSServerBot(commands.Bot):
         self.executor = ThreadPoolExecutor(thread_name_prefix='BotExecutor', max_workers=20)
         self.init_servers()
         self.synced: bool = False
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("DELETE FROM intercom WHERE agent = 'Master'")
         await super().start(token, reconnect=reconnect)
 
     async def close(self):
@@ -77,14 +81,15 @@ class DCSServerBot(commands.Bot):
 
     def init_servers(self):
         for server_name, installation in utils.findDCSInstallations():
-            if installation in self.config:
-                server: Server = DataObjectFactory().new(
-                    Server.__name__, bot=self, name=server_name, installation=installation,
-                    host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'])
-                self.servers[server_name] = server
-                # TODO: can be removed if bug in net.load_next_mission() is fixed
-                if 'listLoop' not in server.settings or not server.settings['listLoop']:
-                    server.settings['listLoop'] = True
+            if installation not in self.config:
+                continue
+            server: Server = DataObjectFactory().new(
+                Server.__name__, bot=self, name=server_name, installation=installation,
+                host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'])
+            self.servers[server_name] = server
+            # TODO: can be removed if bug in net.load_next_mission() is fixed
+            if 'listLoop' not in server.settings or not server.settings['listLoop']:
+                server.settings['listLoop'] = True
 
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers (this might take a bit) ...')
@@ -298,7 +303,7 @@ class DCSServerBot(commands.Bot):
 
     def sendtoBot(self, data: dict, agent: Optional[str] = None):
         if agent:
-            self.log.debug('MASTER->{}: {}'.format(data['agent'], json.dumps(data)))
+            self.log.debug('MASTER->{}: {}'.format(agent, json.dumps(data)))
             with self.pool.connection() as conn:
                 with conn.transaction():
                     conn.execute("INSERT INTO intercom (agent, data) VALUES (%s, %s)", (agent, Json(data)))
@@ -630,7 +635,7 @@ class DCSServerBot(commands.Bot):
                         for row in conn.execute("SELECT id, data FROM intercom WHERE agent = %s",
                                                 ("Master" if self.is_master() else platform.node(), )).fetchall():
                             data = row[1]
-                            self.log.debug(f'### SIZE: {len(data)}')
+                            self.log.debug(f'### SIZE: {sys.getsizeof(data)}')
                             self.log.debug(f"{data['agent']}->MASTER: {json.dumps(data)}")
                             if data['command'] == 'init':
                                 server = self.init_remote_server(data)
