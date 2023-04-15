@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
-    from core import Server
+    from core import Server, ServerProxy
 
 
 def is_in_timeframe(time: datetime, timeframe: str) -> bool:
@@ -267,3 +267,24 @@ class SettingsDict(dict):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_file()
         return super().__getitem__(item)
+
+
+class RemoteSettingsDict(dict):
+    def __init__(self, server: ServerProxy, obj: str, data: Optional[dict] = None):
+        self.server = server
+        self.obj = obj
+        if data:
+            super().__init__(data)
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        msg = {
+            "command": "rpc",
+            "object": self.obj,
+            "method": "settings.__setitem__",
+            "params": {
+                "key": key,
+                "value": "value"
+            }
+        }
+        self.server.sendtoDCS(msg)

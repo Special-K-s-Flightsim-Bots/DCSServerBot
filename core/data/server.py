@@ -28,8 +28,8 @@ class Server(DataObject):
     embeds: dict[str, Union[int, discord.Message]] = field(repr=False, default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
-    _options: Optional[utils.SettingsDict] = field(default=None, compare=False)
-    _settings: Optional[utils.SettingsDict] = field(default=None, compare=False)
+    _options: Union[utils.SettingsDict, utils.RemoteSettingsDict] = field(default=None, compare=False)
+    _settings: Union[utils.SettingsDict, utils.RemoteSettingsDict] = field(default=None, compare=False)
     current_mission: Mission = field(default=None, compare=False)
     mission_id: int = field(default=-1, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
@@ -150,6 +150,12 @@ class Server(DataObject):
     def sendtoDCS(self, message: dict):
         raise NotImplemented()
 
+    def rename(self, new_name: str, update_settings: bool = False) -> None:
+        raise NotImplemented()
+
+    async def startup(self) -> None:
+        raise NotImplemented()
+
     async def sendtoDCSSync(self, message: dict, timeout: Optional[int] = 5.0):
         future = self.bot.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
@@ -182,12 +188,6 @@ class Server(DataObject):
             "time": timeout
         })
 
-    def rename(self, new_name: str, update_settings: bool = False) -> None:
-        raise NotImplemented()
-
-    async def startup(self) -> None:
-        raise NotImplemented()
-
     async def stop(self) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING]:
             timeout = 120 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 60
@@ -207,7 +207,6 @@ class Server(DataObject):
     async def _load(self, message):
         stopped = self.status == Status.STOPPED
         self.sendtoDCS(message)
-        self._settings = None
         if not stopped:
             # wait for a status change (STOPPED or LOADING)
             await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
@@ -226,7 +225,6 @@ class Server(DataObject):
             return
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             self.sendtoDCS({"command": "addMission", "path": path})
-            self._settings = None
         else:
             missions = self.settings['missionList']
             missions.append(path)
@@ -237,7 +235,6 @@ class Server(DataObject):
             raise AttributeError("Can't delete the running mission!")
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             self.sendtoDCS({"command": "deleteMission", "id": mission_id})
-            self._settings = None
         else:
             missions = self.settings['missionList']
             del missions[mission_id - 1]
@@ -248,10 +245,6 @@ class Server(DataObject):
 
     async def loadNextMission(self) -> None:
         await self._load({"command": "startNextMission"})
-
-    async def setEmbed(self, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None,
-                       channel_id: Optional[Union[Channel, int]] = Channel.STATUS) -> None:
-        raise NotImplemented()
 
     def get_channel(self, channel: Channel) -> discord.TextChannel:
         if channel not in self._channels:
@@ -271,6 +264,9 @@ class Server(DataObject):
         async with self._lock:
             message = None
             channel = self.bot.get_channel(channel_id) if isinstance(channel_id, int) else self.get_channel(channel_id)
+            if not channel:
+                self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
+                return
             if embed_name in self.embeds:
                 if isinstance(self.embeds[embed_name],  discord.Message):
                     message = self.embeds[embed_name]

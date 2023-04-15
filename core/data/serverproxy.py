@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from core import Server, Status
+from core import Server, Status, utils
 from typing import Optional
 
 
@@ -20,11 +20,19 @@ class ServerProxy(Server):
 
     @property
     def settings(self) -> dict:
-        return {}  # TODO DICT
+        return self._settings
+
+    @settings.setter
+    def settings(self, s: dict):
+        self._settings = utils.RemoteSettingsDict(self, "settings", s)
 
     @property
     def options(self) -> dict:
-        return {}  # TODO DICT
+        return self._options
+
+    @options.setter
+    def options(self, o: dict):
+        self._options = utils.RemoteSettingsDict(self, "options", o)
 
     async def get_current_mission_file(self) -> Optional[str]:
         data = await self.sendtoDCSSync({

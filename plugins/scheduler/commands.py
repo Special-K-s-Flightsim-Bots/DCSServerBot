@@ -599,22 +599,22 @@ class Scheduler(Plugin):
             else:
                 await ctx.send(f"Server {server.display_name} is {server.status.name}, please wait ...")
 
-    @commands.command(description='Status of the DCS-servers')
+    @commands.hybrid_command(description='Status of the DCS-servers')
     @utils.has_role('DCS')
     @commands.guild_only()
     async def status(self, ctx):
         embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
         names = []
         status = []
-        maintenance = []
+        nodes = []
         for server in self.bot.servers.values():
             names.append(server.display_name)
             status.append(server.status.name.title())
-            maintenance.append('Y' if server.maintenance else 'N')
+            nodes.append(platform.node() if not server.is_remote else server.host)
         if len(names):
             embed.add_field(name='Server', value='\n'.join(names))
             embed.add_field(name='Status', value='\n'.join(status))
-            embed.add_field(name='Maint.', value='\n'.join(maintenance))
+            embed.add_field(name='Node', value='\n'.join(nodes))
             embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
             await ctx.send(embed=embed)
 

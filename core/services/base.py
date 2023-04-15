@@ -1,3 +1,4 @@
+import platform
 from abc import ABC
 
 
@@ -8,6 +9,7 @@ class Service(ABC):
         self.log = main.log
         self.pool = main.pool
         self.config = main.config
+        self.agent = platform.node()
 
     async def start(self, *args, **kwargs):
         self.running = True

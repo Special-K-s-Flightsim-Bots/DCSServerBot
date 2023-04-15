@@ -185,6 +185,7 @@ class EventListenerService(Service):
         return True
 
     def sendtoMaster(self, data: dict):
+        data['agent'] = self.agent
         with self.pool.connection() as conn:
             with conn.pipeline():
                 with conn.transaction():
@@ -225,9 +226,9 @@ class EventListenerService(Service):
             return
         kwargs = data.get('params', {})
         if asyncio.iscoroutinefunction(func):
-            rc = await func(**kwargs)
+            rc = await func(**kwargs) if kwargs else await func()
         else:
-            rc = func(**kwargs)
+            rc = func(**kwargs) if kwargs else func()
         return rc
 
     async def start_udp_listener(self):
@@ -269,7 +270,8 @@ class EventListenerService(Service):
                                 return
                             self.log.info(f"Registering server {server.name} on Master node ...")
                             data['installation'] = server.installation
-                            data['agent'] = platform.node()
+                            data['settings'] = server.settings
+                            data['options'] = server.options
                         elif server.status == Status.UNREGISTERED:
                             self.log.debug(
                                 f"Command {command} for unregistered server {server.name} received, ignoring.")

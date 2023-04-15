@@ -595,6 +595,8 @@ class DCSServerBot(commands.Bot):
                 bot=self, name=data['server_name'], installation=data['installation'], host=data['agent'], port=-1
             )
             self.servers[data['server_name']] = proxy
+            proxy.settings = data.get('settings')
+            proxy.options = data.get('options')
         if data['channel'].startswith('sync-'):
             proxy.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         else:
