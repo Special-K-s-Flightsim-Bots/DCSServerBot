@@ -279,13 +279,6 @@ class Main:
                 # asyncio.create_task(config.start())
                 bot = cast(BotService, registry.new("Bot"))
                 asyncio.create_task(bot.start(token=self.config['BOT']['TOKEN']))
-                # ask any active agent to register its servers with us
-                for agent in self.get_active_agents():
-                    bot.bot.sendtoBot({
-                        "command": "rpc",
-                        "object": "Agent",
-                        "method": "register_servers"
-                    }, agent=agent)
             else:
                 els = cast(EventListenerService, registry.new("EventListener"))
                 asyncio.create_task(els.start())

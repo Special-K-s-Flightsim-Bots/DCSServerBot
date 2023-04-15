@@ -53,9 +53,6 @@ class DCSServerBot(commands.Bot):
         self.executor = ThreadPoolExecutor(thread_name_prefix='BotExecutor', max_workers=20)
         self.init_servers()
         self.synced: bool = False
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("DELETE FROM intercom WHERE agent = 'Master'")
         await super().start(token, reconnect=reconnect)
 
     async def close(self):
@@ -635,7 +632,8 @@ class DCSServerBot(commands.Bot):
                         for row in conn.execute("SELECT id, data FROM intercom WHERE agent = %s",
                                                 ("Master" if self.is_master() else platform.node(), )).fetchall():
                             data = row[1]
-                            self.log.debug(f'### SIZE: {sys.getsizeof(data)}')
+                            if sys.getsizeof(data) > 8 * 1024:
+                                self.log.error("Packet is larger than 8 KB!")
                             self.log.debug(f"{data['agent']}->MASTER: {json.dumps(data)}")
                             if data['command'] == 'init':
                                 server = self.init_remote_server(data)

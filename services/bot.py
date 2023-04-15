@@ -34,6 +34,17 @@ class BotService(Service):
     async def start(self, token: str, *, reconnect: bool = True) -> None:
         self.bot = self.init_bot()
         await super().start()
+        # cleanup the database of pending requests to an old master
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("DELETE FROM intercom WHERE agent = 'Master'")
+        # ask any active agent to register its servers with us
+        for agent in self.main.get_active_agents():
+            self.bot.sendtoBot({
+                "command": "rpc",
+                "object": "Agent",
+                "method": "register_servers"
+            }, agent=agent)
         async with self.bot:
             await self.bot.start(token, reconnect=reconnect)
 

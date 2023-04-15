@@ -47,7 +47,6 @@ class EventListenerService(Service):
 
     async def stop(self):
         self.log.info('Graceful shutdown ...')
-        self.log.info('- Unregister with the Master')
         if self.udp_server:
             self.log.debug("- Processing unprocessed messages ...")
             await asyncio.to_thread(self.udp_server.shutdown)
@@ -218,29 +217,30 @@ class EventListenerService(Service):
                         for row in cursor.execute("SELECT id, data FROM intercom WHERE agent = %s",
                                                   (platform.node(), )).fetchall():
                             data = row[1]
-                            self.log.debug(f'### SIZE: {sys.getsizeof(data)}')
-                            server_name = data['server_name']
+                            if sys.getsizeof(data) > 8 * 1024:
+                                self.log.error("Packet is larger than 8 KB!")
                             self.log.debug(f"MASTER->HOST: {json.dumps(data)}")
                             command = data['command']
-                            if server_name not in self.servers:
-                                self.log.warning(
-                                    f"Command {command} for unknown server {server_name} received, ignoring")
-                            else:
-                                server: ServerImpl = self.servers[server_name]
-                                if command == 'rpc':
-                                    obj = None
-                                    if data.get('object') == 'Server':
-                                        obj = server
-                                    elif data.get('object') == 'Agent':
-                                        obj = self
-                                    else:
-                                        self.log.warning('RPC command received for unknown object.')
-                                    if obj:
-                                        rc = await self.rpc(server, data)
-                                        if rc:
-                                            data['return'] = rc
-                                            self.sendtoMaster(data)
+                            if command == 'rpc':
+                                obj = None
+                                if data.get('object') == 'Server':
+                                    server: ServerImpl = self.servers[server_name]
+                                    obj = server
+                                elif data.get('object') == 'Agent':
+                                    obj = self
                                 else:
+                                    self.log.warning('RPC command received for unknown object.')
+                                if obj:
+                                    rc = await self.rpc(server, data)
+                                    if rc:
+                                        data['return'] = rc
+                                        self.sendtoMaster(data)
+                            else:
+                                server_name = data['server_name']
+                                if server_name not in self.servers:
+                                    self.log.warning(
+                                        f"Command {command} for unknown server {server_name} received, ignoring")
+                                    server: ServerImpl = self.servers[server_name]
                                     server.sendtoDCS(data)
                             cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 

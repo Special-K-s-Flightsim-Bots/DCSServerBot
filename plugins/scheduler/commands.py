@@ -563,7 +563,9 @@ class Scheduler(Plugin):
     @commands.guild_only()
     async def start(self, ctx):
         server: Server = await self.bot.get_server(ctx)
-        if server:
+        if not server:
+            return
+        try:
             if server.status == Status.STOPPED:
                 msg = await ctx.send(f"Starting server {server.display_name} ...")
                 await server.start()
@@ -576,6 +578,8 @@ class Scheduler(Plugin):
                 await ctx.send(f"Server {server.display_name} is already started.")
             else:
                 await ctx.send(f"Server {server.display_name} is still {server.status.name}, please wait ...")
+        except asyncio.TimeoutError:
+            await ctx.send(f"Server {server.name} is not responding.")
 
     @commands.command(description='Stops a DCS server')
     @utils.has_role('DCS Admin')
