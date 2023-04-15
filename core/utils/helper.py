@@ -284,7 +284,7 @@ class RemoteSettingsDict(dict):
             "method": "_settings.__setitem__",
             "params": {
                 "key": key,
-                "value": "value"
+                "value": value
             }
         }
         self.server.sendtoDCS(msg)
