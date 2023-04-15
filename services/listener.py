@@ -6,7 +6,7 @@ import psycopg
 from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
-from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec
+from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, Channel
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
@@ -95,6 +95,7 @@ class EventListenerService(Service):
                 self.sendtoMaster({
                     "command": "registerDCSServer",
                     "server_name": server.name,
+                    "channel": server.get_channel(Channel.STATUS),
                     "status": server.status.value,
                     "installation": server.installation,
                     "settings": server.settings,
