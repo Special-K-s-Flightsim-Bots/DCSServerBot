@@ -280,8 +280,8 @@ class RemoteSettingsDict(dict):
         super().__setitem__(key, value)
         msg = {
             "command": "rpc",
-            "object": self.obj,
-            "method": "settings.__setitem__",
+            "object": "Server",
+            "method": "_settings.__setitem__",
             "params": {
                 "key": key,
                 "value": "value"

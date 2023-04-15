@@ -3,6 +3,7 @@ import json
 import os
 import platform
 import psycopg
+from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec
@@ -201,6 +202,7 @@ class EventListenerService(Service):
                                                   (platform.node(), )).fetchall():
                             data = row[1]
                             server_name = data['server_name']
+                            self.log.debug(f"{server_name}->HOST: {json.dumps(data)}")
                             command = data['command']
                             if server_name not in self.servers:
                                 self.log.warning(
@@ -221,7 +223,7 @@ class EventListenerService(Service):
 
     @staticmethod
     async def rpc(server: ServerImpl, data: dict) -> Optional[dict]:
-        func = getattr(server, data.get('method'))
+        func = attrgetter(data.get('method'))(server)
         if not func:
             return
         kwargs = data.get('params', {})
