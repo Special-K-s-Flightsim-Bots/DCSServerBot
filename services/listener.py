@@ -146,7 +146,7 @@ class EventListenerService(Service):
             if server.process:
                 break
         server.dcs_version = data['dcs_version']
-        if server.status != Status.LOADING:
+        if server.status == Status.UNREGISTERED:
             server.status = Status.STOPPED
         # validate server ports
         dcs_ports: dict[int, str] = dict()
