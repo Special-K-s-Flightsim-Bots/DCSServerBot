@@ -687,7 +687,7 @@ class DCSServerBot(commands.Bot):
                         command = data['command']
                         if command == 'registerDCSServer':
                             if not server.is_remote:
-                                if self.register_server(data):
+                                if not self.register_server(data):
                                     self.log.error(f"Error while registering server {server.name}.")
                                     return
                             else:
