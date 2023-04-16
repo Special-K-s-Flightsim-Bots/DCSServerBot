@@ -426,6 +426,12 @@ class ServiceBus(Service):
                                 if not self.master:
                                     self.log.debug(f"Registering server {server.name} on Master node ...")
                             else:
+                                if 'players' not in data:
+                                    server.status = Status.STOPPED
+                                elif data['pause']:
+                                    server.status = Status.PAUSED
+                                else:
+                                    server.status = Status.RUNNING
                                 self.log.info(f"  => DCS-Server \"{server.name}\" from Agent {server.host} registered.")
                         elif server.status == Status.UNREGISTERED:
                             self.log.debug(
