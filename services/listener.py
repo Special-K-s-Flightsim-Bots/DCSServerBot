@@ -151,6 +151,16 @@ class ServiceBus(Service):
             # TODO: can be removed if bug in net.load_next_mission() is fixed
             if 'listLoop' not in server.settings or not server.settings['listLoop']:
                 server.settings['listLoop'] = True
+
+    async def register_servers(self):
+        self.log.info('- Searching for running DCS servers (this might take a bit) ...')
+        timeout = (5 * len(self.servers)) if self.config.getboolean('BOT', 'SLOW_SYSTEM') else (3 * len(self.servers))
+        local_servers = [x for x in self.servers.values() if not x.is_remote]
+        calls = []
+        for server in local_servers:
+            if server.is_remote:
+                continue
+            calls.append(server.sendtoDCSSync({"command": "registerDCSServer"}, timeout))
             if not self.master:
                 self.sendtoBot({
                     "command": "init",
@@ -160,17 +170,9 @@ class ServiceBus(Service):
                     "settings": server.settings,
                     "options": server.options
                 })
-
-    async def register_servers(self):
-        self.log.info('- Searching for running DCS servers (this might take a bit) ...')
-        servers = list(self.servers.values())
-        timeout = (5 * len(self.servers)) if self.config.getboolean('BOT', 'SLOW_SYSTEM') else (3 * len(self.servers))
-        ret = await asyncio.gather(
-            *[server.sendtoDCSSync({"command": "registerDCSServer"}, timeout) for server in servers],
-            return_exceptions=True
-        )
+        ret = await asyncio.gather(*calls, return_exceptions=True)
         num = 0
-        for i, server in enumerate(self.servers.values()):
+        for i, server in enumerate(local_servers):
             if isinstance(ret[i], asyncio.TimeoutError):
                 server.status = Status.SHUTDOWN
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
