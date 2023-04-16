@@ -155,7 +155,7 @@ class ServiceBus(Service):
                 self.sendtoBot({
                     "command": "init",
                     "server_name": server.name,
-                    "status": Status.SHUTDOWN.value,
+                    "status": Status.UNREGISTERED.value,
                     "installation": server.installation,
                     "settings": server.settings,
                     "options": server.options
@@ -174,6 +174,15 @@ class ServiceBus(Service):
             if isinstance(ret[i], asyncio.TimeoutError):
                 server.status = Status.SHUTDOWN
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
+                if not self.master:
+                    self.sendtoBot({
+                        "command": "init",
+                        "server_name": server.name,
+                        "status": server.status.value,
+                        "installation": server.installation,
+                        "settings": server.settings,
+                        "options": server.options
+                    })
             elif isinstance(ret[i], Exception):
                 self.log.exception(ret[i])
             else:
@@ -275,7 +284,7 @@ class ServiceBus(Service):
         proxy = self.servers.get(data['server_name'])
         if not proxy:
             proxy = ServerProxy(
-                bot=cast(BotService, ServiceRegistry.get("Bot")).bot,
+                main=self,
                 name=data['server_name'],
                 installation=data['installation'],
                 host=data['agent'],
