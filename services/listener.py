@@ -20,10 +20,9 @@ from psycopg.types.json import Json
 from queue import Queue
 from shutil import copytree
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING
+from typing import Tuple, Callable, Optional, cast
 
-if TYPE_CHECKING:
-    from services import BotService
+from .bot import BotService
 
 
 @ServiceRegistry.register("ServiceBus")
@@ -45,9 +44,6 @@ class ServiceBus(Service):
 
     async def start(self):
         await super().start()
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('DELETE FROM intercom WHERE agent = %s', ('Master' if self.master else self.agent, ))
         self.executor = ThreadPoolExecutor(thread_name_prefix='EventExecutor', max_workers=20)
         await self.start_udp_listener()
         self.init_servers()
@@ -347,10 +343,13 @@ class ServiceBus(Service):
                             data = row[1]
                             if sys.getsizeof(data) > 8 * 1024:
                                 self.log.error("Packet is larger than 8 KB!")
-                            if self.master:
-                                await self.handle_master(data)
-                            else:
-                                await self.handle_agent(data)
+                            try:
+                                if self.master:
+                                    await self.handle_master(data)
+                                else:
+                                    await self.handle_agent(data)
+                            except Exception as ex:
+                                self.log.exception(ex)
                             cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
     @staticmethod
