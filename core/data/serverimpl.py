@@ -12,6 +12,7 @@ from psutil import Process
 from typing import Optional, TYPE_CHECKING
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
+
 from .dataobject import DataObjectFactory
 from .const import Status, Channel
 
@@ -22,7 +23,6 @@ if TYPE_CHECKING:
 class MissionFileSystemEventHandler(FileSystemEventHandler):
     def __init__(self, server: Server):
         self.server = server
-        self.bot = server.bot
         self.log = server.log
 
     def on_created(self, event: FileSystemEvent):
@@ -33,14 +33,17 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 
     def on_deleted(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
-        if path.endswith('.miz'):
-            for idx, mission in enumerate(self.server.settings['missionList']):
-                if mission == path:
-                    if (idx + 1) == self.server.mission_id:
-                        self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
-                        return
-                    self.server.deleteMission(idx + 1)
-                    self.log.info(f"=> Mission {os.path.basename(mission)[:-4]} deleted from server {self.server.name}.")
+        if not path.endswith('.miz'):
+            return
+        for idx, mission in enumerate(self.server.settings['missionList']):
+            if mission != path:
+                continue
+            if (idx + 1) == self.server.mission_id:
+                self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
+            else:
+                self.server.deleteMission(idx + 1)
+                self.log.info(f"=> Mission {os.path.basename(mission)[:-4]} deleted from server {self.server.name}.")
+            break
 
 
 @dataclass
@@ -62,17 +65,18 @@ class ServerImpl(Server):
                         chat_channel=excluded.chat_channel, 
                         last_seen=NOW()
                 """, (self.name, platform.node(), self.host, self.port,
-                      self.bot.config[self.installation][Channel.STATUS.value],
-                      self.bot.config[self.installation][Channel.CHAT.value]))
+                      self.config[self.installation][Channel.STATUS.value],
+                      self.config[self.installation][Channel.CHAT.value]))
         # enable autoscan for missions changes
-        if self.bot.config.getboolean(self.installation, 'AUTOSCAN'):
+        if self.config.getboolean(self.installation, 'AUTOSCAN'):
             self.event_handler = MissionFileSystemEventHandler(self)
             self.observer = Observer()
             self.observer.start()
-        if self.bot.config.getboolean('BOT', 'DESANITIZE'):
+        if self.config.getboolean('BOT', 'DESANITIZE'):
             # check for SLmod and desanitize its MissionScripting.lua
             for version in range(5, 7):
-                filename = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME'] + f'\\Scripts\\net\\Slmodv7_{version}\\SlmodMissionScripting.lua')
+                filename = os.path.expandvars(self.config[self.installation]['DCS_HOME'] +
+                                              f'\\Scripts\\net\\Slmodv7_{version}\\SlmodMissionScripting.lua')
                 if os.path.exists(filename):
                     utils.desanitize(self, filename)
                     break
@@ -82,22 +86,22 @@ class ServerImpl(Server):
         return False
 
     async def get_missions_dir(self) -> str:
-        if 'MISSIONS_DIR' in self.bot.config[self.installation]:
-            return os.path.expandvars(self.bot.config[self.installation]['MISSIONS_DIR'])
+        if 'MISSIONS_DIR' in self.config[self.installation]:
+            return os.path.expandvars(self.config[self.installation]['MISSIONS_DIR'])
         else:
-            return os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + os.path.sep + 'Missions'
+            return os.path.expandvars(self.config[self.installation]['DCS_HOME']) + os.path.sep + 'Missions'
 
     @property
     def settings(self) -> dict:
         if not self._settings:
-            path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
+            path = os.path.expandvars(self.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
             self._settings = utils.SettingsDict(self, path, 'cfg')
         return self._settings
 
     @property
     def options(self) -> dict:
         if not self._options:
-            path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\options.lua'
+            path = os.path.expandvars(self.config[self.installation]['DCS_HOME']) + r'\Config\options.lua'
             self._options = utils.SettingsDict(self, path, 'options')
         return self._options
 
@@ -133,7 +137,7 @@ class ServerImpl(Server):
 
     def rename(self, new_name: str, update_settings: bool = False) -> None:
         # call rename() in all Plugins
-        for plugin in self.bot.cogs.values():  # type: Plugin
+        for plugin in self.main.cogs.values():  # type: Plugin
             plugin.rename(self.name, new_name)
         # rename the entries in the main database tables
         with self.pool.connection() as conn:
@@ -148,7 +152,7 @@ class ServerImpl(Server):
         self.name = new_name
 
     def do_startup(self):
-        basepath = os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION'])
+        basepath = os.path.expandvars(self.config['DCS']['DCS_INSTALLATION'])
         for exe in ['DCS_server.exe', 'DCS.exe']:
             path = basepath + f'\\bin\\{exe}'
             if os.path.exists(path):
@@ -162,7 +166,7 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.installation))
-        if self.bot.config.getboolean(self.installation, 'START_MINIMIZED'):
+        if self.config.getboolean(self.installation, 'START_MINIMIZED'):
             info = subprocess.STARTUPINFO()
             info.dwFlags = subprocess.STARTF_USESHOWWINDOW
             info.wShowWindow = win32con.SW_MINIMIZE
@@ -176,7 +180,7 @@ class ServerImpl(Server):
 
     async def startup(self) -> None:
         self.do_startup()
-        timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
+        timeout = 300 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 

@@ -153,7 +153,7 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def sendtoDCSSync(self, message: dict, timeout: Optional[int] = 5.0):
-        future = self.bot.loop.create_future()
+        future = self.main.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
         message['channel'] = token
         self.listeners[token] = future
@@ -175,7 +175,7 @@ class Server(DataObject):
 
     def sendPopupMessage(self, coalition: Coalition, message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
-            timeout = self.bot.config['BOT']['MESSAGE_TIMEOUT']
+            timeout = self.config['BOT']['MESSAGE_TIMEOUT']
         self.sendtoDCS({
             "command": "sendPopupMessage",
             "to": coalition.value,
@@ -186,13 +186,13 @@ class Server(DataObject):
 
     async def stop(self) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING]:
-            timeout = 120 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 60
+            timeout = 120 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 60
             self.sendtoDCS({"command": "stop_server"})
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     async def start(self) -> None:
         if self.status == Status.STOPPED:
-            timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 120
+            timeout = 300 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 120
             self.sendtoDCS({"command": "start_server"})
             await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
 
@@ -243,7 +243,7 @@ class Server(DataObject):
         await self._load({"command": "startNextMission"})
 
     def get_channel(self, channel: Channel) -> int:
-        return int(self.bot.config[self.installation][channel.value])
+        return int(self.config[self.installation][channel.value])
 
     async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:
         async def wait(s: list[Status]):
@@ -255,7 +255,7 @@ class Server(DataObject):
 
     async def keep_alive(self):
         # we set a longer timeout in here because, we don't want to risk false restarts
-        timeout = 20 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
+        timeout = 20 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
         data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -269,7 +269,7 @@ class Server(DataObject):
         self.current_mission.real_time = data['real_time']
 
     async def shutdown(self, force: bool = False) -> None:
-        slow_system = self.bot.config.getboolean('BOT', 'SLOW_SYSTEM')
+        slow_system = self.config.getboolean('BOT', 'SLOW_SYSTEM')
         timeout = 300 if slow_system else 180
         self.sendtoDCS({"command": "shutdown"})
         with suppress(asyncio.TimeoutError):

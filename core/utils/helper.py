@@ -180,7 +180,6 @@ def alternate_parse_settings(path: str):
 
 
 def get_all_servers(self) -> list[str]:
-    retval: list[str] = list()
     with self.pool.connection() as conn:
         return [
             row[0] for row in conn.execute(
@@ -221,7 +220,6 @@ class SettingsDict(dict):
         self.root = root
         self.mtime = 0
         self.server = server
-        self.bot = server.bot
         self.log = server.log
         self.read_file()
 
@@ -247,7 +245,8 @@ class SettingsDict(dict):
         if self.path.lower().endswith('.lua'):
             with open(self.path, 'wb') as outfile:
                 self.mtime = os.path.getmtime(self.path)
-                outfile.write((f"{self.root} = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
+                outfile.write((f"{self.root} = " + luadata.serialize(self, indent='\t',
+                                                                     indent_level=0)).encode('utf-8'))
         elif self.path.lower().endswith('.json'):
             with open(self.path, "w", encoding='utf-8') as outfile:
                 json.dump(self, outfile)

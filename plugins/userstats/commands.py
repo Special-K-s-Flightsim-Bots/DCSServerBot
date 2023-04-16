@@ -312,7 +312,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
         try:
             _member: Optional[Member] = None
             if isinstance(member, discord.Member):
-                _member = DataObjectFactory().new('Member', bot=self.bot, member=member)
+                _member = DataObjectFactory().new('Member', main=self.bot, member=member)
                 if len(_member.ucids):
                     await message.add_reaction('🔀')
                     if not _member.verified:

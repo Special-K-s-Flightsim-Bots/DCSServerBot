@@ -45,6 +45,10 @@ class ServiceBus(Service):
     async def start(self):
         self.log.info('- ServiceBus starting ...')
         await super().start()
+        # cleanup the intercom channels
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("DELETE FROM intercom WHERE agent = %s", (self.agent, ))
         self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
         await self.start_udp_listener()
         self.init_servers()
@@ -141,7 +145,7 @@ class ServiceBus(Service):
             if installation not in self.config:
                 continue
             server: ServerImpl = DataObjectFactory().new(
-                Server.__name__, bot=self, name=server_name, installation=installation,
+                Server.__name__, main=self, name=server_name, installation=installation,
                 host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'])
             self.servers[server_name] = server
             # TODO: can be removed if bug in net.load_next_mission() is fixed
@@ -200,9 +204,9 @@ class ServiceBus(Service):
         else:
             # a new server is to be registered
             server = self.servers[data['server_name']] = \
-                DataObjectFactory().new(Server.__name__, bot=self, name=data['server_name'],
-                                        installation=installation, host=self.config[installation]['DCS_HOST'],
-                                        port=self.config[installation]['DCS_PORT'])
+                DataObjectFactory().new(
+                    Server.__name__, main=self, name=data['server_name'], installation=installation,
+                    host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'])
         # set the PID
         for exe in ['DCS_server.exe', 'DCS.exe']:
             server.process = utils.find_process(exe, server.installation)

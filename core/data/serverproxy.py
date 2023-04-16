@@ -44,7 +44,7 @@ class ServerProxy(Server):
 
     def sendtoDCS(self, message: dict):
         message['server_name'] = self.name
-        self.bot.bus.sendtoBot(message, agent=self.host)
+        self.main.sendtoBot(message, agent=self.host)
 
     # TODO
     def rename(self, new_name: str, update_settings: bool = False) -> None:
@@ -65,7 +65,7 @@ class ServerProxy(Server):
             "method": "do_startup",
             "server_name": self.name
         })
-        timeout = 300 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
+        timeout = 300 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 

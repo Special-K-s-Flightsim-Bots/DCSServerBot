@@ -177,8 +177,8 @@ class MissionEventListener(EventListener):
             return
         # the server was started already, but the bot wasn't
         if not server.current_mission:
-            server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
-                                                             map=data['current_map'], name=data['current_mission'])
+            server.current_mission = DataObjectFactory().new(
+                Mission.__name__, main=self.bot, server=server, map=data['current_map'], name=data['current_mission'])
 
         server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server.current_mission.update(data)
@@ -189,12 +189,11 @@ class MissionEventListener(EventListener):
         for p in data['players']:
             if p['id'] == 1:
                 continue
-            player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=p['id'],
-                                                     name=p['name'], active=p['active'], side=Side(p['side']),
-                                                     ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
-                                                     unit_callsign=p['unit_callsign'], unit_name=p['unit_name'],
-                                                     unit_type=p['unit_type'], group_id=p['group_id'],
-                                                     group_name=p['group_name'], banned=False)
+            player: Player = DataObjectFactory().new(
+                Player.__name__, main=self.bot, server=server, id=p['id'], name=p['name'], active=p['active'],
+                side=Side(p['side']), ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
+                unit_callsign=p['unit_callsign'], unit_name=p['unit_name'], unit_type=p['unit_type'],
+                group_id=p['group_id'], group_name=p['group_name'], banned=False)
             server.add_player(player)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now()
@@ -205,8 +204,9 @@ class MissionEventListener(EventListener):
     async def onMissionLoadBegin(self, server: Server, data: dict) -> None:
         server.status = Status.LOADING
         if not server.current_mission:
-            server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
-                                                             map=data['current_map'], name=data['current_mission'])
+            server.current_mission = DataObjectFactory().new(
+                Mission.__name__, main=self.bot.bus, server=server, map=data['current_map'],
+                name=data['current_mission'])
         server.current_mission.update(data)
         server.players = dict[int, Player]()
         if server.settings:
@@ -245,9 +245,9 @@ class MissionEventListener(EventListener):
         self.send_chat_message(server, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(data['name']))
         player: Player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
-            player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=data['id'],
-                                                     name=data['name'], active=data['active'], side=Side(data['side']),
-                                                     ucid=data['ucid'], banned=False)
+            player: Player = DataObjectFactory().new(
+                Player.__name__, main=self.bot, server=server, id=data['id'], name=data['name'], active=data['active'],
+                side=Side(data['side']), ucid=data['ucid'], banned=False)
             server.add_player(player)
         else:
             player.update(data)
@@ -259,9 +259,9 @@ class MissionEventListener(EventListener):
         player: Player = server.get_player(id=data['id'])
         # unlikely, but can happen if the bot was restarted during a mission restart
         if not player:
-            player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=data['id'],
-                                             name=data['name'], active=data['active'], side=Side(data['side']),
-                                             ucid=data['ucid'], banned=False)
+            player = DataObjectFactory().new(
+                Player.__name__, main=self.bot, server=server, id=data['id'], name=data['name'], active=data['active'],
+                side=Side(data['side']), ucid=data['ucid'], banned=False)
             server.add_player(player)
         else:
             player.update(data)

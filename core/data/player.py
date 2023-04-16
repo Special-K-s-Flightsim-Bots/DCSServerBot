@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
+    from services import DCSServerBot
     from .server import Server
 
 
@@ -54,7 +55,7 @@ class Player(DataObject):
                     if cursor.rowcount == 1:
                         row = cursor.fetchone()
                         if row[0] != -1:
-                            self.member = self._member = self.bot.guilds[0].get_member(row[0])
+                            self.member = self._member = self.main.guilds[0].get_member(row[0])
                             self._verified = row[2]
                         self.banned = row[1]
                         if row[3]:
@@ -64,8 +65,8 @@ class Player(DataObject):
                         ON CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen
                         """, (self.ucid, self.name))
         # if automatch is enabled, try to match the user
-        if not self.member and self.bot.config.getboolean('BOT', 'AUTOMATCH'):
-            discord_user = self.bot.match_user({"ucid": self.ucid, "name": self.name})
+        if not self.member and self.config.getboolean('BOT', 'AUTOMATCH'):
+            discord_user = self.main.match_user({"ucid": self.ucid, "name": self.name})
             if discord_user:
                 self.member = discord_user
 
@@ -184,7 +185,7 @@ class Player(DataObject):
 
     def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
-            timeout = self.bot.config['BOT']['MESSAGE_TIMEOUT']
+            timeout = self.config['BOT']['MESSAGE_TIMEOUT']
         self.server.sendtoDCS({
             "command": "sendPopupMessage",
             "to": self.unit_name,

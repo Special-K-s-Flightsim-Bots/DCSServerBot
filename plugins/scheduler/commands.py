@@ -260,8 +260,7 @@ class Scheduler(Plugin):
             await self.teardown_dcs(server)
             server.restart_pending = False
 
-    @staticmethod
-    async def change_mizfile(server: Server, config: dict, presets: Optional[str] = None):
+    async def change_mizfile(self, server: Server, config: dict, presets: Optional[str] = None):
         def apply_preset(value: dict):
             if 'start_time' in value:
                 miz.start_time = value['start_time']
@@ -310,22 +309,22 @@ class Scheduler(Plugin):
                     return
             elif isinstance(config['restart']['settings'], list):
                 presets = random.choice(config['restart']['settings'])
-        miz = MizFile(server.bot, filename)
+        miz = MizFile(self.bot, filename)
         for preset in [x.strip() for x in presets.split(',')]:
             if preset not in config['presets']:
-                server.log.error(f'Preset {preset} not found, ignored.')
+                self.log.error(f'Preset {preset} not found, ignored.')
                 continue
             value = config['presets'][preset]
             if isinstance(value, list):
                 for inner_preset in value:
                     if inner_preset not in config['presets']:
-                        server.log.error(f'Preset {inner_preset} not found, ignored.')
+                        self.log.error(f'Preset {inner_preset} not found, ignored.')
                         continue
                     inner_value = config['presets'][inner_preset]
                     apply_preset(inner_value)
             elif isinstance(value, dict):
                 apply_preset(value)
-            server.bot.log.info(f"  => Preset {preset} applied.")
+            self.log.info(f"  => Preset {preset} applied.")
         miz.save()
 
     @staticmethod
@@ -530,7 +529,6 @@ class Scheduler(Plugin):
 
         server: Server = await self.bot.get_server(ctx)
         if server:
-            config = self.get_config(server)
             if server.status in [Status.UNREGISTERED, Status.LOADING]:
                 if params and params[0] == '-force' or \
                         await utils.yn_question(ctx, f"Server is in state {server.status.name}.\n"

@@ -95,7 +95,7 @@ class ServerInfo(report.EmbedElement):
 class Footer(report.EmbedElement):
     def render(self, member: Union[discord.Member, str], player: Optional[Player]):
         if isinstance(member, discord.Member):
-            _member: Member = DataObjectFactory().new('Member', bot=self.bot, member=member)
+            _member: Member = DataObjectFactory().new('Member', main=self.bot, member=member)
             if len(_member.ucids):
                 footer = '🔀 Unlink all DCS players from this user\n'
                 if not _member.verified:

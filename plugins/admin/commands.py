@@ -258,33 +258,33 @@ class Agent(Plugin):
         class KickModal(Modal, title="Reason for kicking"):
             reason = TextInput(label="Reason", placeholder="n/a", max_length=80, required=True)
 
-            def __init__(self, player: Player):
+            def __init__(derived, player: Player):
                 super().__init__()
-                self.player = player
+                derived.player = player
 
-            async def on_submit(self, interaction: discord.Interaction):
-                reason = self.reason.value or 'n/a'
-                server.kick(self.player, reason)
-                await server.bot.audit(f"kicked player {self.player.display_name}" +
-                                       (f' with reason "{self.reason}".' if reason != 'n/a' else '.'),
-                                       user=interaction.user)
-                await interaction.response.send_message(f"Kicked player {self.player.display_name}.")
+            async def on_submit(derived, interaction: discord.Interaction):
+                reason = derived.reason.value or 'n/a'
+                server.kick(derived.player, reason)
+                await self.bot.audit(f"kicked player {derived.player.display_name}" +
+                                     (f' with reason "{derived.reason}".' if reason != 'n/a' else '.'),
+                                     user=interaction.user)
+                await interaction.response.send_message(f"Kicked player {derived.player.display_name}.")
 
         class KickView(View):
             @discord.ui.select(placeholder="Select a player to be kicked",
                                options=[SelectOption(label=x.name,
                                                      value=str(idx)) for idx, x in enumerate(players) if idx < 25])
-            async def callback(self, interaction: Interaction, select: Select):
+            async def callback(derived, interaction: Interaction, select: Select):
                 modal = KickModal(players[int(select.values[0])])
                 await interaction.response.send_modal(modal)
-                self.stop()
+                derived.stop()
 
             @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
-            async def cancel(self, interaction: Interaction, button: Button):
+            async def cancel(derived, interaction: Interaction, button: Button):
                 await interaction.response.send_message('Aborted.')
-                self.stop()
+                derived.stop()
 
-            async def interaction_check(self, interaction: Interaction, /) -> bool:
+            async def interaction_check(derived, interaction: Interaction, /) -> bool:
                 if interaction.user != ctx.author:
                     await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
                     return False
