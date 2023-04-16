@@ -233,8 +233,7 @@ class Main:
     async def run(self):
         async with ServiceRegistry(main=self) as registry:
             asyncio.create_task(registry.new("Monitoring").start())
-            bus = cast(ServiceBus, registry.new("ServiceBus"))
-            asyncio.create_task(bus.start())
+            asyncio.create_task(registry.new("ServiceBus").start())
             if self.master:
                 await self.install_fonts()
                 # config = registry.new("Configuration")

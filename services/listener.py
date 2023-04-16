@@ -43,8 +43,9 @@ class ServiceBus(Service):
         self.intercom.add_exception_type(psycopg.DatabaseError)
 
     async def start(self):
+        self.log.info('- ServiceBus starting ...')
         await super().start()
-        self.executor = ThreadPoolExecutor(thread_name_prefix='EventExecutor', max_workers=20)
+        self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
         await self.start_udp_listener()
         self.init_servers()
         self.intercom.start()
@@ -150,7 +151,7 @@ class ServiceBus(Service):
                 self.sendtoBot({
                     "command": "init",
                     "server_name": server.name,
-                    "status": Status.UNREGISTERED.value,
+                    "status": Status.SHUTDOWN.value,
                     "installation": server.installation,
                     "settings": server.settings,
                     "options": server.options
@@ -305,7 +306,7 @@ class ServiceBus(Service):
             server = self.init_remote_server(data)
             if server.name not in self.udp_server.message_queue:
                 self.udp_server.message_queue[server.name] = Queue()
-                self.udp_server.executor.submit(self.udp_server.process, server)
+                self.executor.submit(self.udp_server.process, server)
         else:
             self.udp_server.message_queue[data['server_name']].put(data)
 
@@ -383,13 +384,11 @@ class ServiceBus(Service):
                 udp_server: MyThreadingUDPServer = cast(MyThreadingUDPServer, derived.server)
                 if server.name not in udp_server.message_queue:
                     udp_server.message_queue[server.name] = Queue()
-                    udp_server.executor.submit(udp_server.process, server)
+                    self.executor.submit(udp_server.process, server)
                 udp_server.message_queue[server.name].put(data)
 
         class MyThreadingUDPServer(ThreadingUDPServer):
-            def __init__(derived, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler],
-                         listener: EventListenerService):
-                derived.executor = listener.executor
+            def __init__(derived, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler]):
                 try:
                     # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                     MyThreadingUDPServer.allow_reuse_address = True
@@ -454,6 +453,6 @@ class ServiceBus(Service):
 
         host = self.config['BOT']['HOST']
         port = int(self.config['BOT']['PORT'])
-        self.udp_server = MyThreadingUDPServer((host, port), RequestHandler, self)
+        self.udp_server = MyThreadingUDPServer((host, port), RequestHandler)
         self.executor.submit(self.udp_server.serve_forever)
         self.log.debug('- Listener started on interface {} port {} accepting commands.'.format(host, port))

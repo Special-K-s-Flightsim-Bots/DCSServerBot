@@ -15,7 +15,7 @@ from .listener import TEventListener
 
 if TYPE_CHECKING:
     from core import Server
-    from services import DCSServerBot, EventListenerService
+    from services import DCSServerBot
 
 
 class Plugin(commands.Cog):

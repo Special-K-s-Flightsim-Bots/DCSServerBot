@@ -44,7 +44,7 @@ class ServerProxy(Server):
 
     def sendtoDCS(self, message: dict):
         message['server_name'] = self.name
-        self.bot.sendtoBot(message, agent=self.host)
+        self.bot.bus.sendtoBot(message, agent=self.host)
 
     # TODO
     def rename(self, new_name: str, update_settings: bool = False) -> None:
