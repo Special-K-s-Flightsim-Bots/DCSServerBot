@@ -4,15 +4,15 @@ import discord
 import os
 import pandas as pd
 import platform
+import psycopg
 import shutil
 from contextlib import closing
-
-import psycopg
-
-from core import Plugin, DCSServerBot, utils, TEventListener, PaginationReport, Status
+from core import Plugin, utils, TEventListener, PaginationReport, Status
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
 from typing import Type, Any, Optional, Union
+
+from services import DCSServerBot
 from .listener import CloudListener
 
 
@@ -26,14 +26,13 @@ class CloudHandlerAgent(Plugin):
         headers = {
             "Content-type": "application/json"
         }
-        if self.bot.is_master():
-            if 'token' in self.config:
-                headers['Authorization'] = f"Bearer {self.config['token']}"
-            self.client = {
-                "guild_id": self.bot.guilds[0].id,
-                "guild_name": self.bot.guilds[0].name,
-                "owner_id": self.bot.owner_id
-            }
+        if 'token' in self.config:
+            headers['Authorization'] = f"Bearer {self.config['token']}"
+        self.client = {
+            "guild_id": self.bot.guilds[0].id,
+            "guild_name": self.bot.guilds[0].name,
+            "owner_id": self.bot.owner_id
+        }
 
         self.session = aiohttp.ClientSession(raise_for_status=True, headers=headers)
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"

@@ -1,10 +1,12 @@
 import discord
 import os
-from core import DCSServerBot, Plugin, Report, ReportEnv
+from core import Plugin, Report, ReportEnv
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button
+from services import DCSServerBot
 from typing import cast, Optional
+
 from .listener import HelpListener
 
 

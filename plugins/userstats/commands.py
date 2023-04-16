@@ -4,11 +4,13 @@ import os
 import psycopg
 import random
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
+from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, Member, Coalition, Side, PersistentReport, Channel
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
+from services import DCSServerBot
 from typing import Union, Optional, Tuple
+
 from .filter import StatisticsFilter
 from .listener import UserStatisticsEventListener
 

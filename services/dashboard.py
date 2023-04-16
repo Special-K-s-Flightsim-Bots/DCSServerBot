@@ -18,7 +18,7 @@ from rich.panel import Panel
 from rich.table import Table
 from typing import cast, Union
 
-from .listener import EventListenerService
+from .listener import ServiceBus
 from .bot import DCSServerBot, BotService
 
 
@@ -41,7 +41,7 @@ class Header:
 
 class Servers:
     """Displaying List of Servers"""
-    def __init__(self, bot: Union[DCSServerBot, EventListenerService]):
+    def __init__(self, bot: Union[DCSServerBot, ServiceBus]):
         self.bot = bot
         self.config = bot.config
 
@@ -147,7 +147,7 @@ class Dashboard(Service):
             Layout(name="main"),
             Layout(name="log", ratio=2, minimum_size=5),
         )
-        if self.main.is_master():
+        if self.main.master:
             layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="bot"))
         return layout
 
@@ -171,10 +171,10 @@ class Dashboard(Service):
     async def start(self):
         await super().start()
         self.layout = self.create_layout()
-        if self.main.is_master():
+        if self.main.master:
             self.bot: DCSServerBot = cast(BotService, ServiceRegistry.get("Bot")).bot
         else:
-            self.bot = cast(EventListenerService, ServiceRegistry.get("EventListener"))
+            self.bot = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
         self.hook_logging()
         self.update.add_exception_type(psycopg.DatabaseError)
         self.update.start()
@@ -188,7 +188,7 @@ class Dashboard(Service):
     @tasks.loop(reconnect=True)
     async def update(self):
         header = Header(self.main)
-        if self.main.is_master():
+        if self.main.master:
             servers = Servers(self.bot)
             bot = Bot(self.bot)
         else:
@@ -197,7 +197,7 @@ class Dashboard(Service):
 
         def do_update():
             self.layout['header'].update(header)
-            if self.main.is_master():
+            if self.main.master:
                 self.layout['servers'].update(servers)
                 self.layout['bot'].update(bot)
             else:

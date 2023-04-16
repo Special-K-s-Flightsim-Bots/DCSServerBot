@@ -5,14 +5,17 @@ import sys
 from contextlib import closing
 from copy import deepcopy
 from core import utils
+from core.services.registry import ServiceRegistry
 from discord.ext import commands
 from os import path
 from shutil import copytree
 from typing import Type, Optional, TYPE_CHECKING
+
 from .listener import TEventListener
 
 if TYPE_CHECKING:
-    from core import DCSServerBot, Server
+    from core import Server
+    from services import DCSServerBot, EventListenerService
 
 
 class Plugin(commands.Cog):
@@ -22,9 +25,10 @@ class Plugin(commands.Cog):
         self.plugin_name = type(self).__module__.split('.')[-2]
         self.plugin_version = getattr(sys.modules['plugins.' + self.plugin_name], '__version__')
         self.bot: DCSServerBot = bot
-        self.log = bot.log
-        self.pool = bot.pool
-        self.loop = bot.loop
+        self.els: ServiceBus = ServiceRegistry.get("ServiceBus")
+        self.log = self.bot.log
+        self.pool = self.bot.pool
+        self.loop = self.bot.loop
         self.locals = self.read_locals()
         if self.plugin_name != 'commands' and 'commands' in self.locals:
             self.change_commands(self.locals['commands'])
@@ -34,13 +38,13 @@ class Plugin(commands.Cog):
     async def cog_load(self) -> None:
         await self.install()
         if self.eventlistener:
-            self.bot.register_eventListener(self.eventlistener)
+            self.els.register_eventListener(self.eventlistener)
         self.log.info(f'  => {self.plugin_name.title()} loaded.')
 
     async def cog_unload(self):
         if self.eventlistener:
             await self.eventlistener.shutdown()
-            self.bot.unregister_eventListener(self.eventlistener)
+            self.els.unregister_eventListener(self.eventlistener)
         # delete a possible configuration
         self._config.clear()
         self.log.info(f'  => {self.plugin_name.title()} unloaded.')

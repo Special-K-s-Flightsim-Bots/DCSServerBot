@@ -8,14 +8,16 @@ import shlex
 import shutil
 import subprocess
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, Player, Status, Server, Coalition
+from core import utils, Plugin, Player, Status, Server, Coalition
 from discord import Interaction, SelectOption
 from discord.ext import commands, tasks
 from discord.ui import Select, View, Button, Modal, TextInput
 from pathlib import Path
 from psycopg.rows import dict_row
+from services import DCSServerBot
 from typing import Union, List, Optional
 from zipfile import ZipFile
+
 from .listener import AdminEventListener
 
 STATUS_EMOJI = {

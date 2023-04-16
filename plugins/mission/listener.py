@@ -122,10 +122,10 @@ class MissionEventListener(EventListener):
 
     @event(name="sendMessage")
     async def sendMessage(self, server: Server, data: dict) -> None:
-        if int(data['channel']) == -1:
-            channel = server.get_channel(Channel.CHAT)
-        else:
-            channel = self.bot.get_channel(int(data['channel']))
+        channel_id = int(data['channel'])
+        if channel_id == -1:
+            channel_id = server.get_channel(Channel.CHAT)
+        channel = self.bot.get_channel(channel_id)
         if channel:
             await channel.send(data['message'])
 
@@ -136,18 +136,18 @@ class MissionEventListener(EventListener):
             channel = int(data['channel'])
             if channel == -1:
                 channel = Channel.STATUS
-            await server.setEmbed(data['id'], embed, channel_id=channel)
+            await self.bot.setEmbed(server, data['id'], embed, channel_id=channel)
             return
         else:
-            if int(data['channel']) == -1:
-                channel = server.get_channel(Channel.CHAT)
-            else:
-                channel = self.bot.get_channel(int(data['channel']))
+            channel_id = int(data['channel'])
+            if channel_id == -1:
+                channel_id = server.get_channel(Channel.CHAT)
+            channel = self.bot.get_channel(channel_id)
             if channel:
                 await channel.send(embed=embed)
 
     def send_chat_message(self, server: Server, message: str) -> None:
-        chat_channel = server.get_channel(Channel.CHAT)
+        chat_channel = self.bot.get_channel(server.get_channel(Channel.CHAT))
         if chat_channel:
             if chat_channel not in self.queue:
                 self.queue[chat_channel] = Queue()
@@ -270,7 +270,7 @@ class MissionEventListener(EventListener):
                 name=player.name, prefix=self.bot.config['BOT']['COMMAND_PREFIX']))
             # only warn for unknown users if it is a non-public server and automatch is on
             if self.bot.config.getboolean('BOT', 'AUTOMATCH') and len(server.settings['password']) > 0:
-                await server.get_channel(Channel.ADMIN).send(
+                await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
                     f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.')
         else:
             player.sendChatMessage(self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(player.name, server.name))
@@ -361,7 +361,7 @@ class MissionEventListener(EventListener):
             # report teamkills from players to admins
             if (player1 is not None) and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
                 name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
-                await server.get_channel(Channel.ADMIN).send(
+                await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
                     f'{name} (ucid={player1.ucid}) is killing team members. Please investigate.'
                 )
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:

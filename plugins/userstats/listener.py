@@ -119,9 +119,9 @@ class UserStatisticsEventListener(EventListener):
                                     # only warn for unknown users if it is a non-public server and automatch is on
                                     if not player.member and self.bot.config.getboolean('BOT', 'AUTOMATCH') and \
                                             len(server.settings['password']) > 0:
-                                        await server.get_channel(Channel.ADMIN).send(
-                                            'Player {} (ucid={}) can\'t be matched to a discord user.'.format(
-                                                data['name'], data['ucid']))
+                                        await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
+                                            f"Player {data['name']} (ucid={data['ucid']}) can't be matched to a "
+                                            f"discord user.")
                                     cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
                                                    (mission_id, player.ucid, self.get_unit_type(player),
                                                     player.side.value))
@@ -288,9 +288,8 @@ class UserStatisticsEventListener(EventListener):
                     cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
                     if cursor.rowcount == 0:
                         player.sendChatMessage('Invalid token.')
-                        await server.get_channel(Channel.ADMIN).send(f'Player {player.display_name} '
-                                                                     f'(ucid={player.ucid}) entered a '
-                                                                     f'non-existent linking token.')
+                        await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
+                            f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
                     else:
                         discord_id = cursor.fetchone()[0]
                         player.member = self.bot.guilds[0].get_member(discord_id)

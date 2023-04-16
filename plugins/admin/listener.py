@@ -75,6 +75,5 @@ class AdminEventListener(EventListener):
             if role:
                 mentions += role.mention
         message = ' '.join(params)
-        await server.get_channel(Channel.ADMIN).send(mentions +
-                                                     f" 911 call from player {player.name} (ucid={player.ucid}):"
-                                                     f"```{message}```")
+        await self.bot.get_channel(server, Channel.ADMIN).send(
+            mentions + f" 911 call from player {player.name} (ucid={player.ucid}):```{message}```")

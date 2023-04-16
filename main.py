@@ -4,18 +4,16 @@ import asyncio
 import logging
 import os
 import platform
-import shutil
 import zipfile
 from contextlib import closing
 from core import utils, ServiceRegistry
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from matplotlib import font_manager
-from pathlib import Path
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
-from services import Dashboard, BotService, EventListenerService
+from services import Dashboard, BotService, ServiceBus
 from typing import cast
 from version import __version__
 
@@ -43,19 +41,31 @@ class Main:
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.db_version = None
         self.pool = self.init_db()
-        if self.config['BOT'].getboolean('DESANITIZE'):
-            utils.desanitize(self)
-        self.install_hooks()
+        plugins: str = self.config['BOT']['PLUGINS']
+        if 'OPT_PLUGINS' in self.config['BOT']:
+            plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
+        self.plugins: [str] = [p.strip() for p in list(dict.fromkeys(plugins.split(',')))]
+        # make sure, cloud is loaded last
+        if 'cloud' in self.plugins:
+            self.plugins.remove('cloud')
+            self.plugins.append('cloud')
         try:
-            master = self.is_master()
+            self._master = self.check_master()
         except UndefinedTable:
             # should only happen when an upgrade to 3.0 is needed
-            self.log.info("Updating database for DCSServerBot 3.x ...")
-            master = True
-        if master:
-            self.install_plugins()
+            self.log.info("Updating database to DCSServerBot 3.x ...")
+            self._master = True
+        if self._master:
             self.update_db()
         self.register()
+
+    @property
+    def master(self) -> bool:
+        return self._master
+
+    @master.setter
+    def master(self, value: bool):
+        self._master = value
 
     @staticmethod
     def read_config():
@@ -129,55 +139,6 @@ class Main:
 #            lambda value, curs: float(value) if value is not None else None)
 #        psycopg.extensions.register_type(dec2float)
 
-    def install_hooks(self):
-        self.log.info('- Configure DCS installations ...')
-        for server_name, installation in utils.findDCSInstallations():
-            if installation not in self.config:
-                continue
-            self.log.info(f'  => {installation}')
-            dcs_path = os.path.expandvars(self.config[installation]['DCS_HOME'] + '\\Scripts')
-            if not os.path.exists(dcs_path):
-                os.mkdir(dcs_path)
-            ignore = None
-            if os.path.exists(dcs_path + r'\net\DCSServerBot'):
-                self.log.debug('  - Updating Hooks ...')
-                shutil.rmtree(dcs_path + r'\net\DCSServerBot')
-                ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
-            else:
-                self.log.debug('  - Installing Hooks ...')
-            shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
-            try:
-                with open(r'Scripts/net/DCSServerBot/DCSServerBotConfig.lua.tmpl', 'r') as template:
-                    with open(dcs_path + r'\net\DCSServerBot\DCSServerBotConfig.lua', 'w') as outfile:
-                        for line in template.readlines():
-                            s = line.find('{')
-                            e = line.find('}')
-                            if s != -1 and e != -1 and (e - s) > 1:
-                                param = line[s + 1:e].split('.')
-                                if len(param) == 2:
-                                    if param[0] == 'BOT' and param[1] == 'HOST' and \
-                                            self.config[param[0]][param[1]] == '0.0.0.0':
-                                        line = line.replace('{' + '.'.join(param) + '}', '127.0.0.1')
-                                    else:
-                                        line = line.replace('{' + '.'.join(param) + '}',
-                                                            self.config[param[0]][param[1]])
-                                elif len(param) == 1:
-                                    line = line.replace('{' + '.'.join(param) + '}',
-                                                        self.config[installation][param[0]])
-                            outfile.write(line)
-            except KeyError as k:
-                self.log.error(
-                    f'! Your dcsserverbot.ini contains errors. You must set a value for {k}. See README for help.')
-                raise k
-            self.log.debug('  - Hooks installed into {}.'.format(installation))
-
-    def install_plugins(self):
-        for file in Path('plugins').glob('*.zip'):
-            path = file.__str__()
-            self.log.info('- Unpacking plugin "{}" ...'.format(os.path.basename(path).replace('.zip', '')))
-            shutil.unpack_archive(path, '{}'.format(path.replace('.zip', '')))
-            os.remove(path)
-
     async def install_fonts(self):
         if 'CJK_FONT' in self.config['REPORTS']:
             if not os.path.exists('fonts'):
@@ -220,7 +181,7 @@ class Main:
                              "ON CONFLICT (guild_id, node) DO NOTHING",
                              (self.guild_id, platform.node()))
 
-    def is_master(self) -> bool:
+    def check_master(self) -> bool:
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
@@ -234,7 +195,7 @@ class Main:
                                 master = True
                             # the old master is dead, we probably need to take over
                             elif (datetime.now() - row['last_seen']).total_seconds() > 10:
-                                self.log.info(f"Master {row['node']} was last seen on {row['last_seen']}")
+                                self.log.debug(f"- Master {row['node']} was last seen on {row['last_seen']}")
                                 cursor.execute('UPDATE agents SET master = False WHERE guild_id = %s and node = %s',
                                                (self.guild_id, row['node']))
                                 count -= 1
@@ -272,30 +233,27 @@ class Main:
     async def run(self):
         async with ServiceRegistry(main=self) as registry:
             asyncio.create_task(registry.new("Monitoring").start())
-            master = self.is_master()
-            if master:
+            bus = cast(ServiceBus, registry.new("ServiceBus"))
+            asyncio.create_task(bus.start())
+            if self.master:
                 await self.install_fonts()
                 # config = registry.new("Configuration")
                 # asyncio.create_task(config.start())
                 bot = cast(BotService, registry.new("Bot"))
                 asyncio.create_task(bot.start(token=self.config['BOT']['TOKEN']))
-            else:
-                els = cast(EventListenerService, registry.new("EventListener"))
-                asyncio.create_task(els.start())
             if self.config['BOT'].getboolean('USE_DASHBOARD'):
                 dashboard = cast(Dashboard, registry.new("Dashboard"))
                 asyncio.create_task(dashboard.start())
             while True:
                 # wait until the master changes
-                while master == self.is_master():
+                while self.master == self.check_master():
                     await asyncio.sleep(1)
                 # switch master
-                master = not master
-                if master:
+                self.master = not self.master
+                if self.master:
                     self.log.info("Master is not responding... taking over.")
                     if self.config['BOT'].getboolean('USE_DASHBOARD'):
                         await dashboard.stop()
-                    await els.stop()
                     await self.install_fonts()
                     # config = registry.new("Configuration")
                     # asyncio.create_task(config.start())
@@ -307,7 +265,5 @@ class Main:
                         await dashboard.stop()
                     # await config.stop()
                     await bot.stop()
-                    els = cast(EventListenerService, registry.new("EventListener"))
-                    asyncio.create_task(els.start())
                 if self.config['BOT'].getboolean('USE_DASHBOARD'):
                     await dashboard.start()

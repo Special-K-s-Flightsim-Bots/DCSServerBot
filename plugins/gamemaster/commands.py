@@ -4,10 +4,12 @@ import discord
 import platform
 import psycopg
 from contextlib import closing
-from core import DCSServerBot, Plugin, utils, Report, Status, Server, Coalition, Channel, Player
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, Player
 from discord.ext import commands
 from psycopg.rows import dict_row
+from services import DCSServerBot
 from typing import Optional
+
 from .listener import GameMasterEventListener
 
 
@@ -41,15 +43,15 @@ class GameMasterAgent(Plugin):
                 continue
             if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 sides = utils.get_sides(message, server)
-                if Coalition.BLUE in sides and server.get_channel(Channel.COALITION_BLUE).id == message.channel.id:
+                if Coalition.BLUE in sides and server.get_channel(Channel.COALITION_BLUE) == message.channel.id:
                     # TODO: ignore messages for now, as DCS does not understand the coalitions yet
                     # server.sendChatMessage(Coalition.BLUE, message.content, message.author.display_name)
                     pass
-                elif Coalition.RED in sides and server.get_channel(Channel.COALITION_RED).id == message.channel.id:
+                elif Coalition.RED in sides and server.get_channel(Channel.COALITION_RED) == message.channel.id:
                     # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
                     # server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
                     pass
-            if server.get_channel(Channel.CHAT) and server.get_channel(Channel.CHAT).id == message.channel.id:
+            if server.get_channel(Channel.CHAT) and server.get_channel(Channel.CHAT) == message.channel.id:
                 if message.content.startswith(self.bot.config['BOT']['COMMAND_PREFIX']) is False:
                     server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
 

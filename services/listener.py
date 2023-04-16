@@ -1,36 +1,45 @@
+from __future__ import annotations
 import asyncio
+import concurrent
 import json
 import os
 import platform
 import psycopg
+import shutil
 import sys
 from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
-from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec
+from copy import deepcopy
+from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, ServerProxy, EventListener
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
+from pathlib import Path
 from psycopg.types.json import Json
 from queue import Queue
 from shutil import copytree
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Tuple, Callable, Optional
+from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services import BotService
 
 
-@ServiceRegistry.register("EventListener")
-class EventListenerService(Service):
+@ServiceRegistry.register("ServiceBus")
+class ServiceBus(Service):
 
     def __init__(self, main):
         super().__init__(main)
         self.version = self.config['BOT']['VERSION']
-        self.servers: dict[str, ServerImpl] = dict()
+        self.eventListeners: list[EventListener] = []
+        self.servers: dict[str, Server] = dict()
         self.udp_server = None
         self.executor = None
-        plugins: str = self.config['BOT']['PLUGINS']
-        if 'OPT_PLUGINS' in self.config['BOT']:
-            plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
-        self.plugins: [str] = [p.strip() for p in list(dict.fromkeys(plugins.split(',')))]
+        if self.config['BOT'].getboolean('DESANITIZE'):
+            utils.desanitize(self)
+        self.install_plugins()
+        self.install_luas()
         self.loop = asyncio.get_event_loop()
         self.intercom.add_exception_type(psycopg.DatabaseError)
 
@@ -38,12 +47,13 @@ class EventListenerService(Service):
         await super().start()
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute('DELETE FROM intercom WHERE agent = %s', (self.agent, ))
+                conn.execute('DELETE FROM intercom WHERE agent = %s', ('Master' if self.master else self.agent, ))
         self.executor = ThreadPoolExecutor(thread_name_prefix='EventExecutor', max_workers=20)
         await self.start_udp_listener()
         self.init_servers()
         self.intercom.start()
         await self.register_servers()
+        self.log.info('- ServiceBus started.')
 
     async def stop(self):
         self.log.info('Graceful shutdown ...')
@@ -56,32 +66,92 @@ class EventListenerService(Service):
         self.executor.shutdown(wait=True)
         self.log.debug('- Executor stopped.')
         self.intercom.cancel()
-        self.log.info('- Intercom stopped.')
+        self.log.debug('- Intercom stopped.')
         await super().stop()
-        self.log.info("DCSServerBot Agent stopped.")
+        self.log.info("- ServiceBus stopped.")
 
-    def is_master(self) -> bool:
-        return False
+    @property
+    def master(self) -> bool:
+        return self.main.master
+
+    def register_eventListener(self, listener: EventListener):
+        self.log.debug(f'- Registering EventListener {type(listener).__name__}')
+        self.eventListeners.append(listener)
+
+    def unregister_eventListener(self, listener: EventListener):
+        self.eventListeners.remove(listener)
+        self.log.debug(f'- EventListener {type(listener).__name__} unregistered.')
+
+    def install_plugins(self):
+        for file in Path('plugins').glob('*.zip'):
+            path = file.__str__()
+            self.log.info('- Unpacking plugin "{}" ...'.format(os.path.basename(path).replace('.zip', '')))
+            shutil.unpack_archive(path, '{}'.format(path.replace('.zip', '')))
+            os.remove(path)
+
+    def install_luas(self):
+        self.log.info('- Configure DCS installations ...')
+        for server_name, installation in utils.findDCSInstallations():
+            if installation not in self.config:
+                continue
+            self.log.info(f'  => {installation}')
+            dcs_path = os.path.expandvars(self.config[installation]['DCS_HOME'] + '\\Scripts')
+            if not os.path.exists(dcs_path):
+                os.mkdir(dcs_path)
+            ignore = None
+            if os.path.exists(dcs_path + r'\net\DCSServerBot'):
+                self.log.debug('  - Updating Hooks ...')
+                shutil.rmtree(dcs_path + r'\net\DCSServerBot')
+                ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
+            else:
+                self.log.debug('  - Installing Hooks ...')
+            shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
+            try:
+                with open(r'Scripts/net/DCSServerBot/DCSServerBotConfig.lua.tmpl', 'r') as template:
+                    with open(dcs_path + r'\net\DCSServerBot\DCSServerBotConfig.lua', 'w') as outfile:
+                        for line in template.readlines():
+                            s = line.find('{')
+                            e = line.find('}')
+                            if s != -1 and e != -1 and (e - s) > 1:
+                                param = line[s + 1:e].split('.')
+                                if len(param) == 2:
+                                    if param[0] == 'BOT' and param[1] == 'HOST' and \
+                                            self.config[param[0]][param[1]] == '0.0.0.0':
+                                        line = line.replace('{' + '.'.join(param) + '}', '127.0.0.1')
+                                    else:
+                                        line = line.replace('{' + '.'.join(param) + '}',
+                                                            self.config[param[0]][param[1]])
+                                elif len(param) == 1:
+                                    line = line.replace('{' + '.'.join(param) + '}',
+                                                        self.config[installation][param[0]])
+                            outfile.write(line)
+            except KeyError as k:
+                self.log.error(
+                    f'! Your dcsserverbot.ini contains errors. You must set a value for {k}. See README for help.')
+                raise k
+            self.log.debug(f"  - Installing Plugin luas into {installation} ...")
+            for plugin_name in self.main.plugins:
+                source_path = f'./plugins/{plugin_name}/lua'
+                if os.path.exists(source_path):
+                    target_path = os.path.expandvars(self.config[installation]['DCS_HOME'] +
+                                                     f'\\Scripts\\net\\DCSServerBot\\{plugin_name}\\')
+                    copytree(source_path, target_path, dirs_exist_ok=True)
+                    self.log.debug(f'    => Plugin {plugin_name.capitalize()} installed.')
+            self.log.debug('  - Luas installed into {}.'.format(installation))
 
     def init_servers(self):
         for server_name, installation in utils.findDCSInstallations():
-            if installation in self.config:
-                server: ServerImpl = DataObjectFactory().new(
-                    Server.__name__, bot=self, name=server_name, installation=installation,
-                    host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'])
-                self.servers[server_name] = server
-                # TODO: can be removed if bug in net.load_next_mission() is fixed
-                if 'listLoop' not in server.settings or not server.settings['listLoop']:
-                    server.settings['listLoop'] = True
-                self.log.info(f"- Installing Plugins into {installation} ...")
-                for plugin_name in self.plugins:
-                    source_path = f'./plugins/{plugin_name}/lua'
-                    if os.path.exists(source_path):
-                        target_path = os.path.expandvars(self.config[installation]['DCS_HOME'] +
-                                                         f'\\Scripts\\net\\DCSServerBot\\{plugin_name}\\')
-                        copytree(source_path, target_path, dirs_exist_ok=True)
-                        self.log.info(f'  => Plugin {plugin_name.capitalize()} installed.')
-                self.sendtoMaster({
+            if installation not in self.config:
+                continue
+            server: ServerImpl = DataObjectFactory().new(
+                Server.__name__, bot=self, name=server_name, installation=installation,
+                host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'])
+            self.servers[server_name] = server
+            # TODO: can be removed if bug in net.load_next_mission() is fixed
+            if 'listLoop' not in server.settings or not server.settings['listLoop']:
+                server.settings['listLoop'] = True
+            if not self.master:
+                self.sendtoBot({
                     "command": "init",
                     "server_name": server.name,
                     "status": Status.UNREGISTERED.value,
@@ -109,7 +179,6 @@ class EventListenerService(Service):
                 num += 1
         if num == 0:
             self.log.info('- No running local servers found.')
-        self.log.info('DCSServerBot Agent started.')
 
     def register_server(self, data: dict) -> bool:
         installations = utils.findDCSInstallations(data['server_name'])
@@ -198,16 +267,74 @@ class EventListenerService(Service):
                                 f"Registration of server \"{data['server_name']}\" aborted due to UDP port conflict.")
                             del self.servers[data['server_name']]
                             return False
-        self.log.info(f"  => DCS-Server \"{data['server_name']}\" registered.")
+        self.log.info(f"  => Local DCS-Server \"{data['server_name']}\" registered.")
         return True
 
-    def sendtoMaster(self, data: dict):
-        data['agent'] = self.agent
-        with self.pool.connection() as conn:
-            with conn.pipeline():
-                with conn.transaction():
-                    conn.execute("INSERT INTO intercom (agent, data) VALUES ('Master', %s)", (Json(data), ))
-                    self.log.debug(f"HOST->MASTER: {json.dumps(data)}")
+    def init_remote_server(self, data: dict) -> ServerProxy:
+        proxy = self.servers.get(data['server_name'])
+        if not proxy:
+            proxy = ServerProxy(
+                bot=cast(BotService, ServiceRegistry.get("Bot")).bot,
+                name=data['server_name'],
+                installation=data['installation'],
+                host=data['agent'],
+                port=-1
+            )
+            self.servers[data['server_name']] = proxy
+            proxy.settings = data.get('settings')
+            proxy.options = data.get('options')
+        proxy.status = Status(data['status'])
+        return proxy
+
+    def sendtoBot(self, data: dict, agent: Optional[str] = None):
+        if self.master:
+            if agent:
+                self.log.debug('MASTER->{}: {}'.format(agent, json.dumps(data)))
+                with self.pool.connection() as conn:
+                    with conn.transaction():
+                        conn.execute("INSERT INTO intercom (agent, data) VALUES (%s, %s)", (agent, Json(data)))
+            else:
+                self.udp_server.message_queue[data['server_name']].put(data)
+        else:
+            data['agent'] = self.agent
+            with self.pool.connection() as conn:
+                with conn.pipeline():
+                    with conn.transaction():
+                        conn.execute("INSERT INTO intercom (agent, data) VALUES ('Master', %s)", (Json(data),))
+                        self.log.debug(f"HOST->MASTER: {json.dumps(data)}")
+
+    async def handle_master(self, data: dict):
+        self.log.debug(f"{data['agent']}->MASTER: {json.dumps(data)}")
+        if data['command'] == 'init':
+            server = self.init_remote_server(data)
+            if server.name not in self.udp_server.message_queue:
+                self.udp_server.message_queue[server.name] = Queue()
+                self.udp_server.executor.submit(self.udp_server.process, server)
+        else:
+            self.udp_server.message_queue[data['server_name']].put(data)
+
+    async def handle_agent(self, data: dict):
+        self.log.debug(f"MASTER->HOST: {json.dumps(data)}")
+        if data['command'] == 'rpc':
+            if data.get('object') == 'Server':
+                obj = self.servers[data['server_name']]
+            elif data.get('object') == 'Agent':
+                obj = self
+            else:
+                self.log.warning('RPC command received for unknown object.')
+                return
+            rc = await self.rpc(obj, data)
+            if rc:
+                data['return'] = rc
+                self.sendtoBot(data)
+        else:
+            server_name = data['server_name']
+            if server_name not in self.servers:
+                self.log.warning(
+                    f"Command {data['command']} for unknown server {server_name} received, ignoring")
+            else:
+                server: Server = self.servers[server_name]
+                server.sendtoDCS(data)
 
     @tasks.loop(seconds=1)
     async def intercom(self):
@@ -216,34 +343,14 @@ class EventListenerService(Service):
                 with conn.transaction():
                     with closing(conn.cursor()) as cursor:
                         for row in cursor.execute("SELECT id, data FROM intercom WHERE agent = %s",
-                                                  (platform.node(), )).fetchall():
+                                                  ("Master" if self.master else platform.node(), )).fetchall():
                             data = row[1]
                             if sys.getsizeof(data) > 8 * 1024:
                                 self.log.error("Packet is larger than 8 KB!")
-                            self.log.debug(f"MASTER->HOST: {json.dumps(data)}")
-                            command = data['command']
-                            if command == 'rpc':
-                                obj = None
-                                if data.get('object') == 'Server':
-                                    server: ServerImpl = self.servers[server_name]
-                                    obj = server
-                                elif data.get('object') == 'Agent':
-                                    obj = self
-                                else:
-                                    self.log.warning('RPC command received for unknown object.')
-                                if obj:
-                                    rc = await self.rpc(obj, data)
-                                    if rc:
-                                        data['return'] = rc
-                                        self.sendtoMaster(data)
+                            if self.master:
+                                await self.handle_master(data)
                             else:
-                                server_name = data['server_name']
-                                if server_name not in self.servers:
-                                    self.log.warning(
-                                        f"Command {command} for unknown server {server_name} received, ignoring")
-                                else:
-                                    server: ServerImpl = self.servers[server_name]
-                                    server.sendtoDCS(data)
+                                await self.handle_agent(data)
                             cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
     @staticmethod
@@ -261,73 +368,88 @@ class EventListenerService(Service):
     async def start_udp_listener(self):
         class RequestHandler(BaseRequestHandler):
 
-            def handle(s):
-                data = json.loads(s.request[0].strip())
+            def handle(derived):
+                data: dict = json.loads(derived.request[0].strip())
                 # ignore messages not containing server names
                 if 'server_name' not in data:
                     self.log.warning('Message without server_name received: {}'.format(data))
                     return
                 server_name = data['server_name']
-                command = data['command']
-                server: ServerImpl = self.servers.get(server_name)
+                self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
+                server = self.servers.get(server_name) or None
                 if not server:
-                    self.log.warning(f"Command {command} for unknown server {server_name} received, ignoring.")
+                    self.log.debug(
+                        f"Command {data['command']} for unregistered server {server_name} received, ignoring.")
                     return
-                self.log.debug('{}->HOST: {}'.format(server.name, json.dumps(data)))
-                if server.name not in s.server.message_queue:
-                    s.server.message_queue[server.name] = Queue()
-                    s.server.executor.submit(s.process, server)
-                channel = data.get('channel')
-                if channel and channel in server.listeners.keys():
-                    f = server.listeners[channel]
-                    if not f.done():
-                        self.loop.call_soon_threadsafe(f.set_result, data)
-                        if command != 'registerDCSServer':
-                            return
-                s.server.message_queue[server.name].put(data)
-
-            def process(s, server: Server):
-                data = s.server.message_queue[server.name].get()
-                while len(data):
-                    try:
-                        command = data['command']
-                        if command == 'registerDCSServer':
-                            if not self.register_server(data):
-                                self.log.error(f"Error while registering server {server.name}.")
-                                return
-                            self.log.debug(f"Registering server {server.name} on Master node ...")
-                        elif server.status == Status.UNREGISTERED:
-                            self.log.debug(
-                                f"Command {command} for unregistered server {server.name} received, ignoring.")
-                            continue
-                        self.sendtoMaster(data)
-                    except Exception as ex:
-                        self.log.exception(ex)
-                    finally:
-                        s.server.message_queue[server.name].task_done()
-                        data = s.server.message_queue[server.name].get()
+                udp_server: MyThreadingUDPServer = cast(MyThreadingUDPServer, derived.server)
+                if server.name not in udp_server.message_queue:
+                    udp_server.message_queue[server.name] = Queue()
+                    udp_server.executor.submit(udp_server.process, server)
+                udp_server.message_queue[server.name].put(data)
 
         class MyThreadingUDPServer(ThreadingUDPServer):
-            def __init__(self, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler],
+            def __init__(derived, server_address: Tuple[str, int], request_handler: Callable[..., BaseRequestHandler],
                          listener: EventListenerService):
-                self.log = listener.log
-                self.executor = listener.executor
+                derived.executor = listener.executor
                 try:
                     # enable reuse, in case the restart was too fast and the port was still in TIME_WAIT
                     MyThreadingUDPServer.allow_reuse_address = True
                     MyThreadingUDPServer.max_packet_size = 65504
-                    self.message_queue: dict[str, Queue[str]] = {}
+                    derived.message_queue: dict[str, Queue[dict]] = {}
                     super().__init__(server_address, request_handler)
                 except Exception as ex:
                     self.log.exception(ex)
 
-            def shutdown(self) -> None:
+            def process(derived, server: Server):
+                data: dict = derived.message_queue[server.name].get()
+                while data:
+                    try:
+                        command = data['command']
+                        if command == 'registerDCSServer':
+                            if not server.is_remote:
+                                if not self.register_server(data):
+                                    self.log.error(f"Error while registering server {server.name}.")
+                                    return
+                                if not self.master:
+                                    self.log.debug(f"Registering server {server.name} on Master node ...")
+                            else:
+                                self.log.info(f"  => DCS-Server \"{server.name}\" from Agent {server.host} registered.")
+                        elif server.status == Status.UNREGISTERED:
+                            self.log.debug(
+                                f"Command {command} for unregistered server {server.name} received, ignoring.")
+                            continue
+                        if 'channel' in data and data['channel'].startswith('sync-'):
+                            if data['channel'] in server.listeners:
+                                f = server.listeners[data['channel']]
+                                if not f.done():
+                                    self.loop.call_soon_threadsafe(f.set_result, data)
+                                if data['command'] != 'registerDCSServer':
+                                    continue
+                        if self.master:
+                            concurrent.futures.wait(
+                                [
+                                    asyncio.run_coroutine_threadsafe(
+                                        listener.processEvent(command, server, deepcopy(data)), self.loop
+                                    )
+                                    for listener in self.eventListeners
+                                    if listener.has_event(command)
+                                ]
+                            )
+                        else:
+                            self.sendtoBot(data)
+                    except Exception as ex:
+                        self.log.exception(ex)
+                    finally:
+                        derived.message_queue[server.name].task_done()
+                        data = derived.message_queue[server.name].get()
+
+            def shutdown(derived):
                 super().shutdown()
                 try:
-                    for server_name, queue in self.message_queue.items():
+                    for server_name, queue in derived.message_queue.items():
                         if not queue.empty():
                             queue.join()
-                        queue.put('')
+                        queue.put({})
                 except Exception as ex:
                     self.log.exception(ex)
 

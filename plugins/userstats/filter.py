@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from contextlib import closing
-from core import DCSServerBot, utils, Pagination, ReportEnv, const
+from core import utils, Pagination, ReportEnv, const
+from services import DCSServerBot
 from typing import Any, Optional
 
 

@@ -58,7 +58,7 @@ class GreenieBoardEventListener(EventListener):
 
     async def send_chat_message(self, player: Player, data: dict):
         server: Server = self.bot.servers[data['server_name']]
-        chat_channel = server.get_channel(Channel.CHAT)
+        chat_channel = self.bot.get_channel(server.get_channel(Channel.CHAT))
         if chat_channel is not None:
             carrier = data['place']['name']
             if 'WO' in data['grade']:

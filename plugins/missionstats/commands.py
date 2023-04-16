@@ -1,9 +1,11 @@
 import discord
-from core import DCSServerBot, Plugin, PluginRequiredError, utils, Report, PaginationReport, Status, Server
+from core import Plugin, PluginRequiredError, utils, Report, PaginationReport, Status, Server
 from discord.ext import commands
 from plugins.userstats.commands import parse_params
 from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter
 from typing import Optional, Union
+
+from services import DCSServerBot
 from .listener import MissionStatisticsEventListener
 
 

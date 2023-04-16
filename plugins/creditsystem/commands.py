@@ -1,10 +1,12 @@
 import discord
 from contextlib import closing
 from copy import deepcopy
-from core import utils, DCSServerBot, Plugin, PluginRequiredError, Server
+from core import utils, Plugin, PluginRequiredError, Server
 from discord.ext import commands
 from psycopg.rows import dict_row
+from services import DCSServerBot
 from typing import Optional, cast, Union
+
 from .listener import CreditSystemListener
 from .player import CreditPlayer
 

@@ -1,4 +1,3 @@
-from __future__ import annotations
 import asyncio
 import discord
 import json
@@ -8,14 +7,14 @@ import random
 from copy import deepcopy
 from discord import Interaction
 from discord.ui import View, Select, Button
-from core import Plugin, PluginRequiredError, utils, Status, MizFile, Autoexec, Extension, Server, Coalition, Channel
+from core import Plugin, PluginRequiredError, utils, Status, MizFile, Autoexec, Extension, Server, Coalition, Channel, \
+    TEventListener
 from datetime import datetime, timedelta
 from discord.ext import tasks, commands
-from typing import Type, Optional, List, TYPE_CHECKING, cast
-from .listener import SchedulerListener
+from services import DCSServerBot
+from typing import Type, Optional, List, cast
 
-if TYPE_CHECKING:
-    from core import DCSServerBot, TEventListener
+from .listener import SchedulerListener
 
 
 class Scheduler(Plugin):
@@ -220,7 +219,7 @@ class Scheduler(Plugin):
                         server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
                                                                                 when=utils.format_time(warn_time)),
                                                 self.bot.config['BOT']['MESSAGE_TIMEOUT'])
-                        chat_channel = server.get_channel(Channel.CHAT)
+                        chat_channel = self.bot.get_channel(server.get_channel(Channel.CHAT))
                         if chat_channel:
                             await chat_channel.send(warn_text.format(item=item, what=what,
                                                                      when=utils.format_time(warn_time)))
@@ -228,7 +227,7 @@ class Scheduler(Plugin):
                 restart_in -= 1
 
     async def teardown_dcs(self, server: Server, member: Optional[discord.Member] = None):
-        self.bot.sendtoBot({"command": "onShutdown", "server_name": server.name})
+        self.bot.bus.sendtoBot({"command": "onShutdown", "server_name": server.name})
         await asyncio.sleep(1)
         await server.shutdown()
         if not member:

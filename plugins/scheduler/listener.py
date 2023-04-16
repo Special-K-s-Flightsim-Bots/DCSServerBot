@@ -113,7 +113,7 @@ class SchedulerListener(EventListener):
                 self.bot.loop.call_soon(asyncio.create_task, self.process(server, server.on_empty.copy()))
                 server.on_empty.clear()
         elif data['eventName'] == 'mission_end':
-            self.bot.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
+            self.bot.bus.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
             if server.on_mission_end:
                 self.bot.loop.call_soon(asyncio.create_task, self.process(server, server.on_mission_end.copy()))
                 server.on_mission_end.clear()

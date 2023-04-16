@@ -290,7 +290,7 @@ class PersistentReport(Report):
         try:
             env = await super().render(*args, **kwargs)
             file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None
-            await self.server.setEmbed(self.embed_name, env.embed, file, channel_id=self.channel_id)
+            await self.bot.setEmbed(self.server, self.embed_name, env.embed, file, channel_id=self.channel_id)
             return env
         except Exception as ex:
             self.log.exception(ex)

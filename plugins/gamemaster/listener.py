@@ -43,11 +43,11 @@ class GameMasterEventListener(EventListener):
         if self.bot.config.getboolean(server.installation, 'COALITIONS') \
                 and data['to'] == -2 and player.coalition in [Coalition.BLUE, Coalition.RED]:
             if player.coalition == Coalition.BLUE:
-                chat_channel = server.get_channel(Channel.COALITION_BLUE)
+                chat_channel = self.bot.get_channel(server.get_channel(Channel.COALITION_BLUE))
             elif player.coalition == Coalition.RED:
-                chat_channel = server.get_channel(Channel.COALITION_RED)
+                chat_channel = self.bot.get_channel(server.get_channel(Channel.COALITION_RED))
         else:
-            chat_channel = server.get_channel(Channel.CHAT)
+            chat_channel = self.bot.get_channel(server.get_channel(Channel.CHAT))
         if chat_channel:
             if 'from_id' in data and data['from_id'] != 1 and len(data['message']) > 0:
                 await chat_channel.send(data['from_name'] + ': ' + data['message'])

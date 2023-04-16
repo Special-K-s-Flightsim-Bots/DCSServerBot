@@ -4,15 +4,15 @@ import discord
 import os
 import platform
 import re
-import win32gui
-import win32process
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError
+from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError
 from datetime import datetime
 from discord import SelectOption, Interaction
 from discord.ext import commands, tasks
 from discord.ui import Select, View, Button
+from services import DCSServerBot
 from typing import Optional, cast
+
 from .listener import MissionEventListener
 
 
@@ -64,7 +64,7 @@ class Mission(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if server.get_channel(Channel.STATUS).id != ctx.channel.id:
+        if server.get_channel(Channel.STATUS) != ctx.channel.id:
             if server.status in [Status.RUNNING, Status.PAUSED]:
                 players = server.get_active_players()
                 num_players = len(players) + 1
@@ -202,7 +202,7 @@ class Mission(Plugin):
                 if len(args):
                     message += ' Reason: {}'.format(' '.join(args))
 
-                if server.get_channel(Channel.STATUS).id == ctx.channel.id:
+                if server.get_channel(Channel.STATUS) == ctx.channel.id:
                     await ctx.message.delete()
                 msg = await ctx.send(f'Restarting mission in {utils.format_time(delay)} (warning users before)...')
                 server.sendPopupMessage(Coalition.ALL, message, sender=ctx.message.author.display_name)
@@ -216,7 +216,7 @@ class Mission(Plugin):
             msg = await ctx.send('Mission restarted.')
         else:
             msg = await ctx.send('There is currently no mission running on server "' + server.display_name + '"')
-        if (msg is not None) and (server.get_channel(Channel.STATUS).id == ctx.channel.id):
+        if msg and server.get_channel(Channel.STATUS) == ctx.channel.id:
             await asyncio.sleep(5)
             await msg.delete()
 
@@ -487,11 +487,10 @@ class Mission(Plugin):
                     if role:
                         mentions += role.mention
                 message = mentions + ' ' + utils.escape_string(message)
-            await s.get_channel(Channel.ADMIN).send(message +
-                                                    f"\nLatest dcs-<timestamp>.log can be pulled with "
-                                                    f"{self.bot.config['BOT']['COMMAND_PREFIX']}download\n"
-                                                    f"If the scheduler is configured for this "
-                                                    f"server, it will relaunch it automatically.")
+            await self.bot.get_channel(s.get_channel(Channel.ADMIN)).send(
+                message + f"\nLatest dcs-<timestamp>.log can be pulled with "
+                          f"{self.bot.config['BOT']['COMMAND_PREFIX']}download\n"
+                          f"If the scheduler is configured for this server, it will relaunch it automatically.")
 
         for server_name, server in self.bot.servers.items():
             if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
@@ -561,7 +560,7 @@ class Mission(Plugin):
                 else:
                     players = server.get_active_players()
                     current = len(players) + 1
-                    max_players = server.settings['maxPlayers']
+                    max_players = server.settings.get('maxPlayers') or 0
                     if name.find('［') == -1:
                         name = name + f'［{current}／{max_players}］'
                     else:

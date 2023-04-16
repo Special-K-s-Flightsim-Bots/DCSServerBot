@@ -1,11 +1,10 @@
 from __future__ import annotations
 import asyncio
-from contextlib import suppress
-
 import discord
 import os
 import platform
 import uuid
+from contextlib import suppress
 from core import utils
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -24,7 +23,7 @@ class Server(DataObject):
     installation: str
     host: str
     port: int
-    _channels: dict[Channel, discord.TextChannel] = field(default_factory=dict, compare=False)
+    _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     embeds: dict[str, Union[int, discord.Message]] = field(repr=False, default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
@@ -40,13 +39,11 @@ class Server(DataObject):
     on_empty: dict = field(default_factory=dict, compare=False)
     dcs_version: str = field(default=None, compare=False)
     extensions: dict[str, Extension] = field(default_factory=dict, compare=False)
-    _lock: asyncio.Lock = field(init=False, compare=False)
     afk: dict[str, datetime] = field(default_factory=dict, compare=False)
     listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
 
     def __post_init__(self):
         super().__post_init__()
-        self._lock = asyncio.Lock()
         self.status_change = asyncio.Event()
         with self.pool.connection() as conn:
             # read persisted messages for this server
@@ -245,10 +242,8 @@ class Server(DataObject):
     async def loadNextMission(self) -> None:
         await self._load({"command": "startNextMission"})
 
-    def get_channel(self, channel: Channel) -> discord.TextChannel:
-        if channel not in self._channels:
-            self._channels[channel] = self.bot.get_channel(int(self.bot.config[self.installation][channel.value]))
-        return self._channels[channel]
+    def get_channel(self, channel: Channel) -> int:
+        return int(self.bot.config[self.installation][channel.value])
 
     async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:
         async def wait(s: list[Status]):
@@ -257,49 +252,6 @@ class Server(DataObject):
 
         if self.status not in status:
             await asyncio.wait_for(wait(status), timeout)
-
-    async def setEmbed(self, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None,
-                       channel_id: Optional[Union[Channel, int]] = Channel.STATUS) -> None:
-        async with self._lock:
-            message = None
-            channel = self.bot.get_channel(channel_id) if isinstance(channel_id, int) else self.get_channel(channel_id)
-            if not channel:
-                self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
-                return
-            if embed_name in self.embeds:
-                if isinstance(self.embeds[embed_name],  discord.Message):
-                    message = self.embeds[embed_name]
-                else:
-                    try:
-                        message = await channel.fetch_message(self.embeds[embed_name])
-                        self.embeds[embed_name] = message
-                    except discord.errors.NotFound:
-                        message = None
-                    except discord.errors.DiscordException as ex:
-                        self.log.warning(f"Discord error during setEmbed({embed_name}): " + str(ex))
-                        return
-            if message:
-                try:
-                    if not file:
-                        await message.edit(embed=embed)
-                    else:
-                        await message.edit(embed=embed, attachments=[file])
-                except discord.errors.NotFound:
-                    message = None
-                except Exception as ex:
-                    self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
-                    return
-            if not message:
-                message = await channel.send(embed=embed, file=file)
-                self.embeds[embed_name] = message
-                with self.pool.connection() as conn:
-                    with conn.transaction():
-                        conn.execute("""
-                            INSERT INTO message_persistence (server_name, embed_name, embed) 
-                            VALUES (%s, %s, %s) 
-                            ON CONFLICT (server_name, embed_name) 
-                            DO UPDATE SET embed=excluded.embed
-                        """, (self.name, embed_name, message.id))
 
     async def keep_alive(self):
         # we set a longer timeout in here because, we don't want to risk false restarts

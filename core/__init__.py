@@ -8,7 +8,6 @@ from .data.serverproxy import *
 from .data.member import *
 
 from .autoexec import *
-from .bot import *
 from .const import *
 from .extension import *
 from .listener import *
