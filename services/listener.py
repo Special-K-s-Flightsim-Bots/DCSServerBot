@@ -166,7 +166,7 @@ class ServiceBus(Service):
         })
 
     async def register_servers(self):
-        self.log.info('- Searching for running DCS servers (this might take a bit) ...')
+        self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
         timeout = (5 * len(self.servers)) if self.config.getboolean('BOT', 'SLOW_SYSTEM') else (3 * len(self.servers))
         local_servers = [x for x in self.servers.values() if not x.is_remote]
         calls = []

@@ -49,13 +49,6 @@ class BotService(Service):
                 conn.execute("DELETE FROM intercom WHERE agent = %s", (self.agent, ))
                 if self.main.master:
                     conn.execute("DELETE FROM intercom WHERE agent = 'Master'")
-        # ask any active agent to register its servers with us
-        for agent in self.main.get_active_agents():
-            self.bot.bus.sendtoBot({
-                "command": "rpc",
-                "object": "Agent",
-                "method": "register_servers"
-            }, agent=agent)
         async with self.bot:
             await self.bot.start(token, reconnect=reconnect)
 
@@ -101,6 +94,14 @@ class DCSServerBot(commands.Bot):
         for plugin in self.plugins:
             if not await self.load_plugin(plugin.lower()):
                 self.log.info(f'  => {plugin.title()} NOT loaded.')
+        self.log.info("- Searching for running remote DCS servers ...")
+        # ask any active agent to register its servers with us
+        for agent in self.main.get_active_agents():
+            self.bus.sendtoBot({
+                "command": "rpc",
+                "object": "Agent",
+                "method": "register_servers"
+            }, agent=agent)
 
     async def load_plugin(self, plugin: str) -> bool:
         try:

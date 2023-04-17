@@ -132,6 +132,7 @@ class Footer(report.EmbedElement):
 
 class All(report.EmbedElement):
     def render(self):
+        num = 0
         for server in self.bot.servers.values():
             if server.status not in [Status.PAUSED, Status.RUNNING]:
                 continue
@@ -146,5 +147,6 @@ class All(report.EmbedElement):
             else:
                 name = '🔓 ' + name
             self.embed.add_field(name=name, value=f"```{value}```", inline=False)
-        else:
+            num += 1
+        if num == 0:
             self.embed.add_field(name="_ _", value="There are currently no servers running.")
