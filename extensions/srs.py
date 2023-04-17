@@ -50,8 +50,8 @@ class SRS(Extension):
             self.locals = self.load_config()
         # Change DCS-SRS-AutoConnectGameGUI.lua if necessary
         autoconnect = os.path.expandvars(f"%USERPROFILE%\\Saved Games\\{self.server.installation}\\Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua")
-        host = self.config['host'] if 'host' in self.config else self.bot.external_ip
-        port = self.config['port'] if 'port' in self.config else self.locals['Server Settings']['SERVER_PORT']
+        host = self.config.get('host', self.server.external_ip)
+        port = self.config.get('port', self.locals['Server Settings']['SERVER_PORT'])
         if os.path.exists(autoconnect):
             shutil.copy2(autoconnect, autoconnect + '.bak')
             with open('extensions\\lua\\DCS-SRS-AutoConnectGameGUI.lua') as infile:
@@ -86,7 +86,7 @@ class SRS(Extension):
         return self.is_running()
 
     async def shutdown(self, data: dict):
-        if 'autostart' not in self.config or self.config['autostart']:
+        if self.config.get('autostart', False):
             p = self.process or utils.find_process('SR-Server.exe', self.server.installation)
             if p:
                 p.kill()
@@ -94,10 +94,10 @@ class SRS(Extension):
         return await super().shutdown(data)
 
     def is_running(self) -> bool:
-        server_ip = self.locals['Server Settings']['SERVER_IP'] if 'SERVER_IP' in self.locals['Server Settings'] else '127.0.0.1'
+        server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'
-        return utils.is_open(server_ip, self.locals['Server Settings']['SERVER_PORT'])
+        return utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002)
 
     @property
     def version(self) -> str:
@@ -111,9 +111,9 @@ class SRS(Extension):
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         if self.locals:
-            host = self.config['host'] if 'host' in self.config else self.bot.external_ip
+            host = self.config.get('host', self.server.external_ip)
             value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
-            show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
+            show_passwords = self.config.get('show_passwords', True)
             if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] == 'true' and \
                     'External AWACS Mode Settings' in self.locals:
                 blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
@@ -137,7 +137,7 @@ class SRS(Extension):
         if self.server.installation not in self.config['config']:
             self.log.warning(f"  => Please move your SRS configuration from {self.config['config']} to "
                              f"Saved Games\\{self.server.installation}\\Config\\SRS.cfg")
-        port = self.config.get('port', int(self.cfg['Server Settings']['SERVER_PORT']))
+        port = self.config.get('port', int(self.cfg['Server Settings'].get('SERVER_PORT', '5002')))
         if port in ports and ports[port] != self.server.name:
             self.log.error(f"  => SRS port {port} already in use by server {ports[port]}!")
             return False

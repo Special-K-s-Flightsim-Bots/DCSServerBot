@@ -78,7 +78,6 @@ class DCSServerBot(commands.Bot):
         self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
         self.servers: dict[str, Server] = self.bus.servers
         self.eventListeners: list[EventListener] = self.bus.eventListeners
-        self.external_ip: Optional[str] = None
         self.audit_channel = None
         self.mission_stats = None
         self.member: Optional[discord.Member] = None
@@ -184,7 +183,7 @@ class DCSServerBot(commands.Bot):
     async def on_ready(self):
         try:
             await self.wait_until_ready()
-            if not self.external_ip:
+            if not self.synced:
                 self.log.info(f'- Logged in as {self.user.name} - {self.user.id}')
                 if len(self.guilds) > 1:
                     self.log.warning('  => YOUR BOT IS INSTALLED IN MORE THAN ONE GUILD. THIS IS NOT SUPPORTED!')
@@ -198,27 +197,21 @@ class DCSServerBot(commands.Bot):
                     if self.config.getboolean(server.installation, 'COALITIONS'):
                         self.check_roles(['Coalition Red', 'Coalition Blue'], server)
                     self.check_channels(server.installation)
-                self.external_ip = await utils.get_external_ip() if 'PUBLIC_IP' not in self.config['BOT'] else \
-                    self.config['BOT']['PUBLIC_IP']
                 self.log.info('- Loading Plugins ...')
                 for plugin in self.plugins:
                     if not await self.load_plugin(plugin.lower()):
                         self.log.info(f'  => {plugin.title()} NOT loaded.')
-                if not self.synced:
-                    self.log.info('- Registering Discord Commands (this might take a bit) ...')
-                    self.tree.copy_global_to(guild=self.guilds[0])
-                    await self.tree.sync(guild=self.guilds[0])
-                    self.synced = True
-                    self.log.info('- Discord Commands registered.')
+                self.log.info('- Registering Discord Commands (this might take a bit) ...')
+                self.tree.copy_global_to(guild=self.guilds[0])
+                await self.tree.sync(guild=self.guilds[0])
+                self.synced = True
+                self.log.info('- Discord Commands registered.')
                 if 'DISCORD_STATUS' in self.config['BOT']:
                     await self.change_presence(activity=discord.Game(name=self.config['BOT']['DISCORD_STATUS']))
                 self.log.info('- Discord Bot started.')
                 await self.audit(message="Discord Bot started.")
             else:
                 self.log.warning('- Discord connection re-established.')
-                # maybe our external IP has changed...
-                self.external_ip = await utils.get_external_ip() \
-                    if 'PUBLIC_IP' not in self.config['BOT'] else self.config['BOT']['PUBLIC_IP']
         except Exception as ex:
             self.log.exception(ex)
 
@@ -490,42 +483,38 @@ class DCSServerBot(commands.Bot):
                     return server
         return None
 
-    async def setEmbed(self, server: Server, embed_name: str, embed: discord.Embed, file: Optional[discord.File] = None,
-                       channel_id: Union[Channel, int] = Channel.STATUS) -> None:
+    async def setEmbed(self, *, embed_name: str, embed: discord.Embed, channel_id: Union[Channel, int] = Channel.STATUS,
+                       file: Optional[discord.File] = None, server: Optional[Server] = None):
         async with self.lock:
-            message = None
-            if isinstance(channel_id, Channel):
+            if server and isinstance(channel_id, Channel):
                 channel_id = server.get_channel(channel_id)
             channel = self.get_channel(channel_id)
             if not channel:
                 self.log.error(f"Channel {channel_id} not found, can't add or change an embed in there!")
                 return
-            if embed_name in server.embeds:
-                if isinstance(server.embeds[embed_name], discord.Message):
-                    message = server.embeds[embed_name]
-                else:
-                    try:
-                        message = await channel.fetch_message(server.embeds[embed_name])
-                        server.embeds[embed_name] = message
-                    except discord.errors.NotFound:
-                        message = None
-                    except discord.errors.DiscordException as ex:
-                        self.log.warning(f"Discord error during setEmbed({embed_name}): " + str(ex))
-                        return
-            if message:
+
+            with self.pool.connection() as conn:
+                # check if we have a message persisted already
+                row = conn.execute("""
+                    SELECT embed FROM message_persistence 
+                    WHERE server_name = %s AND embed_name = %s
+                """, (server.name if server else 'Master', embed_name)).fetchone()
+
+            message = None
+            if row:
                 try:
+                    message = await channel.fetch_message(row[0])
                     if not file:
                         await message.edit(embed=embed)
                     else:
                         await message.edit(embed=embed, attachments=[file])
                 except discord.errors.NotFound:
                     message = None
-                except Exception as ex:
-                    self.log.warning(f"Error during update of embed {embed_name} for server {server.name}: " + str(ex))
+                except discord.errors.DiscordException as ex:
+                    self.log.warning(f"Error during update of embed {embed_name}: " + str(ex))
                     return
-            if not message:
+            if not row or not message:
                 message = await channel.send(embed=embed, file=file)
-                server.embeds[embed_name] = message
                 with self.pool.connection() as conn:
                     with conn.transaction():
                         conn.execute("""
@@ -533,4 +522,4 @@ class DCSServerBot(commands.Bot):
                             VALUES (%s, %s, %s) 
                             ON CONFLICT (server_name, embed_name) 
                             DO UPDATE SET embed=excluded.embed
-                        """, (server.name, embed_name, message.id))
+                        """, (server.name if server else 'Master', embed_name, message.id))

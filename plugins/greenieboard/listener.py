@@ -35,25 +35,20 @@ class GreenieBoardEventListener(EventListener):
             self.funkplot = FunkPlot(ImagePath=config['FunkMan']['IMAGEPATH'])
 
     async def update_greenieboard(self, server: Server):
-        # shall we render the server specific board?
+        # update the server specific board
         config = self.plugin.get_config(server)
-        if 'persistent_channel' in config:
-            if 'persistent_board' in config and not config['persistent_board']:
-                return
+        if 'persistent_channel' in config and config.get('persistent_board', True):
             channel_id = int(config['persistent_channel'])
-            num_rows = config['num_rows'] if 'num_rows' in config else 10
+            num_rows = config.get('num_rows', 10)
             report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
-                                      server, f'greenieboard-{server.name}', channel_id=channel_id)
+                                      embed_name='greenieboard', server=server, channel_id=channel_id)
             await report.render(server_name=server.name, num_rows=num_rows)
-        # shall we render the global board?
+        # update the global board
         config = self.locals['configs'][0]
-        if 'persistent_channel' in config and server == list(self.bot.servers.values())[0]:
-            if 'persistent_board' in config and not config['persistent_board']:
-                return
-            channel_id = int(config['persistent_channel'])
-            num_rows = config['num_rows'] if 'num_rows' in config else 10
-            report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
-                                      server, f'greenieboard', channel_id=channel_id)
+        if 'persistent_channel' in config and config.get('persistent_board', True):
+            num_rows = config.get('num_rows', 10)
+            report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json', embed_name='greenieboard',
+                                      channel_id=int(config['persistent_channel']))
             await report.render(server_name=None, num_rows=num_rows)
 
     async def send_chat_message(self, player: Player, data: dict):

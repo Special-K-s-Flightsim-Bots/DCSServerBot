@@ -23,8 +23,8 @@ class Server(DataObject):
     installation: str
     host: str
     port: int
+    external_ip: str
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
-    embeds: dict[str, Union[int, discord.Message]] = field(repr=False, default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
     _options: Union[utils.SettingsDict, utils.RemoteSettingsDict] = field(default=None, compare=False)
@@ -45,11 +45,6 @@ class Server(DataObject):
     def __post_init__(self):
         super().__post_init__()
         self.status_change = asyncio.Event()
-        with self.pool.connection() as conn:
-            # read persisted messages for this server
-            for row in conn.execute('SELECT embed_name, embed FROM message_persistence WHERE server_name = %s',
-                                    (self.name, )).fetchall():
-                self.embeds[row[0]] = row[1]
 
     @property
     def is_remote(self) -> bool:

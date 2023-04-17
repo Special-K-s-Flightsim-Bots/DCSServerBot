@@ -99,7 +99,8 @@ class MissionEventListener(EventListener):
             if update:
                 server = self.bot.servers[server_name]
                 if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
-                    report = PersistentReport(self.bot, self.plugin_name, 'players.json', server, 'players_embed')
+                    report = PersistentReport(self.bot, self.plugin_name, 'players.json', embed_name='players_embed',
+                                              server=server)
                     await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
                 self.player_embeds[server_name] = False
 
@@ -112,7 +113,8 @@ class MissionEventListener(EventListener):
                     return
                 players = server.get_active_players()
                 num_players = len(players) + 1
-                report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', server, 'mission_embed')
+                report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', embed_name='mission_embed',
+                                          server=server)
                 await report.render(server=server, num_players=num_players)
                 self.mission_embeds[server_name] = False
 
@@ -136,8 +138,7 @@ class MissionEventListener(EventListener):
             channel = int(data['channel'])
             if channel == -1:
                 channel = Channel.STATUS
-            await self.bot.setEmbed(server, data['id'], embed, channel_id=channel)
-            return
+            await self.bot.setEmbed(embed_name=data['id'], embed=embed, channel_id=channel, server=server)
         else:
             channel_id = int(data['channel'])
             if channel_id == -1:

@@ -96,7 +96,7 @@ class Tacview(Extension):
             value = 'disabled'
         else:
             show_passwords = self.config.get('show_passwords', True)
-            host = self.config.get('host', self.bot.external_ip)
+            host = self.config.get('host', self.server.external_ip)
             value = ''
             if self.locals.get('tacviewRealTimeTelemetryEnabled', True):
                 value += f"{host}:{self.locals.get('tacviewRealTimeTelemetryPort', 42674)}\n"

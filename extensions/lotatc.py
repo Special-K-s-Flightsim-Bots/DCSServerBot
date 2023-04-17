@@ -64,7 +64,7 @@ class LotAtc(Extension):
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         if self.locals:
-            host = self.config.get('host', self.bot.external_ip)
+            host = self.config.get('host', self.server.external_ip)
             value = f"{host}:{self.locals.get('port', 10310)}"
             show_passwords = self.config.get('show_passwords', True)
             blue = self.locals.get('blue_password', '')

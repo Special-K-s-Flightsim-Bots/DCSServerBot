@@ -29,8 +29,9 @@ class ServerInfo(report.EmbedElement):
 
     def render(self, server: Server, show_password: Optional[bool] = True):
         self.add_field(name='Map', value=server.current_mission.map if server.current_mission else 'n/a')
-        self.add_field(name='Server-IP / Port',
-                       value=self.bot.external_ip + ':' + str(server.settings['port']))
+        if server.external_ip:
+            self.add_field(name='Server-IP / Port',
+                           value=server.external_ip + ':' + str(server.settings['port']))
         if server.settings['password']:
             if show_password:
                 self.add_field(name='Password', value=server.settings['password'])

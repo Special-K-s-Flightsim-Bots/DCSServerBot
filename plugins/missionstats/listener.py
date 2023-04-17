@@ -212,8 +212,8 @@ class MissionStatisticsEventListener(EventListener):
                         not self.bot.config.getboolean(server.installation, 'COALITIONS'):
                     stats = self.bot.mission_stats[server_name]
                     if 'coalitions' in stats:
-                        report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server,
-                                                  'stats_embed')
+                        report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
+                                                  embed_name='stats_embed', server=server)
                         await report.render(stats=stats, mission_id=server.mission_id,
                                             sides=[Coalition.BLUE, Coalition.RED])
             self.update[server_name] = False

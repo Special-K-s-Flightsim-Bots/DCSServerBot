@@ -278,8 +278,8 @@ class PaginationReport(Report):
 
 class PersistentReport(Report):
 
-    def __init__(self, bot: DCSServerBot, plugin: str, filename: str, server: Server, embed_name: str,
-                 channel_id: Optional[Union[Channel, int]] = Channel.STATUS):
+    def __init__(self, bot: DCSServerBot, plugin: str, filename: str, *, embed_name: str,
+                 channel_id: Optional[Union[Channel, int]] = Channel.STATUS, server: Optional[Server] = None):
         super().__init__(bot, plugin, filename)
         self.server = server
         self.embed_name = embed_name
@@ -290,7 +290,8 @@ class PersistentReport(Report):
         try:
             env = await super().render(*args, **kwargs)
             file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None
-            await self.bot.setEmbed(self.server, self.embed_name, env.embed, file, channel_id=self.channel_id)
+            await self.bot.setEmbed(embed_name=self.embed_name, embed=env.embed, channel_id=self.channel_id,
+                                    file=file, server=self.server)
             return env
         except Exception as ex:
             self.log.exception(ex)

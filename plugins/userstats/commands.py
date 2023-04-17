@@ -526,16 +526,16 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     return server
             return None
 
-        async def render_highscore(highscore: dict):
+        async def render_highscore(highscore: dict, server: Optional[Server] = None):
             kwargs = highscore.get('params', {})
             period = kwargs.get('period')
             flt = StatisticsFilter.detect(self.bot, period) if period else None
             file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
-            embed_name = 'highscore-' + (server_name or 'all') + '-' + period
+            embed_name = 'highscore-' + period
             sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
-            report = PersistentReport(self.bot, self.plugin_name, file, server, embed_name,
+            report = PersistentReport(self.bot, self.plugin_name, file, embed_name=embed_name, server=server,
                                       channel_id=highscore.get('channel', Channel.STATUS))
-            await report.render(server_name=server_name, flt=flt, sides=sides, **kwargs)
+            await report.render(server_name=server.name if server else None, flt=flt, sides=sides, **kwargs)
 
         try:
             for config in self.locals['configs']:
@@ -546,15 +546,13 @@ class UserStatisticsMaster(UserStatisticsAgent):
                     if not server:
                         self.log.error(f"Server {config['installation']} is not registered.")
                         return
-                    server_name = server.name
                 else:
-                    server: Server = list(self.bot.servers.values())[0]
-                    server_name = None
+                    server = None
                 if isinstance(config['highscore'], list):
                     for highscore in config['highscore']:
-                        await render_highscore(highscore)
+                        await render_highscore(highscore, server)
                 else:
-                    await render_highscore(config['highscore'])
+                    await render_highscore(config['highscore'], server)
 
         except Exception as ex:
             self.log.exception(ex)

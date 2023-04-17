@@ -22,8 +22,6 @@ from shutil import copytree
 from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Tuple, Callable, Optional, cast
 
-from .bot import BotService
-
 
 @ServiceRegistry.register("ServiceBus")
 class ServiceBus(Service):
@@ -51,7 +49,7 @@ class ServiceBus(Service):
                 conn.execute("DELETE FROM intercom WHERE agent = %s", (self.agent, ))
         self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
         await self.start_udp_listener()
-        self.init_servers()
+        await self.init_servers()
         self.intercom.start()
         await self.register_servers()
         self.log.info('- ServiceBus started.')
@@ -93,7 +91,7 @@ class ServiceBus(Service):
     def install_luas(self):
         self.log.info('- Configure DCS installations ...')
         for server_name, installation in utils.findDCSInstallations():
-            if installation not in self.config:
+            if installation not in self.config or self.config[installation]['DCS_HOME'] == 'REMOTE':
                 continue
             self.log.info(f'  => {installation}')
             dcs_path = os.path.expandvars(self.config[installation]['DCS_HOME'] + '\\Scripts')
@@ -140,17 +138,30 @@ class ServiceBus(Service):
                     self.log.debug(f'    => Plugin {plugin_name.capitalize()} installed.')
             self.log.debug('  - Luas installed into {}.'.format(installation))
 
-    def init_servers(self):
+    async def init_servers(self):
         for server_name, installation in utils.findDCSInstallations():
             if installation not in self.config:
                 continue
             server: ServerImpl = DataObjectFactory().new(
                 Server.__name__, main=self, name=server_name, installation=installation,
-                host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'])
+                host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'],
+                external_ip=self.config['BOT'].get('PUBLIC_IP', await utils.get_external_ip())
+            )
             self.servers[server_name] = server
             # TODO: can be removed if bug in net.load_next_mission() is fixed
             if 'listLoop' not in server.settings or not server.settings['listLoop']:
                 server.settings['listLoop'] = True
+
+    async def send_init(self, server: Server):
+        self.sendtoBot({
+            "command": "init",
+            "server_name": server.name,
+            "external_ip": self.config['BOT'].get('PUBLIC_IP', await utils.get_external_ip()),
+            "status": Status.UNREGISTERED.value,
+            "installation": server.installation,
+            "settings": server.settings,
+            "options": server.options
+        })
 
     async def register_servers(self):
         self.log.info('- Searching for running DCS servers (this might take a bit) ...')
@@ -162,14 +173,8 @@ class ServiceBus(Service):
                 continue
             calls.append(server.sendtoDCSSync({"command": "registerDCSServer"}, timeout))
             if not self.master:
-                self.sendtoBot({
-                    "command": "init",
-                    "server_name": server.name,
-                    "status": Status.UNREGISTERED.value,
-                    "installation": server.installation,
-                    "settings": server.settings,
-                    "options": server.options
-                })
+                server.status = Status.UNREGISTERED
+                await self.send_init(server)
         ret = await asyncio.gather(*calls, return_exceptions=True)
         num = 0
         for i, server in enumerate(local_servers):
@@ -177,14 +182,7 @@ class ServiceBus(Service):
                 server.status = Status.SHUTDOWN
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
                 if not self.master:
-                    self.sendtoBot({
-                        "command": "init",
-                        "server_name": server.name,
-                        "status": server.status.value,
-                        "installation": server.installation,
-                        "settings": server.settings,
-                        "options": server.options
-                    })
+                    await self.send_init(server)
             elif isinstance(ret[i], Exception):
                 self.log.exception(ret[i])
             else:
@@ -209,15 +207,7 @@ class ServiceBus(Service):
             self.log.error('Server \"{}\" has wrong Hook version installed. Please update lua files and restart '
                            'server. Registration ignored.'.format(data['server_name']))
             return False
-        # register the server in the internal datastructures
-        if data['server_name'] in self.servers:
-            server: Server = self.servers[data['server_name']]
-        else:
-            # a new server is to be registered
-            server = self.servers[data['server_name']] = \
-                DataObjectFactory().new(
-                    Server.__name__, main=self, name=data['server_name'], installation=installation,
-                    host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'])
+        server: ServerImpl = cast(ServerImpl, self.servers[data['server_name']])
         # set the PID
         for exe in ['DCS_server.exe', 'DCS.exe']:
             server.process = utils.find_process(exe, server.installation)
@@ -290,11 +280,15 @@ class ServiceBus(Service):
                 name=data['server_name'],
                 installation=data['installation'],
                 host=data['agent'],
-                port=-1
+                port=-1,
+                external_ip=data['external_ip']
             )
             self.servers[data['server_name']] = proxy
             proxy.settings = data.get('settings')
             proxy.options = data.get('options')
+        else:
+            # IP might have changed, so update it
+            proxy.external_ip = data['external_ip']
         proxy.status = Status(data['status'])
         return proxy
 
