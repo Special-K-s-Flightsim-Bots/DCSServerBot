@@ -23,24 +23,30 @@ class CloudHandlerAgent(Plugin):
         if not len(self.locals):
             raise commands.ExtensionFailed(self.plugin_name, FileNotFoundError("No cloud.json available."))
         self.config = self.locals['configs'][0]
-        headers = {
-            "Content-type": "application/json"
-        }
-        if 'token' in self.config:
-            headers['Authorization'] = f"Bearer {self.config['token']}"
-        self.client = {
-            "guild_id": self.bot.guilds[0].id,
-            "guild_name": self.bot.guilds[0].name,
-            "owner_id": self.bot.owner_id
-        }
-
-        self.session = aiohttp.ClientSession(raise_for_status=True, headers=headers)
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
+        self._session = None
+        self.client = None
         if 'dcs-ban' not in self.config or self.config['dcs-ban']:
             self.cloud_bans.add_exception_type(aiohttp.ClientError)
             self.cloud_bans.start()
 
-    async def cog_unload(self):
+    @property
+    def session(self):
+        if not self._session:
+            headers = {
+                "Content-type": "application/json"
+            }
+            if 'token' in self.config:
+                headers['Authorization'] = f"Bearer {self.config['token']}"
+            self.client = {
+                "guild_id": self.bot.guilds[0].id,
+                "guild_name": self.bot.guilds[0].name,
+                "owner_id": self.bot.owner_id
+            }
+            self._session = aiohttp.ClientSession(raise_for_status=True, headers=headers)
+        return self._session
+
+    async def cog_unload(self) -> None:
         if 'dcs-ban' not in self.config or self.config['dcs-ban']:
             self.cloud_bans.cancel()
         asyncio.create_task(self.session.close())

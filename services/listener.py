@@ -51,6 +51,8 @@ class ServiceBus(Service):
         await self.start_udp_listener()
         await self.init_servers()
         self.intercom.start()
+        if self.master:
+            await ServiceRegistry.get("Bot").bot.wait_until_ready()
         await self.register_servers()
         self.log.info('- ServiceBus started.')
 

@@ -233,13 +233,14 @@ class Main:
     async def run(self):
         async with ServiceRegistry(main=self) as registry:
             asyncio.create_task(registry.new("Monitoring").start())
-            asyncio.create_task(registry.new("ServiceBus").start())
+            bus = registry.new("ServiceBus")
             if self.master:
                 await self.install_fonts()
                 # config = registry.new("Configuration")
                 # asyncio.create_task(config.start())
                 bot = cast(BotService, registry.new("Bot"))
                 asyncio.create_task(bot.start(token=self.config['BOT']['TOKEN']))
+            asyncio.create_task(bus.start())
             if self.config['BOT'].getboolean('USE_DASHBOARD'):
                 dashboard = cast(Dashboard, registry.new("Dashboard"))
                 asyncio.create_task(dashboard.start())

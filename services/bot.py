@@ -40,6 +40,7 @@ class BotService(Service):
                             assume_unsync_clock=True)
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
+        self.log.info('- Discord Bot starting ...')
         self.bot = self.init_bot()
         await super().start()
         # cleanup the intercom channels
@@ -94,6 +95,12 @@ class DCSServerBot(commands.Bot):
         self.log.info('- Unloading Plugins ...')
         await super().close()
         self.log.info('- Discord Bot stopped.')
+
+    async def setup_hook(self) -> None:
+        self.log.info('- Loading Plugins ...')
+        for plugin in self.plugins:
+            if not await self.load_plugin(plugin.lower()):
+                self.log.info(f'  => {plugin.title()} NOT loaded.')
 
     async def load_plugin(self, plugin: str) -> bool:
         try:
@@ -197,10 +204,6 @@ class DCSServerBot(commands.Bot):
                     if self.config.getboolean(server.installation, 'COALITIONS'):
                         self.check_roles(['Coalition Red', 'Coalition Blue'], server)
                     self.check_channels(server.installation)
-                self.log.info('- Loading Plugins ...')
-                for plugin in self.plugins:
-                    if not await self.load_plugin(plugin.lower()):
-                        self.log.info(f'  => {plugin.title()} NOT loaded.')
                 self.log.info('- Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
                 await self.tree.sync(guild=self.guilds[0])

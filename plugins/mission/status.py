@@ -1,5 +1,5 @@
 from contextlib import suppress
-from core import const, report, Status, Server
+from core import const, report, Status, Server, utils
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -128,3 +128,23 @@ class Footer(report.EmbedElement):
                 break
         text += f'\n\nLast updated: {datetime.now():%y-%m-%d %H:%M:%S}'
         self.embed.set_footer(text=text)
+
+
+class All(report.EmbedElement):
+    def render(self):
+        for server in self.bot.servers.values():
+            if server.status not in [Status.PAUSED, Status.RUNNING]:
+                continue
+            name = f"{server.name} [{len(server.players) + 1}/{server.settings['maxPlayers']}]"
+            value = f"IP/Port:  {server.external_ip}:{server.settings['port']}\n"
+            if server.current_mission:
+                value += f"Mission:  {server.current_mission.name}\n"
+                value += "Uptime:   {}\n".format(utils.format_time(int(server.current_mission.mission_time)))
+            if server.settings['password']:
+                name = '🔐 ' + name
+                value += f"Password: {server.settings['password']}"
+            else:
+                name = '🔓 ' + name
+            self.embed.add_field(name=name, value=f"```{value}```", inline=False)
+        else:
+            self.embed.add_field(name="_ _", value="There are currently no servers running.")

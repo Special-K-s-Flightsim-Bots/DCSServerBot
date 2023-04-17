@@ -1,0 +1,10 @@
+{
+  "color": "blue",
+  "title": "Server Status",
+  "elements":
+  [
+    {
+      "class": "plugins.mission.status.All"
+    }
+  ]
+}

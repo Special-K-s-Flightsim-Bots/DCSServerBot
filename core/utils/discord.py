@@ -517,17 +517,33 @@ def escape_string(msg: str) -> str:
     return re.sub(r"([\*\_~])", r"\\\1", msg)
 
 
-async def servers_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def server_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     choices: list[app_commands.Choice[str]] = [
-        app_commands.Choice(name=x, value=x) for x in interaction.client.servers.keys() if current.casefold() in x.casefold()
+        app_commands.Choice(name=x, value=x)
+        for x in interaction.client.servers.keys()
+        if current.casefold() in x.casefold()
     ]
     return choices[:25]
 
 
-async def players_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def player_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     server: Server = interaction.client.get_server(interaction)
     choices: list[app_commands.Choice[str]] = [
-        app_commands.Choice(name=x.name, value=x.ucid) for x in server.get_active_players() if current.casefold() in x.name.casefold()
+        app_commands.Choice(name=x.name, value=x.ucid)
+        for x in server.get_active_players()
+        if current.casefold() in x.name.casefold()
+    ]
+    return choices[:25]
+
+
+async def airbase_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    server: Server = interaction.client.servers[interaction.data['options'][0]['value']]
+    if not server:
+        return []
+    choices: list[app_commands.Choice[int]] = [
+        app_commands.Choice(name=x['name'], value=idx)
+        for idx, x in enumerate(server.current_mission.airbases)
+        if current.casefold() in x['name'].casefold() or current.casefold() in x['code'].casefold()
     ]
     return choices[:25]
 

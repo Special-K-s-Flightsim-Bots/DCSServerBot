@@ -8,7 +8,6 @@ from core import utils
 from core.services.registry import ServiceRegistry
 from discord.ext import commands
 from os import path
-from shutil import copytree
 from typing import Type, Optional, TYPE_CHECKING
 
 from .listener import TEventListener
@@ -89,13 +88,6 @@ class Plugin(commands.Cog):
 
     async def install(self):
         self.init_db()
-        for server in self.bot.servers.values():
-            source_path = f'./plugins/{self.plugin_name}/lua'
-            if path.exists(source_path):
-                target_path = path.expandvars(self.bot.config[server.installation]['DCS_HOME'] +
-                                              f'\\Scripts\\net\\DCSServerBot\\{self.plugin_name}\\')
-                copytree(source_path, target_path, dirs_exist_ok=True)
-                self.log.debug(f'  => Luas installed into {server.installation}')
         # create report directories for convenience
         source_path = f'./plugins/{self.plugin_name}/reports'
         if path.exists(source_path):

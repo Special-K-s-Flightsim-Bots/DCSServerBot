@@ -557,6 +557,10 @@ class UserStatisticsMaster(UserStatisticsAgent):
         except Exception as ex:
             self.log.exception(ex)
 
+    @persistent_highscore.before_loop
+    async def before_persistent_highscore(self):
+        await self.bot.wait_until_ready()
+
 
 async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:

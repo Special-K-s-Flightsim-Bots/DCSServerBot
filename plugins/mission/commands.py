@@ -4,10 +4,9 @@ import discord
 import os
 import platform
 import re
-from contextlib import closing
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError
 from datetime import datetime
-from discord import SelectOption, Interaction
+from discord import SelectOption, Interaction, app_commands
 from discord.ext import commands, tasks
 from discord.ui import Select, View, Button
 from services import DCSServerBot
@@ -42,20 +41,13 @@ class Mission(Plugin):
             conn.execute(f"DELETE FROM missions WHERE mission_end < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Mission pruned.')
 
-    @commands.command(description='Lists the registered DCS servers')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def servers(self, ctx):
-        if len(self.bot.servers) > 0:
-            for server_name, server in self.bot.servers.items():
-                if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-                    players = server.get_active_players()
-                    num_players = len(players) + 1
-                    report = Report(self.bot, 'mission', 'serverStatus.json')
-                    env = await report.render(server=server, num_players=num_players)
-                    await ctx.send(embed=env.embed)
-        else:
-            await ctx.send('No server running on host {}'.format(platform.node()))
+    @app_commands.command(description='Lists the registered DCS servers')
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    async def servers(self, interaction: discord.Interaction):
+        report = Report(self.bot, self.plugin_name, 'allServers.json')
+        env = await report.render()
+        await interaction.response.send_message(embed=env.embed)
 
     @commands.command(description='Shows the active DCS mission')
     @utils.has_role('DCS Admin')
@@ -91,66 +83,65 @@ class Mission(Plugin):
         embed.set_footer(text='Press a number to select a server.')
         return embed
 
-    @commands.command(description='Shows briefing of the active mission', aliases=['brief'])
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def briefing(self, ctx):
-        def read_passwords(server_name: str) -> dict:
+    @app_commands.command(description='Shows briefing of the active mission')
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    @app_commands.rename(server_name='server')
+    @app_commands.describe(server_name='Select a server from the list')
+    @app_commands.autocomplete(server_name=utils.server_autocomplete)
+    async def briefing(self, interaction: discord.Interaction, server_name: str):
+        def read_passwords(server: Server) -> dict:
             with self.pool.connection() as conn:
-                with closing(conn.cursor()) as cursor:
-                    row = cursor.execute('SELECT blue_password, red_password FROM servers WHERE server_name = %s',
-                                         (server_name,)).fetchone()
-                    return {"Blue": row[0], "Red": row[1]}
+                row = conn.execute(
+                    'SELECT blue_password, red_password FROM servers WHERE server_name = %s',
+                    (server.name,)).fetchone()
+                return {"Blue": row[0], "Red": row[1]}
 
-        server: Server = await self.bot.get_server(ctx)
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        server = self.bot.servers[server_name]
         if not server:
-            servers: list[Server] = list()
-            for server_name, server in self.bot.servers.items():
-                if server.status in [Status.RUNNING, Status.PAUSED]:
-                    servers.append(server)
-            if len(servers) == 0:
-                await ctx.send('No running mission found.', delete_after=timeout if timeout > 0 else None)
-                return
-            else:
-                server_name = await utils.selection(ctx, placeholder='Select the server you want to get a briefing for',
-                                                    options=[SelectOption(label=x.name) for x in servers])
-                if not server_name:
-                    return
-                server = self.bot.servers[server_name]
-        elif server.status not in [Status.RUNNING, Status.PAUSED]:
-            await ctx.send('No running mission found.', delete_after=timeout if timeout > 0 else None)
+            return
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message('No running mission found.',
+                                                    delete_after=timeout if timeout > 0 else None)
             return
         mission_info = await server.sendtoDCSSync({
-            "command": "getMissionDetails",
-            "channel": ctx.message.id
+            "command": "getMissionDetails"
         })
-        mission_info['passwords'] = read_passwords(server.name)
+        mission_info['passwords'] = read_passwords(server)
         report = Report(self.bot, self.plugin_name, 'briefing.json')
-        env = await report.render(mission_info=mission_info, server_name=server.name, message=ctx.message)
-        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        env = await report.render(mission_info=mission_info, server_name=server.name, interaction=interaction)
+        await interaction.response.send_message(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
-    @commands.command(description='Information about a specific airport', aliases=['weather'])
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def atis(self, ctx, *args):
-        name = ' '.join(args)
-        for server_name, server in self.bot.servers.items():
-            if server.status not in [Status.RUNNING, Status.PAUSED]:
-                continue
-            for airbase in server.current_mission.airbases:
-                if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
-                    data = await server.sendtoDCSSync({
-                        "command": "getWeatherInfo",
-                        "x": airbase['position']['x'],
-                        "y": airbase['position']['y'],
-                        "z": airbase['position']['z']
-                    })
-                    report = Report(self.bot, self.plugin_name, 'atis.json')
-                    env = await report.render(airbase=airbase, server_name=server.display_name, data=data)
-                    timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-                    await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
-                    break
+    @app_commands.command(description='Information about a specific airport')
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    @app_commands.rename(server_name='server')
+    @app_commands.describe(server_name='Select a server from the list')
+    @app_commands.autocomplete(server_name=utils.server_autocomplete)
+    @app_commands.rename(idx='airport')
+    @app_commands.describe(idx='Airport for ATIS information')
+    @app_commands.autocomplete(idx=utils.airbase_autocomplete)
+    async def atis(self, interaction: discord.Interaction, server_name: str, idx: int):
+        server: Server = self.bot.servers[server_name]
+        if not server:
+            return
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message('No running mission found.',
+                                                    delete_after=timeout if timeout > 0 else None)
+            return
+        airbase = server.current_mission.airbases[idx]
+        data = await server.sendtoDCSSync({
+            "command": "getWeatherInfo",
+            "x": airbase['position']['x'],
+            "y": airbase['position']['y'],
+            "z": airbase['position']['z']
+        })
+        report = Report(self.bot, self.plugin_name, 'atis.json')
+        env = await report.render(airbase=airbase, server_name=server.display_name, data=data)
+        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        await interaction.response.send_message(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     @commands.command(description='List the current players on this server')
     @utils.has_role('DCS')

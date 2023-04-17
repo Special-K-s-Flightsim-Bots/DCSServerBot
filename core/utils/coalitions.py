@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from core import Server
 
 
-def get_sides(message: discord.Message, server: Server) -> list[str]:
+def get_sides(interaction: discord.Interaction, server: Server) -> list[str]:
     sides = []
     if config.getboolean(server.installation, 'COALITIONS'):
         # TODO: cache that
@@ -23,7 +23,7 @@ def get_sides(message: discord.Message, server: Server) -> list[str]:
         da_roles = [x.strip() for x in config['ROLES']['DCS Admin'].split(',')]
         gm_roles = [x.strip() for x in config['ROLES']['GameMaster'].split(',')]
         # find all roles that are allowed to see red and blue
-        for role in message.channel.guild.roles:
+        for role in interaction.channel.guild.roles:
             if role.name == config[server.installation]['Coalition Blue']:
                 roles['Blue'] = role
                 roles['All Blue'].add(role.name)
@@ -41,22 +41,22 @@ def get_sides(message: discord.Message, server: Server) -> list[str]:
                 roles['All Blue'].add(role.name)
                 roles['All Red'].add(role.name)
         # check, which coalition specific data can be displayed in the questioned channel by that user
-        for role in message.author.roles:
+        for role in interaction.user.roles:
             if (role.name in gm_roles or role.name in da_roles) and \
-                    not message.channel.overwrites_for(roles['everyone']).read_messages and \
-                    not message.channel.overwrites_for(roles['DCS']).read_messages and \
-                    not message.channel.overwrites_for(roles['Blue']).read_messages and \
-                    not message.channel.overwrites_for(roles['Red']).read_messages:
+                    not interaction.channel.overwrites_for(roles['everyone']).read_messages and \
+                    not interaction.channel.overwrites_for(roles['DCS']).read_messages and \
+                    not interaction.channel.overwrites_for(roles['Blue']).read_messages and \
+                    not interaction.channel.overwrites_for(roles['Red']).read_messages:
                 sides = [Coalition.BLUE, Coalition.RED]
                 break
             elif role.name in roles['All Blue'] \
-                    and message.channel.overwrites_for(roles['Blue']).send_messages and \
-                    not message.channel.overwrites_for(roles['Red']).read_messages:
+                    and interaction.channel.overwrites_for(roles['Blue']).send_messages and \
+                    not interaction.channel.overwrites_for(roles['Red']).read_messages:
                 sides = [Coalition.BLUE]
                 break
             elif role.name in roles['All Red'] \
-                    and message.channel.overwrites_for(roles['Red']).send_messages and \
-                    not message.channel.overwrites_for(roles['Blue']).read_messages:
+                    and interaction.channel.overwrites_for(roles['Red']).send_messages and \
+                    not interaction.channel.overwrites_for(roles['Blue']).read_messages:
                 sides = [Coalition.RED]
                 break
     else:
