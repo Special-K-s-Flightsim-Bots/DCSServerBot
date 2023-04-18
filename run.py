@@ -108,42 +108,41 @@ class Main:
         db_pool = ThreadedConnectionPool(int(pool_min), int(pool_max), self.config['BOT']['DATABASE_URL'], sslmode='allow')
         conn = db_pool.getconn()
         try:
-            with suppress(Exception):
-                with closing(conn.cursor()) as cursor:
-                    if self.config.getboolean('BOT', 'MASTER') is True:
-                        # check if there is an old database already
-                        cursor.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('version', 'plugins')")
-                        tables = [x[0] for x in cursor.fetchall()]
-                        # initial setup
-                        if len(tables) == 0:
-                            self.log.info('Initializing Database ...')
-                            with open(TABLES_SQL) as tables_sql:
+            with closing(conn.cursor()) as cursor:
+                if self.config.getboolean('BOT', 'MASTER') is True:
+                    # check if there is an old database already
+                    cursor.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE tablename IN ('version', 'plugins')")
+                    tables = [x[0] for x in cursor.fetchall()]
+                    # initial setup
+                    if len(tables) == 0:
+                        self.log.info('Initializing Database ...')
+                        with open(TABLES_SQL) as tables_sql:
+                            for query in tables_sql.readlines():
+                                self.log.debug(query.rstrip())
+                                cursor.execute(query.rstrip())
+                        self.log.info('Database initialized.')
+                    else:
+                        # version table missing
+                        if 'version' not in tables:
+                            cursor.execute("CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);"
+                                           "INSERT INTO version (version) VALUES ('v1.4');")
+                        cursor.execute('SELECT version FROM version')
+                        self.db_version = cursor.fetchone()[0]
+                        while os.path.exists(UPDATES_SQL.format(self.db_version)):
+                            self.log.info('Updating Database {} ...'.format(self.db_version))
+                            with open(UPDATES_SQL.format(self.db_version)) as tables_sql:
                                 for query in tables_sql.readlines():
                                     self.log.debug(query.rstrip())
                                     cursor.execute(query.rstrip())
-                            self.log.info('Database initialized.')
-                        else:
-                            # version table missing
-                            if 'version' not in tables:
-                                cursor.execute("CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);"
-                                               "INSERT INTO version (version) VALUES ('v1.4');")
                             cursor.execute('SELECT version FROM version')
                             self.db_version = cursor.fetchone()[0]
-                            while os.path.exists(UPDATES_SQL.format(self.db_version)):
-                                self.log.info('Updating Database {} ...'.format(self.db_version))
-                                with open(UPDATES_SQL.format(self.db_version)) as tables_sql:
-                                    for query in tables_sql.readlines():
-                                        self.log.debug(query.rstrip())
-                                        cursor.execute(query.rstrip())
-                                cursor.execute('SELECT version FROM version')
-                                self.db_version = cursor.fetchone()[0]
-                                self.log.info(f"Database updated to {self.db_version}.")
-                    else:
-                        cursor.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE tablename = 'servers'")
-                        if cursor.rowcount == 0:
-                            self.log.error('No MASTER database found. Please check configuration!')
-                            exit(-1)
-                conn.commit()
+                            self.log.info(f"Database updated to {self.db_version}.")
+                else:
+                    cursor.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE tablename = 'servers'")
+                    if cursor.rowcount == 0:
+                        self.log.error('No MASTER database found. Please check configuration!')
+                        exit(-1)
+            conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             conn.rollback()
             self.log.exception(error)
