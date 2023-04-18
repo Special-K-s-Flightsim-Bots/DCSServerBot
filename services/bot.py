@@ -3,7 +3,7 @@ import asyncio
 import discord
 import re
 from contextlib import closing
-from core import ServiceRegistry, Service, utils, Server, Status, Channel, Player, EventListener
+from core import ServiceRegistry, Service, Server, Status, Channel, Player, EventListener
 from datetime import datetime
 from discord.ext import commands
 from functools import lru_cache

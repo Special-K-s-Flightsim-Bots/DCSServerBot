@@ -4,6 +4,8 @@ import asyncio
 import logging
 import os
 import platform
+import subprocess
+import sys
 import zipfile
 from contextlib import closing
 from core import utils, ServiceRegistry
@@ -13,7 +15,7 @@ from matplotlib import font_manager
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
-from services import Dashboard, BotService, ServiceBus
+from services import Dashboard, BotService
 from typing import cast
 from version import __version__
 
@@ -37,6 +39,9 @@ class Main:
         self.config = self.read_config()
         self.guild_id = int(self.config['BOT']['GUILD_ID'])
         self.log = self.init_logger()
+        if self.config.getboolean('BOT', 'AUTOUPDATE') and self.upgrade():
+            self.log.warning('- Restart needed => exiting.')
+            exit(-1)
         self.log.info(f'DCSServerBot v{BOT_VERSION}.{SUB_VERSION} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.db_version = None
@@ -173,6 +178,46 @@ class Main:
                 for font in font_manager.findSystemFonts('fonts'):
                     font_manager.fontManager.addfont(font)
                 self.log.debug('- CJK fonts loaded.')
+
+    def upgrade(self) -> bool:
+        try:
+            import git
+
+            try:
+                with closing(git.Repo('.')) as repo:
+                    self.log.debug('- Checking for updates...')
+                    current_hash = repo.head.commit.hexsha
+                    origin = repo.remotes.origin
+                    origin.fetch()
+                    new_hash = origin.refs[repo.active_branch.name].object.hexsha
+                    if new_hash != current_hash:
+                        modules = False
+                        self.log.info('- Updating myself...')
+                        diff = repo.head.commit.diff(new_hash)
+                        for d in diff:
+                            if d.b_path == 'requirements.txt':
+                                modules = True
+                        try:
+                            repo.remote().pull(repo.active_branch)
+                            self.log.info('  => DCSServerBot updated to latest version.')
+                            if modules is True:
+                                self.log.warning('  => requirements.txt has changed. Installing missing modules...')
+                                subprocess.check_call([sys.executable, '-m', 'pip', '-q', 'install', '-r',
+                                                       'requirements.txt'])
+                            return True
+                        except git.exc.GitCommandError:
+                            self.log.error('  => Autoupdate failed!')
+                            self.log.error('     Please revert back the changes in these files:')
+                            for item in repo.index.diff(None):
+                                self.log.error(f'     ./{item.a_path}')
+                            return False
+                    else:
+                        self.log.debug('- No update found for DCSServerBot.')
+            except git.exc.InvalidGitRepositoryError:
+                self.log.error('No git repository found. Aborting. Please use "git clone" to install DCSServerBot.')
+        except ImportError:
+            self.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
+        return False
 
     def register(self):
         with self.pool.connection() as conn:

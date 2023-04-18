@@ -18,7 +18,7 @@ from rich.panel import Panel
 from rich.table import Table
 from typing import cast, Union
 
-from .listener import ServiceBus
+from .servicebus import ServiceBus
 from .bot import DCSServerBot, BotService
 
 
