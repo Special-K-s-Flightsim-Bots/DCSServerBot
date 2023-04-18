@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 import psutil
 import socket
 from contextlib import closing, suppress
@@ -11,9 +12,13 @@ def is_open(ip, port):
 
 
 async def get_external_ip():
-    async with aiohttp.ClientSession() as session:
-        async with session.get('https://api4.ipify.org/') as resp:
-            return await resp.text()
+    for i in range(0, 3):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get('https://api4.ipify.org/') as resp:
+                    return await resp.text()
+        except aiohttp.ClientError:
+            await asyncio.sleep(1)
 
 
 def find_process(proc, installation):
