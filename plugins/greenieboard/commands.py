@@ -79,14 +79,6 @@ class GreenieBoardAgent(Plugin):
             conn.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Greenieboard pruned.')
 
-    def rename(self, old_name: str, new_name: str):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE message_persistence SET embed_name = %s '
-                                   'WHERE embed_name = %s AND server_name IN (%s, %s)',
-                                   (f'greenieboard-{new_name}', f'greenieboard-{old_name}', old_name, new_name))
-
     @tasks.loop(hours=24.0)
     async def auto_delete(self):
         def do_delete(path: str, days: int):

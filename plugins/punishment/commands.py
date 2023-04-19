@@ -1,5 +1,6 @@
 import asyncio
 import discord
+import psycopg
 from contextlib import closing, suppress
 from copy import deepcopy
 from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, \
@@ -163,11 +164,9 @@ class PunishmentMaster(PunishmentAgent):
         self.decay.cancel()
         await super().cog_unload()
 
-    def rename(self, old_name: str, new_name: str):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-                conn.execute('UPDATE pu_events_sdw SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
+        conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+        conn.execute('UPDATE pu_events_sdw SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Punishment ...')

@@ -27,11 +27,8 @@ class GameMasterAgent(Plugin):
                                                                                 'ALLOW_PLAYERS_POOL')
                     server.settings['advanced'] = advanced
 
-    def rename(self, old_name: str, new_name: str):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s',
-                             (new_name, old_name))
+    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
+        conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     @commands.Cog.listener()
     async def on_message(self, message):

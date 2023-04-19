@@ -5,7 +5,7 @@ import platform
 import socket
 import subprocess
 import win32con
-from contextlib import closing, suppress
+from contextlib import suppress
 from core import utils, Server
 from dataclasses import dataclass
 from psutil import Process
@@ -136,17 +136,16 @@ class ServerImpl(Server):
         dcs_socket.close()
 
     def rename(self, new_name: str, update_settings: bool = False) -> None:
-        # call rename() in all Plugins
-        for plugin in self.main.cogs.values():  # type: Plugin
-            plugin.rename(self.name, new_name)
         # rename the entries in the main database tables
         with self.pool.connection() as conn:
             with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                                   (new_name, self.name))
-                    cursor.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                                   (new_name, self.name))
+                # call rename() in all Plugins
+                for plugin in self.main.cogs.values():  # type: Plugin
+                    plugin.rename(conn, self.name, new_name)
+                conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
+                             (new_name, self.name))
+                conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
+                             (new_name, self.name))
         if update_settings:
             self.settings['name'] = new_name
         self.name = new_name

@@ -27,11 +27,8 @@ class AgentServerStats(Plugin):
         self.schedule.cancel()
         await super().cog_unload()
 
-    def rename(self, old_name: str, new_name: str):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s',
-                             (new_name, old_name))
+    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
+        conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     @staticmethod
     def get_params(*params) -> Tuple[bool, Optional[str]]:

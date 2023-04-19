@@ -1,3 +1,5 @@
+import psycopg
+
 from core import DCSServerBot, Plugin, utils, Server, EventListener, TEventListener
 from typing import Type
 from discord.ext import commands
@@ -29,7 +31,7 @@ class Sample(Plugin):
         # Do whatever is needed to initialize your plugin.
         # You usually don't need to implement this function.
 
-    def rename(self, old_name: str, new_name: str):
+    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         # If a server rename takes place, you might want to update data in your created tables
         # if they contain a server_name value. You usually don't need to implement this function.
         pass
@@ -37,7 +39,7 @@ class Sample(Plugin):
     @commands.command(description='This is a sample command.')
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def sample(self, ctx, text):
+    async def sample(self, ctx: commands.Context, text: str):
         # the server to run the command on will be determined from the channel where you called the command in
         server: Server = await self.bot.get_server(ctx)
         # Calls can be done async (default) or synchronous, which means we will wait for a response from DCS

@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import os
+import psycopg
 import sys
 from contextlib import closing
 from copy import deepcopy
@@ -104,7 +105,7 @@ class Plugin(commands.Cog):
     async def after_dcs_update(self) -> None:
         pass
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None) -> None:
+    async def prune(self, conn: psycopg.Connection, *, days: int = 0, ucids: list[str] = None) -> None:
         pass
 
     def init_db(self) -> None:
@@ -174,7 +175,7 @@ class Plugin(commands.Cog):
                 return None
         return self._config[server.name] if server.name in self._config else None
 
-    def rename(self, old_name: str, new_name: str) -> None:
+    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str) -> None:
         # this function has to be implemented in your own plugins, if a server rename takes place
         pass
 
