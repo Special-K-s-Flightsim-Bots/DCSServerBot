@@ -39,9 +39,7 @@ class GreenieBoardEventListener(EventListener):
     async def update_greenieboard(self, server: Server):
         # shall we render the server specific board?
         config = self.plugin.get_config(server)
-        if 'persistent_channel' in config:
-            if 'persistent_board' in config and not config['persistent_board']:
-                return
+        if 'persistent_channel' in config and config.get('persistent_board', True):
             channel_id = int(config['persistent_channel'])
             num_rows = config['num_rows'] if 'num_rows' in config else 10
             report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
@@ -49,9 +47,7 @@ class GreenieBoardEventListener(EventListener):
             await report.render(server_name=server.name, num_rows=num_rows)
         # shall we render the global board?
         config = self.locals['configs'][0]
-        if 'persistent_channel' in config and server == list(self.bot.servers.values())[0]:
-            if 'persistent_board' in config and not config['persistent_board']:
-                return
+        if 'persistent_channel' in config and config.get('persistent_board', True):
             channel_id = int(config['persistent_channel'])
             num_rows = config['num_rows'] if 'num_rows' in config else 10
             report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
