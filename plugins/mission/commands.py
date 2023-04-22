@@ -339,9 +339,12 @@ class Mission(Plugin):
                             await tmp.delete()
                             await ctx.send(f'Mission {name} loaded.')
                         break
+                await msg.delete()
+        except asyncio.TimeoutError:
+            await ctx.send(f"Timeout while trying to start mission, check the dcs.log")
+            return
         finally:
             await ctx.message.delete()
-            await msg.delete()
 
     @commands.command(description='Adds a mission to the list', usage='[path]')
     @utils.has_role('DCS Admin')
