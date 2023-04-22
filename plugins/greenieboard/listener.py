@@ -48,6 +48,7 @@ class GreenieBoardEventListener(EventListener):
         # shall we render the global board?
         config = self.locals['configs'][0]
         if 'persistent_channel' in config and config.get('persistent_board', True):
+            server = list(self.bot.servers.values())[0]
             channel_id = int(config['persistent_channel'])
             num_rows = config['num_rows'] if 'num_rows' in config else 10
             report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
