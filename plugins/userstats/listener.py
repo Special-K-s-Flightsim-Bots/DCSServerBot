@@ -162,8 +162,7 @@ class UserStatisticsEventListener(EventListener):
         finally:
             self.pool.putconn(conn)
 
-    @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, data: dict) -> None:
+    def close_mission_stats(self, server: Server):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -175,6 +174,10 @@ class UserStatisticsEventListener(EventListener):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+
+    @event(name="onSimulationStop")
+    async def onSimulationStop(self, server: Server, data: dict) -> None:
+        self.close_mission_stats(server)
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
@@ -197,7 +200,7 @@ class UserStatisticsEventListener(EventListener):
     @event(name="disableUserStats")
     async def disableUserStats(self, server: Server, data: dict) -> None:
         self.statistics.discard(server.name)
-        await self.onSimulationStop(server, data)
+        self.close_mission_stats(server)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
