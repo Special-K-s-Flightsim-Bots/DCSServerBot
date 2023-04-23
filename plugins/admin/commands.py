@@ -808,9 +808,10 @@ class Master(Agent):
                     cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', \'Player left guild.\' FROM '
                                    'players WHERE discord_id = %s ON CONFLICT DO NOTHING', (member.id, ))
                     self.update_bans()
-                self.bot.log.debug(f'- Delete stats of member {member.display_name}')
-                cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
-                               'discord_id = %s)', (member.id, ))
+                if self.bot.config.getboolean('BOT', 'WIPE_STATS_ON_LEAVE'):
+                    self.bot.log.debug(f'- Delete stats of member {member.display_name}')
+                    cursor.execute('DELETE FROM statistics WHERE player_ucid IN (SELECT ucid FROM players WHERE '
+                                   'discord_id = %s)', (member.id, ))
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
