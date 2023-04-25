@@ -173,7 +173,8 @@ class Tacview(Extension):
         if 'channel' not in self.config:
             return
         server: Server = self.bot.servers[data['server_name']]
-        log = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Logs/dcs.log'
+        log = self.locals.get('log',
+                              os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Logs/dcs.log')
         exp = re.compile(r'TACVIEW.DLL (.*): Successfully saved \[(?P<filename>.*)\]')
         filename = None
         lines = deque(open(log, encoding='utf-8'), 50)

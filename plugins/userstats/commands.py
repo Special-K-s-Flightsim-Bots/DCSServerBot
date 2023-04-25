@@ -218,7 +218,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
             file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
             if not server:
                 report = PaginationReport(self.bot, ctx, self.plugin_name, file, timeout if timeout > 0 else None)
-                await report.render(period=period, sides=None, flt=flt, server_name=None)
+                await report.render(period=period, sides=[Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value],
+                                    flt=flt, server_name=None)
             else:
                 tmp = utils.get_sides(ctx.message, server)
                 sides = [0]
