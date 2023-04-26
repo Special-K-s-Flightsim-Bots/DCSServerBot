@@ -47,6 +47,7 @@ To enable Tacview support, again, a change in scheduler.json is needed:
 ```
 
 __Optional__ parameters (will change options.lua if necessary):</br>
+* **log** Defines a different log for tacview log messages, otherwise dcs.log is used (default)
 * **tacviewExportPath** Sets this as the Tacview export path.
 * **tacviewRealTimeTelemetryPort** Sets this as the Tacview realtime port.
 * **tacviewRealTimeTelemetryPassword** Sets this as the Tacview realtime password.

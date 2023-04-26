@@ -175,7 +175,7 @@ class Tacview(Extension):
         server: Server = self.bot.servers[data['server_name']]
         log = self.locals.get('log',
                               os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Logs/dcs.log')
-        exp = re.compile(r'TACVIEW.DLL (.*): Successfully saved \[(?P<filename>.*)\]')
+        exp = re.compile(r'Successfully saved \[(?P<filename>.*)\]')
         filename = None
         lines = deque(open(log, encoding='utf-8'), 50)
         for line in lines:
