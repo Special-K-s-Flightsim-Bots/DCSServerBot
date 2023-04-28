@@ -2,11 +2,12 @@ import asyncio
 import logging
 import logging.handlers
 import math
+import os
 import platform
 import psycopg2
 import re
 from contextlib import closing
-from core import DCSServerBot, Plugin
+from core import DCSServerBot, Plugin, utils
 from datetime import datetime
 from discord.ext import tasks
 from logging.handlers import QueueHandler, RotatingFileHandler
@@ -60,11 +61,13 @@ class Bot:
         self.bot = bot
         self.pool = bot.pool
         self.log = bot.log
+        _, self.version = utils.getInstalledVersion(os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']))
 
     def __rich__(self) -> Panel:
 
         msg = f"Node:\t\t{platform.node()}\n"
         msg += "Type:\t\t[bold red]Master[/]\n" if self.bot.master else "Type:\t\tAgent\n"
+        msg += f"DCS-Version:\t{self.version}\n"
         if math.isinf(self.bot.latency):
             msg += "Heartbeat:\t[bold red]Disconnected![/]"
         else:
