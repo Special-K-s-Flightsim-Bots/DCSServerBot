@@ -20,7 +20,7 @@ from typing import Optional, Union, TYPE_CHECKING
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from .dataobject import DataObject, DataObjectFactory
-from .const import Status, Coalition, Channel
+from .const import Status, Coalition, Channel, Side
 
 if TYPE_CHECKING:
     from core import Plugin, Player, Mission, Extension
@@ -197,7 +197,7 @@ class Server(DataObject):
         if self.status != Status.RUNNING:
             return False
         for player in self.players.values():
-            if player.active:
+            if player.active and player.side != Side.SPECTATOR:
                 return True
         return False
 
