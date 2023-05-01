@@ -77,13 +77,13 @@ class GreenieBoardEventListener(EventListener):
     def process_lso_event(self, config: dict, server: Server, player: Player, data: dict):
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
         night = time > 20 * 3600 or time < 6 * 3600
-        points = data['points'] if 'points' in data else config['ratings'][data['grade']]
-        if 'credits' in config and config['credits']:
+        points = data.get('points', config['ratings'][data['grade']])
+        if config.get('credits', False):
             cp: CreditPlayer = cast(CreditPlayer, player)
             cp.audit('Landing', cp.points, f"Landing on {data['place']} with grade {data['grade']}.")
             cp.points += points
-        case = data['case'] if 'case' in data else 1 if not night else 3
-        wire = data['wire'] if 'wire' in data else None
+        case = data.get('case', 1 if not night else 3)
+        wire = data.get('wire')
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
@@ -92,7 +92,7 @@ class GreenieBoardEventListener(EventListener):
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(), data['details'],
                       data['place']['name'], case, wire, night, points,
-                      data['trapsheet'] if 'trapsheet' in data else None))
+                      data.get('trapsheet')))
 
     @staticmethod
     def normalize_airboss_lso_rating(grade: str) -> Optional[str]:
@@ -124,7 +124,8 @@ class GreenieBoardEventListener(EventListener):
 
     def process_airboss_event(self, config: dict, server: Server, player: Player, data: dict):
         data['grade'] = self.normalize_airboss_lso_rating(data['grade'])
-        data['trapsheet'] = self.get_trapsheet(config, server, player, data)
+        if not data['grade'].startswith("WO"):
+            data['trapsheet'] = self.get_trapsheet(config, server, player, data)
         self.process_lso_event(config, server, player, data)
 
     def process_sc_event(self, config: dict, server: Server, player: Player, data: dict):

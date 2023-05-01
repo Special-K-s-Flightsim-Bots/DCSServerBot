@@ -3,18 +3,18 @@ import discord
 import json
 import os
 import platform
-import random
 from copy import deepcopy
-from discord import Interaction
-from discord.ui import View, Select, Button
-from core import Plugin, PluginRequiredError, utils, Status, MizFile, Autoexec, Extension, Server, Coalition, Channel, \
+from core import Plugin, PluginRequiredError, utils, Status, Autoexec, Extension, Server, Coalition, Channel, \
     TEventListener
 from datetime import datetime, timedelta
+from discord import app_commands
 from discord.ext import tasks, commands
+from discord.ui import Modal, TextInput
 from services import DCSServerBot
-from typing import Type, Optional, List, cast
+from typing import Type, Optional, List, Literal
 
 from .listener import SchedulerListener
+from .views import ConfigView
 
 
 class Scheduler(Plugin):
@@ -181,9 +181,6 @@ class Scheduler(Plugin):
         for ext in sorted(server.extensions):
             await server.extensions[ext].prepare()
             await server.extensions[ext].beforeMissionLoad()
-        # change the weather in the mission if provided
-        if not server.maintenance and 'restart' in config and 'settings' in config['restart']:
-            await self.change_mizfile(server, config)
         self.log.info(f"  => DCS server \"{server.name}\" starting up ...")
         await server.startup()
         if not member:
@@ -260,73 +257,6 @@ class Scheduler(Plugin):
             await self.teardown_dcs(server)
             server.restart_pending = False
 
-    async def change_mizfile(self, server: Server, config: dict, presets: Optional[str] = None):
-        def apply_preset(value: dict):
-            if 'start_time' in value:
-                miz.start_time = value['start_time']
-            if 'date' in value:
-                miz.date = datetime.strptime(value['date'], '%Y-%m-%d')
-            if 'temperature' in value:
-                miz.temperature = int(value['temperature'])
-            if 'clouds' in value:
-                if isinstance(value['clouds'], str):
-                    miz.clouds = {"preset": value['clouds']}
-                else:
-                    miz.clouds = value['clouds']
-            if 'wind' in value:
-                miz.wind = value['wind']
-            if 'groundTurbulence' in value:
-                miz.groundTurbulence = int(value['groundTurbulence'])
-            if 'enable_dust' in value:
-                miz.enable_dust = value['enable_dust']
-            if 'dust_density' in value:
-                miz.dust_density = int(value['dust_density'])
-            if 'qnh' in value:
-                miz.qnh = int(value['qnh'])
-            if 'enable_fog' in value:
-                miz.enable_fog = value['enable_fog']
-            if 'fog' in value:
-                miz.fog = value['fog']
-            if 'halo' in value:
-                miz.halo = value['halo']
-            if 'requiredModules' in value:
-                miz.requiredModules = value['requiredModules']
-            if 'accidental_failures' in value:
-                miz.accidental_failures = value['accidental_failures']
-
-        filename = await server.get_current_mission_file()
-        if not filename:
-            return
-        now = datetime.now()
-        if not presets:
-            if isinstance(config['restart']['settings'], dict):
-                for key, value in config['restart']['settings'].items():
-                    if utils.is_in_timeframe(now, key):
-                        presets = value
-                        break
-                if not presets:
-                    # no preset found for the current time, so don't change anything
-                    return
-            elif isinstance(config['restart']['settings'], list):
-                presets = random.choice(config['restart']['settings'])
-        miz = MizFile(self.bot, filename)
-        for preset in [x.strip() for x in presets.split(',')]:
-            if preset not in config['presets']:
-                self.log.error(f'Preset {preset} not found, ignored.')
-                continue
-            value = config['presets'][preset]
-            if isinstance(value, list):
-                for inner_preset in value:
-                    if inner_preset not in config['presets']:
-                        self.log.error(f'Preset {inner_preset} not found, ignored.')
-                        continue
-                    inner_value = config['presets'][inner_preset]
-                    apply_preset(inner_value)
-            elif isinstance(value, dict):
-                apply_preset(value)
-            self.log.info(f"  => Preset {preset} applied.")
-        miz.save()
-
     @staticmethod
     def is_mission_change(server: Server, config: dict) -> bool:
         if 'settings' in config['restart']:
@@ -383,8 +313,6 @@ class Scheduler(Plugin):
                 await server.stop()
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
-                if 'settings' in config['restart']:
-                    await self.change_mizfile(server, config)
                 await server.start()
             else:
                 await server.current_mission.restart()
@@ -396,8 +324,6 @@ class Scheduler(Plugin):
                 await server.stop()
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
-                if 'settings' in config['restart']:
-                    await self.change_mizfile(server, config)
                 await server.start()
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
@@ -417,16 +343,6 @@ class Scheduler(Plugin):
                     if utils.is_in_timeframe(now, t):
                         asyncio.create_task(self.restart_mission(server, config))
 
-    @staticmethod
-    async def check_affinity(server: Server, config: dict):
-        if not server.process:
-            for exe in ['DCS_server.exe', 'DCS.exe']:
-                server.process = utils.find_process(exe, server.installation)
-                if server.process:
-                    break
-        if server.process:
-            server.process.cpu_affinity(config['affinity'])
-
     @tasks.loop(minutes=1.0)
     async def check_state(self):
         # check all servers
@@ -438,8 +354,6 @@ class Scheduler(Plugin):
             # if no config is defined for this server, ignore it
             if config:
                 try:
-                    if server.status == Status.RUNNING and 'affinity' in config:
-                        await self.check_affinity(server, config)
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
                         asyncio.create_task(self.launch_dcs(server, config))
@@ -475,320 +389,244 @@ class Scheduler(Plugin):
                 except Exception as ex:
                     self.log.exception(ex)
 
-    @commands.command(description='Starts a DCS/DCS-SRS server')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def startup(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            config = self.get_config(server)
-            if server.status == Status.STOPPED:
-                await ctx.send(f"DCS server \"{server.display_name}\" is stopped.\n"
-                               f"Please use {ctx.prefix}start instead.")
-                return
-            if server.status == Status.LOADING:
-                if not server.process.is_running():
-                    server.status = Status.SHUTDOWN
-                else:
-                    if await utils.yn_question(ctx, "Server is in state LOADING. Do you want to kill and restart it?"):
-                        await server.shutdown()
-                    else:
-                        return
-            if server.status == Status.SHUTDOWN:
-                msg = await ctx.send(f"DCS server \"{server.display_name}\" starting up ...")
-                # set maintenance flag to prevent auto-stops of this server
-                server.maintenance = True
-                try:
-                    await self.launch_dcs(server, config, ctx.message.author)
-                    await ctx.send(f"DCS server \"{server.display_name}\" started.\n"
-                                   f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
-                except asyncio.TimeoutError:
-                    await ctx.send(f"Timeout while launching DCS server \"{server.display_name}\".\n"
-                                   f"The server might be running anyway, check with {ctx.prefix}status.")
-                finally:
-                    await msg.delete()
+    group = app_commands.Group(name="server", description="Commands to manage a DCS server")
 
+    @group.command(description='Starts a DCS/DCS-SRS server')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(server=utils.server_autocomplete)
+    async def startup(self, interaction: discord.Interaction,
+                      server: app_commands.Transform[Server, utils.ServerTransformer]):
+        config = self.get_config(server)
+        if server.status == Status.STOPPED:
+            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is stopped.\n"
+                                                    f"Please use /server start instead.", ephemeral=True)
+            return
+        if server.status == Status.LOADING:
+            if not server.process.is_running():
+                server.status = Status.SHUTDOWN
             else:
-                await ctx.send(f"DCS server \"{server.display_name}\" is already started.")
+                await interaction.response.send_message(f"DCS server \"{server.display_name}\" is loading.\n"
+                                                        f"Please wait or use /server shutdown force instead.",
+                                                        ephemeral=True)
+                return
+        if server.status == Status.SHUTDOWN:
+            await interaction.response.defer(ephemeral=True)
+            await interaction.followup.send(f"Starting DCS server \"{server.display_name}\", please wait ...",
+                                            ephemeral=True)
+            # set maintenance flag to prevent auto-stops of this server
+            server.maintenance = True
+            try:
+                await self.launch_dcs(server, config, interaction.user)
+                await interaction.followup.send(
+                    f"DCS server \"{server.display_name}\" started.\nServer is in maintenance mode now! "
+                    f"Use /server clear to reset maintenance mode.", ephemeral=True)
+            except asyncio.TimeoutError:
+                await interaction.followup.send(f"Timeout while launching DCS server \"{server.display_name}\".\n"
+                                                f"The server might be running anyway, check with /status.",
+                                                ephemeral=True)
 
-    @commands.command(description='Shutdown a DCS/DCS-SRS server')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def shutdown(self, ctx, *params):
+    @group.command(description='Shutdown a DCS/DCS-SRS server')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(server=utils.server_autocomplete)
+    async def shutdown(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer],
+                       force: Optional[bool]):
         async def do_shutdown(server: Server, force: bool = False):
-            msg = await ctx.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...")
+            await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...",
+                                            ephemeral=True)
             # set maintenance flag to prevent auto-starts of this server
             server.maintenance = True
             if force:
                 await server.shutdown()
             else:
-                await self.teardown_dcs(server, ctx.message.author)
-            await msg.delete()
-            await ctx.send(f"DCS server \"{server.display_name}\" shut down.\n"
-                           f"Server in maintenance mode now! Use {ctx.prefix}clear to reset maintenance mode.")
+                await self.teardown_dcs(server, interaction.user)
+            await interaction.followup.send(
+                f"DCS server \"{server.display_name}\" shut down.\n"f"Server in maintenance mode now! "
+                f"Use /clear to reset maintenance mode.", ephemeral=True)
 
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            if server.status in [Status.UNREGISTERED, Status.LOADING]:
-                if params and params[0] == '-force' or \
-                        await utils.yn_question(ctx, f"Server is in state {server.status.name}.\n"
-                                                     f"Do you want to force a shutdown?"):
-                    await do_shutdown(server, True)
+        if server.status in [Status.UNREGISTERED, Status.LOADING]:
+            if force or await utils.yn_question(interaction, f"Server is in state {server.status.name}.\n"
+                                                             f"Do you want to force a shutdown?"):
+                await do_shutdown(server, True)
+            else:
+                return
+        elif server.status != Status.SHUTDOWN:
+            if not force:
+                question = f"Do you want to shut down DCS server \"{server.display_name}\"?"
+                if server.is_populated():
+                    result = await utils.populated_question(interaction, question)
                 else:
+                    result = await utils.yn_question(interaction, question)
+                if not result:
+                    await interaction.followup.send('Aborted.', ephemeral=True)
                     return
-            elif server.status != Status.SHUTDOWN:
-                if not params or params[0] != '-force':
-                    question = f"Do you want to shut down DCS server \"{server.display_name}\"?"
-                    if server.is_populated():
-                        result = await utils.populated_question(ctx, question)
-                    else:
-                        result = await utils.yn_question(ctx, question)
-                    if not result:
-                        await ctx.send('Aborted.')
-                        return
-                    elif result == 'later':
-                        server.on_empty = {"command": "shutdown", "user": ctx.message.author}
-                        server.restart_pending = True
-                        await ctx.send('Shutdown postponed when server is empty.')
-                        return
-                await do_shutdown(server)
-            else:
-                await ctx.send(f"DCS server \"{server.display_name}\" is already shut down.")
+                elif result == 'later':
+                    server.on_empty = {"command": "shutdown", "user": interaction.user}
+                    server.restart_pending = True
+                    await interaction.followup.send('Shutdown postponed when server is empty.', ephemeral=True)
+                    return
+            await do_shutdown(server, force)
+        else:
+            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is already shut down.",
+                                                    ephemeral=True)
 
-    @commands.command(description='Starts a stopped DCS server')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def start(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
-            return
-        try:
-            if server.status == Status.STOPPED:
-                msg = await ctx.send(f"Starting server {server.display_name} ...")
+    @group.command(description='Starts a stopped DCS server')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(server=utils.server_autocomplete)
+    async def start(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer]):
+        if server.status == Status.STOPPED:
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            try:
                 await server.start()
-                await msg.delete()
-                await ctx.send(f"Server {server.display_name} started.")
-                await self.bot.audit('started the server', server=server, user=ctx.message.author)
-            elif server.status == Status.SHUTDOWN:
-                await ctx.send(f"Server {server.display_name} is shut down. Use {ctx.prefix}startup to start it up.")
-            elif server.status in [Status.RUNNING, Status.PAUSED]:
-                await ctx.send(f"Server {server.display_name} is already started.")
-            else:
-                await ctx.send(f"Server {server.display_name} is still {server.status.name}, please wait ...")
-        except asyncio.TimeoutError:
-            await ctx.send(f"Server {server.name} is not responding.")
+            except asyncio.TimeoutError:
+                await interaction.followup.send(f"Timeout while trying to start server {server.name}.", ephemeral=True)
+                return
+            await interaction.followup.send(f"Server {server.display_name} started.", ephemeral=True)
+            await self.bot.audit('started the server', server=server, user=interaction.user)
+        elif server.status == Status.SHUTDOWN:
+            await interaction.response.send_message(
+                f"Server {server.display_name} is shut down. Use /server startup to start it up.", ephemeral=True)
+        elif server.status in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(f"Server {server.display_name} is already started.",
+                                                    ephemeral=True)
+        else:
+            await interaction.response.send_message(
+                f"Server {server.display_name} is still {server.status.name}, please wait ...", ephemeral=True)
 
-    @commands.command(description='Stops a DCS server')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def stop(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            if server.status in [Status.RUNNING, Status.PAUSED]:
-                if server.is_populated() and \
-                        not await utils.yn_question(ctx, "People are flying on this server atm.\n"
+    @group.command(description='Starts a stopped DCS server')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(server=utils.active_server_autocomplete)
+    async def stop(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer]):
+        if server.is_populated() and \
+                not await utils.yn_question(interaction, "People are flying on this server atm.\n"
                                                          "Do you really want to stop it?"):
-                    return
-                await server.stop()
-                await self.bot.audit('stopped the server', server=server, user=ctx.message.author)
-                await ctx.send(f"Server {server.display_name} stopped.")
-            elif server.status == Status.STOPPED:
-                await ctx.send(f"Server {server.display_name} is stopped already. Use {ctx.prefix}shutdown to terminate the "
-                               f"dcs.exe process.")
-            elif server.status == Status.SHUTDOWN:
-                await ctx.send(f"Server {server.display_name} is shut down already.")
-            else:
-                await ctx.send(f"Server {server.display_name} is {server.status.name}, please wait ...")
-
-    @commands.hybrid_command(description='Status of the DCS-servers')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def status(self, ctx):
-        embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
-        names = []
-        status = []
-        nodes = []
-        for server in self.bot.servers.values():
-            names.append(server.display_name)
-            status.append(server.status.name.title())
-            nodes.append(platform.node() if not server.is_remote else server.host)
-        if len(names):
-            embed.add_field(name='Server', value='\n'.join(names))
-            embed.add_field(name='Status', value='\n'.join(status))
-            embed.add_field(name='Node', value='\n'.join(nodes))
-            embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
-            await ctx.send(embed=embed)
-
-    @commands.command(description='Sets the servers maintenance flag', aliases=['maint'])
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def maintenance(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            if not server.maintenance:
-                if (server.restart_pending or server.on_empty or server.on_mission_end) and \
-                        not await utils.yn_question(ctx, "Server is configured for a pending restart.\n"
-                                                    "Setting the maintenance flag will abort this restart.\n"
-                                                    "Are you sure?"):
-                    await ctx.send("Aborted.")
-                    return
-                server.maintenance = True
-                server.restart_pending = False
-                server.on_empty.clear()
-                server.on_mission_end.clear()
-                await ctx.send(f"Maintenance mode set for server {server.display_name}.\n"
-                               f"The {self.plugin_name.title()} will be set on hold until you use"
-                               f" {ctx.prefix}clear again.")
-                await self.bot.audit("set maintenance flag", user=ctx.message.author, server=server)
-            else:
-                await ctx.send(f"Server {server.display_name} is already in maintenance mode.")
-
-    @commands.command(description='Clears the servers maintenance flag')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def clear(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            if server.maintenance:
-                server.maintenance = False
-                await ctx.send(f"Maintenance mode cleared for server {server.display_name}.\n"
-                               f"The {self.plugin_name.title()} will take over the state handling now.")
-                await self.bot.audit("cleared maintenance flag", user=ctx.message.author, server=server)
-            else:
-                await ctx.send(f"Server {server.display_name} is not in maintenance mode.")
-
-    class PresetView(View):
-        def __init__(self, ctx: commands.Context, options: list[discord.SelectOption]):
-            super().__init__()
-            self.ctx = ctx
-            select: Select = cast(Select, self.children[0])
-            select.options = options
-            select.max_values = min(10, len(options))
-            self.result = None
-
-        @discord.ui.select(placeholder="Select the preset(s) you want to apply")
-        async def callback(self, interaction: Interaction, select: Select):
-            self.result = select.values
-            await interaction.response.defer()
-
-        @discord.ui.button(label='OK', style=discord.ButtonStyle.green)
-        async def ok(self, interaction: Interaction, button: Button):
-            await interaction.response.defer()
-            self.stop()
-
-        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
-        async def cancel(self, interaction: Interaction, button: Button):
-            await interaction.response.defer()
-            self.result = None
-            self.stop()
-
-        async def interaction_check(self, interaction: Interaction, /) -> bool:
-            if interaction.user != self.ctx.author:
-                await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
-                return False
-            else:
-                return True
-
-    @commands.command(description='Change mission preset', aliases=['presets'])
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def preset(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
+            await interaction.followup.send("Aborted.", ephemeral=True)
             return
-
-        config = self.get_config(server)
-        presets = [discord.SelectOption(label=k) for k, v in config['presets'].items() if 'hidden' not in v or not v['hidden']]
-        if not presets:
-            await ctx.send('No presets available, please configure them in your scheduler.json.')
-            return
-        if len(presets) > 25:
-            self.log.warning("You have more than 25 presets created, you can only choose from 25!")
-
-        if server.status in [Status.PAUSED, Status.RUNNING]:
-            question = 'Do you want to stop the server to change the mission preset?'
-            if server.is_populated():
-                result = await utils.populated_question(ctx, question)
-            else:
-                result = await utils.yn_question(ctx, question)
-            if not result:
-                await ctx.send('Aborted.')
-                return
-        elif server.status == Status.LOADING:
-            await ctx.send("Server is still loading, can't change presets.")
-            return
-        else:
-            result = None
-
-        view = self.PresetView(ctx, presets[:25])
-        msg = await ctx.send(view=view)
+        await interaction.response.defer(ephemeral=True, thinking=True)
         try:
-            if await view.wait():
+            await server.stop()
+        except asyncio.TimeoutError:
+            await interaction.followup.send(f"Timeout while trying to stop server {server.name}.", ephemeral=True)
+            return
+        await interaction.followup.send(f"Server {server.display_name} stopped.", ephemeral=True)
+        await self.bot.audit('stopped the server', server=server, user=interaction.user)
+
+    @group.command(description='Sets the servers maintenance flag')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(server=utils.server_autocomplete)
+    async def maintenance(self, interaction: discord.Interaction,
+                          server: app_commands.Transform[Server, utils.ServerTransformer]):
+        if not server.maintenance:
+            if (server.restart_pending or server.on_empty or server.on_mission_end) and \
+                    not await utils.yn_question(interaction, "Server is configured for a pending restart.\n"
+                                                             "Setting the maintenance flag will abort this restart.\n"
+                                                             "Are you sure?"):
+                await interaction.followup.send("Aborted.", ephemeral=True)
                 return
-            elif not view.result:
-                await ctx.send('Aborted.')
-                return
-        finally:
-            await ctx.message.delete()
-            await msg.delete()
-        if result == 'later':
-            server.on_empty = {"command": "preset", "preset": view.result, "user": ctx.message.author}
-            server.restart_pending = True
-            await ctx.send(f'Preset will be changed when server is empty.')
+            server.maintenance = True
+            server.restart_pending = False
+            server.on_empty.clear()
+            server.on_mission_end.clear()
+            if interaction.response.is_done():
+                await interaction.followup.send(f"Maintenance mode set for server {server.display_name}.",
+                                                ephemeral=True)
+            else:
+                await interaction.response.send_message(f"Maintenance mode set for server {server.display_name}.",
+                                                        ephemeral=True)
+            await self.bot.audit("set maintenance flag", user=interaction.user, server=server)
         else:
-            msg = await ctx.send('Changing presets...')
-            stopped = False
-            if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                stopped = True
-                await server.stop()
-            await self.change_mizfile(server, config, ','.join(view.result))
-            message = 'Preset changed to: {}.'.format(','.join(view.result))
-            if stopped:
-                await server.start()
-                message += '\nServer restarted.'
-            await self.bot.audit("changed preset", server=server, user=ctx.message.author)
-            await msg.edit(content=message)
+            await interaction.response.send_message(f"Server {server.display_name} is already in maintenance mode.",
+                                                    ephemeral=True)
 
-    @commands.command(description='Create preset from running mission', usage='<name>')
+    @group.command(description='Clears the servers maintenance flag')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(server=utils.server_autocomplete)
+    async def clear(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer]):
+        if server.maintenance:
+            server.maintenance = False
+            await interaction.response.send_message(f"Maintenance mode cleared for server {server.display_name}.",
+                                                    ephemeral=True)
+            await self.bot.audit("cleared maintenance flag", user=interaction.user, server=server)
+        else:
+            await interaction.response.send_message(f"Server {server.display_name} is not in maintenance mode.",
+                                                    ephemeral=True)
+
+    @group.command(description='Change the password of a DCS server')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(server=utils.server_autocomplete)
+    async def password(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer],
+                       coalition: Optional[Literal['red', 'blue']] = None):
+        class PasswordModal(Modal, title="Enter Password"):
+            password = TextInput(label="New Password" + (f" for coalition {coalition}:" if coalition else ":"),
+                                 style=discord.TextStyle.short, required=False)
+
+            async def on_submit(derived, interaction: discord.Interaction):
+                await interaction.response.defer()
+                if coalition:
+                    server.sendtoDCS({
+                        "command": "setCoalitionPassword",
+                        ("redPassword" if coalition == 'red' else "bluePassword"): derived.password.value or ''
+                    })
+                    with self.pool.connection() as conn:
+                        with conn.transaction():
+                            conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format(
+                                'blue_password' if coalition == 'blue' else 'red_password'),
+                                         (self.password, server.name))
+                    await self.bot.audit(f"changed password for coalition {coalition}",
+                                         user=interaction.user, server=server)
+                else:
+                    server.settings['password'] = derived.password.value or ''
+                    await self.bot.audit(f"changed password", user=interaction.user, server=server)
+                await interaction.followup.send("Password changed.", ephemeral=True)
+
+        if not coalition and server.status in [Status.PAUSED, Status.RUNNING]:
+            await interaction.response.send_message(f'Server "{server.display_name}" has to be stopped or shut down '
+                                                    f'to change the password.', ephemeral=True)
+            return
+        elif coalition and server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            await interaction.response.send_message(f'Server "{server.display_name}" must not be shut down to change '
+                                                    f'coalition passwords.', ephemeral=True)
+            return
+        await interaction.response.send_modal(PasswordModal())
+
+    @group.command(description='Change the configuration of a DCS server')
+    @app_commands.guild_only()
     @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def add_preset(self, ctx, *args):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            if server.status not in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
-                await ctx.send(f"No mission running on server {server.display_name}.")
+    @app_commands.autocomplete(server=utils.server_autocomplete)
+    async def config(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer]):
+        if server.status in [Status.RUNNING, Status.PAUSED]:
+            if await utils.yn_question(interaction, question='Server has to be stopped to change its configuration.\n'
+                                                             'Do you want to stop it?'):
+                await server.stop()
+            else:
+                await interaction.response.send_message('Aborted.', ephemeral=True)
                 return
-            name = ' '.join(args)
-            if not name:
-                await ctx.send(f'Usage: {ctx.prefix}add_preset <name>')
-                return
-            miz = MizFile(self.bot, server.current_mission.filename)
-            if 'presets' not in self.locals['configs'][0]:
-                self.locals['configs'][0]['presets'] = dict()
-            if name in self.locals['configs'][0]['presets'] and \
-                    not await utils.yn_question(ctx, f'Do you want to overwrite the existing preset "{name}"?'):
-                await ctx.send('Aborted.')
-                return
-            self.locals['configs'][0]['presets'] |= {
-                name: {
-                    "start_time": miz.start_time,
-                    "date": miz.date.strftime('%Y-%m-%d'),
-                    "temperature": miz.temperature,
-                    "clouds": miz.clouds,
-                    "wind": miz.wind,
-                    "groundTurbulence": miz.groundTurbulence,
-                    "enable_dust": miz.enable_dust,
-                    "dust_density": miz.dust_density if miz.enable_dust else 0,
-                    "qnh": miz.qnh,
-                    "enable_fog": miz.enable_fog,
-                    "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
-                    "halo": miz.halo
-                }
-            }
-            with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:
-                json.dump(self.locals, file, indent=2)
-            await ctx.send(f'Preset "{name}" added.')
 
+        view = ConfigView(server)
+        embed = discord.Embed(title=f'Do you want to change the configuration of server\n"{server.display_name}"?')
+        if interaction.response.is_done():
+            msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        else:
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+            msg = await interaction.original_response()
+        try:
+            await view.wait()
+        finally:
+            await msg.delete()
+
+    # TODO: move to mission?
     @commands.command(description='Reset a mission')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
@@ -822,6 +660,26 @@ class Scheduler(Plugin):
                 await ctx.send('Mission reset, server restarted.')
             else:
                 await ctx.send('Mission reset.')
+
+    # TODO: move to node?
+    @commands.hybrid_command(description='Status of the DCS-servers')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def status(self, ctx):
+        embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
+        names = []
+        status = []
+        nodes = []
+        for server in self.bot.servers.values():
+            names.append(server.display_name)
+            status.append(server.status.name.title())
+            nodes.append(platform.node() if not server.is_remote else server.host)
+        if len(names):
+            embed.add_field(name='Server', value='\n'.join(names))
+            embed.add_field(name='Status', value='\n'.join(status))
+            embed.add_field(name='Node', value='\n'.join(nodes))
+            embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
+            await ctx.send(embed=embed)
 
 
 async def setup(bot: DCSServerBot):

@@ -1,4 +1,7 @@
 from contextlib import closing
+
+import psycopg
+
 from core import EventListener, Plugin, Status, Server, Side, Player, Channel, event, chat_command
 from typing import Union
 
@@ -32,10 +35,7 @@ class UserStatisticsEventListener(EventListener):
         'start_mission': 'INSERT INTO missions (server_name, mission_name, mission_theatre) VALUES (%s, %s, %s)',
         'current_mission_id': 'SELECT id, mission_name FROM missions WHERE server_name = %s AND mission_end IS NULL',
         'close_statistics': 'UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND hop_off IS NULL',
-        'close_all_statistics': 'UPDATE statistics SET hop_off = NOW() WHERE mission_id IN (SELECT id FROM missions '
-                                'WHERE server_name = %s AND mission_end IS NULL) AND hop_off IS NULL',
         'close_mission': 'UPDATE missions SET mission_end = NOW() WHERE id = %s',
-        'close_all_missions': 'UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL',
         'check_player': 'SELECT slot FROM statistics WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'start_player': 'INSERT INTO statistics (mission_id, player_ucid, slot, side) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING',
         'stop_player': 'UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
@@ -61,6 +61,37 @@ class UserStatisticsEventListener(EventListener):
             unit_type += ' (Crew)'
         return unit_type
 
+    @staticmethod
+    def close_all_statistics(cursor: psycopg.Cursor, server: Server):
+        cursor.execute("""
+            UPDATE missions m1 SET mission_end = (
+                SELECT mission_start - INTERVAL '1 second' FROM missions m2 
+                WHERE m1.server_name = m2.server_name
+                AND m2.id > m1.id
+                ORDER BY 1 LIMIT 1)
+            WHERE m1.server_name = %s AND m1.mission_end IS NULL
+        """, (server.name,))
+        cursor.execute("""
+            UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL
+        """, (server.name,))
+
+        for row in cursor.execute("""
+            SELECT mission_id, player_ucid, slot 
+            FROM statistics 
+            WHERE mission_id IN (
+                SELECT id FROM missions WHERE server_name = %s
+            ) AND hop_off IS NULL
+        """, (server.name,)).fetchall():
+            cursor.execute("""
+                UPDATE statistics SET hop_off = (SELECT mission_end FROM missions WHERE id = %s)
+                WHERE mission_id = %s AND player_ucid = %s AND slot = %s AND hop_off IS NULL
+            """, (row[0], row[0], row[1], row[2]))
+        cursor.execute("""
+            UPDATE statistics SET hop_off = NOW() WHERE mission_id IN (
+                SELECT id FROM missions WHERE server_name = %s
+            ) AND hop_off IS NULL
+        """, (server.name,))
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         if data['statistics']:
@@ -68,76 +99,76 @@ class UserStatisticsEventListener(EventListener):
         if server.status == Status.STOPPED:
             return
         # registering a running instance
-        if data['channel'].startswith('sync-') and 'current_mission' in data:
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    with closing(conn.cursor()) as cursor:
-                        mission_id = -1
+        if not data['channel'].startswith('sync-') or 'current_mission' not in data:
+            return
+
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    mission_id = -1
+                    cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
+                    if cursor.rowcount == 1:
+                        row = cursor.fetchone()
+                        if row[1] == data['current_mission']:
+                            mission_id = row[0]
+                        else:
+                            self.log.warning('The mission in the database does not match the mission that is live '
+                                             'on this server. Fixing...')
+                    if mission_id == -1:
+                        # close ambiguous missions
+                        if cursor.rowcount >= 1:
+                            self.close_all_statistics(cursor, server)
+                        # create a new mission
+                        cursor.execute(self.SQL_MISSION_HANDLING['start_mission'], (server.name,
+                                                                                    data['current_mission'],
+                                                                                    data['current_map']))
                         cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
                         if cursor.rowcount == 1:
-                            row = cursor.fetchone()
-                            if row[1] == data['current_mission']:
-                                mission_id = row[0]
-                            else:
-                                self.log.warning('The mission in the database does not match the mission that is live '
-                                                 'on this server. Fixing...')
-                        if mission_id == -1:
-                            # close ambiguous missions
-                            if cursor.rowcount >= 1:
-                                cursor.execute(self.SQL_MISSION_HANDLING['close_all_statistics'], (server.name,))
-                                cursor.execute(self.SQL_MISSION_HANDLING['close_all_missions'], (server.name,))
-                            # create a new mission
-                            cursor.execute(self.SQL_MISSION_HANDLING['start_mission'], (server.name,
-                                                                                        data['current_mission'],
-                                                                                        data['current_map']))
-                            cursor.execute(self.SQL_MISSION_HANDLING['current_mission_id'], (server.name,))
+                            mission_id = cursor.fetchone()[0]
+                        else:
+                            self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
+                                           'gathered for this session.')
+                    server.mission_id = mission_id
+                    if mission_id != -1:
+                        # initialize active players
+                        players = server.get_active_players()
+                        ucids = []
+                        for player in players:
+                            ucids.append(player.ucid)
+                            # make sure we get slot changes that might have occurred in the meantime
+                            cursor.execute(self.SQL_MISSION_HANDLING['check_player'], (mission_id, player.ucid))
+                            player_started = False
                             if cursor.rowcount == 1:
-                                mission_id = cursor.fetchone()[0]
-                            else:
-                                self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
-                                               'gathered for this session.')
-                        server.mission_id = mission_id
-                        if mission_id != -1:
-                            # initialize active players
-                            players = server.get_active_players()
-                            ucids = []
-                            for player in players:
-                                ucids.append(player.ucid)
-                                # make sure we get slot changes that might have occurred in the meantime
-                                cursor.execute(self.SQL_MISSION_HANDLING['check_player'], (mission_id, player.ucid))
-                                player_started = False
-                                if cursor.rowcount == 1:
-                                    # the player is there already ...
-                                    if cursor.fetchone()[0] != player.unit_type:
-                                        # ... but with a different aircraft, so close the old session
-                                        cursor.execute(self.SQL_MISSION_HANDLING['stop_player'],
-                                                       (mission_id, player.ucid))
-                                    else:
-                                        # session will be kept
-                                        player_started = True
-                                if not player_started and player.side != Side.SPECTATOR:
-                                    # only warn for unknown users if it is a non-public server and automatch is on
-                                    if not player.member and self.bot.config.getboolean('BOT', 'AUTOMATCH') and \
-                                            len(server.settings['password']) > 0:
-                                        await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
-                                            f"Player {data['name']} (ucid={data['ucid']}) can't be matched to a "
-                                            f"discord user.")
-                                    cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
-                                                   (mission_id, player.ucid, self.get_unit_type(player),
-                                                    player.side.value))
-                            # close dead entries in the database (if existent)
-                            cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
-                            for row in cursor.fetchall():
-                                if row[0] not in ucids:
-                                    cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, row[0]))
+                                # the player is there already ...
+                                if cursor.fetchone()[0] != player.unit_type:
+                                    # ... but with a different aircraft, so close the old session
+                                    cursor.execute(self.SQL_MISSION_HANDLING['stop_player'],
+                                                   (mission_id, player.ucid))
+                                else:
+                                    # session will be kept
+                                    player_started = True
+                            if not player_started and player.side != Side.SPECTATOR:
+                                # only warn for unknown users if it is a non-public server and automatch is on
+                                if not player.member and self.bot.config.getboolean('BOT', 'AUTOMATCH') and \
+                                        len(server.settings['password']) > 0:
+                                    await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
+                                        f"Player {data['name']} (ucid={data['ucid']}) can't be matched to a "
+                                        f"discord user.")
+                                cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
+                                               (mission_id, player.ucid, self.get_unit_type(player),
+                                                player.side.value))
+                        # close dead entries in the database (if existent)
+                        cursor.execute(self.SQL_MISSION_HANDLING['all_players'], (mission_id, ))
+                        for row in cursor.fetchall():
+                            if row[0] not in ucids:
+                                cursor.execute(self.SQL_MISSION_HANDLING['stop_player'], (mission_id, row[0]))
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute(self.SQL_MISSION_HANDLING['close_all_statistics'], (server.name,))
-                    cursor.execute(self.SQL_MISSION_HANDLING['close_all_missions'], (server.name,))
+                    self.close_all_statistics(cursor, server)
                     cursor.execute(self.SQL_MISSION_HANDLING['start_mission'], (server.name,
                                                                                 data['current_mission'],
                                                                                 data['current_map']))
@@ -149,12 +180,15 @@ class UserStatisticsEventListener(EventListener):
                         self.log.error('FATAL: Initialization of mission table failed. Statistics will not be '
                                        'gathered for this session.')
 
-    @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, data: dict) -> None:
+    def close_mission_stats(self, server: Server):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute(self.SQL_MISSION_HANDLING['close_statistics'], (server.mission_id,))
                 conn.execute(self.SQL_MISSION_HANDLING['close_mission'], (server.mission_id,))
+
+    @event(name="onSimulationStop")
+    async def onSimulationStop(self, server: Server, data: dict) -> None:
+        self.close_mission_stats(server)
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
@@ -170,7 +204,7 @@ class UserStatisticsEventListener(EventListener):
     @event(name="disableUserStats")
     async def disableUserStats(self, server: Server, data: dict) -> None:
         self.statistics.discard(server.name)
-        await self.onSimulationStop(server, data)
+        self.close_mission_stats(server)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:

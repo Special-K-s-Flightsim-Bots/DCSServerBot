@@ -1,3 +1,4 @@
+import aiohttp
 from core import EventListener, Server, Player, Side, event
 from contextlib import closing
 from psycopg.rows import dict_row
@@ -39,4 +40,7 @@ class CloudListener(EventListener):
                 if cursor.rowcount > 0:
                     row = cursor.fetchone()
                     row['client'] = self.plugin.client
-                    await self.plugin.post('upload', row)
+                    try:
+                        await self.plugin.post('upload', row)
+                    except aiohttp.ClientError:
+                        self.log.warn('Cloud service not available atm, skipping statistics upload.')

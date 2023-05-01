@@ -1,19 +1,22 @@
 from __future__ import annotations
 import asyncio
 import discord
+import os
 import re
+from core import Status
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, cast, Union, TYPE_CHECKING
 from discord import Interaction, app_commands, SelectOption
 from discord.ext import commands
 from discord.ui import Button, View, Select
-from .helper import get_all_players
+from pathlib import Path, PurePath
+from typing import Optional, cast, Union, TYPE_CHECKING
+from .helper import get_all_players, is_ucid
 
 from . import config
 
 if TYPE_CHECKING:
-    from .. import Server, DCSServerBot
+    from .. import Server, DCSServerBot, Player
 
 
 async def wait_for_single_reaction(bot: DCSServerBot, ctx: Union[commands.Context, discord.DMChannel],
@@ -62,15 +65,19 @@ async def input_multiline(bot: DCSServerBot, ctx: commands.Context, message: Opt
                 await msg.delete()
 
 
-async def input_value(bot: DCSServerBot, ctx: commands.Context, message: Optional[str] = None,
+async def input_value(bot: DCSServerBot, interaction: discord.Interaction, message: Optional[str] = None,
                       delete: Optional[bool] = False, timeout: Optional[float] = 300.0):
     def check(m):
-        return (m.channel == ctx.message.channel) & (m.author == ctx.message.author)
+        return (m.channel == interaction.channel) & (m.author == interaction.user)
 
     msg = response = None
     try:
         if message:
-            msg = await ctx.send(message)
+            if interaction.response.is_done():
+                msg = await interaction.followup.send(message, ephemeral=True)
+            else:
+                await interaction.response.send_message(message, ephemeral=True)
+                msg = await interaction.original_response()
         response = await bot.wait_for('message', check=check, timeout=timeout)
         return response.content if response.content != '.' else None
     finally:
@@ -81,14 +88,16 @@ async def input_value(bot: DCSServerBot, ctx: commands.Context, message: Optiona
                 await response.delete()
 
 
-async def pagination(bot: DCSServerBot, ctx: commands.Context, data: list, embed_formatter, num: int = 10):
+async def pagination(bot: DCSServerBot, interaction: discord.Interaction, data: list, embed_formatter, num: int = 10):
+    if not interaction.response.is_done():
+        await interaction.response.defer()
     message = None
     try:
         j = 0
         while len(data) > 0:
             max_i = (len(data) % num) if (len(data) - j * num) < num else num
             embed = embed_formatter(data[j * num:j * num + max_i])
-            message = await ctx.send(embed=embed)
+            message = await interaction.followup.send(embed=embed)
             wait = False
             if j > 0:
                 await message.add_reaction('◀️')
@@ -160,10 +169,8 @@ async def selection_list(bot: DCSServerBot, ctx: commands.Context, data: list, e
 
 
 class SelectView(View):
-    def __init__(self, ctx: commands.Context, *, placeholder: str, options: list[SelectOption], min_values: int,
-                 max_values: int):
+    def __init__(self, *, placeholder: str, options: list[SelectOption], min_values: int, max_values: int):
         super().__init__()
-        self.ctx = ctx
         self.result = None
         select: Select = cast(Select, self.children[0])
         select.placeholder = placeholder
@@ -191,24 +198,28 @@ class SelectView(View):
         self.stop()
 
     async def interaction_check(self, interaction: Interaction, /) -> bool:
-        if interaction.user != self.ctx.author:
+        if interaction.user != (await interaction.original_response()).user:
             await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
             return False
         else:
             return True
 
 
-async def selection(ctx, *, title: Optional[str] = None, placeholder: Optional[str] = None, embed: discord.Embed = None,
-                    options: list[SelectOption], min_values: Optional[int] = 1, max_values: Optional[int] = 1,
-                    ephemeral: bool = False) -> Optional[str]:
+async def selection(interaction: discord.Interaction, *, title: Optional[str] = None, placeholder: Optional[str] = None,
+                    embed: discord.Embed = None, options: list[SelectOption], min_values: Optional[int] = 1,
+                    max_values: Optional[int] = 1, ephemeral: bool = False) -> Optional[str]:
     if len(options) == 1:
         return options[0].value
     if not embed and title:
         embed = discord.Embed(description=title, color=discord.Color.blue())
-    view = SelectView(ctx, placeholder=placeholder, options=options, min_values=min_values, max_values=max_values)
+    view = SelectView(placeholder=placeholder, options=options, min_values=min_values, max_values=max_values)
     msg = None
     try:
-        msg = await ctx.send(embed=embed, view=view, ephemeral=ephemeral)
+        if interaction.response.is_done():
+            msg = interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+        else:
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
+            msg = await interaction.original_response()
         if await view.wait():
             return None
         return view.result
@@ -242,39 +253,34 @@ async def multi_selection_list(bot: DCSServerBot, ctx: commands.Context, data: l
 
 
 class YNQuestionView(View):
-    def __init__(self, ctx: commands.Context):
+    def __init__(self):
         super().__init__(timeout=120)
-        self.ctx = ctx
         self.result = False
 
     @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='yn_yes')
     async def on_yes(self, interaction: Interaction, button: Button):
-        self.result = True
         await interaction.response.defer()
+        self.result = True
         self.stop()
 
     @discord.ui.button(label='No', style=discord.ButtonStyle.red, custom_id='yn_no')
     async def on_no(self, interaction: Interaction, button: Button):
-        self.result = False
         await interaction.response.defer()
+        self.result = False
         self.stop()
 
-    async def interaction_check(self, interaction: Interaction, /) -> bool:
-        if interaction.user != self.ctx.author:
-            await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
-            return False
-        else:
-            return True
 
-
-async def yn_question(ctx: commands.Context, question: str, message: Optional[str] = None) -> bool:
+async def yn_question(interaction: discord.Interaction, question: str, message: Optional[str] = None) -> bool:
     embed = discord.Embed(description=question, color=discord.Color.red())
     if message is not None:
         embed.add_field(name=message, value='_ _')
-    view = YNQuestionView(ctx)
-    msg = None
+    view = YNQuestionView()
+    if interaction.response.is_done():
+        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        msg = await interaction.original_response()
     try:
-        msg = await ctx.send(embed=embed, view=view)
         if await view.wait():
             return False
         return view.result
@@ -283,21 +289,20 @@ async def yn_question(ctx: commands.Context, question: str, message: Optional[st
 
 
 class PopulatedQuestionView(View):
-    def __init__(self, ctx: commands.Context):
+    def __init__(self):
         super().__init__(timeout=120)
-        self.ctx = ctx
         self.result = None
 
     @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='pl_yes')
     async def on_yes(self, interaction: Interaction, button: Button):
-        self.result = 'yes'
         await interaction.response.defer()
+        self.result = 'yes'
         self.stop()
 
     @discord.ui.button(label='Later', style=discord.ButtonStyle.primary, custom_id='pl_later', emoji='⏱')
     async def on_later(self, interaction: Interaction, button: Button):
-        self.result = 'later'
         await interaction.response.defer()
+        self.result = 'later'
         self.stop()
 
     @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='pl_cancel')
@@ -305,22 +310,19 @@ class PopulatedQuestionView(View):
         await interaction.response.defer()
         self.stop()
 
-    async def interaction_check(self, interaction: Interaction, /) -> bool:
-        if interaction.user != self.ctx.author:
-            await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
-            return False
-        else:
-            return True
 
-
-async def populated_question(ctx: commands.Context, question: str, message: Optional[str] = None) -> Optional[str]:
+async def populated_question(interaction: discord.Interaction, question: str, message: Optional[str] = None) -> Optional[str]:
     embed = discord.Embed(title='People are flying!', description=question, color=discord.Color.red())
     if message is not None:
         embed.add_field(name=message, value='_ _')
-    view = PopulatedQuestionView(ctx)
+    view = PopulatedQuestionView()
     msg = None
+    if interaction.response.is_done():
+        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        msg = await interaction.original_response()
     try:
-        msg = await ctx.send(embed=embed, view=view)
         if await view.wait():
             return None
         return view.result
@@ -517,7 +519,39 @@ def escape_string(msg: str) -> str:
     return re.sub(r"([\*\_~])", r"\\\1", msg)
 
 
+def get_interaction_param(interaction: discord.Interaction, name: str):
+    root = interaction.data['options'][0]
+    if root.get('options'):
+        root = root['options']
+    for parameter in root:
+        if parameter['name'] == name:
+            return parameter['value']
+
+
+class ServerTransformer(app_commands.Transformer):
+    async def transform(self, interaction: discord.Interaction, value: str) -> Server:
+        return interaction.client.servers[value]
+
+
+async def active_server_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    try:
+        server: Server = await interaction.client.get_server(interaction)
+        if server and server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            return [app_commands.Choice(name=server.name, value=server.name)]
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=x.name, value=x.name)
+            for x in interaction.client.servers.values()
+            if x.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and current.casefold() in x.casefold()
+        ]
+        return choices[:25]
+    except Exception as ex:
+        print(ex)
+
+
 async def server_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    server: Server = await interaction.client.get_server(interaction)
+    if server:
+        return [app_commands.Choice(name=server.name, value=server.name)]
     choices: list[app_commands.Choice[str]] = [
         app_commands.Choice(name=x, value=x)
         for x in interaction.client.servers.keys()
@@ -526,18 +560,8 @@ async def server_autocomplete(interaction: discord.Interaction, current: str) ->
     return choices[:25]
 
 
-async def player_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    server: Server = interaction.client.get_server(interaction)
-    choices: list[app_commands.Choice[str]] = [
-        app_commands.Choice(name=x.name, value=x.ucid)
-        for x in server.get_active_players()
-        if current.casefold() in x.name.casefold()
-    ]
-    return choices[:25]
-
-
 async def airbase_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    server: Server = interaction.client.servers[interaction.data['options'][0]['value']]
+    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
     if not server:
         return []
     choices: list[app_commands.Choice[int]] = [
@@ -548,27 +572,74 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
     return choices[:25]
 
 
+async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+    if not server:
+        return []
+    choices: list[app_commands.Choice[int]] = [
+        app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
+        for idx, x in enumerate(server.settings['missionList'])
+        if current.casefold() in x.casefold()
+    ]
+    return choices[:25]
+
+
+async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+    installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
+    choices: list[app_commands.Choice[str]] = [
+        app_commands.Choice(name=x.name[:-4], value=str(x))
+        for x in sorted(Path(PurePath(os.path.expandvars(interaction.client.config[server.installation]['DCS_HOME']),
+                                      "Missions")).glob("*.miz"))
+        if str(x) not in installed_missions and current.casefold() in x.name.casefold()
+    ]
+    return choices[:25]
+
+
+class UserTransformer(app_commands.Transformer):
+    async def transform(self, interaction: discord.Interaction, value: str) -> Union[discord.Member, str]:
+        if value and is_ucid(value):
+            return interaction.client.get_member_by_ucid(value) or value
+        else:
+            return interaction.client.guilds[0].get_member(int(value))
+
+
+class PlayerTransformer(app_commands.Transformer):
+    async def transform(self, interaction: discord.Interaction, value: str) -> Player:
+        server: Server = interaction.client.servers[interaction.data['options'][0]['value']]
+        return server.get_player(ucid=value, active=True)
+
+
 async def all_users_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    choice = interaction.data['options'][0]['value']
-    try:
-        if choice == 'Player':
-            return [
-                app_commands.Choice(name=name, value=ucid)
-                for ucid, name in get_all_players(interaction.client, name=current)
-            ]
-        elif choice == 'Member':
-            return [
-                app_commands.Choice(name=member.display_name, value=str(member.id))
-                for idx, member in enumerate(interaction.client.get_all_members())
-                if idx < 25 and (not current or current.casefold() in member.display_name.casefold())
-            ]
-        elif choice == 'UCID':
-            return [
-                app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
-                for ucid, name in get_all_players(interaction.client, ucid=current)
-            ]
-    except Exception as ex:
-        print(ex)
+    players = [
+        app_commands.Choice(name='✈ ' + name, value=ucid)
+        for idx, ucid, name in enumerate(get_all_players(interaction.client, name=current))
+        if idx < 25 and (not current or current.casefold() in name.casefold() or current.casefold() in ucid)
+    ]
+    members = [
+        app_commands.Choice(name='@' + member.display_name, value=str(member.id))
+        for idx, member in enumerate(interaction.client.get_all_members())
+        if idx < 25 and (not current or current.casefold() in member.display_name.casefold())
+    ]
+    return players + members
+
+
+async def all_players_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    return [
+        app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
+        for idx, ucid, name in enumerate(get_all_players(interaction.client, name=current))
+        if idx < 25 and (not current or current.casefold() in name.casefold() or current.casefold() in ucid)
+    ]
+
+
+async def active_player_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+    choices: list[app_commands.Choice[str]] = [
+        app_commands.Choice(name=x.name, value=x.ucid)
+        for x in server.get_active_players()
+        if current.casefold() in x.name.casefold()
+    ]
+    return choices[:25]
 
 
 @dataclass

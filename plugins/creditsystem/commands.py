@@ -1,8 +1,9 @@
 import discord
 from contextlib import closing
 from copy import deepcopy
+from discord import app_commands
+from discord.app_commands import Range
 from core import utils, Plugin, PluginRequiredError, Server
-from discord.ext import commands
 from psycopg.rows import dict_row
 from services import DCSServerBot
 from typing import Optional, cast, Union
@@ -11,7 +12,7 @@ from .listener import CreditSystemListener
 from .player import CreditPlayer
 
 
-class CreditSystemAgent(Plugin):
+class CreditSystem(Plugin):
 
     def get_config(self, server: Server) -> Optional[dict]:
         if server.name not in self._config:
@@ -53,9 +54,6 @@ class CreditSystemAgent(Plugin):
                 return None
         return self._config[server.name] if server.name in self._config else None
 
-
-class CreditSystemMaster(CreditSystemAgent):
-
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Creditsystem ...')
         if ucids:
@@ -85,13 +83,20 @@ class CreditSystemMaster(CreditSystemAgent):
                     ORDER BY s.time DESC LIMIT 10
                 """, (ucid, )).fetchall())
 
-    @commands.command(description='Displays your current credits')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def credits(self, ctx, member: Optional[Union[discord.Member, str]]):
+    # New command group "/credits"
+    credits = app_commands.Group(name="credits", description="Commands to manage player credits")
+
+    @credits.command(description='Displays your current credits')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.rename(member="user")
+    @app_commands.autocomplete(member=utils.all_users_autocomplete)
+    async def info(self, interaction: discord.Interaction,
+                   member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
         if member:
-            if not utils.check_roles(['DCS Admin'], ctx.message.author):
-                await ctx.send('You need the DCS Admin role to use this command.')
+            if not utils.check_roles(['DCS Admin'], interaction.user):
+                await interaction.response.send_message('You need the DCS Admin role to use this command.',
+                                                        ephemeral=True)
                 return
             if isinstance(member, str):
                 ucid = member
@@ -99,19 +104,19 @@ class CreditSystemMaster(CreditSystemAgent):
             else:
                 ucid = self.bot.get_ucid_by_member(member)
                 if not ucid:
-                    await ctx.send(
-                        "Member {} is not linked to any DCS user.".format(utils.escape_string(member.display_name)))
+                    await interaction.response.send_message(f"Member {utils.escape_string(member.display_name)} is "
+                                                            f"not linked to any DCS user.", ephemeral=True)
                     return
         else:
-            member = ctx.message.author
-            ucid = self.bot.get_ucid_by_member(ctx.message.author)
+            member = interaction.user
+            ucid = self.bot.get_ucid_by_member(member)
             if not ucid:
-                await ctx.send(f"Use {ctx.prefix}linkme to link your account.")
+                await interaction.response.send_message(f"Use /linkme to link your account.", ephemeral=True)
                 return
         data = self.get_credits(ucid)
-        await ctx.message.delete()
-        if len(data) == 0:
-            await ctx.send('{} has no campaign credits.'.format(utils.escape_string(member.display_name)))
+        if not data:
+            await interaction.response.send_message(f'{utils.escape_string(member.display_name)} has no campaign '
+                                                    f'credits.', ephemeral=True)
             return
         embed = discord.Embed(
             title="Campaign Credits for {}".format(utils.escape_string(member.display_name)
@@ -137,7 +142,7 @@ class CreditSystemMaster(CreditSystemAgent):
             embed.add_field(name='Points', value=deltas)
             embed.set_footer(text='Log will show the last 10 events only.')
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-        await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @staticmethod
     def format_credits(data, marker, marker_emoji):
@@ -212,38 +217,37 @@ class CreditSystemMaster(CreditSystemAgent):
             else:
                 await ctx.send(to.mention + f' your credits were decreased by {donation} credit points by an Admin.')
 
-    @commands.command(description='Donate credits to another member', usage='<member> <credits>')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def donate(self, ctx, to: discord.Member, donation: int):
-        if ctx.message.author.id == to.id:
-            await ctx.send("You can't donate to yourself.")
+    @credits.command(description='Donate credits to another member')
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    async def donate(self, interaction: discord.Interaction, to: discord.Member, donation: Range[int, 1]):
+        if interaction.user == to:
+            await interaction.response.send_message("You can't donate to yourself.", ephemeral=True)
             return
-        if utils.check_roles(['Admin', 'DCS Admin'], ctx.message.author):
-            await self.admin_donate(ctx, to, donation)
-            return
-        if donation <= 0:
-            await ctx.send("Donation has to be a positive value.")
+        if utils.check_roles(['Admin', 'DCS Admin'], interaction.user):
+            await self.admin_donate(interaction, to, donation)
             return
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:
-            await ctx.send('{} needs to properly link their DCS account to receive '
-                           'donations.'.format(utils.escape_string(to.display_name)))
+            await interaction.response.send_message(f'{utils.escape_string(to.display_name)} needs to properly link '
+                                                    f'their DCS account to receive donations.', ephemeral=True)
             return
-        donor = self.bot.get_ucid_by_member(ctx.message.author)
+        donor = self.bot.get_ucid_by_member(interaction.user)
         if not donor:
-            await ctx.send(f'You need to properly link your DCS account to give donations!')
+            await interaction.response.send_message(f'You need to properly link your DCS account to give donations!',
+                                                    ephemeral=True)
             return
         data = self.get_credits(donor)
-        if not len(data):
-            await ctx.send(f"You can't donate credit points, as you don't have any.")
+        if not data:
+            await interaction.response.send_message(f"You don't have any credit points to donate.", ephemeral=True)
             return
         elif len(data) > 1:
-            n = await utils.selection_list(self.bot, ctx, data, self.format_credits)
+            n = await utils.selection_list(self.bot, interaction, data, self.format_credits)
         else:
             n = 0
         if data[n][2] < donation:
-            await ctx.send(f"You can't donate {donation} credit points, as you only have {data[n][2]} in total!")
+            await interaction.response.send_message(f"You can't donate {donation} credit points, as you only "
+                                                    f"have {data[n][2]} in total!", ephemeral=True)
             return
         # now see, if one of the parties is an active player already...
         p_donor: Optional[CreditPlayer] = None
@@ -268,8 +272,9 @@ class CreditSystemMaster(CreditSystemAgent):
                         old_points_receiver = p_receiver.points
                     if 'max_points' in self.locals['configs'][0] and \
                             (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
-                        await ctx.send('Member {} would overrun the configured maximum points with this donation. '
-                                       'Aborted.'.format(utils.escape_string(to.display_name)))
+                        await interaction.response.send_message(
+                            f'Member {utils.escape_string(to.display_name)} would overrun the configured maximum '
+                            f'points with this donation. Aborted.', ephemeral=True)
                         return
                     if p_donor:
                         p_donor.points -= donation
@@ -305,49 +310,12 @@ class CreditSystemMaster(CreditSystemAgent):
                             VALUES (%s, %s, %s, %s, %s, %s)
                         """, (data[n][0], 'donation', receiver, old_points_receiver, new_points_receiver,
                               f'Donation from member {ctx.message.author.display_name}'))
-            await ctx.send(to.mention + f' you just received {donation} credit points from ' +
-                           '{}!'.format(utils.escape_string(ctx.message.author.display_name)))
-
-    @commands.command(description='Displays your current player profile')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def profile(self, ctx: commands.Context, member: Optional[discord.Member] = None) -> None:
-        if not self.locals:
-            await ctx.send(f'CreditSystem is not activated, {ctx.prefix}profile does not work.')
-            return
-        config: dict = self.locals['configs'][0]
-        if not member:
-            member = ctx.message.author
-        embed = discord.Embed(title="User Campaign Profile", colour=discord.Color.blue())
-        if member.avatar:
-            embed.set_thumbnail(url=member.avatar.url)
-        if 'achievements' in config:
-            for achievement in config['achievements']:
-                if utils.check_roles([achievement['role']], member):
-                    embed.add_field(name='Rank', value=achievement['role'])
-                    break
-            else:
-                embed.add_field(name='Rank', value='n/a')
-        ucid = self.bot.get_ucid_by_member(member, True)
-        if ucid:
-            campaigns = {}
-            for row in self.get_credits(ucid):
-                campaigns[row[1]] = {
-                    "points": row[2],
-                    "playtime": self.eventlistener.get_flighttime(ucid, row[0])
-                }
-
-            for campaign_name, value in campaigns.items():
-                embed.add_field(name='Campaign', value=campaign_name)
-                embed.add_field(name='Playtime', value=utils.format_time(value['playtime'] - value['playtime'] % 60))
-                embed.add_field(name='Points', value=value['points'])
-        await ctx.send(embed=embed)
+            await interaction.response.send_message(
+                to.mention + f' you just received {donation} credit points from '
+                             f'{utils.escape_string(interaction.user.display_name)}!', ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(CreditSystemMaster(bot, CreditSystemListener))
-    else:
-        await bot.add_cog(CreditSystemAgent(bot, CreditSystemListener))
+    await bot.add_cog(CreditSystem(bot, CreditSystemListener))

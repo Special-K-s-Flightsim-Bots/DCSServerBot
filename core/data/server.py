@@ -1,6 +1,5 @@
 from __future__ import annotations
 import asyncio
-import discord
 import os
 import platform
 import uuid
@@ -11,7 +10,7 @@ from datetime import datetime
 from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
 from .dataobject import DataObject
-from .const import Status, Coalition, Channel
+from .const import Status, Coalition, Channel, Side
 
 if TYPE_CHECKING:
     from core import Player, Mission, Extension
@@ -61,6 +60,7 @@ class Server(DataObject):
     @status.setter
     def status(self, status: Status):
         if status != self._status:
+            self.log.info(f"{self.name}: {self._status.name} => {status.name}")
             self._status = status
             self.status_change.set()
             self.status_change.clear()
@@ -107,9 +107,15 @@ class Server(DataObject):
         if self.status != Status.RUNNING:
             return False
         for player in self.players.values():
-            if player.active:
+            if player.active and player.side != Side.SPECTATOR:
                 return True
         return False
+
+    def is_public(self) -> bool:
+        if self.settings.get('password'):
+            return False
+        else:
+            return True
 
     def move_to_spectators(self, player: Player, reason: str = 'n/a'):
         self.sendtoDCS({
@@ -126,6 +132,12 @@ class Server(DataObject):
             "id": player.id,
             "reason": reason
         })
+
+    def ban(self, ucid: str, reason: str = 'n/a', period: int = 30*86400):
+        pass
+
+    def unban(self, ucid: str):
+        pass
 
     @property
     def settings(self) -> dict:
@@ -236,6 +248,9 @@ class Server(DataObject):
 
     async def loadNextMission(self) -> None:
         await self._load({"command": "startNextMission"})
+
+    async def modifyMission(self, preset: Union[list, dict]) -> None:
+        pass
 
     def get_channel(self, channel: Channel) -> int:
         return int(self.config[self.installation][channel.value])

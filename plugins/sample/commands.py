@@ -1,8 +1,8 @@
+import discord
 import psycopg
-
 from core import DCSServerBot, Plugin, utils, Server, EventListener, TEventListener
+from discord import app_commands
 from typing import Type
-from discord.ext import commands
 from .listener import SampleEventListener
 
 
@@ -36,18 +36,19 @@ class Sample(Plugin):
         # if they contain a server_name value. You usually don't need to implement this function.
         pass
 
-    @commands.command(description='This is a sample command.')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def sample(self, ctx: commands.Context, text: str):
-        # the server to run the command on will be determined from the channel where you called the command in
-        server: Server = await self.bot.get_server(ctx)
+    @app_commands.command(description='This is a sample command.')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.autocomplete(server=utils.active_server_autocomplete)
+    async def sample(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer], text: str):
+        await interaction.response.defer(thinking=True)
         # Calls can be done async (default) or synchronous, which means we will wait for a response from DCS
         data = await server.sendtoDCSSync({
             "command": "sample",    # command name
             "message": text         # the message to transfer
         })
-        await ctx.send(data['message'])
+        await interaction.followup.send(f"Response: {data['message']}")
 
 
 async def setup(bot: DCSServerBot):

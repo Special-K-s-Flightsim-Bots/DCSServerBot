@@ -7,7 +7,8 @@ import platform
 import psycopg
 import shutil
 from contextlib import closing
-from core import Plugin, utils, TEventListener, PaginationReport, Status
+from core import Plugin, utils, TEventListener, PaginationReport
+from discord import app_commands
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
 from typing import Type, Any, Optional, Union
@@ -16,7 +17,7 @@ from services import DCSServerBot
 from .listener import CloudListener
 
 
-class CloudHandlerAgent(Plugin):
+class CloudHandler(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
@@ -26,9 +27,15 @@ class CloudHandlerAgent(Plugin):
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
         self._session = None
         self.client = None
-        if 'dcs-ban' not in self.config or self.config['dcs-ban']:
+        if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
             self.cloud_bans.add_exception_type(aiohttp.ClientError)
+            self.cloud_bans.add_exception_type(discord.Forbidden)
+            self.cloud_bans.add_exception_type(psycopg.DatabaseError)
             self.cloud_bans.start()
+        if 'token' in self.config:
+            self.cloud_sync.add_exception_type(aiohttp.ClientError)
+            self.cloud_sync.add_exception_type(psycopg.DatabaseError)
+            self.cloud_sync.start()
 
     @property
     def session(self):
@@ -45,75 +52,6 @@ class CloudHandlerAgent(Plugin):
             }
             self._session = aiohttp.ClientSession(raise_for_status=True, headers=headers)
         return self._session
-
-    async def cog_unload(self) -> None:
-        if 'dcs-ban' not in self.config or self.config['dcs-ban']:
-            self.cloud_bans.cancel()
-        asyncio.create_task(self.session.close())
-        await super().cog_unload()
-
-    async def get(self, request: str) -> Any:
-        url = f"{self.base_url}/{request}"
-        async with self.session.get(url) as response:  # type: aiohttp.ClientResponse
-            return await response.json()
-
-    async def post(self, request: str, data: Any) -> Any:
-        async def send(element):
-            url = f"{self.base_url}/{request}/"
-            async with self.session.post(url, json=element) as response:  # type: aiohttp.ClientResponse
-                return await response.json()
-
-        if isinstance(data, list):
-            for line in data:
-                await send(line)
-        else:
-            await send(data)
-
-    @commands.command(description='Test the cloud-connection')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def cloud(self, ctx):
-        message = await ctx.send(f'Node {platform.node()}: Checking cloud connection ...')
-        try:
-            await self.get('verify')
-            await ctx.send(f'Node {platform.node()}: Cloud connection established.')
-            return
-        except aiohttp.ClientError:
-            await ctx.send(f'Node {platform.node()}: Cloud not connected.')
-        finally:
-            await message.delete()
-
-    @tasks.loop(minutes=15.0)
-    async def cloud_bans(self):
-        try:
-            bans = await self.get('bans')
-            for server in self.bot.servers.values():
-                if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-                    for ban in bans:
-                        player = server.get_player(ucid=ban["ucid"], active=True)
-                        if player:
-                            server.sendtoDCS({
-                                "command": "ban",
-                                "ucid": ban["ucid"],
-                                "reason": ban["reason"]
-                            })
-        except aiohttp.ClientError:
-            self.log.warning('- Cloud service not responding.')
-
-
-class CloudHandlerMaster(CloudHandlerAgent):
-
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
-        super().__init__(bot, eventlistener)
-        if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
-            self.master_bans.add_exception_type(aiohttp.ClientError)
-            self.master_bans.add_exception_type(discord.Forbidden)
-            self.master_bans.add_exception_type(psycopg.DatabaseError)
-            self.master_bans.start()
-        if 'token' in self.config:
-            self.cloud_sync.add_exception_type(aiohttp.ClientError)
-            self.cloud_sync.add_exception_type(psycopg.DatabaseError)
-            self.cloud_sync.start()
 
     async def cog_load(self) -> None:
         await super().cog_load()
@@ -134,7 +72,7 @@ class CloudHandlerMaster(CloudHandlerAgent):
         try:
             _, dcs_version = utils.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
             bot = {
-                "guild_id": self.bot.guilds[0].id,
+                "guild_id": self.bot.config['BOT']['GUILD_ID'],
                 "bot_version": f"{self.bot.version}.{self.bot.sub_version}",
                 "variant": "DCSServerBot",
                 "dcs_version": dcs_version,
@@ -156,19 +94,57 @@ class CloudHandlerMaster(CloudHandlerAgent):
         except Exception as error:
             self.log.debug("Error while registering: " + str(error))
 
-    async def cog_unload(self):
+    async def cog_unload(self) -> None:
         if 'token' in self.config:
             self.cloud_sync.cancel()
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
-            self.master_bans.cancel()
+            self.cloud_bans.cancel()
+        asyncio.create_task(self.session.close())
         await super().cog_unload()
 
-    @commands.command(description='Resync all statistics with the cloud', usage='[ucid / @member]')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def resync(self, ctx, member: Optional[Union[str, discord.Member]] = None):
+    async def get(self, request: str) -> Any:
+        url = f"{self.base_url}/{request}"
+        async with self.session.get(url) as response:  # type: aiohttp.ClientResponse
+            return await response.json()
+
+    async def post(self, request: str, data: Any) -> Any:
+        async def send(element):
+            url = f"{self.base_url}/{request}/"
+            async with self.session.post(url, json=element) as response:  # type: aiohttp.ClientResponse
+                return await response.json()
+
+        if isinstance(data, list):
+            for line in data:
+                await send(line)
+        else:
+            await send(data)
+
+    # New command group "/cloud"
+    cloud = app_commands.Group(name="cloud", description="Commands to manage the DCSSB Cloud Service")
+
+    @cloud.command(description='Test the cloud-connection')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def status(self, interaction: discord.Interaction):
+        await interaction.response.send_message(f'Checking cloud connection ...', ephemeral=True)
+        try:
+            await self.get('verify')
+            await interaction.followup.send(f'Cloud connection established.', ephemeral=True)
+            return
+        except aiohttp.ClientError:
+            await interaction.followup.send(f'Cloud not connected.', ephemeral=True)
+        finally:
+            await interaction.delete_original_response()
+
+    @cloud.command(description='Resync statistics with the cloud')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.rename(member="user")
+    @app_commands.autocomplete(member=utils.all_users_autocomplete)
+    async def resync(self, interaction: discord.Interaction,
+                     member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
         if 'token' not in self.config:
-            await ctx.send('No cloud sync configured.')
+            await interaction.response.send_message('No cloud sync configured.', ephemeral=True)
             return
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -180,46 +156,39 @@ class CloudHandlerMaster(CloudHandlerAgent):
                         sql += ' WHERE discord_id = %s'
                         member = member.id
                 conn.execute(sql, (member, ))
-                await ctx.send('Resync with cloud triggered.')
+                await interaction.response.send_message('Resync with cloud triggered.', ephemeral=True)
 
-    @commands.command(description='Generate Cloud Statistics', usage='[@member]',
-                      aliases=['cstats', 'globalstats', 'gstats'])
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def cloudstats(self, ctx, member: Optional[discord.Member] = None):
-        try:
-            if 'token' not in self.config:
-                await ctx.send('Cloud statistics are not activated on this server.')
-                return
-            if not member:
-                member = ctx.message.author
-            ucid = self.bot.get_ucid_by_member(member)
-            if not ucid:
-                await ctx.send(f'The account is not properly linked. '
-                               f'Use {ctx.prefix}linkme to link your Discord and DCS accounts.')
-                return
-            response = await self.get(f'stats/{ucid}')
-            if not len(response):
-                await ctx.send('No cloud-based statistics found for this user.')
-                return
-            df = pd.DataFrame(response)
-            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'cloudstats.json',
-                                      timeout if timeout > 0 else None)
-            await report.render(member=member, data=df, guild=None)
-        finally:
-            await ctx.message.delete()
+    @cloud.command(description='Generate Cloud Statistics')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def statistics(self, interaction: discord.Interaction, member: Optional[discord.Member] = None):
+        if 'token' not in self.config:
+            await interaction.response.send_message('Cloud statistics are not activated in this Discord.',
+                                                    ephemeral=True)
+            return
+        if not member:
+            member = interaction.user
+        ucid = self.bot.get_ucid_by_member(member)
+        if not ucid:
+            await interaction.response.send_message(f'The account is not properly linked. Use /linkme to link '
+                                                    f'your Discord and DCS accounts.', ephemeral=True)
+            return
+        await interaction.response.defer()
+        response = await self.get(f'stats/{ucid}')
+        if not len(response):
+            await interaction.followup.send('No cloud-based statistics found for this user.', ephemeral=True)
+            return
+        df = pd.DataFrame(response)
+        report = PaginationReport(self.bot, interaction, self.plugin_name, 'cloudstats.json')
+        await report.render(member=member, data=df, guild=None)
 
     @tasks.loop(minutes=15.0)
-    async def master_bans(self):
+    async def cloud_bans(self):
         if self.config.get('dcs-ban', False):
-            # TODO: ban with channel!
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    with closing(conn.cursor()) as cursor:
-                        for ban in (await self.get('bans')):
-                            cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) '
-                                           'ON CONFLICT DO NOTHING', (ban['ucid'], self.plugin_name, ban['reason']))
+            bans = await self.get('bans')
+            for server in self.bot.servers.values():
+                for ban in bans:
+                    server.ban(ban['ucid'], ban['reason'], 9999*86400)
         if self.config.get('discord-ban', False):
             bans: list[dict] = await self.get('discord-bans')
             users_to_ban = [await self.bot.fetch_user(x['discord_id']) for x in bans]
@@ -274,7 +243,4 @@ async def setup(bot: DCSServerBot):
     if not os.path.exists('config/cloud.json'):
         bot.log.info('No cloud.json found, copying the sample.')
         shutil.copyfile('config/samples/cloud.json', 'config/cloud.json')
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(CloudHandlerMaster(bot, CloudListener))
-    else:
-        await bot.add_cog(CloudHandlerAgent(bot, CloudListener))
+    await bot.add_cog(CloudHandler(bot, CloudListener))

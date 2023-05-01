@@ -169,7 +169,10 @@ class MissionStatisticsEventListener(EventListener):
                     return
                 unit_name = initiator['unit_name']
                 if initiator['type'] == 'UNIT':
-                    if unit_name in stats['coalitions'][coalition.name]['units'][category]:
+                    if category == 'Structures':
+                        if unit_name in stats['coalitions'][coalition.name]['statics']:
+                            stats['coalitions'][coalition.name]['statics'].remove(unit_name)
+                    elif unit_name in stats['coalitions'][coalition.name]['units'][category]:
                         stats['coalitions'][coalition.name]['units'][category].remove(unit_name)
                 elif initiator['type'] == 'STATIC':
                     if unit_name in stats['coalitions'][coalition.name]['statics']:

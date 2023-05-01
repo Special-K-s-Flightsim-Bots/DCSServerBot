@@ -5,17 +5,13 @@ import os
 import tempfile
 import zipfile
 from datetime import datetime
-from typing import Union, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from core import DCSServerBot
+from typing import Union, Any
 
 
 class MizFile:
 
-    def __init__(self, bot: DCSServerBot, filename: str):
-        self.bot = bot
-        self.log = bot.log
+    def __init__(self, root: Any, filename: str):
+        self.log = root.log
         self.filename = filename
         self.mission = dict()
         self._load()

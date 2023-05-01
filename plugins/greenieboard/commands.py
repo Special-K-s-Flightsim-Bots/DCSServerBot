@@ -142,8 +142,7 @@ class GreenieBoardMaster(GreenieBoardAgent):
                                       for idx, x in enumerate(landings)
                                   ])
         if n:
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'lsoRating.json',
-                                      timeout if timeout > 0 else None)
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'lsoRating.json')
             await report.render(landings=landings, start_index=int(n), formatter=format_landing)
         await ctx.message.delete()
 
@@ -153,9 +152,7 @@ class GreenieBoardMaster(GreenieBoardAgent):
     @app_commands.rename(num_rows='rows')
     async def greenieboard(self, ctx, num_rows: Optional[int] = 10):
         try:
-            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'greenieboard.json',
-                                      timeout if timeout > 0 else None)
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'greenieboard.json')
             await report.render(server_name=None, num_rows=num_rows)
         finally:
             if not ctx.interaction:

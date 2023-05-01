@@ -181,11 +181,12 @@ class MissionEventListener(EventListener):
             server.current_mission = DataObjectFactory().new(
                 Mission.__name__, main=self.bot, server=server, map=data['current_map'], name=data['current_mission'])
 
-        server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
-        server.current_mission.update(data)
         if 'players' not in data:
             data['players'] = []
             server.status = Status.STOPPED
+        else:
+            server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
+        server.current_mission.update(data)
         server.afk.clear()
         for p in data['players']:
             if p['id'] == 1:
@@ -359,8 +360,8 @@ class MissionEventListener(EventListener):
                 data['arg2'] or 'SCENERY', Side(data['arg6']).name,
                 ('player ' + player2.name) if player2 is not None else 'AI',
                 data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon/Bomblet'))
-            # report teamkills from players to admins
-            if (player1 is not None) and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
+            # report teamkills from players to admins (only on public servers)
+            if server.is_public() and player1 and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
                 name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
                 await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
                     f'{name} (ucid={player1.ucid}) is killing team members. Please investigate.'

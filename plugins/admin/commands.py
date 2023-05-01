@@ -4,44 +4,35 @@ import discord
 import json
 import os
 import platform
-import shlex
 import shutil
 import subprocess
 from contextlib import closing
-from core import utils, Plugin, Player, Status, Server, Coalition
-from discord import Interaction, SelectOption
+from core import utils, Plugin, Status, Server, Coalition
+from discord import app_commands
 from discord.ext import commands, tasks
-from discord.ui import Select, View, Button, Modal, TextInput
+from discord.ui import Select, View, Button
 from pathlib import Path
-from psycopg.rows import dict_row
 from services import DCSServerBot
-from typing import Union, List, Optional
+from typing import List, Optional
 from zipfile import ZipFile
 
 from .listener import AdminEventListener
 
-STATUS_EMOJI = {
-    Status.LOADING: '🔄',
-    Status.PAUSED: '⏸️',
-    Status.RUNNING: '▶️',
-    Status.STOPPED: '⏹️'
-}
 
-
-class Agent(Plugin):
+class Admin(Plugin):
 
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
         self.update_pending = False
-        if self.bot.config.getboolean('DCS', 'AUTOUPDATE') is True:
+        if self.bot.config.getboolean('DCS', 'AUTOUPDATE'):
             self.check_for_dcs_update.start()
 
     async def cog_unload(self):
-        if self.bot.config.getboolean('DCS', 'AUTOUPDATE') is True:
+        if self.bot.config.getboolean('DCS', 'AUTOUPDATE'):
             self.check_for_dcs_update.cancel()
         await super().cog_unload()
 
-    async def do_update(self, warn_times: List[int], ctx=None):
+    async def do_update(self, warn_times: List[int], interaction: Optional[discord.Interaction] = None):
         async def shutdown_with_warning(server: Server):
             if server.is_populated():
                 shutdown_in = max(warn_times) if len(warn_times) else 0
@@ -55,8 +46,8 @@ class Agent(Plugin):
             await server.shutdown()
 
         self.update_pending = True
-        if ctx:
-            await ctx.send('Shutting down DCS servers, warning users before ...')
+        if interaction:
+            await interaction.response.send('Shutting down DCS servers, warning users before ...', ephemeral=True)
         else:
             self.log.info('Shutting down DCS servers, warning users before ...')
         servers = []
@@ -70,11 +61,11 @@ class Agent(Plugin):
                 server.maintenance = True
                 tasks.append(asyncio.create_task(shutdown_with_warning(server)))
         # wait for DCS servers to shut down
-        if len(tasks):
+        if tasks:
             await asyncio.gather(*tasks)
-        if ctx:
-            await ctx.send(f"Updating {self.bot.config['DCS']['DCS_INSTALLATION']} ...\n"
-                           f"Please wait, this might take some time.")
+        if interaction:
+            await interaction.followup.send(f"Updating {self.bot.config['DCS']['DCS_INSTALLATION']} ...\n"
+                                            f"Please wait, this might take some time.", ephemeral=True)
         else:
             self.log.info(f"Updating {self.bot.config['DCS']['DCS_INSTALLATION']} ...")
         for plugin in self.bot.cogs.values():  # type: Plugin
@@ -133,263 +124,12 @@ class Agent(Plugin):
         else:
             await ctx.send("Can't check the latest version on the DCS World website. Try again later.")
 
-    @commands.command(description='Change the password of a DCS server', aliases=['passwd'])
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def password(self, ctx, coalition: Optional[str] = None):
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
-            return
-        if not coalition:
-            if server.status in [Status.SHUTDOWN, Status.STOPPED]:
-                password = await utils.input_value(self.bot, ctx, 'Please enter the new password (. for none):', True)
-                server.settings['password'] = password if password else ''
-                await self.bot.audit(f"changed password", user=ctx.message.author, server=server)
-                await ctx.send('Password has been changed.')
-            else:
-                await ctx.send(f"Server \"{server.display_name}\" has to be stopped or shut down to change the password.")
-        elif coalition.casefold() in ['red', 'blue']:
-            if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-                password = await utils.input_value(self.bot, ctx, 'Please enter the new password (. for none):', True)
-                server.sendtoDCS({
-                    "command": "setCoalitionPassword",
-                    ("redPassword" if coalition.casefold() == 'red' else "bluePassword"): password or ''
-                })
-                with self.pool.connection() as conn:
-                    with conn.transaction():
-                        conn.execute('UPDATE servers SET {} = %s WHERE server_name = %s'.format('blue_password' if coalition.casefold() == 'blue' else 'red_password'),
-                                     (password, server.name))
-                await self.bot.audit(f"changed password for coalition {coalition}",
-                                     user=ctx.message.author, server=server)
-                if server.status != Status.STOPPED and \
-                        await utils.yn_question(ctx, "Password has been changed.\nDo you want the servers to be "
-                                                     "restarted for the change to take effect?"):
-                    await server.restart()
-                    await ctx.send('Server restarted.')
-                    await self.bot.audit('restarted the server', server=server, user=ctx.message.author)
-            else:
-                await ctx.send(f"Server \"{server.display_name}\" must not be shut down to change coalition "
-                               f"passwords.")
-        else:
-            await ctx.send(f"Usage: {ctx.prefix}password [red|blue]")
-
-    @commands.command(description='Change the configuration of a DCS server', aliases=['conf'])
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def config(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
-            return
-        if server.status in [Status.RUNNING, Status.PAUSED]:
-            if await utils.yn_question(ctx, question='Server has to be stopped to change its configuration.\n'
-                                                     'Do you want to stop it?'):
-                await server.stop()
-            else:
-                await ctx.send('Aborted.')
-                return
-
-        class ConfigModal(Modal, title="Server Configuration"):
-            name = TextInput(label="Name", default=server.name, max_length=80, required=True)
-            description = TextInput(label="Description", style=discord.TextStyle.long,
-                                    default=server.settings['description'], max_length=2000, required=False)
-            password = TextInput(label="Password", placeholder="n/a", default=server.settings['password'],
-                                 max_length=20, required=False)
-            max_player = TextInput(label="Max Players", default=server.settings['maxPlayers'], max_length=3,
-                                   required=True)
-
-            async def on_submit(s, interaction: discord.Interaction):
-                if s.name.value != server.name:
-                    old_name = server.name
-                    server.rename(new_name=s.name.value, update_settings=True)
-                    self.bot.servers[s.name.value] = server
-                    del self.bot.servers[old_name]
-                server.settings['description'] = s.description.value
-                server.settings['password'] = s.password.value
-                server.settings['maxPlayers'] = int(s.max_player.value)
-                await interaction.response.send_message(
-                    f'Server configuration for server "{server.display_name}" updated.')
-
-        class ConfigView(View):
-            @discord.ui.button(label='Yes', style=discord.ButtonStyle.green, custom_id='cfg_yes')
-            async def on_yes(self, interaction: Interaction, button: Button):
-                modal = ConfigModal()
-                await interaction.response.send_modal(modal)
-                self.stop()
-
-            @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red, custom_id='cfg_cancel')
-            async def on_cancel(self, interaction: Interaction, button: Button):
-                await interaction.response.send_message('Aborted.')
-                self.stop()
-
-            async def interaction_check(self, interaction: Interaction, /) -> bool:
-                if interaction.user != ctx.author:
-                    await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
-                    return False
-                else:
-                    return True
-
-        view = ConfigView()
-        embed = discord.Embed(title=f'Do you want to change the configuration of server\n"{server.display_name}"?')
-        msg = await ctx.send(embed=embed, view=view)
-        await view.wait()
-        await msg.delete()
-
-    @commands.command(description='Kick a user by name', usage='<name>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def kick(self, ctx: commands.Context, *args) -> None:
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
-            return
-
-        name = ' '.join(args)
-        # find that player
-        if server.status != Status.RUNNING:
-            await ctx.send(f'Server is {server.status.name.lower()}.')
-            return
-        players = [x for x in server.get_active_players() if name.casefold() in x.name.casefold()]
-        if len(players) > 25:
-            await ctx.send(f'Usage: {ctx.prefix}kick <user>')
-            return
-        elif len(players) == 0:
-            await ctx.send(f"No player \"{name}\" found.")
-            return
-
-        class KickModal(Modal, title="Reason for kicking"):
-            reason = TextInput(label="Reason", placeholder="n/a", max_length=80, required=True)
-
-            def __init__(derived, player: Player):
-                super().__init__()
-                derived.player = player
-
-            async def on_submit(derived, interaction: discord.Interaction):
-                reason = derived.reason.value or 'n/a'
-                server.kick(derived.player, reason)
-                await self.bot.audit(f"kicked player {derived.player.display_name}" +
-                                     (f' with reason "{derived.reason}".' if reason != 'n/a' else '.'),
-                                     user=interaction.user)
-                await interaction.response.send_message(f"Kicked player {derived.player.display_name}.")
-
-        class KickView(View):
-            @discord.ui.select(placeholder="Select a player to be kicked",
-                               options=[SelectOption(label=x.name,
-                                                     value=str(idx)) for idx, x in enumerate(players) if idx < 25])
-            async def callback(derived, interaction: Interaction, select: Select):
-                modal = KickModal(players[int(select.values[0])])
-                await interaction.response.send_modal(modal)
-                derived.stop()
-
-            @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
-            async def cancel(derived, interaction: Interaction, button: Button):
-                await interaction.response.send_message('Aborted.')
-                derived.stop()
-
-            async def interaction_check(derived, interaction: Interaction, /) -> bool:
-                if interaction.user != ctx.author:
-                    await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
-                    return False
-                else:
-                    return True
-
-        view = KickView()
-        msg = await ctx.send(view=view)
-        await view.wait()
-        await msg.delete()
-
-    def update_bans(self, data: Optional[dict] = None):
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute('SELECT ucid, reason FROM bans')
-                banlist = [dict(row) for row in cursor.fetchall()]
-        if data is not None:
-            servers = [self.bot.servers[data['server_name']]]
-        else:
-            servers = self.bot.servers.values()
-        for server in servers:
-            for ban in banlist:
-                server.sendtoDCS({
-                    "command": "ban",
-                    "ucid": ban['ucid'],
-                    "reason": ban['reason']
-                })
-
-    @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [reason]')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def ban(self, ctx, user: Union[discord.Member, str], *args):
-        if len(args) > 0:
-            reason = ' '.join(args)
-        else:
-            reason = 'n/a'
-        if isinstance(user, discord.Member):
-            # a player can have multiple ucids
-            with self.pool.connection() as conn:
-                ucids = [
-                    row[0] for row in
-                    conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, )).fetchall()
-                ]
-        else:
-            # ban a specific ucid only
-            ucids = [user]
-        for ucid in ucids:
-            for server in self.bot.servers.values():
-                server.sendtoDCS({
-                    "command": "ban",
-                    "ucid": ucid,
-                    "reason": reason
-                })
-                player = server.get_player(ucid=ucid)
-                if player:
-                    player.banned = True
-
-    @commands.command(description='Unbans a user by ucid or discord id', usage='<member|ucid>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def unban(self, ctx, user: Union[discord.Member, str]):
-        if isinstance(user, discord.Member):
-            # a player can have multiple ucids
-            with self.pool.connection() as conn:
-                ucids = [
-                    row[0] for row in
-                    conn.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, )).fetchall()
-                ]
-        else:
-            # unban a specific ucid only
-            ucids = [user]
-        for ucid in ucids:
-            for server in self.bot.servers.values():
-                server.sendtoDCS({"command": "unban", "ucid": ucid})
-                player = server.get_player(ucid=ucid)
-                if player:
-                    player.banned = False
-
-    @commands.command(description='Moves a user to spectators', usage='<name>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def spec(self, ctx, name, *args):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            reason = ' '.join(args) if len(args) > 0 else None
-            player = server.get_player(name=name, active=True)
-            if player:
-                server.move_to_spectators(player)
-                if reason:
-                    player.sendChatMessage(f"You have been moved to spectators. Reason: {reason}",
-                                           ctx.message.author.display_name)
-                await ctx.send(f'User "{name}" moved to spectators.')
-                await self.bot.audit(f'moved player {name} to spectators' + (f' with reason "{reason}".' if reason != 'n/a' else '.'),
-                                     user=ctx.message.author)
-            else:
-                await ctx.send(f"Player {name} not found.")
-
-    @commands.command(description='Download config files or missions', aliases=['dcslog', 'botlog'])
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def download(self, ctx: commands.Context) -> None:
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
-            return
-
+    @app_commands.command(description='Download config files or missions')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(server=utils.active_server_autocomplete)
+    async def download(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer]) -> None:
         view = View()
         msg = None
         config = self.get_config(server)
@@ -401,7 +141,7 @@ class Agent(Plugin):
                 zipfile.write(filename)
             return zipfile.filename
 
-        async def send_file(interaction: Interaction, filename: str, target: str):
+        async def send_file(interaction: discord.Interaction, filename: str, target: str):
             zipped = False
             if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('acmi') and \
                     os.path.getsize(filename) >= 8 * 1024 * 1024:
@@ -410,42 +150,45 @@ class Agent(Plugin):
             await interaction.response.defer(thinking=True)
             if not target:
                 dm_channel = await interaction.user.create_dm()
-                for channel in [dm_channel, ctx.channel]:
+                for channel in [dm_channel, interaction.channel]:
                     try:
                         await channel.send(file=discord.File(filename))
                         if channel == dm_channel:
-                            await interaction.followup.send('File sent as a DM.')
+                            await interaction.followup.send('File sent as a DM.', ephemeral=True)
                         else:
-                            await interaction.followup.send('Here is your file:')
+                            await interaction.followup.send('Here is your file:', ephemeral=True)
                         break
                     except discord.HTTPException:
                         continue
                 else:
-                    await interaction.followup.send('File too large. You need a higher boost level for your server.')
+                    await interaction.followup.send('File too large. You need a higher boost level for your server.',
+                                                    ephemeral=True)
             elif target.startswith('<'):
                 channel = self.bot.get_channel(int(target[4:-1]))
                 try:
                     await channel.send(file=discord.File(filename))
                 except discord.HTTPException:
-                    await interaction.followup.send('File too large. You need a higher boost level for your server.')
-                if channel != ctx.channel:
-                    await interaction.followup.send('File sent to the configured channel.')
+                    await interaction.followup.send('File too large. You need a higher boost level for your server.',
+                                                    ephemeral=True)
+                if channel != interaction.channel:
+                    await interaction.followup.send('File sent to the configured channel.', ephemeral=True)
                 else:
-                    await interaction.followup.send('Here is your file:')
+                    await interaction.followup.send('Here is your file:', ephemeral=True)
             else:
                 path = os.path.expandvars(target)
                 shutil.copy2(filename, path)
-                await interaction.followup.send('File copied to the specified location.')
+                await interaction.followup.send('File copied to the specified location.', ephemeral=True)
             if zipped:
                 os.remove(filename)
             await msg.delete()
 
-        async def _choice(interaction: Interaction):
+        async def _choice(interaction: discord.Interaction):
             for download in config['downloads']:
                 if download['label'] == select1.values[0]:
                     directory = Path(os.path.expandvars(download['directory'].format(server=server)))
                     pattern = download['pattern'].format(server=server)
-                    target = download['target'].format(config=self.bot.config[server.installation], server=server) if 'target' in download else None
+                    target = download['target'].format(config=self.bot.config[server.installation],
+                                                       server=server) if 'target' in download else None
                     break
 
             options: list[discord.SelectOption] = []
@@ -456,7 +199,7 @@ class Agent(Plugin):
                 if len(options) == 25:
                     break
             if not len(options):
-                await interaction.response.send_message("No file found.")
+                await interaction.response.send_message("No file found.", ephemeral=True)
                 return
             if len(options) == 1:
                 await send_file(interaction, files[options[0].value], target)
@@ -464,7 +207,7 @@ class Agent(Plugin):
 
             select2 = Select(placeholder="Select a file to download", options=options)
 
-            async def _download(interaction: Interaction):
+            async def _download(interaction: discord.Interaction):
                 await send_file(interaction, files[select2.values[0]], target)
 
             select2.callback = _download
@@ -474,34 +217,21 @@ class Agent(Plugin):
             await msg.edit(view=view)
             await interaction.response.defer()
 
-        async def _cancel(interaction: Interaction):
-            await msg.delete()
+        async def _cancel(interaction: discord.Interaction):
             await interaction.response.defer()
+            view.stop()
 
         select1.callback = _choice
         button = Button(label='Cancel', style=discord.ButtonStyle.red)
         button.callback = _cancel
         view.add_item(select1)
         view.add_item(button)
-        msg = await ctx.send(view=view)
-
-    @commands.command(description='Runs a shell command', hidden=True)
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def shell(self, ctx, *params):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            if len(params):
-                cmd = shlex.split(' '.join(params))
-                await self.bot.audit("executed a shell command: ```{}```".format(' '.join(cmd)), server=server,
-                                     user=ctx.message.author)
-                try:
-                    p = subprocess.run(cmd, shell=True, capture_output=True, timeout=300)
-                    await ctx.send('```' + p.stdout.decode('cp1252', 'ignore') + '```')
-                except subprocess.TimeoutExpired:
-                    await ctx.send('Timeout.')
-            else:
-                await ctx.send(f"Usage: {ctx.prefix}shell <command>")
+        await interaction.response.send_message(view=view, ephemeral=True)
+        msg = await interaction.original_response()
+        try:
+            await view.wait()
+        finally:
+            await msg.delete()
 
     @tasks.loop(minutes=5.0)
     async def check_for_dcs_update(self):
@@ -521,65 +251,6 @@ class Agent(Plugin):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
-    async def process_message(self, message) -> bool:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(message.attachments[0].url) as response:
-                if response.status == 200:
-                    ctx = utils.ContextWrapper(message=message)
-                    if message.attachments[0].filename.endswith('.json'):
-                        data = await response.json(encoding="utf-8")
-                        if 'configs' in data:
-                            plugin = message.attachments[0].filename[:-5]
-                            if plugin not in self.bot.plugins:
-                                await message.channel.send(f"Plugin {plugin.title()} is not activated.")
-                                return True
-                            filename = f"config/{plugin}.json"
-                            if os.path.exists(filename) and not \
-                                    await utils.yn_question(ctx, f'Do you want to overwrite {filename} on '
-                                                                 f'node {platform.node()}?'):
-                                await message.channel.send('Aborted.')
-                                return True
-                            with open(filename, 'w', encoding="utf-8") as outfile:
-                                json.dump(data, outfile, indent=2)
-                            await self.bot.reload(plugin)
-                            await message.channel.send(f"Plugin {plugin.title()} re-configured.")
-                            return True
-                        else:
-                            return False
-                    else:
-                        if await utils.yn_question(ctx, f'Do you want to overwrite dcsserverbot.ini on '
-                                                        f'node {platform.node()}?'):
-                            with open('config/dcsserverbot.ini', 'w', encoding='utf-8') as outfile:
-                                outfile.writelines('\n'.join((await response.text(encoding='utf-8')).splitlines()))
-                            self.bot.config = utils.config = utils.reload()
-                            await message.channel.send('dcsserverbot.ini updated.')
-                            if await utils.yn_question(ctx, 'Do you want to restart the bot?'):
-                                exit(-1)
-                        else:
-                            await message.channel.send('Aborted.')
-                        return True
-                else:
-                    await message.channel.send(f'Error {response.status} while reading JSON file!')
-                    return True
-
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        # ignore bot messages or messages that does not contain json attachments
-        if message.author.bot or not message.attachments or \
-                not (
-                        message.attachments[0].filename.endswith('.json') or
-                        message.attachments[0].filename == 'dcsserverbot.ini'
-                ):
-            return
-        # only Admin role is allowed to upload json files in channels
-        if not await self.bot.get_server(message) or not utils.check_roles(['Admin'], message.author):
-            return
-        if await self.process_message(message):
-            await message.delete()
-
-
-class Master(Agent):
-
     class CleanupView(View):
         def __init__(self, ctx: commands.Context):
             super().__init__()
@@ -589,55 +260,57 @@ class Master(Agent):
             self.command = None
 
         @discord.ui.select(placeholder="What to be pruned?", options=[
-            SelectOption(label='Non-member users (unlinked)', value='non-members', default=True),
-            SelectOption(label='Members and non-members', value='users'),
-            SelectOption(label='Data only (all users)', value='data')
+            discord.SelectOption(label='Non-member users (unlinked)', value='non-members', default=True),
+            discord.SelectOption(label='Members and non-members', value='users'),
+            discord.SelectOption(label='Data only (all users)', value='data')
         ])
-        async def set_what(self, interaction: Interaction, select: Select):
+        async def set_what(self, interaction: discord.Interaction, select: Select):
             self.what = select.values[0]
             await interaction.response.defer()
 
         @discord.ui.select(placeholder="Which age to be pruned?", options=[
-            SelectOption(label='Older than 90 days', value='90'),
-            SelectOption(label='Older than 180 days', value='180', default=True),
-            SelectOption(label='Older than 1 year', value='360 days')
+            discord.SelectOption(label='Older than 90 days', value='90'),
+            discord.SelectOption(label='Older than 180 days', value='180', default=True),
+            discord.SelectOption(label='Older than 1 year', value='360 days')
         ])
-        async def set_age(self, interaction: Interaction, select: Select):
+        async def set_age(self, interaction: discord.Interaction, select: Select):
             self.age = select.values[0]
             await interaction.response.defer()
 
         @discord.ui.button(label='Prune', style=discord.ButtonStyle.danger, emoji='⚠')
-        async def prune(self, interaction: Interaction, button: Button):
+        async def prune(self, interaction: discord.Interaction, button: Button):
             await interaction.response.defer()
             self.command = "prune"
             self.stop()
 
         @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
-        async def cancel(self, interaction: Interaction, button: Button):
+        async def cancel(self, interaction: discord.Interaction, button: Button):
             await interaction.response.defer()
             self.command = "cancel"
             self.stop()
 
-        async def interaction_check(self, interaction: Interaction, /) -> bool:
+        async def interaction_check(self, interaction: discord.Interaction, /) -> bool:
             if interaction.user != self.ctx.author:
                 await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
                 return False
             else:
                 return True
 
-    @commands.command(description='Prune unused data in the database', hidden=True, aliases=['prune'])
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def cleanup(self, ctx):
+    @app_commands.command(description='Prune unused data in the database')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def prune(self, interaction: discord.Interaction):
         embed = discord.Embed(title=":warning: Database Prune :warning:")
         embed.description = "You are going to delete data from your database. Be advised.\n\n" \
                             "Please select the data to be pruned:"
-        view = self.CleanupView(ctx)
-        msg = await ctx.send(embed=embed, view=view)
-        await view.wait()
-        await msg.delete()
+        view = self.CleanupView()
+        msg = await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        try:
+            await view.wait()
+        finally:
+            await msg.delete()
         if view.command == "cancel":
-            await ctx.send('Aborted.')
+            await interaction.followup.send('Aborted.', ephemeral=True)
             return
 
         with self.pool.connection() as conn:
@@ -650,127 +323,40 @@ class Master(Agent):
                                 sql += ' AND discord_id = -1'
                             ucids = [row[0] for row in cursor.execute(sql).fetchall()]
                             if not ucids:
-                                await ctx.send('No players to prune.')
+                                await interaction.followup.send('No players to prune.', ephemeral=True)
                                 return
-                            if not await utils.yn_question(ctx, f"This will delete {len(ucids)} players incl. their stats "
-                                                                f"from the database.\nAre you sure?"):
+                            if not await utils.yn_question(interaction, f"This will delete {len(ucids)} players incl. "
+                                                                        f"their stats from the database.\n"
+                                                                        f"Are you sure?"):
                                 return
                             for plugin in self.bot.cogs.values():  # type: Plugin
                                 await plugin.prune(conn, ucids=ucids)
                             for ucid in ucids:
                                 cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                            await ctx.send(f"{len(ucids)} players pruned.")
+                            await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=True)
                         elif view.what == 'data':
                             days = int(view.age)
-                            if not await utils.yn_question(ctx, f"This will delete all data older than {days} days from the "
-                                                                f"database.\nAre you sure?"):
+                            if not await utils.yn_question(interaction, f"This will delete all data older than {days} "
+                                                                        f"days from the database.\nAre you sure?"):
                                 return
                             for plugin in self.bot.cogs.values():  # type: Plugin
                                 await plugin.prune(conn, days=days)
-                            await ctx.send(f"All data older than {days} days pruned.")
-        await self.bot.audit(f'pruned the database', user=ctx.message.author)
-
-    @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [reason]')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def ban(self, ctx, user: Union[discord.Member, str], *args):
-        if len(args) > 0:
-            reason = ' '.join(args)
-        else:
-            reason = 'n/a'
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    if isinstance(user, discord.Member):
-                        # a player can have multiple ucids
-                        cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
-                        ucids = [row[0] for row in cursor.fetchall()]
-                    else:
-                        # ban a specific ucid only
-                        ucids = [user]
-                    for ucid in ucids:
-                        cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
-                                       (ucid, ctx.message.author.display_name, reason))
-        await super().ban(self, ctx, user, *args)
-        if isinstance(user, discord.Member):
-            await ctx.send('Member {} banned.'.format(utils.escape_string(user.display_name)))
-        else:
-            await ctx.send(f'Player {user} banned.')
-        await self.bot.audit('banned ' +
-                             ('member {}'.format(utils.escape_string(user.display_name)) if isinstance(user, discord.Member) else f' ucid {user}') +
-                             (f' with reason "{reason}"' if reason != 'n/a' else ''),
-                             user=ctx.message.author)
-
-    @commands.command(description='Unbans a user by ucid or discord id', usage='<member|ucid>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def unban(self, ctx, user: Union[discord.Member, str]):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    if isinstance(user, discord.Member):
-                        # a player can have multiple ucids
-                        cursor.execute('SELECT ucid FROM players WHERE discord_id = %s', (user.id, ))
-                        ucids = [row[0] for row in cursor.fetchall()]
-                    else:
-                        # unban a specific ucid only
-                        ucids = [user]
-                    for ucid in ucids:
-                        cursor.execute('DELETE FROM bans WHERE ucid = %s', (ucid, ))
-        await super().unban(self, ctx, user)
-        if isinstance(user, discord.Member):
-            await ctx.send('Member {} unbanned.'.format(utils.escape_string(user.display_name)))
-        else:
-            await ctx.send(f'Player {user} unbanned.')
-        await self.bot.audit(f'unbanned ' +
-                             ('member {}'.format(utils.escape_string(user.display_name)) if isinstance(user, discord.Member) else f' ucid {user}'),
-                             user=ctx.message.author)
-
-    def format_bans(self, rows):
-        embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
-        ucids = names = reasons = ''
-        for ban in rows:
-            if ban['discord_id'] != -1:
-                user = self.bot.get_user(ban['discord_id'])
-            else:
-                user = None
-            names += utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>') + '\n'
-            ucids += ban['ucid'] + '\n'
-            reasons += ban['reason'] + '\n'
-        embed.add_field(name='UCID', value=ucids)
-        embed.add_field(name='Name', value=names)
-        embed.add_field(name='Reason', value=reasons)
-        return embed
-
-    @commands.command(description='Shows active bans')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def bans(self, ctx):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                    rows = list(cursor.execute("""
-                        SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason 
-                        FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid
-                        """).fetchall())
-        await utils.pagination(self.bot, ctx, rows, self.format_bans, 20)
+                            await interaction.followup.send(f"All data older than {days} days pruned.", ephemeral=True)
+        await self.bot.audit(f'pruned the database', user=interaction.user)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
         self.bot.log.debug(f'Member {member.display_name} has left the discord')
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                    if self.bot.config.getboolean('BOT', 'AUTOBAN'):
-                        self.bot.log.debug(f'- Auto-ban member {member.display_name} on the DCS servers')
-                        cursor.execute("""
-                            INSERT INTO bans SELECT ucid, 'DCSServerBot', 'Player left guild.' 
-                            FROM players WHERE discord_id = %s 
-                            ON CONFLICT DO NOTHING
-                            """, (member.id, ))
-                        self.update_bans()
-                    self.bot.log.debug(f'- Delete stats of member {member.display_name}')
-                    cursor.execute("""
+        ucid = self.bot.get_ucid_by_member(member)
+        if ucid and self.bot.config.getboolean('BOT', 'AUTOBAN'):
+            self.bot.log.debug(f'- Banning them on our DCS servers due to AUTOBAN')
+            for server in self.bot.servers.values():
+                server.ban(ucid, 'Player left discord.', 9999*86400)
+        if self.bot.config.getboolean('BOT', 'WIPE_STATS_ON_LEAVE'):
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    self.bot.log.debug(f'- Deleting their statistics due to WIPE_STATS_ON_LEAVE')
+                    conn.execute("""
                         DELETE FROM statistics 
                         WHERE player_ucid IN (
                             SELECT ucid FROM players WHERE discord_id = %s
@@ -780,33 +366,65 @@ class Master(Agent):
     @commands.Cog.listener()
     async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
         self.bot.log.debug(f"Member {member.display_name} has been banned.")
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                self.bot.log.debug(f'- Ban member {member.display_name} on the DCS servers.')
-                conn.execute("""
-                    INSERT INTO bans SELECT ucid, 'DCSServerBot', 'Player left guild.' 
-                    FROM players 
-                    WHERE discord_id = %s ON CONFLICT DO NOTHING
-                """, (member.id, ))
-                self.update_bans()
+        ucid = self.bot.get_ucid_by_member(member)
+        if ucid:
+            for server in self.bot.servers.values():
+                server.ban(ucid, 'Banned on discord.', 9999*86400)
 
     @commands.Cog.listener()
-    async def on_member_join(self, member):
-        self.bot.log.debug('Member {} has joined guild {}'.format(member.display_name, member.guild.name))
-        if self.bot.config.getboolean('BOT', 'AUTOBAN') is True:
-            self.bot.log.debug('Remove possible bans from DCS servers.')
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    # auto-unban them if they were auto-banned
-                    conn.execute('DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE discord_id = %s)',
-                                 (member.id, ))
-            self.update_bans()
+    async def on_member_join(self, member: discord.Member):
+        self.bot.log.debug(f'Member {member.display_name} has joined guild {member.guild.name}')
+        ucid = self.bot.get_ucid_by_member(member)
+        if ucid:
+            for server in self.bot.servers.values():
+                server.unban(ucid)
         if 'GREETING_DM' in self.bot.config['BOT']:
             channel = await member.create_dm()
             await channel.send(self.bot.config['BOT']['GREETING_DM'].format(name=member.name, guild=member.guild.name))
 
+    async def process_message(self, message: discord.Message) -> bool:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(message.attachments[0].url) as response:
+                if response.status == 200:
+                    interaction = message.interaction
+                    if message.attachments[0].filename.endswith('.json'):
+                        data = await response.json(encoding="utf-8")
+                        if 'configs' in data:
+                            plugin = message.attachments[0].filename[:-5]
+                            if plugin not in self.bot.plugins:
+                                await message.channel.send(f"Plugin {plugin.title()} is not activated.")
+                                return True
+                            filename = f"config/{plugin}.json"
+                            if os.path.exists(filename) and not \
+                                    await utils.yn_question(interaction, f'Do you want to overwrite {filename} on '
+                                                                         f'node {platform.node()}?'):
+                                await message.channel.send('Aborted.')
+                                return True
+                            with open(filename, 'w', encoding="utf-8") as outfile:
+                                json.dump(data, outfile, indent=2)
+                            await self.bot.reload(plugin)
+                            await message.channel.send(f"Plugin {plugin.title()} re-configured.")
+                            return True
+                        else:
+                            return False
+                    else:
+                        if await utils.yn_question(interaction, f'Do you want to overwrite dcsserverbot.ini on '
+                                                                f'node {platform.node()}?'):
+                            with open('config/dcsserverbot.ini', 'w', encoding='utf-8') as outfile:
+                                outfile.writelines('\n'.join((await response.text(encoding='utf-8')).splitlines()))
+                            self.bot.config = utils.config = utils.reload()
+                            await message.channel.send('dcsserverbot.ini updated.')
+                            if await utils.yn_question(interaction, 'Do you want to restart the bot?'):
+                                exit(-1)
+                        else:
+                            await message.channel.send('Aborted.')
+                        return True
+                else:
+                    await message.channel.send(f'Error {response.status} while reading JSON file!')
+                    return True
+
     @commands.Cog.listener()
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message):
         # ignore bot messages or messages that does not contain json attachments
         if message.author.bot or not message.attachments or \
                 not (
@@ -817,7 +435,7 @@ class Master(Agent):
         # only Admin role is allowed to upload json files in channels
         if not utils.check_roles(['Admin'], message.author):
             return
-        if await self.bot.get_server(message) and await super().process_message(message):
+        if await self.bot.get_server(message) and await self.process_message(message):
             await message.delete()
             return
         if not message.attachments[0].filename.endswith('.json'):
@@ -850,7 +468,4 @@ async def setup(bot: DCSServerBot):
     if not os.path.exists('config/admin.json'):
         bot.log.info('No admin.json found, copying the sample.')
         shutil.copyfile('config/samples/admin.json', 'config/admin.json')
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(Master(bot, AdminEventListener))
-    else:
-        await bot.add_cog(Agent(bot, AdminEventListener))
+    await bot.add_cog(Admin(bot, AdminEventListener))

@@ -2,9 +2,10 @@ import discord
 import json
 from core import DCSServerBot, Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
     PluginInstallationError
-from discord.ext import tasks, commands
+from discord import app_commands
+from discord.ext import tasks
 from os import path
-from typing import Optional, TYPE_CHECKING, Type
+from typing import Optional, TYPE_CHECKING, Type, Literal
 from .listener import MessageOfTheDayListener
 
 if TYPE_CHECKING:
@@ -86,35 +87,33 @@ class MessageOfTheDay(Plugin):
             recp.append(player)
         return recp
 
-    @commands.command(description='Test MOTD', usage='[-join | -birth | -nudge]', hidden=True)
-    @utils.has_roles(['DCS Admin'])
-    @commands.guild_only()
-    async def motd(self, ctx, option: str, member: Optional[discord.Member] = None):
-        server: Server = await self.bot.get_server(ctx)
+    @app_commands.command(description='Test MOTD')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin'])
+    @app_commands.autocomplete(server=utils.active_server_autocomplete)
+    @app_commands.autocomplete(player=utils.active_player_autocomplete)
+    async def motd(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer],
+                   player: app_commands.Transform[Player, utils.PlayerTransformer],
+                   option: Literal['join', 'birth', 'nudge']):
         config = self.get_config(server)
         if not config:
-            await ctx.send('No configuration for MOTD found.')
+            await interaction.response.send_message('No configuration for MOTD found.', ephemeral=True)
             return
-        if server and server.status in [Status.RUNNING, Status.PAUSED]:
-            message = None
-            if 'join' in option:
-                message = self.eventlistener.on_join(config)
-            elif 'birth' in option:
-                if not member:
-                    await ctx.send(f'Usage: {ctx.prefix}{option} @member')
-                    return
-                player: Player = server.get_player(discord_id=member.id)
-                if not player:
-                    await ctx.send("Player {} is currently not logged in.".format(utils.escape_string(member.display_name)))
-                    return
-                message = await self.eventlistener.on_birth(config, server, player)
-            elif 'nudge' in option:
-                # TODO
-                pass
-            if message:
-                await ctx.send(f"```{message}```")
-        else:
-            await ctx.send(f"Mission is {server.status.name.lower()}, can't test MOTD.")
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(f"Mission is {server.status.name.lower()}, can't test MOTD.",
+                                                    ephemeral=True)
+            return
+        message = None
+        if 'join' in option:
+            message = self.eventlistener.on_join(config)
+        elif 'birth' in option:
+            message = await self.eventlistener.on_birth(config, server, player)
+        elif 'nudge' in option:
+            # TODO
+            pass
+        if message:
+            await interaction.response.send_message.send(f"```{message}```")
 
     @tasks.loop(minutes=1.0)
     async def nudge(self):

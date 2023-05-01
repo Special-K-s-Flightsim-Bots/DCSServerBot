@@ -14,7 +14,8 @@ STATUS_IMG = {
 
 
 class Init(report.EmbedElement):
-    def render(self, server: Server, num_players: int):
+    def render(self, server: Server):
+        num_players = len(server.players)
         self.embed.set_author(
             name=f"{server.name} [{num_players}/{server.settings['maxPlayers']}]",
             icon_url=STATUS_IMG[server.status])

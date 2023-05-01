@@ -3,18 +3,21 @@ import json
 import os
 import platform
 import socket
+import sqlite3
 import subprocess
 import win32con
 from contextlib import suppress
-from core import utils, Server
+from core import utils, Server, Player
 from dataclasses import dataclass
+from datetime import datetime
 from psutil import Process
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Union
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
 from .dataobject import DataObjectFactory
 from .const import Status, Channel
+from ..mizfile import MizFile
 
 if TYPE_CHECKING:
     from core import Plugin
@@ -185,7 +188,7 @@ class ServerImpl(Server):
 
     async def shutdown(self, force: bool = False) -> None:
         if not force:
-            await super().shutdown(force)
+            await super().shutdown(False)
         self.terminate()
         self.status = Status.SHUTDOWN
 
@@ -193,3 +196,91 @@ class ServerImpl(Server):
         if self.process and self.process.is_running():
             self.process.kill()
         self.process = None
+
+    def ban(self, ucid: str, reason: str = 'n/a', period: int = 30*86400):
+        player: Player = self.get_player(ucid=ucid, active=True)
+        if player and self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            self.sendtoDCS({
+                "command": "ban",
+                "id": player.id,
+                "period": period,
+                "reason": reason
+            })
+        else:
+            conn = sqlite3.connect(os.path.join(os.path.expandvars(self.main.config[self.installation]['DCS_HOME']),
+                                                'Config', 'serverdata.sqlite3'))
+            try:
+                with conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("""
+                            INSERT INTO net_bans (ucid, banned_from, banned_until, reason) 
+                            VALUES (?, datetime('now'), datetime('now', '? seconds'), ?)
+                            ON CONFLICT (ucid) DO UPDATE 
+                            SET banned_from = excluded.banned_from, banned_until = excluded.banned_until, 
+                                reason = excluded.reason
+                        """, (ucid, period, reason))
+            except sqlite3.Error as ex:
+                self.log.exception(ex)
+            finally:
+                conn.close()
+
+    def unban(self, ucid: str):
+        if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            self.sendtoDCS({"command": "unban", "ucid": ucid})
+        else:
+            conn = sqlite3.connect(os.path.join(os.path.expandvars(self.main.config[self.installation]['DCS_HOME']),
+                                                'Config', 'serverdata.sqlite3'))
+            try:
+                with conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("DELETE FROM net_bans WHERE ucid = ?", (ucid, ))
+            except sqlite3.Error as ex:
+                self.log.exception(ex)
+            finally:
+                conn.close()
+
+    async def modifyMission(self, preset: Union[list, dict]) -> None:
+        def apply_preset(value: dict):
+            if 'start_time' in value:
+                miz.start_time = value['start_time']
+            if 'date' in value:
+                miz.date = datetime.strptime(value['date'], '%Y-%m-%d')
+            if 'temperature' in value:
+                miz.temperature = int(value['temperature'])
+            if 'clouds' in value:
+                if isinstance(value['clouds'], str):
+                    miz.clouds = {"preset": value['clouds']}
+                else:
+                    miz.clouds = value['clouds']
+            if 'wind' in value:
+                miz.wind = value['wind']
+            if 'groundTurbulence' in value:
+                miz.groundTurbulence = int(value['groundTurbulence'])
+            if 'enable_dust' in value:
+                miz.enable_dust = value['enable_dust']
+            if 'dust_density' in value:
+                miz.dust_density = int(value['dust_density'])
+            if 'qnh' in value:
+                miz.qnh = int(value['qnh'])
+            if 'enable_fog' in value:
+                miz.enable_fog = value['enable_fog']
+            if 'fog' in value:
+                miz.fog = value['fog']
+            if 'halo' in value:
+                miz.halo = value['halo']
+            if 'requiredModules' in value:
+                miz.requiredModules = value['requiredModules']
+            if 'accidental_failures' in value:
+                miz.accidental_failures = value['accidental_failures']
+
+        if self.status in [Status.STOPPED, Status.SHUTDOWN]:
+            filename = await self.get_current_mission_file()
+            if not filename:
+                return
+            miz = MizFile(self, filename)
+            if isinstance(preset, list):
+                for p in preset:
+                    apply_preset(p)
+            else:
+                apply_preset(preset)
+            miz.save()

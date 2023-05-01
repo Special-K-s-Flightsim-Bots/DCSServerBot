@@ -116,11 +116,10 @@ class PaginationReport(Report):
     class NoPaginationInformation(Exception):
         pass
 
-    def __init__(self, bot: DCSServerBot, ctx: Union[Context, discord.DMChannel], plugin: str, filename: str,
-                 timeout: Optional[int] = None, pagination: Optional[list] = None):
+    def __init__(self, bot: DCSServerBot, interaction: discord.Interaction, plugin: str, filename: str,
+                 pagination: Optional[list] = None):
         super().__init__(bot, plugin, filename)
-        self.ctx = ctx
-        self.timeout = timeout
+        self.interaction = interaction
         self.pagination = pagination
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
@@ -239,6 +238,7 @@ class PaginationReport(Report):
             self.stop()
 
     async def render(self, *args, **kwargs) -> ReportEnv:
+        await self.interaction.response.defer()
         name, values = self.read_param(self.report_def['pagination']['param'], **kwargs)
         start_index = 0
         if 'start_index' in kwargs:
@@ -257,11 +257,12 @@ class PaginationReport(Report):
         env = await view.render(values[start_index])
         try:
             try:
-                message = await self.ctx.send(
+                message = await self.interaction.followup.send(
                     embed=env.embed,
                     view=view,
                     file=discord.File(env.filename,
-                                      filename=os.path.basename(env.filename)) if env.filename else None)
+                                      filename=os.path.basename(env.filename)) if env.filename else None
+                )
             finally:
                 if env.filename and os.path.exists(env.filename):
                     os.remove(env.filename)

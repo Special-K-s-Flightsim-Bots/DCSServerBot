@@ -34,17 +34,13 @@ async def command_picker(interaction: discord.Interaction, current: str) -> list
         print(ex)
 
 
-class HelpAgent(Plugin):
-    pass
-
-
-class HelpMaster(HelpAgent):
+class Help(Plugin):
 
     class HelpView(View):
-        def __init__(self, bot: DCSServerBot, ctx: commands.Context, options: list[discord.SelectOption]):
+        def __init__(self, bot: DCSServerBot, interaction: discord.Interaction, options: list[discord.SelectOption]):
             super().__init__()
             self.bot = bot
-            self.ctx = ctx
+            self.interaction = interaction
             self.prefix = self.bot.config['BOT']['COMMAND_PREFIX']
             self.options = options
             select: Select = cast(Select, self.children[0])
@@ -58,8 +54,8 @@ class HelpMaster(HelpAgent):
                 self.children[3].disabled = True
                 self.children[4].disabled = True
 
-        async def print_command(self, ctx: commands.Context, *, command: str) -> Optional[discord.Embed]:
-            command = command.lstrip(self.ctx.prefix)
+        async def print_command(self, interaction: discord.Interaction, *, command: str) -> Optional[discord.Embed]:
+            command = command.lstrip('/')
             cmd = self.bot.all_commands.get(command) or self.bot.tree.get_command(command)
             if not cmd:
                 return
@@ -69,7 +65,7 @@ class HelpMaster(HelpAgent):
             if isinstance(cmd, discord.ext.commands.core.Command):
                 if not cmd.enabled:
                     return None
-                if not await cmd.can_run(ctx):
+                if not await cmd.can_run(await commands.Context.from_interaction(interaction)):
                     raise PermissionError()
                 help_embed.add_field(name='Usage', value=f"{self.prefix}{cmd.name} {cmd.signature}", inline=False)
                 if cmd.usage:
@@ -79,12 +75,12 @@ class HelpMaster(HelpAgent):
                                          inline=False)
             elif isinstance(cmd, discord.ext.commands.hybrid.HybridAppCommand) or \
                     isinstance(cmd, discord.app_commands.commands.Command):
-                if not ctx.interaction:
-                    help_embed.set_footer(text="Can't check permissions, you might not be able to run this command.")
-                    return help_embed
-                if not await cmd._check_can_run(ctx.interaction):
+                if not await cmd._check_can_run(interaction):
                     raise PermissionError()
-                usage = ' '.join([f"<{param.name}>" if param.required else f"[{param.name}]" for param in cmd.parameters])
+                usage = ' '.join([
+                    f"<{param.name}>" if param.required else f"[{param.name}]"
+                    for param in cmd.parameters
+                ])
                 help_embed.add_field(name='Usage', value=f"/{cmd.name} {usage}", inline=False)
                 if usage:
                     help_embed.set_footer(text='<> mandatory, [] non-mandatory')
@@ -107,7 +103,7 @@ class HelpMaster(HelpAgent):
                 if not predicates:
                     check = True
                 else:
-                    check = await discord.utils.async_all(predicate(self.ctx) for predicate in predicates)
+                    check = await discord.utils.async_all(predicate(self.interaction) for predicate in predicates)
                 if not check:
                     continue
                 cmd = f"{self.prefix}{command.name}"
@@ -173,32 +169,25 @@ class HelpMaster(HelpAgent):
             await interaction.response.defer()
             self.stop()
 
-        async def interaction_check(self, interaction: discord.Interaction, /) -> bool:
-            if interaction.user != self.ctx.author:
-                await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
-                return False
-            else:
-                return True
-
-    @commands.command(name='help', description='The help command')
-    @commands.guild_only()
-    async def help(self, ctx, command: Optional[str]):
+    @app_commands.command(description='The help command')
+    @app_commands.guild_only()
+    async def help(self, interaction: discord.Interaction, command: Optional[str]):
         options = [
             discord.SelectOption(label=x.title(),
                                  value=f'plugins.{x}.commands') for x in sorted(self.bot.plugins) if x != 'help'
         ]
         options.insert(0, discord.SelectOption(label='Core', value='__main__'))
-        view = self.HelpView(self.bot, ctx, options)
-        msg = None
+        view = self.HelpView(self.bot, interaction, options)
         if command:
             try:
-                embed = await view.print_command(ctx, command=command)
+                embed = await view.print_command(interaction, command=command)
                 if embed:
-                    await ctx.send(embed=embed)
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
                 else:
-                    await ctx.send(f'Command {command} not found.')
+                    await interaction.response.send_message(f'Command {command} not found.', ephemeral=True)
             except PermissionError:
-                await ctx.send("You don't have the permission to use this command.")
+                await interaction.response.send_message("You don't have the permission to use this command.",
+                                                        ephemeral=True)
         else:
             try:
                 # shall we display a custom report as greeting page?
@@ -215,26 +204,23 @@ class HelpMaster(HelpAgent):
                                                          ])
                     embed = env.embed
                     if env.filename:
-                        msg = await ctx.send(embed=embed, view=view,
-                                             file=discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None)
+                        await interaction.response.send_message(
+                            embed=embed, view=view,
+                            file=discord.File(env.filename,
+                                              filename=os.path.basename(env.filename)) if env.filename else None,
+                            ephemeral=True)
                     else:
-                        msg = await ctx.send(embed=embed, view=view)
+                        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                 else:
                     embed = await view.print_commands(plugin='__main__')
-                    msg = await ctx.send(embed=embed, view=view)
+                    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                 if await view.wait() or not view.result:
                     return
             except Exception as ex:
                 self.log.exception(ex)
             finally:
-                await ctx.message.delete()
-                if msg:
-                    await msg.delete()
+                await interaction.delete_original_response()
 
 
 async def setup(bot: DCSServerBot):
-    # help is only available on the master
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(HelpMaster(bot, HelpListener))
-    else:
-        await bot.add_cog(HelpAgent(bot, HelpListener))
+    await bot.add_cog(Help(bot, HelpListener))

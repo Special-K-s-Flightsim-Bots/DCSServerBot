@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import zipfile
@@ -12,6 +13,7 @@ from core import utils, ServiceRegistry
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from matplotlib import font_manager
+from pathlib import Path
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
@@ -46,6 +48,7 @@ class Main:
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.db_version = None
         self.pool = self.init_db()
+        self.install_plugins()
         plugins: str = self.config['BOT']['PLUGINS']
         if 'OPT_PLUGINS' in self.config['BOT']:
             plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
@@ -179,6 +182,13 @@ class Main:
                     font_manager.fontManager.addfont(font)
                 self.log.debug('- CJK fonts loaded.')
 
+    def install_plugins(self):
+        for file in Path('plugins').glob('*.zip'):
+            path = file.__str__()
+            self.log.info('- Unpacking plugin "{}" ...'.format(os.path.basename(path).replace('.zip', '')))
+            shutil.unpack_archive(path, '{}'.format(path.replace('.zip', '')))
+            os.remove(path)
+
     def upgrade(self) -> bool:
         try:
             import git
@@ -277,7 +287,6 @@ class Main:
 
     async def run(self):
         async with ServiceRegistry(main=self) as registry:
-            asyncio.create_task(registry.new("Monitoring").start())
             bus = registry.new("ServiceBus")
             if self.master:
                 await self.install_fonts()
@@ -286,6 +295,7 @@ class Main:
                 bot = cast(BotService, registry.new("Bot"))
                 asyncio.create_task(bot.start(token=self.config['BOT']['TOKEN']))
             asyncio.create_task(bus.start())
+            asyncio.create_task(registry.new("Monitoring").start())
             if self.config['BOT'].getboolean('USE_DASHBOARD'):
                 dashboard = cast(Dashboard, registry.new("Dashboard"))
                 asyncio.create_task(dashboard.start())

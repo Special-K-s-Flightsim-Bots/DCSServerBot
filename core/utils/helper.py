@@ -192,10 +192,10 @@ def get_all_players(self, **kwargs) -> list[Tuple[str, str]]:
     name = kwargs.get('name')
     ucid = kwargs.get('ucid')
     sql = "SELECT ucid, name FROM players"
-    if name:
+    if name is not None:
         sql += ' WHERE name ILIKE %s'
         name = f'%{name}%'
-    elif ucid:
+    elif ucid is not None:
         sql += ' WHERE ucid ILIKE %s'
         ucid = f'%{ucid}%'
     sql += ' ORDER BY 2 LIMIT 25'

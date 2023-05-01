@@ -15,7 +15,7 @@ from .listener import TEventListener
 
 if TYPE_CHECKING:
     from core import Server
-    from services import DCSServerBot
+    from services import DCSServerBot, ServiceBus
 
 
 class Plugin(commands.Cog):
@@ -25,7 +25,7 @@ class Plugin(commands.Cog):
         self.plugin_name = type(self).__module__.split('.')[-2]
         self.plugin_version = getattr(sys.modules['plugins.' + self.plugin_name], '__version__')
         self.bot: DCSServerBot = bot
-        self.els: ServiceBus = ServiceRegistry.get("ServiceBus")
+        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
         self.log = self.bot.log
         self.pool = self.bot.pool
         self.loop = self.bot.loop
@@ -38,13 +38,13 @@ class Plugin(commands.Cog):
     async def cog_load(self) -> None:
         await self.install()
         if self.eventlistener:
-            self.els.register_eventListener(self.eventlistener)
+            self.bus.register_eventListener(self.eventlistener)
         self.log.info(f'  => {self.plugin_name.title()} loaded.')
 
     async def cog_unload(self):
         if self.eventlistener:
             await self.eventlistener.shutdown()
-            self.els.unregister_eventListener(self.eventlistener)
+            self.bus.unregister_eventListener(self.eventlistener)
         # delete a possible configuration
         self._config.clear()
         self.log.info(f'  => {self.plugin_name.title()} unloaded.')

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from core import Server, Status, utils
-from typing import Optional
+from core import Server, Status, utils, Player
+from typing import Optional, Union
 
 
 @dataclass
@@ -79,3 +79,35 @@ class ServerProxy(Server):
                 "server_name": self.name
             })
         self.status = Status.SHUTDOWN
+
+    def ban(self, ucid: str, reason: str = 'n/a', period: int = 30*86400):
+        self.sendtoDCS({
+            "command": "rpc",
+            "object": "Server",
+            "method": "ban",
+            "params": {
+                "ucid": ucid,
+                "reason": reason,
+                "period": period
+            }
+        })
+
+    def unban(self, ucid: str):
+        self.sendtoDCS({
+            "command": "rpc",
+            "object": "Server",
+            "method": "unban",
+            "params": {
+                "ucid": ucid
+            }
+        })
+
+    async def modifyMission(self, preset: Union[list, dict]) -> None:
+        await self.sendtoDCSSync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "modifyMission",
+            "params": {
+                "preset": preset
+            }
+        })

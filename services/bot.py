@@ -3,7 +3,7 @@ import asyncio
 import discord
 import re
 from contextlib import closing
-from core import ServiceRegistry, Service, Server, Status, Channel, Player, EventListener
+from core import ServiceRegistry, Service, Server, Status, Channel, Player, EventListener, utils
 from datetime import datetime
 from discord.ext import commands
 from functools import lru_cache
@@ -242,12 +242,13 @@ class DCSServerBot(commands.Bot):
         if isinstance(error, discord.app_commands.NoPrivateMessage):
             await interaction.response.send_message(f"{interaction.command.name} can't be used in a DM.")
         elif isinstance(error, discord.app_commands.CheckFailure):
-            await interaction.response.send_message(f"You don't have the permission to use {interaction.command.name}!")
+            await interaction.response.send_message(f"You don't have the permission to use {interaction.command.name}!",
+                                                    ephemeral=True)
         elif isinstance(error, asyncio.TimeoutError):
-            await interaction.response.send_message('A timeout occurred. Is the DCS server running?')
+            await interaction.response.send_message('A timeout occurred. Is the DCS server running?', ephemeral=True)
         else:
             self.log.exception(error)
-            await interaction.response.send_message("An unknown exception occurred.")
+            await interaction.response.send_message("An unknown exception occurred.", ephemeral=True)
 
     async def reload(self, plugin: Optional[str]):
         if plugin:
@@ -255,6 +256,15 @@ class DCSServerBot(commands.Bot):
         else:
             for plugin in self.plugins:
                 await self.reload_plugin(plugin)
+
+    async def alert(self, message: str, channel: int):
+        mentions = ''
+        for role_name in [x.strip() for x in self.config['ROLES']['DCS Admin'].split(',')]:
+            role: discord.Role = discord.utils.get(self.guilds[0].roles, name=role_name)
+            if role:
+                mentions += role.mention
+        message = mentions + ' ' + utils.escape_string(message)
+        await self.get_channel(channel).send(message)
 
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional[Server] = None):

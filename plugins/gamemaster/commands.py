@@ -417,6 +417,41 @@ class GameMasterMaster(GameMasterAgent):
         else:
             await ctx.send(f"Usage: {ctx.prefix}.campaign <add|start|stop|delete|list>")
 
+    @commands.command(description='Displays your current player profile')
+    @utils.has_role('DCS')
+    @commands.guild_only()
+    async def profile(self, ctx: commands.Context, member: Optional[discord.Member] = None) -> None:
+        if not self.locals:
+            await ctx.send(f'CreditSystem is not activated, {ctx.prefix}profile does not work.')
+            return
+        config: dict = self.locals['configs'][0]
+        if not member:
+            member = ctx.message.author
+        embed = discord.Embed(title="User Campaign Profile", colour=discord.Color.blue())
+        if member.avatar:
+            embed.set_thumbnail(url=member.avatar.url)
+        if 'achievements' in config:
+            for achievement in config['achievements']:
+                if utils.check_roles([achievement['role']], member):
+                    embed.add_field(name='Rank', value=achievement['role'])
+                    break
+            else:
+                embed.add_field(name='Rank', value='n/a')
+        ucid = self.bot.get_ucid_by_member(member, True)
+        if ucid:
+            campaigns = {}
+            for row in self.get_credits(ucid):
+                campaigns[row[1]] = {
+                    "points": row[2],
+                    "playtime": self.eventlistener.get_flighttime(ucid, row[0])
+                }
+
+            for campaign_name, value in campaigns.items():
+                embed.add_field(name='Campaign', value=campaign_name)
+                embed.add_field(name='Playtime', value=utils.format_time(value['playtime'] - value['playtime'] % 60))
+                embed.add_field(name='Points', value=value['points'])
+        await ctx.send(embed=embed)
+
 
 async def setup(bot: DCSServerBot):
     if bot.config.getboolean('BOT', 'MASTER') is True:

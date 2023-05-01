@@ -15,12 +15,14 @@ from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec,
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
-from pathlib import Path
 from psycopg.types.json import Json
 from queue import Queue
 from shutil import copytree
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Tuple, Callable, Optional, cast
+from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services import DCSServerBot
 
 
 @ServiceRegistry.register("ServiceBus")
@@ -28,6 +30,7 @@ class ServiceBus(Service):
 
     def __init__(self, main):
         super().__init__(main)
+        self.bot: Optional[DCSServerBot] = None
         self.version = self.config['BOT']['VERSION']
         self.eventListeners: list[EventListener] = []
         self.servers: dict[str, Server] = dict()
@@ -35,7 +38,6 @@ class ServiceBus(Service):
         self.executor = None
         if self.config['BOT'].getboolean('DESANITIZE'):
             utils.desanitize(self)
-        self.install_plugins()
         self.install_luas()
         self.loop = asyncio.get_event_loop()
         self.intercom.add_exception_type(psycopg.DatabaseError)
@@ -52,7 +54,8 @@ class ServiceBus(Service):
         await self.init_servers()
         self.intercom.start()
         if self.master:
-            await ServiceRegistry.get("Bot").bot.wait_until_ready()
+            self.bot = ServiceRegistry.get("Bot").bot
+            await self.bot.wait_until_ready()
         await self.register_servers()
         self.log.info('- ServiceBus started.')
 
@@ -82,13 +85,6 @@ class ServiceBus(Service):
     def unregister_eventListener(self, listener: EventListener):
         self.eventListeners.remove(listener)
         self.log.debug(f'- EventListener {type(listener).__name__} unregistered.')
-
-    def install_plugins(self):
-        for file in Path('plugins').glob('*.zip'):
-            path = file.__str__()
-            self.log.info('- Unpacking plugin "{}" ...'.format(os.path.basename(path).replace('.zip', '')))
-            shutil.unpack_archive(path, '{}'.format(path.replace('.zip', '')))
-            os.remove(path)
 
     def install_luas(self):
         self.log.info('- Configure DCS installations ...')
@@ -156,13 +152,17 @@ class ServiceBus(Service):
 
     async def send_init(self, server: Server):
         self.sendtoBot({
-            "command": "init",
-            "server_name": server.name,
-            "external_ip": self.config['BOT'].get('PUBLIC_IP', await utils.get_external_ip()),
-            "status": Status.UNREGISTERED.value,
-            "installation": server.installation,
-            "settings": server.settings,
-            "options": server.options
+            "command": "rpc",
+            "object": "Master",
+            "method": "init_remote_server",
+            "params": {
+                "server_name": server.name,
+                "external_ip": self.config['BOT'].get('PUBLIC_IP', await utils.get_external_ip()),
+                "status": Status.UNREGISTERED.value,
+                "installation": server.installation,
+                "settings": server.settings,
+                "options": server.options
+            }
         })
 
     async def register_servers(self):
@@ -216,12 +216,13 @@ class ServiceBus(Service):
             if server.process:
                 break
         server.dcs_version = data['dcs_version']
-        if 'players' not in data:
-            server.status = Status.STOPPED
-        elif data['pause']:
-            server.status = Status.PAUSED
-        else:
-            server.status = Status.RUNNING
+        if data['channel'].startswith('sync-'):
+            if 'players' not in data:
+                server.status = Status.STOPPED
+            elif data['pause']:
+                server.status = Status.PAUSED
+            else:
+                server.status = Status.RUNNING
         # validate server ports
         dcs_ports: dict[int, str] = dict()
         webgui_ports: dict[int, str] = dict()
@@ -274,29 +275,34 @@ class ServiceBus(Service):
         self.log.info(f"  => Local DCS-Server \"{data['server_name']}\" registered.")
         return True
 
-    def init_remote_server(self, data: dict) -> ServerProxy:
-        proxy = self.servers.get(data['server_name'])
+    def init_remote_server(self, server_name: str, external_ip: str, status: str, installation: str, settings: dict,
+                           options: dict, agent: str) -> ServerProxy:
+        proxy = self.servers.get(server_name)
         if not proxy:
             proxy = ServerProxy(
                 main=self,
-                name=data['server_name'],
-                installation=data['installation'],
-                host=data['agent'],
+                name=server_name,
+                installation=installation,
+                host=agent,
                 port=-1,
-                external_ip=data['external_ip']
+                external_ip=external_ip
             )
-            self.servers[data['server_name']] = proxy
-            proxy.settings = data.get('settings')
-            proxy.options = data.get('options')
+            self.servers[server_name] = proxy
+            proxy.settings = settings
+            proxy.options = options
+            # add eventlistener queue
+            if proxy.name not in self.udp_server.message_queue:
+                self.udp_server.message_queue[proxy.name] = Queue()
+                self.executor.submit(self.udp_server.process, proxy)
         else:
             # IP might have changed, so update it
-            proxy.external_ip = data['external_ip']
-        proxy.status = Status(data['status'])
+            proxy.external_ip = external_ip
+        proxy.status = Status(status)
         return proxy
 
     def sendtoBot(self, data: dict, agent: Optional[str] = None):
         if self.master:
-            if agent:
+            if agent and agent != platform.node():
                 self.log.debug('MASTER->{}: {}'.format(agent, json.dumps(data)))
                 with self.pool.connection() as conn:
                     with conn.transaction():
@@ -309,15 +315,22 @@ class ServiceBus(Service):
                 with conn.pipeline():
                     with conn.transaction():
                         conn.execute("INSERT INTO intercom (agent, data) VALUES ('Master', %s)", (Json(data),))
-                        self.log.debug(f"HOST->MASTER: {json.dumps(data)}")
+                        self.log.debug(f"{self.agent}->MASTER: {json.dumps(data)}")
 
     async def handle_master(self, data: dict):
         self.log.debug(f"{data['agent']}->MASTER: {json.dumps(data)}")
-        if data['command'] == 'init':
-            server = self.init_remote_server(data)
-            if server.name not in self.udp_server.message_queue:
-                self.udp_server.message_queue[server.name] = Queue()
-                self.executor.submit(self.udp_server.process, server)
+        if data['command'] == 'rpc':
+            if data.get('object') == 'Bot':
+                obj = self.bot
+            elif data.get('object') == 'Master':
+                obj = self
+            else:
+                self.log.warning('RPC command received for unknown object.')
+                return
+            rc = await self.rpc(obj, data)
+            if rc:
+                data['return'] = rc
+                self.sendtoBot(data)
         else:
             self.udp_server.message_queue[data['server_name']].put(data)
 
@@ -370,6 +383,7 @@ class ServiceBus(Service):
         if not func:
             return
         kwargs = data.get('params', {})
+        kwargs['agent'] = data.get('agent', platform.node())
         if asyncio.iscoroutinefunction(func):
             rc = await func(**kwargs) if kwargs else await func()
         else:
