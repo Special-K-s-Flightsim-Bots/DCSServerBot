@@ -201,6 +201,12 @@ class Server(DataObject):
                 return True
         return False
 
+    def is_public(self) -> bool:
+        if self.settings.get('password'):
+            return False
+        else:
+            return True
+
     def move_to_spectators(self, player: Player, reason: str = 'n/a'):
         self.sendtoDCS({
             "command": "force_player_slot",
