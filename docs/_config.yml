@@ -1,6 +1,6 @@
 repository: Special-K-s-Flightsim-Bots/DCSServerBot
 title: DCSServerBot
-description: A Python tool tp connect DCS server with Discord!
+description: A Python tool to connect DCS-servers with Discord
 theme: just-the-docs
 color_scheme: dcsserverbot
 
