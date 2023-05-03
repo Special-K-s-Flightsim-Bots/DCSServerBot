@@ -81,7 +81,7 @@ class UserStatisticsEventListener(EventListener):
         """, (server.name,))
         for row in cursor.fetchall():
             cursor.execute("""
-                UPDATE statistics SET hop_off = (SELECT mission_end FROM missions WHERE id = %s)
+                UPDATE statistics SET hop_off = GREATEST(hop_on, (SELECT mission_end FROM missions WHERE id = %s))
                 WHERE mission_id = %s AND player_ucid = %s AND slot = %s AND hop_off IS NULL
             """, (row[0], row[0], row[1], row[2]))
         cursor.execute("""
