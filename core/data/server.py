@@ -18,7 +18,7 @@ from pathlib import Path
 from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileSystemEvent
+from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 from .dataobject import DataObject, DataObjectFactory
 from .const import Status, Coalition, Channel, Side
 
@@ -37,6 +37,10 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         if path.endswith('.miz'):
             self.server.addMission(path)
             self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
+
+    def on_moved(self, event: FileSystemMovedEvent):
+        self.on_deleted(event)
+        self.on_created(FileSystemEvent(event.dest_path))
 
     def on_deleted(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
