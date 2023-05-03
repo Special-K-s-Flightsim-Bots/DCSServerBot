@@ -74,7 +74,7 @@ class Field(EmbedElement):
 
 
 class Table(EmbedElement):
-    def render(self, values: Union[dict, list[dict]], obj: Optional[str], inline: Optional[bool] = True):
+    def render(self, values: Union[dict, list[dict]], obj: Optional[str] = None, inline: Optional[bool] = True):
         if obj:
             table = self.env.params[obj]
             _values: dict = values.copy()
