@@ -127,9 +127,8 @@ class Admin(Plugin):
     @app_commands.command(description='Download config files or missions')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     async def download(self, interaction: discord.Interaction,
-                       server: app_commands.Transform[Server, utils.ServerTransformer]) -> None:
+                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])]) -> None:
         view = View()
         msg = None
         config = self.get_config(server)

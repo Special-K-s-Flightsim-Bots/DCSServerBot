@@ -7,10 +7,11 @@ from core import Status
 from dataclasses import dataclass
 from datetime import datetime
 from discord import Interaction, app_commands, SelectOption
+from discord.app_commands import Choice, TransformerError
 from discord.ext import commands
 from discord.ui import Button, View, Select
 from pathlib import Path, PurePath
-from typing import Optional, cast, Union, TYPE_CHECKING
+from typing import Optional, cast, Union, TYPE_CHECKING, List
 from .helper import get_all_players, is_ucid
 
 from . import config
@@ -528,36 +529,36 @@ def get_interaction_param(interaction: discord.Interaction, name: str):
             return parameter['value']
 
 
+def get_all_linked_members(bot: DCSServerBot) -> list[discord.Member]:
+    members: list[discord.Member] = []
+    with bot.pool.connection() as conn:
+        for row in conn.execute("SELECT discord_id FROM players WHERE discord_id <> -1"):
+            members.append(bot.guilds[0].get_member(row[0]))
+    return members
+
+
 class ServerTransformer(app_commands.Transformer):
+
+    def __init__(self, *, status: list[Status] = None):
+        super().__init__()
+        self.status = status
+
     async def transform(self, interaction: discord.Interaction, value: str) -> Server:
-        return interaction.client.servers[value]
+        server = interaction.client.servers.get(value)
+        if not server:
+            raise TransformerError(value, self.type, self)
+        return server
 
-
-async def active_server_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    try:
+    async def autocomplete(self, interaction: Interaction, current: str) -> List[Choice[str]]:
         server: Server = await interaction.client.get_server(interaction)
-        if server and server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+        if server and (not self.status or server.status in self.status):
             return [app_commands.Choice(name=server.name, value=server.name)]
         choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=x.name, value=x.name)
-            for x in interaction.client.servers.values()
-            if x.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and current.casefold() in x.casefold()
+            app_commands.Choice(name=x, value=x)
+            for x in interaction.client.servers.keys()
+            if (not self.status or x.status in self.status) and current.casefold() in x.casefold()
         ]
         return choices[:25]
-    except Exception as ex:
-        print(ex)
-
-
-async def server_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    server: Server = await interaction.client.get_server(interaction)
-    if server:
-        return [app_commands.Choice(name=server.name, value=server.name)]
-    choices: list[app_commands.Choice[str]] = [
-        app_commands.Choice(name=x, value=x)
-        for x in interaction.client.servers.keys()
-        if current.casefold() in x.casefold()
-    ]
-    return choices[:25]
 
 
 async def airbase_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -603,43 +604,46 @@ class UserTransformer(app_commands.Transformer):
         else:
             return interaction.client.guilds[0].get_member(int(value))
 
+    async def autocomplete(self, interaction: Interaction, current: str) -> List[Choice[str]]:
+        players = [
+            app_commands.Choice(name='✈ ' + name, value=ucid)
+            for idx, ucid, name in enumerate(get_all_players(interaction.client, name=current))
+            if idx < 25 and (not current or current.casefold() in name.casefold() or current.casefold() in ucid)
+        ]
+        members = [
+            app_commands.Choice(name='@' + member.display_name, value=str(member.id))
+            for idx, member in enumerate(get_all_linked_members(interaction.client))
+            if idx < 25 and (not current or current.casefold() in member.display_name.casefold())
+        ]
+        return players + members
+
 
 class PlayerTransformer(app_commands.Transformer):
+
+    def __init__(self, *, active: bool = False):
+        super().__init__()
+        self.active = active
+
     async def transform(self, interaction: discord.Interaction, value: str) -> Player:
         server: Server = interaction.client.servers[interaction.data['options'][0]['value']]
         return server.get_player(ucid=value, active=True)
 
-
-async def all_users_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    players = [
-        app_commands.Choice(name='✈ ' + name, value=ucid)
-        for idx, ucid, name in enumerate(get_all_players(interaction.client, name=current))
-        if idx < 25 and (not current or current.casefold() in name.casefold() or current.casefold() in ucid)
-    ]
-    members = [
-        app_commands.Choice(name='@' + member.display_name, value=str(member.id))
-        for idx, member in enumerate(interaction.client.get_all_members())
-        if idx < 25 and (not current or current.casefold() in member.display_name.casefold())
-    ]
-    return players + members
-
-
-async def all_players_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    return [
-        app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
-        for idx, ucid, name in enumerate(get_all_players(interaction.client, name=current))
-        if idx < 25 and (not current or current.casefold() in name.casefold() or current.casefold() in ucid)
-    ]
-
-
-async def active_player_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
-    choices: list[app_commands.Choice[str]] = [
-        app_commands.Choice(name=x.name, value=x.ucid)
-        for x in server.get_active_players()
-        if current.casefold() in x.name.casefold()
-    ]
-    return choices[:25]
+    async def autocomplete(self, interaction: Interaction, current: str) -> List[Choice[str]]:
+        if self.active:
+            server: Server = await ServerTransformer().transform(interaction,
+                                                                 get_interaction_param(interaction, "server"))
+            choices: list[app_commands.Choice[str]] = [
+                app_commands.Choice(name=x.name, value=x.ucid)
+                for x in server.get_active_players()
+                if current.casefold() in x.name.casefold()
+            ]
+            return choices[:25]
+        else:
+            return [
+                app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
+                for idx, ucid, name in enumerate(get_all_players(interaction.client, name=current))
+                if idx < 25 and (not current or current.casefold() in name.casefold() or current.casefold() in ucid)
+            ]
 
 
 @dataclass

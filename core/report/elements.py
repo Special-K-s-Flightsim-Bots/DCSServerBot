@@ -74,7 +74,7 @@ class Field(EmbedElement):
 
 
 class Table(EmbedElement):
-    def render(self, values: Union[dict, list[dict]], obj: Optional[str], inline: Optional[bool] = True):
+    def render(self, values: Union[dict, list[dict]], obj: Optional[str] = None, inline: Optional[bool] = True):
         if obj:
             table = self.env.params[obj]
             _values: dict = values.copy()
@@ -146,7 +146,8 @@ class Graph(ReportElement):
         super().__init__(env)
         plt.switch_backend('agg')
 
-    def render(self, width: int, height: int, cols: int, rows: int, elements: List[dict], facecolor: Optional[str] = None):
+    def render(self, width: int, height: int, cols: int, rows: int, elements: List[dict],
+               facecolor: Optional[str] = None):
         plt.style.use('dark_background')
         plt.rcParams['axes.facecolor'] = '2C2F33'
         if 'CJK_FONT' in self.bot.config['REPORTS']:

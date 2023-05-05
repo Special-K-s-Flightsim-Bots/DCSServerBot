@@ -1,12 +1,11 @@
 import discord
 import os
 from core import utils, DCSServerBot
-from discord import SelectOption, TextStyle
-from discord.ui import View, Select, Button, TextInput, Modal
-from typing import Optional
+from discord import SelectOption
+from discord.ui import View, Select, Button
 
 from .sink import Sink, Mode
-from .utils import get_tag, Playlist, get_all_playlists
+from .utils import get_tag
 
 
 class PlayerBase(View):
@@ -149,118 +148,4 @@ class MusicPlayer(PlayerBase):
 
     async def on_cancel(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        self.stop()
-
-
-class PlaylistEditor(PlayerBase):
-
-    def __init__(self, bot: DCSServerBot, music_dir: str, songs: list[str], playlist: Optional[str] = None):
-        super().__init__(bot, music_dir)
-        self.playlist = Playlist(bot, playlist) if playlist else None
-        self.all_songs = songs
-        self.all_titles = self.get_titles(self.all_songs)
-
-    def render(self) -> discord.Embed:
-        embed = discord.Embed(title="Playlist Editor", colour=discord.Colour.blue())
-        self.clear_items()
-        row = 0
-        if self.playlist:
-            embed.description = f'Playlist "{self.playlist.name}"'
-            playlist = []
-            options = []
-            for idx, song in enumerate(self.playlist.items):
-                if idx == 25:
-                    break
-                title = self.all_titles[self.all_songs.index(song)] or song
-                playlist.append(
-                    f"{idx + 1}. - {utils.escape_string(title)}")
-                options.append(SelectOption(label=title[:25], value=str(idx)))
-            if playlist:
-                embed.add_field(name='_ _', value='\n'.join(playlist))
-                select = Select(placeholder="Remove a song from the playlist", options=options, row=row)
-                select.callback = self.remove
-                self.add_item(select)
-                row += 1
-            else:
-                embed.add_field(name='_ _', value='- empty -')
-            select = Select(placeholder="Add a song to the playlist",
-                            options=[SelectOption(label=x,
-                                                  value=str(idx)) for idx, x in enumerate(self.all_titles) if idx < 25],
-                            row=row)
-            select.callback = self.add
-            self.add_item(select)
-            row += 1
-            button = Button(label="Delete", style=discord.ButtonStyle.secondary, row=row)
-            button.callback = self.del_playlist
-            self.add_item(button)
-        else:
-            all_playlists = get_all_playlists(self.bot)
-            if all_playlists:
-                select = Select(placeholder="Select a playlist to edit",
-                                options=[SelectOption(label=x) for x in all_playlists], row=row)
-                select.callback = self.load_playlist
-                self.add_item(select)
-                row += 1
-            if len(all_playlists) < 25:
-                button = Button(label="Add", style=discord.ButtonStyle.secondary, row=row)
-                button.callback = self.add_playlist
-                self.add_item(button)
-        button = Button(label="Quit", style=discord.ButtonStyle.red, row=row)
-        button.callback = self.cancel
-        self.add_item(button)
-        return embed
-
-    async def add(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        self.playlist.add(self.all_songs[int(interaction.data['values'][0])])
-        embed = self.render()
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def remove(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        self.playlist.remove(self.playlist.items[int(interaction.data['values'][0])])
-        embed = self.render()
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def load_playlist(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        self.playlist = Playlist(self.bot, interaction.data['values'][0])
-        embed = self.render()
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def add_playlist(self, interaction: discord.Interaction):
-        class AddPlaylistModal(Modal, title="Enter a name for the playlist"):
-            name = TextInput(label="Playlist", style=TextStyle.short, required=True, min_length=3, max_length=25)
-
-            async def on_submit(_, interaction: discord.Interaction) -> None:
-                await interaction.response.defer()
-
-        modal = AddPlaylistModal()
-        await interaction.response.send_modal(modal)
-        if not await modal.wait():
-            self.playlist = Playlist(self.bot, modal.name.value)
-        embed = self.render()
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def del_playlist(self, interaction: discord.Interaction):
-        class DelPlaylistModal(Modal, title="Are you sure?"):
-            name = TextInput(label="Enter YES, if you want to delete the playlist",
-                             style=TextStyle.short, required=True, min_length=3, max_length=3)
-
-            async def on_submit(_, interaction: discord.Interaction) -> None:
-                await interaction.response.defer()
-
-        modal = DelPlaylistModal()
-        await interaction.response.send_modal(modal)
-        if not await modal.wait():
-            if str(modal.name.value).casefold() == 'yes':
-                with self.pool.connection() as conn:
-                    with conn.transaction():
-                        conn.execute('DELETE FROM music_playlists WHERE name = %s', (self.playlist.name, ))
-                        conn.execute('DELETE FROM music_servers WHERE playlist_name = %s', (self.playlist.name,))
-                    self.playlist = None
-        embed = self.render()
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def cancel(self, interaction: discord.Interaction):
         self.stop()

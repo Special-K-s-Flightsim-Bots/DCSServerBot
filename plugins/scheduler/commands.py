@@ -394,7 +394,6 @@ class Scheduler(Plugin):
     @group.command(description='Starts a DCS/DCS-SRS server')
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     async def startup(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer]):
         config = self.get_config(server)
@@ -429,7 +428,6 @@ class Scheduler(Plugin):
     @group.command(description='Shutdown a DCS/DCS-SRS server')
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     async def shutdown(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer],
                        force: Optional[bool]):
@@ -475,7 +473,6 @@ class Scheduler(Plugin):
     @group.command(description='Starts a stopped DCS server')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     async def start(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer]):
         if server.status == Status.STOPPED:
@@ -500,9 +497,8 @@ class Scheduler(Plugin):
     @group.command(description='Starts a stopped DCS server')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     async def stop(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer]):
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED])]):
         if server.is_populated() and \
                 not await utils.yn_question(interaction, "People are flying on this server atm.\n"
                                                          "Do you really want to stop it?"):
@@ -520,7 +516,6 @@ class Scheduler(Plugin):
     @group.command(description='Sets the servers maintenance flag')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     async def maintenance(self, interaction: discord.Interaction,
                           server: app_commands.Transform[Server, utils.ServerTransformer]):
         if not server.maintenance:
@@ -548,7 +543,6 @@ class Scheduler(Plugin):
     @group.command(description='Clears the servers maintenance flag')
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     async def clear(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer]):
         if server.maintenance:
@@ -563,7 +557,6 @@ class Scheduler(Plugin):
     @group.command(description='Change the password of a DCS server')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     async def password(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer],
                        coalition: Optional[Literal['red', 'blue']] = None):
@@ -603,7 +596,6 @@ class Scheduler(Plugin):
     @group.command(description='Change the configuration of a DCS server')
     @app_commands.guild_only()
     @utils.has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     async def config(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer]):
         if server.status in [Status.RUNNING, Status.PAUSED]:

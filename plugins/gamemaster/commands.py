@@ -1,19 +1,23 @@
 import asyncio
 import dateparser
 import discord
+import os
 import platform
 import psycopg
 from contextlib import closing
-from core import Plugin, utils, Report, Status, Server, Coalition, Channel, Player
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel
+from discord import app_commands, TextStyle
+from discord.app_commands import Range
 from discord.ext import commands
+from discord.ui import Modal, TextInput
 from psycopg.rows import dict_row
 from services import DCSServerBot
-from typing import Optional
+from typing import Optional, Literal
 
 from .listener import GameMasterEventListener
 
 
-class GameMasterAgent(Plugin):
+class GameMaster(Plugin):
 
     async def install(self):
         await super().install()
@@ -26,6 +30,16 @@ class GameMasterAgent(Plugin):
                     advanced['allow_players_pool'] = self.bot.config.getboolean(server.installation,
                                                                                 'ALLOW_PLAYERS_POOL')
                     server.settings['advanced'] = advanced
+
+    def migrate(self, version: str):
+        if version == '1.3':
+            self.log.warning('  => Coalition system has been updated. All player coalitions have been reset!')
+
+    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+        self.log.debug('Pruning Gamemaster ...')
+        if days > 0:
+            conn.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
+        self.log.debug('Gamemaster pruned.')
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
@@ -52,156 +66,126 @@ class GameMasterAgent(Plugin):
                 if message.content.startswith(self.bot.config['BOT']['COMMAND_PREFIX']) is False:
                     server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
 
-    @commands.command(description='Send a chat message to a running DCS instance', usage='<message>', hidden=True)
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def chat(self, ctx, *args):
-        server: Server = await self.bot.get_server(ctx)
-        if server and server.status == Status.RUNNING:
-            server.sendtoDCS({
-                "command": "sendChatMessage",
-                "channel": ctx.channel.id,
-                "message": ' '.join(args),
-                "from": ctx.message.author.display_name
-            })
+    @app_commands.command(description='Send a chat message to a running DCS instance')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def chat(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   message: str):
+        server.sendtoDCS({
+            "command": "sendChatMessage",
+            "channel": interaction.channel.id,
+            "message": message,
+            "from": interaction.user.display_name
+        })
 
-    @commands.command(description='Sends a popup to a coalition', usage='<coal.|user> [time] <msg>')
-    @utils.has_roles(['DCS Admin', 'GameMaster'])
-    @commands.guild_only()
-    async def popup(self, ctx, to, *args):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            if server.status != Status.RUNNING:
-                await ctx.send(f"Mission is {server.status.name.lower()}, message discarded.")
-                return
-            if len(args) > 0:
-                if args[0].isnumeric():
-                    time = int(args[0])
-                    i = 1
-                else:
-                    time = -1
-                    i = 0
-                message = ' '.join(args[i:])
-                if to.lower() not in ['all', 'red', 'blue']:
-                    player: Player = server.get_player(name=to, active=True)
-                    if player:
-                        player.sendPopupMessage(message, time, ctx.message.author.display_name)
-                    else:
-                        await ctx.send(f'Can\'t find player "{to}" or player is not in an active unit.')
-                        return
-                else:
-                    server.sendPopupMessage(Coalition(to.lower()), message, time, ctx.message.author.display_name)
-                await ctx.send('Message sent.')
-            else:
-                await ctx.send(f"Usage: {ctx.prefix}popup all|red|blue|user [time] <message>")
+    @app_commands.command(description='Sends a popup to a coalition')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def popup(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                    to: Literal['all', 'red', 'blue'], message: str, time: Optional[Range[int, 1, 30]] = -1):
+        server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
+        await interaction.response.send_response('Message sent.')
 
-    @commands.command(description='Sends a popup to all servers', usage='<coal> [time] <msg>')
-    @utils.has_roles(['DCS Admin', 'GameMaster'])
-    @commands.guild_only()
-    async def broadcast(self, ctx, to, *args):
-        if to.lower() not in ['all', 'red', 'blue']:
-            await ctx.send(f"Usage: {ctx.prefix}broadcast [all|red|blue] [time] <msg>")
-            return
+    @app_commands.command(description='Sends a popup to all servers')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def broadcast(self, interaction: discord.Interaction, to: Literal['all', 'red', 'blue'], message: str,
+                        time: Optional[Range[int, 1, 30]] = -1):
+        await interaction.response.defer()
         for server in self.bot.servers.values():
             if server.status != Status.RUNNING:
-                await ctx.send(f'Message NOT sent to server {server.display_name} because it is {server.status.name}.')
+                await interaction.followup.send(
+                    f'Message NOT sent to server {server.display_name} because it is {server.status.name}.',
+                    ephemeral=True)
                 continue
-            if len(args) > 0:
-                if args[0].isnumeric():
-                    time = int(args[0])
-                    i = 1
-                else:
-                    time = -1
-                    i = 0
-                message = ' '.join(args[i:])
-                server.sendPopupMessage(Coalition(to.lower()), message, time, ctx.message.author.display_name)
-                await ctx.send(f'Message sent to server {server.display_name}.')
+            server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
+            await interaction.followup.send(f'Message sent to server {server.display_name}.', ephemeral=True)
 
-    @commands.command(description='Set or clear a flag inside the mission', usage='<flag> [value]')
-    @utils.has_roles(['DCS Admin', 'GameMaster'])
-    @commands.guild_only()
-    async def flag(self, ctx, flag: str, value: int = None):
-        server: Server = await self.bot.get_server(ctx)
-        if server and server.status in [Status.RUNNING, Status.PAUSED]:
-            if value is not None:
-                server.sendtoDCS({
-                    "command": "setFlag",
-                    "channel": ctx.channel.id,
-                    "flag": flag,
-                    "value": value
-                })
-                await ctx.send(f"Flag {flag} set to {value}.")
-            else:
-                data = await server.sendtoDCSSync({"command": "getFlag", "flag": flag})
-                await ctx.send(f"Flag {flag} has value {data['value']}.")
+    @app_commands.command(description='Set or clear a flag inside the mission')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def flag(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   flag: str, value: Optional[int] = None):
+        if value is not None:
+            server.sendtoDCS({
+                "command": "setFlag",
+                "flag": flag,
+                "value": value
+            })
+            await interaction.response.send_message(f"Flag {flag} set to {value}.")
         else:
-            await ctx.send(f"Mission is {server.status.name.lower()}, can't set/get flag.")
+            data = await server.sendtoDCSSync({"command": "getFlag", "flag": flag})
+            await interaction.response.send_message(f"Flag {flag} has value {data['value']}.")
 
-    @commands.command(description='Set or get a mission variable', usage='<name> [value]')
-    @utils.has_roles(['DCS Admin', 'GameMaster'])
-    @commands.guild_only()
-    async def variable(self, ctx, name: str, value: str = None):
-        server: Server = await self.bot.get_server(ctx)
-        if server and server.status in [Status.RUNNING, Status.PAUSED]:
-            if value is not None:
-                server.sendtoDCS({
-                    "command": "setVariable",
-                    "channel": ctx.channel.id,
-                    "name": name,
-                    "value": value
-                })
-                await ctx.send(f"Variable {name} set to {value}.")
-            else:
-                try:
-                    data = await server.sendtoDCSSync({"command": "getVariable", "name": name})
-                except asyncio.TimeoutError:
-                    await ctx.send('Timeout while retrieving variable. Most likely a lua error occurred. '
-                                   'Check your dcs.log.')
-                    return
-                if 'value' in data:
-                    await ctx.send(f"Variable {name} has value {data['value']}.")
-                else:
-                    await ctx.send(f"Variable {name} is not set.")
+    @app_commands.command(description='Set or get a mission variable')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def variable(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                       name: str, value: Optional[str] = None):
+        if value is not None:
+            server.sendtoDCS({
+                "command": "setVariable",
+                "name": name,
+                "value": value
+            })
+            await interaction.response.send_message(f"Variable {name} set to {value}.")
         else:
-            await ctx.send(f"Mission is {server.status.name.lower()}, can't set/get variable.")
+            try:
+                data = await server.sendtoDCSSync({"command": "getVariable", "name": name})
+            except asyncio.TimeoutError:
+                await interaction.response.send_message('Timeout while retrieving variable. Most likely a lua error '
+                                                        'occurred. Check your dcs.log.')
+                return
+            if 'value' in data:
+                await interaction.response.send_message(f"Variable {name} has value {data['value']}.")
+            else:
+                await interaction.response.send_message(f"Variable {name} is not set.")
 
-    @commands.command(description='Calls any function inside the mission', usage='<script>')
-    @utils.has_roles(['DCS Admin', 'GameMaster'])
-    @commands.guild_only()
-    async def do_script(self, ctx, *script):
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
-            return
-        if server.status in [Status.RUNNING, Status.PAUSED]:
+    @app_commands.command(description='Calls any function inside the mission')
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    @app_commands.guild_only()
+    async def do_script(self, interaction: discord.Interaction,
+                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
+        class ScriptModal(Modal, "Lua Script"):
+            script = TextInput(label="Enter your script here", style=TextStyle.long, required=True)
+
+        modal = ScriptModal()
+        await interaction.response.send_modal(modal)
+        if await modal.wait():
             server.sendtoDCS({
                 "command": "do_script",
-                "script": ' '.join(script)
+                "script": ' '.join(modal.script.value)
             })
-            await ctx.send('Command sent.')
+            await interaction.response.send_message('Script sent.', ephemeral=True)
         else:
-            await ctx.send(f"Mission is {server.status.name.lower()}, command discarded.")
+            await interaction.response.send_message('Aborted', ephemeral=True)
 
-    @commands.command(description='Loads a lua file into the mission', usage='<file>')
-    @utils.has_roles(['DCS Admin', 'GameMaster'])
-    @commands.guild_only()
-    async def do_script_file(self, ctx, filename):
-        server: Server = await self.bot.get_server(ctx)
-        if server and server.status in [Status.RUNNING, Status.PAUSED]:
-            server.sendtoDCS({
-                "command": "do_script_file",
-                "file": filename.replace('\\', '/')
-            })
-            await ctx.send('Command sent.')
-        else:
-            await ctx.send(f"Mission is {server.status.name.lower()}, command discarded.")
+    @app_commands.command(description='Loads a lua file into the mission')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def do_script_file(self, interaction: discord.Interaction,
+                             server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                             filename: str):
+        if not os.path.exists(os.path.join(os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']), 
+                                           filename)):
+            interaction.response.send_message(f"File {filename} not found.", ephemeral=True)
+        server.sendtoDCS({
+            "command": "do_script_file",
+            "file": filename.replace('\\', '/')
+        })
+        await interaction.response.send_message('Script loaded.', ephemeral=True)
 
-    @commands.command(description='Mass coalition leave for users')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def reset_coalitions(self, ctx):
-        if await utils.yn_question(ctx, f'Do you want to mass-reset all coalition-bindings from your players on node '
-                                        f'{platform.node()}?') is False:
-            await ctx.send('Aborted.')
+    @app_commands.command(description='Mass coalition leave for users')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def reset_coalitions(self, interaction: discord.Interaction):
+        if not await utils.yn_question(interaction, f'Do you want to mass-reset all coalition-bindings from your '
+                                                    f'players on node {platform.node()}?'):
+            await interaction.response.send_message('Aborted.')
             return
         try:
             with self.pool.connection() as conn:
@@ -213,11 +197,11 @@ class GameMasterAgent(Plugin):
                                     continue
                                 roles = {
                                     "red": discord.utils.get(
-                                        ctx.guild.roles,
+                                        interaction.guild.roles,
                                         name=self.bot.config[server.installation]['Coalition Red']
                                     ),
                                     "blue": discord.utils.get(
-                                        ctx.guild.roles,
+                                        interaction.guild.roles,
                                         name=self.bot.config[server.installation]['Coalition Blue']
                                     )
                                 }
@@ -231,37 +215,11 @@ class GameMasterAgent(Plugin):
                                         await member.remove_roles(roles[row[2]])
                                     cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
                                                    (server.name, row[0]))
-                    await ctx.send(f'Coalition bindings reset for all players on node {platform.node()}.')
+                    await interaction.response.send_message(
+                        f'Coalition bindings reset for all players.', ephemmeral=True)
         except discord.Forbidden:
-            await ctx.send('The bot is missing the "Manage Roles" permission.')
+            await interaction.response.send_message('The bot is missing the "Manage Roles" permission.', ephemeral=True)
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
-
-
-class GameMasterMaster(GameMasterAgent):
-
-    def migrate(self, version: str):
-        if version == '1.3':
-            self.log.warning('  => Coalition system has been updated. All player coalitions have been reset!')
-
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
-        self.log.debug('Pruning Gamemaster ...')
-        if days > 0:
-            conn.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
-        self.log.debug('Gamemaster pruned.')
-
-    @commands.command(description='Deprecated', hidden=True)
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def join(self, ctx):
-        await ctx.send(f"Please use {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join in the respective server to "
-                       f"join a coalition.")
-
-    @commands.command(description='Deprecated', hidden=True)
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def leave(self, ctx):
-        await ctx.send(f"Please use {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}leave in the respective server to "
-                       f"leave a coalition.")
 
     @staticmethod
     def format_campaigns(data, marker, marker_emoji):
@@ -417,16 +375,17 @@ class GameMasterMaster(GameMasterAgent):
         else:
             await ctx.send(f"Usage: {ctx.prefix}.campaign <add|start|stop|delete|list>")
 
-    @commands.command(description='Displays your current player profile')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def profile(self, ctx: commands.Context, member: Optional[discord.Member] = None) -> None:
+    @app_commands.command(description='Displays your current player profile')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def profile(self, interaction: discord.Interaction, member: Optional[discord.Member] = None):
         if not self.locals:
-            await ctx.send(f'CreditSystem is not activated, {ctx.prefix}profile does not work.')
+            await interaction.response.send_message(f'CreditSystem is not activated, /profile does not work.',
+                                                    ephemeral=True)
             return
         config: dict = self.locals['configs'][0]
         if not member:
-            member = ctx.message.author
+            member = interaction.user
         embed = discord.Embed(title="User Campaign Profile", colour=discord.Color.blue())
         if member.avatar:
             embed.set_thumbnail(url=member.avatar.url)
@@ -450,11 +409,8 @@ class GameMasterMaster(GameMasterAgent):
                 embed.add_field(name='Campaign', value=campaign_name)
                 embed.add_field(name='Playtime', value=utils.format_time(value['playtime'] - value['playtime'] % 60))
                 embed.add_field(name='Points', value=value['points'])
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(GameMasterMaster(bot, GameMasterEventListener))
-    else:
-        await bot.add_cog(GameMasterAgent(bot, GameMasterEventListener))
+    await bot.add_cog(GameMaster(bot, GameMasterEventListener))

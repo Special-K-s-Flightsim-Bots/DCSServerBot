@@ -140,7 +140,6 @@ class CloudHandler(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(member="user")
-    @app_commands.autocomplete(member=utils.all_users_autocomplete)
     async def resync(self, interaction: discord.Interaction,
                      member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
         if 'token' not in self.config:

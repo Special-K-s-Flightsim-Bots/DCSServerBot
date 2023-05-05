@@ -7,6 +7,7 @@ from contextlib import closing
 from copy import deepcopy
 from core import utils
 from core.services.registry import ServiceRegistry
+from discord import app_commands
 from discord.ext import commands
 from os import path
 from typing import Type, Optional, TYPE_CHECKING
@@ -31,7 +32,7 @@ class Plugin(commands.Cog):
         self.loop = self.bot.loop
         self.locals = self.read_locals()
         if self.plugin_name != 'commands' and 'commands' in self.locals:
-            self.change_commands(self.locals['commands'])
+            self.change_commands(self.locals['commands'], {x.name: x for x in self.get_app_commands()})
         self._config = dict[str, dict]()
         self.eventlistener: Type[TEventListener] = eventlistener(self) if eventlistener else None
 
@@ -49,22 +50,31 @@ class Plugin(commands.Cog):
         self._config.clear()
         self.log.info(f'  => {self.plugin_name.title()} unloaded.')
 
-    def change_commands(self, cmds: dict) -> None:
-        all_cmds = {x.name: x for x in self.get_commands()}
+    def change_commands(self, cmds: dict, all_cmds: dict, group: app_commands.commands.Group = None) -> None:
         for name, params in cmds.items():
-            cmd: commands.Command = all_cmds.get(name)
+            cmd = all_cmds.get(name)
             if not cmd:
-                self.log.warning(f"{self.plugin_name}: {name} is not a command!")
+                self.log.warning(f"{self.plugin_name}: {name} is not a command or group!")
                 continue
-            if 'roles' in params:
-                for idx, check in enumerate(cmd.checks.copy()):
-                    if 'has_role' in check.__qualname__:
-                        cmd.checks.pop(idx)
-                if len(params['roles']):
-                    cmd.checks.append(utils.has_roles(params['roles'].copy()).predicate)
-                del params['roles']
-            if params:
-                cmd.update(**params)
+            if isinstance(cmd, app_commands.commands.Group):
+                if 'name' in params:
+                    cmd.name = params['name']
+                self.change_commands(params['commands'], {x.name: x for x in cmd.commands}, cmd)
+            elif isinstance(cmd, app_commands.commands.Command):
+                if not params.get('enabled', True):
+                    if group:
+                        group.remove_command(name)
+                    else:
+                        self.__cog_app_commands__.remove(cmd)
+                    continue
+                if 'roles' in params:
+                    for idx, check in enumerate(cmd.checks.copy()):
+                        if 'has_role' in check.__qualname__:
+                            cmd.remove_check(check)
+                    if len(params['roles']):
+                        cmd.add_check(utils.has_roles(params['roles'].copy()).predicate)
+                if 'description' in params:
+                    cmd.description = params['description']
 
     @staticmethod
     def get_installed_version(plugin: str) -> Optional[str]:

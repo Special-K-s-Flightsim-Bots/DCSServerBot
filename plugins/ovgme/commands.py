@@ -8,8 +8,7 @@ import shutil
 import zipfile
 from contextlib import closing, suppress
 from core import Status, Plugin, DCSServerBot, PluginConfigurationError, utils, Server, PluginInstallationError
-from discord import SelectOption, TextStyle
-from discord.ext import commands
+from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 from psycopg.rows import dict_row
 from typing import Optional, Tuple
@@ -244,14 +243,12 @@ class OvGME(Plugin):
                         """, (server.name, folder)).fetchall()
                 ]
 
-    @commands.command(description='Display installed packages')
-    @utils.has_roles(['Admin'])
-    @commands.guild_only()
-    async def packages(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
-            return
-
+    @app_commands.command(description='Display installed packages')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['Admin'])
+    async def packages(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer(
+                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
         class PackageView(View):
 
             def __init__(derived, embed: discord.Embed):
@@ -437,12 +434,11 @@ class OvGME(Plugin):
         embed = discord.Embed(title="Package Manager", color=discord.Color.blue())
         embed.description = f"Install or uninstall mod packages to {server.name}"
         view = PackageView(embed)
-        msg = await ctx.send(embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         try:
             await view.wait()
         finally:
-            if msg:
-                await msg.delete()
+            await interaction.delete_original_response()
 
 
 async def setup(bot: DCSServerBot):

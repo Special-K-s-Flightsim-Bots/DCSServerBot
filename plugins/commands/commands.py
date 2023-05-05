@@ -58,7 +58,7 @@ class Commands(Plugin):
         for cmd in self.locals['commands']:
             try:
                 checks = [utils.has_roles(cmd['roles']).predicate] if 'roles' in cmd else []
-                hidden = cmd['hidden'] if 'hidden' in cmd else False
+                hidden = cmd.get('hidden', False)
                 c = Command(self.exec_command, name=cmd['name'], checks=checks, hidden=hidden)
                 params: dict[str, commands.Parameter] = dict()
                 if 'params' in cmd:

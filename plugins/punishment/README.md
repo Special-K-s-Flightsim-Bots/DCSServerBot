@@ -16,7 +16,7 @@ The punishment is configured with a file named config\punishment.json. You'll fi
         { "event": "zone-bombing", "reason": "Bombing in a safe zone", "default": 50 }   -- example of a custom event
       ],
       "punishments": [
-        { "points": 100, "action": "ban" },
+        { "points": 100, "action": "ban", "days": 30 },
         { "points": 60, "action": "kick" },
         { "points": 40, "action": "move_to_spec" },
         { "points": 10, "action": "warn" },

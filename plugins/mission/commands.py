@@ -8,10 +8,11 @@ import re
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile
 from datetime import datetime
 from discord import Interaction, app_commands
+from discord.app_commands import Range
 from discord.ext import commands, tasks
-from discord.ui import Select, View, Button, Modal, TextInput
+from discord.ui import Modal, TextInput
 from services import DCSServerBot
-from typing import Optional, cast
+from typing import Optional
 
 from .listener import MissionEventListener
 from .views import ServerView
@@ -44,7 +45,6 @@ class Mission(Plugin):
     @mission.command(description='Manage the active mission')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     async def manage(self, interaction: Interaction, server: app_commands.Transform[Server, utils.ServerTransformer]):
         view = ServerView(server)
         embed = await view.render(interaction)
@@ -57,12 +57,11 @@ class Mission(Plugin):
     @mission.command(description='Information about a specific airport')
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     @app_commands.rename(idx='airport')
     @app_commands.describe(idx='Airport for ATIS information')
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
     async def atis(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer],
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED])],
                    idx: int):
         airbase = server.current_mission.airbases[idx]
         data = await server.sendtoDCSSync({
@@ -79,7 +78,6 @@ class Mission(Plugin):
     @mission.command(description='Shows briefing of the active mission')
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     async def briefing(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer]):
         def read_passwords(server: Server) -> dict:
@@ -101,9 +99,8 @@ class Mission(Plugin):
     @mission.command(description='Restarts the current active mission')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     async def restart(self, interaction: discord.Interaction,
-                      server: app_commands.Transform[Server, utils.ServerTransformer],
+                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
                       delay: Optional[int] = 120, reason: Optional[str] = None):
         if server.restart_pending and not await utils.yn_question(interaction,
                                                                   'A restart is currently pending.\n'
@@ -148,11 +145,10 @@ class Mission(Plugin):
     @mission.command(description='(Re-)Loads a mission from the list')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     @app_commands.rename(mission_id="mission")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def load(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer],
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
                    mission_id: int):
         if server.restart_pending and not await utils.yn_question(interaction,
                                                                   'A restart is currently pending.\n'
@@ -201,7 +197,6 @@ class Mission(Plugin):
     @mission.command(description='Adds a mission to the list')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     @app_commands.autocomplete(path=utils.mizfile_autocomplete)
     async def add(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer], path: str):
@@ -228,7 +223,6 @@ class Mission(Plugin):
     @mission.command(description='Deletes a mission from the list')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     @app_commands.rename(mission_id="mission")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def delete(self, interaction: discord.Interaction,
@@ -254,9 +248,8 @@ class Mission(Plugin):
     @mission.command(description='Pauses the current running mission')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     async def pause(self, interaction: discord.Interaction,
-                    server: app_commands.Transform[Server, utils.ServerTransformer]):
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
         if server.status == Status.RUNNING:
             await server.current_mission.pause()
             await interaction.response.send_message(f'Server "{server.display_name}" paused.', ephemeral=True)
@@ -266,9 +259,8 @@ class Mission(Plugin):
     @mission.command(description='Unpauses the running mission')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     async def unpause(self, interaction: discord.Interaction,
-                      server: app_commands.Transform[Server, utils.ServerTransformer]):
+                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.PAUSED])]):
         if server.status == Status.PAUSED:
             await server.current_mission.unpause()
             await interaction.response.send_message(f'Server "{server.display_name}" unpaused.', ephemeral=True)
@@ -279,50 +271,21 @@ class Mission(Plugin):
             interaction.response.send_message(f'Server "{server.display_name}" is still loading... '
                                               f'please wait a bit and try again.', ephemeral=True)
 
-    class PresetView(View):
-        def __init__(self, ctx: commands.Context, options: list[discord.SelectOption]):
-            super().__init__()
-            self.ctx = ctx
-            select: Select = cast(Select, self.children[0])
-            select.options = options
-            select.max_values = min(10, len(options))
-            self.result = None
-
-        @discord.ui.select(placeholder="Select the preset(s) you want to apply")
-        async def callback(self, interaction: Interaction, select: Select):
-            self.result = select.values
-            await interaction.response.defer()
-
-        @discord.ui.button(label='OK', style=discord.ButtonStyle.green)
-        async def ok(self, interaction: Interaction, button: Button):
-            await interaction.response.defer()
-            self.stop()
-
-        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
-        async def cancel(self, interaction: Interaction, button: Button):
-            await interaction.response.defer()
-            self.result = None
-            self.stop()
-
-        async def interaction_check(self, interaction: Interaction, /) -> bool:
-            if interaction.user != self.ctx.author:
-                await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
-                return False
-            else:
-                return True
-
-    @commands.command(description='Change mission preset', aliases=['presets'])
+    @mission.command(description='Modify mission with a preset')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
-    async def preset(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
-            return
-
+    async def modify(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(
+                         status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
         config = self.get_config(server)
-        presets = [discord.SelectOption(label=k) for k, v in config['presets'].items() if 'hidden' not in v or not v['hidden']]
+        presets = [
+            discord.SelectOption(label=k)
+            for k, v in config['presets'].items()
+            if 'hidden' not in v or not v['hidden']
+        ]
         if not presets:
-            await ctx.send('No presets available, please configure them in your scheduler.json.')
+            await interaction.response.send_message(
+                f'No presets available, please configure them in your {self.plugin_name}.json.', ephemeral=True)
             return
         if len(presets) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
@@ -330,86 +293,82 @@ class Mission(Plugin):
         if server.status in [Status.PAUSED, Status.RUNNING]:
             question = 'Do you want to stop the server to change the mission preset?'
             if server.is_populated():
-                result = await utils.populated_question(ctx, question)
+                result = await utils.populated_question(interaction, question)
             else:
-                result = await utils.yn_question(ctx, question)
+                result = await utils.yn_question(interaction, question)
             if not result:
-                await ctx.send('Aborted.')
+                await interaction.followup.send('Aborted.', ephemeral=True)
                 return
-        elif server.status == Status.LOADING:
-            await ctx.send("Server is still loading, can't change presets.")
-            return
-        else:
-            result = None
 
-        view = self.PresetView(ctx, presets[:25])
-        msg = await ctx.send(view=view)
+        view = self.PresetView(presets[:25])
+        if interaction.response.is_done():
+            msg = await interaction.followup.send(view=view, ephemeral=True)
+        else:
+            await interaction.response.send_message(view=view, ephemeral=True)
+            msg = await interaction.original_response()
         try:
             if await view.wait():
                 return
             elif not view.result:
-                await ctx.send('Aborted.')
+                await interaction.followup.send('Aborted.', ephemeral=True)
                 return
         finally:
-            await ctx.message.delete()
             await msg.delete()
-        if result == 'later':
-            server.on_empty = {"command": "preset", "preset": view.result, "user": ctx.message.author}
+        if view.result == 'later':
+            server.on_empty = {"command": "preset", "preset": view.result, "user": interaction.user}
             server.restart_pending = True
-            await ctx.send(f'Preset will be changed when server is empty.')
+            await interaction.followup.send(f'Preset will be changed when server is empty.', ephemeral=True)
         else:
-            msg = await ctx.send('Changing presets...')
+            msg = await interaction.followup.send('Changing presets...', ephemeral=True)
             stopped = False
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 stopped = True
                 await server.stop()
-            await self.change_mizfile(server, config, ','.join(view.result))
+            await server.modifyMission([value for name, value in config['presets'].items() if name in view.result])
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if stopped:
                 await server.start()
                 message += '\nServer restarted.'
-            await self.bot.audit("changed preset", server=server, user=ctx.message.author)
-            await msg.edit(content=message)
+            await self.bot.audit("changed preset", server=server, user=interaction.user)
+            await msg.delete()
+            await interaction.followup.send(message, ephemeral=True)
 
-    @commands.command(description='Create preset from running mission', usage='<name>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def add_preset(self, ctx, *args):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            if server.status not in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
-                await ctx.send(f"No mission running on server {server.display_name}.")
-                return
-            name = ' '.join(args)
-            if not name:
-                await ctx.send(f'Usage: {ctx.prefix}add_preset <name>')
-                return
-            miz = MizFile(self.bot, server.current_mission.filename)
-            if 'presets' not in self.locals['configs'][0]:
-                self.locals['configs'][0]['presets'] = dict()
-            if name in self.locals['configs'][0]['presets'] and \
-                    not await utils.yn_question(ctx, f'Do you want to overwrite the existing preset "{name}"?'):
-                await ctx.send('Aborted.')
-                return
-            self.locals['configs'][0]['presets'] |= {
-                name: {
-                    "start_time": miz.start_time,
-                    "date": miz.date.strftime('%Y-%m-%d'),
-                    "temperature": miz.temperature,
-                    "clouds": miz.clouds,
-                    "wind": miz.wind,
-                    "groundTurbulence": miz.groundTurbulence,
-                    "enable_dust": miz.enable_dust,
-                    "dust_density": miz.dust_density if miz.enable_dust else 0,
-                    "qnh": miz.qnh,
-                    "enable_fog": miz.enable_fog,
-                    "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
-                    "halo": miz.halo
-                }
+    @mission.command(description='Save mission preset')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def save_preset(self, interaction: discord.Interaction,
+                          server: app_commands.Transform[Server, utils.ServerTransformer(
+                              status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
+                          name: str):
+        miz = MizFile(self.bot, server.current_mission.filename)
+        if 'presets' not in self.locals['configs'][0]:
+            self.locals['configs'][0]['presets'] = dict()
+        if name in self.locals['configs'][0]['presets'] and \
+                not await utils.yn_question(interaction, f'Do you want to overwrite the existing preset "{name}"?'):
+            await interaction.followup.send('Aborted.', ephemeral=True)
+            return
+        self.locals['configs'][0]['presets'] |= {
+            name: {
+                "start_time": miz.start_time,
+                "date": miz.date.strftime('%Y-%m-%d'),
+                "temperature": miz.temperature,
+                "clouds": miz.clouds,
+                "wind": miz.wind,
+                "groundTurbulence": miz.groundTurbulence,
+                "enable_dust": miz.enable_dust,
+                "dust_density": miz.dust_density if miz.enable_dust else 0,
+                "qnh": miz.qnh,
+                "enable_fog": miz.enable_fog,
+                "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
+                "halo": miz.halo
             }
-            with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:
-                json.dump(self.locals, file, indent=2)
-            await ctx.send(f'Preset "{name}" added.')
+        }
+        with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:
+            json.dump(self.locals, file, indent=2)
+        if interaction.response.is_done():
+            await interaction.followup.send(f'Preset "{name}" added.')
+        else:
+            await interaction.response.send_message(f'Preset "{name}" added.')
 
     # New command group "/player"
     player = app_commands.Group(name="player", description="Commands to manage DCS players")
@@ -417,9 +376,8 @@ class Mission(Plugin):
     @player.command(description='Lists the current players on this server')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     async def list(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer]):
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         report = Report(self.bot, self.plugin_name, 'players.json')
         env = await report.render(server=server, sides=utils.get_sides(interaction, server))
@@ -428,11 +386,9 @@ class Mission(Plugin):
     @player.command(description='Kicks a player by name or UCID')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
-    @app_commands.autocomplete(player=utils.active_player_autocomplete)
     async def kick(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer],
-                   player: app_commands.Transform[Player, utils.PlayerTransformer],
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                    reason: Optional[str] = 'n/a') -> None:
         server.kick(player, reason)
         await self.bot.audit(f'kicked player {player.display_name} with reason "{reason}"', user=interaction.user)
@@ -455,7 +411,6 @@ class Mission(Plugin):
     @player.command(description='Shows active bans')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     async def bans(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer]):
         data = await server.sendtoDCSSync({"command": "bans"})
@@ -467,11 +422,9 @@ class Mission(Plugin):
     @player.command(description='Bans a user by name or ucid')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
-    @app_commands.autocomplete(player=utils.active_player_autocomplete)
     async def ban(self, interaction: discord.Interaction,
-                  server: app_commands.Transform[Server, utils.ServerTransformer],
-                  player: app_commands.Transform[Player, utils.PlayerTransformer]):
+                  server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                  player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
 
         class BanModal(Modal):
             reason = TextInput(label="Reason", default="n/a", max_length=80, required=False)
@@ -503,7 +456,6 @@ class Mission(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(ucid="player")
-    @app_commands.autocomplete(ucid=utils.all_players_autocomplete)
     async def unban(self, interaction: discord.Interaction, ucid: str):
         for server in self.bot.servers.values():
             server.unban(ucid)
@@ -512,11 +464,9 @@ class Mission(Plugin):
     @player.command(description='Moves a player to spectators')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
-    @app_commands.autocomplete(player=utils.active_player_autocomplete)
     async def spec(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer],
-                   player: app_commands.Transform[Player, utils.PlayerTransformer],
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                    reason: Optional[str] = 'n/a') -> None:
         server.move_to_spectators(player)
         if reason:
@@ -528,9 +478,8 @@ class Mission(Plugin):
     @player.command(description='List of AFK players')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     async def afk(self, interaction: discord.Interaction,
-                  server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
+                  server: Optional[app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]],
                   minutes: Optional[int] = 10):
         afk: list[Player] = list()
         for s in self.bot.servers.values():
@@ -561,6 +510,16 @@ class Mission(Plugin):
             await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message(f"No player is AFK for more than {minutes} minutes.")
+
+    @app_commands.command(description='Sends a popup to a player')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def popup(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
+                    message: str, time: Optional[Range[int, 1, 30]] = -1):
+        player.sendPopupMessage(message, time, interaction.user.display_name)
+        await interaction.response.send_response('Message sent.')
 
     @tasks.loop(minutes=5.0)
     async def update_channel_name(self):

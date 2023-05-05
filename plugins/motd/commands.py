@@ -90,11 +90,9 @@ class MessageOfTheDay(Plugin):
     @app_commands.command(description='Test MOTD')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin'])
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
-    @app_commands.autocomplete(player=utils.active_player_autocomplete)
     async def motd(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer],
-                   player: app_commands.Transform[Player, utils.PlayerTransformer],
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                    option: Literal['join', 'birth', 'nudge']):
         config = self.get_config(server)
         if not config:

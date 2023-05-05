@@ -4,20 +4,19 @@ import discord
 import logging
 import os
 import sys
-from core import Plugin, DCSServerBot, utils, Server, TEventListener, PluginInstallationError
+from core import Plugin, DCSServerBot, utils, Server, TEventListener, PluginInstallationError, Status
 from discord import app_commands
 from discord.ext import commands
-from pathlib import Path
 from typing import Type
 
 from .listener import MusicEventListener
 from .sink import Sink
 from .utils import playlist_autocomplete, all_songs_autocomplete, songs_autocomplete, get_all_playlists, get_tag, \
     Playlist
-from .views import MusicPlayer, PlaylistEditor
+from .views import MusicPlayer
 
 
-class MusicAgent(Plugin):
+class Music(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
@@ -37,17 +36,20 @@ class MusicAgent(Plugin):
             os.makedirs(music_dir)
         return music_dir
 
-    @commands.command(description='Music Player')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def music(self, ctx: commands.Context):
-        server: Server = await self.bot.get_server(ctx)
-        if not server:
-            return
+    # New command group "/music"
+    music = app_commands.Group(name="music", description="Commands to manage music in your (DCS) server")
+
+    @music.command(description='Music Player')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def player(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
+                                                                                            Status.PAUSED])]):
         sink = self.sinks.get(server.name)
         if not sink:
             if not self.get_config(server):
-                await ctx.send(f"No entry for server {server.name} configured in your {self.plugin_name}.json.")
+                await interaction.response.send_message(
+                    f"No entry for server {server.name} configured in your {self.plugin_name}.json.", ephemeral=True)
                 return
             config = self.get_config(server)['sink']
             sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(
@@ -55,10 +57,11 @@ class MusicAgent(Plugin):
             self.sinks[server.name] = sink
         playlists = get_all_playlists(self.bot)
         if not playlists:
-            await ctx.send(f"You don't have any playlists to play. Please create them with {ctx.prefix}playlist")
+            await interaction.response.send_message(
+                f"You don't have any playlists to play. Please create one with /music add", ephemeral=True)
             return
         view = MusicPlayer(self.bot, music_dir=self.get_music_dir(), sink=sink, playlists=playlists)
-        msg = await ctx.send(embed=view.render(), view=view)
+        msg = await interaction.response.send_message(embed=view.render(), view=view, ephemeral=True)
         try:
             while not view.is_finished():
                 await msg.edit(embed=view.render(), view=view)
@@ -66,25 +69,32 @@ class MusicAgent(Plugin):
         finally:
             await msg.delete()
 
+    @music.command(description="Add a song to a playlist")
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(playlist=playlist_autocomplete)
+    @app_commands.autocomplete(song=all_songs_autocomplete)
+    async def add(self, interaction: discord.Interaction, playlist: str, song: str):
+        p = Playlist(self.bot, playlist)
+        p.add(song)
+        song = os.path.join(self.get_music_dir(), song)
+        title = get_tag(song).title or os.path.basename(song)
+        await interaction.response.send_message(
+            '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist))
 
-class MusicMaster(MusicAgent):
-
-    @commands.command(description='Playlist Editor', aliases=['playlists'])
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def playlist(self, ctx: commands.Context):
-        # list the songs ordered by modified timestamp descending (latest first)
-        songs = [file.name for file in sorted(Path(self.get_music_dir()).glob('*.mp3'),
-                                                   key=lambda x: x.stat().st_mtime, reverse=True)]
-        if not len(songs):
-            await ctx.send("No music uploaded on this server. You can just upload mp3 files in here.")
-            return
-        view = PlaylistEditor(self.bot, self.get_music_dir(), songs)
-        msg = await ctx.send(embed=view.render(), view=view)
+    @music.command(description="Remove a song from a playlist")
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(playlist=playlist_autocomplete)
+    @app_commands.autocomplete(song=songs_autocomplete)
+    async def delete(self, interaction: discord.Interaction, playlist: str, song: str):
+        p = Playlist(self.bot, playlist)
         try:
-            await view.wait()
-        finally:
-            await msg.delete()
+            p.remove(song)
+            song = os.path.join(self.get_music_dir(), song)
+            title = get_tag(song).title or os.path.basename(song)
+            await interaction.response.send_message(
+                '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist))
+        except OSError as ex:
+            await interaction.response.send_message(ex)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -106,9 +116,8 @@ class MusicMaster(MusicAgent):
                     filename = self.get_music_dir() + os.path.sep + (att.filename[:-4])[:96] + ext
                 else:
                     filename = self.get_music_dir() + os.path.sep + att.filename
-                ctx = utils.ContextWrapper(message)
                 if os.path.exists(filename):
-                    if await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?') is False:
+                    if not await utils.yn_question(message.interaction, 'File exists. Do you want to overwrite it?'):
                         continue
                 async with aiohttp.ClientSession() as session:
                     async with session.get(att.url) as response:
@@ -127,41 +136,5 @@ class MusicMaster(MusicAgent):
                 await message.delete()
 
 
-class MusicMasterOnly(MusicMaster):
-
-    @app_commands.command(description="Add a song to a playlist")
-    @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(playlist=playlist_autocomplete)
-    @app_commands.autocomplete(song=all_songs_autocomplete)
-    async def add_song(self, interaction: discord.Interaction, playlist: str, song: str):
-        p = Playlist(self.bot, playlist)
-        p.add(song)
-        song = os.path.join(self.get_music_dir(), song)
-        title = get_tag(song).title or os.path.basename(song)
-        await interaction.response.send_message(
-            '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist))
-
-    @app_commands.command(description="Remove a song from a playlist")
-    @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(playlist=playlist_autocomplete)
-    @app_commands.autocomplete(song=songs_autocomplete)
-    async def del_song(self, interaction: discord.Interaction, playlist: str, song: str):
-        p = Playlist(self.bot, playlist)
-        try:
-            p.remove(song)
-            song = os.path.join(self.get_music_dir(), song)
-            title = get_tag(song).title or os.path.basename(song)
-            await interaction.response.send_message(
-                '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist))
-        except OSError as ex:
-            await interaction.response.send_message(ex)
-
-
 async def setup(bot: DCSServerBot):
-    if bot.config.getboolean('BOT', 'MASTER'):
-        if bot.config.getboolean('BOT', 'MASTER_ONLY'):
-            await bot.add_cog(MusicMasterOnly(bot, MusicEventListener))
-        else:
-            await bot.add_cog(MusicMaster(bot, MusicEventListener))
-    else:
-        await bot.add_cog(MusicAgent(bot, MusicEventListener))
+    await bot.add_cog(Music(bot, MusicEventListener))

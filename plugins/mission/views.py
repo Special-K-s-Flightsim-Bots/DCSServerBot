@@ -2,17 +2,17 @@ import asyncio
 import discord
 import os
 from contextlib import suppress
+from core import Server, Report, Status, ReportEnv
 from discord import SelectOption
-from discord.ui import View, Select, Button, Modal, TextInput
-
-from core import Server, Report, Status, ReportEnv, Player, utils
+from discord.ui import View, Select, Button
+from typing import cast, Optional
 
 
 class ServerView(View):
     def __init__(self, server: Server):
         super().__init__()
         self.server: Server = server
-        self.env: ReportEnv = None
+        self.env: Optional[ReportEnv] = None
 
     async def render(self, interaction: discord.Interaction) -> discord.Embed:
         report = Report(interaction.client, 'mission', 'serverStatus.json')
@@ -109,4 +109,29 @@ class ServerView(View):
 
     async def quit(self, interaction: discord.Interaction):
         await interaction.response.defer()
+        self.stop()
+
+
+class PresetView(View):
+    def __init__(self, options: list[discord.SelectOption]):
+        super().__init__()
+        select: Select = cast(Select, self.children[0])
+        select.options = options
+        select.max_values = min(10, len(options))
+        self.result = None
+
+    @discord.ui.select(placeholder="Select the preset(s) you want to apply")
+    async def callback(self, interaction: discord.Interaction, select: Select):
+        self.result = select.values
+        await interaction.response.defer()
+
+    @discord.ui.button(label='OK', style=discord.ButtonStyle.green)
+    async def ok(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
+    async def cancel(self, interaction: discord.Interaction, button: Button):
+        await interaction.response.defer()
+        self.result = None
         self.stop()

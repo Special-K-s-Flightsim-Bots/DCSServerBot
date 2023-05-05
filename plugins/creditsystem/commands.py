@@ -90,7 +90,6 @@ class CreditSystem(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.rename(member="user")
-    @app_commands.autocomplete(member=utils.all_users_autocomplete)
     async def info(self, interaction: discord.Interaction,
                    member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
         if member:

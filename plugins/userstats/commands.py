@@ -4,13 +4,16 @@ import os
 import psycopg
 import random
 from contextlib import closing
+
+from discord.app_commands import Range
+
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, Member, PersistentReport, Channel
 from discord import app_commands
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
 from services import DCSServerBot
-from typing import Union, Optional, Tuple
+from typing import Union, Optional, Tuple, Literal
 
 from .filter import StatisticsFilter
 from .listener import UserStatisticsEventListener
@@ -64,13 +67,11 @@ class UserStatistics(Plugin):
     @app_commands.command(description='Deletes the statistics of a server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.describe(server='Select a server from the list')
-    @app_commands.autocomplete(server=utils.server_autocomplete)
     async def reset_statistics(self, interaction: discord.Interaction,
                                server: app_commands.Transform[Server, utils.ServerTransformer]):
         if server.status not in [Status.RUNNING, Status.PAUSED]:
-            if not await utils.yn_question(interaction, f'I\'m going to **DELETE ALL STATISTICS**\n'
-                                                        f'of server "{server.display_name}".\n\nAre you sure?'):
+            if not await utils.yn_question(interaction, f"I'm going to **DELETE ALL STATISTICS**\n"
+                                                        f"of server \"{server.display_name}\".\n\nAre you sure?"):
                 await interaction.followup.send('Aborted.', ephemeral=True)
                 return
             with self.pool.connection() as conn:
@@ -97,7 +98,6 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.describe(user='Name of player, member or UCID')
-    @app_commands.autocomplete(user=utils.all_users_autocomplete)
     @app_commands.describe(period='day, month, year, month:may, campaign:name, mission:name')
     async def statistics(self, interaction: discord.Interaction,
                          user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]],
@@ -122,21 +122,21 @@ class UserStatistics(Plugin):
     @app_commands.command(description='Displays the top players of your server(s)')
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
-    @app_commands.rename(server_name="server")
-    @app_commands.autocomplete(server_name=utils.server_autocomplete)
-    async def highscore(self, interaction: discord.Interaction, server_name: Optional[str], period: Optional[str]):
+    async def highscore(self, interaction: discord.Interaction,
+                        server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None,
+                        period: Optional[str] = None):
         flt = StatisticsFilter.detect(self.bot, period)
         if period and not flt:
             await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
             return
         file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
-        if not server_name:
+        if not server:
             report = PaginationReport(self.bot, interaction, self.plugin_name, file)
             await report.render(interaction=interaction, period=period, server_name=None, flt=flt)
         else:
             await interaction.response.defer()
             report = Report(self.bot, self.plugin_name, file)
-            env = await report.render(interaction=interaction, period=period, server_name=server_name, flt=flt)
+            env = await report.render(interaction=interaction, period=period, server_name=server.name, flt=flt)
             file = discord.File(env.filename)
             await interaction.followup.send(embed=env.embed, file=file)
             if env.filename and os.path.exists(env.filename):
@@ -145,7 +145,6 @@ class UserStatistics(Plugin):
     @app_commands.command(description="Links a member to a DCS user")
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(ucid=utils.all_players_autocomplete)
     async def link(self, interaction: discord.Interaction, member: discord.Member, ucid: str):
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -166,7 +165,6 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(user='Name of player, member or UCID')
-    @app_commands.autocomplete(user=utils.all_users_autocomplete)
     async def unlink(self, interaction: discord.Interaction,
                      user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
         if isinstance(user, discord.Member):
@@ -374,25 +372,20 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def linkme(self, interaction: discord.Interaction):
-        async def send_token(interaction: discord.Interaction, token: str):
-            try:
-                channel = await interaction.user.create_dm()
-                await channel.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
-                                   f"following into the DCS chat of one of our servers:"
-                                   f"```{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme {token}```\n"
-                                   f"**The TOKEN will expire in 2 days.**")
-            except discord.Forbidden:
-                await interaction.response.send_message("I do not have permission to send you a DM!\n"
-                                                        "Please change your privacy settings to allow this!",
-                                                        ephemeral=True)
+        async def send_token(token: str):
+            await interaction.followup.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
+                                            f"following into the DCS chat of one of our servers:"
+                                            f"```{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme {token}```\n"
+                                            f"**The TOKEN will expire in 2 days.**", ephemeral=True)
 
+        await interaction.response.defer()
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
                     for row in cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s ORDER BY manual',
                                               (interaction.user.id, )).fetchall():
                         if len(row[0]) == 4:
-                            await send_token(interaction, row[0])
+                            await send_token(row[0])
                             return
                         elif row[1] is False:
                             if not await utils.yn_question(interaction, 'Automatic user mapping found.\n'
@@ -407,29 +400,29 @@ class UserStatistics(Plugin):
                                 cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
                                 break
                         elif not await utils.yn_question(interaction,
-                                                         '__Verified__ user mapping found.\n'
-                                                         'Have you switched from Steam to Standalone or your PC?'):
+                                                         "You already have a linked DCS account!\n"
+                                                         "Are you sure you want to link a second account? "
+                                                         "(Ex: Switched from Steam to Standalone)"):
                             return
                     # in the very unlikely event that we have generated the very same random number twice
                     while True:
                         try:
                             token = str(random.randrange(1000, 9999))
                             cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
-                                           (token, ctx.message.author.id))
+                                           (token, interaction.user.id))
                             break
                         except psycopg.DatabaseError:
                             pass
-            await send_token(interaction, token)
+            await send_token(token)
 
-    @commands.command(description='Show inactive users')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def inactive(self, ctx: commands.Context, *param) -> None:
-        period = ' '.join(param) if len(param) else None
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+    @app_commands.command(description='Shows inactive users')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def inactive(self, interaction: discord.Interaction, period: Literal['days', 'weeks', 'months', 'years'],
+                       number: Range[int, 1]):
         report = Report(self.bot, self.plugin_name, 'inactive.json')
-        env = await report.render(period=period)
-        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        env = await report.render(period=f"{number} {period}")
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @tasks.loop(hours=1)
     async def expire_token(self):
@@ -461,7 +454,7 @@ class UserStatistics(Plugin):
                 if 'highscore' not in config:
                     continue
                 if "installation" in config:
-                    server: Server = get_server_by_installation(config['installation'])
+                    server = get_server_by_installation(config['installation'])
                     if not server:
                         self.log.debug(
                             f"Server {config['installation']} is not (yet) registered, skipping highscore update.")

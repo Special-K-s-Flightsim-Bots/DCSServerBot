@@ -158,31 +158,28 @@ These commands can be used to administrate the bot itself.
 If you want to change the name, aliases or permissions of an existing command or you want to disable it, you can do that
 by adding a "commands"-section to your "plugin".json configuration file.
 
-Example (admin.json):
+Example (mission.json):
 ```json
 {
   "commands": {
-    "bans": {
-      "roles": ["Admin"],
-      "name": "prohibiciones",
-      "aliases": ["bans"],
-      "brief": "lista de prohibiciones",
-      "description": "mostrar una lista de todas las prohibiciones en sus servidores"
-    },
-    "update": {
-      "enabled": false
+    "player": {
+      "name": "jugadores",
+      "commands": {
+        "bans": {
+          "roles": [
+            "Admin"
+          ],
+          "name": "prohibiciones",
+          "description": "mostrar una lista de todas las prohibiciones en sus servidores"
+        },
+        "afk": {
+          "enabled": false
+        }
+      }
     }
-  },
-  "configs": [
-    {
-      "downloads": [
-        { "label": "DCS Logs", "directory": "%USERPROFILE%\\Saved Games\\{server.installation}\\logs", "pattern": "dcs*.log" },
-        [...]
-      ]
-    }
-  ]
+  }
 }
 ```
-This changes the command name of "bans" to its spanish name "prohibiciones" and gives it some documentation.
-It keeps the original name as an alias. Only users belonging to the Admin group are allowed to run this command.
-And it disables the "admin" command, so nobody can use or even see it anymore.
+This changes the group name of "player" to its spanish name "jugadores", the bans sub-command to "prohibiciones" and
+gives it some documentation. Only users belonging to the Admin group are allowed to run this command. The 2nd example
+disabled the afk sub-command at all. So nobody can see of use it anymore.

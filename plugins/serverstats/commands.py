@@ -6,12 +6,13 @@ import psutil
 import psycopg
 from core import utils, Plugin, DCSServerBot, TEventListener, Status, PluginRequiredError, Report, PaginationReport, \
     Server
-from discord.ext import tasks, commands
-from typing import Type, Optional, Tuple
+from discord import app_commands
+from discord.ext import tasks
+from typing import Type, Optional
 from .listener import ServerStatsListener
 
 
-class AgentServerStats(Plugin):
+class ServerStats(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
@@ -30,43 +31,37 @@ class AgentServerStats(Plugin):
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    @staticmethod
-    def get_params(*params) -> Tuple[bool, Optional[str]]:
-        is_all = False
-        period = None
-        if len(params):
-            for i in range(0, len(params)):
-                if params[i] in ['hour', 'day', 'week', 'month', 'year']:
-                    period = params[i]
-                elif params[i].lower() == '-all':
-                    is_all = True
-        return is_all, period
-
-    async def display_report(self, ctx, schema: str, period: str, server_name: str):
+    async def display_report(self, interaction: discord.Interaction, schema: str, period: str, server_name: str):
         report = Report(self.bot, self.plugin_name, schema)
         env = await report.render(period=period, server_name=server_name, agent_host=platform.node())
         file = discord.File(env.filename) if env.filename else None
-        await ctx.send(embed=env.embed, file=file)
+        await interaction.response.send_message(embed=env.embed, file=file)
         if env.filename and os.path.exists(env.filename):
             os.remove(env.filename)
 
-    @commands.command(description='Shows servers load', usage='[period]')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def serverload(self, ctx, *params):
-        is_all, period = self.get_params(*params)
-        server: Server = await self.bot.get_server(ctx)
-        if not is_all and server:
-            await self.display_report(ctx, 'serverload.json', period, server.name)
+    @app_commands.command(description='Displays the load of your DCS servers')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def serverload(self, interaction: discord.Interaction,
+                         server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
+                         period: Optional[str]):
+        if server:
+            await self.display_report(interaction, 'serverload.json', period, server.name)
+        else:
+            report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverload.json')
+            await report.render(period=period, server_name=None)
 
-    @commands.command(description='Shows servers statistics', usage='[period]')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def serverstats(self, ctx, *params):
-        is_all, period = self.get_params(*params)
-        server: Server = await self.bot.get_server(ctx)
-        if not is_all and server:
-            await self.display_report(ctx, 'serverstats.json', period, server.name)
+    @app_commands.command(description='Shows servers statistics')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def serverstats(self, interaction: discord.Interaction,
+                          server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
+                          period: Optional[str]):
+        if server:
+            await self.display_report(interaction, 'serverstats.json', period, server.name)
+        else:
+            report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverstats.json')
+            await report.render(period=period, server_name=None)
 
     @tasks.loop(minutes=1.0)
     async def schedule(self):
@@ -118,39 +113,7 @@ class AgentServerStats(Plugin):
                 conn.execute("DELETE FROM serverstats WHERE time < (CURRENT_TIMESTAMP - interval '1 month')")
 
 
-class MasterServerStats(AgentServerStats):
-
-    @commands.command(description='Shows servers load', usage='[period]')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def serverload(self, ctx, *params):
-        is_all, period = self.get_params(*params)
-        server: Server = await self.bot.get_server(ctx)
-        if not is_all:
-            if server:
-                await self.display_report(ctx, 'serverload.json', period, server.name)
-        else:
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'serverload.json')
-            await report.render(period=period, server_name=None)
-
-    @commands.command(description='Shows servers statistics', usage='[period]')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def serverstats(self, ctx, *params):
-        is_all, period = self.get_params(*params)
-        server: Server = await self.bot.get_server(ctx)
-        if not is_all:
-            if server:
-                await self.display_report(ctx, 'serverstats.json', period, server.name)
-        else:
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'serverstats.json')
-            await report.render(period=period, server_name=None)
-
-
 async def setup(bot: DCSServerBot):
     if 'userstats' not in bot.plugins:
         raise PluginRequiredError('userstats')
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(MasterServerStats(bot, ServerStatsListener))
-    else:
-        await bot.add_cog(AgentServerStats(bot, ServerStatsListener))
+    await bot.add_cog(ServerStats(bot, ServerStatsListener))

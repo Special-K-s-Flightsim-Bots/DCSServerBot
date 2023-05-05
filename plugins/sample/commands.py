@@ -1,6 +1,6 @@
 import discord
 import psycopg
-from core import DCSServerBot, Plugin, utils, Server, EventListener, TEventListener
+from core import DCSServerBot, Plugin, utils, Server, EventListener, TEventListener, Status
 from discord import app_commands
 from typing import Type
 from .listener import SampleEventListener
@@ -39,9 +39,8 @@ class Sample(Plugin):
     @app_commands.command(description='This is a sample command.')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    @app_commands.autocomplete(server=utils.active_server_autocomplete)
     async def sample(self, interaction: discord.Interaction,
-                     server: app_commands.Transform[Server, utils.ServerTransformer], text: str):
+                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])], text: str):
         await interaction.response.defer(thinking=True)
         # Calls can be done async (default) or synchronous, which means we will wait for a response from DCS
         data = await server.sendtoDCSSync({

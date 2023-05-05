@@ -5,20 +5,27 @@ from contextlib import closing, suppress
 from copy import deepcopy
 from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, \
     PluginInstallationError
-from discord.ext import tasks, commands
+from discord import app_commands
+from discord.ext import tasks
 from psycopg.rows import dict_row
 from typing import Type, Union, Optional
 from .listener import PunishmentEventListener
 
 
-class PunishmentAgent(Plugin):
+class Punishment(Plugin):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
+        self.check_punishments.add_exception_type(psycopg.DatabaseError)
         self.check_punishments.start()
+        self.decay_config = self.read_decay_config()
+        self.unban_config = self.read_unban_config()
+        self.decay.add_exception_type(psycopg.DatabaseError)
+        self.decay.start()
 
     async def cog_unload(self):
+        self.decay.cancel()
         self.check_punishments.cancel()
         await super().cog_unload()
 
@@ -47,22 +54,24 @@ class PunishmentAgent(Plugin):
                 return None
         return self._config[server.name] if server.name in self._config else None
 
+    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
+        conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+        conn.execute('UPDATE pu_events_sdw SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+
+    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+        self.log.debug('Pruning Punishment ...')
+        if ucids:
+            for ucid in ucids:
+                conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid,))
+        elif days > 0:
+            conn.execute(f"DELETE FROM pu_events WHERE time < (DATE(NOW()) - interval '{days} days')")
+        self.log.debug('Punishment pruned.')
+
     async def punish(self, server: Server, player: Player, punishment: dict, reason: str):
         admin_channel = self.bot.get_channel(server.get_channel(Channel.ADMIN))
         if punishment['action'] == 'ban':
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    conn.execute(
-                        'INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING',
-                        (player.ucid, self.plugin_name, reason)
-                    )
-            # ban them on all servers on this node
             for s in self.bot.servers.values():
-                s.sendtoDCS({
-                    "command": "ban",
-                    "ucid": player.ucid,
-                    "reason": reason
-                })
+                s.ban(player.ucid, reason, punishment.get('days', 30) * 84600)
             if player.member:
                 message = "Member {} banned by {} for {}.".format(utils.escape_string(player.member.display_name),
                                                                   utils.escape_string(self.bot.member.name), reason)
@@ -71,10 +80,10 @@ class PunishmentAgent(Plugin):
                 with suppress(Exception):
                     guild = self.bot.guilds[0]
                     channel = await player.member.create_dm()
-                    await channel.send("You have been banned from the DCS servers on {} for {}.\n"
-                                       "To check your current penalty points, use the {}penalty "
-                                       "command.".format(utils.escape_string(guild.name), reason,
-                                                         self.bot.config['BOT']['COMMAND_PREFIX']))
+                    await channel.send("You have been banned from the DCS servers on {} for {} for the amount of {} "
+                                       "days.\n".format(utils.escape_string(guild.name), reason,
+                                                        punishment.get('days', 30),
+                                                        self.bot.config['BOT']['COMMAND_PREFIX']))
             else:
                 message = f"Player {player.display_name} (ucid={player.ucid}) banned by {self.bot.member.name} " \
                           f"for {reason}."
@@ -148,34 +157,8 @@ class PunishmentAgent(Plugin):
     async def before_check(self):
         await self.bot.wait_until_ready()
         # we need the CreditSystem to be loaded before processing punishments
-        while 'CreditSystemMaster' not in self.bot.cogs and 'CreditSystemAgent' not in self.bot.cogs:
+        while 'CreditSystem' not in self.bot.cogs:
             await asyncio.sleep(1)
-
-
-class PunishmentMaster(PunishmentAgent):
-
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
-        super().__init__(bot, eventlistener)
-        self.decay_config = self.read_decay_config()
-        self.unban_config = self.read_unban_config()
-        self.decay.start()
-
-    async def cog_unload(self):
-        self.decay.cancel()
-        await super().cog_unload()
-
-    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
-        conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-        conn.execute('UPDATE pu_events_sdw SET server_name = %s WHERE server_name = %s', (new_name, old_name))
-
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
-        self.log.debug('Pruning Punishment ...')
-        if ucids:
-            for ucid in ucids:
-                conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid,))
-        elif days > 0:
-            conn.execute(f"DELETE FROM pu_events WHERE time < (DATE(NOW()) - interval '{days} days')")
-        self.log.debug('Punishment pruned.')
 
     def read_decay_config(self):
         if 'configs' in self.locals:
@@ -203,45 +186,14 @@ class PunishmentMaster(PunishmentAgent):
                                 UPDATE pu_events SET points = ROUND(points * %s, 2), decay_run = %s 
                                 WHERE time < (NOW() - interval '%s days') AND decay_run < %s
                             """, (d['weight'], d['days'], d['days'], d['days']))
-                        if self.unban_config:
-                            for row in cursor.execute("""
-                                SELECT ucid FROM bans b, (
-                                    SELECT init_id, SUM(points) AS points 
-                                    FROM pu_events 
-                                    GROUP BY init_id
-                                ) p 
-                                WHERE b.ucid = p.init_id AND b.banned_by = %s 
-                                AND p.points <= %s
-                            """, (self.plugin_name, self.unban_config)).fetchall():
-                                for server_name, server in self.bot.servers.items():
-                                    server.sendtoDCS({
-                                        "command": "unban",
-                                        "ucid": row['ucid']
-                                    })
-                                cursor.execute('DELETE FROM bans WHERE ucid = %s', (row['ucid'], ))
-                                banned = cursor.execute('SELECT discord_id, name FROM players WHERE ucid = %s',
-                                                        (row['ucid'],)).fetchone()
-                                await self.bot.audit(f"Player {banned['name']} (ucid={row['ucid']}) unbanned by "
-                                                     f"{self.bot.member.name} due to decay.")
-                                if banned['discord_id'] != -1:
-                                    with suppress(Exception):
-                                        guild = self.bot.guilds[0]
-                                        member = await guild.fetch_member(banned['discord_id'])
-                                        channel = await member.create_dm()
-                                        await channel.send(
-                                            f"You have been auto-unbanned from the DCS servers on {guild.name}.\n"
-                                            f"Please behave according to the rules to not risk another ban.")
 
-    @commands.command(description='Set punishment to 0 for a user', usage='<member|ucid>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def forgive(self, ctx, user: Union[discord.Member, str]):
-        if isinstance(user, str) and len(user) != 32:
-            await ctx.send(f'Usage: {ctx.prefix}forgive <@member|ucid>')
-            return
-
-        if await utils.yn_question(ctx, 'This will delete all the punishment points for this user.\n'
-                                        'Are you sure (Y/N)?') is True:
+    @app_commands.command(description='Set punishment to 0 for a user')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def forgive(self, interaction: discord.Interaction,
+                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+        if await utils.yn_question(interaction, 'This will delete all the punishment points for this user.\n'
+                                                'Are you sure (Y/N)?'):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     with closing(conn.cursor()) as cursor:
@@ -262,48 +214,46 @@ class PunishmentMaster(PunishmentAgent):
                                     "command": "unban",
                                     "ucid": ucid
                                 })
-                    await ctx.send('All punishment points deleted and player unbanned (if they were banned by the bot '
-                                   'before).')
+                    await interaction.response.send_message('All punishment points deleted and player unbanned '
+                                                            '(if they were banned by the bot before).')
 
-    @commands.command(description='Displays your current penalty points', usage='[member|ucid]')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def penalty(self, ctx: commands.Context, member: Optional[Union[discord.Member, str]]):
-        if member:
-            if not utils.check_roles(['DCS Admin'], ctx.message.author):
-                await ctx.send('You need the DCS Admin role to use this command.')
+    @app_commands.command(description='Displays your current penalty points')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def penalty(self, interaction: discord.Interaction,
+                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+        if user:
+            if not utils.check_roles(['DCS Admin'], interaction.user):
+                await interaction.response.send_message('You need the DCS Admin role to use this command.',
+                                                        ephemeral=True)
                 return
-            if isinstance(member, str):
-                if len(member) != 32:
-                    await ctx.send(f'Usage: {ctx.prefix}penalty [@member] / [ucid]')
-                    return
-                ucid = member
-                member = self.bot.get_member_by_ucid(ucid) or ucid
+            if isinstance(user, str):
+                ucid = user
+                user = self.bot.get_member_by_ucid(ucid) or ucid
             else:
-                ucid = self.bot.get_ucid_by_member(member)
+                ucid = self.bot.get_ucid_by_member(user)
                 if not ucid:
-                    await ctx.send(
-                        "Member {} is not linked to any DCS user.".format(utils.escape_string(member.display_name)))
+                    await interaction.response.send_message(
+                        f"Member {utils.escape_string(user.display_name)} is not linked to any DCS user.",
+                        ephemeral=True)
                     return
         else:
-            member = ctx.message.author
-            ucid = self.bot.get_ucid_by_member(ctx.message.author)
+            user = interaction.user
+            ucid = self.bot.get_ucid_by_member(user)
             if not ucid:
-                await ctx.send(f"Use {ctx.prefix}linkme to link your account.")
+                await interaction.response.send_message(f"Use /linkme to link your account first.", ephemeral=True)
                 return
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute("SELECT event, points, time FROM pu_events WHERE init_id = %s ORDER BY time DESC",
                                (ucid, ))
                 if cursor.rowcount == 0:
-                    await ctx.send('{} has no penalty points.'.format(member.display_name
-                                                                      if isinstance(member, discord.Member)
-                                                                      else member))
+                    await interaction.response.send_message('User has no penalty points.')
                     return
                 embed = discord.Embed(
-                    title="Penalty Points for {}".format(member.display_name
-                                                         if isinstance(member, discord.Member)
-                                                         else member),
+                    title="Penalty Points for {}".format(user.display_name
+                                                         if isinstance(user, discord.Member)
+                                                         else user),
                     color=discord.Color.blue())
                 times = events = points = ''
                 total = 0.0
@@ -326,14 +276,10 @@ class PunishmentMaster(PunishmentAgent):
                     else:
                         embed.set_footer(text=f"You are currently banned.\n"
                                               f"Please contact an admin if you want to get unbanned.")
-                timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-                await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
+                await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(PunishmentMaster(bot, PunishmentEventListener))
-    else:
-        await bot.add_cog(PunishmentAgent(bot, PunishmentEventListener))
+    await bot.add_cog(Punishment(bot, PunishmentEventListener))

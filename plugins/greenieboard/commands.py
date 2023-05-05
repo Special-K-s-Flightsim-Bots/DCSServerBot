@@ -6,17 +6,17 @@ import time
 from contextlib import closing
 from copy import deepcopy
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
-from datetime import datetime
-from discord import SelectOption, TextStyle, app_commands
-from discord.ext import commands, tasks
-from discord.ui import View, Select, Modal, TextInput, Item
+from discord import SelectOption, app_commands
+from discord.app_commands import Range
+from discord.ext import tasks
 from os import path
 from psycopg.rows import dict_row
-from typing import Optional, Union, List, Type, Any
+from typing import Optional, Union, Type
 from .listener import GreenieBoardEventListener
+from .views import TrapView
 
 
-class GreenieBoardAgent(Plugin):
+class GreenieBoard(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
@@ -79,6 +79,77 @@ class GreenieBoardAgent(Plugin):
             conn.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Greenieboard pruned.')
 
+    # New command group "/trape"
+    traps = app_commands.Group(name="traps", description="Commands to display and manage carrier traps")
+
+    @traps.command(description='Show carrier landing qualifications')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def info(self, interaction: discord.Interaction,
+                   user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+        def format_landing(landing: dict) -> str:
+            return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']}: {landing['grade']}"
+
+        if isinstance(user, str):
+            ucid = user
+            user = self.bot.get_member_or_name_by_ucid(user)
+        if isinstance(user, discord.Member):
+            ucid = self.bot.get_ucid_by_member(user)
+            name = user.display_name
+        else:
+            name = user
+        num_landings = max(self.locals['configs'][0]['num_landings'], 25)
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.trapcase, g.wire, "
+                               "g.time, g.points, g.trapsheet FROM greenieboard g, players p WHERE p.ucid = %s "
+                               "AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
+                if cursor.rowcount == 0:
+                    await interaction.response.send_message('No carrier landings recorded for this user.',
+                                                            ephemeral=True)
+                    return
+                landings = [dict(row) for row in cursor.fetchall()]
+        report = Report(self.bot, self.plugin_name, 'traps.json')
+        env = await report.render(ucid=ucid, name=utils.escape_string(name))
+        n = await utils.selection(interaction, embed=env.embed, placeholder="Select a trap for details",
+                                  options=[
+                                      SelectOption(label=format_landing(x), value=str(idx))
+                                      for idx, x in enumerate(landings)
+                                  ])
+        if n:
+            report = PaginationReport(self.bot, interaction, self.plugin_name, 'lsoRating.json')
+            await report.render(landings=landings, start_index=int(n), formatter=format_landing)
+
+    @traps.command(description='Display the current greenieboard')
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    @app_commands.rename(num_rows='rows')
+    async def board(self, interaction: discord.Interaction, num_rows: Optional[Range[int, 5, 20]] = 10):
+        report = PaginationReport(self.bot, interaction, self.plugin_name, 'greenieboard.json')
+        await report.render(server_name=None, num_rows=num_rows)
+
+    @traps.command(description='Adds a trap to the Greenieboard')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def add(self, interaction: discord.Interaction,
+                  user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+        config = self.locals['configs'][0]
+        if 'ratings' not in config:
+            await interaction.response.send_message(
+                'You need to specify ratings in your greenieboard.json to use add_trap!', ephemeral=True)
+            return
+
+        view = TrapView(self.bot, config, user)
+        await interaction.response.send_message(view=view)
+        try:
+            await view.wait()
+            if view.success:
+                await interaction.followup.send('Trap added.', ephemeral=True)
+            else:
+                await interaction.followup.send('Aborted.', ephemeral=True)
+        finally:
+            await interaction.delete_original_response()
+
     @tasks.loop(hours=24.0)
     async def auto_delete(self):
         def do_delete(path: str, days: int):
@@ -102,156 +173,6 @@ class GreenieBoardAgent(Plugin):
             self.log.exception(ex)
 
 
-class GreenieBoardMaster(GreenieBoardAgent):
-
-    @commands.command(description='Show carrier landing qualifications', usage='[member|name]', aliases=['traps'])
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def carrier(self, ctx, member: Optional[Union[discord.Member, str]], *params):
-        def format_landing(landing: dict) -> str:
-            return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']}: {landing['grade']}"
-
-        if not member:
-            member = ctx.message.author
-        if isinstance(member, discord.Member):
-            ucid = self.bot.get_ucid_by_member(member)
-            name = member.display_name
-        else:
-            name = member
-            if len(params) > 0:
-                name += ' ' + ' '.join(params)
-            ucid, name = self.bot.get_ucid_by_name(name)
-        landings = List[dict]
-        num_landings = max(self.locals['configs'][0]['num_landings'], 25)
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-        with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.trapcase, g.wire, "
-                               "g.time, g.points, g.trapsheet FROM greenieboard g, players p WHERE p.ucid = %s "
-                               "AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
-                if cursor.rowcount == 0:
-                    await ctx.send('No carrier landings recorded for this user.',
-                                   delete_after=timeout if timeout > 0 else None)
-                    return
-                landings = [dict(row) for row in cursor.fetchall()]
-        report = Report(self.bot, self.plugin_name, 'traps.json')
-        env = await report.render(ucid=ucid, name=utils.escape_string(name))
-        n = await utils.selection(ctx, embed=env.embed, placeholder="Select a trap for details",
-                                  options=[
-                                      SelectOption(label=format_landing(x), value=str(idx))
-                                      for idx, x in enumerate(landings)
-                                  ])
-        if n:
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'lsoRating.json')
-            await report.render(landings=landings, start_index=int(n), formatter=format_landing)
-        await ctx.message.delete()
-
-    @commands.command(description='Display the current greenieboard', usage='[num rows]', aliases=['greenie'])
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    @app_commands.rename(num_rows='rows')
-    async def greenieboard(self, ctx, num_rows: Optional[int] = 10):
-        try:
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'greenieboard.json')
-            await report.render(server_name=None, num_rows=num_rows)
-        finally:
-            if not ctx.interaction:
-                await ctx.message.delete()
-
-    @commands.command(description='Adds a trap to the Greenieboard', usage='<@member|ucid>')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def add_trap(self, ctx: commands.Context, user: Union[discord.Member, str]):
-        if isinstance(user, discord.Member):
-            ucid = self.bot.get_ucid_by_member(user)
-            if not ucid:
-                await ctx.send(f'Member {user.display_name} is not linked.')
-                return
-        elif len(user) != 32:
-            await ctx.send(f'Usage: {ctx.prefix}add_trap <@member|ucid>')
-            return
-        else:
-            ucid = user
-
-        config = self.locals['configs'][0]
-        if 'ratings' not in config:
-            await ctx.send('You need to specify ratings in your greenieboard.json to use add_trap!')
-            return
-        planes = ['AV8BNA', 'F-14A-135-GR', 'F-14B', 'FA-18C_hornet', 'Su-33']
-
-        class TrapModal(Modal):
-            time = TextInput(label='Time (HH24:MI)', style=TextStyle.short, required=True, min_length=5, max_length=5)
-            case = TextInput(label='Case', style=TextStyle.short, required=True, min_length=1, max_length=1)
-            grade = TextInput(label='Grade', style=TextStyle.short, required=True, min_length=1, max_length=4)
-            comment = TextInput(label='LSO Comment', style=TextStyle.long, required=False)
-            wire = TextInput(label='Wire', style=TextStyle.short, required=False, min_length=1, max_length=1)
-
-            def __init__(self, bot: DCSServerBot, *, unit_type: str):
-                super().__init__(title="Enter the trap details")
-                self.bot = bot
-                self.log = bot.log
-                self.pool = bot.pool
-                self.unit_type = unit_type
-                self.success = False
-
-            async def on_submit(self, interaction: discord.Interaction, /) -> None:
-                await interaction.response.defer()
-                time = datetime.strptime(self.time.value, '%H:%M').time()
-                night = time.hour >= 20 or time.hour <= 6
-                if self.case.value not in ['1', '2', '3']:
-                    raise TypeError('Case needs to be one of 1, 2 or 3.')
-                grade = self.grade.value.upper()
-                if grade not in config['ratings'].keys():
-                    raise ValueError("Grade has to be one of " + ', '.join([utils.escape_string(x) for x in config['ratings'].keys()]))
-                if self.wire.value and self.wire.value not in ['1', '2', '3', '4']:
-                    raise TypeError('Wire needs to be one of 1 to 4.')
-
-                with self.pool.connection() as conn:
-                    with conn.transaction():
-                        with closing(conn.cursor()) as cursor:
-                            cursor.execute('INSERT INTO greenieboard (player_ucid, unit_type, grade, comment, place, '
-                                           'night, points, wire, trapcase) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                                           (ucid, self.unit_type, self.grade.value, self.comment.value, 'n/a', night,
-                                            config['ratings'][grade], self.wire.value, self.case.value))
-                    self.success = True
-
-            async def on_error(self, interaction: discord.Interaction, error: Exception, /) -> None:
-                await interaction.followup.send(error)
-                self.stop()
-
-        class TrapView(View):
-
-            def __init__(self, bot: DCSServerBot):
-                super().__init__()
-                self.bot = bot
-                self.log = bot.log
-                self.success = False
-
-            @discord.ui.select(placeholder='Select the plane for the trap',
-                               options=[SelectOption(label=x) for x in planes])
-            async def callback(self, interaction: discord.Interaction, select: Select):
-                modal = TrapModal(self.bot, unit_type=select.values[0])
-                await interaction.response.send_modal(modal)
-                await modal.wait()
-                self.success = modal.success
-                self.stop()
-
-            async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any], /) -> None:
-                await interaction.followup.send(error)
-                self.stop()
-
-        view = TrapView(self.bot)
-        msg = await ctx.send(view=view)
-        try:
-            await view.wait()
-            if view.success:
-                await ctx.send('Trap added.')
-            else:
-                await ctx.send('Aborted.')
-        finally:
-            await msg.delete()
-
-
 async def setup(bot: DCSServerBot):
     if 'missionstats' not in bot.plugins:
         raise PluginRequiredError('missionstats')
@@ -259,7 +180,4 @@ async def setup(bot: DCSServerBot):
     if not path.exists('config/greenieboard.json'):
         bot.log.info('No greenieboard.json found, copying the sample.')
         shutil.copyfile('config/samples/greenieboard.json', 'config/greenieboard.json')
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(GreenieBoardMaster(bot, GreenieBoardEventListener))
-    else:
-        await bot.add_cog(GreenieBoardAgent(bot, GreenieBoardEventListener))
+    await bot.add_cog(GreenieBoard(bot, GreenieBoardEventListener))
