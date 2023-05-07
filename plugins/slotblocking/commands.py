@@ -2,8 +2,9 @@ import discord
 import json
 import os
 from copy import deepcopy
-from core import DCSServerBot, Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError
+from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError
 from discord.ext import commands
+from services import DCSServerBot
 from typing import Optional
 from .listener import SlotBlockingListener
 

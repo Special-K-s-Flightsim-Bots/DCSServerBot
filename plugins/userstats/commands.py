@@ -4,12 +4,10 @@ import os
 import psycopg
 import random
 from contextlib import closing
-
-from discord.app_commands import Range
-
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, Member, PersistentReport, Channel
 from discord import app_commands
+from discord.app_commands import Range
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
 from services import DCSServerBot
@@ -19,7 +17,8 @@ from .filter import StatisticsFilter
 from .listener import UserStatisticsEventListener
 
 
-def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *params) -> Tuple[Union[discord.Member, str], str]:
+def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *params) \
+        -> Tuple[Union[discord.Member, str], str]:
     num = len(params)
     if not member:
         member = ctx.message.author

@@ -511,7 +511,7 @@ class Mission(Plugin):
         else:
             await interaction.response.send_message(f"No player is AFK for more than {minutes} minutes.")
 
-    @app_commands.command(description='Sends a popup to a player')
+    @player.command(description='Sends a popup to a player')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def popup(self, interaction: discord.Interaction,

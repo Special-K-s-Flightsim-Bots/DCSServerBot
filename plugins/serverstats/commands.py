@@ -4,10 +4,10 @@ import os
 import platform
 import psutil
 import psycopg
-from core import utils, Plugin, DCSServerBot, TEventListener, Status, PluginRequiredError, Report, PaginationReport, \
-    Server
+from core import utils, Plugin, TEventListener, Status, PluginRequiredError, Report, PaginationReport, Server
 from discord import app_commands
 from discord.ext import tasks
+from services import DCSServerBot
 from typing import Type, Optional
 from .listener import ServerStatsListener
 

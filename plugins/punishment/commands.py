@@ -3,11 +3,11 @@ import discord
 import psycopg
 from contextlib import closing, suppress
 from copy import deepcopy
-from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, \
-    PluginInstallationError
+from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, PluginInstallationError
 from discord import app_commands
 from discord.ext import tasks
 from psycopg.rows import dict_row
+from services import DCSServerBot
 from typing import Type, Union, Optional
 from .listener import PunishmentEventListener
 

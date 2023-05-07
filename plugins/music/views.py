@@ -1,8 +1,10 @@
 import discord
 import os
-from core import utils, DCSServerBot
+
+from core import utils
 from discord import SelectOption
 from discord.ui import View, Select, Button
+from services import DCSServerBot
 
 from .sink import Sink, Mode
 from .utils import get_tag

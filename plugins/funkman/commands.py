@@ -1,7 +1,8 @@
 import json
 import os
 from configparser import ConfigParser
-from core import Plugin, DCSServerBot, PluginInstallationError, PluginConfigurationError
+from core import Plugin, PluginInstallationError, PluginConfigurationError
+from services import DCSServerBot
 from .listener import FunkManEventListener
 
 

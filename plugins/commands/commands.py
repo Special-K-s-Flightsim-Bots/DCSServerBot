@@ -1,9 +1,10 @@
 import os
 import shlex
 import subprocess
-from core import Plugin, DCSServerBot, TEventListener, utils
+from core import Plugin, TEventListener, utils
 from discord.ext import commands
 from discord.ext.commands import Command
+from services import DCSServerBot
 from typing import Type
 
 

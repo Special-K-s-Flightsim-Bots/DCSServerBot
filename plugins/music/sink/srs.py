@@ -2,10 +2,13 @@ import asyncio
 import discord
 import subprocess
 import os
-from core import DCSServerBot, Server, Status
+
+from core import Server, Status
 from discord import TextStyle
 from discord.ui import Modal, TextInput
+from services import DCSServerBot
 from typing import Optional
+
 from . import SinkInitError, Sink
 
 

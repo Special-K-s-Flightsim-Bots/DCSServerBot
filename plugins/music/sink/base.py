@@ -3,11 +3,12 @@ import discord
 import os
 from abc import ABC
 from contextlib import suppress, closing
-from core import DCSServerBot, Server
+from core import Server
 from discord.ext import tasks
 from discord.ui import Modal
 from enum import Enum
 from random import randrange
+from services import DCSServerBot
 from typing import Optional
 
 __all__ = [

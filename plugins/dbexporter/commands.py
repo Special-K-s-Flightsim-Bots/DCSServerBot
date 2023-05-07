@@ -2,10 +2,11 @@ import discord
 import json
 import os
 from contextlib import closing
-from core import Plugin, DCSServerBot, TEventListener, utils
+from core import Plugin, TEventListener, utils
 from discord import app_commands
 from discord.ext import tasks
 from os import path
+from services import DCSServerBot
 from typing import Type, List
 
 

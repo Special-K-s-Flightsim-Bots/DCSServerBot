@@ -1,11 +1,12 @@
 import discord
 import eyed3
 import os
-from core import DCSServerBot
+
 from discord import app_commands
 from eyed3.id3 import Tag
 from functools import lru_cache
 from pathlib import Path
+from services import DCSServerBot
 
 
 @lru_cache(maxsize=None)

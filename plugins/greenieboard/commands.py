@@ -3,15 +3,18 @@ import json
 import os
 import shutil
 import time
+
 from contextlib import closing
 from copy import deepcopy
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
+from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
 from discord import SelectOption, app_commands
 from discord.app_commands import Range
 from discord.ext import tasks
 from os import path
 from psycopg.rows import dict_row
+from services import DCSServerBot
 from typing import Optional, Union, Type
+
 from .listener import GreenieBoardEventListener
 from .views import TrapView
 

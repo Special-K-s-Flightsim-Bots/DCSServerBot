@@ -1,9 +1,12 @@
 from __future__ import annotations
-
 import asyncio
+import os
 import win32gui
 import win32process
+
+from datetime import datetime, timezone
 from discord.ext import tasks
+from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
 from typing import TYPE_CHECKING, Optional
 
 from core import Status, utils, Server, Channel
@@ -106,6 +109,13 @@ class MonitoringService(Service):
                                       f"minutes. Killing ..."
                             self.log.warning(message)
                             if server.process:
+                                now = datetime.now(timezone.utc)
+                                filename = os.path.join(
+                                    os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']),
+                                    'Logs', f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp"
+                                )
+                                await asyncio.to_thread(create_dump, server.process.pid, filename,
+                                                        MINIDUMP_TYPE.MiniDumpNormal, True)
                                 server.process.kill()
                             else:
                                 await server.shutdown(True)

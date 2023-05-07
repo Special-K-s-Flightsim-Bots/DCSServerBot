@@ -4,9 +4,11 @@ import discord
 import logging
 import os
 import sys
-from core import Plugin, DCSServerBot, utils, Server, TEventListener, PluginInstallationError, Status
+
+from core import Plugin, utils, Server, TEventListener, PluginInstallationError, Status
 from discord import app_commands
 from discord.ext import commands
+from services import DCSServerBot
 from typing import Type
 
 from .listener import MusicEventListener

@@ -1,15 +1,13 @@
 import discord
 import json
-from core import DCSServerBot, Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
+from core import Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
     PluginInstallationError
 from discord import app_commands
 from discord.ext import tasks
 from os import path
-from typing import Optional, TYPE_CHECKING, Type, Literal
+from services import DCSServerBot
+from typing import Optional, Type, Literal
 from .listener import MessageOfTheDayListener
-
-if TYPE_CHECKING:
-    from core import DCSServerBot
 
 
 class MessageOfTheDay(Plugin):

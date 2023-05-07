@@ -6,11 +6,13 @@ import psycopg
 import re
 import shutil
 import zipfile
+
 from contextlib import closing, suppress
-from core import Status, Plugin, DCSServerBot, PluginConfigurationError, utils, Server, PluginInstallationError
+from core import Status, Plugin, PluginConfigurationError, utils, Server, PluginInstallationError
 from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 from psycopg.rows import dict_row
+from services import DCSServerBot
 from typing import Optional, Tuple
 from urllib.parse import urlparse, unquote
 

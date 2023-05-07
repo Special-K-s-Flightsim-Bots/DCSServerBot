@@ -16,3 +16,4 @@ aiofiles==23.1.0
 rich==13.3.5
 eyeD3==0.9.7
 pywin32==306
+minidump==0.0.21

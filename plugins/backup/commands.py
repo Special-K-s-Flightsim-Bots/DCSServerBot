@@ -4,23 +4,27 @@ import platform
 import shlex
 import shutil
 import time
+from core import Plugin, utils, PluginInstallationError
 from datetime import datetime
-from zipfile import ZipFile
 from discord.ext import tasks
+from services import DCSServerBot
+from zipfile import ZipFile
 
-from core import Plugin, DCSServerBot, utils, PluginInstallationError
 
-
-class BackupAgent(Plugin):
+class Backup(Plugin):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
         self.schedule.start()
+        if self.locals['delete_after'].lower() != 'never':
+            self.delete.start()
 
     def cog_unload(self):
         self.schedule.stop()
+        if self.locals['delete_after'].lower() != 'never':
+            self.delete.stop()
 
     def mkdir(self) -> str:
         target = os.path.expandvars(self.locals.get('target'))
@@ -68,34 +72,6 @@ class BackupAgent(Plugin):
                 zf.close()
             self.log.info(f'Backup of server "{server_name}" complete.')
 
-    @staticmethod
-    def can_run(config: dict):
-        now = datetime.now()
-        if utils.is_match_daystate(now, config['schedule']['days']):
-            for time in config['schedule']['times']:
-                if utils.is_in_timeframe(now, time):
-                    return True
-        return False
-
-    @tasks.loop(minutes=1)
-    async def schedule(self):
-        if 'bot' in self.locals['backups'] and self.can_run(self.locals['backups']['bot']):
-            await asyncio.to_thread(self.backup_bot)
-        if 'servers' in self.locals['backups'] and self.can_run(self.locals['backups']['servers']):
-            await asyncio.to_thread(self.backup_servers)
-
-
-class BackupMaster(BackupAgent):
-    def __init__(self, bot: DCSServerBot):
-        super().__init__(bot)
-        if self.locals['delete_after'].lower() != 'never':
-            self.delete.start()
-
-    async def cog_unload(self):
-        super().cog_unload()
-        if self.locals['delete_after'].lower() != 'never':
-            self.delete.stop()
-
     async def backup_database(self):
         try:
             target = self.mkdir()
@@ -116,9 +92,21 @@ class BackupMaster(BackupAgent):
             self.log.debug(ex)
             self.log.error("Backup of database failed. See logfile for details.")
 
+    @staticmethod
+    def can_run(config: dict):
+        now = datetime.now()
+        if utils.is_match_daystate(now, config['schedule']['days']):
+            for time in config['schedule']['times']:
+                if utils.is_in_timeframe(now, time):
+                    return True
+        return False
+
     @tasks.loop(minutes=1)
     async def schedule(self):
-        await super().schedule()
+        if 'bot' in self.locals['backups'] and self.can_run(self.locals['backups']['bot']):
+            await asyncio.to_thread(self.backup_bot)
+        if 'servers' in self.locals['backups'] and self.can_run(self.locals['backups']['servers']):
+            await asyncio.to_thread(self.backup_servers)
         if 'database' in self.locals['backups'] and self.can_run(self.locals['backups']['database']):
             await self.backup_database()
 
@@ -140,7 +128,4 @@ class BackupMaster(BackupAgent):
 
 
 async def setup(bot: DCSServerBot):
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(BackupMaster(bot))
-    else:
-        await bot.add_cog(BackupAgent(bot))
+    await bot.add_cog(Backup(bot))
