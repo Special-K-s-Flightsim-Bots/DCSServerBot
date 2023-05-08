@@ -500,7 +500,7 @@ class Server(DataObject):
 
     async def keep_alive(self):
         # we set a longer timeout in here because, we don't want to risk false restarts
-        timeout = 20 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
+        timeout = 50 if self.bot.config.getboolean('BOT', 'SLOW_SYSTEM') else 30
         data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
         conn = self.pool.getconn()
         try:

@@ -17,7 +17,7 @@ class Extension(ABC):
         self.config: dict = config
         self.server: Server = server
         self.locals: dict = self.load_config()
-        self.lastrun = datetime.now()
+        self.lastrun = datetime(year=1970, day=1, month=1)
 
     def load_config(self) -> Optional[dict]:
         return dict()

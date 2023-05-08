@@ -11,9 +11,10 @@ import psycopg2.extras
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 from core import utils, Server, DCSServerBot, Status, ThreadedConnectionPool
-from contextlib import closing, suppress
+from contextlib import closing
 from discord import SelectOption
 from discord.ext import commands
 from install import Install
@@ -73,6 +74,7 @@ class Main:
         log.setLevel(logging.DEBUG)
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
+        formatter.converter = time.gmtime
         fh = RotatingFileHandler('dcsserverbot.log', encoding='utf-8',
                                  maxBytes=int(self.config['LOGGING']['LOGROTATE_SIZE']),
                                  backupCount=int(self.config['LOGGING']['LOGROTATE_COUNT']))

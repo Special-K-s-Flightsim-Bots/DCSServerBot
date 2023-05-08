@@ -9,10 +9,11 @@ import win32gui
 import win32process
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError
-from datetime import datetime
+from datetime import datetime, timezone
 from discord import SelectOption, Interaction
 from discord.ext import commands, tasks
 from discord.ui import Select, View, Button
+from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
 from typing import Optional, cast
 from .listener import MissionEventListener
 
@@ -546,8 +547,16 @@ class Mission(Plugin):
                     # process might be in a hung state, so try again for a specified amount of times
                     if server.name in self.hung and self.hung[server.name] >= (max_hung_minutes - 1):
                         if server.process:
-                            message = f"Can't reach server \"{server.name}\" for more than {max_hung_minutes} minutes. Killing ..."
+                            message = f"Can't reach server \"{server.name}\" for more than {max_hung_minutes} " \
+                                      f"minutes. Creating minidump and killing ..."
                             self.log.warning(message)
+                            now = datetime.now(timezone.utc)
+                            filename = os.path.join(
+                                os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']),
+                                'Logs', f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp"
+                            )
+                            await asyncio.to_thread(create_dump, server.process.pid, filename,
+                                                    MINIDUMP_TYPE.MiniDumpNormal, True)
                             server.process.kill()
                             server.process = None
                             await self.bot.audit("Server killed due to a hung state.", server=server)
