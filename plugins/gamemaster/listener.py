@@ -226,7 +226,9 @@ class GameMasterEventListener(EventListener):
                     Coalition.BLUE: discord.utils.get(player.member.guild.roles,
                                                       name=self.bot.config[server.installation]['Coalition Blue'])
                 }
-                await player.member.add_roles(roles[player.coalition])
+                role = roles[player.coalition]
+                if role:
+                    await player.member.add_roles(role)
         except discord.Forbidden:
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 

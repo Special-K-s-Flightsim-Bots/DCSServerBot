@@ -14,3 +14,4 @@ aiohttp==3.8.4
 aiofiles==23.1.0
 rich==13.3.2
 eyeD3==0.9.7
+minidump==0.0.21
