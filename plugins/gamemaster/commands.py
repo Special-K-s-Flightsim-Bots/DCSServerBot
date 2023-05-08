@@ -1,20 +1,19 @@
 import asyncio
-import dateparser
 import discord
 import os
 import platform
 import psycopg
 from contextlib import closing
 from core import Plugin, utils, Report, Status, Server, Coalition, Channel
-from discord import app_commands, TextStyle
+from discord import app_commands, TextStyle, SelectOption
 from discord.app_commands import Range
 from discord.ext import commands
 from discord.ui import Modal, TextInput
-from psycopg.rows import dict_row
 from services import DCSServerBot
 from typing import Optional, Literal
 
 from .listener import GameMasterEventListener
+from .views import CampaignModal
 
 
 class GameMaster(Plugin):
@@ -221,159 +220,93 @@ class GameMaster(Plugin):
             await interaction.response.send_message('The bot is missing the "Manage Roles" permission.', ephemeral=True)
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
-    @staticmethod
-    def format_campaigns(data, marker, marker_emoji):
-        embed = discord.Embed(title="List of Campaigns", color=discord.Color.blue())
-        ids = names = times = ''
-        for i in range(0, len(data)):
-            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            names += data[i]['name'] + '\n'
-            times += f"{data[i]['start']:%y-%m-%d} - " + (f"{data[i]['stop']:%y-%m-%d}" if data[i]['stop'] else '') + '\n'
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Name', value=names)
-        embed.add_field(name='Start/End', value=times)
-        embed.set_footer(text='Press a number to display details about that specific campaign.')
-        return embed
+    # New command group "/mission"
+    campaign = app_commands.Group(name="campaign", description="Commands to manage DCS campaigns")
 
-    @staticmethod
-    def format_servers(data):
-        embed = discord.Embed(color=discord.Color.blue())
-        embed.description = 'Select all servers for this campaign and press 🆗'
-        ids = names = ''
-        for i in range(0, len(data)):
-            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            names += data[i] + '\n'
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Server Name', value=names)
-        return embed
-
-    async def get_campaign_servers(self, ctx) -> list[Server]:
+    async def get_campaign_servers(self, interaction: discord.Interaction) -> list[Server]:
         servers: list[Server] = list()
-        all_servers = utils.get_all_servers(self)
+        all_servers = list(self.bot.servers.keys())
         if len(all_servers) == 0:
             return []
         elif len(all_servers) == 1:
             return [self.bot.servers[all_servers[0]]]
-        for element in await utils.multi_selection_list(self.bot, ctx, all_servers, self.format_servers):
-            servers.append(self.bot.servers[all_servers[element]])
+        for element in await utils.selection(interaction, title="Select all servers for this campaign",
+                                             options=[SelectOption(label=x, value=x) for x in all_servers]):
+            servers.append(self.bot.servers[element])
         return servers
 
-    @commands.command(brief='Campaign Management',
-                      description='Add, remove, start, stop or delete campaigns.\n\n'
-                                  '1) add <name> <start> [end]\n'
-                                  '> Create a __new__ campaign in the respective timeframe. If no end is provided, end '
-                                  'is open.\n'
-                                  '2) start <name>\n'
-                                  '> Create an instance campaign **or** add servers to an existing one.\n'
-                                  '3) stop [name]\n'
-                                  '> Stop the campaign with the provided name or the running campaign.\n'
-                                  '4) delete [name]\n'
-                                  '> Delete the campaign with the provided name or the running campaign.\n'
-                                  '5) list [-all]\n'
-                                  '> List the running campaign or all.',
-                      aliases=['season', 'campaigns', 'seasons'])
-    @utils.has_roles(['DCS Admin', 'GameMaster'])
-    @commands.guild_only()
-    async def campaign(self, ctx, command: Optional[str], name: Optional[str], start_time: Optional[str],
-                       end_time: Optional[str]):
-        server: Server = await self.bot.get_server(ctx)
-        if not command:
+    @campaign.command(description="Campaign info")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
+    async def info(self, interaction: discord.Interaction, campaign: Optional[str]):
+        report = Report(self.bot, self.plugin_name, 'campaign.json')
+        env = await report.render(campaign=utils.get_campaign(self, campaign), title='Campaign Overview')
+        await interaction.response.send_message(embed=env.embed)
+
+    @campaign.command(description="Add new campaign")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def add(self, interaction: discord.Interaction):
+        servers = await self.get_campaign_servers(interaction)
+        modal = CampaignModal(self.eventlistener, servers)
+        await interaction.response.send_modal(modal)
+        if await modal.wait():
+            await interaction.response.send_message('Aborted.', ephemeral=True)
+            return
+
+    @campaign.command(description="Add a server to an existing campaign")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
+    async def add_server(self, interaction: discord.Interaction, campaign: str,
+                         server: app_commands.Transform[Server, utils.ServerTransformer]):
+        try:
             with self.pool.connection() as conn:
-                with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                    cursor.execute("""
-                        SELECT id, name, description, start, stop 
-                        FROM campaigns 
-                        WHERE NOW() BETWEEN start AND COALESCE(stop, NOW())
-                    """)
-                    if cursor.rowcount > 0:
-                        report = Report(self.bot, self.plugin_name, 'campaign.json')
-                        env = await report.render(campaign=dict(cursor.fetchone()), title='Active Campaign')
-                        await ctx.send(embed=env.embed)
-                    else:
-                        await ctx.send('No running campaign found.')
-        elif command.lower() == 'add':
-            if not name or not start_time:
-                await ctx.send(f"Usage: {ctx.prefix}.campaign add <name> <start> [stop]")
-                return
-            description = await utils.input_value(self.bot, ctx,
-                                                  'Please enter a short description for this campaign (. for none):')
-            servers: list[Server] = await self.get_campaign_servers(ctx)
-            try:
-                self.eventlistener.campaign(
-                    'add', servers=servers, name=name, description=description,
-                    start=dateparser.parse(start_time, settings={'TIMEZONE': 'UTC'}) if start_time else None,
-                    end=dateparser.parse(end_time, settings={'TIMEZONE': 'UTC'}) if end_time else None
-                )
-                await ctx.send(f"Campaign {name} added.")
-            except psycopg.errors.ExclusionViolation:
-                await ctx.send(f"A campaign is already configured for this timeframe!")
-            except psycopg.errors.UniqueViolation:
-                await ctx.send(f"A campaign with this name already exists!")
-        elif command.lower() == 'start':
-            try:
-                if not name:
-                    await ctx.send(f"Usage: {ctx.prefix}.campaign start <name>")
-                    return
-                servers: list[Server] = await self.get_campaign_servers(ctx)
-                self.eventlistener.campaign('start', servers=servers, name=name)
-                await ctx.send(f"Campaign {name} started.")
-            except psycopg.errors.ExclusionViolation:
-                await ctx.send(f"There is a campaign already running on server {server.display_name}!")
-            except psycopg.errors.UniqueViolation:
-                await ctx.send(f"A campaign with this name already exists on server {server.display_name}!")
-        elif command.lower() == 'stop':
-            if not server and not name:
-                await ctx.send(f'Usage: {ctx.prefix}campaign stop <name>')
-                return
-            if server and not name:
-                _, name = utils.get_running_campaign(server)
-                if not name:
-                    await ctx.send('No running campaign found.')
-                    return
-            warn_text = f"Do you want to stop campaign \"{name}\"?"
-            if await utils.yn_question(ctx, warn_text) is True:
-                self.eventlistener.campaign('stop', name=name)
-                await ctx.send(f"Campaign stopped.")
-            else:
-                await ctx.send('Aborted.')
-        elif command.lower() in ['del', 'delete']:
-            if not server and not name:
-                await ctx.send(f'Usage: {ctx.prefix}campaign delete <name>')
-                return
-            if server and not name:
-                _, name = utils.get_running_campaign(server)
-                if not name:
-                    await ctx.send('No running campaign found.')
-                    return
-            warn_text = f"Do you want to delete campaign \"{name}\"?"
-            if await utils.yn_question(ctx, warn_text) is True:
-                self.eventlistener.campaign('delete', name=name)
-                await ctx.send(f"Campaign deleted.")
-            else:
-                await ctx.send('Aborted.')
-        elif command.lower() == 'list':
-            with self.pool.connection() as conn:
-                with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                    if name != "-all":
-                        cursor.execute("""
-                            SELECT id, name, description, start, stop 
-                            FROM campaigns 
-                            WHERE COALESCE(stop, NOW()) >= NOW() 
-                            ORDER BY start DESC
-                        """)
-                    else:
-                        cursor.execute("SELECT id, name, description, start, stop FROM campaigns ORDER BY start DESC")
-                    if cursor.rowcount > 0:
-                        campaigns = [dict(row) for row in cursor.fetchall()]
-                        n = await utils.selection_list(self.bot, ctx, campaigns, self.format_campaigns)
-                        if n != -1:
-                            report = Report(self.bot, self.plugin_name, 'campaign.json')
-                            env = await report.render(campaign=campaigns[n], title='Campaign Overview')
-                            await ctx.send(embed=env.embed)
-                    else:
-                        await ctx.send('No campaigns found.')
+                with conn.transaction():
+                    conn.execute("""
+                        INSERT INTO campaigns_servers (campaign_id, server_name) 
+                        VALUES SELECT id, %s FROM campaigns WHERE name = %s 
+                        """, (server.name, campaign))
+            await interaction.response.send_message(f"Server {server.name} added to campaign {campaign}.")
+        except psycopg.errors.UniqueViolation:
+            await interaction.response.send_message(f"Server {server.name} is already part of the campaign {campaign}!",
+                                                    ephemeral=True)
+
+    @campaign.command(description="Delete a campaign")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
+    async def delete(self, interaction: discord.Interaction,
+                     campaign: Optional[str]):
+        if await utils.yn_question(interaction, f"Do you want to delete campaign \"{campaign}\"?"):
+            self.eventlistener.campaign('delete', name=campaign)
+            await interaction.followup.send(f"Campaign deleted.")
         else:
-            await ctx.send(f"Usage: {ctx.prefix}.campaign <add|start|stop|delete|list>")
+            await interaction.followup.send('Aborted.', ephemeral=True)
+
+    @campaign.command(description="Start a campaign")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def start(self, interaction: discord.Interaction, campaign: str):
+        try:
+            await interaction.response.defer()
+            servers: list[Server] = await self.get_campaign_servers(interaction)
+            self.eventlistener.campaign('start', servers=servers, name=campaign)
+            await interaction.followup.send(f"Campaign {campaign} started.")
+        except (psycopg.errors.ExclusionViolation, psycopg.errors.UniqueViolation):
+            await interaction.followup.send(f"A campaign with this name already exists.", ephemeral=True)
+
+    @campaign.command(description="Stop a campaign")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
+    async def stop(self, interaction: discord.Interaction, campaign: str):
+        if await utils.yn_question(interaction, f"Do you want to stop campaign \"{campaign}\"?"):
+            self.eventlistener.campaign('stop', name=campaign)
+            await interaction.followup.send("Campaign stopped.")
+        else:
+            await interaction.followup.send('Aborted.', ephemeral=True)
 
     @app_commands.command(description='Displays your current player profile')
     @app_commands.guild_only()

@@ -22,7 +22,7 @@
           "installation": "%ProgramFiles%\\DCS-SimpleRadio-Standalone"
         },
         "Tacview": {
-          "path": "%USERPROFILE%\\Documents\\Tacview",
+          "tacviewExportPath": "%USERPROFILE%\\Documents\\Tacview",
           "delete_after": 30
         }
       }

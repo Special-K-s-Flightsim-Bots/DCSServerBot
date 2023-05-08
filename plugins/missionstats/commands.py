@@ -43,6 +43,8 @@ class MissionStatistics(Plugin):
     async def sorties(self, interaction: discord.Interaction,
                       user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
                       period: Optional[str]):
+        if not user:
+            user = interaction.user
         flt = MissionStatisticsFilter()
         if period and not flt.supports(self.bot, period):
             await interaction.response.send_message('Please provide a valid period.', ephemeral=True)
@@ -78,9 +80,11 @@ class MissionStatistics(Plugin):
     async def modulestats(self, interaction: discord.Interaction,
                           user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
                           period: Optional[str]):
+        if not user:
+            user = interaction.user
         flt = StatisticsFilter.detect(self.bot, period)
         if period and not flt:
-            await ctx.send('Please provide a valid period or campaign name.')
+            await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
             return
         if isinstance(user, str):
             ucid = user
@@ -111,6 +115,8 @@ class MissionStatistics(Plugin):
     async def refuelings(self, interaction: discord.Interaction,
                          user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
                          period: Optional[str]):
+        if not user:
+            user = interaction.user
         flt = MissionStatisticsFilter()
         if period and not flt.supports(self.bot, period):
             await interaction.response.send_message('Please provide a valid period.', ephemeral=True)

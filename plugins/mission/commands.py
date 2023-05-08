@@ -61,7 +61,8 @@ class Mission(Plugin):
     @app_commands.describe(idx='Airport for ATIS information')
     @app_commands.autocomplete(idx=utils.airbase_autocomplete)
     async def atis(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED])],
+                   server: app_commands.Transform[Server, utils.ServerTransformer(
+                       status=[Status.RUNNING, Status.PAUSED])],
                    idx: int):
         airbase = server.current_mission.airbases[idx]
         data = await server.sendtoDCSSync({
@@ -100,7 +101,8 @@ class Mission(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def restart(self, interaction: discord.Interaction,
-                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
+                      server: app_commands.Transform[Server, utils.ServerTransformer(
+                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
                       delay: Optional[int] = 120, reason: Optional[str] = None):
         if server.restart_pending and not await utils.yn_question(interaction,
                                                                   'A restart is currently pending.\n'
@@ -148,7 +150,8 @@ class Mission(Plugin):
     @app_commands.rename(mission_id="mission")
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def load(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
+                   server: app_commands.Transform[Server, utils.ServerTransformer(
+                       status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
                    mission_id: int):
         if server.restart_pending and not await utils.yn_question(interaction,
                                                                   'A restart is currently pending.\n'
@@ -272,8 +275,8 @@ class Mission(Plugin):
                                               f'please wait a bit and try again.', ephemeral=True)
 
     @mission.command(description='Modify mission with a preset')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
@@ -573,7 +576,9 @@ class Mission(Plugin):
             return
         server: Server = await self.bot.get_server(message)
         # only DCS Admin role is allowed to upload missions in the servers admin channel
-        if not server or not utils.check_roles([x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')], message.author):
+        if not server or not utils.check_roles([
+            x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')
+        ], message.author):
             return
         att = message.attachments[0]
         filename = await server.get_missions_dir() + os.path.sep + att.filename
@@ -605,7 +610,8 @@ class Mission(Plugin):
             if not self.bot.config.getboolean(server.installation, 'AUTOSCAN'):
                 server.addMission(filename)
             name = os.path.basename(filename)[:-4]
-            await message.channel.send(f'Mission "{name}" uploaded and added.' if not exists else f"Mission {name} replaced.")
+            await message.channel.send(
+                f'Mission "{name}" uploaded and added.' if not exists else f"Mission {name} replaced.")
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
             if stopped:
                 await server.start()

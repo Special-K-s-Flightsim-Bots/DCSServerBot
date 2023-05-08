@@ -104,7 +104,7 @@ class MixedFilter(StatisticsFilter):
             server = bot.servers[server_name]
         else:
             return PeriodFilter.filter(bot, period)
-        _, name = utils.get_running_campaign(server)
+        _, name = utils.get_running_campaign(bot, server)
         if name:
             return CampaignFilter.filter(bot, name, server_name)
         else:
@@ -118,7 +118,7 @@ class MixedFilter(StatisticsFilter):
             server = bot.servers[server_name]
         else:
             return PeriodFilter.format(bot, period)
-        _, name = utils.get_running_campaign(server)
+        _, name = utils.get_running_campaign(bot, server)
         if name:
             return CampaignFilter.format(bot, name, server_name)
         else:

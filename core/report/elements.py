@@ -210,7 +210,7 @@ class SQLField(EmbedElement):
                 if cursor.rowcount > 0:
                     row = cursor.fetchone()
                     name = list(row.keys())[0]
-                    value = row[0]
+                    value = row[name]
                     self.add_field(name=name, value=value, inline=inline)
 
 
@@ -226,11 +226,12 @@ class SQLTable(EmbedElement):
                     elements = len(row)
                     if not header:
                         header = list(row.keys())
+                    values = list(row.values())
                     for i in range(0, elements):
                         if len(cols) <= i:
-                            cols.append(str(row[i]) + '\n')
+                            cols.append(str(values[i]) + '\n')
                         else:
-                            cols[i] += str(row[i]) + '\n'
+                            cols[i] += str(values[i]) + '\n'
                 for i in range(0, elements):
                     self.add_field(name=header[i], value=cols[i], inline=inline)
                 if elements % 3 and inline:

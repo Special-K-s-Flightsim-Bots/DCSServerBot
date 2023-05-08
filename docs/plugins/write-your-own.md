@@ -140,7 +140,6 @@ You have access to the following class variables:
 * self.pool: Database pool
 * self.loop: asyncio event loop
 * self.locals: dict from config.json
-* self.commands: a list of commands implemented by this listener (autofilled) 
 
 ```python
 from core import EventListener, Server, Plugin, Player, event, chat_command
@@ -235,46 +234,29 @@ class SampleEventListener(EventListener):
 
 ### commands.py
 
-This is the entry point for any Discord command. As DCSServerBot can be installed in multiple locations 
-serving a bunch of DCS servers, you might end up with more than one active bot in your discord. To separate 
-them, commands are usually called in the admin channels of each server (see examples below).
-Sometimes commands needs to query the whole database or must only be run on exactly one instance, the 
-so-called MASTER instance. For this case, you already need to take care of the MASTER / AGENT split in your
-Discord hook. For how to handle Discord commands, see [discord.py].
+This is the entry point for any Discord command. For how to handle Discord commands, see [discord.py].
 
 ```python
-import platform
-from core import Plugin, utils, Server, DCSServerBot
-from discord.ext import commands
+import discord
+
+from core import Plugin, utils, Server, Status
+from discord import app_commands
+from services import DCSServerBot
+
 from .listener import SampleEventListener
 
 
-class SampleAgent(Plugin):
-    @commands.command(description='Agent-command', usage='<text>')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def sample(self, ctx, text: str):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            await ctx.send(f'Server {server.name} is {server.status.name}!')
-        else:
-            # just for documentation purposes, Agents, only implement server-specific commands!
-            pass
+class Sample(Plugin):
+    @app_commands.command(description='Agent-command')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def sample(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])], text: str):
+        await interaction.response.send_message(f'Server {server.name} is {server.status.name}!')
 
-        
-class SampleMaster(SampleAgent):
-    @commands.command(description='Master-only command')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def master(self, ctx):
-        await ctx.send(f'This command is running on node {platform.node()}')
 
-        
 async def setup(bot: DCSServerBot):
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(SampleMaster(bot, SampleEventListener))
-    else:
-        await bot.add_cog(SampleAgent(bot, SampleEventListener))
+    await bot.add_cog(Sample(bot, SampleEventListener))
 ```
 
 You don't necessarily need to implement the MASTER / AGENT construct, if you only have commands that are
@@ -362,14 +344,21 @@ See `server.py`. You have usually two options to retrieve the running server ins
 a) Plugin
 
 In your plugins, you usually want to run a Discord command that sends information to a specific server.
-To get the respective server, you can take advantage of the channel/server mapping that DCSServerBot 
-implements in its configuration already. That means, that if you for instance run a command in the
-dedicated admin channel of any server, you can access the Server instance, directly through the Discord
-context:
+To get a server or player instance, you can use the existing transformers of the core framework:
 
 ```python
-async def sample(self, ctx, text: str):
-    server: Server = await self.bot.get_server(ctx)
+import discord
+
+from core import utils, Server, Status, Player
+from discord import app_commands    
+
+@app_commands.command(description='This is a sample command.')
+@app_commands.guild_only()
+@utils.app_has_role('DCS')
+async def sample(self, interaction: discord.Interaction,
+                 server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                 player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)]):
+    player.sendPopupMessage("Hello World!")
 ```
 
 b) EventListener
@@ -450,17 +439,10 @@ CREATE TABLE IF NOT EXISTS bans (ucid TEXT PRIMARY KEY, banned_by TEXT NOT NULL,
 To access the database, you should use the database pool that is available in every common framework class:
 
 ```python
-conn = self.pool.getconn()
-try:
-    with closing(conn.cursor()) as cursor:
-        cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING',
-                       (player.ucid, self.plugin_name, reason))
-        conn.commit()
-except (Exception, psycopg2.DatabaseError) as error:
-    conn.rollback()
-    self.log.exception(error)
-finally:
-    self.pool.putconn(conn)
+with self.pool.connection() as conn:
+    with conn.transaction():
+        conn.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING',
+                     (player.ucid, self.plugin_name, reason))
 ```
 
 ## Auto-Migration
