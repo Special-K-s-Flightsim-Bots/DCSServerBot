@@ -10,7 +10,8 @@ class MissionStatisticsEventListener(EventListener):
     COALITION = {
         0: Coalition.NEUTRAL,
         1: Coalition.RED,
-        2: Coalition.BLUE
+        2: Coalition.BLUE,
+        3: Coalition.NEUTRAL
     }
 
     UNIT_CATEGORY = {
