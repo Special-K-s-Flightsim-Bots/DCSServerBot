@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import discord
+import logging
 import os
 import platform
 import psycopg2
@@ -302,9 +303,10 @@ class Mission(Plugin):
 
         embed = discord.Embed(title=f"{server.display_name}", colour=discord.Colour.blue())
         embed.description = "Load / reload missions."
-        embed.add_field(name="Mission Name", value=server.current_mission.display_name)
-        embed.add_field(name="# Players", value=str(len(server.get_active_players())))
-        embed.add_field(name='▬' * 27, value='_ _', inline=False)
+        if server.current_mission:
+            embed.add_field(name="Mission Name", value=server.current_mission.display_name)
+            embed.add_field(name="# Players", value=str(len(server.get_active_players())))
+            embed.add_field(name='▬' * 27, value='_ _', inline=False)
         view = self.LoadView(ctx, placeholder="Select a mission to load",
                              options=[
                                  SelectOption(label=os.path.basename(x)[:-4])
@@ -560,6 +562,10 @@ class Mission(Plugin):
                             )
                             await asyncio.to_thread(create_dump, server.process.pid, filename,
                                                     MINIDUMP_TYPE.MiniDumpNormal, True)
+                            # remove the logger that was created by minidump
+                            root = logging.getLogger()
+                            if root.handlers:
+                                root.removeHandler(root.handlers[0])
                             server.process.kill()
                             server.process = None
                             await self.bot.audit("Server killed due to a hung state.", server=server)
