@@ -306,7 +306,10 @@ class Mission(Plugin):
         embed.add_field(name="# Players", value=str(len(server.get_active_players())))
         embed.add_field(name='▬' * 27, value='_ _', inline=False)
         view = self.LoadView(ctx, placeholder="Select a mission to load",
-                             options=[SelectOption(label=os.path.basename(x)[:-4]) for x in list(set(missions))[:25]])
+                             options=[
+                                 SelectOption(label=os.path.basename(x)[:-4])
+                                 for x in sorted(set(missions), key=lambda x: x.lower())[:25]
+                             ])
         msg = await ctx.send(embed=embed, view=view)
         try:
             if await view.wait():
