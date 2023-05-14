@@ -16,6 +16,7 @@ get the idea) and dir as a shell command.
   "commands": [
     {
       "name": "dcs",                  -- new Discord command .dcs
+      "description": "Launch DCS",    -- Description for help command
       "roles": ["DCS Admin"],         -- who can use this command,
       "params": [ "instance" ],       -- supported parameters (string only)
       "execute": {
@@ -26,6 +27,7 @@ get the idea) and dir as a shell command.
     },
     {
       "name": "dir",                  -- new Discord command .dir
+      "description": "Directory listing",
       "roles": ["Admin", "DCS Admin"],
       "hidden": true,                 -- command is hidden from .help
       "execute": {
@@ -36,6 +38,7 @@ get the idea) and dir as a shell command.
     },
     {
       "name": "server_name",          -- new Discord command .server_name
+      "description": "Display server name",
       "server_only": true,            -- must be run in ADMIN_CHANNEL, CHAT_CHANNEL or STATUS_CHANNEL
       "execute": {
         "shell": true,
@@ -45,6 +48,7 @@ get the idea) and dir as a shell command.
     },
     {
       "name": "shutdown_all",       -- new Discord command .shutdown_all,
+      "description": "Shutdown all servers",
       "server_only": false,         -- this event will be sent to ALL servers
       "event": {                    -- send an event to your DCS server(s)
         "command": "shutdown"       
@@ -52,6 +56,7 @@ get the idea) and dir as a shell command.
     },
     {
       "name": "mission_status",     -- new Discord command .mission_status
+      "description": "Display Mission Status",
       "server": "My Server Name",   -- run it on a specific server only
       "event": {
         "sync": true,               -- we need to wait for the response

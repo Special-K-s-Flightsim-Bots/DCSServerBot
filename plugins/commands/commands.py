@@ -121,8 +121,6 @@ class Commands(Plugin):
                     await ctx.send(f"{ret['server_name']}: {ret['value']}")
             else:
                 await ctx.send(data[0]['value'])
-        else:
-            await ctx.send('Done.')
 
     def register_commands(self):
         prefix = self.bot.config['BOT']['COMMAND_PREFIX']
@@ -132,7 +130,8 @@ class Commands(Plugin):
                 if 'roles' in cmd:
                     checks.append(utils.has_roles(cmd['roles']).predicate)
                 hidden = cmd['hidden'] if 'hidden' in cmd else False
-                c = Command(self.exec_command, name=cmd['name'], checks=checks, hidden=hidden)
+                c = Command(self.exec_command, name=cmd['name'], checks=checks, hidden=hidden,
+                            description=cmd.get('description', ''))
                 params: dict[str, commands.Parameter] = dict()
                 if 'params' in cmd:
                     for name in cmd['params']:
