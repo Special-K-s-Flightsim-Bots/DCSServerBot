@@ -230,6 +230,8 @@ class DCSServerBot(commands.Bot):
             self.log.exception(ex)
 
     async def on_command_error(self, ctx: commands.Context, err: Exception):
+        if isinstance(err, commands.CommandInvokeError):
+            err = err.original
         if isinstance(err, commands.CommandNotFound):
             pass
         elif isinstance(err, commands.NoPrivateMessage):
