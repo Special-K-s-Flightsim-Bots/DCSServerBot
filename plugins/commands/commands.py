@@ -107,14 +107,22 @@ class Commands(Plugin):
                 elif 'event' in seq:
                     data.extend(await self.event(ctx, seq['event'], **kwargs))
         if 'report' in config:
-            if data:
-                if len(data) == 1:
-                    kwargs.update(data[0])
-                else:
-                    self.log.warn(f"Command {ctx.command.name} failed due to multiple return values.")
+            if len(data) == 1:
+                kwargs.update(data[0])
+            elif len(data) > 1:
+                await ctx.send(f"Can't call commands {ctx.command.name} on multiple servers.")
+                return
             report = Report(self.bot, self.plugin_name, config['report'])
             env = await report.render(**kwargs)
             await ctx.send(embed=env.embed)
+        elif data:
+            if len(data) > 1:
+                for ret in data:
+                    await ctx.send(f"{ret['server_name']}: {ret['value']}")
+            else:
+                await ctx.send(data[0]['value'])
+        else:
+            await ctx.send('Done.')
 
     def register_commands(self):
         prefix = self.bot.config['BOT']['COMMAND_PREFIX']
