@@ -1,11 +1,13 @@
 import aiohttp
 import asyncio
+import certifi
 import discord
 import os
 import pandas as pd
 import platform
 import psycopg2
 import shutil
+import ssl
 from contextlib import closing
 from core import Plugin, DCSServerBot, utils, TEventListener, PaginationReport, Status
 from discord.ext import commands, tasks
@@ -25,8 +27,10 @@ class CloudHandlerAgent(Plugin):
         }
         if 'token' in self.config:
             headers['Authorization'] = f"Bearer {self.config['token']}"
-
-        self.session = aiohttp.ClientSession(raise_for_status=True, headers=headers)
+        self.session = aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
+            raise_for_status=True, headers=headers
+        )
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
         self.client = {
             "guild_id": self.bot.guilds[0].id,
