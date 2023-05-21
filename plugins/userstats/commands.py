@@ -475,8 +475,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
         async def send_token(ctx, token: str):
             try:
                 channel = await ctx.message.author.create_dm()
-                await channel.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
-                                   f"following into the DCS chat of one of our servers:"
+                await channel.send(f"**Your secure TOKEN is: {token}**\nTo link your user, log into any of the DCS "
+                                   f"servers and type the following into the in-game chat window:"
                                    f"```{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme {token}```\n"
                                    f"**The TOKEN will expire in 2 days.**")
             except discord.Forbidden:
@@ -504,8 +504,9 @@ class UserStatisticsMaster(UserStatisticsAgent):
                                     continue
                             cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
                             break
-                    elif not await utils.yn_question(ctx, '__Verified__ user mapping found.\n'
-                                                          'Have you switched from Steam to Standalone or your PC?'):
+                    elif not await utils.yn_question(ctx, 'You already have a linked DCS account!\n'
+                                                          'Are you sure you want to link a second account? '
+                                                          '(Ex: Switched from Steam to Standalone)'):
                         return
                 # in the very unlikely event that we have generated the very same random number twice
                 while True:
