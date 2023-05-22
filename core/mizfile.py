@@ -127,7 +127,7 @@ class MizFile:
 
     @property
     def clouds(self) -> dict:
-        return self.mission['weather']['clouds'] if 'clouds' in self.mission['weather'] else dict()
+        return self.mission['weather'].get('clouds', {})
 
     @clouds.setter
     def clouds(self, values: dict) -> None:
@@ -157,10 +157,7 @@ class MizFile:
 
     @property
     def halo(self) -> dict:
-        if 'halo' in self.mission['weather']:
-            return self.mission['weather']['halo']
-        else:
-            return {"preset": "off"}
+        return self.mission['weather'].get('halo', {"preset": "off"})
 
     @halo.setter
     def halo(self, values: dict):
@@ -184,9 +181,24 @@ class MizFile:
     @accidental_failures.setter
     def accidental_failures(self, value: bool) -> None:
         if value:
-            raise NotImplemented("Setting of accidental_failures is not implemented for now.")
-        if not self.mission['forcedOptions']:
+            raise NotImplemented("Setting of accidental_failures is not implemented.")
+        if 'forcedOptions' not in self.mission:
             self.mission['forcedOptions'] = {
                 'accidental_failures': value
             }
+        else:
+            self.mission['forcedOptions']['accidental_failures'] = value
         self.mission['failures'] = []
+
+    @property
+    def forcedOptions(self) -> dict:
+        return self.mission.get('forcedOptions', {})
+
+    @forcedOptions.setter
+    def forcedOptions(self, values: dict):
+        if 'accidental_failures' in values:
+            self.accidental_failures = values['accidental_failures']
+        if 'forcedOptions' in self.mission:
+            self.mission['forcedOptions'] |= values
+        else:
+            self.mission['forcedOptions'] = values
