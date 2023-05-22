@@ -297,6 +297,10 @@ class Scheduler(Plugin):
                 miz.accidental_failures = value['accidental_failures']
             if 'forcedOptions' in value:
                 miz.forcedOptions = value['forcedOptions']
+            if 'miscellaneous' in value:
+                miz.miscellaneous = value['miscellaneous']
+            if 'difficulty' in value:
+                miz.difficulty = value['difficulty']
 
         filename = server.get_current_mission_file()
         if not filename:
@@ -784,7 +788,9 @@ class Scheduler(Plugin):
                     "enable_fog": miz.enable_fog,
                     "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
                     "halo": miz.halo,
-                    "forcedOptions": miz.forcedOptions
+                    "forcedOptions": miz.forcedOptions,
+                    "miscellaneous": miz.miscellaneous,
+                    "difficulty": miz.difficulty
                 }
             }
             with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:

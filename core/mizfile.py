@@ -18,12 +18,18 @@ class MizFile:
         self.log = bot.log
         self.filename = filename
         self.mission = dict()
+        self.options = dict()
         self._load()
 
     def _load(self):
         with zipfile.ZipFile(self.filename, 'r') as miz:
             with miz.open('mission') as mission:
                 self.mission = luadata.unserialize(io.TextIOWrapper(mission, encoding='utf-8').read(), 'utf-8')
+            try:
+                with miz.open('options') as options:
+                    self.options = luadata.unserialize(io.TextIOWrapper(options, encoding='utf-8').read(), 'utf-8')
+            except FileNotFoundError:
+                pass
 
     def save(self):
         tmpfd, tmpname = tempfile.mkstemp(dir=os.path.dirname(self.filename))
@@ -32,11 +38,14 @@ class MizFile:
             with zipfile.ZipFile(tmpname, 'w') as zout:
                 zout.comment = zin.comment  # preserve the comment
                 for item in zin.infolist():
-                    if item.filename != 'mission':
-                        zout.writestr(item, zin.read(item.filename))
-                    else:
+                    if item.filename == 'mission':
                         zout.writestr(item, "mission = " + luadata.serialize(self.mission, 'utf-8', indent='\t',
                                                                              indent_level=0))
+                    elif item.filename == 'options':
+                        zout.writestr(item, "options = " + luadata.serialize(self.options, 'utf-8', indent='\t',
+                                                                             indent_level=0))
+                    else:
+                        zout.writestr(item, zin.read(item.filename))
         try:
             os.remove(self.filename)
             os.rename(tmpname, self.filename)
@@ -202,3 +211,25 @@ class MizFile:
             self.mission['forcedOptions'] = values
         else:
             self.mission['forcedOptions'] |= values
+
+    @property
+    def miscellaneous(self) -> dict:
+        return self.options.get('miscellaneous', {})
+
+    @miscellaneous.setter
+    def miscellaneous(self, values: dict):
+        if not self.options.get('miscellaneous'):
+            self.options['miscellaneous'] = values
+        else:
+            self.options['miscellaneous'] |= values
+
+    @property
+    def difficulty(self) -> dict:
+        return self.options.get('difficulty', {})
+
+    @difficulty.setter
+    def difficulty(self, values: dict):
+        if not self.options.get('difficulty'):
+            self.options['difficulty'] = values
+        else:
+            self.options['difficulty'] |= values
