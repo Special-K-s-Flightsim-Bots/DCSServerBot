@@ -295,6 +295,8 @@ class Scheduler(Plugin):
                 miz.requiredModules = value['requiredModules']
             if 'accidental_failures' in value:
                 miz.accidental_failures = value['accidental_failures']
+            if 'forcedOptions' in value:
+                miz.forcedOptions = value['forcedOptions']
 
         filename = server.get_current_mission_file()
         if not filename:
