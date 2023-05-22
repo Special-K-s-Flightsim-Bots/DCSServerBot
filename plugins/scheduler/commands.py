@@ -783,7 +783,8 @@ class Scheduler(Plugin):
                     "qnh": miz.qnh,
                     "enable_fog": miz.enable_fog,
                     "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
-                    "halo": miz.halo
+                    "halo": miz.halo,
+                    "forcedOptions": miz.forcedOptions
                 }
             }
             with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:
