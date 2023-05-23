@@ -5,7 +5,8 @@ import json
 import os
 import psycopg
 import re
-from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile
+from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
+    Group
 from datetime import datetime
 from discord import Interaction, app_commands
 from discord.app_commands import Range
@@ -15,7 +16,7 @@ from services import DCSServerBot
 from typing import Optional
 
 from .listener import MissionEventListener
-from .views import ServerView
+from .views import ServerView, PresetView
 
 
 class Mission(Plugin):
@@ -40,7 +41,7 @@ class Mission(Plugin):
         self.log.debug('Mission pruned.')
 
     # New command group "/mission"
-    mission = app_commands.Group(name="mission", description="Commands to manage a DCS mission")
+    mission = Group(name="mission", description="Commands to manage a DCS mission")
 
     @mission.command(description='Manage the active mission')
     @app_commands.guild_only()
@@ -280,17 +281,19 @@ class Mission(Plugin):
     async def modify(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
-        config = self.get_config(server)
-        presets = [
+        try:
+            with open('config/presets.json') as infile:
+                presets = json.load(infile)
+        except FileNotFoundError:
+            await interaction.response.send_message(
+                f'No presets available, please configure them in config/presets.json.', ephemeral=True)
+            return
+        options = [
             discord.SelectOption(label=k)
-            for k, v in config['presets'].items()
+            for k, v in presets.items()
             if 'hidden' not in v or not v['hidden']
         ]
-        if not presets:
-            await interaction.response.send_message(
-                f'No presets available, please configure them in your {self.plugin_name}.json.', ephemeral=True)
-            return
-        if len(presets) > 25:
+        if len(options) > 25:
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
 
         if server.status in [Status.PAUSED, Status.RUNNING]:
@@ -303,7 +306,7 @@ class Mission(Plugin):
                 await interaction.followup.send('Aborted.', ephemeral=True)
                 return
 
-        view = self.PresetView(presets[:25])
+        view = PresetView(options[:25])
         if interaction.response.is_done():
             msg = await interaction.followup.send(view=view, ephemeral=True)
         else:
@@ -327,7 +330,7 @@ class Mission(Plugin):
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 stopped = True
                 await server.stop()
-            await server.modifyMission([value for name, value in config['presets'].items() if name in view.result])
+            await server.modifyMission([value for name, value in presets.items() if name in view.result])
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if stopped:
                 await server.start()
@@ -363,7 +366,10 @@ class Mission(Plugin):
                 "qnh": miz.qnh,
                 "enable_fog": miz.enable_fog,
                 "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
-                "halo": miz.halo
+                "halo": miz.halo,
+                "forcedOptions": miz.forcedOptions,
+                "miscellaneous": miz.miscellaneous,
+                "difficulty": miz.difficulty
             }
         }
         with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:
@@ -374,7 +380,7 @@ class Mission(Plugin):
             await interaction.response.send_message(f'Preset "{name}" added.')
 
     # New command group "/player"
-    player = app_commands.Group(name="player", description="Commands to manage DCS players")
+    player = Group(name="player", description="Commands to manage DCS players")
 
     @player.command(description='Lists the current players on this server')
     @app_commands.guild_only()
@@ -395,32 +401,8 @@ class Mission(Plugin):
                    reason: Optional[str] = 'n/a') -> None:
         server.kick(player, reason)
         await self.bot.audit(f'kicked player {player.display_name} with reason "{reason}"', user=interaction.user)
-        await interaction.response.send_message(f"Player {player.display_name} (ucid={player.ucid} kicked.",
+        await interaction.response.send_message(f"Player {player.display_name} (ucid={player.ucid}) kicked.",
                                                 ephemeral=True)
-
-    @staticmethod
-    def _format_bans(rows: dict):
-        embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
-        ucids = names = until = ''
-        for ban in rows:
-            names += utils.escape_string(ban['name']) + '\n'
-            ucids += ban['ucid'] + '\n'
-            until += f"<t:{ban['banned_until']}:R>\n"
-        embed.add_field(name='UCID', value=ucids)
-        embed.add_field(name='Name', value=names)
-        embed.add_field(name='Until', value=until)
-        return embed
-
-    @player.command(description='Shows active bans')
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    async def bans(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer]):
-        data = await server.sendtoDCSSync({"command": "bans"})
-        if not data['bans']:
-            await interaction.response.send_message('No player is banned on this server.')
-        else:
-            await utils.pagination(self.bot, interaction, data['bans'], self._format_bans, 20)
 
     @player.command(description='Bans a user by name or ucid')
     @app_commands.guild_only()
@@ -522,14 +504,14 @@ class Mission(Plugin):
                     player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                     message: str, time: Optional[Range[int, 1, 30]] = -1):
         player.sendPopupMessage(message, time, interaction.user.display_name)
-        await interaction.response.send_response('Message sent.')
+        await interaction.response.send_message('Message sent.')
 
     @tasks.loop(minutes=5.0)
     async def update_channel_name(self):
         for server_name, server in self.bot.servers.items():
             if server.status == Status.UNREGISTERED:
                 continue
-            channel = await self.bot.fetch_channel(int(self.bot.config[server.installation][Channel.STATUS.value]))
+            channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
             # name changes of the status channel will only happen with the correct permission
             if channel.permissions_for(self.bot.member).manage_channels:
                 name = channel.name
@@ -557,7 +539,7 @@ class Mission(Plugin):
     async def afk_check(self):
         try:
             for server in self.bot.servers.values():
-                max_time = int(self.bot.config[server.installation]['AFK_TIME'])
+                max_time = int(server.locals['afk_time'])
                 if max_time == -1:
                     continue
                 for ucid, dt in server.afk.items():
@@ -607,7 +589,7 @@ class Mission(Plugin):
                             outfile.write(await response.read())
                     else:
                         await message.channel.send(f'Error {response.status} while reading MIZ file!')
-            if not self.bot.config.getboolean(server.installation, 'AUTOSCAN'):
+            if not server.locals.get('autoscan', False):
                 server.addMission(filename)
             name = os.path.basename(filename)[:-4]
             await message.channel.send(

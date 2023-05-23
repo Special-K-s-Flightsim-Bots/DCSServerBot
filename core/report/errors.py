@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import Any
 
 
 class ReportException(BaseException):
@@ -21,7 +21,7 @@ class ClassNotFound(ReportException):
 
 
 class ValueNotInRange(ReportException):
-    def __init__(self, name, value: Any, range_: List[Any]):
+    def __init__(self, name, value: Any, range_: list[Any]):
         super().__init__('Value "{}" of parameter {} is not in the allowed range of [{}]'.format(value, name, ', '.join(
             f'"{x}"' for x in range_)))
 

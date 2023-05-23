@@ -5,14 +5,14 @@ from typing import Callable, Any
 
 class ServiceRegistry:
     _instance = None
-    _main = None
+    _node = None
     _registry: dict[str, Service] = dict[str, Service]()
     _singletons: dict[str, Service] = dict[str, Service]()
 
-    def __new__(cls, main):
+    def __new__(cls, node):
         if cls._instance is None:
             cls._instance = super(ServiceRegistry, cls).__new__(cls)
-            cls._main = main
+            cls._node = node
         return cls._instance
 
     async def __aenter__(self):
@@ -33,7 +33,7 @@ class ServiceRegistry:
     def new(cls, name: str, *args, **kwargs) -> Service:
         instance = cls.get(name)
         if not instance:
-            instance = cls._registry[name](main=cls._main, *args, **kwargs)
+            instance = cls._registry[name](node=cls._node, name=name, *args, **kwargs)
             cls._singletons[name] = instance
         return instance
 

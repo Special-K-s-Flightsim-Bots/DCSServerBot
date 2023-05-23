@@ -1,14 +1,12 @@
 from __future__ import annotations
 import json
 import os
-import platform
 import socket
 import sqlite3
 import subprocess
-import win32con
 from contextlib import suppress
 from core import utils, Server, Player
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from psutil import Process
 from typing import Optional, TYPE_CHECKING, Union
@@ -18,9 +16,11 @@ from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemM
 from .dataobject import DataObjectFactory
 from .const import Status, Channel
 from ..mizfile import MizFile
+from ..services import ServiceRegistry
 
 if TYPE_CHECKING:
-    from core import Plugin
+    from core import Plugin, Extension, Instance
+    from services import DCSServerBot
 
 
 class MissionFileSystemEventHandler(FileSystemEventHandler):
@@ -56,61 +56,76 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 @dataclass
 @DataObjectFactory.register("Server")
 class ServerImpl(Server):
+    _instance: Instance = field(default=None)
+    bot: DCSServerBot = field(compare=False, init=False)
 
     def __post_init__(self):
         super().__post_init__()
+        self.bot = ServiceRegistry.get("Bot").bot
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
-                    INSERT INTO servers (server_name, agent_host, host, port, status_channel, chat_channel) 
-                    VALUES(%s, %s, %s, %s, %s, %s) 
+                    INSERT INTO servers (server_name, node, port, status_channel, chat_channel) 
+                    VALUES(%s, %s, %s, %s, %s) 
                     ON CONFLICT (server_name) DO UPDATE 
-                    SET agent_host=excluded.agent_host, 
-                        host=excluded.host, 
+                    SET node=excluded.node, 
                         port=excluded.port,
                         status_channel=excluded.status_channel,
                         chat_channel=excluded.chat_channel, 
                         last_seen=NOW()
-                """, (self.name, platform.node(), self.host, self.port,
-                      self.config[self.installation][Channel.STATUS.value],
-                      self.config[self.installation][Channel.CHAT.value]))
+                """, (self.name, self.node.name, self.port,
+                      self.get_channel(Channel.STATUS),
+                      self.get_channel(Channel.CHAT)))
         # enable autoscan for missions changes
-        if self.config.getboolean(self.installation, 'AUTOSCAN'):
+        if self.locals.get('autoscan', False):
             self.event_handler = MissionFileSystemEventHandler(self)
             self.observer = Observer()
             self.observer.start()
-        if self.config.getboolean('BOT', 'DESANITIZE'):
-            # check for SLmod and desanitize its MissionScripting.lua
-            for version in range(5, 7):
-                filename = os.path.expandvars(self.config[self.installation]['DCS_HOME'] +
-                                              f'\\Scripts\\net\\Slmodv7_{version}\\SlmodMissionScripting.lua')
-                if os.path.exists(filename):
-                    utils.desanitize(self, filename)
-                    break
 
     @property
     def is_remote(self) -> bool:
         return False
 
     async def get_missions_dir(self) -> str:
-        if 'MISSIONS_DIR' in self.config[self.installation]:
-            return os.path.expandvars(self.config[self.installation]['MISSIONS_DIR'])
-        else:
-            return os.path.expandvars(self.config[self.installation]['DCS_HOME']) + os.path.sep + 'Missions'
+        return self.instance.missions_dir
 
     @property
     def settings(self) -> dict:
         if not self._settings:
-            path = os.path.expandvars(self.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
+            path = os.path.join(self.instance.home, r'Config\serverSettings.lua')
             self._settings = utils.SettingsDict(self, path, 'cfg')
         return self._settings
 
     @property
     def options(self) -> dict:
         if not self._options:
-            path = os.path.expandvars(self.config[self.installation]['DCS_HOME']) + r'\Config\options.lua'
+            path = os.path.join(self.instance.home, r'Config\options.lua')
             self._options = utils.SettingsDict(self, path, 'options')
         return self._options
+
+    @property
+    def instance(self) -> Instance:
+        return self._instance
+
+    @instance.setter
+    def instance(self, instance: Instance):
+        self._instance = instance
+        if self.settings['name'] != self.name:
+            self.settings['name'] = self.name
+        if 'serverSettings' in self.locals:
+            for key, value in self.locals['serverSettings'].items():
+                if key == 'advanced':
+                    self.settings['advanced'] = self.settings['advanced'] | value
+                else:
+                    self.settings[key] = value
+        if self.config.getboolean('BOT', 'DESANITIZE'):
+            # check for SLmod and desanitize its MissionScripting.lua
+            for version in range(5, 7):
+                filename = os.path.join(self.instance.home,
+                                        f'Scripts\\net\\Slmodv7_{version}\\SlmodMissionScripting.lua')
+                if os.path.exists(filename):
+                    utils.desanitize(self, filename)
+                    break
 
     async def get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
@@ -139,7 +154,7 @@ class ServerImpl(Server):
         msg = json.dumps(message)
         self.log.debug(f"HOST->{self.name}: {msg}")
         dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        dcs_socket.sendto(msg.encode('utf-8'), (self.host, int(self.port)))
+        dcs_socket.sendto(msg.encode('utf-8'), ('127.0.0.1', int(self.port)))
         dcs_socket.close()
 
     def rename(self, new_name: str, update_settings: bool = False) -> None:
@@ -147,7 +162,7 @@ class ServerImpl(Server):
         with self.pool.connection() as conn:
             with conn.transaction():
                 # call rename() in all Plugins
-                for plugin in self.main.cogs.values():  # type: Plugin
+                for plugin in self.bot.cogs.values():  # type: Plugin
                     plugin.rename(conn, self.name, new_name)
                 conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
                              (new_name, self.name))
@@ -157,10 +172,10 @@ class ServerImpl(Server):
             self.settings['name'] = new_name
         self.name = new_name
 
-    def do_startup(self):
-        basepath = os.path.expandvars(self.config['DCS']['DCS_INSTALLATION'])
+    async def do_startup(self):
+        basepath = self.node.installation
         for exe in ['DCS_server.exe', 'DCS.exe']:
-            path = basepath + f'\\bin\\{exe}'
+            path = os.path.join(basepath, f'bin\\{exe}')
             if os.path.exists(path):
                 break
         else:
@@ -171,29 +186,51 @@ class ServerImpl(Server):
         if len(missions) != len(self.settings['missionList']):
             self.settings['missionList'] = missions
             self.log.warning('Removed non-existent missions from serverSettings.lua')
-        self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.installation))
-        if self.config.getboolean(self.installation, 'START_MINIMIZED'):
-            info = subprocess.STARTUPINFO()
-            info.dwFlags = subprocess.STARTF_USESHOWWINDOW
-            info.wShowWindow = win32con.SW_MINIMIZE
-        else:
-            info = None
+        self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance))
         p = subprocess.Popen(
-            [exe, '--server', '--norender', '-w', self.installation], executable=path, startupinfo=info
+            [exe, '--server', '--norender', '-w', self.instance.name], executable=path
         )
         with suppress(Exception):
             self.process = Process(p.pid)
 
+    async def init_extensions(self):
+        for extension in self.locals.get('extensions', {}):
+            ext: Extension = self.extensions.get(extension)
+            if not ext:
+                if '.' not in extension:
+                    ext = utils.str_to_class('extensions.' + extension)(
+                        self,
+                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(self.name)
+                    )
+                else:
+                    ext = utils.str_to_class(extension)(
+                        self,
+                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(self.name)
+                    )
+                if ext.is_installed():
+                    self.extensions[extension] = ext
+
     async def startup(self) -> None:
-        self.do_startup()
+        await self.init_extensions()
+        for ext in self.extensions:
+            await self.extensions[ext].prepare()
+            await self.extensions[ext].beforeMissionLoad()
+        await self.do_startup()
         timeout = 300 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
+        for ext in self.extensions:
+            await self.extensions[ext].startup()
 
     async def shutdown(self, force: bool = False) -> None:
         if not force:
+            for ext in self.extensions:
+                await self.extensions[ext].shutdown()
             await super().shutdown(False)
         self.terminate()
+        for ext in self.extensions.values():
+            if ext.is_running():
+                await ext.shutdown()
         self.status = Status.SHUTDOWN
 
     def terminate(self) -> None:
@@ -211,8 +248,7 @@ class ServerImpl(Server):
                 "reason": reason
             })
         else:
-            conn = sqlite3.connect(os.path.join(os.path.expandvars(self.main.config[self.installation]['DCS_HOME']),
-                                                'Config', 'serverdata.sqlite3'))
+            conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
             try:
                 with conn:
                     with conn.cursor() as cursor:
@@ -232,8 +268,7 @@ class ServerImpl(Server):
         if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             self.sendtoDCS({"command": "unban", "ucid": ucid})
         else:
-            conn = sqlite3.connect(os.path.join(os.path.expandvars(self.main.config[self.installation]['DCS_HOME']),
-                                                'Config', 'serverdata.sqlite3'))
+            conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
             try:
                 with conn:
                     with conn.cursor() as cursor:
@@ -242,6 +277,19 @@ class ServerImpl(Server):
                 self.log.exception(ex)
             finally:
                 conn.close()
+
+    async def bans(self) -> list[str]:
+        conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
+        conn.row_factory = sqlite3.Row
+        try:
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT ucid, name, banned_until FROM net_bans")
+                    return [x for x in cursor.fetchall()]
+        except sqlite3.Error as ex:
+            self.log.exception(ex)
+        finally:
+            conn.close()
 
     async def modifyMission(self, preset: Union[list, dict]) -> None:
         def apply_preset(value: dict):
@@ -276,6 +324,12 @@ class ServerImpl(Server):
                 miz.requiredModules = value['requiredModules']
             if 'accidental_failures' in value:
                 miz.accidental_failures = value['accidental_failures']
+            if 'forcedOptions' in value:
+                miz.forcedOptions = value['forcedOptions']
+            if 'miscellaneous' in value:
+                miz.miscellaneous = value['miscellaneous']
+            if 'difficulty' in value:
+                miz.difficulty = value['difficulty']
 
         if self.status in [Status.STOPPED, Status.SHUTDOWN]:
             filename = await self.get_current_mission_file()

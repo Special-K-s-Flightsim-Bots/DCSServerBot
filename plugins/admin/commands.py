@@ -5,126 +5,38 @@ import json
 import os
 import platform
 import shutil
-import subprocess
 from contextlib import closing
-from core import utils, Plugin, Status, Server, Coalition
+from core import utils, Plugin, Status, Server, command
 from discord import app_commands
-from discord.ext import commands, tasks
+from discord.app_commands import Range
+from discord.ext import commands
 from discord.ui import Select, View, Button
 from pathlib import Path
 from services import DCSServerBot
-from typing import List, Optional
+from typing import Optional
 from zipfile import ZipFile
-
-from .listener import AdminEventListener
 
 
 class Admin(Plugin):
 
-    def __init__(self, bot, listener):
-        super().__init__(bot, listener)
-        self.update_pending = False
-        if self.bot.config.getboolean('DCS', 'AUTOUPDATE'):
-            self.check_for_dcs_update.start()
+    @command(description='Update your DCS installations')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(node=utils.nodes_autocomplete)
+    @app_commands.describe(warn_time="Time in seconds to warn users before shutdown")
+    async def update(self, interaction: discord.Interaction, node: Optional[str], warn_time: Range[int, 0]):
+        self.bus.sendtoBot({
+            "command": "rpc",
+            "service": "Monitoring",
+            "method": "do_update",
+            "params": {
+                "warn_times": [warn_time]
+            }
+        }, node)
+        await interaction.response.send_message(
+            "Update command sent, DCS will update now (if a new version is available).")
 
-    async def cog_unload(self):
-        if self.bot.config.getboolean('DCS', 'AUTOUPDATE'):
-            self.check_for_dcs_update.cancel()
-        await super().cog_unload()
-
-    async def do_update(self, warn_times: List[int], interaction: Optional[discord.Interaction] = None):
-        async def shutdown_with_warning(server: Server):
-            if server.is_populated():
-                shutdown_in = max(warn_times) if len(warn_times) else 0
-                while shutdown_in > 0:
-                    for warn_time in warn_times:
-                        if warn_time == shutdown_in:
-                            server.sendPopupMessage(Coalition.ALL, f'Server is going down for a DCS update in '
-                                                                   f'{utils.format_time(warn_time)}!')
-                    await asyncio.sleep(1)
-                    shutdown_in -= 1
-            await server.shutdown()
-
-        self.update_pending = True
-        if interaction:
-            await interaction.response.send('Shutting down DCS servers, warning users before ...', ephemeral=True)
-        else:
-            self.log.info('Shutting down DCS servers, warning users before ...')
-        servers = []
-        tasks = []
-        for server_name, server in self.bot.servers.items():
-            if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
-                continue
-            if server.maintenance:
-                servers.append(server)
-            else:
-                server.maintenance = True
-                tasks.append(asyncio.create_task(shutdown_with_warning(server)))
-        # wait for DCS servers to shut down
-        if tasks:
-            await asyncio.gather(*tasks)
-        if interaction:
-            await interaction.followup.send(f"Updating {self.bot.config['DCS']['DCS_INSTALLATION']} ...\n"
-                                            f"Please wait, this might take some time.", ephemeral=True)
-        else:
-            self.log.info(f"Updating {self.bot.config['DCS']['DCS_INSTALLATION']} ...")
-        for plugin in self.bot.cogs.values():  # type: Plugin
-            await plugin.before_dcs_update()
-        # disable any popup on the remote machine
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
-        startupinfo.wShowWindow = subprocess.SW_HIDE
-        subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
-            self.bot.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
-        if self.bot.config.getboolean('BOT', 'DESANITIZE'):
-            utils.desanitize(self)
-        # run after_dcs_update() in all plugins
-        for plugin in self.bot.cogs.values():  # type: Plugin
-            await plugin.after_dcs_update()
-        message = None
-        if ctx:
-            await ctx.send(f"{self.bot.config['DCS']['DCS_INSTALLATION']} updated to the latest version.")
-            message = await ctx.send('Starting up DCS servers again ...')
-        else:
-            self.log.info(f"{self.bot.config['DCS']['DCS_INSTALLATION']} updated to the latest version. "
-                          f"Starting up DCS servers again ...")
-        for server in self.bot.servers.values():
-            if server not in servers:
-                # let the scheduler do its job
-                server.maintenance = False
-            else:
-                try:
-                    # the server was running before (being in maintenance mode), so start it again
-                    await server.startup()
-                except asyncio.TimeoutError:
-                    await ctx.send(f'Timeout while starting {server.display_name}, please check it manually!')
-        self.update_pending = False
-        if message:
-            await message.delete()
-            await ctx.send('DCS servers started (or Scheduler taking over in a bit).')
-
-    @commands.command(description='Update a DCS Installation')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def update(self, ctx, param: Optional[str] = None):
-        if self.update_pending:
-            await ctx.send('An update is already running, please wait ...')
-            return
-        # check versions
-        branch, old_version = utils.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
-        new_version = await utils.getLatestVersion(branch)
-        if old_version == new_version:
-            await ctx.send('Your installed version {} is the latest on branch {}.'.format(old_version, branch))
-        elif new_version or param and param == '-force':
-            if await utils.yn_question(ctx, 'Would you like to update from version {} to {}?\nAll running DCS servers '
-                                            'will be shut down!'.format(old_version, new_version)) is True:
-                await self.bot.audit(f"started an update of all DCS servers on node {platform.node()}.",
-                                     user=ctx.message.author)
-                await self.do_update([120, 60], ctx)
-        else:
-            await ctx.send("Can't check the latest version on the DCS World website. Try again later.")
-
-    @app_commands.command(description='Download config files or missions')
+    @command(description='Download config files or missions')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def download(self, interaction: discord.Interaction,
@@ -143,7 +55,7 @@ class Admin(Plugin):
         async def send_file(interaction: discord.Interaction, filename: str, target: str):
             zipped = False
             if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('acmi') and \
-                    os.path.getsize(filename) >= 8 * 1024 * 1024:
+                    os.path.getsize(filename) >= 25 * 1024 * 1024:
                 filename = await asyncio.to_thread(zip_file, filename)
                 zipped = True
             await interaction.response.defer(thinking=True)
@@ -186,8 +98,7 @@ class Admin(Plugin):
                 if download['label'] == select1.values[0]:
                     directory = Path(os.path.expandvars(download['directory'].format(server=server)))
                     pattern = download['pattern'].format(server=server)
-                    target = download['target'].format(config=self.bot.config[server.installation],
-                                                       server=server) if 'target' in download else None
+                    target = download['target'].format(server=server) if 'target' in download else None
                     break
 
             options: list[discord.SelectOption] = []
@@ -232,28 +143,9 @@ class Admin(Plugin):
         finally:
             await msg.delete()
 
-    @tasks.loop(minutes=5.0)
-    async def check_for_dcs_update(self):
-        # don't run, if an update is currently running
-        if self.update_pending:
-            return
-        try:
-            branch, old_version = utils.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
-            new_version = await utils.getLatestVersion(branch)
-            if new_version and old_version != new_version:
-                self.log.info('A new version of DCS World is available. Auto-updating ...')
-                await self.do_update([300, 120, 60])
-        except Exception as ex:
-            self.log.debug("Exception in check_for_dcs_update(): " + str(ex))
-
-    @check_for_dcs_update.before_loop
-    async def before_check(self):
-        await self.bot.wait_until_ready()
-
     class CleanupView(View):
-        def __init__(self, ctx: commands.Context):
+        def __init__(self):
             super().__init__()
-            self.ctx = ctx
             self.what = 'non-members'
             self.age = '180'
             self.command = None
@@ -288,14 +180,7 @@ class Admin(Plugin):
             self.command = "cancel"
             self.stop()
 
-        async def interaction_check(self, interaction: discord.Interaction, /) -> bool:
-            if interaction.user != self.ctx.author:
-                await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
-                return False
-            else:
-                return True
-
-    @app_commands.command(description='Prune unused data in the database')
+    @command(description='Prune unused data in the database')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def prune(self, interaction: discord.Interaction):
@@ -343,43 +228,24 @@ class Admin(Plugin):
                             await interaction.followup.send(f"All data older than {days} days pruned.", ephemeral=True)
         await self.bot.audit(f'pruned the database', user=interaction.user)
 
-    @commands.Cog.listener()
-    async def on_member_remove(self, member):
-        self.bot.log.debug(f'Member {member.display_name} has left the discord')
-        ucid = self.bot.get_ucid_by_member(member)
-        if ucid and self.bot.config.getboolean('BOT', 'AUTOBAN'):
-            self.bot.log.debug(f'- Banning them on our DCS servers due to AUTOBAN')
-            for server in self.bot.servers.values():
-                server.ban(ucid, 'Player left discord.', 9999*86400)
-        if self.bot.config.getboolean('BOT', 'WIPE_STATS_ON_LEAVE'):
-            with self.pool.connection() as conn:
-                with conn.transaction():
-                    self.bot.log.debug(f'- Deleting their statistics due to WIPE_STATS_ON_LEAVE')
-                    conn.execute("""
-                        DELETE FROM statistics 
-                        WHERE player_ucid IN (
-                            SELECT ucid FROM players WHERE discord_id = %s
-                        )
-                        """, (member.id, ))
-
-    @commands.Cog.listener()
-    async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
-        self.bot.log.debug(f"Member {member.display_name} has been banned.")
-        ucid = self.bot.get_ucid_by_member(member)
-        if ucid:
-            for server in self.bot.servers.values():
-                server.ban(ucid, 'Banned on discord.', 9999*86400)
-
-    @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member):
-        self.bot.log.debug(f'Member {member.display_name} has joined guild {member.guild.name}')
-        ucid = self.bot.get_ucid_by_member(member)
-        if ucid:
-            for server in self.bot.servers.values():
-                server.unban(ucid)
-        if 'GREETING_DM' in self.bot.config['BOT']:
-            channel = await member.create_dm()
-            await channel.send(self.bot.config['BOT']['GREETING_DM'].format(name=member.name, guild=member.guild.name))
+    @command(description='Status of all registered servers')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def status(self, interaction: discord.Interaction):
+        embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
+        names = []
+        status = []
+        nodes = []
+        for server in self.bot.servers.values():
+            names.append(server.display_name)
+            status.append(server.status.name.title())
+            nodes.append(server.node.name)
+        if len(names):
+            embed.add_field(name='Server', value='\n'.join(names))
+            embed.add_field(name='Status', value='\n'.join(status))
+            embed.add_field(name='Node', value='\n'.join(nodes))
+            embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
+            await interaction.response.send_message(embed=embed)
 
     async def process_message(self, message: discord.Message) -> bool:
         async with aiohttp.ClientSession() as session:
@@ -467,4 +333,4 @@ async def setup(bot: DCSServerBot):
     if not os.path.exists('config/admin.json'):
         bot.log.info('No admin.json found, copying the sample.')
         shutil.copyfile('config/samples/admin.json', 'config/admin.json')
-    await bot.add_cog(Admin(bot, AdminEventListener))
+    await bot.add_cog(Admin(bot))

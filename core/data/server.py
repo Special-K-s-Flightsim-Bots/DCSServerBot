@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import json
 import os
 import platform
 import uuid
@@ -9,20 +10,22 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
+
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
+from ..services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
-    from core import Player, Mission, Extension
+    from .player import Player
+    from .mission import Mission
+    from ..extension import Extension
+    from services import ServiceBus
 
 
 @dataclass
 class Server(DataObject):
     name: str = field(compare=False)
-    installation: str
-    host: str
     port: int
-    external_ip: str
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
@@ -40,10 +43,20 @@ class Server(DataObject):
     extensions: dict[str, Extension] = field(default_factory=dict, compare=False)
     afk: dict[str, datetime] = field(default_factory=dict, compare=False)
     listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
+    locals: dict = field(default_factory=dict, compare=False)
+    bus: ServiceBus = field(compare=False, init=False)
 
     def __post_init__(self):
         super().__post_init__()
+        self.bus = ServiceRegistry.get("ServiceBus")
         self.status_change = asyncio.Event()
+        if os.path.exists('config/servers.json'):
+            with open('config/servers.json') as infile:
+                self.locals = json.load(infile)[self.name]
+
+    @property
+    def host(self) -> str:
+        return "127.0.0.1"
 
     @property
     def is_remote(self) -> bool:
@@ -139,6 +152,9 @@ class Server(DataObject):
     def unban(self, ucid: str):
         pass
 
+    async def bans(self) -> list[str]:
+        pass
+
     @property
     def settings(self) -> dict:
         raise NotImplemented()
@@ -160,7 +176,7 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def sendtoDCSSync(self, message: dict, timeout: Optional[int] = 5.0):
-        future = self.main.loop.create_future()
+        future = self.bus.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
         message['channel'] = token
         self.listeners[token] = future
@@ -253,7 +269,7 @@ class Server(DataObject):
         pass
 
     def get_channel(self, channel: Channel) -> int:
-        return int(self.config[self.installation][channel.value])
+        return int(self.locals['channels'][channel.value])
 
     async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:
         async def wait(s: list[Status]):
@@ -269,7 +285,7 @@ class Server(DataObject):
         data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute('UPDATE servers SET last_seen = NOW() WHERE agent_host = %s AND server_name = %s',
+                conn.execute('UPDATE servers SET last_seen = NOW() WHERE node = %s AND server_name = %s',
                              (platform.node(), self.name))
         if data['pause'] and self.status != Status.PAUSED:
             self.status = Status.PAUSED
@@ -284,3 +300,6 @@ class Server(DataObject):
         self.sendtoDCS({"command": "shutdown"})
         with suppress(asyncio.TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
+
+    async def init_extensions(self):
+        pass

@@ -26,8 +26,8 @@ class Coalition(Enum):
 
 
 class Channel(Enum):
-    STATUS = 'STATUS_CHANNEL'
-    ADMIN = 'ADMIN_CHANNEL'
-    CHAT = 'CHAT_CHANNEL'
+    STATUS = 'status'
+    ADMIN = 'admin'
+    CHAT = 'chat'
     COALITION_BLUE = 'COALITION_BLUE_CHANNEL'
     COALITION_RED = 'COALITION_RED_CHANNEL'

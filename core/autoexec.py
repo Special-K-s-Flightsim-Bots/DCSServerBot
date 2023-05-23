@@ -1,5 +1,6 @@
 import re
 import shutil
+from core import Instance
 from dataclasses import dataclass, field
 from os import path
 from typing import Any
@@ -7,12 +8,11 @@ from typing import Any
 
 @dataclass
 class Autoexec:
-    bot: Any
-    installation: str
+    instance: Instance
     values: dict = field(init=False, default_factory=dict)
 
     def __post_init__(self):
-        file = path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\autoexec.cfg'
+        file = path.join(self.instance.home , r'Config\autoexec.cfg')
         if not path.exists(file):
             return
         exp = re.compile('(?P<key>.*)=(?P<value>.*)')
@@ -57,7 +57,7 @@ class Autoexec:
             return self.values[item]
 
     def __setattr__(self, key, value):
-        if key in ['bot', 'installation', 'values']:
+        if key in ['bot', 'instance', 'values']:
             super(Autoexec, self).__setattr__(key, value)
         else:
             self.values[key] = value
@@ -86,7 +86,7 @@ class Autoexec:
             return value
 
     def update(self):
-        outfile = path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\autoexec.cfg'
+        outfile = path.join(self.instance.home, r'Config\autoexec.cfg')
         if path.exists(outfile):
             shutil.copy(outfile, outfile + '.bak')
         with open(outfile, 'w') as outcfg:

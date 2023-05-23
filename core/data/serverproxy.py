@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from core import Server, Status, utils, Player
+from core import Server, Status, utils
 from typing import Optional, Union
 
 
@@ -44,7 +44,7 @@ class ServerProxy(Server):
 
     def sendtoDCS(self, message: dict):
         message['server_name'] = self.name
-        self.main.sendtoBot(message, agent=self.host)
+        self.bus.sendtoBot(message, node=self.node)
 
     # TODO
     def rename(self, new_name: str, update_settings: bool = False) -> None:
@@ -102,6 +102,13 @@ class ServerProxy(Server):
             }
         })
 
+    async def bans(self) -> list[str]:
+        return await self.sendtoDCSSync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "bans"
+        })
+
     async def modifyMission(self, preset: Union[list, dict]) -> None:
         await self.sendtoDCSSync({
             "command": "rpc",
@@ -110,4 +117,11 @@ class ServerProxy(Server):
             "params": {
                 "preset": preset
             }
+        })
+
+    async def init_extensions(self):
+        return await self.sendtoDCSSync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "bans"
         })

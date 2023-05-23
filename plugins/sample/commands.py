@@ -1,6 +1,6 @@
 import discord
 import psycopg
-from core import DCSServerBot, Plugin, utils, Server, EventListener, TEventListener, Status
+from core import DCSServerBot, Plugin, utils, Server, EventListener, TEventListener, Status, command
 from discord import app_commands
 from typing import Type
 from .listener import SampleEventListener
@@ -36,7 +36,7 @@ class Sample(Plugin):
         # if they contain a server_name value. You usually don't need to implement this function.
         pass
 
-    @app_commands.command(description='This is a sample command.')
+    @command(description='This is a sample command.')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def sample(self, interaction: discord.Interaction,

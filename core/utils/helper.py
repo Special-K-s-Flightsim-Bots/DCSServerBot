@@ -249,7 +249,9 @@ class SettingsDict(dict):
                                                                      indent_level=0)).encode('utf-8'))
         elif self.path.lower().endswith('.json'):
             with open(self.path, "w", encoding='utf-8') as outfile:
+                self.mtime = os.path.getmtime(self.path)
                 json.dump(self, outfile)
+        self.mtime = os.path.getmtime(self.path)
 
     def __setitem__(self, key, value):
         if self.mtime < os.path.getmtime(self.path):

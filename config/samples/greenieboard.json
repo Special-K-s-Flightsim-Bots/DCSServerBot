@@ -21,7 +21,7 @@
       }
     },
     {
-      "installation": "DCS.openbeta_server",
+      "instance": "DCS.openbeta_server",
       "Moose.AIRBOSS": {
         "basedir": "airboss",
         "grades": "AIRBOSS-{carrier}_LSOGrades.csv",
@@ -30,7 +30,7 @@
       }
     },
     {
-      "installation": "instance2",
+      "instance": "instance2",
       "FunkMan": {
         "basedir": "trapsheets",
         "delete_after": 180

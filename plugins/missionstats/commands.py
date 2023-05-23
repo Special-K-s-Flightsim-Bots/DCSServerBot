@@ -1,12 +1,11 @@
 import discord
-from core import Plugin, PluginRequiredError, utils, Report, PaginationReport, Status, Server
+
+from core import Plugin, PluginRequiredError, utils, Report, PaginationReport, Status, Server, command
 from discord import app_commands
-from discord.ext import commands
-from plugins.userstats.commands import parse_params
 from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter
+from services import DCSServerBot
 from typing import Optional, Union
 
-from services import DCSServerBot
 from .listener import MissionStatisticsEventListener
 
 
@@ -21,7 +20,7 @@ class MissionStatistics(Plugin):
             conn.execute(f"DELETE FROM missionstats WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Missionstats pruned.')
 
-    @app_commands.command(description='Display Mission Statistics')
+    @command(description='Display Mission Statistics')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def missionstats(self, interaction: discord.Interaction,
@@ -34,10 +33,10 @@ class MissionStatistics(Plugin):
         stats = self.bot.mission_stats[server.name]
         report = Report(self.bot, self.plugin_name, 'missionstats.json')
         env = await report.render(stats=stats, mission_id=server.mission_id,
-                                  sides=utils.get_sides(ctx.message, server))
+                                  sides=utils.get_sides(interaction, server))
         await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
-    @app_commands.command(description='Display statistics about sorties')
+    @command(description='Display statistics about sorties')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def sorties(self, interaction: discord.Interaction,
@@ -74,7 +73,7 @@ class MissionStatistics(Plugin):
         embed.set_footer(text='Press a number to display detailed stats about that specific module.')
         return embed
 
-    @app_commands.command(description='Module statistics')
+    @command(description='Module statistics')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def modulestats(self, interaction: discord.Interaction,
@@ -109,7 +108,7 @@ class MissionStatistics(Plugin):
             report = PaginationReport(self.bot, interaction, self.plugin_name, 'modulestats.json')
             await report.render(member_name=name, ucid=ucid, period=period, start_index=n, modules=modules, flt=flt)
 
-    @app_commands.command(description='Refueling statistics')
+    @command(description='Refueling statistics')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def refuelings(self, interaction: discord.Interaction,

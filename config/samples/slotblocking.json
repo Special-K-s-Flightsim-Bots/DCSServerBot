@@ -14,7 +14,7 @@
       ]
     },
     {
-      "installation": "DCS.openbeta_server",
+      "instance": "DCS.openbeta_server",
       "use_reservations": true,
       "restricted": [
         { "group_name": "Rookie", "points": 10, "costs": 10 },

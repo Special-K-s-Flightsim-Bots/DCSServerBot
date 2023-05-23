@@ -1,4 +1,5 @@
 from __future__ import annotations
+import inspect
 import json
 import os
 import psycopg
@@ -7,16 +8,166 @@ from contextlib import closing
 from copy import deepcopy
 from core import utils
 from core.services.registry import ServiceRegistry
-from discord import app_commands
+from discord import app_commands, Interaction
+from discord.app_commands import locale_str
+from discord.app_commands.commands import CommandCallback, GroupT, P, T
 from discord.ext import commands
+from discord.utils import MISSING, _shorten
 from os import path
-from typing import Type, Optional, TYPE_CHECKING
+from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List
 
 from .listener import TEventListener
 
 if TYPE_CHECKING:
     from core import Server
     from services import DCSServerBot, ServiceBus
+
+
+def command(
+    *,
+    name: Union[str, locale_str] = MISSING,
+    description: Union[str, locale_str] = MISSING,
+    nsfw: bool = False,
+    auto_locale_strings: bool = True,
+    extras: Dict[Any, Any] = MISSING,
+) -> Callable[[CommandCallback[GroupT, P, T]], Command[GroupT, P, T]]:
+    """Creates an application command from a regular function.
+
+    Parameters
+    ------------
+    name: :class:`str`
+        The name of the application command. If not given, it defaults to a lower-case
+        version of the callback name.
+    description: :class:`str`
+        The description of the application command. This shows up in the UI to describe
+        the application command. If not given, it defaults to the first line of the docstring
+        of the callback shortened to 100 characters.
+    nsfw: :class:`bool`
+        Whether the command is NSFW and should only work in NSFW channels. Defaults to ``False``.
+
+        Due to a Discord limitation, this does not work on subcommands.
+    auto_locale_strings: :class:`bool`
+        If this is set to ``True``, then all translatable strings will implicitly
+        be wrapped into :class:`locale_str` rather than :class:`str`. This could
+        avoid some repetition and be more ergonomic for certain defaults such
+        as default command names, command descriptions, and parameter names.
+        Defaults to ``True``.
+    extras: :class:`dict`
+        A dictionary that can be used to store extraneous data.
+        The library will not touch any values or keys within this dictionary.
+    """
+
+    def decorator(func: CommandCallback[GroupT, P, T]) -> Command[GroupT, P, T]:
+        if not inspect.iscoroutinefunction(func):
+            raise TypeError('command function must be a coroutine function')
+
+        if description is MISSING:
+            if func.__doc__ is None:
+                desc = '…'
+            else:
+                desc = _shorten(func.__doc__)
+        else:
+            desc = description
+
+        return Command(
+            name=name if name is not MISSING else func.__name__,
+            description=desc,
+            callback=func,
+            parent=None,
+            nsfw=nsfw,
+            auto_locale_strings=auto_locale_strings,
+            extras=extras,
+        )
+
+    return decorator
+
+
+class Command(app_commands.Command):
+
+    def __init__(
+        self,
+        *,
+        name: Union[str, locale_str],
+        description: Union[str, locale_str],
+        callback: CommandCallback[GroupT, P, T],
+        nsfw: bool = False,
+        parent: Optional[Group] = None,
+        guild_ids: Optional[List[int]] = None,
+        auto_locale_strings: bool = True,
+        extras: Dict[Any, Any] = MISSING,
+    ):
+        super().__init__(name=name, description=description, callback=callback, nsfw=nsfw, parent=parent,
+                         guild_ids=guild_ids, auto_locale_strings=auto_locale_strings, extras=extras)
+        bot: DCSServerBot = ServiceRegistry.get("Bot").bot
+        if 'server' in self._params and len(bot.servers) == 1:
+            del self._params['server']
+
+    async def _do_call(self, interaction: Interaction, params: Dict[str, Any]) -> T:
+        if 'server' in inspect.signature(self._callback).parameters and 'server' not in params:
+            params['server'] = list(interaction.client.servers.values())[0]
+        return await super()._do_call(interaction=interaction, params=params)
+
+
+class Group(app_commands.Group):
+
+    def command(
+        self,
+        *,
+        name: Union[str, locale_str] = MISSING,
+        description: Union[str, locale_str] = MISSING,
+        nsfw: bool = False,
+        auto_locale_strings: bool = True,
+        extras: Dict[Any, Any] = MISSING,
+    ) -> Callable[[CommandCallback[GroupT, P, T]], Command[GroupT, P, T]]:
+        """A decorator that creates an application command from a regular function under this group.
+
+        Parameters
+        ------------
+        name: Union[:class:`str`, :class:`locale_str`]
+            The name of the application command. If not given, it defaults to a lower-case
+            version of the callback name.
+        description: Union[:class:`str`, :class:`locale_str`]
+            The description of the application command. This shows up in the UI to describe
+            the application command. If not given, it defaults to the first line of the docstring
+            of the callback shortened to 100 characters.
+        nsfw: :class:`bool`
+            Whether the command is NSFW and should only work in NSFW channels. Defaults to ``False``.
+        auto_locale_strings: :class:`bool`
+            If this is set to ``True``, then all translatable strings will implicitly
+            be wrapped into :class:`locale_str` rather than :class:`str`. This could
+            avoid some repetition and be more ergonomic for certain defaults such
+            as default command names, command descriptions, and parameter names.
+            Defaults to ``True``.
+        extras: :class:`dict`
+            A dictionary that can be used to store extraneous data.
+            The library will not touch any values or keys within this dictionary.
+        """
+
+        def decorator(func: CommandCallback[GroupT, P, T]) -> Command[GroupT, P, T]:
+            if not inspect.iscoroutinefunction(func):
+                raise TypeError('command function must be a coroutine function')
+
+            if description is MISSING:
+                if func.__doc__ is None:
+                    desc = '…'
+                else:
+                    desc = _shorten(func.__doc__)
+            else:
+                desc = description
+
+            command = Command(
+                name=name if name is not MISSING else func.__name__,
+                description=desc,
+                callback=func,
+                nsfw=nsfw,
+                parent=self,
+                auto_locale_strings=auto_locale_strings,
+                extras=extras,
+            )
+            self.add_command(command)
+            return command
+
+        return decorator
 
 
 class Plugin(commands.Cog):
@@ -169,8 +320,8 @@ class Plugin(commands.Cog):
             if 'configs' in self.locals:
                 specific = default = None
                 for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
+                    if 'instance' in element or 'server_name' in element:
+                        if ('instance' in element and server.instance.name == element['instance']) or \
                                 ('server_name' in element and server.name == element['server_name']):
                             specific = deepcopy(element)
                     else:

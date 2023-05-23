@@ -19,7 +19,7 @@
       ]
     },
     {
-        "installation": "instance2",
+        "instance": "instance2",
         "initial_points": [
             {
               "discord": "Donator",

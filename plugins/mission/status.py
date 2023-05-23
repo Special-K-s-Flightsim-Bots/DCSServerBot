@@ -30,9 +30,9 @@ class ServerInfo(report.EmbedElement):
 
     def render(self, server: Server, show_password: Optional[bool] = True):
         self.add_field(name='Map', value=server.current_mission.map if server.current_mission else 'n/a')
-        if server.external_ip:
+        if server.node.public_ip:
             self.add_field(name='Server-IP / Port',
-                           value=server.external_ip + ':' + str(server.settings['port']))
+                           value=server.node.public_ip + ':' + str(server.settings['port']))
         if server.settings['password']:
             if show_password:
                 self.add_field(name='Password', value=server.settings['password'])
@@ -51,7 +51,7 @@ class ServerInfo(report.EmbedElement):
                 value = '{} {}'.format(server.current_mission.date,
                                        timedelta(seconds=server.current_mission.start_time + uptime))
             self.add_field(name='Date/Time in Mission', value=value)
-            if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+            if not server.locals.get('coalitions'):
                 self.add_field(name='Avail. Slots',
                                value=f'🔹 {server.current_mission.num_slots_blue}  |  '
                                      f'{server.current_mission.num_slots_red} 🔸')
@@ -138,7 +138,7 @@ class All(report.EmbedElement):
             if server.status not in [Status.PAUSED, Status.RUNNING]:
                 continue
             name = f"{server.name} [{len(server.players) + 1}/{server.settings['maxPlayers']}]"
-            value = f"IP/Port:  {server.external_ip}:{server.settings['port']}\n"
+            value = f"IP/Port:  {server.public_ip}:{server.settings['port']}\n"
             if server.current_mission:
                 value += f"Mission:  {server.current_mission.name}\n"
                 value += "Uptime:   {}\n".format(utils.format_time(int(server.current_mission.mission_time)))

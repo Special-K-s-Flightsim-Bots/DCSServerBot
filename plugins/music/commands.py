@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 
-from core import Plugin, utils, Server, TEventListener, PluginInstallationError, Status
+from core import Plugin, utils, Server, TEventListener, PluginInstallationError, Status, Group
 from discord import app_commands
 from discord.ext import commands
 from services import DCSServerBot
@@ -39,7 +39,7 @@ class Music(Plugin):
         return music_dir
 
     # New command group "/music"
-    music = app_commands.Group(name="music", description="Commands to manage music in your (DCS) server")
+    music = Group(name="music", description="Commands to manage music in your (DCS) server")
 
     @music.command(description='Music Player')
     @app_commands.guild_only()

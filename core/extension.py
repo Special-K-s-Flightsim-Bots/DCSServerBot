@@ -10,10 +10,10 @@ if TYPE_CHECKING:
 
 class Extension(ABC):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
-        self.bot: DCSServerBot = bot
-        self.log = bot.log
-        self.pool = bot.pool
+    def __init__(self, server: Server, config: dict):
+        self.node = server.node
+        self.log = self.node.log
+        self.pool = self.node.pool
         self.config: dict = config
         self.server: Server = server
         self.locals: dict = self.load_config()
@@ -28,17 +28,14 @@ class Extension(ABC):
     async def beforeMissionLoad(self) -> bool:
         return True
 
-    async def onMissionLoadEnd(self, data: dict) -> bool:
-        return True
-
     async def startup(self) -> bool:
         self.log.info(f"  => {self.name} v{self.version} launched for \"{self.server.name}\".")
-        await self.bot.audit(f"Extension {self.name} started", server=self.server)
+        await self.node.audit(f"Extension {self.name} started", server=self.server)
         return True
 
-    async def shutdown(self, data: dict) -> bool:
+    async def shutdown(self) -> bool:
         self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
-        await self.bot.audit(f"Extension {self.name} shut down", server=self.server)
+        await self.node.audit(f"Extension {self.name} shut down", server=self.server)
         return True
 
     def is_running(self) -> bool:

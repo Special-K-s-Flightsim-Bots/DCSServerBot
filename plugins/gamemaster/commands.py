@@ -4,7 +4,7 @@ import os
 import platform
 import psycopg
 from contextlib import closing
-from core import Plugin, utils, Report, Status, Server, Coalition, Channel
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group
 from discord import app_commands, TextStyle, SelectOption
 from discord.app_commands import Range
 from discord.ext import commands
@@ -21,13 +21,11 @@ class GameMaster(Plugin):
     async def install(self):
         await super().install()
         for server in self.bot.servers.values():
-            if self.bot.config.getboolean(server.installation, 'COALITIONS'):
+            if 'coalitions' in server.locals:
                 self.log.debug(f'  - Updating "{server.name}":serverSettings.lua for coalitions')
                 advanced = server.settings['advanced']
-                if advanced['allow_players_pool'] != self.bot.config.getboolean(server.installation,
-                                                                                'ALLOW_PLAYERS_POOL'):
-                    advanced['allow_players_pool'] = self.bot.config.getboolean(server.installation,
-                                                                                'ALLOW_PLAYERS_POOL')
+                if advanced['allow_players_pool'] != server.locals['coalitions'].get('allow_players_pool', False):
+                    advanced['allow_players_pool'] = server.locals['coalitions'].get('allow_players_pool', False)
                     server.settings['advanced'] = advanced
 
     def migrate(self, version: str):
@@ -51,7 +49,7 @@ class GameMaster(Plugin):
         for server in self.bot.servers.values():
             if server.status != Status.RUNNING:
                 continue
-            if self.bot.config.getboolean(server.installation, 'COALITIONS'):
+            if 'coalitions' in server.locals:
                 sides = utils.get_sides(message, server)
                 if Coalition.BLUE in sides and server.get_channel(Channel.COALITION_BLUE) == message.channel.id:
                     # TODO: ignore messages for now, as DCS does not understand the coalitions yet
@@ -65,7 +63,7 @@ class GameMaster(Plugin):
                 if message.content.startswith(self.bot.config['BOT']['COMMAND_PREFIX']) is False:
                     server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
 
-    @app_commands.command(description='Send a chat message to a running DCS instance')
+    @command(description='Send a chat message to a running DCS instance')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def chat(self, interaction: discord.Interaction,
@@ -77,17 +75,18 @@ class GameMaster(Plugin):
             "message": message,
             "from": interaction.user.display_name
         })
+        await interaction.response.send_message('Message sent.')
 
-    @app_commands.command(description='Sends a popup to a coalition')
+    @command(description='Sends a popup to a coalition')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def popup(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                     to: Literal['all', 'red', 'blue'], message: str, time: Optional[Range[int, 1, 30]] = -1):
         server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
-        await interaction.response.send_response('Message sent.')
+        await interaction.response.send_message('Message sent.')
 
-    @app_commands.command(description='Sends a popup to all servers')
+    @command(description='Sends a popup to all servers')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def broadcast(self, interaction: discord.Interaction, to: Literal['all', 'red', 'blue'], message: str,
@@ -102,7 +101,7 @@ class GameMaster(Plugin):
             server.sendPopupMessage(Coalition(to), message, time, interaction.user.display_name)
             await interaction.followup.send(f'Message sent to server {server.display_name}.', ephemeral=True)
 
-    @app_commands.command(description='Set or clear a flag inside the mission')
+    @command(description='Set or clear a flag inside the mission')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def flag(self, interaction: discord.Interaction,
@@ -119,7 +118,7 @@ class GameMaster(Plugin):
             data = await server.sendtoDCSSync({"command": "getFlag", "flag": flag})
             await interaction.response.send_message(f"Flag {flag} has value {data['value']}.")
 
-    @app_commands.command(description='Set or get a mission variable')
+    @command(description='Set or get a mission variable')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def variable(self, interaction: discord.Interaction,
@@ -144,7 +143,7 @@ class GameMaster(Plugin):
             else:
                 await interaction.response.send_message(f"Variable {name} is not set.")
 
-    @app_commands.command(description='Calls any function inside the mission')
+    @command(description='Calls any function inside the mission')
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     @app_commands.guild_only()
     async def do_script(self, interaction: discord.Interaction,
@@ -163,13 +162,13 @@ class GameMaster(Plugin):
         else:
             await interaction.response.send_message('Aborted', ephemeral=True)
 
-    @app_commands.command(description='Loads a lua file into the mission')
+    @command(description='Loads a lua file into the mission')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def do_script_file(self, interaction: discord.Interaction,
                              server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                              filename: str):
-        if not os.path.exists(os.path.join(os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']), 
+        if not os.path.exists(os.path.join(os.path.expandvars(server.locals['home']),
                                            filename)):
             interaction.response.send_message(f"File {filename} not found.", ephemeral=True)
         server.sendtoDCS({
@@ -178,7 +177,7 @@ class GameMaster(Plugin):
         })
         await interaction.response.send_message('Script loaded.', ephemeral=True)
 
-    @app_commands.command(description='Mass coalition leave for users')
+    @command(description='Mass coalition leave for users')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def reset_coalitions(self, interaction: discord.Interaction):
@@ -192,16 +191,16 @@ class GameMaster(Plugin):
                     with conn.transaction():
                         with closing(conn.cursor()) as cursor:
                             for server in self.bot.servers.values():
-                                if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+                                if not server.locals.get('coalitions'):
                                     continue
                                 roles = {
                                     "red": discord.utils.get(
                                         interaction.guild.roles,
-                                        name=self.bot.config[server.installation]['Coalition Red']
+                                        name=server.locals['coalition']['red']
                                     ),
                                     "blue": discord.utils.get(
                                         interaction.guild.roles,
-                                        name=self.bot.config[server.installation]['Coalition Blue']
+                                        name=server.locals['coalition']['blue']
                                     )
                                 }
                                 for row in cursor.execute("""
@@ -221,7 +220,7 @@ class GameMaster(Plugin):
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
     # New command group "/mission"
-    campaign = app_commands.Group(name="campaign", description="Commands to manage DCS campaigns")
+    campaign = Group(name="campaign", description="Commands to manage DCS campaigns")
 
     async def get_campaign_servers(self, interaction: discord.Interaction) -> list[Server]:
         servers: list[Server] = list()
@@ -308,7 +307,7 @@ class GameMaster(Plugin):
         else:
             await interaction.followup.send('Aborted.', ephemeral=True)
 
-    @app_commands.command(description='Displays your current player profile')
+    @command(description='Displays your current player profile')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def profile(self, interaction: discord.Interaction, member: Optional[discord.Member] = None):

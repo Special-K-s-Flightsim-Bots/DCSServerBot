@@ -7,9 +7,11 @@ from core.data.const import Side, Coalition
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
+from ..services.registry import ServiceRegistry
+
 if TYPE_CHECKING:
-    from services import DCSServerBot
     from .server import Server
+    from services import DCSServerBot
 
 
 @dataclass
@@ -32,9 +34,11 @@ class Player(DataObject):
     _member: discord.Member = field(compare=False, repr=False, default=None, init=False)
     _verified: bool = field(compare=False, default=False)
     _coalition: Coalition = field(compare=False, default=None)
+    bot: DCSServerBot = field(compare=False, init=False)
 
     def __post_init__(self):
         super().__post_init__()
+        self.bot = ServiceRegistry.get("Bot").bot
         if self.id == 1:
             self.active = False
             return
@@ -55,7 +59,7 @@ class Player(DataObject):
                     if cursor.rowcount == 1:
                         row = cursor.fetchone()
                         if row[0] != -1:
-                            self.member = self._member = self.main.guilds[0].get_member(row[0])
+                            self.member = self._member = self.bot.guilds[0].get_member(row[0])
                             self._verified = row[2]
                         self.banned = row[1]
                         if row[3]:
@@ -66,7 +70,7 @@ class Player(DataObject):
                         """, (self.ucid, self.name))
         # if automatch is enabled, try to match the user
         if not self.member and self.config.getboolean('BOT', 'AUTOMATCH'):
-            discord_user = self.main.match_user({"ucid": self.ucid, "name": self.name})
+            discord_user = self.bot.match_user({"ucid": self.ucid, "name": self.name})
             if discord_user:
                 self.member = discord_user
 

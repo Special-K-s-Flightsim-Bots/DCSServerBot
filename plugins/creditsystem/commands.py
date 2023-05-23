@@ -1,9 +1,9 @@
 import discord
 from contextlib import closing
 from copy import deepcopy
-from discord import app_commands
+from discord import app_commands, SelectOption
 from discord.app_commands import Range
-from core import utils, Plugin, PluginRequiredError, Server
+from core import utils, Plugin, PluginRequiredError, Server, Group
 from psycopg.rows import dict_row
 from services import DCSServerBot
 from typing import Optional, cast, Union
@@ -19,8 +19,8 @@ class CreditSystem(Plugin):
             if 'configs' in self.locals:
                 specific = default = None
                 for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
+                    if 'instance' in element or 'server_name' in element:
+                        if ('instance' in element and server.instance.name == element['instance']) or \
                                 ('server_name' in element and server.name == element['server_name']):
                             specific = deepcopy(element)
                     else:
@@ -84,7 +84,7 @@ class CreditSystem(Plugin):
                 """, (ucid, )).fetchall())
 
     # New command group "/credits"
-    credits = app_commands.Group(name="credits", description="Commands to manage player credits")
+    credits = Group(name="credits", description="Commands to manage player credits")
 
     @credits.command(description='Displays your current credits')
     @app_commands.guild_only()
@@ -143,32 +143,23 @@ class CreditSystem(Plugin):
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @staticmethod
-    def format_credits(data, marker, marker_emoji):
-        embed = discord.Embed(title='Campaign Credits', color=discord.Color.blue())
-        ids = campaigns = points = ''
-        for i in range(0, len(data)):
-            ids += (chr(0x31 + i) + '\u20E3' + '\n')
-            campaigns += f"{data[i][1]}\n"
-            points += f"{data[i][2]}\n"
-        embed.add_field(name='ID', value=ids)
-        embed.add_field(name='Campaign', value=campaigns)
-        embed.add_field(name='Credits', value=points)
-        embed.set_footer(text='Press a number to donate from these credits.')
-        return embed
-
-    async def admin_donate(self, ctx, to: discord.Member, donation: int):
+    async def admin_donate(self, interaction: discord.Interaction, to: discord.Member, donation: int):
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:
-            await ctx.send('{} needs to properly link their DCS account to receive '
-                           'donations.'.format(utils.escape_string(to.display_name)))
+            await interaction.response.send_message(f'{utils.escape_string(to.display_name)} needs to properly link '
+                                                    f'their DCS account to receive donations.', ephemeral=True)
             return
         data = self.get_credits(receiver)
         if not data:
-            await ctx.send('It seems like there is no campaign running on your server(s).')
+            await interaction.response.send_message('It seems like there is no campaign running on your server(s).',
+                                                    ephemeral=True)
             return
         if len(data) > 1:
-            n = await utils.selection_list(self.bot, ctx, data, self.format_credits)
+            n = await utils.selection(interaction, title="Campaign Credits",
+                                      options=[
+                                          SelectOption(label=f"{x['name']} (credits={x['credits']})", value=str(idx))
+                                          for idx, x in enumerate(data)
+                                      ])
         else:
             n = 0
         p_receiver: Optional[CreditPlayer] = None
@@ -184,37 +175,40 @@ class CreditSystem(Plugin):
                             SELECT COALESCE(SUM(points), 0) 
                             FROM credits 
                             WHERE campaign_id = %s AND player_ucid = %s
-                        """, (data[n][0], receiver)).fetchone()[0]
+                        """, (data[n]['id'], receiver)).fetchone()[0]
                     else:
                         old_points_receiver = p_receiver.points
                     if 'max_points' in self.locals['configs'][0] and \
                             (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
-                        await ctx.send('Member {} would overrun the configured maximum points with this donation. '
-                                       'Aborted.'.format(utils.escape_string(to.display_name)))
+                        await interaction.response.send_message(
+                            f'Member {utils.escape_string(to.display_name)} would overrun the configured maximum '
+                            f'points with this donation. Aborted.')
                         return
                     if p_receiver:
                         p_receiver.points += donation
                         p_receiver.audit('donation', old_points_receiver, f'Donation from member '
-                                                                          f'{ctx.message.author.display_name}')
+                                                                          f'{interaction.user.display_name}')
                     else:
                         cursor.execute("""
                             INSERT INTO credits (campaign_id, player_ucid, points) 
                             VALUES (%s, %s, %s) 
                             ON CONFLICT (campaign_id, player_ucid) DO UPDATE 
                             SET points = credits.points + EXCLUDED.points
-                        """, (data[n][0], receiver, donation))
+                        """, (data[n]['id'], receiver, donation))
                         cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
                                        (data[n][0], receiver))
                         new_points_receiver = cursor.fetchone()[0]
                         cursor.execute("""
                             INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
                             VALUES (%s, %s, %s, %s, %s, %s)
-                        """, (data[n][0], 'donation', receiver, old_points_receiver, new_points_receiver,
-                              f'Credit points change by Admin {ctx.message.author.display_name}'))
+                        """, (data[n]['id'], 'donation', receiver, old_points_receiver, new_points_receiver,
+                              f'Credit points change by Admin {interaction.user.display_name}'))
             if donation > 0:
-                await ctx.send(to.mention + f' you just received {donation} credit points from an Admin.')
+                await interaction.response.send_message(
+                    to.mention + f' you just received {donation} credit points from an Admin.')
             else:
-                await ctx.send(to.mention + f' your credits were decreased by {donation} credit points by an Admin.')
+                await interaction.response.send_message(
+                    to.mention + f' your credits were decreased by {donation} credit points by an Admin.')
 
     @credits.command(description='Donate credits to another member')
     @utils.app_has_role('DCS')
@@ -241,12 +235,16 @@ class CreditSystem(Plugin):
             await interaction.response.send_message(f"You don't have any credit points to donate.", ephemeral=True)
             return
         elif len(data) > 1:
-            n = await utils.selection_list(self.bot, interaction, data, self.format_credits)
+            n = await utils.selection(interaction, title="Campaign Credits",
+                                      options=[
+                                          SelectOption(label=f"{x['name']} (credits={x['credits']})", value=str(idx))
+                                          for idx, x in enumerate(data)
+                                      ])
         else:
             n = 0
-        if data[n][2] < donation:
+        if data[n]['credits'] < donation:
             await interaction.response.send_message(f"You can't donate {donation} credit points, as you only "
-                                                    f"have {data[n][2]} in total!", ephemeral=True)
+                                                    f"have {data[n]['credits']} in total!", ephemeral=True)
             return
         # now see, if one of the parties is an active player already...
         p_donor: Optional[CreditPlayer] = None
@@ -265,7 +263,7 @@ class CreditSystem(Plugin):
                     if not p_receiver:
                         cursor.execute("""
                             SELECT COALESCE(SUM(points), 0) FROM credits WHERE campaign_id = %s AND player_ucid = %s
-                        """, (data[n][0], receiver))
+                        """, (data[n]['id'], receiver))
                         old_points_receiver = cursor.fetchone()[0]
                     else:
                         old_points_receiver = p_receiver.points
@@ -277,38 +275,38 @@ class CreditSystem(Plugin):
                         return
                     if p_donor:
                         p_donor.points -= donation
-                        p_donor.audit('donation', data[n][2], f'Donation to member {to.display_name}')
+                        p_donor.audit('donation', data[n]['credits'], f'Donation to member {to.display_name}')
                     else:
                         cursor.execute("""
                             UPDATE credits SET points = points - %s WHERE campaign_id = %s AND player_ucid = %s
-                        """, (donation, data[n][0], donor))
+                        """, (donation, data[n]['id'], donor))
                         cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
-                                       (data[n][0], donor))
+                                       (data[n]['id'], donor))
                         new_points_donor = cursor.fetchone()[0]
                         cursor.execute("""
                             INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
                             VALUES (%s, %s, %s, %s, %s, %s)
-                        """, (data[n][0], 'donation', donor, data[n][2], new_points_donor,
+                        """, (data[n]['id'], 'donation', donor, data[n]['credits'], new_points_donor,
                               f'Donation to member {to.display_name}'))
                     if p_receiver:
                         p_receiver.points += donation
                         p_receiver.audit('donation', old_points_receiver, f'Donation from member '
-                                                                          f'{ctx.message.author.display_name}')
+                                                                          f'{interaction.user.display_name}')
                     else:
                         cursor.execute("""
                             INSERT INTO credits (campaign_id, player_ucid, points) 
                             VALUES (%s, %s, %s) 
                             ON CONFLICT (campaign_id, player_ucid) DO UPDATE 
                             SET points = credits.points + EXCLUDED.points
-                        """, (data[n][0], receiver, donation))
+                        """, (data[n]['id'], receiver, donation))
                         cursor.execute('SELECT points FROM credits WHERE campaign_id = %s AND player_ucid = %s',
-                                       (data[n][0], receiver))
+                                       (data[n]['id'], receiver))
                         new_points_receiver = cursor.fetchone()[0]
                         cursor.execute("""
                             INSERT INTO credits_log (campaign_id, event, player_ucid, old_points, new_points, remark) 
                             VALUES (%s, %s, %s, %s, %s, %s)
-                        """, (data[n][0], 'donation', receiver, old_points_receiver, new_points_receiver,
-                              f'Donation from member {ctx.message.author.display_name}'))
+                        """, (data[n]['id'], 'donation', receiver, old_points_receiver, new_points_receiver,
+                              f'Donation from member {interaction.user.display_name}'))
             await interaction.response.send_message(
                 to.mention + f' you just received {donation} credit points from '
                              f'{utils.escape_string(interaction.user.display_name)}!', ephemeral=True)

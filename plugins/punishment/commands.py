@@ -3,7 +3,8 @@ import discord
 import psycopg
 from contextlib import closing, suppress
 from copy import deepcopy
-from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, PluginInstallationError
+from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, PluginInstallationError, \
+    command
 from discord import app_commands
 from discord.ext import tasks
 from psycopg.rows import dict_row
@@ -34,8 +35,8 @@ class Punishment(Plugin):
             if 'configs' in self.locals:
                 specific = default = None
                 for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
+                    if 'instance' in element or 'server_name' in element:
+                        if ('instance' in element and server.instance == element['instance']) or \
                                 ('server_name' in element and server.name == element['server_name']):
                             specific = deepcopy(element)
                     else:
@@ -183,11 +184,11 @@ class Punishment(Plugin):
                     with closing(conn.cursor(row_factory=dict_row)) as cursor:
                         for d in self.decay_config:
                             cursor.execute("""
-                                UPDATE pu_events SET points = ROUND(points * %s, 2), decay_run = %s 
+                                UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 
                                 WHERE time < (NOW() - interval '%s days') AND decay_run < %s
                             """, (d['weight'], d['days'], d['days'], d['days']))
 
-    @app_commands.command(description='Set punishment to 0 for a user')
+    @command(description='Set punishment to 0 for a user')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def forgive(self, interaction: discord.Interaction,
@@ -217,7 +218,7 @@ class Punishment(Plugin):
                     await interaction.response.send_message('All punishment points deleted and player unbanned '
                                                             '(if they were banned by the bot before).')
 
-    @app_commands.command(description='Displays your current penalty points')
+    @command(description='Displays your current penalty points')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def penalty(self, interaction: discord.Interaction,

@@ -1,13 +1,15 @@
 import aiohttp
 import asyncio
+import certifi
 import discord
 import os
 import pandas as pd
 import platform
 import psycopg
 import shutil
+import ssl
 from contextlib import closing
-from core import Plugin, utils, TEventListener, PaginationReport
+from core import Plugin, utils, TEventListener, PaginationReport, Group
 from discord import app_commands
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
@@ -50,7 +52,10 @@ class CloudHandler(Plugin):
                 "guild_name": self.bot.guilds[0].name,
                 "owner_id": self.bot.owner_id
             }
-            self._session = aiohttp.ClientSession(raise_for_status=True, headers=headers)
+            self._session = aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
+                raise_for_status=True, headers=headers
+            )
         return self._session
 
     async def cog_load(self) -> None:
@@ -60,7 +65,7 @@ class CloudHandler(Plugin):
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute("""
-                    SELECT count(distinct agent_host) as num_bots, count(distinct server_name) as num_servers 
+                    SELECT count(distinct node) as num_bots, count(distinct server_name) as num_servers 
                     FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')
                 """)
                 if cursor.rowcount == 0:
@@ -120,7 +125,7 @@ class CloudHandler(Plugin):
             await send(data)
 
     # New command group "/cloud"
-    cloud = app_commands.Group(name="cloud", description="Commands to manage the DCSSB Cloud Service")
+    cloud = Group(name="cloud", description="Commands to manage the DCSSB Cloud Service")
 
     @cloud.command(description='Test the cloud-connection')
     @app_commands.guild_only()

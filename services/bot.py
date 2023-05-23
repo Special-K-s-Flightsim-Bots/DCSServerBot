@@ -3,21 +3,22 @@ import asyncio
 import discord
 import re
 from contextlib import closing
-from core import ServiceRegistry, Service, Server, Status, Channel, Player, EventListener, utils
+from core import ServiceRegistry, Service, Status, Channel, Player, EventListener, utils
 from datetime import datetime
 from discord.ext import commands
 from functools import lru_cache
 from typing import Optional, Tuple, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from core import Server
     from services import ServiceBus
 
 
 @ServiceRegistry.register("Bot")
 class BotService(Service):
 
-    def __init__(self, main):
-        super().__init__(main=main)
+    def __init__(self, node, name: str):
+        super().__init__(node=node, name=name)
         self.bot = None
 
     def init_bot(self):
@@ -34,21 +35,20 @@ class BotService(Service):
                             owner_id=int(self.config['BOT']['OWNER']),
                             case_insensitive=True,
                             intents=discord.Intents.all(),
-                            main=self.main,
+                            node=self.node,
                             help_command=None,
                             heartbeat_timeout=120,
                             assume_unsync_clock=True)
 
     async def start(self, token: str, *, reconnect: bool = True) -> None:
-        self.log.info('- Discord Bot starting ...')
         self.bot = self.init_bot()
         await super().start()
         # cleanup the intercom channels
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute("DELETE FROM intercom WHERE agent = %s", (self.agent, ))
-                if self.main.master:
-                    conn.execute("DELETE FROM intercom WHERE agent = 'Master'")
+                conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
+                if self.node.master:
+                    conn.execute("DELETE FROM intercom WHERE node = 'Master'")
         async with self.bot:
             await self.bot.start(token, reconnect=reconnect)
 
@@ -57,6 +57,15 @@ class BotService(Service):
             await self.bot.close()
         await super().stop()
 
+    async def alert(self, message: str, channel: int):
+        mentions = ''
+        for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
+            role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
+            if role:
+                mentions += role.mention
+        message = mentions + ' ' + utils.escape_string(message)
+        await self.bot.get_channel(channel).send(message)
+
 
 class DCSServerBot(commands.Bot):
 
@@ -64,11 +73,11 @@ class DCSServerBot(commands.Bot):
         super().__init__(*args, **kwargs)
         self.version: str = kwargs['version']
         self.sub_version: str = kwargs['sub_version']
-        self.main = kwargs['main']
-        self.pool = self.main.pool
-        self.log = self.main.log
-        self.config = self.main.config
-        self.plugins = self.main.plugins
+        self.node = kwargs['node']
+        self.pool = self.node.pool
+        self.log = self.node.log
+        self.config = self.node.config
+        self.plugins = self.node.plugins
         self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
         self.servers: dict[str, Server] = self.bus.servers
         self.eventListeners: list[EventListener] = self.bus.eventListeners
@@ -96,12 +105,12 @@ class DCSServerBot(commands.Bot):
                 self.log.info(f'  => {plugin.title()} NOT loaded.')
         self.log.info("- Searching for running remote DCS servers ...")
         # ask any active agent to register its servers with us
-        for agent in self.main.get_active_agents():
+        for node in self.node.get_active_nodes():
             self.bus.sendtoBot({
                 "command": "rpc",
-                "object": "Agent",
+                "service": "ServiceBus",
                 "method": "register_servers"
-            }, agent=agent)
+            }, node=node)
 
     async def load_plugin(self, plugin: str) -> bool:
         try:
@@ -136,7 +145,7 @@ class DCSServerBot(commands.Bot):
     def check_roles(self, roles: list, server: Optional[Server] = None):
         for role in roles:
             config_roles = [
-                x.strip() for x in self.config['ROLES' if not server else server.installation][role].split(',')
+                x.strip() for x in self.config['ROLES' if not server else server.instance.name][role].split(',')
             ]
             for discord_role in self.guilds[0].roles:
                 if discord_role.name in config_roles:
@@ -179,12 +188,12 @@ class DCSServerBot(commands.Bot):
             ret = False
         return ret
 
-    def check_channels(self, installation: str):
+    def check_channels(self, server: Server):
         channels = ['ADMIN_CHANNEL', 'STATUS_CHANNEL', 'CHAT_CHANNEL']
-        if self.config.getboolean(installation, 'COALITIONS'):
+        if server.locals.get('coalitions'):
             channels.extend(['COALITION_BLUE_CHANNEL', 'COALITION_RED_CHANNEL'])
         for c in channels:
-            channel_id = int(self.config[installation][c])
+            channel_id = int(self.config[server.instance.name][c])
             if channel_id != -1:
                 self.check_channel(channel_id)
 
@@ -202,9 +211,9 @@ class DCSServerBot(commands.Bot):
                 self.log.info('- Checking Roles & Channels ...')
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
                 for server in self.servers.values():
-                    if self.config.getboolean(server.installation, 'COALITIONS'):
+                    if server.locals.get('coalitions'):
                         self.check_roles(['Coalition Red', 'Coalition Blue'], server)
-                    self.check_channels(server.installation)
+                    self.check_channels(server)
                 self.log.info('- Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
                 await self.tree.sync(guild=self.guilds[0])
@@ -259,15 +268,6 @@ class DCSServerBot(commands.Bot):
             for plugin in self.plugins:
                 await self.reload_plugin(plugin)
 
-    async def alert(self, message: str, channel: int):
-        mentions = ''
-        for role_name in [x.strip() for x in self.config['ROLES']['DCS Admin'].split(',')]:
-            role: discord.Role = discord.utils.get(self.guilds[0].roles, name=role_name)
-            if role:
-                mentions += role.mention
-        message = mentions + ' ' + utils.escape_string(message)
-        await self.get_channel(channel).send(message)
-
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional[Server] = None):
         if not self.audit_channel:
@@ -280,12 +280,11 @@ class DCSServerBot(commands.Bot):
                 member = user
             embed = discord.Embed(color=discord.Color.blue())
             if member:
-                embed.set_author(name=member.name + '#' + member.discriminator, icon_url=member.avatar)
+                embed.set_author(name=member.name, icon_url=member.avatar)
                 embed.set_thumbnail(url=member.avatar)
                 message = f'<@{member.id}> ' + message
             elif not user:
-                embed.set_author(name=self.member.name + '#' + self.member.discriminator,
-                                 icon_url=self.member.avatar)
+                embed.set_author(name=self.member.name, icon_url=self.member.avatar)
                 embed.set_thumbnail(url=self.member.avatar)
             embed.description = message
             if isinstance(user, str):
@@ -477,7 +476,7 @@ class DCSServerBot(commands.Bot):
                         best_fit = row[0]
                 return best_fit
 
-    async def get_server(self, ctx: Union[commands.Context, discord.Interaction, discord.Message, str]) \
+    async def get_server(self, ctx: Union[discord.Interaction, discord.Message, str]) \
             -> Optional[Server]:
         for server_name, server in self.servers.items():
             if isinstance(ctx, commands.Context) or isinstance(ctx, discord.Interaction) \
@@ -485,11 +484,11 @@ class DCSServerBot(commands.Bot):
                 if server.status == Status.UNREGISTERED:
                     continue
                 channels = [Channel.ADMIN, Channel.STATUS]
-                if int(self.config[server.installation][Channel.CHAT.value]) != -1:
+                if int(server.locals['channels'].get(Channel.CHAT.value, -1)) == -1:
                     channels.append(Channel.CHAT)
-                if int(self.config[server.installation][Channel.COALITION_BLUE.value]) != -1:
+                if int(server.locals['channels'].get(Channel.COALITION_BLUE.value, -1)) != -1:
                     channels.append(Channel.COALITION_BLUE)
-                if int(self.config[server.installation][Channel.COALITION_RED.value]) != -1:
+                if int(server.locals['channels'].get(Channel.COALITION_RED.value, -1)) != -1:
                     channels.append(Channel.COALITION_RED)
                 for channel in channels:
                     if server.get_channel(channel) == ctx.channel.id:

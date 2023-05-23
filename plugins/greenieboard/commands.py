@@ -6,7 +6,7 @@ import time
 
 from contextlib import closing
 from copy import deepcopy
-from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
+from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener, Group
 from discord import SelectOption, app_commands
 from discord.app_commands import Range
 from discord.ext import tasks
@@ -33,8 +33,8 @@ class GreenieBoard(Plugin):
             if 'configs' in self.locals:
                 specific = default = None
                 for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
+                    if 'instance' in element or 'server_name' in element:
+                        if ('instance' in element and server.instance == element['instance']) or \
                                 ('server_name' in element and server.name == element['server_name']):
                             specific = deepcopy(element)
                     else:
@@ -83,7 +83,7 @@ class GreenieBoard(Plugin):
         self.log.debug('Greenieboard pruned.')
 
     # New command group "/trape"
-    traps = app_commands.Group(name="traps", description="Commands to display and manage carrier traps")
+    traps = Group(name="traps", description="Commands to display and manage carrier traps")
 
     @traps.command(description='Show carrier landing qualifications')
     @app_commands.guild_only()
@@ -165,7 +165,7 @@ class GreenieBoard(Plugin):
         try:
             for server in self.bot.servers.values():
                 config = self.get_config(server)
-                basedir = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
+                basedir = os.path.expandvars(server.instance.home)
                 if 'Moose.AIRBOSS' in config and 'delete_after' in config['Moose.AIRBOSS']:
                     basedir += os.path.sep + config['Moose.AIRBOSS']['basedir'] if 'basedir' in config['Moose.AIRBOSS'] else ''
                     do_delete(basedir, config['Moose.AIRBOSS']['delete_after'])

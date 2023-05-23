@@ -4,24 +4,35 @@ import platform
 import shlex
 import shutil
 import time
-from core import Plugin, utils, PluginInstallationError
+from typing import cast
+
+from core import ServiceRegistry, Service, utils
 from datetime import datetime
 from discord.ext import tasks
-from services import DCSServerBot
 from zipfile import ZipFile
 
+from .servicebus import ServiceBus
 
-class Backup(Plugin):
 
-    def __init__(self, bot: DCSServerBot):
-        super().__init__(bot)
+@ServiceRegistry.register("Backup")
+class BackupService(Service):
+    def __init__(self, node, name: str):
+        super().__init__(node, name)
         if not self.locals:
-            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
+            self.log.debug("No backup.json configured, skipping backup service.")
+            return
+        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
+
+    async def start(self):
+        if not self.locals:
+            return
         self.schedule.start()
         if self.locals['delete_after'].lower() != 'never':
             self.delete.start()
 
-    def cog_unload(self):
+    async def stop(self, *args, **kwargs):
+        if not self.locals:
+            return
         self.schedule.stop()
         if self.locals['delete_after'].lower() != 'never':
             self.delete.stop()
@@ -57,14 +68,14 @@ class Backup(Plugin):
     def backup_servers(self):
         target = self.mkdir()
         config = self.locals['backups'].get('servers')
-        for server_name, server in self.bot.servers.items():
+        for server_name, server in self.bus.servers.items():
             self.log.info(f'Backing up server "{server_name}" ...')
-            filename = f"{server.installation}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
+            filename = f"{server.instance}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
             zf = ZipFile(os.path.join(target, filename), mode="w")
             try:
-                rootdir = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
+                root_dir = os.path.expandvars(server.locals['home'])
                 for directory in config.get('directories'):
-                    self.zip_path(zf, rootdir, directory)
+                    self.zip_path(zf, root_dir, directory)
             except Exception as ex:
                 self.log.debug(ex)
                 self.log.error(f'Backup of server "{server_name}" failed. See logfile for details.')
@@ -80,7 +91,7 @@ class Backup(Plugin):
             cmd = os.path.join(os.path.expandvars(config['path']), "pg_dump")
             filename = f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
             path = os.path.join(target, filename)
-            database = f"{os.path.basename(self.bot.config['BOT']['DATABASE_URL'])}"
+            database = f"{os.path.basename(self.node.config['BOT']['DATABASE_URL'])}"
             exe = f'"{cmd}" -U postgres -F t -f "{path}" -d "{database}"'
             args = shlex.split(exe)
             os.environ['PGPASSWORD'] = config['password']
@@ -96,19 +107,20 @@ class Backup(Plugin):
     def can_run(config: dict):
         now = datetime.now()
         if utils.is_match_daystate(now, config['schedule']['days']):
-            for time in config['schedule']['times']:
-                if utils.is_in_timeframe(now, time):
+            for _time in config['schedule']['times']:
+                if utils.is_in_timeframe(now, _time):
                     return True
         return False
 
     @tasks.loop(minutes=1)
     async def schedule(self):
-        if 'bot' in self.locals['backups'] and self.can_run(self.locals['backups']['bot']):
-            await asyncio.to_thread(self.backup_bot)
+        if self.node.master:
+            if 'bot' in self.locals['backups'] and self.can_run(self.locals['backups']['bot']):
+                await asyncio.to_thread(self.backup_bot)
+            if 'database' in self.locals['backups'] and self.can_run(self.locals['backups']['database']):
+                await self.backup_database()
         if 'servers' in self.locals['backups'] and self.can_run(self.locals['backups']['servers']):
             await asyncio.to_thread(self.backup_servers)
-        if 'database' in self.locals['backups'] and self.can_run(self.locals['backups']['database']):
-            await self.backup_database()
 
     @tasks.loop(hours=24)
     async def delete(self):
@@ -125,7 +137,3 @@ class Backup(Plugin):
                         shutil.rmtree(f)
         except Exception as ex:
             self.log.exception(ex)
-
-
-async def setup(bot: DCSServerBot):
-    await bot.add_cog(Backup(bot))

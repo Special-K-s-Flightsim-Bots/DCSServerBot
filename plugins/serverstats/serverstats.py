@@ -153,7 +153,7 @@ class UsersPerDayTime(report.GraphElement):
 
 class ServerLoad(report.MultiGraphElement):
 
-    def render(self, server_name: Optional[str], period: str, agent_host: Optional[str]):
+    def render(self, server_name: Optional[str], period: str, node: Optional[str]):
         sql = f"SELECT date_trunc('minute', time) AS time, AVG(users) AS \"Users\", AVG(cpu) AS \"CPU\", AVG(CASE " \
               f"WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS \"Memory (paged)\", " \
               f"AVG(mem_ram)/(1024*1024) AS \"Memory (RAM)\", SUM(read_bytes)/1024 AS \"Read\", SUM(write_bytes)/1024 " \
@@ -162,8 +162,8 @@ class ServerLoad(report.MultiGraphElement):
               f"WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}') "
         if server_name:
             sql += f" AND server_name = '{server_name}' "
-        if agent_host:
-            sql += f" AND agent_host = '{agent_host}' "
+        if node:
+            sql += f" AND node = '{node}' "
         sql += " GROUP BY 1"
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:

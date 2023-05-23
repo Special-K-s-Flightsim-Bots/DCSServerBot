@@ -98,7 +98,7 @@ class CreditSystemListener(EventListener):
         if 'achievements' not in config:
             return
 
-        campaign_id, _ = utils.get_running_campaign(server)
+        campaign_id, _ = utils.get_running_campaign(self.bot, server)
         playtime = self.get_flighttime(player.ucid, campaign_id) / 3600.0
         sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
         role = None

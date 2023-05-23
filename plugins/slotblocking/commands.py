@@ -5,13 +5,13 @@ from copy import deepcopy
 from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError
 from discord.ext import commands
 from services import DCSServerBot
-from typing import Optional
+from typing import Optional, Type
 from .listener import SlotBlockingListener
 
 
 class SlotBlocking(Plugin):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: TEventListener):
+    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener=eventlistener)
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
@@ -51,8 +51,8 @@ class SlotBlocking(Plugin):
             if 'configs' in self.locals:
                 specific = default = None
                 for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
+                    if 'instance' in element or 'server_name' in element:
+                        if ('instance' in element and server.instance == element['instance']) or \
                                 ('server_name' in element and server.name == element['server_name']):
                             specific = deepcopy(element)
                     else:

@@ -5,7 +5,7 @@ import psycopg
 import random
 from contextlib import closing
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
-    DataObjectFactory, Member, PersistentReport, Channel
+    DataObjectFactory, Member, PersistentReport, Channel, command
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
@@ -63,7 +63,7 @@ class UserStatistics(Plugin):
             conn.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Userstats pruned.')
 
-    @app_commands.command(description='Deletes the statistics of a server')
+    @command(description='Deletes the statistics of a server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def reset_statistics(self, interaction: discord.Interaction,
@@ -93,7 +93,7 @@ class UserStatistics(Plugin):
             await interaction.response.send_message(
                 f'Please stop server "{server.display_name}" before deleting the statistics!', ephemeral=True)
 
-    @app_commands.command(description='Shows player statistics')
+    @command(description='Shows player statistics')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     @app_commands.describe(user='Name of player, member or UCID')
@@ -118,7 +118,7 @@ class UserStatistics(Plugin):
         report = PaginationReport(self.bot, interaction, self.plugin_name, file)
         await report.render(member=member or ucid, member_name=name, period=period, server_name=None, flt=flt)
 
-    @app_commands.command(description='Displays the top players of your server(s)')
+    @command(description='Displays the top players of your server(s)')
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
     async def highscore(self, interaction: discord.Interaction,
@@ -141,7 +141,7 @@ class UserStatistics(Plugin):
             if env.filename and os.path.exists(env.filename):
                 await asyncio.to_thread(os.remove, env.filename)
 
-    @app_commands.command(description="Links a member to a DCS user")
+    @command(description="Links a member to a DCS user")
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def link(self, interaction: discord.Interaction, member: discord.Member, ucid: str):
@@ -160,7 +160,7 @@ class UserStatistics(Plugin):
                 player.verified = True
                 break
 
-    @app_commands.command(description='Unlinks a member or ucid')
+    @command(description='Unlinks a member or ucid')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(user='Name of player, member or UCID')
@@ -227,7 +227,7 @@ class UserStatistics(Plugin):
         try:
             _member: Optional[Member] = None
             if isinstance(member, discord.Member):
-                _member = DataObjectFactory().new('Member', main=self.bot, member=member)
+                _member = DataObjectFactory().new('Member', member=member)
                 if len(_member.ucids):
                     await message.add_reaction('🔀')
                     if not _member.verified:
@@ -367,7 +367,7 @@ class UserStatistics(Plugin):
                     else:
                         await ctx.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked.")
 
-    @app_commands.command(description='Link your DCS and Discord user')
+    @command(description='Link your DCS and Discord user')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def linkme(self, interaction: discord.Interaction):
@@ -414,7 +414,7 @@ class UserStatistics(Plugin):
                             pass
             await send_token(token)
 
-    @app_commands.command(description='Shows inactive users')
+    @command(description='Shows inactive users')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def inactive(self, interaction: discord.Interaction, period: Literal['days', 'weeks', 'months', 'years'],
@@ -432,9 +432,9 @@ class UserStatistics(Plugin):
 
     @tasks.loop(hours=1)
     async def persistent_highscore(self):
-        def get_server_by_installation(installation: str) -> Optional[Server]:
+        def get_server_by_instance(instance: str) -> Optional[Server]:
             for server in self.bot.servers.values():
-                if server.installation == installation:
+                if server.instance == instance:
                     return server
             return None
 
@@ -452,11 +452,11 @@ class UserStatistics(Plugin):
             for config in self.locals['configs']:
                 if 'highscore' not in config:
                     continue
-                if "installation" in config:
-                    server = get_server_by_installation(config['installation'])
+                if "instance" in config:
+                    server = get_server_by_instance(config['instance'])
                     if not server:
                         self.log.debug(
-                            f"Server {config['installation']} is not (yet) registered, skipping highscore update.")
+                            f"Server {config['instance']} is not (yet) registered, skipping highscore update.")
                         return
                 else:
                     server = None
@@ -472,6 +472,44 @@ class UserStatistics(Plugin):
     @persistent_highscore.before_loop
     async def before_persistent_highscore(self):
         await self.bot.wait_until_ready()
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        self.bot.log.debug(f'Member {member.display_name} has left the discord')
+        ucid = self.bot.get_ucid_by_member(member)
+        if ucid and self.bot.config.getboolean('BOT', 'AUTOBAN'):
+            self.bot.log.debug(f'- Banning them on our DCS servers due to AUTOBAN')
+            for server in self.bot.servers.values():
+                server.ban(ucid, 'Player left discord.', 9999*86400)
+        if self.bot.config.getboolean('BOT', 'WIPE_STATS_ON_LEAVE'):
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    self.bot.log.debug(f'- Deleting their statistics due to WIPE_STATS_ON_LEAVE')
+                    conn.execute("""
+                        DELETE FROM statistics 
+                        WHERE player_ucid IN (
+                            SELECT ucid FROM players WHERE discord_id = %s
+                        )
+                        """, (member.id, ))
+
+    @commands.Cog.listener()
+    async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
+        self.bot.log.debug(f"Member {member.display_name} has been banned.")
+        ucid = self.bot.get_ucid_by_member(member)
+        if ucid:
+            for server in self.bot.servers.values():
+                server.ban(ucid, 'Banned on discord.', 9999*86400)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        self.bot.log.debug(f'Member {member.display_name} has joined guild {member.guild.name}')
+        ucid = self.bot.get_ucid_by_member(member)
+        if ucid:
+            for server in self.bot.servers.values():
+                server.unban(ucid)
+        if 'GREETING_DM' in self.bot.config['BOT']:
+            channel = await member.create_dm()
+            await channel.send(self.bot.config['BOT']['GREETING_DM'].format(name=member.name, guild=member.guild.name))
 
 
 async def setup(bot: DCSServerBot):

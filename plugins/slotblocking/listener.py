@@ -83,7 +83,7 @@ class SlotBlockingListener(EventListener):
                 player.audit('buy', old_points, 'Points taken for using a reserved module')
                 player.deposit = 0
             # if mission statistics are enabled, use BIRTH events instead
-            if player and not self.bot.config.getboolean(server.installation, 'MISSION_STATISTICS') and \
+            if player and not self.bot.config.getboolean(server.instance, 'MISSION_STATISTICS') and \
                     Side(data['side']) != Side.SPECTATOR:
                 # only pilots have to "pay" for their plane
                 if int(data['sub_slot']) == 0:

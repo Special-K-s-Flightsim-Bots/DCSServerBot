@@ -1,7 +1,7 @@
 {
   "color": "blue",
   "title": "Server Load ({period})",
-  "description": "Host: {agent_host}",
+  "description": "Host: {node}",
   "input": [
     {
       "name": "period",
@@ -17,8 +17,8 @@
   {
     "param":
     {
-      "name": "agent_host",
-      "sql": "SELECT DISTINCT agent_host FROM serverstats"
+      "name": "node",
+      "sql": "SELECT DISTINCT node FROM serverstats"
     }
   },
   "elements":

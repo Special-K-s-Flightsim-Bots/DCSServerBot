@@ -7,7 +7,7 @@ import shutil
 import xml
 import xmltodict
 from core.const import SAVED_GAMES
-from typing import Optional, List, Tuple
+from typing import Optional, Tuple
 from . import config
 from .. import utils
 
@@ -19,8 +19,8 @@ REGEXP = {
 PATCHNOTES_URL = 'https://www.digitalcombatsimulator.com/en/news/changelog/rss/'
 
 
-def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, str]]:
-    installations = []
+def findDCSInstances(server_name: Optional[str] = None) -> list[Tuple[str, str]]:
+    instances = []
     for dirname in os.listdir(SAVED_GAMES):
         if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):
             path = os.path.join(SAVED_GAMES, dirname, 'Config\\serverSettings.lua')
@@ -36,8 +36,8 @@ def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, s
                     if settings['name'] == server_name:
                         return [(server_name, dirname)]
                 else:
-                    installations.append((settings['name'], dirname))
-    return installations
+                    instances.append((settings['name'], dirname))
+    return instances
 
 
 def getInstalledVersion(path: str) -> Tuple[Optional[str], Optional[str]]:

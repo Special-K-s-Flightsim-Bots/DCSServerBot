@@ -20,6 +20,11 @@ class MizFile:
         with zipfile.ZipFile(self.filename, 'r') as miz:
             with miz.open('mission') as mission:
                 self.mission = luadata.unserialize(io.TextIOWrapper(mission, encoding='utf-8').read(), 'utf-8')
+            try:
+                with miz.open('options') as options:
+                    self.options = luadata.unserialize(io.TextIOWrapper(options, encoding='utf-8').read(), 'utf-8')
+            except FileNotFoundError:
+                pass
 
     def save(self):
         tmpfd, tmpname = tempfile.mkstemp(dir=os.path.dirname(self.filename))
@@ -28,11 +33,14 @@ class MizFile:
             with zipfile.ZipFile(tmpname, 'w') as zout:
                 zout.comment = zin.comment  # preserve the comment
                 for item in zin.infolist():
-                    if item.filename != 'mission':
-                        zout.writestr(item, zin.read(item.filename))
-                    else:
+                    if item.filename == 'mission':
                         zout.writestr(item, "mission = " + luadata.serialize(self.mission, 'utf-8', indent='\t',
                                                                              indent_level=0))
+                    elif item.filename == 'options':
+                        zout.writestr(item, "options = " + luadata.serialize(self.options, 'utf-8', indent='\t',
+                                                                             indent_level=0))
+                    else:
+                        zout.writestr(item, zin.read(item.filename))
         try:
             os.remove(self.filename)
             os.rename(tmpname, self.filename)
@@ -123,7 +131,7 @@ class MizFile:
 
     @property
     def clouds(self) -> dict:
-        return self.mission['weather']['clouds'] if 'clouds' in self.mission['weather'] else dict()
+        return self.mission['weather'].get('clouds', {})
 
     @clouds.setter
     def clouds(self, values: dict) -> None:
@@ -153,10 +161,7 @@ class MizFile:
 
     @property
     def halo(self) -> dict:
-        if 'halo' in self.mission['weather']:
-            return self.mission['weather']['halo']
-        else:
-            return {"preset": "off"}
+        return self.mission['weather'].get('halo', {"preset": "off"})
 
     @halo.setter
     def halo(self, values: dict):
@@ -180,9 +185,46 @@ class MizFile:
     @accidental_failures.setter
     def accidental_failures(self, value: bool) -> None:
         if value:
-            raise NotImplemented("Setting of accidental_failures is not implemented for now.")
-        if not self.mission['forcedOptions']:
+            raise NotImplemented("Setting of accidental_failures is not implemented.")
+        if not self.mission.get('forcedOptions'):
             self.mission['forcedOptions'] = {
                 'accidental_failures': value
             }
+        else:
+            self.mission['forcedOptions']['accidental_failures'] = value
         self.mission['failures'] = []
+
+    @property
+    def forcedOptions(self) -> dict:
+        return self.mission.get('forcedOptions', {})
+
+    @forcedOptions.setter
+    def forcedOptions(self, values: dict):
+        if 'accidental_failures' in values:
+            self.accidental_failures = values['accidental_failures']
+        if not self.mission.get('forcedOptions'):
+            self.mission['forcedOptions'] = values
+        else:
+            self.mission['forcedOptions'] |= values
+
+    @property
+    def miscellaneous(self) -> dict:
+        return self.options.get('miscellaneous', {})
+
+    @miscellaneous.setter
+    def miscellaneous(self, values: dict):
+        if not self.options.get('miscellaneous'):
+            self.options['miscellaneous'] = values
+        else:
+            self.options['miscellaneous'] |= values
+
+    @property
+    def difficulty(self) -> dict:
+        return self.options.get('difficulty', {})
+
+    @difficulty.setter
+    def difficulty(self, values: dict):
+        if not self.options.get('difficulty'):
+            self.options['difficulty'] = values
+        else:
+            self.options['difficulty'] |= values

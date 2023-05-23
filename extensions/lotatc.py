@@ -36,23 +36,18 @@ class LotAtc(Extension):
 
         exp = re.compile(r'(?P<key>.*) = (?P<value>.*)')
         cfg = dict()
-        installation = self.server.installation
-        if os.path.exists(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
-                          '/Mods/services/LotAtc/config.lua'):
-            with open(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
-                      '/Mods/services/LotAtc/config.lua', 'r') as file:
+        instance = self.server.instance
+        if os.path.exists(os.path.join(instance.home, 'Mods/services/LotAtc/config.lua')):
+            with open(os.path.join(instance.home, 'Mods/services/LotAtc/config.lua', 'r')) as file:
                 read_file(file, cfg)
-        if os.path.exists(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
-                          '/Mods/services/LotAtc/config.custom.lua'):
-            with open(os.path.expandvars(self.bot.config[installation]['DCS_HOME']) +
-                      '/Mods/services/LotAtc/config.custom.lua', 'r') as file:
+        if os.path.exists(os.path.join(instance.home, 'Mods/services/LotAtc/config.custom.lua')):
+            with open(os.path.join(instance.home, 'Mods/services/LotAtc/config.custom.lua', 'r')) as file:
                 read_file(file, cfg)
         return cfg
 
     @property
     def version(self) -> str:
-        installation = self.server.installation
-        path = os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + r'\Mods\services\LotAtc\bin\lotatc.dll'
+        path = os.path.join(self.server.instance.home, r'Mods\services\LotAtc\bin\lotatc.dll')
         if os.path.exists(path):
             info = win32api.GetFileVersionInfo(path, '\\')
             version = "%d.%d.%d" % (info['FileVersionMS'] / 65536,
@@ -64,7 +59,7 @@ class LotAtc(Extension):
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         if self.locals:
-            host = self.config.get('host', self.server.external_ip)
+            host = self.config.get('host', self.node.public_ip)
             value = f"{host}:{self.locals.get('port', 10310)}"
             show_passwords = self.config.get('show_passwords', True)
             blue = self.locals.get('blue_password', '')
@@ -76,11 +71,9 @@ class LotAtc(Extension):
     def is_installed(self) -> bool:
         global ports
 
-        if not os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
-                              '/Mods/services/LotAtc/bin/lotatc.dll'):
+        if not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/bin/lotatc.dll')):
             return False
-        if not os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
-                              '/Mods/services/LotAtc/config.lua'):
+        if not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/config.lua')):
             return False
         port = self.locals.get('port', 10310)
         if port in ports and ports[port] != self.server.name:
@@ -90,5 +83,5 @@ class LotAtc(Extension):
             ports[port] = self.server.name
         return True
 
-    async def shutdown(self, data: dict) -> bool:
+    async def shutdown(self) -> bool:
         return True

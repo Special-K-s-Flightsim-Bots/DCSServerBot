@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 def get_sides(interaction: discord.Interaction, server: Server) -> list[str]:
     sides = []
-    if config.getboolean(server.installation, 'COALITIONS'):
+    if 'coalitions' in server.locals:
         # TODO: cache that
         roles = {
             "All Blue": set(),
@@ -24,10 +24,10 @@ def get_sides(interaction: discord.Interaction, server: Server) -> list[str]:
         gm_roles = [x.strip() for x in config['ROLES']['GameMaster'].split(',')]
         # find all roles that are allowed to see red and blue
         for role in interaction.channel.guild.roles:
-            if role.name == config[server.installation]['Coalition Blue']:
+            if role.name == server.locals['coalitions']['blue']:
                 roles['Blue'] = role
                 roles['All Blue'].add(role.name)
-            elif role.name == config[server.installation]['Coalition Red']:
+            elif role.name == server.locals['coalitions']['red']:
                 roles['Red'] = role
                 roles['All Red'].add(role.name)
             elif role.name == config['ROLES']['DCS']:

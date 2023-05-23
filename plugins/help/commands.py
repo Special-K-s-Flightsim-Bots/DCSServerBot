@@ -1,6 +1,6 @@
 import discord
 import os
-from core import Plugin, Report, ReportEnv
+from core import Plugin, Report, ReportEnv, command, Command
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button
@@ -25,7 +25,7 @@ async def command_picker(interaction: discord.Interaction, current: str) -> list
             if current and current.casefold() not in command.name:
                 continue
             if not isinstance(command, discord.ext.commands.hybrid.HybridAppCommand) and \
-                    not isinstance(command, discord.app_commands.commands.Command):
+                    not isinstance(command, Command):
                 continue
             if await command._check_can_run(interaction):
                 ret.append(app_commands.Choice(name=command.name, value=command.name))
@@ -74,7 +74,7 @@ class Help(Plugin):
                     help_embed.add_field(name='Aliases', value=','.join([f'{self.prefix}{x}' for x in cmd.aliases]),
                                          inline=False)
             elif isinstance(cmd, discord.ext.commands.hybrid.HybridAppCommand) or \
-                    isinstance(cmd, discord.app_commands.commands.Command):
+                    isinstance(cmd, Command):
                 if not await cmd._check_can_run(interaction):
                     raise PermissionError()
                 usage = ' '.join([
@@ -169,7 +169,7 @@ class Help(Plugin):
             await interaction.response.defer()
             self.stop()
 
-    @app_commands.command(description='The help command')
+    @command(description='The help command')
     @app_commands.guild_only()
     async def help(self, interaction: discord.Interaction, command: Optional[str]):
         options = [

@@ -3,7 +3,7 @@ import asyncio
 import os
 import platform
 from install import Install
-from main import Main
+from node import Node
 
 
 if __name__ == "__main__":
@@ -20,7 +20,7 @@ if __name__ == "__main__":
         asyncio.set_event_loop_policy(
             asyncio.WindowsSelectorEventLoopPolicy()
         )
-        asyncio.run(Main().run())
+        asyncio.run(Node().run())
     except (KeyboardInterrupt, asyncio.CancelledError):
         exit(-1)
     except Exception as ex:

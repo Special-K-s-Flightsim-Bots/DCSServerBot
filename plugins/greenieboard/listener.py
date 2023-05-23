@@ -105,7 +105,7 @@ class GreenieBoardEventListener(EventListener):
         return grade
 
     def get_trapsheet(self, config: dict, server: Server, player: Player, data: dict) -> Optional[str]:
-        dirname = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'] + os.path.sep +
+        dirname = os.path.expandvars(server.locals['home'] + os.path.sep +
                                      config['Moose.AIRBOSS']['basedir'])
         carrier = data['place']['name'].split()[0]
         if 'trapsheet' not in data:
@@ -139,7 +139,7 @@ class GreenieBoardEventListener(EventListener):
             self.log.warning("Can't process FunkMan event as FunkMan is not configured in your greenieboard.json!")
             return
         if data['grade'] != 'WO':
-            filepath = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + \
+            filepath = os.path.expandvars(server.locals['home']) + \
                        os.path.sep + (config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')
             if not os.path.exists(filepath):
                 os.mkdir(filepath)

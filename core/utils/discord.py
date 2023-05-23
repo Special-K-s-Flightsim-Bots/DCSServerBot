@@ -11,7 +11,7 @@ from discord.app_commands import Choice, TransformerError
 from discord.ext import commands
 from discord.ui import Button, View, Select
 from pathlib import Path, PurePath
-from typing import Optional, cast, Union, TYPE_CHECKING, List
+from typing import Optional, cast, Union, TYPE_CHECKING
 from .helper import get_all_players, is_ucid
 
 from . import config
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from .. import Server, DCSServerBot, Player
 
 
-async def wait_for_single_reaction(bot: DCSServerBot, ctx: Union[commands.Context, discord.DMChannel],
+async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Interaction,
                                    message: discord.Message) -> discord.Reaction:
     def check_press(react: discord.Reaction, user: discord.Member):
         return (react.message.channel == message.channel) & (user == member) & (react.message.id == message.id)
@@ -30,7 +30,7 @@ async def wait_for_single_reaction(bot: DCSServerBot, ctx: Union[commands.Contex
         asyncio.create_task(bot.wait_for('reaction_remove', check=check_press))
     ]
     try:
-        member = ctx.message.author if isinstance(ctx, commands.Context) else ctx.recipient
+        member = interaction.user
         done, tasks = await asyncio.wait(tasks, timeout=120, return_when=asyncio.FIRST_COMPLETED)
         if len(done) > 0:
             react, _ = done.pop().result()
@@ -40,30 +40,6 @@ async def wait_for_single_reaction(bot: DCSServerBot, ctx: Union[commands.Contex
     finally:
         for task in tasks:
             task.cancel()
-
-
-async def input_multiline(bot: DCSServerBot, ctx: commands.Context, message: Optional[str] = None,
-                          delete: Optional[bool] = False, timeout: Optional[float] = 300.0) -> str:
-    def check(m):
-        return (m.channel == ctx.message.channel) & (m.author == ctx.message.author)
-
-    msgs: list[discord.Message] = list()
-    try:
-        if message:
-            msgs.append(await ctx.send(message))
-        response = await bot.wait_for('message', check=check, timeout=timeout)
-        if input:
-            msgs.append(response)
-        retval = ""
-        while response.content != '.':
-            retval += response.content + '\n'
-            msgs.append(response)
-            response = await bot.wait_for('message', check=check, timeout=timeout)
-        return retval
-    finally:
-        if delete:
-            for msg in msgs:
-                await msg.delete()
 
 
 async def input_value(bot: DCSServerBot, interaction: discord.Interaction, message: Optional[str] = None,
@@ -109,7 +85,7 @@ async def pagination(bot: DCSServerBot, interaction: discord.Interaction, data: 
                 await message.add_reaction('▶️')
                 wait = True
             if wait:
-                react = await wait_for_single_reaction(bot, ctx, message)
+                react = await wait_for_single_reaction(bot, interaction, message)
                 await message.delete()
                 if react.emoji == '◀️':
                     j -= 1
@@ -229,30 +205,6 @@ async def selection(interaction: discord.Interaction, *, title: Optional[str] = 
             await msg.delete()
 
 
-async def multi_selection_list(bot: DCSServerBot, ctx: commands.Context, data: list, embed_formatter) -> list[int]:
-    def check_ok(react: discord.Reaction, user: discord.Member):
-        return (react.message.channel == ctx.message.channel) & (user == ctx.message.author) & (react.emoji == '🆗')
-
-    retval = list[int]()
-    message = None
-    try:
-        embed = embed_formatter(data)
-        message = await ctx.send(embed=embed)
-        for i in range(0, len(data)):
-            await message.add_reaction(chr(0x31 + i) + '\u20E3')
-        await message.add_reaction('🆗')
-        await bot.wait_for('reaction_add', check=check_ok, timeout=120.0)
-        cache_msg = await ctx.fetch_message(message.id)
-        for react in cache_msg.reactions:
-            if (react.emoji != '🆗') and (react.count > 1):
-                if (len(react.emoji) > 1) and ord(react.emoji[0]) in range(0x30, 0x40):
-                    retval.append(ord(react.emoji[0]) - 0x31)
-    finally:
-        if message:
-            await message.delete()
-    return retval
-
-
 class YNQuestionView(View):
     def __init__(self):
         super().__init__(timeout=120)
@@ -317,7 +269,6 @@ async def populated_question(interaction: discord.Interaction, question: str, me
     if message is not None:
         embed.add_field(name=message, value='_ _')
     view = PopulatedQuestionView()
-    msg = None
     if interaction.response.is_done():
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
     else:
@@ -527,6 +478,9 @@ def get_interaction_param(interaction: discord.Interaction, name: str):
     for parameter in root:
         if parameter['name'] == name:
             return parameter['value']
+    if name == 'server':
+        return list(interaction.client.servers.keys())[0]
+    return None
 
 
 def get_all_linked_members(bot: DCSServerBot) -> list[discord.Member]:
@@ -549,7 +503,7 @@ class ServerTransformer(app_commands.Transformer):
             raise TransformerError(value, self.type, self)
         return server
 
-    async def autocomplete(self, interaction: Interaction, current: str) -> List[Choice[str]]:
+    async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
         server: Server = await interaction.client.get_server(interaction)
         if server and (not self.status or server.status in self.status):
             return [app_commands.Choice(name=server.name, value=server.name)]
@@ -587,14 +541,24 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+    if not server:
+        return []
     installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
     choices: list[app_commands.Choice[str]] = [
         app_commands.Choice(name=x.name[:-4], value=str(x))
-        for x in sorted(Path(PurePath(os.path.expandvars(interaction.client.config[server.installation]['DCS_HOME']),
+        for x in sorted(Path(PurePath(os.path.expandvars(server.locals['home']),
                                       "Missions")).glob("*.miz"))
         if str(x) not in installed_missions and current.casefold() in x.name.casefold()
     ]
     return choices[:25]
+
+
+async def nodes_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    return [
+        app_commands.Choice(name=x, value=x)
+        for x in interaction.client.node.get_active_nodes()
+        if current.casefold() in x.casefold()
+    ]
 
 
 class UserTransformer(app_commands.Transformer):
@@ -604,7 +568,7 @@ class UserTransformer(app_commands.Transformer):
         else:
             return interaction.client.guilds[0].get_member(int(value))
 
-    async def autocomplete(self, interaction: Interaction, current: str) -> List[Choice[str]]:
+    async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
         players = [
             app_commands.Choice(name='✈ ' + name, value=ucid)
             for idx, ucid, name in enumerate(get_all_players(interaction.client, name=current))
@@ -625,10 +589,10 @@ class PlayerTransformer(app_commands.Transformer):
         self.active = active
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Player:
-        server: Server = interaction.client.servers[interaction.data['options'][0]['value']]
+        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
         return server.get_player(ucid=value, active=True)
 
-    async def autocomplete(self, interaction: Interaction, current: str) -> List[Choice[str]]:
+    async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
         if self.active:
             server: Server = await ServerTransformer().transform(interaction,
                                                                  get_interaction_param(interaction, "server"))

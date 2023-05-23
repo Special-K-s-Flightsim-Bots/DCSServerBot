@@ -23,7 +23,7 @@ class SchedulerListener(EventListener):
         elif method.startswith('run:'):
             cmd = method[4:].strip()
             dcs_installation = path.normpath(path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']))
-            dcs_home = path.normpath(path.expandvars(self.bot.config[server.installation]['DCS_HOME']))
+            dcs_home = path.normpath(path.expandvars(server.locals['home']))
             cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home, server=server,
                                       config=self.bot.config)
             self.log.debug('Launching command: ' + cmd)
@@ -45,7 +45,7 @@ class SchedulerListener(EventListener):
                     for ext in server.extensions.values():
                         await ext.beforeMissionLoad()
                     if 'settings' in config['restart']:
-                        await self.plugin.change_mizfile(server, config)
+                        await server.modifyMission(config['restart']['settings'])
                     await server.start()
                 message = 'started DCS server'
                 if 'user' not in what:
@@ -57,7 +57,7 @@ class SchedulerListener(EventListener):
                     for ext in server.extensions.values():
                         await ext.beforeMissionLoad()
                     if 'settings' in config['restart']:
-                        await self.plugin.change_mizfile(server, config)
+                        await server.modifyMission(config['restart']['settings'])
                     await server.start()
                 else:
                     await server.current_mission.restart()
@@ -72,7 +72,7 @@ class SchedulerListener(EventListener):
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
                 if 'settings' in config['restart']:
-                    await self.plugin.change_mizfile(server, config)
+                    await server.modifyMission(config['restart']['settings'])
                 await server.start()
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
@@ -82,18 +82,11 @@ class SchedulerListener(EventListener):
             if 'user' not in what:
                 message = self.plugin_name.title() + ' ' + message
             await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
-        elif what['command'] == 'preset':
-            await server.stop()
-            for preset in what['preset']:
-                await self.plugin.change_mizfile(server, config, preset)
-            await server.start()
-            await self.bot.audit(f"changed preset to {what['preset']}", server=server, user=what['user'])
         server.restart_pending = False
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        config = self.plugin.get_config(server)
-        await self.plugin.init_extensions(server, config)
+        await server.init_extensions()
         for ext in server.extensions.values():
             if not ext.is_running():
                 await ext.startup()
@@ -105,6 +98,12 @@ class SchedulerListener(EventListener):
         if server.restart_pending:
             player: Player = server.get_player(id=data['id'])
             player.sendChatMessage("*** Mission is about to be restarted soon! ***")
+
+    @event(name="onPlayerChangeSlot")
+    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
+        if not server.is_populated() and server.on_empty:
+            self.bot.loop.call_soon(asyncio.create_task, self.process(server, server.on_empty.copy()))
+            server.on_empty.clear()
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
@@ -143,38 +142,13 @@ class SchedulerListener(EventListener):
     async def onSimulationStop(self, server: Server, data: dict) -> None:
         for ext in server.extensions.values():
             if ext.is_running():
-                await ext.shutdown(data)
+                await ext.shutdown()
 
     @event(name="onShutdown")
     async def onShutdown(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onShutdown' in config:
             await self.run(server, config['onShutdown'])
-
-    @chat_command(name="preset", aliases=["presets"], roles=['DCS Admin'], usage="<preset>",
-                  help="load a specific weather preset")
-    async def preset(self, server: Server, player: Player, params: list[str]):
-        config = self.plugin.get_config(server)
-        if config and 'presets' in config:
-            presets = list(config['presets'].keys())
-            if not params:
-                message = 'The following presets are available:\n'
-                for i in range(0, len(presets)):
-                    preset = presets[i]
-                    message += f"{i + 1} {preset}\n"
-                message += f"\nUse {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}preset <number> to load that preset " \
-                           f"(mission will be restarted!)"
-                player.sendUserMessage(message, 30)
-            else:
-                n = int(params[0]) - 1
-                self.bot.loop.call_soon(asyncio.create_task, self.process(server,
-                                                                          {
-                                                                               "command": "preset",
-                                                                               "preset": [presets[n]],
-                                                                               "user": player.member
-                                                                           }))
-        else:
-            player.sendChatMessage(f"There are no presets available to select.")
 
     @chat_command(name="maintenance", aliases=["maint"], roles=['DCS Admin'], help="enable maintenance mode")
     async def maintenance(self, server: Server, player: Player, params: list[str]):

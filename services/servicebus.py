@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 @ServiceRegistry.register("ServiceBus")
 class ServiceBus(Service):
 
-    def __init__(self, main):
-        super().__init__(main)
+    def __init__(self, node, name: str):
+        super().__init__(node, name)
         self.bot: Optional[DCSServerBot] = None
         self.version = self.config['BOT']['VERSION']
         self.eventListeners: list[EventListener] = []
@@ -43,12 +43,11 @@ class ServiceBus(Service):
         self.intercom.add_exception_type(psycopg.DatabaseError)
 
     async def start(self):
-        self.log.info('- ServiceBus starting ...')
         await super().start()
         # cleanup the intercom channels
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute("DELETE FROM intercom WHERE agent = %s", (self.agent, ))
+                conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
         self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
         await self.start_udp_listener()
         await self.init_servers()
@@ -57,10 +56,8 @@ class ServiceBus(Service):
             self.bot = ServiceRegistry.get("Bot").bot
             await self.bot.wait_until_ready()
         await self.register_servers()
-        self.log.info('- ServiceBus started.')
 
     async def stop(self):
-        self.log.info('Graceful shutdown ...')
         if self.udp_server:
             self.log.debug("- Processing unprocessed messages ...")
             await asyncio.to_thread(self.udp_server.shutdown)
@@ -72,11 +69,10 @@ class ServiceBus(Service):
         self.intercom.cancel()
         self.log.debug('- Intercom stopped.')
         await super().stop()
-        self.log.info("- ServiceBus stopped.")
 
     @property
     def master(self) -> bool:
-        return self.main.master
+        return self.node.master
 
     def register_eventListener(self, listener: EventListener):
         self.log.debug(f'- Registering EventListener {type(listener).__name__}')
@@ -87,65 +83,55 @@ class ServiceBus(Service):
         self.log.debug(f'- EventListener {type(listener).__name__} unregistered.')
 
     def install_luas(self):
-        self.log.info('- Configure DCS installations ...')
-        for server_name, installation in utils.findDCSInstallations():
-            if installation not in self.config or self.config[installation]['DCS_HOME'] == 'REMOTE':
-                continue
-            self.log.info(f'  => {installation}')
-            dcs_path = os.path.expandvars(self.config[installation]['DCS_HOME'] + '\\Scripts')
+        self.log.info('- Configure DCS instances ...')
+        for instance in self.node.instances:
+            self.log.info(f'  => {instance}')
+            dcs_path = os.path.join(instance.home, 'Scripts')
             if not os.path.exists(dcs_path):
                 os.mkdir(dcs_path)
             ignore = None
-            if os.path.exists(dcs_path + r'\net\DCSServerBot'):
+            bot_home = os.path.join(dcs_path, r'net\DCSServerBot')
+            if os.path.exists(bot_home):
                 self.log.debug('  - Updating Hooks ...')
-                shutil.rmtree(dcs_path + r'\net\DCSServerBot')
+                shutil.rmtree(bot_home)
                 ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
             else:
                 self.log.debug('  - Installing Hooks ...')
             shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
             try:
                 with open(r'Scripts/net/DCSServerBot/DCSServerBotConfig.lua.tmpl', 'r') as template:
-                    with open(dcs_path + r'\net\DCSServerBot\DCSServerBotConfig.lua', 'w') as outfile:
+                    with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), 'w') as outfile:
                         for line in template.readlines():
                             s = line.find('{')
                             e = line.find('}')
                             if s != -1 and e != -1 and (e - s) > 1:
                                 param = line[s + 1:e].split('.')
                                 if len(param) == 2:
-                                    if param[0] == 'BOT' and param[1] == 'HOST' and \
-                                            self.config[param[0]][param[1]] == '0.0.0.0':
-                                        line = line.replace('{' + '.'.join(param) + '}', '127.0.0.1')
-                                    else:
-                                        line = line.replace('{' + '.'.join(param) + '}',
-                                                            self.config[param[0]][param[1]])
+                                    line = line.replace('{' + '.'.join(param) + '}',
+                                                        self.config[param[0]][param[1]])
                                 elif len(param) == 1:
                                     line = line.replace('{' + '.'.join(param) + '}',
-                                                        self.config[installation][param[0]])
+                                                        self.config[instance.name][param[0]])
                             outfile.write(line)
             except KeyError as k:
                 self.log.error(
                     f'! Your dcsserverbot.ini contains errors. You must set a value for {k}. See README for help.')
                 raise k
-            self.log.debug(f"  - Installing Plugin luas into {installation} ...")
-            for plugin_name in self.main.plugins:
+            self.log.debug(f"  - Installing Plugin luas into {instance.name} ...")
+            for plugin_name in self.node.plugins:
                 source_path = f'./plugins/{plugin_name}/lua'
                 if os.path.exists(source_path):
-                    target_path = os.path.expandvars(self.config[installation]['DCS_HOME'] +
-                                                     f'\\Scripts\\net\\DCSServerBot\\{plugin_name}\\')
+                    target_path = os.path.join(bot_home, f'{plugin_name}')
                     copytree(source_path, target_path, dirs_exist_ok=True)
                     self.log.debug(f'    => Plugin {plugin_name.capitalize()} installed.')
-            self.log.debug('  - Luas installed into {}.'.format(installation))
+            self.log.debug(f'  - Luas installed into {instance.name}.')
 
     async def init_servers(self):
-        for server_name, installation in utils.findDCSInstallations():
-            if installation not in self.config:
-                continue
+        for instance in self.node.instances:
             server: ServerImpl = DataObjectFactory().new(
-                Server.__name__, main=self, name=server_name, installation=installation,
-                host=self.config[installation]['DCS_HOST'], port=self.config[installation]['DCS_PORT'],
-                external_ip=self.config['BOT'].get('PUBLIC_IP', await utils.get_external_ip())
-            )
-            self.servers[server_name] = server
+                Server.__name__, node=self.node, port=instance.bot_port, name=instance.configured_server)
+            instance.server = server
+            self.servers[server.name] = server
             # TODO: can be removed if bug in net.load_next_mission() is fixed
             if 'listLoop' not in server.settings or not server.settings['listLoop']:
                 server.settings['listLoop'] = True
@@ -153,13 +139,13 @@ class ServiceBus(Service):
     async def send_init(self, server: Server):
         self.sendtoBot({
             "command": "rpc",
-            "object": "Master",
+            "service": "ServiceBus",
             "method": "init_remote_server",
             "params": {
                 "server_name": server.name,
-                "external_ip": self.config['BOT'].get('PUBLIC_IP', await utils.get_external_ip()),
+                "public_ip": self.config['BOT'].get('PUBLIC_IP', await utils.get_external_ip()),
                 "status": Status.UNREGISTERED.value,
-                "installation": server.installation,
+                "instance": server.instance.name,
                 "settings": server.settings,
                 "options": server.options
             }
@@ -193,26 +179,20 @@ class ServiceBus(Service):
             self.log.info('- No running local servers found.')
 
     def register_server(self, data: dict) -> bool:
-        installations = utils.findDCSInstallations(data['server_name'])
-        if len(installations) == 0:
-            self.log.error(f"No server {data['server_name']} found in any serverSettings.lua.\n"
-                           f"Please check your server configurations!")
-            return False
-        _, installation = installations[0]
-        if installation not in self.config:
-            self.log.error(f"No section found for server {data['server_name']} in your dcsserverbot.ini.\n"
-                           f"Please add a configuration for it!")
-            return False
-        self.log.debug(f"  => Registering DCS-Server \"{data['server_name']}\"")
+        server_name = data['server_name']
         # check for protocol incompatibilities
         if data['hook_version'] != self.version:
-            self.log.error('Server \"{}\" has wrong Hook version installed. Please update lua files and restart '
-                           'server. Registration ignored.'.format(data['server_name']))
+            self.log.error(f'Server "{server_name}" has wrong Hook version installed. '
+                           f'Please restart your DCS server. Registration aborted.')
             return False
-        server: ServerImpl = cast(ServerImpl, self.servers[data['server_name']])
+        if server_name not in self.servers:
+            self.log.error(f"Server {server_name} is not configured. Registration aborted.")
+            return False
+        self.log.debug(f'  => Registering DCS-Server "{server_name}"')
+        server: ServerImpl = cast(ServerImpl, self.servers[server_name])
         # set the PID
         for exe in ['DCS_server.exe', 'DCS.exe']:
-            server.process = utils.find_process(exe, server.installation)
+            server.process = utils.find_process(exe, server.instance.name)
             if server.process:
                 break
         server.dcs_version = data['dcs_version']
@@ -235,7 +215,7 @@ class ServiceBus(Service):
                 return False
             else:
                 dcs_ports[dcs_port] = server.name
-            autoexec = Autoexec(bot=self, installation=server.installation)
+            autoexec = Autoexec(server.instance)
             webgui_port = autoexec.webgui_port or 8088
             if webgui_port in webgui_ports:
                 self.log.error(f'Server "{server.name}" shares its webgui_port with server '
@@ -248,6 +228,7 @@ class ServiceBus(Service):
                 if server.settings['advanced'].get('voice_chat_server', False):
                     self.log.error(f'Server "{server.name}" shares its webrtc_port port with server '
                                    f'"{webrtc_ports[webrtc_port]}"! Registration aborted.')
+                    return False
                 else:
                     self.log.warning(f'Server "{server.name}" shares its webrtc_port port with server '
                                      f'"{webrtc_ports[webrtc_port]}", but voice chat is disabled.')
@@ -257,35 +238,33 @@ class ServiceBus(Service):
         # update the database and check for server name changes
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT server_name FROM servers WHERE agent_host=%s AND host=%s AND port=%s',
-                               (platform.node(), data['host'], data['port']))
+                cursor.execute('SELECT server_name FROM servers WHERE node=%s AND port=%s',
+                               (platform.node(), data['port']))
                 if cursor.rowcount == 1:
-                    server_name = cursor.fetchone()[0]
-                    if server_name != data['server_name']:
-                        if len(utils.findDCSInstallations(server_name)) == 0:
-                            self.log.info(f"Auto-renaming server \"{server_name}\" to \"{data['server_name']}\"")
-                            server.rename(data['server_name'])
+                    _server_name = cursor.fetchone()[0]
+                    if _server_name != server_name:
+                        if utils.findDCSInstances(_server_name) and not self.servers.get(_server_name):
+                            self.log.info(f'Auto-renaming server "{_server_name}" to "{server_name}"')
+                            server.rename(server_name)
                             if server_name in self.servers:
-                                del self.servers[server_name]
+                                del self.servers[_server_name]
                         else:
-                            self.log.warning(
-                                f"Registration of server \"{data['server_name']}\" aborted due to UDP port conflict.")
-                            del self.servers[data['server_name']]
+                            self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
+                            del self.servers[server_name]
                             return False
-        self.log.info(f"  => Local DCS-Server \"{data['server_name']}\" registered.")
+        self.log.info(f'  => Local DCS-Server "{server_name}" registered.')
         return True
 
-    def init_remote_server(self, server_name: str, external_ip: str, status: str, installation: str, settings: dict,
-                           options: dict, agent: str) -> ServerProxy:
+    def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
+                           options: dict, node: str) -> ServerProxy:
         proxy = self.servers.get(server_name)
         if not proxy:
             proxy = ServerProxy(
-                main=self,
-                name=server_name,
-                installation=installation,
-                host=agent,
+                node=node,
                 port=-1,
-                external_ip=external_ip
+                name=server_name,
+                instance=instance,
+                bus=self
             )
             self.servers[server_name] = proxy
             proxy.settings = settings
@@ -296,36 +275,33 @@ class ServiceBus(Service):
                 self.executor.submit(self.udp_server.process, proxy)
         else:
             # IP might have changed, so update it
-            proxy.external_ip = external_ip
+            proxy.public_ip = public_ip
         proxy.status = Status(status)
         return proxy
 
-    def sendtoBot(self, data: dict, agent: Optional[str] = None):
+    def sendtoBot(self, data: dict, node: Optional[str] = None):
         if self.master:
-            if agent and agent != platform.node():
-                self.log.debug('MASTER->{}: {}'.format(agent, json.dumps(data)))
+            if node and node != platform.node():
+                self.log.debug('MASTER->{}: {}'.format(node, json.dumps(data)))
                 with self.pool.connection() as conn:
                     with conn.transaction():
-                        conn.execute("INSERT INTO intercom (agent, data) VALUES (%s, %s)", (agent, Json(data)))
+                        conn.execute("INSERT INTO intercom (node, data) VALUES (%s, %s)", (node, Json(data)))
             else:
                 self.udp_server.message_queue[data['server_name']].put(data)
         else:
-            data['agent'] = self.agent
+            data['node'] = self.node.name
             with self.pool.connection() as conn:
                 with conn.pipeline():
                     with conn.transaction():
-                        conn.execute("INSERT INTO intercom (agent, data) VALUES ('Master', %s)", (Json(data),))
-                        self.log.debug(f"{self.agent}->MASTER: {json.dumps(data)}")
+                        conn.execute("INSERT INTO intercom (node, data) VALUES ('Master', %s)", (Json(data),))
+                        self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
 
     async def handle_master(self, data: dict):
-        self.log.debug(f"{data['agent']}->MASTER: {json.dumps(data)}")
+        self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
         if data['command'] == 'rpc':
-            if data.get('object') == 'Bot':
-                obj = self.bot
-            elif data.get('object') == 'Master':
-                obj = self
-            else:
-                self.log.warning('RPC command received for unknown object.')
+            obj = ServiceRegistry.get(data['service'])
+            if not obj:
+                self.log.warning('RPC command received for unknown object/service.')
                 return
             rc = await self.rpc(obj, data)
             if rc:
@@ -335,14 +311,14 @@ class ServiceBus(Service):
             self.udp_server.message_queue[data['server_name']].put(data)
 
     async def handle_agent(self, data: dict):
-        self.log.debug(f"MASTER->HOST: {json.dumps(data)}")
+        self.log.debug(f"MASTER->{data['node']}: {json.dumps(data)}")
         if data['command'] == 'rpc':
             if data.get('object') == 'Server':
                 obj = self.servers[data['server_name']]
-            elif data.get('object') == 'Agent':
-                obj = self
             else:
-                self.log.warning('RPC command received for unknown object.')
+                obj = ServiceRegistry.get(data['service'])
+            if not obj:
+                self.log.warning('RPC command received for unknown object/service.')
                 return
             rc = await self.rpc(obj, data)
             if rc:
@@ -363,7 +339,7 @@ class ServiceBus(Service):
             with conn.pipeline():
                 with conn.transaction():
                     with closing(conn.cursor()) as cursor:
-                        for row in cursor.execute("SELECT id, data FROM intercom WHERE agent = %s",
+                        for row in cursor.execute("SELECT id, data FROM intercom WHERE node = %s",
                                                   ("Master" if self.master else platform.node(), )).fetchall():
                             data = row[1]
                             if sys.getsizeof(data) > 8 * 1024:
@@ -383,7 +359,7 @@ class ServiceBus(Service):
         if not func:
             return
         kwargs = data.get('params', {})
-        kwargs['agent'] = data.get('agent', platform.node())
+        kwargs['node'] = data.get('node', platform.node())
         if asyncio.iscoroutinefunction(func):
             rc = await func(**kwargs) if kwargs else await func()
         else:
@@ -442,7 +418,7 @@ class ServiceBus(Service):
                                     server.status = Status.PAUSED
                                 else:
                                     server.status = Status.RUNNING
-                                self.log.info(f"  => DCS-Server \"{server.name}\" from Agent {server.host} registered.")
+                                self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node} registered.")
                         elif server.status == Status.UNREGISTERED:
                             self.log.debug(
                                 f"Command {command} for unregistered server {server.name} received, ignoring.")

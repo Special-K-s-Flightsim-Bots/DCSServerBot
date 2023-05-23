@@ -2,12 +2,12 @@ import discord
 import json
 import os
 from contextlib import closing
-from core import Plugin, TEventListener, utils
+from core import Plugin, TEventListener, utils, command
 from discord import app_commands
 from discord.ext import tasks
 from os import path
 from services import DCSServerBot
-from typing import Type, List
+from typing import Type
 
 
 class DBExporter(Plugin):
@@ -26,7 +26,7 @@ class DBExporter(Plugin):
             self.schedule.cancel()
         await super().cog_unload()
 
-    def do_export(self, table_filter: List[str]):
+    def do_export(self, table_filter: list[str]):
         with self.pool.connection() as conn:
             with conn.pipeline():
                 with closing(conn.cursor()) as cursor:
@@ -40,7 +40,7 @@ class DBExporter(Plugin):
                             with open(f'export/{table}.json', 'w') as file:
                                 file.writelines([json.dumps(x[0]) + '\n' for x in cursor.fetchall()])
 
-    @app_commands.command(description='Exports database tables as json.')
+    @command(description='Exports database tables as json.')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def export(self, interaction: discord.Interaction):

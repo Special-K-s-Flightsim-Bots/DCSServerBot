@@ -1,7 +1,7 @@
 import discord
 import json
 from core import Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
-    PluginInstallationError
+    PluginInstallationError, command
 from discord import app_commands
 from discord.ext import tasks
 from os import path
@@ -35,8 +35,8 @@ class MessageOfTheDay(Plugin):
         }
         for oldc in old['configs']:
             newc = dict()
-            if 'installation' in oldc:
-                newc['installation'] = oldc['installation']
+            if 'instance' in oldc:
+                newc['instance'] = oldc['instance']
             if 'on_event' in oldc:
                 event = 'on_' + oldc['on_event']
                 newc[event] = dict()
@@ -85,7 +85,7 @@ class MessageOfTheDay(Plugin):
             recp.append(player)
         return recp
 
-    @app_commands.command(description='Test MOTD')
+    @command(description='Test MOTD')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin'])
     async def motd(self, interaction: discord.Interaction,

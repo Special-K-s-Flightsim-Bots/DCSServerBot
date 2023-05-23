@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import discord
+import shlex
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
     Channel, DataObjectFactory, event, chat_command
 from datetime import datetime
@@ -98,7 +99,7 @@ class MissionEventListener(EventListener):
         for server_name, update in self.player_embeds.items():
             if update:
                 server = self.bot.servers[server_name]
-                if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+                if not server.locals.get('coalitions'):
                     report = PersistentReport(self.bot, self.plugin_name, 'players.json', embed_name='players_embed',
                                               server=server)
                     await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
@@ -129,7 +130,7 @@ class MissionEventListener(EventListener):
             channel_id = server.get_channel(Channel.CHAT)
         channel = self.bot.get_channel(channel_id)
         if channel:
-            await channel.send(data['message'])
+            await channel.send("```" + data['message'] + "```")
 
     @event(name="sendEmbed")
     async def sendEmbed(self, server: Server, data: dict) -> None:
@@ -179,7 +180,7 @@ class MissionEventListener(EventListener):
         # the server was started already, but the bot wasn't
         if not server.current_mission:
             server.current_mission = DataObjectFactory().new(
-                Mission.__name__, main=self.bot, server=server, map=data['current_map'], name=data['current_mission'])
+                Mission.__name__, node=server.node, server=server, map=data['current_map'], name=data['current_mission'])
 
         if 'players' not in data:
             data['players'] = []
@@ -192,7 +193,7 @@ class MissionEventListener(EventListener):
             if p['id'] == 1:
                 continue
             player: Player = DataObjectFactory().new(
-                Player.__name__, main=self.bot, server=server, id=p['id'], name=p['name'], active=p['active'],
+                Player.__name__, node=server.node, server=server, id=p['id'], name=p['name'], active=p['active'],
                 side=Side(p['side']), ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
                 unit_callsign=p['unit_callsign'], unit_name=p['unit_name'], unit_type=p['unit_type'],
                 group_id=p['group_id'], group_name=p['group_name'], banned=False)
@@ -207,7 +208,7 @@ class MissionEventListener(EventListener):
         server.status = Status.LOADING
         if not server.current_mission:
             server.current_mission = DataObjectFactory().new(
-                Mission.__name__, main=self.bot.bus, server=server, map=data['current_map'],
+                Mission.__name__, node=server.node, server=server, map=data['current_map'],
                 name=data['current_mission'])
         server.current_mission.update(data)
         server.players = dict[int, Player]()
@@ -248,7 +249,7 @@ class MissionEventListener(EventListener):
         player: Player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
             player: Player = DataObjectFactory().new(
-                Player.__name__, main=self.bot, server=server, id=data['id'], name=data['name'], active=data['active'],
+                Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'], active=data['active'],
                 side=Side(data['side']), ucid=data['ucid'], banned=False)
             server.add_player(player)
         else:
@@ -262,7 +263,7 @@ class MissionEventListener(EventListener):
         # unlikely, but can happen if the bot was restarted during a mission restart
         if not player:
             player = DataObjectFactory().new(
-                Player.__name__, main=self.bot, server=server, id=data['id'], name=data['name'], active=data['active'],
+                Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'], active=data['active'],
                 side=Side(data['side']), ucid=data['ucid'], banned=False)
             server.add_player(player)
         else:
@@ -424,3 +425,106 @@ class MissionEventListener(EventListener):
     @chat_command(name="load", roles=['DCS Admin'], usage="<number>", help="load a specific mission")
     async def load(self, server: Server, player: Player, params: list[str]):
         self.bot.loop.call_soon(asyncio.create_task, server.loadMission(params[0]))
+
+    @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 30 days")
+    async def ban(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(
+                f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}kick <name> [reason]")
+            return
+        params = shlex.split(' '.join(params))
+        name = params[0]
+        if len(params) > 1:
+            reason = ' '.join(params[1:])
+        else:
+            reason = 'n/a'
+        delinquent: Player = server.get_player(name=name, active=True)
+        if not delinquent:
+            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
+            return
+        server.ban(delinquent.ucid, reason)
+        player.sendChatMessage(f"User {name} banned for 30 days.")
+        await self.bot.audit(f'Player {delinquent.display_name} banned for 30 days' +
+                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                             user=player.member)
+
+    @chat_command(name="kick", roles=['DCS Admin'], usage="<name> [reason]", help="kick a user")
+    async def kick(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(
+                f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}kick <name> [reason]")
+            return
+        params = shlex.split(' '.join(params))
+        name = params[0]
+        if len(params) > 1:
+            reason = ' '.join(params[1:])
+        else:
+            reason = 'n/a'
+        delinquent: Player = server.get_player(name=name, active=True)
+        if not delinquent:
+            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
+            return
+        server.kick(delinquent, reason)
+        player.sendChatMessage(f"User {name} kicked.")
+        await self.bot.audit(f'Player {delinquent.display_name} kicked' +
+                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                             user=player.member)
+
+    @chat_command(name="spec", roles=['DCS Admin'], usage="<name> [reason]", help="moves a user to spectators")
+    async def spec(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(
+                f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}spec <name> [reason]")
+            return
+        params = shlex.split(' '.join(params))
+        name = params[0]
+        if len(params) > 1:
+            reason = ' '.join(params[1:])
+        else:
+            reason = 'n/a'
+        delinquent: Player = server.get_player(name=name, active=True)
+        if not delinquent:
+            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
+            return
+        server.move_to_spectators(delinquent, reason)
+        player.sendChatMessage(f"User {name} moved to spectators.")
+        await self.bot.audit(f'Player {delinquent.display_name} moved to spectators' +
+                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                             user=player.member)
+
+    @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
+    async def call911(self, server: Server, player: Player, params: list[str]):
+        mentions = ''
+        for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
+            role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
+            if role:
+                mentions += role.mention
+        message = ' '.join(params)
+        await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
+            mentions + f" 911 call from player {player.name} (ucid={player.ucid}):```{message}```")
+
+    @chat_command(name="preset", aliases=["presets"], roles=['DCS Admin'], usage="<preset>",
+                  help="load a specific weather preset")
+    async def preset(self, server: Server, player: Player, params: list[str]):
+        async def change_preset(preset: str):
+            await server.stop()
+            await server.modifyMission([preset])
+            await server.start()
+            await self.bot.audit(f"changed preset to {preset}", server=server, user=player.ucid)
+
+        config = self.plugin.get_config(server)
+        if config and 'presets' in config:
+            presets = list(config['presets'].keys())
+            if not params:
+                message = 'The following presets are available:\n'
+                for i in range(0, len(presets)):
+                    preset = presets[i]
+                    message += f"{i + 1} {preset}\n"
+                message += f"\nUse {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}preset <number> to load that preset " \
+                           f"(mission will be restarted!)"
+                player.sendUserMessage(message, 30)
+            else:
+                n = int(params[0]) - 1
+                self.bot.loop.call_soon(asyncio.create_task, change_preset, presets[n])
+        else:
+            player.sendChatMessage(f"There are no presets available to select.")

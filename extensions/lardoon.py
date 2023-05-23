@@ -1,6 +1,6 @@
 import os
 import subprocess
-from core import Extension, report, DCSServerBot, Server
+from core import Extension, report, Server
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -13,12 +13,8 @@ imports: set[str] = set()
 
 class Lardoon(Extension):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
-        super().__init__(bot, server, config)
-        self.bot = bot
-        self.log = bot.log
-        self.server = server
-        self.config = config
+    def __init__(self, server: Server, config: dict):
+        super().__init__(server, config)
         self._import: Optional[subprocess.Popen] = None
 
     async def startup(self) -> bool:
@@ -38,14 +34,14 @@ class Lardoon(Extension):
             servers.add(self.server.name)
         return self.is_running()
 
-    async def shutdown(self, data: dict) -> bool:
+    async def shutdown(self) -> bool:
         global process, servers
 
         servers.remove(self.server.name)
-        if process and not servers:
+        if process is not None and not servers:
             process.kill()
             process = None
-            return await super().shutdown(data)
+            return await super().shutdown()
         else:
             return True
 

@@ -8,7 +8,7 @@ import shutil
 import zipfile
 
 from contextlib import closing, suppress
-from core import Status, Plugin, PluginConfigurationError, utils, Server, PluginInstallationError
+from core import Status, Plugin, PluginConfigurationError, utils, Server, PluginInstallationError, command
 from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 from psycopg.rows import dict_row
@@ -131,14 +131,14 @@ class OvGME(Plugin):
     async def install_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
-        os.makedirs(os.path.join(path, '.' + server.installation), exist_ok=True)
+        os.makedirs(os.path.join(path, '.' + server.instance), exist_ok=True)
         target = os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) if folder == 'RootFolder' else \
-            os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
+            os.path.expandvars(server.locals['home'])
         for file in os.listdir(path):
             filename = os.path.join(path, file)
             if (os.path.isfile(filename) and file == package_name + '_v' + version + '.zip') or \
                     (os.path.isdir(filename) and file == package_name + '_v' + version):
-                ovgme_path = os.path.join(path, '.' + server.installation, package_name + '_v' + version)
+                ovgme_path = os.path.join(path, '.' + server.instance, package_name + '_v' + version)
                 os.makedirs(ovgme_path, exist_ok=True)
                 if os.path.isfile(filename) and file == package_name + '_v' + version + '.zip':
                     with open(os.path.join(ovgme_path, 'install.log'), 'w') as log:
@@ -179,9 +179,9 @@ class OvGME(Plugin):
     async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
-        ovgme_path = os.path.join(path, '.' + server.installation, package_name + '_v' + version)
+        ovgme_path = os.path.join(path, '.' + server.instance, package_name + '_v' + version)
         target = os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) if folder == 'RootFolder' else \
-            os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
+            os.path.expandvars(server.locals['home'])
         if not os.path.exists(os.path.join(ovgme_path, 'install.log')):
             return False
         with open(os.path.join(ovgme_path, 'install.log')) as log:
@@ -245,7 +245,7 @@ class OvGME(Plugin):
                         """, (server.name, folder)).fetchall()
                 ]
 
-    @app_commands.command(description='Display installed packages')
+    @command(description='Display installed packages')
     @app_commands.guild_only()
     @utils.app_has_roles(['Admin'])
     async def packages(self, interaction: discord.Interaction,

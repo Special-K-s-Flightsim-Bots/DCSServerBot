@@ -22,7 +22,7 @@
 		]
 	},
 	{
-		"installation": "DCS.openbeta_server",
+		"instance": "DCS.openbeta_server",
 		"penalties": [
 			{ "event": "kill", "reason": "Killing a team member", "human": 30, "AI": 18, "action": "move_to_spec" },
 			{ "event": "collision_kill", "reason": "Killing a team member during a collision", "human": 20, "AI": 12 },
@@ -35,7 +35,7 @@
 		"forgive": 30
     },
 	{
-		"installation": "instance2",
+		"instance": "instance2",
 		"penalties": [
 			{ "event": "kill", "reason": "Killing a team member", "human": 30, "AI": 18 },
 			{ "event": "collision_kill", "reason": "Killing a team member during a collision", "human": 20, "AI": 12 },

@@ -2,16 +2,15 @@ import asyncio
 import discord
 import json
 import os
-import platform
 from copy import deepcopy
 from core import Plugin, PluginRequiredError, utils, Status, Autoexec, Extension, Server, Coalition, Channel, \
-    TEventListener
+    TEventListener, Group
 from datetime import datetime, timedelta
 from discord import app_commands
-from discord.ext import tasks, commands
+from discord.ext import tasks
 from discord.ui import Modal, TextInput
 from services import DCSServerBot
-from typing import Type, Optional, List, Literal
+from typing import Type, Optional, Literal
 
 from .listener import SchedulerListener
 from .views import ConfigView
@@ -35,8 +34,8 @@ class Scheduler(Plugin):
         file = 'config/scheduler.json'
         if not os.path.exists(file):
             configs = []
-            for _, installation in utils.findDCSInstallations():
-                configs.append({"installation": installation})
+            for instance in self.bus.node.instances:
+                configs.append({"instance": instance.name})
             cfg = {"configs": configs}
             with open(file, 'w') as f:
                 json.dump(cfg, f, indent=2)
@@ -49,21 +48,21 @@ class Scheduler(Plugin):
                         cfg['presets'] = json.load(file)
             return configs
 
+    # TODO: Autoexec needs server
     async def install(self):
         await super().install()
-        for _, installation in utils.findDCSInstallations():
-            if installation in self.bot.config:
-                try:
-                    cfg = Autoexec(bot=self.bot, installation=installation)
-                    if cfg.crash_report_mode is None:
-                        self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
-                        cfg.crash_report_mode = 'silent'
-                    elif cfg.crash_report_mode != 'silent':
-                        self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! The Scheduler '
-                                         'will not work properly on DCS crashes, please change it manually to "silent" '
-                                         'to avoid that.')
-                except Exception as ex:
-                    self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
+        for instance in self.bot.node.instances:
+            try:
+                cfg = Autoexec(instance)
+                if cfg.crash_report_mode is None:
+                    self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
+                    cfg.crash_report_mode = 'silent'
+                elif cfg.crash_report_mode != 'silent':
+                    self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! The Scheduler '
+                                     'will not work properly on DCS crashes, please change it manually to "silent" '
+                                     'to avoid that.')
+            except Exception as ex:
+                self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
     def migrate(self, version: str):
         dirty = False
@@ -115,8 +114,8 @@ class Scheduler(Plugin):
             if 'configs' in self.locals:
                 specific = default = None
                 for element in self.locals['configs']:  # type: dict
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
+                    if 'instance' in element or 'server_name' in element:
+                        if ('instance' in element and server.instance == element['instance']) or \
                                 ('server_name' in element and server.name == element['server_name']):
                             specific = deepcopy(element)
                     else:
@@ -162,25 +161,7 @@ class Scheduler(Plugin):
                     return Status.SHUTDOWN
         return server.status
 
-    async def init_extensions(self, server: Server, config: dict):
-        if 'extensions' not in config:
-            return
-        for extension in config['extensions']:
-            ext: Extension = server.extensions.get(extension)
-            if not ext:
-                if '.' not in extension:
-                    ext = utils.str_to_class('extensions.' + extension)(self.bot, server,
-                                                                        config['extensions'][extension])
-                else:
-                    ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
-                if ext.is_installed():
-                    server.extensions[extension] = ext
-
     async def launch_dcs(self, server: Server, config: dict, member: Optional[discord.Member] = None):
-        await self.init_extensions(server, config)
-        for ext in sorted(server.extensions):
-            await server.extensions[ext].prepare()
-            await server.extensions[ext].beforeMissionLoad()
         self.log.info(f"  => DCS server \"{server.name}\" starting up ...")
         await server.startup()
         if not member:
@@ -193,7 +174,7 @@ class Scheduler(Plugin):
             await self.bot.audit(f"started DCS server", user=member, server=server)
 
     @staticmethod
-    def get_warn_times(config: dict) -> List[int]:
+    def get_warn_times(config: dict) -> list[int]:
         if 'warn' in config and 'times' in config['warn']:
             return config['warn']['times']
         return []
@@ -389,7 +370,7 @@ class Scheduler(Plugin):
                 except Exception as ex:
                     self.log.exception(ex)
 
-    group = app_commands.Group(name="server", description="Commands to manage a DCS server")
+    group = Group(name="server", description="Commands to manage a DCS server")
 
     @group.command(description='Starts a DCS/DCS-SRS server')
     @utils.app_has_role('DCS Admin')
@@ -411,8 +392,8 @@ class Scheduler(Plugin):
                 return
         if server.status == Status.SHUTDOWN:
             await interaction.response.defer(ephemeral=True)
-            await interaction.followup.send(f"Starting DCS server \"{server.display_name}\", please wait ...",
-                                            ephemeral=True)
+            msg = await interaction.followup.send(f"Starting DCS server \"{server.display_name}\", please wait ...",
+                                                  ephemeral=True)
             # set maintenance flag to prevent auto-stops of this server
             server.maintenance = True
             try:
@@ -424,6 +405,8 @@ class Scheduler(Plugin):
                 await interaction.followup.send(f"Timeout while launching DCS server \"{server.display_name}\".\n"
                                                 f"The server might be running anyway, check with /status.",
                                                 ephemeral=True)
+            finally:
+                await msg.delete()
 
     @group.command(description='Shutdown a DCS/DCS-SRS server')
     @utils.app_has_role('DCS Admin')
@@ -595,7 +578,7 @@ class Scheduler(Plugin):
 
     @group.command(description='Change the configuration of a DCS server')
     @app_commands.guild_only()
-    @utils.has_role('DCS Admin')
+    @utils.app_has_role('DCS Admin')
     async def config(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer]):
         if server.status in [Status.RUNNING, Status.PAUSED]:
@@ -618,60 +601,29 @@ class Scheduler(Plugin):
         finally:
             await msg.delete()
 
-    # TODO: move to mission?
-    @commands.command(description='Reset a mission')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def reset(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            stopped = False
-            if server.status in [Status.RUNNING, Status.PAUSED]:
-                if not await utils.yn_question(ctx, 'Do you want me to stop the server to reset the mission?'):
-                    await ctx.send('Aborted.')
-                    return
-                stopped = True
-                await server.stop()
-            elif not await utils.yn_question(ctx, 'Do you want to reset the mission?'):
-                await ctx.send('Aborted.')
-                return
-            config = self.get_config(server)
-            if 'reset' not in config:
-                await ctx.send(f"No \"reset\" parameter found for server {server.display_name}.")
-                return
-            reset = config['reset']
-            if isinstance(reset, list):
-                for cmd in reset:
-                    self.eventlistener.run(server, cmd)
-            elif isinstance(reset, str):
-                self.eventlistener.run(server, reset)
-            else:
-                await ctx.send('Incorrect format of "reset" parameter in scheduler.json')
-            if stopped:
-                await server.start()
-                await ctx.send('Mission reset, server restarted.')
-            else:
-                await ctx.send('Mission reset.')
+    @staticmethod
+    def _format_bans(rows: dict):
+        embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
+        ucids = names = until = ''
+        for ban in rows:
+            names += utils.escape_string(ban['name']) + '\n'
+            ucids += ban['ucid'] + '\n'
+            until += f"<t:{ban['banned_until']}:R>\n"
+        embed.add_field(name='UCID', value=ucids)
+        embed.add_field(name='Name', value=names)
+        embed.add_field(name='Until', value=until)
+        return embed
 
-    # TODO: move to node?
-    @commands.hybrid_command(description='Status of the DCS-servers')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def status(self, ctx):
-        embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
-        names = []
-        status = []
-        nodes = []
-        for server in self.bot.servers.values():
-            names.append(server.display_name)
-            status.append(server.status.name.title())
-            nodes.append(platform.node() if not server.is_remote else server.host)
-        if len(names):
-            embed.add_field(name='Server', value='\n'.join(names))
-            embed.add_field(name='Status', value='\n'.join(status))
-            embed.add_field(name='Node', value='\n'.join(nodes))
-            embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
-            await ctx.send(embed=embed)
+    @group.command(description='Shows active bans')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def bans(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer]):
+        bans = await server.bans()
+        if not bans:
+            await interaction.response.send_message('No player is banned on this server.')
+        else:
+            await utils.pagination(self.bot, interaction, bans, self._format_bans, 20)
 
 
 async def setup(bot: DCSServerBot):

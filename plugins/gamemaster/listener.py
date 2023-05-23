@@ -21,27 +21,26 @@ class GameMasterEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        if self.bot.config.getboolean(server.installation, 'CHAT_LOG') and server.installation not in self.chat_log:
-            self.chat_log[server.installation] = logging.getLogger(name=f'chat-{server.installation}')
-            self.chat_log[server.installation].setLevel(logging.INFO)
+        if server.locals.get('chat_log') and server.name not in self.chat_log:
+            self.chat_log[server.name] = logging.getLogger(name=f'chat-{server.name}')
+            self.chat_log[server.name].setLevel(logging.INFO)
             formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                           datefmt='%Y-%m-%d %H:%M:%S')
-            filename = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'] + r'\Logs\chat.log')
+            filename = os.path.join(server.instance.home, r'Logs\chat.log')
             fh = RotatingFileHandler(filename, encoding='utf-8',
-                                     maxBytes=int(self.bot.config[server.installation]['CHAT_LOGROTATE_SIZE']),
-                                     backupCount=int(self.bot.config[server.installation]['CHAT_LOGROTATE_COUNT']))
+                                     maxBytes=int(server.locals['chat_log'].get('size', 1048576)),
+                                     backupCount=int(server.locals['chat_log'].get('count', 10)))
             fh.setLevel(logging.INFO)
             fh.setFormatter(formatter)
-            self.chat_log[server.installation].addHandler(fh)
+            self.chat_log[server.name].addHandler(fh)
 
     @event(name="onChatMessage")
     async def onChatMessage(self, server: Server, data: dict) -> None:
         player: Player = server.get_player(id=data['from_id'])
-        if self.bot.config.getboolean(server.installation, 'CHAT_LOG'):
-            self.chat_log[server.installation].info(f"{player.ucid}\t{player.name}\t{data['to']}\t{data['message']}")
+        if server.locals.get('chat_log'):
+            self.chat_log[server.name].info(f"{player.ucid}\t{player.name}\t{data['to']}\t{data['message']}")
         chat_channel: Optional[discord.TextChannel] = None
-        if self.bot.config.getboolean(server.installation, 'COALITIONS') \
-                and data['to'] == -2 and player.coalition in [Coalition.BLUE, Coalition.RED]:
+        if server.locals.get('coalitions') and data['to'] == -2 and player.coalition in [Coalition.BLUE, Coalition.RED]:
             if player.coalition == Coalition.BLUE:
                 chat_channel = self.bot.get_channel(server.get_channel(Channel.COALITION_BLUE))
             elif player.coalition == Coalition.RED:
@@ -74,7 +73,7 @@ class GameMasterEventListener(EventListener):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        if data['id'] != 1 and self.bot.config.getboolean(server.installation, 'COALITIONS'):
+        if data['id'] != 1 and server.locals.get('coalitions'):
             player: Player = server.get_player(id=data['id'])
             if player.has_discord_roles(['DCS Admin', 'GameMaster']):
                 side = Side.UNKNOWN
@@ -173,11 +172,11 @@ class GameMasterEventListener(EventListener):
                     cursor.execute("""
                         SELECT coalition FROM coalitions 
                         WHERE server_name = %s AND player_ucid = %s AND coalition_leave > (NOW() - interval %s)
-                    """, (server.name, player.ucid, self.bot.config[server.installation]['COALITION_LOCK_TIME']))
+                    """, (server.name, player.ucid, server.locals['coalition']['lock_time']))
                     if cursor.rowcount == 1:
                         if cursor.fetchone()[0] != coalition.casefold():
                             player.sendChatMessage(f"You can't join the {coalition} coalition in-between "
-                                                   f"{self.bot.config[server.installation]['COALITION_LOCK_TIME']} of "
+                                                   f"{server.locals['coalition']['lock_time']} of "
                                                    f"leaving a coalition.")
                             await self.bot.audit(
                                 f"{player.display_name} tried to join a new coalition in-between the time limit.",
@@ -204,9 +203,9 @@ class GameMasterEventListener(EventListener):
             if player.member:
                 roles = {
                     Coalition.RED: discord.utils.get(player.member.guild.roles,
-                                                     name=self.bot.config[server.installation]['Coalition Red']),
+                                                     name=server.locals['coalitions']['red']),
                     Coalition.BLUE: discord.utils.get(player.member.guild.roles,
-                                                      name=self.bot.config[server.installation]['Coalition Blue'])
+                                                      name=server.locals['coalitions']['blue']),
                 }
                 role = roles[player.coalition]
                 if role:
@@ -236,9 +235,9 @@ class GameMasterEventListener(EventListener):
             if player.member:
                 roles = {
                     Coalition.RED: discord.utils.get(player.member.guild.roles,
-                                                     name=self.bot.config[server.installation]['Coalition Red']),
+                                                     name=server.locals['coalition']['red']),
                     Coalition.BLUE: discord.utils.get(player.member.guild.roles,
-                                                      name=self.bot.config[server.installation]['Coalition Blue'])
+                                                      name=server.locals['coalition']['blue'])
                 }
                 await player.member.remove_roles(roles[player.coalition])
         except discord.Forbidden:

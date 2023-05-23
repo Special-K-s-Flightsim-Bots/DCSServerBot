@@ -5,6 +5,7 @@ from .data.player import *
 from .data.server import *
 from .data.serverimpl import *
 from .data.serverproxy import *
+from .data.instance import *
 from .data.member import *
 
 from .autoexec import *

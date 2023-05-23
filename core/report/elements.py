@@ -16,7 +16,7 @@ from datetime import timedelta
 from discord import ButtonStyle, Interaction
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
-from typing import Optional, List, Any, TYPE_CHECKING, Union
+from typing import Optional, Any, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from core import DCSServerBot
@@ -125,7 +125,7 @@ class GraphElement(ReportElement):
 
 
 class MultiGraphElement(ReportElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, params: List[dict]):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, params: list[dict]):
         super().__init__(env)
         self.axes = []
         for i in range(0, len(params)):
@@ -146,7 +146,7 @@ class Graph(ReportElement):
         super().__init__(env)
         plt.switch_backend('agg')
 
-    def render(self, width: int, height: int, cols: int, rows: int, elements: List[dict],
+    def render(self, width: int, height: int, cols: int, rows: int, elements: list[dict],
                facecolor: Optional[str] = None):
         plt.style.use('dark_background')
         plt.rcParams['axes.facecolor'] = '2C2F33'
@@ -299,7 +299,7 @@ class SQLBarChart(BarChart):
 
 class PieChart(GraphElement):
     def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: Optional[int] = 1,
-                 rowspan: Optional[int] = 1, title: Optional[str] = '', colors: Optional[List[str]] = None,
+                 rowspan: Optional[int] = 1, title: Optional[str] = '', colors: Optional[list[str]] = None,
                  is_time: Optional[bool] = False, show_no_data: Optional[bool] = True):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title

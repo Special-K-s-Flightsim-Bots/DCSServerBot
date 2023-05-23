@@ -3,10 +3,10 @@ from contextlib import closing
 from core import utils
 from core.report.errors import ValueNotInRange
 from psycopg.rows import dict_row
-from typing import Any, List, Tuple
+from typing import Any, Tuple
 
 
-def parse_params(kwargs: dict, params: Tuple[dict, List]):
+def parse_params(kwargs: dict, params: Tuple[dict, list]):
     new_args = kwargs.copy()
     if isinstance(params, dict):
         for key, value in params.items():
@@ -16,7 +16,7 @@ def parse_params(kwargs: dict, params: Tuple[dict, List]):
     return new_args
 
 
-async def parse_input(self, kwargs: dict, params: List[Any]):
+async def parse_input(self, kwargs: dict, params: list[Any]):
     new_args = kwargs.copy()
     for param in params:
         if 'name' in param:

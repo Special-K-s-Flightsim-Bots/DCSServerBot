@@ -4,7 +4,7 @@ import os
 import platform
 import psutil
 import psycopg
-from core import utils, Plugin, TEventListener, Status, PluginRequiredError, Report, PaginationReport, Server
+from core import utils, Plugin, TEventListener, Status, PluginRequiredError, Report, PaginationReport, Server, command
 from discord import app_commands
 from discord.ext import tasks
 from services import DCSServerBot
@@ -33,13 +33,13 @@ class ServerStats(Plugin):
 
     async def display_report(self, interaction: discord.Interaction, schema: str, period: str, server_name: str):
         report = Report(self.bot, self.plugin_name, schema)
-        env = await report.render(period=period, server_name=server_name, agent_host=platform.node())
+        env = await report.render(period=period, server_name=server_name, node=platform.node())
         file = discord.File(env.filename) if env.filename else None
         await interaction.response.send_message(embed=env.embed, file=file)
         if env.filename and os.path.exists(env.filename):
             os.remove(env.filename)
 
-    @app_commands.command(description='Displays the load of your DCS servers')
+    @command(description='Displays the load of your DCS servers')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def serverload(self, interaction: discord.Interaction,
@@ -51,7 +51,7 @@ class ServerStats(Plugin):
             report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverload.json')
             await report.render(period=period, server_name=None)
 
-    @app_commands.command(description='Shows servers statistics')
+    @command(description='Shows servers statistics')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def serverstats(self, interaction: discord.Interaction,
@@ -71,7 +71,7 @@ class ServerStats(Plugin):
             users = len(server.get_active_players())
             if not server.process or not server.process.is_running():
                 for exe in ['DCS_server.exe', 'DCS.exe']:
-                    server.process = utils.find_process(exe, server.installation)
+                    server.process = utils.find_process(exe, server.instance)
                     if server.process:
                         break
                 else:
@@ -99,7 +99,7 @@ class ServerStats(Plugin):
                 with self.pool.connection() as conn:
                     with conn.transaction():
                         conn.execute("""
-                        INSERT INTO serverstats (server_name, agent_host, mission_id, users, status, cpu, mem_total, 
+                        INSERT INTO serverstats (server_name, node, mission_id, users, status, cpu, mem_total, 
                                                  mem_ram, read_bytes, write_bytes, bytes_sent, bytes_recv, fps, ping) 
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (server_name, platform.node(), server.mission_id, users, server.status.name, cpu,

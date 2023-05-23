@@ -132,14 +132,13 @@ class Install:
                 ])
             print("Searching DCS servers ...")
             dcs_port = 6666
-            for name, installation in utils.findDCSInstallations():
+            for name, instance in utils.findDCSInstances():
                 if input(f'Do you want to add server "{name}" (Y/N)?').upper() == 'Y':
                     inifile.writelines([
                         '\n',
-                        f'[{installation}]\n',
-                        'DCS_HOST=127.0.0.1\n',
+                        f'[{instance}]\n',
                         f'DCS_PORT={dcs_port}\n',
-                        r'DCS_HOME = %%USERPROFILE%%\\Saved Games\\' + f'{installation}\n',
+                        r'DCS_HOME = %%USERPROFILE%%\\Saved Games\\' + f'{instance}\n',
                         'ADMIN_CHANNEL=<see documentation>\n',
                         'STATUS_CHANNEL=<see documentation>\n',
                         'CHAT_CHANNEL=<see documentation>\n'
@@ -189,8 +188,8 @@ class Install:
             if 'AUDIT_CHANNEL' in config['BOT'] and not check_channel(config['BOT']['AUDIT_CHANNEL']):
                 raise InvalidParameter('BOT', 'AUDIT_CHANNEL', 'Invalid channel.')
             if 'PLUGINS' in config['BOT'] and \
-                    config['BOT']['PLUGINS'] != 'mission, help, admin, userstats, missionstats, creditsystem, ' \
-                                                'gamemaster, cloud':
+                    config['BOT']['PLUGINS'] != 'mission, scheduler, help, admin, userstats, missionstats, ' \
+                                                'creditsystem, gamemaster, cloud':
                 print("Please don't change the PLUGINS parameter, use OPT_PLUGINS instead!")
         except KeyError as key:
             raise MissingParameter('BOT', str(key))
@@ -202,38 +201,34 @@ class Install:
             raise MissingParameter('DCS', str(key))
         num_installs = 0
         ports = set(config['BOT']['PORT'])
-        for _, installation in utils.findDCSInstallations():
+        for _, instance in utils.findDCSInstances():
             try:
-                if installation not in config:
+                if instance not in config:
                     continue
                 num_installs += 1
-                try:
-                    socket.inet_aton(config[installation]['DCS_HOST'])
-                except socket.error:
-                    raise InvalidParameter(installation, 'DCS_HOST', 'Invalid IPv4 address.')
-                if not config[installation]['DCS_PORT'].isnumeric():
-                    raise InvalidParameter(installation, 'DCS_PORT', 'Please enter a number from 1024 to 65535 ('
+                if not config[instance]['DCS_PORT'].isnumeric():
+                    raise InvalidParameter(instance, 'DCS_PORT', 'Please enter a number from 1024 to 65535 ('
                                                                      'default: 6666).')
                 else:
-                    if config[installation]['DCS_PORT'] in ports:
-                        raise InvalidParameter(installation, 'DCS_PORT', 'Ports have to be unique for all servers!')
-                    elif config[installation]['DCS_PORT'] in [8088, 10308, 10309]:
-                        raise InvalidParameter(installation, 'DCS_PORT',
+                    if config[instance]['DCS_PORT'] in ports:
+                        raise InvalidParameter(instance, 'DCS_PORT', 'Ports have to be unique for all servers!')
+                    elif config[instance]['DCS_PORT'] in [8088, 10308, 10309]:
+                        raise InvalidParameter(instance, 'DCS_PORT',
                                                "Don't use the port of your DCS server (""10308), webgui_port (8088) or "
                                                "webrtc_port (""10309)!")
-                    ports.add(config[installation]['DCS_PORT'])
-                dcs_home = os.path.expandvars(config[installation]['DCS_HOME'])
+                    ports.add(config[instance]['DCS_PORT'])
+                dcs_home = os.path.expandvars(config[instance]['DCS_HOME'])
                 if dcs_home.upper() != 'REMOTE' and not path.exists(dcs_home):
                     # ignore missing directories in the DCS section, as people might have a serverSettings.lua in their
                     # DCS folder but no server configured
-                    if installation == 'DCS':
+                    if instance == 'DCS':
                         continue
-                    raise InvalidParameter(installation, 'DCS_HOME', 'Path does not exist.')
+                    raise InvalidParameter(instance, 'DCS_HOME', 'Path does not exist.')
                 for channel in ['CHAT_CHANNEL', 'ADMIN_CHANNEL', 'STATUS_CHANNEL']:
-                    if not check_channel(config[installation][channel]):
-                        raise InvalidParameter(installation, channel, 'Invalid channel.')
+                    if not check_channel(config[instance][channel]):
+                        raise InvalidParameter(instance, channel, 'Invalid channel.')
             except KeyError as key:
-                raise MissingParameter(installation, str(key))
+                raise MissingParameter(instance, str(key))
         if num_installs == 0:
             raise Exception('Your dcsserverbot.ini does not contain any server configuration.')
 

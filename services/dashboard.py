@@ -24,16 +24,16 @@ from .bot import DCSServerBot, BotService
 
 class Header:
     """Display header with clock."""
-    def __init__(self, main):
-        self.main = main
-        self.log = main.log
+    def __init__(self, node):
+        self.node = node
+        self.log = node.log
 
     def __rich__(self) -> Panel:
         grid = Table.grid(expand=True)
         grid.add_column(justify="center", ratio=1)
         grid.add_column(justify="right")
         grid.add_row(
-            f"[b]DCSServerBot Version {self.main.config['BOT']['VERSION']}.{self.main.config['BOT']['SUB_VERSION']}[/b]",
+            f"[b]DCSServerBot Version {self.node.config['BOT']['VERSION']}.{self.node.config['BOT']['SUB_VERSION']}[/b]",
             datetime.now().ctime().replace(":", "[blink]:[/]"),
         )
         return Panel(grid, style="white on blue")
@@ -83,12 +83,12 @@ class Bot:
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 for row in cursor.execute("""
-                    SELECT s1.agent_host, COUNT(s1.server_name), COUNT(s2.server_name) FROM (
-                        SELECT agent_host, server_name FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')
+                    SELECT s1.node, COUNT(s1.server_name), COUNT(s2.server_name) FROM (
+                        SELECT node, server_name FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')
                     ) s1 LEFT OUTER JOIN (
-                        SELECT agent_host, server_name FROM servers WHERE last_seen > (NOW() - interval '1 minute')
-                    ) s2 ON (s1.agent_host = s2.agent_host AND s1.server_name = s2.server_name) 
-                    WHERE s1.agent_host <> %s 
+                        SELECT node, server_name FROM servers WHERE last_seen > (NOW() - interval '1 minute')
+                    ) s2 ON (s1.node = s2.node AND s1.server_name = s2.server_name) 
+                    WHERE s1.node <> %s 
                     GROUP BY 1
                 """, (platform.node(), )).fetchall():
                     table.add_row(row[0], f"{row[2]}/{row[1]}")
@@ -131,8 +131,8 @@ class Log:
 @ServiceRegistry.register("Dashboard")
 class Dashboard(Service):
 
-    def __init__(self, main):
-        super().__init__(main)
+    def __init__(self, node, name: str):
+        super().__init__(node, name)
         self.console = Console()
         self.layout = None
         self.bot = None
@@ -147,7 +147,7 @@ class Dashboard(Service):
             Layout(name="main"),
             Layout(name="log", ratio=2, minimum_size=5),
         )
-        if self.main.master:
+        if self.node.master:
             layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="bot"))
         return layout
 
@@ -171,7 +171,7 @@ class Dashboard(Service):
     async def start(self):
         await super().start()
         self.layout = self.create_layout()
-        if self.main.master:
+        if self.node.master:
             self.bot: DCSServerBot = cast(BotService, ServiceRegistry.get("Bot")).bot
         else:
             self.bot = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
@@ -187,8 +187,8 @@ class Dashboard(Service):
 
     @tasks.loop(reconnect=True)
     async def update(self):
-        header = Header(self.main)
-        if self.main.master:
+        header = Header(self.node)
+        if self.node.master:
             servers = Servers(self.bot)
             bot = Bot(self.bot)
         else:
@@ -197,7 +197,7 @@ class Dashboard(Service):
 
         def do_update():
             self.layout['header'].update(header)
-            if self.main.master:
+            if self.node.master:
                 self.layout['servers'].update(servers)
                 self.layout['bot'].update(bot)
             else:

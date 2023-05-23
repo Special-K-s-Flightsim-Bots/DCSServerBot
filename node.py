@@ -1,6 +1,8 @@
 import aiofiles
 import aiohttp
 import asyncio
+import discord
+import json
 import logging
 import os
 import platform
@@ -10,7 +12,7 @@ import sys
 import time
 import zipfile
 from contextlib import closing
-from core import utils, ServiceRegistry
+from core import utils, ServiceRegistry, DataObjectFactory, Instance, Server
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from matplotlib import font_manager
@@ -19,7 +21,7 @@ from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 from services import Dashboard, BotService
-from typing import cast
+from typing import cast, Optional, Union
 from version import __version__
 
 
@@ -36,11 +38,13 @@ LOGLEVEL = {
 }
 
 
-class Main:
+class Node:
 
     def __init__(self):
+        self.name: str = platform.node()
         self.config = self.read_config()
-        self.guild_id = int(self.config['BOT']['GUILD_ID'])
+        self.guild_id: int = int(self.config['BOT']['GUILD_ID'])
+        self._public_ip: Optional[str] = None
         self.log = self.init_logger()
         if self.config.getboolean('BOT', 'AUTOUPDATE') and self.upgrade():
             self.log.warning('- Restart needed => exiting.')
@@ -49,6 +53,8 @@ class Main:
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.db_version = None
         self.pool = self.init_db()
+        self.instances: list[Instance] = list()
+        self.locals: dict = self.read_locals()
         self.install_plugins()
         plugins: str = self.config['BOT']['PLUGINS']
         if 'OPT_PLUGINS' in self.config['BOT']:
@@ -66,7 +72,6 @@ class Main:
             self._master = True
         if self._master:
             self.update_db()
-        self.register()
 
     @property
     def master(self) -> bool:
@@ -76,6 +81,40 @@ class Main:
     def master(self, value: bool):
         self._master = value
 
+    @property
+    def public_ip(self) -> str:
+        return self._public_ip
+
+    @property
+    def installation(self) -> str:
+        return os.path.expandvars(self.locals['DCS']['installation'])
+
+    @property
+    def extensions(self) -> dict:
+        return self.locals.get('extensions', {})
+
+    async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
+                    server: Optional[Server] = None):
+        if self.master:
+            await ServiceRegistry.get("Bot").bot.audit(message, user=user, server=server)
+        else:
+            ServiceRegistry.get("ServiceBus").sendtoBot({
+                "command": "rpc",
+                "service": "Bot",
+                "method": "audit",
+                "params": {
+                    "message": message,
+                    "user": user,
+                    "server_name": server.name if server else ""
+                }
+            })
+
+    def add_instance(self, instance: Instance):
+        raise NotImplementedError()
+
+    def del_instance(self, name: str):
+        raise NotImplementedError()
+
     @staticmethod
     def read_config():
         config = utils.config
@@ -83,13 +122,28 @@ class Main:
         config['BOT']['SUB_VERSION'] = str(SUB_VERSION)
         return config
 
+    def read_locals(self) -> dict:
+        _locals = dict()
+        if os.path.exists('config/nodes.json'):
+            with open('config/nodes.json') as infile:
+                node: dict = json.load(infile)[self.name]
+                for name, element in node.items():
+                    if name == 'instances':
+                        for _name, _element in node['instances'].items():
+                            instance: Instance = DataObjectFactory().new(Instance.__name__, node=self, name=_name)
+                            instance.locals = _element
+                            self.instances.append(instance)
+                    else:
+                        _locals[name] = element
+        return _locals
+
     def init_logger(self):
         log = logging.getLogger(name='dcsserverbot')
         log.setLevel(logging.DEBUG)
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         formatter.converter = time.gmtime
-        fh = RotatingFileHandler(f'dcssb-{platform.node()}.log', encoding='utf-8',
+        fh = RotatingFileHandler(f'dcssb-{self.name}.log', encoding='utf-8',
                                  maxBytes=int(self.config['LOGGING']['LOGROTATE_SIZE']),
                                  backupCount=int(self.config['LOGGING']['LOGROTATE_COUNT']))
         fh.setLevel(LOGLEVEL[self.config['LOGGING']['LOGLEVEL']])
@@ -231,12 +285,12 @@ class Main:
             self.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
         return False
 
-    def register(self):
+    async def register(self):
+        self._public_ip = self.locals.get('public_ip', await utils.get_public_ip())
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute("INSERT INTO agents (guild_id, node, master) VALUES (%s, %s, False) "
-                             "ON CONFLICT (guild_id, node) DO NOTHING",
-                             (self.guild_id, platform.node()))
+                conn.execute("INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) "
+                             "ON CONFLICT (guild_id, node) DO NOTHING", (self.guild_id, self.name))
 
     def check_master(self) -> bool:
         with self.pool.connection() as conn:
@@ -244,51 +298,52 @@ class Main:
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
                     master = False
                     count = 0
-                    cursor.execute("SELECT * FROM agents WHERE guild_id = %s FOR UPDATE", (self.guild_id, ))
+                    cursor.execute("SELECT * FROM nodes WHERE guild_id = %s FOR UPDATE", (self.guild_id, ))
                     for row in cursor.fetchall():
                         if row['master']:
                             count += 1
-                            if row['node'] == platform.node():
+                            if row['node'] == self.name:
                                 master = True
                             # the old master is dead, we probably need to take over
                             elif (datetime.now() - row['last_seen']).total_seconds() > 10:
                                 self.log.debug(f"- Master {row['node']} was last seen on {row['last_seen']}")
-                                cursor.execute('UPDATE agents SET master = False WHERE guild_id = %s and node = %s',
+                                cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node = %s',
                                                (self.guild_id, row['node']))
                                 count -= 1
                     # no master there, we're the master now
                     if count == 0:
-                        cursor.execute('UPDATE agents SET master = True, last_seen = NOW() '
+                        cursor.execute('UPDATE nodes SET master = True, last_seen = NOW() '
                                        'WHERE guild_id = %s and node = %s',
-                                       (self.guild_id, platform.node()))
+                                       (self.guild_id, self.name))
                         master = True
                     # there is only one master, might be me, might be others
                     elif count == 1:
-                        cursor.execute('UPDATE agents SET master = %s, last_seen = NOW() '
+                        cursor.execute('UPDATE nodes SET master = %s, last_seen = NOW() '
                                        'WHERE guild_id = %s and node = %s',
-                                       (master, self.guild_id, platform.node()))
+                                       (master, self.guild_id, self.name))
                     # split brain detected, so step back
                     else:
                         self.log.warning("Split brain detected, stepping back from master.")
-                        cursor.execute('UPDATE agents SET master = False, last_seen = NOW() '
+                        cursor.execute('UPDATE nodes SET master = False, last_seen = NOW() '
                                        'WHERE guild_id = %s and node = %s',
-                                       (self.guild_id, platform.node()))
+                                       (self.guild_id, self.name))
                         master = False
             return master
 
-    def get_active_agents(self):
+    def get_active_nodes(self):
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
                     return [row[0] for row in cursor.execute("""
-                        SELECT node FROM agents 
+                        SELECT node FROM nodes 
                         WHERE guild_id = %s
                         AND master is False 
                         AND last_seen > (DATE(NOW()) - interval '1 minute')
                     """, (self.guild_id, ))]
 
     async def run(self):
-        async with ServiceRegistry(main=self) as registry:
+        await self.register()
+        async with ServiceRegistry(node=self) as registry:
             bus = registry.new("ServiceBus")
             if self.master:
                 await self.install_fonts()
@@ -298,6 +353,11 @@ class Main:
                 asyncio.create_task(bot.start(token=self.config['BOT']['TOKEN']))
             asyncio.create_task(bus.start())
             asyncio.create_task(registry.new("Monitoring").start())
+            try:
+                asyncio.create_task(registry.new("Backup").start())
+            except Exception as ex:
+                self.log.exception(ex)
+                return
             if self.config['BOT'].getboolean('USE_DASHBOARD'):
                 dashboard = cast(Dashboard, registry.new("Dashboard"))
                 asyncio.create_task(dashboard.start())
@@ -317,7 +377,7 @@ class Main:
                     bot = cast(BotService, registry.new("Bot"))
                     asyncio.create_task(bot.start(token=self.config['BOT']['TOKEN']))
                 else:
-                    self.log.info("Second Master found, stepping back to Agent.")
+                    self.log.info("Second Master found, stepping back to Agent configuration.")
                     if self.config['BOT'].getboolean('USE_DASHBOARD'):
                         await dashboard.stop()
                     # await config.stop()

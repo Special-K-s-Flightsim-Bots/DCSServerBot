@@ -2,9 +2,9 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from typing import Optional
-from core import Extension, report, DCSServerBot, Server, Status
-
+from typing import Optional, cast
+from core import Extension, report, Status, ServiceRegistry, Server
+from services import ServiceBus
 
 process: Optional[subprocess.Popen] = None
 servers: set[str] = set()
@@ -12,12 +12,9 @@ servers: set[str] = set()
 
 class Sneaker(Extension):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
-        super().__init__(bot, server, config)
-        self.bot = bot
-        self.log = bot.log
-        self.server = server
-        self.config = config
+    def __init__(self, server: Server, config: dict):
+        super().__init__(server, config)
+        self.bus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
 
     def create_config(self):
         cfg = {"servers": []}
@@ -38,7 +35,12 @@ class Sneaker(Extension):
                 "enable_enemy_ground_units": True
             })
         # filter out servers that are not running
-        cfg['servers'] = [x for x in cfg['servers'] if x['name'] in [y.name for y in self.bot.servers.values() if y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]]]
+        cfg['servers'] = [
+            x for x in cfg['servers'] if x['name'] in [
+                y.name for y in self.bus.servers.values()
+                if y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]
+            ]
+        ]
         with open('config\\sneaker.json', 'w') as file:
             json.dump(cfg, file, indent=2)
 
@@ -54,7 +56,8 @@ class Sneaker(Extension):
             if process:
                 process.kill()
             cmd = os.path.basename(self.config['cmd'])
-            self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config\\sneaker.json")
+            self.log.debug(
+                f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config\\sneaker.json")
             process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
                                        executable=os.path.expandvars(self.config['cmd']),
                                        stdout=subprocess.DEVNULL,
@@ -62,7 +65,8 @@ class Sneaker(Extension):
         else:
             if not process:
                 cmd = os.path.basename(self.config['cmd'])
-                self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config {self.config['config']}")
+                self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
+                               f"--config {self.config['config']}")
                 process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config",
                                             os.path.expandvars(self.config['config'])],
                                            executable=os.path.expandvars(self.config['cmd']),
@@ -71,14 +75,14 @@ class Sneaker(Extension):
         servers.add(self.server.name)
         return self.is_running()
 
-    async def shutdown(self, data: dict) -> bool:
+    async def shutdown(self) -> bool:
         global process, servers
 
         servers.remove(self.server.name)
         if process and not servers:
             process.kill()
             process = None
-            return await super().shutdown(data)
+            return await super().shutdown()
         elif 'config' not in self.config:
             self.create_config()
             process.kill()

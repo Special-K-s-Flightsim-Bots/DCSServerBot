@@ -8,7 +8,8 @@ class MissionStatisticsEventListener(EventListener):
     COALITION = {
         0: Coalition.NEUTRAL,
         1: Coalition.RED,
-        2: Coalition.BLUE
+        2: Coalition.BLUE,
+        3: Coalition.NEUTRAL
     }
 
     UNIT_CATEGORY = {
@@ -51,7 +52,7 @@ class MissionStatisticsEventListener(EventListener):
         self.bot.mission_stats[server.name] = data
 
     def _toggle_mission_stats(self, server: Server):
-        if self.bot.config.getboolean(server.installation, 'MISSION_STATISTICS'):
+        if self.bot.config.getboolean(server.instance.name, 'MISSION_STATISTICS'):
             server.sendtoDCS({"command": "enableMissionStats"})
             server.sendtoDCS({"command": "getMissionSituation"})
         else:
@@ -74,7 +75,7 @@ class MissionStatisticsEventListener(EventListener):
                 return None
             return values[index1][index2]
 
-        if not self.bot.config.getboolean(server.installation, 'PERSIST_AI_STATISTICS') or \
+        if not self.bot.config.getboolean(server.instance, 'PERSIST_AI_STATISTICS') or \
                 data['eventName'] in self.filter:
             return
         player = get_value(data, 'initiator', 'name')
@@ -111,7 +112,7 @@ class MissionStatisticsEventListener(EventListener):
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
-        if self.bot.config.getboolean(server.installation, 'PERSIST_MISSION_STATISTICS'):
+        if self.bot.config.getboolean(server.instance, 'PERSIST_MISSION_STATISTICS'):
             await asyncio.to_thread(self._update_database, server, data)
         if data['server_name'] in self.bot.mission_stats:
             stats = self.bot.mission_stats[data['server_name']]
@@ -211,8 +212,8 @@ class MissionStatisticsEventListener(EventListener):
             if update:
                 server: Server = self.bot.servers[server_name]
                 # Hide the mission statistics embed, if coalitions are enabled
-                if self.bot.config.getboolean(server.installation, 'DISPLAY_MISSION_STATISTICS') and \
-                        not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+                if self.bot.config.getboolean(server.instance, 'DISPLAY_MISSION_STATISTICS') and \
+                        not server.locals.get('coalitions'):
                     stats = self.bot.mission_stats[server_name]
                     if 'coalitions' in stats:
                         report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',

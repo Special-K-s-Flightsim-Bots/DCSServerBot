@@ -5,7 +5,7 @@ import re
 import time
 import win32api
 from collections import deque
-from core import Extension, report, Server
+from core import Extension, report
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -79,8 +79,7 @@ class Tacview(Extension):
 
     @property
     def version(self) -> str:
-        installation = self.server.installation
-        path = os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + r'\Mods\tech\Tacview\bin\tacview.dll'
+        path = os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll')
         if os.path.exists(path):
             info = win32api.GetFileVersionInfo(path, '\\')
             version = "%d.%d.%d" % (info['FileVersionMS'] / 65536,
@@ -96,7 +95,7 @@ class Tacview(Extension):
             value = 'disabled'
         else:
             show_passwords = self.config.get('show_passwords', True)
-            host = self.config.get('host', self.server.external_ip)
+            host = self.config.get('host', self.node.public_ip)
             value = ''
             if self.locals.get('tacviewRealTimeTelemetryEnabled', True):
                 value += f"{host}:{self.locals.get('tacviewRealTimeTelemetryPort', 42674)}\n"
@@ -132,16 +131,12 @@ class Tacview(Extension):
     def is_installed(self) -> bool:
         global rtt_ports, rcp_ports
 
-        dll_installed = os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
-                                       r'\Mods\tech\Tacview\bin\tacview.dll')
-        exports_installed = os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
-                                           r'\Scripts\TacviewGameExport.lua') & \
-                            os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
-                                           r'\Scripts\Export.lua')
+        base_dir = self.server.instance.home
+        dll_installed = os.path.exists(os.path.join(base_dir, r'Mods\tech\Tacview\bin\tacview.dll'))
+        exports_installed = os.path.exists(os.path.join(base_dir, r'Scripts\TacviewGameExport.lua')) & \
+                            os.path.exists(os.path.join(base_dir, r'Scripts\Export.lua'))
         if exports_installed:
-            with open(
-                    os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) + r'\Scripts\Export.lua',
-                    'r') as file:
+            with open(os.path.join(base_dir, r'Scripts\Export.lua'), 'r') as file:
                 for line in file.readlines():
                     # best case we find the default line Tacview put in the Export.lua
                     if line.strip() == "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir().." \
@@ -169,12 +164,10 @@ class Tacview(Extension):
             rcp_ports[rcp_port] = self.server.name
         return True
 
-    async def shutdown(self, data: dict):
+    async def shutdown(self):
         if 'channel' not in self.config:
             return
-        server: Server = self.bot.servers[data['server_name']]
-        log = self.locals.get('log',
-                              os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Logs/dcs.log')
+        log = self.locals.get('log', os.path.join(self.server.instance.home, 'Logs/dcs.log'))
         exp = re.compile(r'TACVIEW.DLL (.*): Successfully saved \[(?P<filename>.*)\]')
         filename = None
         lines = deque(open(log, encoding='utf-8'), 50)

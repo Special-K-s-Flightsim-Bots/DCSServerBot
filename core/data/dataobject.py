@@ -3,7 +3,6 @@ from configparser import ConfigParser
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
-
 if TYPE_CHECKING:
     from logging import Logger
     from psycopg_pool import ConnectionPool
@@ -11,15 +10,15 @@ if TYPE_CHECKING:
 
 @dataclass
 class DataObject:
-    main: Any = field(compare=False, repr=False)
+    node: Any = field(compare=False, repr=False)
     pool: ConnectionPool = field(compare=False, repr=False, init=False)
     log: Logger = field(compare=False, repr=False, init=False)
     config: ConfigParser = field(compare=False, repr=False, init=False)
 
     def __post_init__(self):
-        self.pool = self.main.pool
-        self.log = self.main.log
-        self.config = self.main.config
+        self.pool = self.node.pool
+        self.log = self.node.log
+        self.config = self.node.config
 
 
 class DataObjectFactory:
