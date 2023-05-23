@@ -424,7 +424,7 @@ class Agent(Plugin):
         async def send_file(interaction: Interaction, filename: str, target: str):
             zipped = False
             if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('acmi') and \
-                    os.path.getsize(filename) >= 8 * 1024 * 1024:
+                    os.path.getsize(filename) >= 25 * 1024 * 1024:
                 filename = await asyncio.to_thread(zip_file, filename)
                 zipped = True
             await interaction.response.defer(thinking=True)

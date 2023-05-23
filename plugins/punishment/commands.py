@@ -216,8 +216,8 @@ class PunishmentMaster(PunishmentAgent):
             try:
                 with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                     for d in self.decay_config:
-                        cursor.execute('UPDATE pu_events SET points = ROUND(points * %s, 2), decay_run = %s WHERE '
-                                       'time < (NOW() - interval \'%s days\') AND decay_run < %s',
+                        cursor.execute('UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s '
+                                       'WHERE time < (NOW() - interval \'%s days\') AND decay_run < %s',
                                        (d['weight'], d['days'], d['days'], d['days']))
                     if self.unban_config:
                         cursor.execute(f"SELECT ucid FROM bans b, (SELECT init_id, SUM(points) AS points FROM "
