@@ -184,10 +184,14 @@ class PlaylistEditor(PlayerBase):
             for idx, song in enumerate(self.playlist.items):
                 if idx == 25:
                     break
-                title = self.all_titles[self.all_songs.index(song)] or song
-                playlist.append(
-                    f"{idx + 1}. - {utils.escape_string(title)}")
-                options.append(SelectOption(label=title[:25], value=str(idx)))
+                try:
+                    title = self.all_titles[self.all_songs.index(song)] or song
+                    playlist.append(
+                        f"{idx + 1}. - {utils.escape_string(title)}")
+                    options.append(SelectOption(label=title[:25], value=str(idx)))
+                except ValueError as ex:
+                    self.log.error(str(ex) + ", removing from playlist.")
+                    self.playlist.remove(song)
             if playlist:
                 embed.add_field(name='_ _', value='\n'.join(playlist))
                 select = Select(placeholder="Remove a song from the playlist", options=options, row=row)
