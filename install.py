@@ -10,6 +10,7 @@ from os import path
 from core import utils
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from typing import Optional, Tuple
+from urllib.parse import quote
 
 
 class InvalidParameter(Exception):
@@ -81,7 +82,7 @@ class Install:
                 exit(-1)
         while True:
             passwd = getpass('Please enter your PostgreSQL master password: ')
-            url = f'postgres://postgres:{passwd}@localhost:{port}/postgres'
+            url = f'postgres://postgres:{quote(passwd)}@localhost:{port}/postgres'
             conn = None
             try:
                 conn = psycopg2.connect(url)
@@ -95,7 +96,7 @@ class Install:
                         while True:
                             passwd = getpass("Please enter your password for user 'dcsserverbot': ")
                             try:
-                                conn2 = psycopg2.connect(f"postgres://dcsserverbot:{passwd}@localhost:{port}/dcsserverbot")
+                                conn2 = psycopg2.connect(f"postgres://dcsserverbot:{quote(passwd)}@localhost:{port}/dcsserverbot")
                                 conn2.close()
                                 break
                             except psycopg2.Error:
@@ -105,7 +106,7 @@ class Install:
                         cursor.execute("GRANT ALL PRIVILEGES ON DATABASE dcsserverbot TO dcsserverbot")
                         cursor.execute("ALTER DATABASE dcsserverbot OWNER TO dcsserverbot")
                     print("PostgreSQL user and database created.")
-                    return f"postgres://dcsserverbot:{passwd}@localhost:{port}/dcsserverbot"
+                    return f"postgres://dcsserverbot:{quote(passwd)}@localhost:{port}/dcsserverbot"
             except psycopg2.OperationalError:
                 print("Wrong password. Try again!")
             except psycopg2.Error as ex:
