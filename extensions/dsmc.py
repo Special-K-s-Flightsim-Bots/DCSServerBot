@@ -19,7 +19,7 @@ class DSMC(Extension):
             elif value == 'false':
                 return False
             else:
-                return int(value)
+                return eval(value)
 
         cfg = dict()
         dcs_home = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME'])
@@ -37,10 +37,14 @@ class DSMC(Extension):
         return cfg
 
     async def prepare(self) -> bool:
-        # we don't want to have DSMC
-        if self.locals['DSMC_updateMissionList'] or self.locals['DSMC_AutosaveExit_time']:
+        if 'DSMC_updateMissionList' not in self.locals:
+            self.log.error('  => DSMC_updateMissionList missing in DSMC_Dedicated_Server_options.lua! '
+                           'Check your config and / or update DSMC!')
+            return False
+        if self.locals.get('DSMC_updateMissionList', True) or self.locals.get('DSMC_AutosaveExit_time', 0):
             dcs_home = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME'])
-            shutil.copy2(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua', dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua.bak')
+            shutil.copy2(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua',
+                         dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua.bak')
             with open(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua.bak') as infile:
                 with open(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua', 'w') as outfile:
                     for line in infile.readlines():

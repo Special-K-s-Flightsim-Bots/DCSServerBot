@@ -703,7 +703,7 @@ class Scheduler(Plugin):
             return
 
         config = self.get_config(server)
-        presets = [discord.SelectOption(label=k) for k, v in config['presets'].items() if 'hidden' not in v or not v['hidden']]
+        presets = [discord.SelectOption(label=k) for k, v in config.get('presets', {}).items() if 'hidden' not in v or not v['hidden']]
         if not presets:
             await ctx.send('No presets available, please configure them in your scheduler.json.')
             return
