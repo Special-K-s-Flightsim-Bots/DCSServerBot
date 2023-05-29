@@ -244,7 +244,7 @@ class Server(DataObject):
     def get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
             settings = self.settings
-            start_index = int(settings['listStartIndex'])
+            start_index = int(settings.get('listStartIndex', 1))
             if start_index <= len(settings['missionList']):
                 filename = settings['missionList'][start_index - 1]
             else:
