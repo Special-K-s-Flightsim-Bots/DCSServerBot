@@ -103,7 +103,8 @@ The following parameters can be used to configure the bot:
 | MESSAGE_PLAYER_USERNAME         | Message that a user gets when using line-feeds or carriage-returns in their names.                                                            |
 | MESSAGE_PLAYER_DEFAULT_USERNAME | Message that a user gets when being rejected because of a default player name (Player, Spieler, etc.).                                        |
 | MESSAGE_BAN                     | Message a banned user gets when being rejected.                                                                                               |
-| MESSAGE_AFK                     | Message for players that are kicked because of being AFK.                                                                                     |
+| MESSAGE_AFK                     | Message for players that got kicked because of being AFK.                                                                                     |
+| MESSAGE_SLOT_SPAMMING           | Message for players that got kicked because of slot spamming.                                                                                 |
 
 # Server Specific Sections
 

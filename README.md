@@ -202,6 +202,7 @@ g) __DCS Section__
 | MESSAGE_PLAYER_DEFAULT_USERNAME | Message that a user gets when being rejected because of a default player name (Player, Spieler, etc.).                                        |                                                                                                                                               |
 | MESSAGE_BAN                     | Message a banned user gets when being rejected.                                                                                               |
 | MESSAGE_AFK                     | Message for players that are kicked because of being AFK.                                                                                     |
+| MESSAGE_SLOT_SPAMMING           | Message for players that got kicked because of slot spamming.                                                                                 |
 
 h) __Server Specific Sections__
 
