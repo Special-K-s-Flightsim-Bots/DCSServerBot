@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 
-DEFAULT_DIR = os.path.normpath(os.path.expandvars(r"%USERPROFILE%\Documents\Tacview"))
+TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(r"%USERPROFILE%\Documents\Tacview"))
 rtt_ports: dict[int, str] = dict()
 rcp_ports: dict[int, str] = dict()
 
@@ -48,8 +48,8 @@ class Tacview(Extension):
         options = self.server.options['plugins']
         if 'tacviewExportPath' in self.config:
             path = os.path.normpath(os.path.expandvars(self.config['tacviewExportPath']))
-            if path != DEFAULT_DIR and ('tacviewExportPath' not in options['Tacview'] or
-                                        os.path.normpath(options['Tacview']['tacviewExportPath']) != path):
+            if path != TACVIEW_DEFAULT_DIR and ('tacviewExportPath' not in options['Tacview'] or
+                                                os.path.normpath(options['Tacview']['tacviewExportPath']) != path):
                 options['Tacview']['tacviewExportPath'] = path
                 dirty = True
                 if not os.path.exists(path):
@@ -120,7 +120,7 @@ class Tacview(Extension):
         now = time.time()
         path = self.server.options['plugins']['Tacview'].get('tacviewExportPath')
         if not path:
-            path = DEFAULT_DIR
+            path = TACVIEW_DEFAULT_DIR
         if not os.path.exists(path):
             return
         for f in [os.path.join(path, x) for x in os.listdir(path)]:

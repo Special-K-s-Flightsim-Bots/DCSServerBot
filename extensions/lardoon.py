@@ -4,6 +4,8 @@ from core import Extension, report, DCSServerBot, Server
 from datetime import datetime, timedelta
 from typing import Optional
 
+from .tacview import TACVIEW_DEFAULT_DIR
+
 # Globals
 process: Optional[subprocess.Popen] = None
 prune: Optional[subprocess.Popen] = None
@@ -42,7 +44,7 @@ class Lardoon(Extension):
         global process, servers
 
         servers.remove(self.server.name)
-        if process and not servers:
+        if process is not None and not servers:
             process.kill()
             process = None
             return await super().shutdown(data)
@@ -101,7 +103,9 @@ class Lardoon(Extension):
         # run imports every 5 minutes
         elif self.lastrun > (datetime.now() - timedelta(minutes=self.config.get('minutes', 5))):
             try:
-                path = self.server.options['plugins']['Tacview']['tacviewExportPath']
+                path = self.server.options['plugins']['Tacview'].get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
+                if not path:
+                    path = TACVIEW_DEFAULT_DIR
                 cmd = os.path.basename(self.config['cmd'])
                 self._import = subprocess.Popen([cmd, "import", "-p", path],
                                                 executable=os.path.expandvars(self.config['cmd']),
