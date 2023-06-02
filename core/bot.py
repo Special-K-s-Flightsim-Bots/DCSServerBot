@@ -558,6 +558,8 @@ class DCSServerBot(commands.Bot):
         webgui_ports: dict[int, str] = dict()
         webrtc_ports: dict[int, str] = dict()
         for server in self.servers.values():
+            if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
+                continue
             dcs_port = server.settings.get('port', 10308)
             if dcs_port in dcs_ports:
                 self.log.error(f'Server "{server.name}" shares its DCS port with server '
