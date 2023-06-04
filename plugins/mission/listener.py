@@ -371,7 +371,8 @@ class MissionEventListener(EventListener):
                 ('player ' + player2.name) if player2 is not None else 'AI',
                 data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon/Bomblet'))
             # report teamkills from players to admins (only on public servers)
-            if server.is_public() and (player1 is not None) and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
+            if server.is_public() and player1 and player2 and data['arg1'] != data['arg4'] \
+                    and data['arg3'] == data['arg6']:
                 name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
                 await server.get_channel(Channel.ADMIN).send(
                     f'{name} (ucid={player1.ucid}) is killing team members. Please investigate.'

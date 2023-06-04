@@ -5,7 +5,7 @@ import re
 import time
 import win32api
 from collections import deque
-from core import Extension, report, Server
+from core import Extension, report, Server, utils
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -105,7 +105,9 @@ class Tacview(Extension):
             if self.locals.get('tacviewRemoteControlEnabled', False):
                 value += f"**Remote Ctrl [{self.locals.get('tacviewRemoteControlPort', 42675)}]**\n"
                 if show_passwords and self.locals.get('tacviewRemoteControlPassword'):
-                    value += f"Password: {self.locals['tacviewRemoteControlPassword']}"
+                    value += f"Password: {self.locals['tacviewRemoteControlPassword']}\n"
+            if self.locals.get('tacviewPlaybackDelay', 0) > 0:
+                value += f"Delay: {utils.format_time(self.locals['tacviewPlaybackDelay'])}"
             if len(value) == 0:
                 value = 'enabled'
         embed.add_field(name=name, value=value)
