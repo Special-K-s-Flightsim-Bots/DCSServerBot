@@ -46,7 +46,6 @@ class ServerProxy(Server):
         message['server_name'] = self.name
         self.bus.sendtoBot(message, node=self.node)
 
-    # TODO
     def rename(self, new_name: str, update_settings: bool = False) -> None:
         self.sendtoDCS({
             "command": "rpc",
@@ -65,7 +64,7 @@ class ServerProxy(Server):
             "method": "do_startup",
             "server_name": self.name
         })
-        timeout = 300 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
+        timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 
@@ -120,8 +119,8 @@ class ServerProxy(Server):
         })
 
     async def init_extensions(self):
-        return await self.sendtoDCSSync({
+        await self.sendtoDCSSync({
             "command": "rpc",
             "object": "Server",
-            "method": "bans"
+            "method": "init_extensions"
         })

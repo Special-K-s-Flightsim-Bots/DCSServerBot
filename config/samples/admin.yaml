@@ -1,0 +1,23 @@
+DEFAULT:
+  downloads:
+  - directory: '%USERPROFILE%\Saved Games\{server.instance.name}\logs'
+    label: DCS Logs
+    pattern: dcs*.log
+  - directory: .
+    label: DCSServerBot Logs
+    pattern: dcsserverbot.log*
+  - directory: '%USERPROFILE%\Saved Games\{server.instance.name}\Missions'
+    label: Missions
+    pattern: '*.miz'
+  - directory: '%USERPROFILE%\Documents\Tacview'
+    label: Tacview
+    pattern: Tacview-*.acmi
+  - directory: '%USERPROFILE%\Saved Games\{server.instance.name}\logs'
+    label: Chat Logs
+    pattern: chat.*log*
+  - directory: .\config
+    label: Config Files
+    pattern: '*.json'
+  - directory: .\config
+    label: dcsserverbot.ini
+    pattern: dcsserverbot.ini

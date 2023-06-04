@@ -1,0 +1,36 @@
+DEFAULT:
+  achievements:
+  - credits: 0
+    playtime: 0
+    role: Rookie
+  - credits: 50
+    playtime: 25
+    role: Veteran
+  - credits: 100
+    playtime: 50
+    role: Ace
+  initial_points: 10
+  max_points: 100
+  points_per_kill:
+  - default: 1
+  - category: Ships
+    points: 2
+  - category: Air Defence
+    points: 3
+  - category: Planes
+    points: 3
+    type: AI
+  - category: Helicopters
+    points: 3
+  - category: Planes
+    points: 4
+    type: Player
+  - category: Planes
+    points: 5
+    type: Player
+    unit_type: F-14B
+instance2:
+  initial_points:
+  - discord: Donator
+    points: 15
+  - default: 10

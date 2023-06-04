@@ -10,7 +10,7 @@ from typing import Optional
 class ServerUsage(report.EmbedElement):
 
     def render(self, server_name: Optional[str], period: Optional[str]):
-        sql = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')) " \
+        sql = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) " \
               f"AS server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, " \
               f"COUNT(DISTINCT s.player_ucid) AS players, COUNT(DISTINCT p.discord_id) AS members FROM missions m, " \
               f"statistics s, players p WHERE m.id = s.mission_id AND s.player_ucid = p.ucid AND s.hop_off IS NOT NULL"
@@ -43,9 +43,9 @@ class TopMissionPerServer(report.EmbedElement):
         sql_left = 'SELECT server_name, mission_name, playtime FROM (SELECT server_name, ' \
                                       'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
                                       'playtime DESC) AS rn FROM ( '
-        sql_inner = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', " \
+        sql_inner = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', " \
                     f"'g')) AS server_name, trim(regexp_replace(m.mission_name, " \
-                    f"'{self.bot.config['FILTER']['MISSION_FILTER']}', ' ', 'g')) AS mission_name, " \
+                    f"'{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, " \
                     f"ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime FROM missions m, " \
                     f"statistics s WHERE m.id = s.mission_id AND s.hop_off IS NOT NULL "
         sql_right = ') AS x) AS y WHERE rn {} ORDER BY 3 DESC'
@@ -144,7 +144,7 @@ class UsersPerDayTime(report.GraphElement):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 values = np.zeros((24, 7))
-                for row in cursor.execue(sql).fetchall():
+                for row in cursor.execute(sql).fetchall():
                     values[int(row['hour'])][int(row['weekday']) - 1] = row['players']
                 self.axes.imshow(values, cmap='cividis', aspect='auto')
                 self.axes.set_title('Users per Day/Time (UTC)', color='white', fontsize=25)

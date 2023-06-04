@@ -19,6 +19,14 @@ from zipfile import ZipFile
 
 class Admin(Plugin):
 
+    def read_locals(self) -> dict:
+        config = super().read_locals()
+        if not config:
+            self.log.info('No admin.yaml found, copying the sample.')
+            shutil.copyfile('config/samples/admin.yaml', 'config/plugins/admin.yaml')
+            config = super().read_locals()
+        return config
+
     @command(description='Update your DCS installations')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
@@ -298,7 +306,7 @@ class Admin(Plugin):
                 ):
             return
         # only Admin role is allowed to upload json files in channels
-        if not utils.check_roles(['Admin'], message.author):
+        if not utils.check_roles(self.bot.roles['Admin'], message.author):
             return
         if await self.bot.get_server(message) and await self.process_message(message):
             await message.delete()
@@ -328,9 +336,26 @@ class Admin(Plugin):
                 else:
                     await message.channel.send(f'Error {response.status} while reading JSON file!')
 
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        self.bot.log.debug(f'Member {member.display_name} has joined guild {member.guild.name}')
+        ucid = self.bot.get_ucid_by_member(member)
+        if ucid and self.bot.locals.get('autoban', False):
+            for server in self.bot.servers.values():
+                server.unban(ucid)
+        if self.bot.locals.get('greeting_dm'):
+            channel = await member.create_dm()
+            await channel.send(self.bot.locals['greeting_dm'].format(name=member.name, guild=member.guild.name))
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        self.bot.log.debug(f'Member {member.display_name} has left the discord')
+        ucid = self.bot.get_ucid_by_member(member)
+        if ucid and self.bot.locals.get('autoban', False):
+            self.bot.log.debug(f'- Banning them on our DCS servers due to AUTOBAN')
+            for server in self.bot.servers.values():
+                server.ban(ucid, 'Player left discord.', 9999*86400)
+
 
 async def setup(bot: DCSServerBot):
-    if not os.path.exists('config/admin.json'):
-        bot.log.info('No admin.json found, copying the sample.')
-        shutil.copyfile('config/samples/admin.json', 'config/admin.json')
     await bot.add_cog(Admin(bot))

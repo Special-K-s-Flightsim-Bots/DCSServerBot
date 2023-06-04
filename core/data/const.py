@@ -29,5 +29,5 @@ class Channel(Enum):
     STATUS = 'status'
     ADMIN = 'admin'
     CHAT = 'chat'
-    COALITION_BLUE = 'COALITION_BLUE_CHANNEL'
-    COALITION_RED = 'COALITION_RED_CHANNEL'
+    COALITION_BLUE = 'blue'
+    COALITION_RED = 'red'

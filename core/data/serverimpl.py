@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import os
+import shutil
 import socket
 import sqlite3
 import subprocess
@@ -57,11 +58,10 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 @DataObjectFactory.register("Server")
 class ServerImpl(Server):
     _instance: Instance = field(default=None)
-    bot: DCSServerBot = field(compare=False, init=False)
+    bot: Optional[DCSServerBot] = field(compare=False, init=False)
 
     def __post_init__(self):
         super().__post_init__()
-        self.bot = ServiceRegistry.get("Bot").bot
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
@@ -74,8 +74,8 @@ class ServerImpl(Server):
                         chat_channel=excluded.chat_channel, 
                         last_seen=NOW()
                 """, (self.name, self.node.name, self.port,
-                      self.get_channel(Channel.STATUS),
-                      self.get_channel(Channel.CHAT)))
+                      self.channels[Channel.STATUS],
+                      self.channels[Channel.CHAT]))
         # enable autoscan for missions changes
         if self.locals.get('autoscan', False):
             self.event_handler = MissionFileSystemEventHandler(self)
@@ -107,9 +107,41 @@ class ServerImpl(Server):
     def instance(self) -> Instance:
         return self._instance
 
-    @instance.setter
-    def instance(self, instance: Instance):
-        self._instance = instance
+    def _install_luas(self):
+        dcs_path = os.path.join(self.instance.home, 'Scripts')
+        if not os.path.exists(dcs_path):
+            os.mkdir(dcs_path)
+        ignore = None
+        bot_home = os.path.join(dcs_path, r'net\DCSServerBot')
+        if os.path.exists(bot_home):
+            self.log.debug('  - Updating Hooks ...')
+            shutil.rmtree(bot_home)
+            ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
+        else:
+            self.log.debug('  - Installing Hooks ...')
+        shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
+        try:
+            with open(r'Scripts/net/DCSServerBot/DCSServerBotConfig.lua.tmpl', 'r') as template:
+                with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), 'w') as outfile:
+                    for line in template.readlines():
+                        line = utils.format_string(line, node=self.node, instance=self.instance, server=self)
+                        outfile.write(line)
+        except KeyError as k:
+            self.log.error(
+                f'! You must set a value for {k}. See README for help.')
+            raise k
+        except Exception as ex:
+            self.log.exception(ex)
+        self.log.debug(f"  - Installing Plugin luas into {self.instance.name} ...")
+        for plugin_name in self.node.plugins:
+            source_path = f'./plugins/{plugin_name}/lua'
+            if os.path.exists(source_path):
+                target_path = os.path.join(bot_home, f'{plugin_name}')
+                shutil.copytree(source_path, target_path, dirs_exist_ok=True)
+                self.log.debug(f'    => Plugin {plugin_name.capitalize()} installed.')
+        self.log.debug(f'  - Luas installed into {self.instance.name}.')
+
+    def prepare(self):
         if self.settings['name'] != self.name:
             self.settings['name'] = self.name
         if 'serverSettings' in self.locals:
@@ -118,19 +150,17 @@ class ServerImpl(Server):
                     self.settings['advanced'] = self.settings['advanced'] | value
                 else:
                     self.settings[key] = value
-        if self.config.getboolean('BOT', 'DESANITIZE'):
-            # check for SLmod and desanitize its MissionScripting.lua
-            for version in range(5, 7):
-                filename = os.path.join(self.instance.home,
-                                        f'Scripts\\net\\Slmodv7_{version}\\SlmodMissionScripting.lua')
-                if os.path.exists(filename):
-                    utils.desanitize(self, filename)
-                    break
+        self._install_luas()
+
+    @instance.setter
+    def instance(self, instance: Instance):
+        self._instance = instance
+        self.prepare()
 
     async def get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
             settings = self.settings
-            start_index = int(settings['listStartIndex'])
+            start_index = int(settings.get('listStartIndex', 1))
             if start_index <= len(settings['missionList']):
                 filename = settings['missionList'][start_index - 1]
             else:
@@ -161,9 +191,21 @@ class ServerImpl(Server):
         # rename the entries in the main database tables
         with self.pool.connection() as conn:
             with conn.transaction():
-                # call rename() in all Plugins
-                for plugin in self.bot.cogs.values():  # type: Plugin
-                    plugin.rename(conn, self.name, new_name)
+                if self.node.master:
+                    bot: DCSServerBot = ServiceRegistry.get("Bot").bot
+                    # call rename() in all Plugins
+                    for plugin in bot.cogs.values():  # type: Plugin
+                        plugin.rename(conn, self.name, new_name)
+                else:
+                    self.bus.sendtoBot({
+                        "command": "rpc",
+                        "service": "ServiceBus",
+                        "method": "rename",
+                        "params": {
+                            "old_name": self.name,
+                            "new_name": new_name
+                        }
+                    })
                 conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
                              (new_name, self.name))
                 conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
@@ -216,7 +258,7 @@ class ServerImpl(Server):
             await self.extensions[ext].prepare()
             await self.extensions[ext].beforeMissionLoad()
         await self.do_startup()
-        timeout = 300 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 180
+        timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
         for ext in self.extensions:

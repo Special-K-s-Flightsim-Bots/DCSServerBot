@@ -33,7 +33,7 @@ class Header:
         grid.add_column(justify="center", ratio=1)
         grid.add_column(justify="right")
         grid.add_row(
-            f"[b]DCSServerBot Version {self.node.config['BOT']['VERSION']}.{self.node.config['BOT']['SUB_VERSION']}[/b]",
+            f"[b]DCSServerBot Version {self.node.bot_version}.{self.node.sub_version}[/b]",
             datetime.now().ctime().replace(":", "[blink]:[/]"),
         )
         return Panel(grid, style="white on blue")
@@ -43,7 +43,6 @@ class Servers:
     """Displaying List of Servers"""
     def __init__(self, bot: Union[DCSServerBot, ServiceBus]):
         self.bot = bot
-        self.config = bot.config
 
     def __rich__(self) -> Panel:
         table = Table(expand=True, show_edge=False)
@@ -52,8 +51,8 @@ class Servers:
         table.add_column("Mission Name", justify="left", no_wrap=True)
         table.add_column("Players", justify="center", min_width=4)
         for server_name, server in self.bot.servers.items():
-            name = re.sub(self.bot.config['FILTER']['SERVER_FILTER'], '', server.name).strip()
-            mission_name = re.sub(self.bot.config['FILTER']['MISSION_FILTER'], '',
+            name = re.sub(self.bot.filter['server_name'], '', server.name).strip()
+            mission_name = re.sub(self.bot.filter['mission_name'], '',
                                   server.current_mission.name).strip() if server.current_mission else "n/a"
             num_players = f"{len(server.get_active_players()) + 1}/{server.settings['maxPlayers']}"
             table.add_row(server.status.name.title(), name, mission_name, num_players)

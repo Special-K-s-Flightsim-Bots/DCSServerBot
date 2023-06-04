@@ -9,6 +9,7 @@ from getpass import getpass
 from os import path
 from core import utils
 from typing import Optional, Tuple
+from urllib.parse import quote
 
 
 class InvalidParameter(Exception):
@@ -80,7 +81,7 @@ class Install:
                 exit(-1)
         while True:
             passwd = getpass('Please enter your PostgreSQL master password (user=postgres): ')
-            url = f'postgres://postgres:{passwd}@localhost:{port}/postgres'
+            url = f'postgres://postgres:{quote(passwd)}@localhost:{port}/postgres'
             with psycopg.connect(url, autocommit=True) as conn:
                 with closing(conn.cursor()) as cursor:
                     passwd = secrets.token_urlsafe(8)
@@ -92,7 +93,7 @@ class Install:
                             passwd = getpass("Please enter your password for user 'dcsserverbot': ")
                             try:
                                 with psycopg.connect(
-                                        f"postgres://dcsserverbot:{passwd}@localhost:{port}/dcsserverbot"):
+                                        f"postgres://dcsserverbot:{quote(passwd)}@localhost:{port}/dcsserverbot"):
                                     pass
                                 break
                             except psycopg.Error:
@@ -102,7 +103,7 @@ class Install:
                         cursor.execute("GRANT ALL PRIVILEGES ON DATABASE dcsserverbot TO dcsserverbot")
                         cursor.execute("ALTER DATABASE dcsserverbot OWNER TO dcsserverbot")
                     print("Database user and database created.")
-                    return f"postgres://dcsserverbot:{passwd}@localhost:{port}/dcsserverbot"
+                    return f"postgres://dcsserverbot:{quote(passwd)}@localhost:{port}/dcsserverbot"
 
     @staticmethod
     def install():

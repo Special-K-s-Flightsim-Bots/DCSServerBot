@@ -23,34 +23,6 @@ class MessageOfTheDay(Plugin):
         self.nudge.cancel()
         await super().cog_unload()
 
-    def migrate(self, version: str):
-        if version != '1.1' or not path.exists('config/motd.json'):
-            return
-        with open('config/motd.json') as file:
-            old = json.load(file)
-            if 'on_event' not in old['configs'][0]:
-                return
-        new = {
-            "configs": []
-        }
-        for oldc in old['configs']:
-            newc = dict()
-            if 'instance' in oldc:
-                newc['instance'] = oldc['instance']
-            if 'on_event' in oldc:
-                event = 'on_' + oldc['on_event']
-                newc[event] = dict()
-                if 'message' in oldc:
-                    newc[event]['message'] = oldc['message']
-                if 'display_type' in oldc:
-                    newc[event]['display_type'] = oldc['display_type']
-                if 'display_time' in oldc:
-                    newc[event]['display_time'] = oldc['display_time']
-            new['configs'].append(newc)
-        with open('config/motd.json', 'w') as file:
-            json.dump(new, file, indent=2)
-            self.log.info('  => config/motd.json migrated to new format.')
-
     def send_message(self, message: str, server: Server, config: dict, player: Optional[Player] = None):
         if config['display_type'].lower() == 'chat':
             if player:
@@ -58,7 +30,7 @@ class MessageOfTheDay(Plugin):
             else:
                 server.sendChatMessage(Coalition.ALL, message)
         elif config['display_type'].lower() == 'popup':
-            timeout = config['display_time'] if 'display_time' in config else self.bot.config['BOT']['MESSAGE_TIMEOUT']
+            timeout = config.get('display_time', self.bot.locals.get('message_timeout', 10))
             if player:
                 player.sendPopupMessage(message, timeout)
             else:

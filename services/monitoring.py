@@ -33,12 +33,12 @@ class MonitoringService(Service):
             self.bot = ServiceRegistry.get("Bot").bot
             await self.bot.wait_until_ready()
         self.monitoring.start()
-        if self.config.getboolean('DCS', 'AUTOUPDATE'):
+        if self.node.locals['DCS'].get('autoupdate', False):
             self.autoupdate.start()
 
     async def stop(self):
         await super().stop()
-        if self.config.getboolean('DCS', 'AUTOUPDATE'):
+        if self.node.locals['DCS'].get('autoupdate', False):
             self.autoupdate.cancel()
         self.monitoring.cancel()
 
@@ -46,25 +46,25 @@ class MonitoringService(Service):
     async def check_affinity(server: Server, config: dict):
         if not server.process:
             for exe in ['DCS_server.exe', 'DCS.exe']:
-                server.process = utils.find_process(exe, server.instance)
+                server.process = utils.find_process(exe, server.instance.name)
                 if server.process:
                     break
         if server.process:
             server.process.cpu_affinity(config['affinity'])
 
     async def warn_admins(self, server: Server, message: str) -> None:
-        if self.node.config.getboolean(server.instance, 'PING_ADMIN_ON_CRASH'):
+        if server.locals.get('ping_admin_on_crash', True):
             message += f"\nLatest dcs-<timestamp>.log can be pulled with /download\n" \
                        f"If the scheduler is configured for this server, it will relaunch it automatically."
             if self.bus.master:
-                await ServiceRegistry.get("Bot").alert(message, server.get_channel(Channel.ADMIN))
+                await ServiceRegistry.get("Bot").alert(message, server.channels[Channel.ADMIN])
             else:
                 await self.bus.sendtoBot({
                     "command": "rpc",
                     "service": "Bot",
                     "method": "alert",
                     "params": {
-                        "message": message, "channel": server.get_channel(Channel.ADMIN)
+                        "message": message, "channel": server.channels[Channel.ADMIN]
                     }
                 })
 
@@ -104,7 +104,7 @@ class MonitoringService(Service):
                         del self.hung[server.name]
                 except asyncio.TimeoutError:
                     # check if the server process is still existent
-                    max_hung_minutes = int(self.node.config['DCS']['MAX_HUNG_MINUTES'])
+                    max_hung_minutes = int(self.node.config['DCS'].get('max_hung_minutes', 3))
                     if max_hung_minutes > 0:
                         self.log.warning(f"Server \"{server.name}\" is not responding.")
                         # process might be in a hung state, so try again for a specified amount of times
@@ -163,7 +163,7 @@ class MonitoringService(Service):
         # wait for DCS servers to shut down
         if tasks:
             await asyncio.gather(*tasks)
-        self.log.info(f"Updating {self.node.config['DCS']['DCS_INSTALLATION']} ...")
+        self.log.info(f"Updating {self.node.config['DCS']['installation']} ...")
         if self.bot:
             for plugin in self.bot.cogs.values():  # type: Plugin
                 await plugin.before_dcs_update()
@@ -172,13 +172,13 @@ class MonitoringService(Service):
         startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
         startupinfo.wShowWindow = subprocess.SW_HIDE
         subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
-            self.node.config['DCS']['DCS_INSTALLATION']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
-        if self.node.config.getboolean('BOT', 'DESANITIZE'):
+            self.node.config['DCS']['installation']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
+        if self.node.config['DCS'].get('desanitize', True):
             utils.desanitize(self)
         # run after_dcs_update() in all plugins
         for plugin in self.bot.cogs.values():  # type: Plugin
             await plugin.after_dcs_update()
-        self.log.info(f"{self.node.config['DCS']['DCS_INSTALLATION']} updated to the latest version. "
+        self.log.info(f"{self.node.config['DCS']['installation']} updated to the latest version. "
                       f"Starting up DCS servers again ...")
         for server in self.bus.servers.values():
             if server not in servers:
@@ -199,10 +199,10 @@ class MonitoringService(Service):
         if self.update_pending:
             return
         try:
-            branch, old_version = utils.getInstalledVersion(self.config['DCS']['DCS_INSTALLATION'])
+            branch, old_version = utils.getInstalledVersion(self.node.locals['DCS']['installation'])
             new_version = await utils.getLatestVersion(branch)
             if new_version and old_version != new_version:
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 await self.do_update([300, 120, 60])
         except Exception as ex:
-            self.log.debug("Exception in check_for_dcs_update(): " + str(ex))
+            self.log.debug("Exception in autoupdate(): " + str(ex))

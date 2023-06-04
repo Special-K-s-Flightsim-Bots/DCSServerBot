@@ -16,13 +16,11 @@ class DBExporter(Plugin):
         super().__init__(bot, eventlistener)
         if not path.exists('./export'):
             os.makedirs('./export')
-        if 'config' in self.locals and 'autoexport' in self.locals['config'] and \
-                self.locals['config']['autoexport'] is True:
+        if self.get_config().get('autoexport', False):
             self.schedule.start()
 
     async def cog_unload(self):
-        if 'config' in self.locals and 'autoexport' in self.locals['config'] and \
-                self.locals['configs']['autoexport'] is True:
+        if self.get_config().get('autoexport', False):
             self.schedule.cancel()
         await super().cog_unload()
 
@@ -52,7 +50,7 @@ class DBExporter(Plugin):
 
     @tasks.loop(hours=1.0)
     async def schedule(self):
-        self.do_export(self.locals['config']['tablefilter'] if ('config' in self.locals and 'tablefilter' in self.locals['config']) else [])
+        self.do_export(self.get_config().get('tablefilter', []))
 
 
 async def setup(bot: DCSServerBot):

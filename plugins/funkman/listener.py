@@ -3,7 +3,7 @@ import discord
 import sys
 import uuid
 import matplotlib.figure
-from core import EventListener, Plugin, Server, event
+from core import EventListener, Plugin, Server, event, DEFAULT_TAG
 from matplotlib import pyplot as plt
 
 
@@ -11,7 +11,7 @@ class FunkManEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.config = self.locals['configs'][0]
+        self.config = self.get_config()
         sys.path.append(self.config['install'])
         from funkman.utils.utils import _GetVal
         self.funkplot = None

@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);
 INSERT INTO version (version) VALUES ('v1.6') ON CONFLICT (version) DO NOTHING;
 CREATE TABLE IF NOT EXISTS plugins (plugin TEXT PRIMARY KEY, version TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS servers (server_name TEXT PRIMARY KEY, node TEXT NOT NULL, port BIGINT NOT NULL, status_channel BIGINT NOT NULL DEFAULT -1, chat_channel BIGINT NOT NULL DEFAULT -1, blue_password TEXT, red_password TEXT, last_seen TIMESTAMP DEFAULT NOW());
+CREATE UNIQUE INDEX IF NOT EXISTS idx_servers ON servers (node, port);
 CREATE TABLE IF NOT EXISTS message_persistence (server_name TEXT NOT NULL, embed_name TEXT NOT NULL, embed BIGINT NOT NULL, PRIMARY KEY (server_name, embed_name));
 CREATE TABLE IF NOT EXISTS nodes (guild_id BIGINT NOT NULL, node TEXT NOT NULL, master BOOLEAN NOT NULL, last_seen TIMESTAMP DEFAULT NOW(), PRIMARY KEY (guild_id, node));
 CREATE TABLE IF NOT EXISTS config_nodes (guild_id BIGINT NOT NULL, node TEXT NOT NULL, param TEXT NOT NULL, value TEXT NOT NULL);

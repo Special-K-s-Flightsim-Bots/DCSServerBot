@@ -5,6 +5,10 @@ import os
 import platform
 import uuid
 from contextlib import suppress
+from pathlib import Path
+
+import yaml
+
 from core import utils
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -18,6 +22,7 @@ from ..services.registry import ServiceRegistry
 if TYPE_CHECKING:
     from .player import Player
     from .mission import Mission
+    from .instance import Instance
     from ..extension import Extension
     from services import ServiceBus
 
@@ -50,16 +55,19 @@ class Server(DataObject):
         super().__post_init__()
         self.bus = ServiceRegistry.get("ServiceBus")
         self.status_change = asyncio.Event()
-        if os.path.exists('config/servers.json'):
-            with open('config/servers.json') as infile:
-                self.locals = json.load(infile)[self.name]
+        if os.path.exists('config/servers.yaml'):
+            self.locals = yaml.safe_load(Path('config/servers.yaml').read_text())[self.name]
 
     @property
     def host(self) -> str:
-        return "127.0.0.1"
+        return self.node.host_ip
 
     @property
     def is_remote(self) -> bool:
+        raise NotImplemented()
+
+    @property
+    def instance(self) -> Instance:
         raise NotImplemented()
 
     @property
@@ -77,6 +85,10 @@ class Server(DataObject):
             self._status = status
             self.status_change.set()
             self.status_change.clear()
+
+    @property
+    def coalitions(self) -> bool:
+        return self.locals.get('coalitions', None) is not None
 
     def add_player(self, player: Player):
         self.players[player.id] = player
@@ -209,13 +221,13 @@ class Server(DataObject):
 
     async def stop(self) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING]:
-            timeout = 120 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 60
+            timeout = 120 if self.node.locals.get('slow_system', False) else 60
             self.sendtoDCS({"command": "stop_server"})
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     async def start(self) -> None:
         if self.status == Status.STOPPED:
-            timeout = 300 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 120
+            timeout = 300 if self.node.locals.get('slow_system', False) else 120
             self.sendtoDCS({"command": "start_server"})
             await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
 
@@ -268,8 +280,13 @@ class Server(DataObject):
     async def modifyMission(self, preset: Union[list, dict]) -> None:
         pass
 
-    def get_channel(self, channel: Channel) -> int:
-        return int(self.locals['channels'][channel.value])
+    @property
+    def channels(self) -> dict:
+        if not self._channels:
+            self._channels = {}
+            for key, value in self.locals['channels'].items():
+                self._channels[Channel(key)] = value
+        return self._channels
 
     async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:
         async def wait(s: list[Status]):
@@ -281,7 +298,7 @@ class Server(DataObject):
 
     async def keep_alive(self):
         # we set a longer timeout in here because, we don't want to risk false restarts
-        timeout = 20 if self.config.getboolean('BOT', 'SLOW_SYSTEM') else 10
+        timeout = 20 if self.node.locals.get('slow_system', False) else 10
         data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -295,7 +312,7 @@ class Server(DataObject):
         self.current_mission.real_time = data['real_time']
 
     async def shutdown(self, force: bool = False) -> None:
-        slow_system = self.config.getboolean('BOT', 'SLOW_SYSTEM')
+        slow_system = self.node.locals.get('slow_system', False)
         timeout = 300 if slow_system else 180
         self.sendtoDCS({"command": "shutdown"})
         with suppress(asyncio.TimeoutError):

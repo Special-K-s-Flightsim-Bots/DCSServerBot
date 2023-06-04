@@ -12,6 +12,9 @@ import sys
 import time
 import zipfile
 from contextlib import closing
+
+import yaml
+
 from core import utils, ServiceRegistry, DataObjectFactory, Instance, Server
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
@@ -24,9 +27,6 @@ from services import Dashboard, BotService
 from typing import cast, Optional, Union
 from version import __version__
 
-
-BOT_VERSION = __version__[:__version__.rfind('.')]
-SUB_VERSION = int(__version__[__version__.rfind('.') + 1:])
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -43,23 +43,27 @@ class Node:
     def __init__(self):
         self.name: str = platform.node()
         self.config = self.read_config()
-        self.guild_id: int = int(self.config['BOT']['GUILD_ID'])
+        self.guild_id: int = int(self.config['guild_id'])
         self._public_ip: Optional[str] = None
+        self.listen_address = self.config.get('listen_address', '0.0.0.0')
+        self.listen_port = self.config.get('listen_port', 10042)
         self.log = self.init_logger()
-        if self.config.getboolean('BOT', 'AUTOUPDATE') and self.upgrade():
+        if self.config.get('autoupdate', True) and self.upgrade():
             self.log.warning('- Restart needed => exiting.')
             exit(-1)
-        self.log.info(f'DCSServerBot v{BOT_VERSION}.{SUB_VERSION} starting up ...')
+        self.bot_version = __version__[:__version__.rfind('.')]
+        self.sub_version = int(__version__[__version__.rfind('.') + 1:])
+        self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.db_version = None
         self.pool = self.init_db()
         self.instances: list[Instance] = list()
         self.locals: dict = self.read_locals()
         self.install_plugins()
-        plugins: str = self.config['BOT']['PLUGINS']
-        if 'OPT_PLUGINS' in self.config['BOT']:
-            plugins += ', ' + self.config['BOT']['OPT_PLUGINS']
-        self.plugins: [str] = [p.strip() for p in list(dict.fromkeys(plugins.split(',')))]
+        self.plugins: list[str] = ["mission", "scheduler", "help", "admin", "userstats", "missionstats",
+                                   "creditsystem", "gamemaster", "cloud"]
+        if 'opt_plugins' in self.config:
+            self.plugins.extend(self.config['opt_plugins'])
         # make sure, cloud is loaded last
         if 'cloud' in self.plugins:
             self.plugins.remove('cloud')
@@ -117,24 +121,41 @@ class Node:
 
     @staticmethod
     def read_config():
-        config = utils.config
-        config['BOT']['VERSION'] = BOT_VERSION
-        config['BOT']['SUB_VERSION'] = str(SUB_VERSION)
+        config = yaml.safe_load(Path('config/main.yaml').read_text())
+        # set defaults
+        config['autoupdate'] = config.get('autoupdate', True)
+        config['logging'] = config.get('logging', {})
+        config['logging']['loglevel'] = config['logging'].get('loglevel', 'DEBUG')
+        config['logging']['logrotate_size'] = config['logging'].get('logrotate_size', 10485760)
+        config['logging']['logrotate_count'] = config['logging'].get('logrotate_count', 5)
+        config['database']['pool_min'] = config['database'].get('pool_min', 5)
+        config['database']['pool_max'] = config['database'].get('pool_max', 10)
+        config['messages'] = config.get('messages', {})
+        config['messages']['player_username'] = config['messages'].get('player_username',
+                                                                       'Your player name contains invalid characters. '
+                                                                       'Please change your name to join our server.')
+        config['messages']['player_default_username'] = \
+            config['messages'].get('player_default_username', 'Please change your default player name at the top right '
+                                                              'of the multiplayer selection list to an individual one!')
+        config['messages']['player_banned'] = config['messages'].get('player_banned', 'You are banned from this '
+                                                                                      'server. Reason: {}')
+        config['messages']['player_afk'] = config['messages'].get('player_afk',
+                                                                  '{player.name}, you have been kicked for being AFK '
+                                                                  'for more than {time}.')
         return config
 
     def read_locals(self) -> dict:
         _locals = dict()
-        if os.path.exists('config/nodes.json'):
-            with open('config/nodes.json') as infile:
-                node: dict = json.load(infile)[self.name]
-                for name, element in node.items():
-                    if name == 'instances':
-                        for _name, _element in node['instances'].items():
-                            instance: Instance = DataObjectFactory().new(Instance.__name__, node=self, name=_name)
-                            instance.locals = _element
-                            self.instances.append(instance)
-                    else:
-                        _locals[name] = element
+        if os.path.exists('config/nodes.yaml'):
+            node: dict = yaml.safe_load(Path('config/nodes.yaml').read_text())[self.name]
+            for name, element in node.items():
+                if name == 'instances':
+                    for _name, _element in node['instances'].items():
+                        instance: Instance = DataObjectFactory().new(Instance.__name__, node=self, name=_name)
+                        instance.locals = _element
+                        self.instances.append(instance)
+                else:
+                    _locals[name] = element
         return _locals
 
     def init_logger(self):
@@ -144,9 +165,9 @@ class Node:
                                       datefmt='%Y-%m-%d %H:%M:%S')
         formatter.converter = time.gmtime
         fh = RotatingFileHandler(f'dcssb-{self.name}.log', encoding='utf-8',
-                                 maxBytes=int(self.config['LOGGING']['LOGROTATE_SIZE']),
-                                 backupCount=int(self.config['LOGGING']['LOGROTATE_COUNT']))
-        fh.setLevel(LOGLEVEL[self.config['LOGGING']['LOGLEVEL']])
+                                 maxBytes=self.config['logging']['logrotate_size'],
+                                 backupCount=self.config['logging']['logrotate_count'])
+        fh.setLevel(LOGLEVEL[self.config['logging']['loglevel']])
         fh.setFormatter(formatter)
         fh.doRollover()
         log.addHandler(fh)
@@ -157,9 +178,9 @@ class Node:
         return log
 
     def init_db(self):
-        db_pool = ConnectionPool(self.config['BOT']['DATABASE_URL'],
-                                 min_size=int(self.config['DB']['MASTER_POOL_MIN']),
-                                 max_size=int(self.config['DB']['MASTER_POOL_MAX']))
+        db_pool = ConnectionPool(self.config['database']['url'],
+                                 min_size=self.config['database']['pool_min'],
+                                 max_size=self.config['database']['pool_max'])
         return db_pool
 
     def update_db(self):
@@ -204,7 +225,8 @@ class Node:
 #        psycopg.extensions.register_type(dec2float)
 
     async def install_fonts(self):
-        if 'CJK_FONT' in self.config['REPORTS']:
+        font = self.config.get('reports', {}).get('cjk_font')
+        if font:
             if not os.path.exists('fonts'):
                 os.makedirs('fonts')
 
@@ -232,7 +254,7 @@ class Node:
                     "KR": "https://fonts.google.com/download?family=Noto%20Sans%20KR"
                 }
 
-                asyncio.get_event_loop().create_task(fetch_file(fonts[self.config['REPORTS']['CJK_FONT']]))
+                asyncio.get_event_loop().create_task(fetch_file(fonts[font]))
             else:
                 for font in font_manager.findSystemFonts('fonts'):
                     font_manager.fontManager.addfont(font)
@@ -286,7 +308,9 @@ class Node:
         return False
 
     async def register(self):
-        self._public_ip = self.locals.get('public_ip', await utils.get_public_ip())
+        self._public_ip = self.locals.get('public_ip')
+        if not self._public_ip:
+            self._public_ip = await utils.get_public_ip()
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) "
@@ -350,15 +374,11 @@ class Node:
                 # config = registry.new("Configuration")
                 # asyncio.create_task(config.start())
                 bot = cast(BotService, registry.new("Bot"))
-                asyncio.create_task(bot.start(token=self.config['BOT']['TOKEN']))
+                asyncio.create_task(bot.start())
             asyncio.create_task(bus.start())
             asyncio.create_task(registry.new("Monitoring").start())
-            try:
-                asyncio.create_task(registry.new("Backup").start())
-            except Exception as ex:
-                self.log.exception(ex)
-                return
-            if self.config['BOT'].getboolean('USE_DASHBOARD'):
+            asyncio.create_task(registry.new("Backup").start())
+            if self.config.get('use_dashboard', True):
                 dashboard = cast(Dashboard, registry.new("Dashboard"))
                 asyncio.create_task(dashboard.start())
             while True:
@@ -369,7 +389,7 @@ class Node:
                 self.master = not self.master
                 if self.master:
                     self.log.info("Master is not responding... taking over.")
-                    if self.config['BOT'].getboolean('USE_DASHBOARD'):
+                    if self.config.get('use_dashboard', True):
                         await dashboard.stop()
                     await self.install_fonts()
                     # config = registry.new("Configuration")

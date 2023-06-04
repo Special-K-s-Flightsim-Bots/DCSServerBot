@@ -3,7 +3,9 @@ import inspect
 import json
 import os
 import psycopg
+import shutil
 import sys
+import yaml
 from contextlib import closing
 from copy import deepcopy
 from core import utils
@@ -11,9 +13,10 @@ from core.services.registry import ServiceRegistry
 from discord import app_commands, Interaction
 from discord.app_commands import locale_str
 from discord.app_commands.commands import CommandCallback, GroupT, P, T
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
 from os import path
+from pathlib import Path
 from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List
 
 from .listener import TEventListener
@@ -21,6 +24,8 @@ from .listener import TEventListener
 if TYPE_CHECKING:
     from core import Server
     from services import DCSServerBot, ServiceBus
+
+DEFAULT_TAG = 'DEFAULT'
 
 
 def command(
@@ -186,6 +191,7 @@ class Plugin(commands.Cog):
             self.change_commands(self.locals['commands'], {x.name: x for x in self.get_app_commands()})
         self._config = dict[str, dict]()
         self.eventlistener: Type[TEventListener] = eventlistener(self) if eventlistener else None
+        self.wait_for_on_ready.start()
 
     async def cog_load(self) -> None:
         await self.install()
@@ -226,27 +232,6 @@ class Plugin(commands.Cog):
                         cmd.add_check(utils.has_roles(params['roles'].copy()).predicate)
                 if 'description' in params:
                     cmd.description = params['description']
-
-    @staticmethod
-    def get_installed_version(plugin: str) -> Optional[str]:
-        file = 'config/.plugins.json'
-        if not os.path.exists(file):
-            return None
-        with open(file) as f:
-            installed = json.load(f)
-        return installed[plugin] if plugin in installed else None
-
-    @staticmethod
-    def set_installed_version(plugin: str, version: str):
-        file = 'config/.plugins.json'
-        if not os.path.exists(file):
-            installed = {}
-        else:
-            with open(file) as f:
-                installed = json.load(f)
-        installed[plugin] = version
-        with open(file, 'w') as f:
-            json.dump(installed, f, indent=2)
 
     async def install(self):
         self.init_db()
@@ -297,48 +282,76 @@ class Plugin(commands.Cog):
                                     for query in updates_sql.readlines():
                                         self.log.debug(query.rstrip())
                                         cursor.execute(query.rstrip())
-                            ver, rev = installed.split('.')
-                            installed = ver + '.' + str(int(rev) + 1)
+                            if self.plugin_version == '3.0':
+                                installed = self.plugin_version
+                            else:
+                                ver, rev = installed.split('.')
+                                installed = ver + '.' + str(int(rev) + 1)
                             self.migrate(installed)
                             self.log.info(f'  => {self.plugin_name.title()} migrated to version {installed}.')
                         cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
                                        (self.plugin_version, self.plugin_name))
 
+    @staticmethod
+    def migrate_to_3(plugin_name: str):
+        os.makedirs('./config/backup', exist_ok=True)
+        old_file = f'./config/{plugin_name}.json'
+        with open(old_file, 'r') as infile:
+            old = json.load(infile)
+        new = {}
+        for config in old['configs']:
+            if 'installation' in config:
+                instance = config['installation']
+                new[instance] = config
+                del new[instance]['installation']
+            else:
+                new[DEFAULT_TAG] = config
+        new_file = f'./config/plugins/{plugin_name}.yaml'
+        with open(new_file, 'w') as outfile:
+            yaml.dump(new, outfile, default_flow_style=False)
+        shutil.move(old_file, './config/backup')
+
     def read_locals(self) -> dict:
         if path.exists(f'./config/{self.plugin_name}.json'):
-            filename = f'./config/{self.plugin_name}.json'
-        elif path.exists(f'./plugins/{self.plugin_name}/config/config.json'):
-            filename = f'./plugins/{self.plugin_name}/config/config.json'
+            self.log.info('  => Migrating old JSON config format to YAML ...')
+            self.migrate_to_3(self.plugin_name)
+            self.log.info(f'  => Config file {old_file} migrated to {new_file}.')
+        if path.exists(f'./config/plugins/{self.plugin_name}.yaml'):
+            filename = f'./config/plugins/{self.plugin_name}.yaml'
+        elif path.exists(f'./plugins/{self.plugin_name}/config/config.yaml'):
+            filename = f'./plugins/{self.plugin_name}/config/config.yaml'
         else:
             return {}
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
-        with open(filename, encoding='utf-8') as file:
-            return json.load(file)
+        return yaml.safe_load(Path(filename).read_text())
 
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'instance' in element or 'server_name' in element:
-                        if ('instance' in element and server.instance.name == element['instance']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    self._config[server.name] = default | specific
-            else:
-                return None
-        return self._config[server.name] if server.name in self._config else None
+    def get_config(self, server: Optional[Server] = None, plugin_name: str = None) -> dict:
+        # retrieve the config from another plugin
+        if plugin_name:
+            for plugin in self.bot.cogs.values():  # type: Plugin
+                if plugin.plugin_name == plugin_name:
+                    return plugin.get_config(server)
+        if not server:
+            return self.locals.get(DEFAULT_TAG, {})
+        if server.instance.name not in self._config:
+            self._config[server.instance.name] = \
+                deepcopy(self.locals.get(DEFAULT_TAG, {}) | self.locals.get(server.instance.name, {}))
+        return self._config[server.instance.name]
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str) -> None:
         # this function has to be implemented in your own plugins, if a server rename takes place
         pass
+
+    async def on_ready(self):
+        pass
+
+    @tasks.loop(count=1, reconnect=True)
+    async def wait_for_on_ready(self):
+        await self.on_ready()
+
+    @wait_for_on_ready.before_loop
+    async def before_on_ready(self):
+        await self.bot.wait_until_ready()
 
 
 class PluginError(Exception):

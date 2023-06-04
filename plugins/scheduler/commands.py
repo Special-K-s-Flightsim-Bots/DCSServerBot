@@ -1,10 +1,15 @@
 import asyncio
+from pathlib import Path
+
 import discord
 import json
 import os
 from copy import deepcopy
+
+import yaml
+
 from core import Plugin, PluginRequiredError, utils, Status, Autoexec, Extension, Server, Coalition, Channel, \
-    TEventListener, Group
+    TEventListener, Group, DEFAULT_TAG
 from datetime import datetime, timedelta
 from discord import app_commands
 from discord.ext import tasks
@@ -30,25 +35,19 @@ class Scheduler(Plugin):
         await super().cog_unload()
 
     def read_locals(self) -> dict:
-        # create a base scheduler.json if non exists
-        file = 'config/scheduler.json'
-        if not os.path.exists(file):
-            configs = []
+        config = super().read_locals()
+        if not config:
+            config = {}
             for instance in self.bus.node.instances:
-                configs.append({"instance": instance.name})
-            cfg = {"configs": configs}
-            with open(file, 'w') as f:
-                json.dump(cfg, f, indent=2)
-            return cfg
+                config[instance.name] = {}
+            with open("config/plugins/scheduler.yaml", 'w') as outfile:
+                yaml.dump(config, outfile, default_flow_style=False)
         else:
-            configs = super().read_locals()
-            for cfg in configs['configs']:
+            for cfg in config.values():
                 if 'presets' in cfg and isinstance(cfg['presets'], str):
-                    with open(os.path.expandvars(cfg['presets'])) as file:
-                        cfg['presets'] = json.load(file)
-            return configs
+                    cfg['presets'] = yaml.safe_load(Path(cfg['presets']).read_text())
+        return config
 
-    # TODO: Autoexec needs server
     async def install(self):
         await super().install()
         for instance in self.bot.node.instances:
@@ -65,81 +64,21 @@ class Scheduler(Plugin):
                 self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
     def migrate(self, version: str):
-        dirty = False
-        if version == '1.1' and 'SRS_INSTALLATION' in self.bot.config['DCS']:
-            with open('config/scheduler.json') as file:
-                old: dict = json.load(file)
-            new = deepcopy(old)
-            # search the default config or create one
-            c = -1
-            for i in range(0, len(old['configs'])):
-                if 'installation' not in old['configs'][i]:
-                    c = i
-                    break
-            if c == -1:
-                new['configs'].append(dict())
-                c = len(new['configs']) - 1
-            new['configs'][c]['extensions'] = {
-                "SRS": {"installation": self.bot.config['DCS']['SRS_INSTALLATION'].replace('%%', '%')}
-            }
-            # migrate the SRS configuration
-            for c in range(0, len(old['configs'])):
-                if 'installation' not in old['configs'][c] or \
-                        'extensions' not in old['configs'][c] or \
-                        'SRS' not in old['configs'][c]['extensions']:
-                    continue
-                new['configs'][c]['extensions'] = {
-                    "SRS": {"config": self.bot.config[old['configs'][c]['installation']]['SRS_CONFIG'].replace('%%', '%')}
-                }
-                dirty = True
-        elif version == '1.2':
-            with open('config/scheduler.json') as file:
-                old: dict = json.load(file)
-            new = deepcopy(old)
-            for config in new['configs']:
-                if 'extensions' in config and 'Tacview' in config['extensions'] and 'path' in config['extensions']['Tacview']:
-                    config['extensions']['Tacview']['tacviewExportPath'] = config['extensions']['Tacview']['path']
-                    del config['extensions']['Tacview']['path']
-                    dirty = True
-        else:
-            return
-        if dirty:
-            os.rename('config/scheduler.json', 'config/scheduler.bak')
-            with open('config/scheduler.json', 'w') as file:
-                json.dump(new, file, indent=2)
-                self.log.info('  => config/scheduler.json migrated to new format, please verify!')
+        if version == 3.0 and os.path.exists('config/scheduler.json'):
+            pass
 
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:  # type: dict
-                    if 'instance' in element or 'server_name' in element:
-                        if ('instance' in element and server.instance == element['instance']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    merged = default | specific
-                    if 'extensions' in merged and 'extensions' not in specific:
-                        del merged['extensions']
-                    elif 'extensions' in default and 'extensions' in specific:
-                        for ext in (default['extensions'] | specific['extensions']):
-                            if ext in default['extensions'] and ext in specific['extensions']:
-                                merged['extensions'][ext] = default['extensions'][ext] | specific['extensions'][ext]
-                            elif ext in specific['extensions']:
-                                merged['extensions'][ext] = specific['extensions'][ext]
-                            elif ext in merged['extensions']:
-                                del merged['extensions'][ext]
-                    self._config[server.name] = merged
-            else:
-                return None
-        return self._config[server.name] if server.name in self._config else None
+    def get_config(self, server: Server, plugin_name: str = None) -> Optional[dict]:
+        if plugin_name:
+            return super().get_config(server, plugin_name)
+        if server.instance.name not in self._config:
+            extensions = self.locals.get(server.instance.name, {}).get('extensions')
+            if extensions:
+                extensions |= self.locals.get(DEFAULT_TAG, {}).get('extensions', {})
+            self._config[server.instance.name] = \
+                deepcopy(self.locals.get(DEFAULT_TAG, {}) | self.locals.get(server.instance.name, {}))
+            if extensions:
+                self._config[server.instance.name]['extensions'] = extensions
+        return self._config[server.instance.name]
 
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:
@@ -196,8 +135,8 @@ class Scheduler(Plugin):
                     if warn_time == restart_in:
                         server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
                                                                                 when=utils.format_time(warn_time)),
-                                                self.bot.config['BOT']['MESSAGE_TIMEOUT'])
-                        chat_channel = self.bot.get_channel(server.get_channel(Channel.CHAT))
+                                                self.bot.locals.get('message_timeout', 10))
+                        chat_channel = self.bot.get_channel(server.channels[Channel.CHAT])
                         if chat_channel:
                             await chat_channel.send(warn_text.format(item=item, what=what,
                                                                      when=utils.format_time(warn_time)))
@@ -264,7 +203,7 @@ class Scheduler(Plugin):
                 server.on_empty = {'command': method}
             warn_times = Scheduler.get_warn_times(config)
             restart_in = max(warn_times) if len(warn_times) else 0
-            if not config['restart'].get('populated', False):
+            if not config['restart'].get('populated', True):
                 if 'max_mission_time' not in config['restart']:
                     server.restart_pending = True
                     return
@@ -391,7 +330,8 @@ class Scheduler(Plugin):
                                                         ephemeral=True)
                 return
         if server.status == Status.SHUTDOWN:
-            await interaction.response.defer(ephemeral=True)
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
             msg = await interaction.followup.send(f"Starting DCS server \"{server.display_name}\", please wait ...",
                                                   ephemeral=True)
             # set maintenance flag to prevent auto-stops of this server

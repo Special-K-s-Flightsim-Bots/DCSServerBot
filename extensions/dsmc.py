@@ -19,7 +19,7 @@ class DSMC(Extension):
             elif _value == 'false':
                 return False
             else:
-                return int(_value)
+                return eval(value)
 
         cfg = dict()
         dcs_home = self.server.instance.home
@@ -37,8 +37,11 @@ class DSMC(Extension):
         return cfg
 
     async def prepare(self) -> bool:
-        # we don't want to have DSMC
-        if self.locals['DSMC_updateMissionList'] or self.locals['DSMC_AutosaveExit_time']:
+        if 'DSMC_updateMissionList' not in self.locals:
+            self.log.error('  => DSMC_updateMissionList missing in DSMC_Dedicated_Server_options.lua! '
+                           'Check your config and / or update DSMC!')
+            return False
+        if self.locals.get('DSMC_updateMissionList', True) or self.locals.get('DSMC_AutosaveExit_time', 0):
             dcs_home = self.server.instance.home
             shutil.copy2(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'),
                          os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua.bak'))

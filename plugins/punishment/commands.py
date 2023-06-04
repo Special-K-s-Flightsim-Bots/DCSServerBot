@@ -4,7 +4,7 @@ import psycopg
 from contextlib import closing, suppress
 from copy import deepcopy
 from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, PluginInstallationError, \
-    command
+    command, DEFAULT_TAG
 from discord import app_commands
 from discord.ext import tasks
 from psycopg.rows import dict_row
@@ -20,8 +20,8 @@ class Punishment(Plugin):
             raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
         self.check_punishments.add_exception_type(psycopg.DatabaseError)
         self.check_punishments.start()
-        self.decay_config = self.read_decay_config()
-        self.unban_config = self.read_unban_config()
+        self.decay_config = self.locals.get(DEFAULT_TAG, {}).get('decay')
+        self.unban_config = self.locals.get(DEFAULT_TAG, {}).get('unban')
         self.decay.add_exception_type(psycopg.DatabaseError)
         self.decay.start()
 
@@ -29,31 +29,6 @@ class Punishment(Plugin):
         self.decay.cancel()
         self.check_punishments.cancel()
         await super().cog_unload()
-
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'instance' in element or 'server_name' in element:
-                        if ('instance' in element and server.instance == element['instance']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    merged = default
-                    # specific settings will always overwrite default settings
-                    for key, value in specific.items():
-                        merged[key] = value
-                    self._config[server.name] = merged
-            else:
-                return None
-        return self._config[server.name] if server.name in self._config else None
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
@@ -69,7 +44,7 @@ class Punishment(Plugin):
         self.log.debug('Punishment pruned.')
 
     async def punish(self, server: Server, player: Player, punishment: dict, reason: str):
-        admin_channel = self.bot.get_channel(server.get_channel(Channel.ADMIN))
+        admin_channel = self.bot.get_channel(server.channels[Channel.ADMIN])
         if punishment['action'] == 'ban':
             for s in self.bot.servers.values():
                 s.ban(player.ucid, reason, punishment.get('days', 30) * 84600)
@@ -83,8 +58,7 @@ class Punishment(Plugin):
                     channel = await player.member.create_dm()
                     await channel.send("You have been banned from the DCS servers on {} for {} for the amount of {} "
                                        "days.\n".format(utils.escape_string(guild.name), reason,
-                                                        punishment.get('days', 30),
-                                                        self.bot.config['BOT']['COMMAND_PREFIX']))
+                                                        punishment.get('days', 30)))
             else:
                 message = f"Player {player.display_name} (ucid={player.ucid}) banned by {self.bot.member.name} " \
                           f"for {reason}."
@@ -160,20 +134,6 @@ class Punishment(Plugin):
         # we need the CreditSystem to be loaded before processing punishments
         while 'CreditSystem' not in self.bot.cogs:
             await asyncio.sleep(1)
-
-    def read_decay_config(self):
-        if 'configs' in self.locals:
-            for element in self.locals['configs']:
-                if 'decay' in element:
-                    return element['decay']
-        return None
-
-    def read_unban_config(self):
-        if 'configs' in self.locals:
-            for element in self.locals['configs']:
-                if 'unban' in element:
-                    return element['unban']
-        return None
 
     @tasks.loop(hours=12.0)
     async def decay(self):

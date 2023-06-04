@@ -37,10 +37,6 @@ class MissionStatisticsEventListener(EventListener):
         super().__init__(plugin)
         if not self.bot.mission_stats:
             self.bot.mission_stats = dict()
-        if 'EVENT_FILTER' in self.bot.config['FILTER']:
-            self.filter = [x.strip() for x in self.bot.config['FILTER']['EVENT_FILTER'].split(',')]
-        else:
-            self.filter = []
         self.update: dict[str, bool] = dict()
         self.do_update.start()
 
@@ -52,9 +48,9 @@ class MissionStatisticsEventListener(EventListener):
         self.bot.mission_stats[server.name] = data
 
     def _toggle_mission_stats(self, server: Server):
-        if self.bot.config.getboolean(server.instance.name, 'MISSION_STATISTICS'):
+        if self.plugin.get_config(server).get('enabled', True):
             server.sendtoDCS({"command": "enableMissionStats"})
-            server.sendtoDCS({"command": "getMissionSituation"})
+            server.sendtoDCS({"command": "getMissionSituation", "channel": server.channels[Channel.STATUS]})
         else:
             server.sendtoDCS({"command": "disableMissionStats"})
 
@@ -67,7 +63,7 @@ class MissionStatisticsEventListener(EventListener):
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
         self._toggle_mission_stats(server)
 
-    def _update_database(self, server: Server, data: dict):
+    def _update_database(self, server: Server, config: dict, data: dict):
         def get_value(values: dict, index1, index2):
             if index1 not in values:
                 return None
@@ -75,14 +71,13 @@ class MissionStatisticsEventListener(EventListener):
                 return None
             return values[index1][index2]
 
-        if not self.bot.config.getboolean(server.instance, 'PERSIST_AI_STATISTICS') or \
-                data['eventName'] in self.filter:
+        if not config.get('persistence', True) or data['eventName'] in config.get('event_filter', []):
             return
         player = get_value(data, 'initiator', 'name')
         init_player = server.get_player(name=player) if player else None
         player = get_value(data, 'target', 'name')
         target_player = server.get_player(name=player) if player else None
-        if init_player or target_player:
+        if config.get('persist_ai_statistics', False) or init_player or target_player:
             dataset = {
                 'mission_id': server.mission_id,
                 'event': data['eventName'],
@@ -112,8 +107,9 @@ class MissionStatisticsEventListener(EventListener):
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
-        if self.bot.config.getboolean(server.instance, 'PERSIST_MISSION_STATISTICS'):
-            await asyncio.to_thread(self._update_database, server, data)
+        config = self.plugin.get_config(server)
+        if config.get('persistence', True):
+            await asyncio.to_thread(self._update_database, server, config, data)
         if data['server_name'] in self.bot.mission_stats:
             stats = self.bot.mission_stats[data['server_name']]
             update = False
@@ -200,7 +196,7 @@ class MissionStatisticsEventListener(EventListener):
                     else:
                         message = self.EVENT_TEXTS[win_coalition]['capture'].format(name)
                     update = True
-                    chat_channel = self.bot.get_channel(server.get_channel(Channel.CHAT))
+                    chat_channel = self.bot.get_channel(server.channels[Channel.CHAT])
                     if chat_channel:
                         await chat_channel.send(message)
             if update:
@@ -212,7 +208,7 @@ class MissionStatisticsEventListener(EventListener):
             if update:
                 server: Server = self.bot.servers[server_name]
                 # Hide the mission statistics embed, if coalitions are enabled
-                if self.bot.config.getboolean(server.instance, 'DISPLAY_MISSION_STATISTICS') and \
+                if self.plugin.get_config(server).get('display', True) and \
                         not server.locals.get('coalitions'):
                     stats = self.bot.mission_stats[server_name]
                     if 'coalitions' in stats:

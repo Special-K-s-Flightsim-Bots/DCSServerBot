@@ -25,15 +25,6 @@ function dcsbot.registerDCSServer(json)
 	msg.dcs_version = Export.LoGetVersionInfo().ProductVersion[1] .. '.' .. Export.LoGetVersionInfo().ProductVersion[2] .. '.' .. Export.LoGetVersionInfo().ProductVersion[3] .. '.' .. Export.LoGetVersionInfo().ProductVersion[4]
     msg.host = config.DCS_HOST
 	msg.port = config.DCS_PORT
-	msg.chat_channel = config.CHAT_CHANNEL
-	msg.status_channel = config.STATUS_CHANNEL
-	msg.admin_channel = config.ADMIN_CHANNEL
-	-- backwards compatibility
-	if (config.STATISTICS ~= nil) then
-		msg.statistics = config.STATISTICS
-	else
-		msg.statistics = true
-	end
     -- airbases
     msg.airbases = {}
     local airdromes = Terrain.GetTerrainConfig("Airdromes")

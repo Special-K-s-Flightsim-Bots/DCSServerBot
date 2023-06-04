@@ -4,7 +4,11 @@ __pycache__/
 *.log*
 config/dcsserverbot.ini
 config/*.json
+config/*.yaml
 config/*.lua
+config/plugins/*.yaml
+config/services/*.yaml
+config/backup/*
 Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 *.csv
 /venv/

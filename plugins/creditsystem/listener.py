@@ -168,7 +168,7 @@ class CreditSystemListener(EventListener):
     @chat_command(name="donate", help="donate points to another player")
     async def donate(self, server: Server, player: Player, params: list[str]):
         if len(params) < 2:
-            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}donate player points")
+            player.sendChatMessage(f"Usage: {self.prefix}donate player points")
             return
         name = ' '.join(params[:-1])
         donation = int(params[-1])
@@ -201,7 +201,7 @@ class CreditSystemListener(EventListener):
         player: CreditPlayer = cast(CreditPlayer, player)
 
         if not params:
-            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points [gci_number]")
+            player.sendChatMessage(f"Usage: {self.prefix}tip points [gci_number]")
             return
 
         donation = int(params[0])
@@ -222,7 +222,7 @@ class CreditSystemListener(EventListener):
 
         if gci_index not in range(0, len(active_gci)):
             player.sendChatMessage(
-                f"Multiple GCIs found, use \"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points GCI-number\".")
+                f"Multiple GCIs found, use \"{self.prefix}tip points GCI-number\".")
             for i, gci in enumerate(active_gci):
                 player.sendChatMessage(f"{i + 1}) {gci.name}")
             return

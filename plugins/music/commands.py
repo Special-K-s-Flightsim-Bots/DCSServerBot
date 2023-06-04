@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 
-from core import Plugin, utils, Server, TEventListener, PluginInstallationError, Status, Group
+from core import Plugin, utils, Server, TEventListener, PluginInstallationError, Status, Group, DEFAULT_TAG
 from discord import app_commands
 from discord.ext import commands
 from services import DCSServerBot
@@ -33,7 +33,7 @@ class Music(Plugin):
         await super().cog_unload()
 
     def get_music_dir(self) -> str:
-        music_dir = self.locals['configs'][0]['music_dir']
+        music_dir = self.get_config()['music_dir']
         if not os.path.exists(music_dir):
             os.makedirs(music_dir)
         return music_dir
@@ -104,8 +104,7 @@ class Music(Plugin):
         if message.author.bot or not message.attachments:
             return
         # only DCS Admin role is allowed to upload missions in the servers admin channel
-        if not utils.check_roles([x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')],
-                                 message.author):
+        if not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
             return
         delete = True
         try:

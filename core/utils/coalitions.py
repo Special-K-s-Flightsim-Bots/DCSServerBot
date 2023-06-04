@@ -2,10 +2,10 @@ from __future__ import annotations
 import discord
 from core import Coalition
 from typing import TYPE_CHECKING
-from . import config
 
 if TYPE_CHECKING:
     from core import Server
+    from services import DCSServerBot
 
 
 def get_sides(interaction: discord.Interaction, server: Server) -> list[str]:
@@ -20,17 +20,18 @@ def get_sides(interaction: discord.Interaction, server: Server) -> list[str]:
             "Blue": discord.Role,
             "Red": discord.Role,
         }
-        da_roles = [x.strip() for x in config['ROLES']['DCS Admin'].split(',')]
-        gm_roles = [x.strip() for x in config['ROLES']['GameMaster'].split(',')]
+        bot: DCSServerBot = interaction.client
+        da_roles = bot.roles['DCS Admin']
+        gm_roles = bot.roles['GameMaster']
         # find all roles that are allowed to see red and blue
         for role in interaction.channel.guild.roles:
-            if role.name == server.locals['coalitions']['blue']:
+            if role.name == server.locals['coalitions']['blue_role']:
                 roles['Blue'] = role
                 roles['All Blue'].add(role.name)
-            elif role.name == server.locals['coalitions']['red']:
+            elif role.name == server.locals['coalitions']['red_role']:
                 roles['Red'] = role
                 roles['All Red'].add(role.name)
-            elif role.name == config['ROLES']['DCS']:
+            elif role.name == bot.roles['DCS']:
                 roles['DCS'] = role
             elif role.name == '@everyone':
                 roles['everyone'] = role

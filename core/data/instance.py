@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from core import DataObjectFactory, DataObject
+from core import DataObjectFactory, DataObject, utils
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 from ..const import SAVED_GAMES
@@ -58,9 +58,24 @@ class Instance(DataObject):
     def configured_server(self) -> str:
         return self.locals['server']
 
+    @property
+    def server_user(self) -> str:
+        return self.locals.get('server_user', 'Admin')
+
     @server.setter
     def server(self, server: Server):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
         self._server = server
         server.instance = self
+
+    def prepare(self):
+        if self.config.getboolean('BOT', 'DESANITIZE'):
+            # check for SLmod and desanitize its MissionScripting.lua
+            for version in range(5, 7):
+                filename = os.path.join(self.instance.home,
+                                        f'Scripts\\net\\Slmodv7_{version}\\SlmodMissionScripting.lua')
+                if os.path.exists(filename):
+                    utils.desanitize(self, filename)
+                    break
+

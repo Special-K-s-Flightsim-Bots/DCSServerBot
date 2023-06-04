@@ -8,7 +8,6 @@ import xml
 import xmltodict
 from core.const import SAVED_GAMES
 from typing import Optional, Tuple
-from . import config
 from .. import utils
 
 REGEXP = {
@@ -72,7 +71,7 @@ async def getLatestVersion(branch: str) -> Optional[str]:
 def desanitize(self, _filename: str = None) -> None:
     # Sanitizing MissionScripting.lua
     if not _filename:
-        filename = os.path.expandvars(config['DCS']['DCS_INSTALLATION']) + r'\Scripts\MissionScripting.lua'
+        filename = os.path.expandvars(self.node.locals['DCS']['installation']) + r'\Scripts\MissionScripting.lua'
     else:
         filename = _filename
     backup = filename.replace('.lua', '.bak')
@@ -109,7 +108,7 @@ def desanitize(self, _filename: str = None) -> None:
             with open(filename, 'w') as outfile:
                 outfile.writelines(output)
     except (OSError, IOError) as e:
-        self.log.error(f"Can't access {filename}. Make sure, {config['DCS']['DCS_INSTALLATION']} is writable.")
+        self.log.error(f"Can't access {filename}. Make sure, {self.node.locals['DCS']['installation']} is writable.")
         raise e
 
 

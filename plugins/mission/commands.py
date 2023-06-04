@@ -74,7 +74,7 @@ class Mission(Plugin):
         })
         report = Report(self.bot, self.plugin_name, 'atis.json')
         env = await report.render(airbase=airbase, server_name=server.display_name, data=data)
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        timeout = self.bot.locals.get('message_autodelete', 300)
         await interaction.response.send_message(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
     @mission.command(description='Shows briefing of the active mission')
@@ -89,7 +89,7 @@ class Mission(Plugin):
                     (server.name,)).fetchone()
                 return {"Blue": row[0], "Red": row[1]}
 
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        timeout = self.bot.locals.get('message_autodelete', 300)
         mission_info = await server.sendtoDCSSync({
             "command": "getMissionDetails"
         })
@@ -346,14 +346,15 @@ class Mission(Plugin):
                           server: app_commands.Transform[Server, utils.ServerTransformer(
                               status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
                           name: str):
+        # TODO: presets have to go into the central presets.yaml file
         miz = MizFile(self.bot, server.current_mission.filename)
-        if 'presets' not in self.locals['configs'][0]:
-            self.locals['configs'][0]['presets'] = dict()
-        if name in self.locals['configs'][0]['presets'] and \
+        if 'presets' not in self.get_config():
+            self.get_config()['presets'] = dict()
+        if name in self.get_config()['presets'] and \
                 not await utils.yn_question(interaction, f'Do you want to overwrite the existing preset "{name}"?'):
             await interaction.followup.send('Aborted.', ephemeral=True)
             return
-        self.locals['configs'][0]['presets'] |= {
+        self.get_config()['presets'] |= {
             name: {
                 "start_time": miz.start_time,
                 "date": miz.date.strftime('%Y-%m-%d'),
@@ -387,7 +388,7 @@ class Mission(Plugin):
     @utils.app_has_role('DCS')
     async def list(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        timeout = self.bot.locals.get('message_autodelete', 300)
         report = Report(self.bot, self.plugin_name, 'players.json')
         env = await report.render(server=server, sides=utils.get_sides(interaction, server))
         await interaction.response.send_message(embed=env.embed, delete_after=timeout if timeout > 0 else None)
@@ -545,8 +546,9 @@ class Mission(Plugin):
                 for ucid, dt in server.afk.items():
                     player = server.get_player(ucid=ucid, active=True)
                     if player and (datetime.now() - dt).total_seconds() > max_time:
-                        msg = self.bot.config['DCS']['MESSAGE_AFK'].format(player=player,
-                                                                           time=utils.format_time(max_time))
+                        msg = self.get_config(server).get(
+                            'message_afk', '{player.name}, you have been kicked for being AFK for '
+                                           'more than {time}.'.format(player=player, time=utils.format_time(max_time)))
                         server.kick(player, msg)
         except Exception as ex:
             self.log.exception(ex)
@@ -558,9 +560,10 @@ class Mission(Plugin):
             return
         server: Server = await self.bot.get_server(message)
         # only DCS Admin role is allowed to upload missions in the servers admin channel
-        if not server or not utils.check_roles([
-            x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')
-        ], message.author):
+        if not server or not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
+            return
+        if server.is_remote:
+            await message.channel.send('Upload to remote servers not supported atm.')
             return
         att = message.attachments[0]
         filename = await server.get_missions_dir() + os.path.sep + att.filename
@@ -570,13 +573,14 @@ class Mission(Plugin):
             exists = False
             if os.path.exists(filename):
                 exists = True
-                if await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?') is False:
+                if await utils.yn_question(message.interaction, 'File exists. Do you want to overwrite it?') is False:
                     await message.channel.send('Upload aborted.')
                     return
                 if server.status in [Status.RUNNING, Status.PAUSED] and \
                         os.path.normpath(server.current_mission.filename) == os.path.normpath(filename):
-                    if await utils.yn_question(ctx, 'A mission is currently active.\nDo you want me to stop the DCS-'
-                                                    'server to replace it?') is True:
+                    if await utils.yn_question(message.interaction,
+                                               'A mission is currently active.\n'
+                                               'Do you want me to stop the DCS-server to replace it?') is True:
                         await server.stop()
                         stopped = True
                     else:

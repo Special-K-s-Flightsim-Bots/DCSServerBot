@@ -94,12 +94,11 @@ class UserStatisticsEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        if data['statistics']:
+        if self.get_config(server).get('enabled', True):
             self.statistics.add(server.name)
-        if server.status == Status.STOPPED:
+        else:
             return
-        # registering a running instance
-        if not data['channel'].startswith('sync-') or 'current_mission' not in data:
+        if server.status == Status.STOPPED or not data['channel'].startswith('sync-') or 'current_mission' not in data:
             return
 
         with self.pool.connection() as conn:
@@ -149,9 +148,9 @@ class UserStatisticsEventListener(EventListener):
                                     player_started = True
                             if not player_started and player.side != Side.SPECTATOR:
                                 # only warn for unknown users if it is a non-public server and automatch is on
-                                if not player.member and self.bot.config.getboolean('BOT', 'AUTOMATCH') and \
+                                if not player.member and self.bot.locals.get('automatch', True) and \
                                         len(server.settings['password']) > 0:
-                                    await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
+                                    await self.bot.get_channel(server.channels[Channel.ADMIN]).send(
                                         f"Player {data['name']} (ucid={data['ucid']}) can't be matched to a "
                                         f"discord user.")
                                 cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
@@ -189,6 +188,25 @@ class UserStatisticsEventListener(EventListener):
     @event(name="onSimulationStop")
     async def onSimulationStop(self, server: Server, data: dict) -> None:
         self.close_mission_stats(server)
+
+    @event(name="onPlayerStart")
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
+        if data['id'] == 1 or 'ucid' not in data:
+            return
+        player: Player = server.get_player(id=data['id'])
+        if not player.member:
+            player.sendChatMessage(self.get_config(server).get(
+                'greeting_message_unmatched', '{player.name}, please use /linkme in our Discord, '
+                                              'if you want to see your user stats!').format(server=server,
+                                                                                            player=player))
+            # only warn for unknown users if it is a non-public server and automatch is on
+            if self.bot.locals.get('automatch', True) and server.settings['password']:
+                await self.bot.get_channel(server.channels[Channel.ADMIN]).send(
+                    f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.')
+        else:
+            player.sendChatMessage(self.get_config(server).get(
+                'greeting_message_members', '{player.name}, welcome back at {server.name}!').format(player=player,
+                                                                                                    server=server))
 
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
@@ -310,9 +328,7 @@ class UserStatisticsEventListener(EventListener):
     @chat_command(name="linkme", usage="<token>", help="link your user to Discord")
     async def linkme(self, server: Server, player: Player, params: list[str]):
         if not params:
-            player.sendChatMessage(f"Syntax: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme token\n"
-                                   f"You get the token with {self.bot.config['BOT']['COMMAND_PREFIX']}linkme in "
-                                   f"our Discord.")
+            player.sendChatMessage(f"Syntax: {self.prefix}linkme token\nYou get the token with /linkme in our Discord.")
             return
 
         token = params[0]
@@ -322,7 +338,7 @@ class UserStatisticsEventListener(EventListener):
                     cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
                     if cursor.rowcount == 0:
                         player.sendChatMessage('Invalid token.')
-                        await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
+                        await self.bot.get_channel(server.channels[Channel.ADMIN]).send(
                             f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
                     else:
                         discord_id = cursor.fetchone()[0]

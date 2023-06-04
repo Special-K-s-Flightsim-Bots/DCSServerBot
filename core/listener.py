@@ -1,7 +1,7 @@
 from __future__ import annotations
 import inspect
 from dataclasses import MISSING
-from typing import TypeVar, TYPE_CHECKING, Any, Type
+from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional
 
 if TYPE_CHECKING:
     from core import DCSServerBot, Plugin, Server, Player
@@ -101,6 +101,7 @@ class EventListener(metaclass=EventListenerMeta):
         self.pool = plugin.pool
         self.locals: dict = plugin.locals
         self.loop = plugin.loop
+        self.prefix = self.bot.locals.get('chat_command_prefix', '-')
 
     @property
     def events(self) -> Any:
@@ -118,6 +119,9 @@ class EventListener(metaclass=EventListenerMeta):
             await self.__events__[name](self, server, data)
         except Exception as ex:
             self.log.exception(ex)
+
+    def get_config(self, server: Optional[Server] = None, plugin_name: str = None) -> dict:
+        return self.plugin.get_config(server, plugin_name)
 
     @event(name="onChatCommand")
     async def onChatCommand(self, server: Server, data: dict) -> None:

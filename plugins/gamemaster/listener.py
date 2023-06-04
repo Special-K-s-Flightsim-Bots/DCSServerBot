@@ -42,11 +42,11 @@ class GameMasterEventListener(EventListener):
         chat_channel: Optional[discord.TextChannel] = None
         if server.locals.get('coalitions') and data['to'] == -2 and player.coalition in [Coalition.BLUE, Coalition.RED]:
             if player.coalition == Coalition.BLUE:
-                chat_channel = self.bot.get_channel(server.get_channel(Channel.COALITION_BLUE))
+                chat_channel = self.bot.get_channel(server.channels[Channel.COALITION_BLUE])
             elif player.coalition == Coalition.RED:
-                chat_channel = self.bot.get_channel(server.get_channel(Channel.COALITION_RED))
+                chat_channel = self.bot.get_channel(server.channels[Channel.COALITION_RED])
         else:
-            chat_channel = self.bot.get_channel(server.get_channel(Channel.CHAT))
+            chat_channel = self.bot.get_channel(server.channels[Channel.CHAT])
         if chat_channel:
             if 'from_id' in data and data['from_id'] != 1 and len(data['message']) > 0:
                 await chat_channel.send(data['from_name'] + ': ' + data['message'])
@@ -152,7 +152,7 @@ class GameMasterEventListener(EventListener):
     async def _join(self, server: Server, player: Player, params: list[str]):
         coalition = params[0] if params else ''
         if coalition.casefold() not in ['blue', 'red']:
-            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join <blue|red>")
+            player.sendChatMessage(f"Usage: {self.prefix}join <blue|red>")
             return
         if player.coalition:
             if player.coalition == Coalition(coalition):
@@ -221,7 +221,7 @@ class GameMasterEventListener(EventListener):
     async def leave(self, server: Server, player: Player, params: list[str]):
         if not self.get_coalition(server, player):
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
-                                   f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
+                                   f"{self.prefix}join blue|red.")
             return
         # update the database
         with self.pool.connection() as conn:
@@ -259,7 +259,7 @@ class GameMasterEventListener(EventListener):
             player.sendChatMessage(f"You are a member of the {coalition.name} coalition.")
         else:
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
-                                   f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
+                                   f"{self.prefix}join blue|red.")
 
     @chat_command(name="coalition", help="displays your current coalition")
     async def coalition(self, server: Server, player: Player, params: list[str]):
@@ -269,7 +269,7 @@ class GameMasterEventListener(EventListener):
         coalition = self.get_coalition(server, player)
         if not coalition:
             player.sendChatMessage(f"You are not a member of any coalition. You can join one with "
-                                   f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}join blue|red.")
+                                   f"{self.prefix}join blue|red.")
             return
         password = self.get_coalition_password(server, player.coalition)
         if password:
@@ -284,7 +284,7 @@ class GameMasterEventListener(EventListener):
     @chat_command(name="flag", roles=['DCS Admin', 'GameMaster'], usage="<flag> [value]", help="reads or sets a flag")
     async def flag(self, server: Server, player: Player, params: list[str]):
         if not params:
-            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}flag <flag> [value]")
+            player.sendChatMessage(f"Usage: {self.prefix}flag <flag> [value]")
             return
         flag = params[0]
         if len(params) > 1:

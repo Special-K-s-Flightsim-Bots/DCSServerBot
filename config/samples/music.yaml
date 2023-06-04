@@ -1,0 +1,10 @@
+DEFAULT:
+  music_dir: .\Music
+  sink:
+    coalition: '2'
+    frequency: '40.0'
+    mode: 1
+    modulation: FM
+    name: My Music Box
+    type: SRSSink
+    volume: '1.0'

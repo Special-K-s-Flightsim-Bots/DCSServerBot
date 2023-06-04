@@ -30,12 +30,10 @@ class Extension(ABC):
 
     async def startup(self) -> bool:
         self.log.info(f"  => {self.name} v{self.version} launched for \"{self.server.name}\".")
-        await self.node.audit(f"Extension {self.name} started", server=self.server)
         return True
 
     async def shutdown(self) -> bool:
         self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
-        await self.node.audit(f"Extension {self.name} shut down", server=self.server)
         return True
 
     def is_running(self) -> bool:

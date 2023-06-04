@@ -1,16 +1,13 @@
 import discord
-import json
 import os
 import shutil
 import time
 
 from contextlib import closing
-from copy import deepcopy
-from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener, Group
+from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, TEventListener, Group
 from discord import SelectOption, app_commands
 from discord.app_commands import Range
 from discord.ext import tasks
-from os import path
 from psycopg.rows import dict_row
 from services import DCSServerBot
 from typing import Optional, Union, Type
@@ -28,50 +25,13 @@ class GreenieBoard(Plugin):
     async def cog_unload(self):
         self.auto_delete.cancel()
 
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'instance' in element or 'server_name' in element:
-                        if ('instance' in element and server.instance == element['instance']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                # we only specify the persistent channel in the server settings, if it is expicitely defined
-                if 'persistent_channel' in default:
-                    del default['persistent_channel']
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    merged = default
-                    # specific settings will overwrite default settings
-                    for key, value in specific.items():
-                        merged[key] = value
-                    self._config[server.name] = merged
-            else:
-                return None
-        return self._config[server.name] if server.name in self._config else None
-
-    def migrate(self, version: str):
-        if version != '1.3':
-            return
-        os.rename('config/greenieboard.json', 'config/greenieboard.bak')
-        with open('config/greenieboard.bak') as infile:
-            old: dict = json.load(infile)
-        dirty = False
-        for config in old['configs']:
-            if 'ratings' in config and '---' in config['ratings']:
-                config['ratings']['--'] = config['ratings']['---']
-                del config['ratings']['---']
-                dirty = True
-        if dirty:
-            with open('config/greenieboard.json', 'w') as outfile:
-                json.dump(old, outfile, indent=2)
-                self.log.info('  => config/greenieboard.json migrated to new format, please verify!')
+    def read_locals(self) -> dict:
+        config = super().read_locals()
+        if not config:
+            self.log.info('No greenieboard.yaml found, copying the sample.')
+            shutil.copyfile('config/samples/greenieboard.yaml', 'config/plugins/greenieboard.yaml')
+            config = super().read_locals()
+        return config
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Greenieboard ...')
@@ -101,7 +61,7 @@ class GreenieBoard(Plugin):
             name = user.display_name
         else:
             name = user
-        num_landings = max(self.locals['configs'][0]['num_landings'], 25)
+        num_landings = max(self.get_config().get('num_landings', 25), 25)
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.trapcase, g.wire, "
@@ -136,7 +96,7 @@ class GreenieBoard(Plugin):
     @utils.app_has_role('DCS Admin')
     async def add(self, interaction: discord.Interaction,
                   user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
-        config = self.locals['configs'][0]
+        config = self.get_config()
         if 'ratings' not in config:
             await interaction.response.send_message(
                 'You need to specify ratings in your greenieboard.json to use add_trap!', ephemeral=True)
@@ -179,8 +139,4 @@ class GreenieBoard(Plugin):
 async def setup(bot: DCSServerBot):
     if 'missionstats' not in bot.plugins:
         raise PluginRequiredError('missionstats')
-    # make sure that we have a proper configuration, take the default one if none is there
-    if not path.exists('config/greenieboard.json'):
-        bot.log.info('No greenieboard.json found, copying the sample.')
-        shutil.copyfile('config/samples/greenieboard.json', 'config/greenieboard.json')
     await bot.add_cog(GreenieBoard(bot, GreenieBoardEventListener))

@@ -1,0 +1,29 @@
+backups:
+  bot:
+    directories:
+    - config
+    - reports
+    schedule:
+      days: YYYYYYY
+      times:
+      - 00:00
+      - '12:00'
+  database:
+    password: secret
+    path: C:\Program Files\PostgreSQL\14\bin
+    schedule:
+      days: NNNNNNY
+      times:
+      - 03:00
+  servers:
+    directories:
+    - Config
+    - Missions
+    - Scripts
+    - Mods
+    schedule:
+      days: YNYNYNN
+      times:
+      - 02:00
+delete_after: '7'
+target: G:\My Drive\Backup

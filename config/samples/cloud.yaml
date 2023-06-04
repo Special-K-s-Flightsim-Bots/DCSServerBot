@@ -1,0 +1,7 @@
+DEFAULT:
+  dcs-ban: false
+  discord-ban: false
+  host: dcsserverbot-prod.herokuapp.com
+  port: 443
+  protocol: https
+  register: true

@@ -51,7 +51,7 @@ class PlaytimesPerPlane(report.GraphElement):
 class PlaytimesPerServer(report.GraphElement):
 
     def render(self, member: Union[discord.Member, str], server_name: str, period: str, flt: StatisticsFilter):
-        sql = f"SELECT regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g') AS " \
+        sql = f"SELECT regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g') AS " \
               f"server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS playtime FROM statistics s, " \
               f"players p, missions m WHERE s.player_ucid = p.ucid AND m.id = s.mission_id AND " \
               f"s.hop_off IS NOT NULL "
@@ -207,18 +207,23 @@ class KDRatio(report.MultiGraphElement):
 
     def draw_kill_performance(self, ax: Axes, member: Union[discord.Member, str], server_name: str, period: str,
                               flt: StatisticsFilter):
-        sql = 'SELECT COALESCE(SUM(kills - pvp), 0) as "AI Kills", COALESCE(SUM(pvp), 0) as "Player Kills", ' \
-              'COALESCE(SUM(deaths_planes + deaths_helicopters + deaths_ships + deaths_sams + deaths_ground - ' \
-              'deaths_pvp), 0) as "Deaths by AI", COALESCE(SUM(deaths_pvp),0) as "Deaths by Player", COALESCE(SUM(' \
-              'GREATEST(deaths, crashes) - deaths_planes - deaths_helicopters - deaths_ships - deaths_sams - ' \
-              'deaths_ground), 0) AS "Selfkill", COALESCE(SUM(teamkills), 0) as "Teamkills" FROM statistics s, ' \
-              'players p, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id '
+        sql = """
+            SELECT COALESCE(SUM(kills - pvp), 0) as "AI Kills", 
+                   COALESCE(SUM(pvp), 0) as "Player Kills", 
+                   COALESCE(SUM(deaths_planes + deaths_helicopters + deaths_ships + deaths_sams + deaths_ground - deaths_pvp), 0) as "Deaths by AI", 
+                   COALESCE(SUM(deaths_pvp),0) as "Deaths by Player", 
+                   COALESCE(SUM(GREATEST(deaths, crashes) - deaths_planes - deaths_helicopters - deaths_ships - deaths_sams - deaths_ground), 0) AS "Selfkill", 
+                   COALESCE(SUM(teamkills), 0) as "Teamkills" 
+            FROM statistics s, players p, missions m 
+            WHERE s.player_ucid = p.ucid 
+            AND s.mission_id = m.id
+        """
         if isinstance(member, discord.Member):
-            sql += 'AND p.discord_id = %s '
+            sql += ' AND p.discord_id = %s '
         else:
-            sql += 'AND p.ucid = %s '
+            sql += ' AND p.ucid = %s '
         if server_name:
-            sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
+            sql += " AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
 
         retval = []

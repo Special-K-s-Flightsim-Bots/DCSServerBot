@@ -71,8 +71,6 @@ class Autoexec:
             return True
         elif value == 'false':
             return False
-        elif value.isnumeric():
-            return int(value)
         else:
             return eval(value)
 

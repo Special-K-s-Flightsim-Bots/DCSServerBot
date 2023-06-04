@@ -127,7 +127,7 @@ class MissionEventListener(EventListener):
     async def sendMessage(self, server: Server, data: dict) -> None:
         channel_id = int(data['channel'])
         if channel_id == -1:
-            channel_id = server.get_channel(Channel.CHAT)
+            channel_id = server.channel(Channel.CHAT)
         channel = self.bot.get_channel(channel_id)
         if channel:
             await channel.send("```" + data['message'] + "```")
@@ -143,17 +143,24 @@ class MissionEventListener(EventListener):
         else:
             channel_id = int(data['channel'])
             if channel_id == -1:
-                channel_id = server.get_channel(Channel.CHAT)
+                channel_id = server.channels[Channel.CHAT]
             channel = self.bot.get_channel(channel_id)
             if channel:
                 await channel.send(embed=embed)
 
-    def send_chat_message(self, server: Server, message: str) -> None:
-        chat_channel = self.bot.get_channel(server.get_channel(Channel.CHAT))
+    def send_chat_message(self, server: Server, side: Side, message: str) -> None:
+        chat_channel = None
+        if server.locals.get('coalitions'):
+            if side == Side.RED:
+                chat_channel = server.channels[Channel.COALITION_RED]
+            elif side == Side.BLUE:
+                chat_channel = server.channels[Channel.COALITION_BLUE]
+        if not chat_channel:
+            chat_channel = server.channels[Channel.CHAT]
         if chat_channel:
             if chat_channel not in self.queue:
-                self.queue[chat_channel] = Queue()
-            self.queue[chat_channel].put(message)
+                self.queue[self.bot.get_channel(chat_channel)] = Queue()
+            self.queue[self.bot.get_channel(chat_channel)].put(message)
 
     def display_mission_embed(self, server: Server):
         self.mission_embeds[server.name] = True
@@ -268,15 +275,6 @@ class MissionEventListener(EventListener):
             server.add_player(player)
         else:
             player.update(data)
-        if not player.member:
-            player.sendChatMessage(self.bot.config['DCS']['GREETING_MESSAGE_UNMATCHED'].format(
-                name=player.name, prefix=self.bot.config['BOT']['COMMAND_PREFIX']))
-            # only warn for unknown users if it is a non-public server and automatch is on
-            if self.bot.config.getboolean('BOT', 'AUTOMATCH') and len(server.settings['password']) > 0:
-                await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
-                    f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.')
-        else:
-            player.sendChatMessage(self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(player.name, server.name))
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now()
         self.display_mission_embed(server)
@@ -305,12 +303,14 @@ class MissionEventListener(EventListener):
             if Side(data['side']) != Side.SPECTATOR:
                 if player.ucid in server.afk:
                     del server.afk[player.ucid]
-                self.send_chat_message(server, self.EVENT_TEXTS[Side(data['side'])]['change_slot'].format(
+                side = Side(data['side'])
+                self.send_chat_message(server, side, self.EVENT_TEXTS[side]['change_slot'].format(
                     player.side.name if player.side != Side.SPECTATOR else 'NEUTRAL',
                     data['name'], Side(data['side']).name, data['unit_type']))
             else:
                 server.afk[player.ucid] = datetime.now()
-                self.send_chat_message(server, self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
+                self.send_chat_message(server, Side.SPECTATOR,
+                                       self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
                                                                                                      data['name']))
         finally:
             if player:
@@ -331,7 +331,8 @@ class MissionEventListener(EventListener):
             if not player:
                 return
             try:
-                self.send_chat_message(server, self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
+                self.send_chat_message(server, player.side,
+                                       self.EVENT_TEXTS[player.side]['disconnect'].format(player.name))
             finally:
                 player.active = False
                 if player.ucid in server.afk:
@@ -346,25 +347,28 @@ class MissionEventListener(EventListener):
                 # TODO: remove if issue with Forrestal is fixed
                 return
 #                player2 = None
-            self.send_chat_message(server, self.EVENT_TEXTS[player1.side][data['eventName']].format(
+            self.send_chat_message(server, player1.side, self.EVENT_TEXTS[player1.side][data['eventName']].format(
                 'player ' + player1.name, ('player ' + player2.name) if player2 is not None else 'AI',
                 data['arg2'] or 'Cannon/Bomblet'))
         elif data['eventName'] == 'self_kill':
             player = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
-            self.send_chat_message(server, self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
+            self.send_chat_message(server, player.side,
+                                   self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
         elif data['eventName'] == 'kill':
             # Player is not an AI
             player1 = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
             player2 = server.get_player(id=data['arg4']) if data['arg4'] != -1 else None
-            self.send_chat_message(server, self.EVENT_TEXTS[Side(data['arg3'])][data['eventName']].format(
+            side = Side(data['arg3'])
+            self.send_chat_message(server, side, self.EVENT_TEXTS[side][data['eventName']].format(
                 ('player ' + player1.name) if player1 is not None else 'AI',
                 data['arg2'] or 'SCENERY', Side(data['arg6']).name,
                 ('player ' + player2.name) if player2 is not None else 'AI',
                 data['arg5'] or 'SCENERY', data['arg7'] or 'Cannon/Bomblet'))
             # report teamkills from players to admins (only on public servers)
-            if server.is_public() and player1 and (data['arg1'] != data['arg4']) and (data['arg3'] == data['arg6']):
+            if server.is_public() and player1 and player2 and data['arg1'] != data['arg4'] \
+                    and data['arg3'] == data['arg6']:
                 name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
-                await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
+                await self.bot.get_channel(server.channels[Channel.ADMIN]).send(
                     f'{name} (ucid={player1.ucid}) is killing team members. Please investigate.'
                 )
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
@@ -373,10 +377,10 @@ class MissionEventListener(EventListener):
                 if not player:
                     return
                 if data['eventName'] in ['takeoff', 'landing']:
-                    self.send_chat_message(server, self.EVENT_TEXTS[player.side][data['eventName']].format(
+                    self.send_chat_message(server, player.side, self.EVENT_TEXTS[player.side][data['eventName']].format(
                         player.name, data['arg3'] if len(data['arg3']) > 0 else 'ground'))
                 else:
-                    self.send_chat_message(server,
+                    self.send_chat_message(server, player.side,
                                            self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
 
     @chat_command(name="atis", usage="<airport>", help="display ATIS information")
@@ -419,7 +423,7 @@ class MissionEventListener(EventListener):
             mission = missions[i]
             mission = mission[(mission.rfind('\\') + 1):-4]
             message += f"{i + 1} {mission}\n"
-        message += f"\nUse {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}load <number> to load that mission"
+        message += f"\nUse {self.prefix}load <number> to load that mission"
         player.sendUserMessage(message, 30)
 
     @chat_command(name="load", roles=['DCS Admin'], usage="<number>", help="load a specific mission")
@@ -430,7 +434,7 @@ class MissionEventListener(EventListener):
     async def ban(self, server: Server, player: Player, params: list[str]):
         if not params:
             player.sendChatMessage(
-                f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}kick <name> [reason]")
+                f"Usage: {self.prefix}kick <name> [reason]")
             return
         params = shlex.split(' '.join(params))
         name = params[0]
@@ -452,7 +456,7 @@ class MissionEventListener(EventListener):
     async def kick(self, server: Server, player: Player, params: list[str]):
         if not params:
             player.sendChatMessage(
-                f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}kick <name> [reason]")
+                f"Usage: {self.prefix}kick <name> [reason]")
             return
         params = shlex.split(' '.join(params))
         name = params[0]
@@ -474,7 +478,7 @@ class MissionEventListener(EventListener):
     async def spec(self, server: Server, player: Player, params: list[str]):
         if not params:
             player.sendChatMessage(
-                f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}spec <name> [reason]")
+                f"Usage: {self.prefix}spec <name> [reason]")
             return
         params = shlex.split(' '.join(params))
         name = params[0]
@@ -495,12 +499,12 @@ class MissionEventListener(EventListener):
     @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
     async def call911(self, server: Server, player: Player, params: list[str]):
         mentions = ''
-        for role_name in [x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')]:
+        for role_name in self.bot.roles['DCS Admin']:
             role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
             if role:
                 mentions += role.mention
         message = ' '.join(params)
-        await self.bot.get_channel(server.get_channel(Channel.ADMIN)).send(
+        await self.bot.get_channel(server.channels[Channel.ADMIN]).send(
             mentions + f" 911 call from player {player.name} (ucid={player.ucid}):```{message}```")
 
     @chat_command(name="preset", aliases=["presets"], roles=['DCS Admin'], usage="<preset>",
@@ -520,7 +524,7 @@ class MissionEventListener(EventListener):
                 for i in range(0, len(presets)):
                     preset = presets[i]
                     message += f"{i + 1} {preset}\n"
-                message += f"\nUse {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}preset <number> to load that preset " \
+                message += f"\nUse {self.prefix}preset <number> to load that preset " \
                            f"(mission will be restarted!)"
                 player.sendUserMessage(message, 30)
             else:

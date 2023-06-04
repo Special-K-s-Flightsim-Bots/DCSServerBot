@@ -26,6 +26,7 @@ class ReportElement(ABC):
     def __init__(self, env: ReportEnv):
         self.env = env
         self.bot: DCSServerBot = env.bot
+        self.node = self.bot.node
         self.log = env.bot.log
         self.pool = env.bot.pool
 
@@ -150,14 +151,14 @@ class Graph(ReportElement):
                facecolor: Optional[str] = None):
         plt.style.use('dark_background')
         plt.rcParams['axes.facecolor'] = '2C2F33'
-        if 'CJK_FONT' in self.bot.config['REPORTS']:
-            plt.rcParams['font.family'] = [f"Noto Sans {self.bot.config['REPORTS']['CJK_FONT']}", 'sans-serif']
+        if 'cjk_font' in self.bot.locals.get('reports', {}):
+            plt.rcParams['font.family'] = [f"Noto Sans {self.bot.locals['reports']['cjk_font']}", 'sans-serif']
         self.env.figure = plt.figure(figsize=(width, height))
         if facecolor:
             self.env.figure.set_facecolor(facecolor)
         futures = []
         with ThreadPoolExecutor(
-                max_workers=int(self.env.bot.config['REPORTS']['NUM_WORKERS'])) as executor:
+                max_workers=int(self.env.bot.locals.get('reports', {}).get('num_workers', 4))) as executor:
             for element in elements:
                 if 'params' in element:
                     element_args = parse_params(self.env.params, element['params'])

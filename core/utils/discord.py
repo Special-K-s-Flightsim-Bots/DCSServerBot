@@ -14,7 +14,6 @@ from pathlib import Path, PurePath
 from typing import Optional, cast, Union, TYPE_CHECKING
 from .helper import get_all_players, is_ucid
 
-from . import config
 
 if TYPE_CHECKING:
     from .. import Server, DCSServerBot, Player
@@ -282,71 +281,41 @@ async def populated_question(interaction: discord.Interaction, question: str, me
         await msg.delete()
 
 
-def check_roles(roles: list[str], member: discord.Member) -> bool:
+def check_roles(roles: list[str], interaction: discord.Interaction) -> bool:
     valid_roles = set()
+    bot: DCSServerBot = interaction.client
     for role in roles:
-        if 'ROLES' not in config or role not in config['ROLES']:
-            valid_roles.add(role)
-        else:
-            valid_roles |= set([x.strip() for x in config['ROLES'][role].split(',')])
-    for role in member.roles:
+        valid_roles.update(bot.roles[role])
+    for role in interaction.user.roles:
         if role.name in valid_roles:
             return True
     return False
 
 
-def has_role(role: str):
-    def predicate(ctx: commands.Context) -> bool:
-        return check_roles([role], ctx.author)
-
-    return commands.check(predicate)
-
-
 def app_has_role(role: str):
     def predicate(interaction: Interaction) -> bool:
-        return check_roles([role], interaction.user)
+        return check_roles([role], interaction)
 
     return app_commands.check(predicate)
-
-
-def has_roles(roles: list[str]):
-    def predicate(ctx):
-        return check_roles(roles, ctx.author)
-
-    return commands.check(predicate)
 
 
 def app_has_roles(roles: list[str]):
     def predicate(interaction: Interaction) -> bool:
-        return check_roles(roles, interaction.user)
+        return check_roles(roles, interaction)
 
     return app_commands.check(predicate)
-
-
-def has_not_role(role: str):
-    def predicate(ctx):
-        return not check_roles([role], ctx.author)
-
-    return commands.check(predicate)
 
 
 def app_has_not_role(role: str):
     def predicate(interaction: Interaction) -> bool:
-        return not check_roles([role], interaction.user)
+        return not check_roles([role], interaction)
 
     return app_commands.check(predicate)
 
 
-def has_not_roles(roles: list[str]):
-    def predicate(ctx):
-        return not check_roles(roles, ctx.author)
-
-    return commands.check(predicate)
-
-
 def app_has_not_roles(roles: list[str]):
     def predicate(interaction: Interaction) -> bool:
-        return not check_roles(roles, interaction.user)
+        return not check_roles(roles, interaction)
 
     return app_commands.check(predicate)
 

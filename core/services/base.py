@@ -1,6 +1,10 @@
 import json
 import os
+import shutil
 from abc import ABC
+from pathlib import Path
+
+import yaml
 
 
 class Service(ABC):
@@ -26,12 +30,17 @@ class Service(ABC):
 
     def read_locals(self) -> dict:
         if os.path.exists(f'./config/{self.name}.json'):
-            filename = f'./config/{self.name}.json'
-        else:
+            os.makedirs('./config/backup', exist_ok=True)
+            with open(f'./config/{self.name.lower()}.json', 'r') as infile:
+                data = json.load(infile)
+            with open(f'./config/services/{self.name.lower()}.yaml', 'w') as outfile:
+                yaml.dump(data, outfile, default_flow_style=False)
+            shutil.move(f'./config/{self.name.lower()}.json', './config/backup')
+        filename = f'./config/services/{self.name.lower()}.yaml'
+        if not os.path.exists(filename):
             return {}
         self.log.debug(f'  => Reading service configuration from {filename} ...')
-        with open(filename, encoding='utf-8') as file:
-            return json.load(file)
+        return yaml.safe_load(Path(filename).read_text())
 
 
 class ServiceInstallationError(Exception):

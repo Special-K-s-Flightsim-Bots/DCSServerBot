@@ -1,3 +1,5 @@
+import traceback
+
 import aiohttp
 import asyncio
 import certifi
@@ -9,7 +11,7 @@ import psycopg
 import shutil
 import ssl
 from contextlib import closing
-from core import Plugin, utils, TEventListener, PaginationReport, Group
+from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError
 from discord import app_commands
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
@@ -25,7 +27,9 @@ class CloudHandler(Plugin):
         super().__init__(bot, eventlistener)
         if not len(self.locals):
             raise commands.ExtensionFailed(self.plugin_name, FileNotFoundError("No cloud.json available."))
-        self.config = self.locals['configs'][0]
+        self.config = self.get_config()
+        if not self.config:
+            raise PluginConfigurationError(plugin=self.plugin_name, option=DEFAULT_TAG)
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
         self._session = None
         self.client = None
@@ -58,8 +62,7 @@ class CloudHandler(Plugin):
             )
         return self._session
 
-    async def cog_load(self) -> None:
-        await super().cog_load()
+    async def on_ready(self) -> None:
         if not self.config.get('register', True):
             return
         with self.pool.connection() as conn:
@@ -75,9 +78,9 @@ class CloudHandler(Plugin):
                     num_bots = row[0]
                     num_servers = row[1]
         try:
-            _, dcs_version = utils.getInstalledVersion(self.bot.config['DCS']['DCS_INSTALLATION'])
+            _, dcs_version = utils.getInstalledVersion(self.bot.node.locals['DCS']['installation'])
             bot = {
-                "guild_id": self.bot.config['BOT']['GUILD_ID'],
+                "guild_id": self.bot.guilds[0].id,
                 "bot_version": f"{self.bot.version}.{self.bot.sub_version}",
                 "variant": "DCSServerBot",
                 "dcs_version": dcs_version,
@@ -97,6 +100,7 @@ class CloudHandler(Plugin):
         except aiohttp.ClientError:
             self.log.debug('Bot could not register due to service unavailability. Ignored.')
         except Exception as error:
+            traceback.print_exc()
             self.log.debug("Error while registering: " + str(error))
 
     async def cog_unload(self) -> None:
@@ -106,6 +110,14 @@ class CloudHandler(Plugin):
             self.cloud_bans.cancel()
         asyncio.create_task(self.session.close())
         await super().cog_unload()
+
+    def read_locals(self) -> dict:
+        config = super().read_locals()
+        if not config:
+            self.log.info('No cloud.yaml found, copying the sample.')
+            shutil.copyfile('config/samples/cloud.yaml', 'config/plugins/cloud.yaml')
+            config = super().read_locals()
+        return config
 
     async def get(self, request: str) -> Any:
         url = f"{self.base_url}/{request}"
@@ -244,7 +256,4 @@ class CloudHandler(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    if not os.path.exists('config/cloud.json'):
-        bot.log.info('No cloud.json found, copying the sample.')
-        shutil.copyfile('config/samples/cloud.json', 'config/cloud.json')
     await bot.add_cog(CloudHandler(bot, CloudListener))

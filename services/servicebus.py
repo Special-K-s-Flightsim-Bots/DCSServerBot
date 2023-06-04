@@ -22,6 +22,7 @@ from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from core import Plugin
     from services import DCSServerBot
 
 
@@ -31,14 +32,13 @@ class ServiceBus(Service):
     def __init__(self, node, name: str):
         super().__init__(node, name)
         self.bot: Optional[DCSServerBot] = None
-        self.version = self.config['BOT']['VERSION']
+        self.version = self.node.bot_version
         self.eventListeners: list[EventListener] = []
         self.servers: dict[str, Server] = dict()
         self.udp_server = None
         self.executor = None
-        if self.config['BOT'].getboolean('DESANITIZE'):
+        if self.node.locals['DCS'].get('desanitize', True):
             utils.desanitize(self)
-        self.install_luas()
         self.loop = asyncio.get_event_loop()
         self.intercom.add_exception_type(psycopg.DatabaseError)
 
@@ -82,50 +82,6 @@ class ServiceBus(Service):
         self.eventListeners.remove(listener)
         self.log.debug(f'- EventListener {type(listener).__name__} unregistered.')
 
-    def install_luas(self):
-        self.log.info('- Configure DCS instances ...')
-        for instance in self.node.instances:
-            self.log.info(f'  => {instance}')
-            dcs_path = os.path.join(instance.home, 'Scripts')
-            if not os.path.exists(dcs_path):
-                os.mkdir(dcs_path)
-            ignore = None
-            bot_home = os.path.join(dcs_path, r'net\DCSServerBot')
-            if os.path.exists(bot_home):
-                self.log.debug('  - Updating Hooks ...')
-                shutil.rmtree(bot_home)
-                ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
-            else:
-                self.log.debug('  - Installing Hooks ...')
-            shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
-            try:
-                with open(r'Scripts/net/DCSServerBot/DCSServerBotConfig.lua.tmpl', 'r') as template:
-                    with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), 'w') as outfile:
-                        for line in template.readlines():
-                            s = line.find('{')
-                            e = line.find('}')
-                            if s != -1 and e != -1 and (e - s) > 1:
-                                param = line[s + 1:e].split('.')
-                                if len(param) == 2:
-                                    line = line.replace('{' + '.'.join(param) + '}',
-                                                        self.config[param[0]][param[1]])
-                                elif len(param) == 1:
-                                    line = line.replace('{' + '.'.join(param) + '}',
-                                                        self.config[instance.name][param[0]])
-                            outfile.write(line)
-            except KeyError as k:
-                self.log.error(
-                    f'! Your dcsserverbot.ini contains errors. You must set a value for {k}. See README for help.')
-                raise k
-            self.log.debug(f"  - Installing Plugin luas into {instance.name} ...")
-            for plugin_name in self.node.plugins:
-                source_path = f'./plugins/{plugin_name}/lua'
-                if os.path.exists(source_path):
-                    target_path = os.path.join(bot_home, f'{plugin_name}')
-                    copytree(source_path, target_path, dirs_exist_ok=True)
-                    self.log.debug(f'    => Plugin {plugin_name.capitalize()} installed.')
-            self.log.debug(f'  - Luas installed into {instance.name}.')
-
     async def init_servers(self):
         for instance in self.node.instances:
             server: ServerImpl = DataObjectFactory().new(
@@ -153,7 +109,7 @@ class ServiceBus(Service):
 
     async def register_servers(self):
         self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
-        timeout = (5 * len(self.servers)) if self.config.getboolean('BOT', 'SLOW_SYSTEM') else (3 * len(self.servers))
+        timeout = (5 * len(self.servers)) if self.node.locals.get('slow_system', False) else (3 * len(self.servers))
         local_servers = [x for x in self.servers.values() if not x.is_remote]
         calls = []
         for server in local_servers:
@@ -246,7 +202,7 @@ class ServiceBus(Service):
                         if utils.findDCSInstances(_server_name) and not self.servers.get(_server_name):
                             self.log.info(f'Auto-renaming server "{_server_name}" to "{server_name}"')
                             server.rename(server_name)
-                            if server_name in self.servers:
+                            if _server_name in self.servers:
                                 del self.servers[_server_name]
                         else:
                             self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
@@ -254,6 +210,16 @@ class ServiceBus(Service):
                             return False
         self.log.info(f'  => Local DCS-Server "{server_name}" registered.')
         return True
+
+    def rename(self, old_name: str, new_name: str):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                # call rename() in all Plugins
+                for plugin in self.bot.cogs.values():  # type: Plugin
+                    plugin.rename(conn, old_name, new_name)
+                self.servers[new_name] = self.servers[old_name]
+                self.servers[new_name].rename(new_name, True)
+                del self.servers[old_name]
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
                            options: dict, node: str) -> ServerProxy:
@@ -263,8 +229,7 @@ class ServiceBus(Service):
                 node=node,
                 port=-1,
                 name=server_name,
-                instance=instance,
-                bus=self
+                instance=instance
             )
             self.servers[server_name] = proxy
             proxy.settings = settings
@@ -458,8 +423,8 @@ class ServiceBus(Service):
                 except Exception as ex:
                     self.log.exception(ex)
 
-        host = self.config['BOT']['HOST']
-        port = int(self.config['BOT']['PORT'])
+        host = self.node.listen_address
+        port = self.node.listen_port
         self.udp_server = MyThreadingUDPServer((host, port), RequestHandler)
         self.executor.submit(self.udp_server.serve_forever)
         self.log.debug('- Listener started on interface {} port {} accepting commands.'.format(host, port))

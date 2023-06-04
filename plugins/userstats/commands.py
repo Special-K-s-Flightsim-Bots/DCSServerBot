@@ -5,7 +5,7 @@ import psycopg
 import random
 from contextlib import closing
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
-    DataObjectFactory, Member, PersistentReport, Channel, command
+    DataObjectFactory, Member, PersistentReport, Channel, command, DEFAULT_TAG
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
@@ -190,7 +190,7 @@ class UserStatistics(Plugin):
                 player.verified = False
 
     @commands.command(description='Shows player information', usage='<@member / ucid>')
-    @utils.has_role('DCS Admin')
+#    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def info(self, ctx, member: Union[discord.Member, str], *params):
         if isinstance(member, str):
@@ -220,7 +220,7 @@ class UserStatistics(Plugin):
             if player:
                 break
 
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+        timeout = self.bot.locals.get('message_autodelete', 300)
         report = Report(self.bot, self.plugin_name, 'info.json')
         env = await report.render(member=member or ucid, player=player)
         message = await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
@@ -274,7 +274,7 @@ class UserStatistics(Plugin):
         return embed
 
     @commands.command(description='Show players that could be linked')
-    @utils.has_role('DCS Admin')
+#    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def linkcheck(self, ctx):
         message = await ctx.send('Please wait, this might take a bit ...')
@@ -322,7 +322,7 @@ class UserStatistics(Plugin):
         return embed
 
     @commands.command(description='Show possibly mislinked players', aliases=['mislinked'])
-    @utils.has_role('DCS Admin')
+#    @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def mislinks(self, ctx):
         await ctx.send('Please wait, this might take a bit ...')
@@ -374,7 +374,7 @@ class UserStatistics(Plugin):
         async def send_token(token: str):
             await interaction.followup.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
                                             f"following into the DCS chat of one of our servers:"
-                                            f"```{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme {token}```\n"
+                                            f"```{self.prefix}linkme {token}```\n"
                                             f"**The TOKEN will expire in 2 days.**", ephemeral=True)
 
         await interaction.response.defer()
@@ -434,7 +434,7 @@ class UserStatistics(Plugin):
     async def persistent_highscore(self):
         def get_server_by_instance(instance: str) -> Optional[Server]:
             for server in self.bot.servers.values():
-                if server.instance == instance:
+                if server.instance.name == instance:
                     return server
             return None
 
@@ -449,14 +449,14 @@ class UserStatistics(Plugin):
             await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
 
         try:
-            for config in self.locals['configs']:
+            for instance_name, config in self.locals.items():
                 if 'highscore' not in config:
                     continue
-                if "instance" in config:
-                    server = get_server_by_instance(config['instance'])
+                if instance_name != DEFAULT_TAG:
+                    server = get_server_by_instance(instance_name)
                     if not server:
                         self.log.debug(
-                            f"Server {config['instance']} is not (yet) registered, skipping highscore update.")
+                            f"Server {instance_name} is not (yet) registered, skipping highscore update.")
                         return
                 else:
                     server = None
@@ -475,13 +475,7 @@ class UserStatistics(Plugin):
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        self.bot.log.debug(f'Member {member.display_name} has left the discord')
-        ucid = self.bot.get_ucid_by_member(member)
-        if ucid and self.bot.config.getboolean('BOT', 'AUTOBAN'):
-            self.bot.log.debug(f'- Banning them on our DCS servers due to AUTOBAN')
-            for server in self.bot.servers.values():
-                server.ban(ucid, 'Player left discord.', 9999*86400)
-        if self.bot.config.getboolean('BOT', 'WIPE_STATS_ON_LEAVE'):
+        if self.get_config().get('wipe_stats_on_leave', True):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     self.bot.log.debug(f'- Deleting their statistics due to WIPE_STATS_ON_LEAVE')
@@ -499,17 +493,6 @@ class UserStatistics(Plugin):
         if ucid:
             for server in self.bot.servers.values():
                 server.ban(ucid, 'Banned on discord.', 9999*86400)
-
-    @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member):
-        self.bot.log.debug(f'Member {member.display_name} has joined guild {member.guild.name}')
-        ucid = self.bot.get_ucid_by_member(member)
-        if ucid:
-            for server in self.bot.servers.values():
-                server.unban(ucid)
-        if 'GREETING_DM' in self.bot.config['BOT']:
-            channel = await member.create_dm()
-            await channel.send(self.bot.config['BOT']['GREETING_DM'].format(name=member.name, guild=member.guild.name))
 
 
 async def setup(bot: DCSServerBot):

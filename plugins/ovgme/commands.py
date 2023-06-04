@@ -8,7 +8,7 @@ import shutil
 import zipfile
 
 from contextlib import closing, suppress
-from core import Status, Plugin, PluginConfigurationError, utils, Server, PluginInstallationError, command
+from core import Status, Plugin, PluginConfigurationError, utils, Server, PluginInstallationError, command, DEFAULT_TAG
 from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 from psycopg.rows import dict_row
@@ -24,15 +24,14 @@ class OvGME(Plugin):
     async def install(self) -> None:
         await super().install()
         if not self.locals:
-            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
-        if 'configs' in self.locals:
-            config = self.locals['configs'][0]
-            for folder in OVGME_FOLDERS:
-                if folder not in config:
-                    raise PluginConfigurationError(self.plugin_name, folder)
-            asyncio.create_task(self.install_packages())
-        else:
-            raise PluginConfigurationError(plugin=self.plugin_name, option='configs')
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
+        config = self.get_config()
+        if not config:
+            raise PluginConfigurationError(plugin=self.plugin_name, option=DEFAULT_TAG)
+        for folder in OVGME_FOLDERS:
+            if folder not in config:
+                raise PluginConfigurationError(self.plugin_name, folder)
+        asyncio.create_task(self.install_packages())
 
     async def before_dcs_update(self):
         # uninstall all RootFolder-packages
@@ -111,7 +110,7 @@ class OvGME(Plugin):
                         server.maintenance = False
 
     def get_latest_version(self, folder: str, package: str) -> str:
-        config = self.locals['configs'][0]
+        config = self.get_config()
         path = os.path.expandvars(config[folder])
         available = [self.parse_filename(x) for x in os.listdir(path) if package in x]
         max_version = None
@@ -131,14 +130,14 @@ class OvGME(Plugin):
     async def install_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
-        os.makedirs(os.path.join(path, '.' + server.instance), exist_ok=True)
-        target = os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) if folder == 'RootFolder' else \
+        os.makedirs(os.path.join(path, '.' + server.instance.name), exist_ok=True)
+        target = os.path.expandvars(self.bot.node.locals['DCS']['installation']) if folder == 'RootFolder' else \
             os.path.expandvars(server.locals['home'])
         for file in os.listdir(path):
             filename = os.path.join(path, file)
             if (os.path.isfile(filename) and file == package_name + '_v' + version + '.zip') or \
                     (os.path.isdir(filename) and file == package_name + '_v' + version):
-                ovgme_path = os.path.join(path, '.' + server.instance, package_name + '_v' + version)
+                ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
                 os.makedirs(ovgme_path, exist_ok=True)
                 if os.path.isfile(filename) and file == package_name + '_v' + version + '.zip':
                     with open(os.path.join(ovgme_path, 'install.log'), 'w') as log:
@@ -179,8 +178,8 @@ class OvGME(Plugin):
     async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
-        ovgme_path = os.path.join(path, '.' + server.instance, package_name + '_v' + version)
-        target = os.path.expandvars(self.bot.config['DCS']['DCS_INSTALLATION']) if folder == 'RootFolder' else \
+        ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
+        target = os.path.expandvars(self.bot.node.locals['DCS']['installation']) if folder == 'RootFolder' else \
             os.path.expandvars(server.locals['home'])
         if not os.path.exists(os.path.join(ovgme_path, 'install.log')):
             return False

@@ -28,7 +28,7 @@ class GreenieBoardEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        config = self.locals['configs'][0]
+        config = self.get_config()
         if 'FunkMan' in config:
             sys.path.append(config['FunkMan']['install'])
             from funkman.funkplot.funkplot import FunkPlot
@@ -44,7 +44,7 @@ class GreenieBoardEventListener(EventListener):
                                       embed_name='greenieboard', server=server, channel_id=channel_id)
             await report.render(server_name=server.name, num_rows=num_rows)
         # update the global board
-        config = self.locals['configs'][0]
+        config = self.get_config()
         if 'persistent_channel' in config and config.get('persistent_board', True):
             num_rows = config.get('num_rows', 10)
             report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json', embed_name='greenieboard',
@@ -53,7 +53,7 @@ class GreenieBoardEventListener(EventListener):
 
     async def send_chat_message(self, player: Player, data: dict):
         server: Server = self.bot.servers[data['server_name']]
-        chat_channel = self.bot.get_channel(server.get_channel(Channel.CHAT))
+        chat_channel = self.bot.get_channel(server.channels[Channel.CHAT])
         if chat_channel is not None:
             carrier = data['place']['name']
             if 'WO' in data['grade']:

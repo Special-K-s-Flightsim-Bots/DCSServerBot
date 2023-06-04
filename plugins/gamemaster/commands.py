@@ -4,7 +4,7 @@ import os
 import platform
 import psycopg
 from contextlib import closing
-from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, DEFAULT_TAG
 from discord import app_commands, TextStyle, SelectOption
 from discord.app_commands import Range
 from discord.ext import commands
@@ -28,10 +28,6 @@ class GameMaster(Plugin):
                     advanced['allow_players_pool'] = server.locals['coalitions'].get('allow_players_pool', False)
                     server.settings['advanced'] = advanced
 
-    def migrate(self, version: str):
-        if version == '1.3':
-            self.log.warning('  => Coalition system has been updated. All player coalitions have been reset!')
-
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Gamemaster ...')
         if days > 0:
@@ -51,16 +47,16 @@ class GameMaster(Plugin):
                 continue
             if 'coalitions' in server.locals:
                 sides = utils.get_sides(message, server)
-                if Coalition.BLUE in sides and server.get_channel(Channel.COALITION_BLUE) == message.channel.id:
+                if Coalition.BLUE in sides and server.channels[Channel.COALITION_BLUE] == message.channel.id:
                     # TODO: ignore messages for now, as DCS does not understand the coalitions yet
                     # server.sendChatMessage(Coalition.BLUE, message.content, message.author.display_name)
                     pass
-                elif Coalition.RED in sides and server.get_channel(Channel.COALITION_RED) == message.channel.id:
+                elif Coalition.RED in sides and server.channels[Channel.COALITION_RED] == message.channel.id:
                     # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
                     # server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
                     pass
-            if server.get_channel(Channel.CHAT) and server.get_channel(Channel.CHAT) == message.channel.id:
-                if message.content.startswith(self.bot.config['BOT']['COMMAND_PREFIX']) is False:
+            if server.channels[Channel.CHAT] and server.channels[Channel.CHAT] == message.channel.id:
+                if message.content.startswith('/') is False:
                     server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
 
     @command(description='Send a chat message to a running DCS instance')
@@ -315,7 +311,7 @@ class GameMaster(Plugin):
             await interaction.response.send_message(f'CreditSystem is not activated, /profile does not work.',
                                                     ephemeral=True)
             return
-        config: dict = self.locals['configs'][0]
+        config: dict = self.get_config()
         if not member:
             member = interaction.user
         embed = discord.Embed(title="User Campaign Profile", colour=discord.Color.blue())

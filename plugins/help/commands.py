@@ -41,7 +41,7 @@ class Help(Plugin):
             super().__init__()
             self.bot = bot
             self.interaction = interaction
-            self.prefix = self.bot.config['BOT']['COMMAND_PREFIX']
+            self.prefix = self.bot.locals.get('chat_command_prefix', '-')
             self.options = options
             select: Select = cast(Select, self.children[0])
             select.options = options

@@ -1,9 +1,8 @@
 import discord
 from contextlib import closing
-from copy import deepcopy
 from discord import app_commands, SelectOption
 from discord.app_commands import Range
-from core import utils, Plugin, PluginRequiredError, Server, Group
+from core import utils, Plugin, PluginRequiredError, Group
 from psycopg.rows import dict_row
 from services import DCSServerBot
 from typing import Optional, cast, Union
@@ -13,46 +12,6 @@ from .player import CreditPlayer
 
 
 class CreditSystem(Plugin):
-
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'instance' in element or 'server_name' in element:
-                        if ('instance' in element and server.instance.name == element['instance']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    merged = {}
-                    if 'initial_points' in specific:
-                        merged['initial_points'] = specific['initial_points']
-                    elif 'initial_points' in default:
-                        merged['initial_points'] = default['initial_points']
-                    if 'max_points' in specific:
-                        merged['max_points'] = specific['max_points']
-                    elif 'max_points' in default:
-                        merged['max_points'] = default['max_points']
-                    if 'points_per_kill' in default and 'points_per_kill' not in specific:
-                        merged['points_per_kill'] = default['points_per_kill']
-                    elif 'points_per_kill' not in default and 'points_per_kill' in specific:
-                        merged['points_per_kill'] = specific['points_per_kill']
-                    elif 'points_per_kill' in default and 'points_per_kill' in specific:
-                        merged['points_per_kill'] = default['points_per_kill'] + specific['points_per_kill']
-                    if 'achievements' in specific:
-                        merged['achievements'] = specific['achievements']
-                    elif 'achievements' in default:
-                        merged['achievements'] = default['achievements']
-                    self._config[server.name] = merged
-            else:
-                return None
-        return self._config[server.name] if server.name in self._config else None
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Creditsystem ...')
@@ -140,7 +99,6 @@ class CreditSystem(Plugin):
             embed.add_field(name='Event', value=events)
             embed.add_field(name='Points', value=deltas)
             embed.set_footer(text='Log will show the last 10 events only.')
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     async def admin_donate(self, interaction: discord.Interaction, to: discord.Member, donation: int):
@@ -178,8 +136,8 @@ class CreditSystem(Plugin):
                         """, (data[n]['id'], receiver)).fetchone()[0]
                     else:
                         old_points_receiver = p_receiver.points
-                    if 'max_points' in self.locals['configs'][0] and \
-                            (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
+                    if 'max_points' in self.get_config() and \
+                            (old_points_receiver + donation) > self.get_config()['max_points']:
                         await interaction.response.send_message(
                             f'Member {utils.escape_string(to.display_name)} would overrun the configured maximum '
                             f'points with this donation. Aborted.')
@@ -267,8 +225,8 @@ class CreditSystem(Plugin):
                         old_points_receiver = cursor.fetchone()[0]
                     else:
                         old_points_receiver = p_receiver.points
-                    if 'max_points' in self.locals['configs'][0] and \
-                            (old_points_receiver + donation) > self.locals['configs'][0]['max_points']:
+                    if 'max_points' in self.get_config() and \
+                            (old_points_receiver + donation) > self.get_config()['max_points']:
                         await interaction.response.send_message(
                             f'Member {utils.escape_string(to.display_name)} would overrun the configured maximum '
                             f'points with this donation. Aborted.', ephemeral=True)
