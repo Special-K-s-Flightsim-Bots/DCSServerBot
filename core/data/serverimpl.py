@@ -155,6 +155,7 @@ class ServerImpl(Server):
     @instance.setter
     def instance(self, instance: Instance):
         self._instance = instance
+        self.locals |= self.instance.locals
         self.prepare()
 
     async def get_current_mission_file(self) -> Optional[str]:
@@ -242,12 +243,12 @@ class ServerImpl(Server):
                 if '.' not in extension:
                     ext = utils.str_to_class('extensions.' + extension)(
                         self,
-                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(self.name)
+                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
                     )
                 else:
                     ext = utils.str_to_class(extension)(
                         self,
-                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(self.name)
+                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
                     )
                 if ext.is_installed():
                     self.extensions[extension] = ext

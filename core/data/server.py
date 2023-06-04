@@ -1,14 +1,11 @@
 from __future__ import annotations
 import asyncio
-import json
 import os
 import platform
 import uuid
+import yaml
 from contextlib import suppress
 from pathlib import Path
-
-import yaml
-
 from core import utils
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -81,7 +78,6 @@ class Server(DataObject):
     @status.setter
     def status(self, status: Status):
         if status != self._status:
-            self.log.info(f"{self.name}: {self._status.name} => {status.name}")
             self._status = status
             self.status_change.set()
             self.status_change.clear()

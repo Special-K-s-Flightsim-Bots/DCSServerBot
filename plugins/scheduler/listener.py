@@ -84,13 +84,6 @@ class SchedulerListener(EventListener):
             await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
         server.restart_pending = False
 
-    @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
-        await server.init_extensions()
-        for ext in server.extensions.values():
-            if not ext.is_running():
-                await ext.startup()
-
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
@@ -128,21 +121,12 @@ class SchedulerListener(EventListener):
         server.restart_pending = False
         server.on_empty.clear()
         server.on_mission_end.clear()
-        for ext in server.extensions.values():
-            if ext.is_running():
-                await ext.onMissionLoadEnd(data)
 
     @event(name="onMissionEnd")
     async def onMissionEnd(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config and 'onMissionEnd' in config:
             await self.run(server, config['onMissionEnd'])
-
-    @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, data: dict) -> None:
-        for ext in server.extensions.values():
-            if ext.is_running():
-                await ext.shutdown()
 
     @event(name="onShutdown")
     async def onShutdown(self, server: Server, data: dict) -> None:

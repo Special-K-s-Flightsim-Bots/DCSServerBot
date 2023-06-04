@@ -10,7 +10,6 @@
       "class": "plugins.mission.status.ServerInfo",
       "params": { "show_password":  true }
     },
-    "Ruler",
     {
       "class": "plugins.mission.status.WeatherInfo"
     },

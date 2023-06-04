@@ -19,7 +19,7 @@ class DSMC(Extension):
             elif _value == 'false':
                 return False
             else:
-                return eval(value)
+                return eval(_value)
 
         cfg = dict()
         dcs_home = self.server.instance.home

@@ -4,13 +4,14 @@ import os
 import re
 import time
 import win32api
+
 from collections import deque
-from core import Extension, report
-from datetime import datetime, timedelta
+from core import Extension, report, utils
+from discord.ext import tasks
 from typing import Optional
 
 
-DEFAULT_DIR = os.path.normpath(os.path.expandvars(r"%USERPROFILE%\Documents\Tacview"))
+TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(r"%USERPROFILE%\Documents\Tacview"))
 rtt_ports: dict[int, str] = dict()
 rcp_ports: dict[int, str] = dict()
 
@@ -48,8 +49,8 @@ class Tacview(Extension):
         options = self.server.options['plugins']
         if 'tacviewExportPath' in self.config:
             path = os.path.normpath(os.path.expandvars(self.config['tacviewExportPath']))
-            if path != DEFAULT_DIR and ('tacviewExportPath' not in options['Tacview'] or
-                                        os.path.normpath(options['Tacview']['tacviewExportPath']) != path):
+            if path != TACVIEW_DEFAULT_DIR and ('tacviewExportPath' not in options['Tacview'] or
+                                                os.path.normpath(options['Tacview']['tacviewExportPath']) != path):
                 options['Tacview']['tacviewExportPath'] = path
                 dirty = True
                 if not os.path.exists(path):
@@ -104,29 +105,28 @@ class Tacview(Extension):
             if self.locals.get('tacviewRemoteControlEnabled', False):
                 value += f"**Remote Ctrl [{self.locals.get('tacviewRemoteControlPort', 42675)}]**\n"
                 if show_passwords and self.locals.get('tacviewRemoteControlPassword'):
-                    value += f"Password: {self.locals['tacviewRemoteControlPassword']}"
+                    value += f"Password: {self.locals['tacviewRemoteControlPassword']}\n"
+            if self.locals.get('tacviewPlaybackDelay', 0) > 0:
+                value += f"Delay: {utils.format_time(self.locals['tacviewPlaybackDelay'])}"
             if len(value) == 0:
                 value = 'enabled'
         embed.add_field(name=name, value=value)
 
+    @tasks.loop(hours=24.0)
     async def schedule(self):
         # check if autodelete is configured
         if 'delete_after' not in self.config:
             return
-        # only run once a day
-        if self.lastrun > (datetime.now() - timedelta(days=1)):
-            return
         now = time.time()
         path = self.server.options['plugins']['Tacview'].get('tacviewExportPath')
         if not path:
-            path = DEFAULT_DIR
+            path = TACVIEW_DEFAULT_DIR
         if not os.path.exists(path):
             return
         for f in [os.path.join(path, x) for x in os.listdir(path)]:
             if os.stat(f).st_mtime < (now - self.config['delete_after'] * 86400):
                 if os.path.isfile(f):
                     os.remove(f)
-        self.lastrun = datetime.now()
 
     def is_installed(self) -> bool:
         global rtt_ports, rcp_ports

@@ -112,11 +112,9 @@ class MissionEventListener(EventListener):
                 server = self.bot.servers[server_name]
                 if not server.settings:
                     return
-                players = server.get_active_players()
-                num_players = len(players) + 1
                 report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', embed_name='mission_embed',
                                           server=server)
-                await report.render(server=server, num_players=num_players)
+                await report.render(server=server)
                 self.mission_embeds[server_name] = False
 
     @print_queue.before_loop

@@ -98,10 +98,15 @@ class MonitoringService(Service):
 #                    config = self.get_config(server)
 #                    if server.status == Status.RUNNING and 'affinity' in config:
 #                        await self.check_affinity(server, config)
+                    # check if server is alive
                     await server.keep_alive()
                     # remove any hung flag, if the server has responded
                     if server.name in self.hung:
                         del self.hung[server.name]
+                    # check extension states
+                    for ext in server.extensions.values():
+                        if not ext.is_running():
+                            await ext.startup()
                 except asyncio.TimeoutError:
                     # check if the server process is still existent
                     max_hung_minutes = int(self.node.config['DCS'].get('max_hung_minutes', 3))

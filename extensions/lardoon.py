@@ -1,8 +1,12 @@
 import os
 import subprocess
+
 from core import Extension, report, Server
 from datetime import datetime, timedelta
+from discord.ext import tasks
 from typing import Optional
+
+from extensions import TACVIEW_DEFAULT_DIR
 
 # Globals
 process: Optional[subprocess.Popen] = None
@@ -16,6 +20,7 @@ class Lardoon(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         self._import: Optional[subprocess.Popen] = None
+        self.lastrun = datetime(year=1970, day=1, month=1)
 
     async def startup(self) -> bool:
         global process, servers
@@ -74,6 +79,7 @@ class Lardoon(Extension):
             value = 'enabled'
         embed.add_field(name='Lardoon', value=value)
 
+    @tasks.loop(minutes=1.0)
     async def schedule(self):
         global imports, prune
 
@@ -96,14 +102,11 @@ class Lardoon(Extension):
                                              stderr=subprocess.DEVNULL)
         # run imports every 5 minutes
         elif self.lastrun > (datetime.now() - timedelta(minutes=self.config.get('minutes', 5))):
-            try:
-                path = self.server.options['plugins']['Tacview']['tacviewExportPath']
-                cmd = os.path.basename(self.config['cmd'])
-                self._import = subprocess.Popen([cmd, "import", "-p", path],
-                                                executable=os.path.expandvars(self.config['cmd']),
-                                                stdout=subprocess.DEVNULL,
-                                                stderr=subprocess.DEVNULL)
-                imports.add(self.server.name)
-            except KeyError:
-                pass
+            path = self.server.options['plugins']['Tacview'].get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
+            cmd = os.path.basename(self.config['cmd'])
+            self._import = subprocess.Popen([cmd, "import", "-p", path],
+                                            executable=os.path.expandvars(self.config['cmd']),
+                                            stdout=subprocess.DEVNULL,
+                                            stderr=subprocess.DEVNULL)
+            imports.add(self.server.name)
             self.lastrun = datetime.now()

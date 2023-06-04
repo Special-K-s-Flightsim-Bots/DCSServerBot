@@ -1,19 +1,13 @@
 import asyncio
-from pathlib import Path
-
 import discord
-import json
-import os
-from copy import deepcopy
-
 import yaml
-
 from core import Plugin, PluginRequiredError, utils, Status, Autoexec, Extension, Server, Coalition, Channel, \
-    TEventListener, Group, DEFAULT_TAG
+    TEventListener, Group
 from datetime import datetime, timedelta
 from discord import app_commands
 from discord.ext import tasks
 from discord.ui import Modal, TextInput
+from pathlib import Path
 from services import DCSServerBot
 from typing import Type, Optional, Literal
 
@@ -26,11 +20,8 @@ class Scheduler(Plugin):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
         self.check_state.start()
-        self.lastrun = None
-        self.schedule_extensions.start()
 
     async def cog_unload(self):
-        self.schedule_extensions.cancel()
         self.check_state.cancel()
         await super().cog_unload()
 
@@ -62,23 +53,6 @@ class Scheduler(Plugin):
                                      'to avoid that.')
             except Exception as ex:
                 self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
-
-    def migrate(self, version: str):
-        if version == 3.0 and os.path.exists('config/scheduler.json'):
-            pass
-
-    def get_config(self, server: Server, plugin_name: str = None) -> Optional[dict]:
-        if plugin_name:
-            return super().get_config(server, plugin_name)
-        if server.instance.name not in self._config:
-            extensions = self.locals.get(server.instance.name, {}).get('extensions')
-            if extensions:
-                extensions |= self.locals.get(DEFAULT_TAG, {}).get('extensions', {})
-            self._config[server.instance.name] = \
-                deepcopy(self.locals.get(DEFAULT_TAG, {}) | self.locals.get(server.instance.name, {}))
-            if extensions:
-                self._config[server.instance.name]['extensions'] = extensions
-        return self._config[server.instance.name]
 
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:
@@ -281,11 +255,6 @@ class Scheduler(Plugin):
                         asyncio.create_task(self.teardown(server, config))
                     elif server.status in [Status.RUNNING, Status.PAUSED]:
                         await self.check_mission_state(server, config)
-                    # if the server is running, and should run, check if all the extensions are running, too
-                    if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and target_state == server.status:
-                        for ext in server.extensions.values():
-                            if not ext.is_running():
-                                await ext.startup()
                 except Exception as ex:
                     self.log.warning("Exception in check_state(): " + str(ex))
 
@@ -299,15 +268,6 @@ class Scheduler(Plugin):
                 if server.status != Status.UNREGISTERED:
                     initialized += 1
             await asyncio.sleep(1)
-
-    @tasks.loop(minutes=1.0)
-    async def schedule_extensions(self):
-        for server in self.bot.servers.values():
-            for ext in server.extensions.values():
-                try:
-                    await ext.schedule()
-                except Exception as ex:
-                    self.log.exception(ex)
 
     group = Group(name="server", description="Commands to manage a DCS server")
 
@@ -352,7 +312,8 @@ class Scheduler(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     async def shutdown(self, interaction: discord.Interaction,
-                       server: app_commands.Transform[Server, utils.ServerTransformer],
+                       server: app_commands.Transform[Server, utils.ServerTransformer(
+                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.UNREGISTERED])],
                        force: Optional[bool]):
         async def do_shutdown(server: Server, force: bool = False):
             await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...",

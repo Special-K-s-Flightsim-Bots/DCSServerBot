@@ -2,6 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from core import report
 from datetime import datetime
+from discord.ext import tasks
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -17,7 +18,6 @@ class Extension(ABC):
         self.config: dict = config
         self.server: Server = server
         self.locals: dict = self.load_config()
-        self.lastrun = datetime(year=1970, day=1, month=1)
 
     def load_config(self) -> Optional[dict]:
         return dict()
@@ -29,10 +29,16 @@ class Extension(ABC):
         return True
 
     async def startup(self) -> bool:
+        schedule = self.__class__.__dict__.get('schedule')
+        if schedule and not schedule.is_running():
+            schedule.start()
         self.log.info(f"  => {self.name} v{self.version} launched for \"{self.server.name}\".")
         return True
 
     async def shutdown(self) -> bool:
+        schedule = self.__class__.__dict__.get('schedule')
+        if schedule and schedule.is_running():
+            schedule.cancel()
         self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
         return True
 
@@ -51,8 +57,8 @@ class Extension(ABC):
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         raise NotImplementedError()
 
-    async def schedule(self):
-        pass
+#    async def schedule(self):
+#        pass
 
     def is_installed(self) -> bool:
         pass

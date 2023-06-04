@@ -48,7 +48,8 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def download(self, interaction: discord.Interaction,
-                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])]) -> None:
+                       server: app_commands.Transform[Server, utils.ServerTransformer(
+                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])]) -> None:
         view = View()
         msg = None
         config = self.get_config(server)

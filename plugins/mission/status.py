@@ -61,7 +61,8 @@ class ServerInfo(report.EmbedElement):
             footer = 'SERVER IS IN MAINTENANCE MODE, SCHEDULER WILL NOT WORK!\n\n'
         else:
             footer = ''
-        footer += f'- Server is running DCS {server.dcs_version}'
+        if server.dcs_version:
+            footer += f'- Server is running DCS {server.dcs_version}'
         self.embed.set_footer(text=footer)
 
 
@@ -69,6 +70,7 @@ class WeatherInfo(report.EmbedElement):
 
     def render(self, server: Server):
         if server.current_mission and server.current_mission.weather:
+            report.Ruler(self.env).render()
             weather = server.current_mission.weather
             self.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
             self.add_field(name='QNH (QFF)', value='{:.2f} inHg\n'.format(weather['qnh'] * const.MMHG_IN_INHG) +
@@ -138,7 +140,7 @@ class All(report.EmbedElement):
             if server.status not in [Status.PAUSED, Status.RUNNING]:
                 continue
             name = f"{server.name} [{len(server.players) + 1}/{server.settings['maxPlayers']}]"
-            value = f"IP/Port:  {server.public_ip}:{server.settings['port']}\n"
+            value = f"IP/Port:  {server.node.public_ip}:{server.settings['port']}\n"
             if server.current_mission:
                 value += f"Mission:  {server.current_mission.name}\n"
                 value += "Uptime:   {}\n".format(utils.format_time(int(server.current_mission.mission_time)))
