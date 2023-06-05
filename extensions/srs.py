@@ -4,7 +4,7 @@ import subprocess
 import win32api
 import win32con
 from configparser import RawConfigParser
-from core import Extension, DCSServerBot, utils, report, Server
+from core import Extension, DCSServerBot, utils, report, Server, SAVED_GAMES
 from typing import Optional
 
 ports: dict[int, str] = dict()
@@ -49,7 +49,8 @@ class SRS(Extension):
                 self.cfg.write(ini)
             self.locals = self.load_config()
         # Change DCS-SRS-AutoConnectGameGUI.lua if necessary
-        autoconnect = os.path.expandvars(f"%USERPROFILE%\\Saved Games\\{self.server.installation}\\Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua")
+        autoconnect = os.path.expandvars(os.path.join(SAVED_GAMES, self.server.installation,
+                                                      r'Scripts\Hooks\DCS-SRS-AutoConnectGameGUI.lua'))
         host = self.config['host'] if 'host' in self.config else self.bot.external_ip
         port = self.config['port'] if 'port' in self.config else self.locals['Server Settings']['SERVER_PORT']
         if os.path.exists(autoconnect):
