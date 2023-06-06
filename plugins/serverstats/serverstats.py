@@ -191,14 +191,14 @@ class ServerLoad(report.MultiGraphElement):
               f"2) AS \"FPS\", ROUND(AVG(ping), 2) AS \"Ping\" FROM serverstats " \
               f"WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}') "
         if server_name:
-            sql += f" AND server_name = '{server_name}' "
+            sql += f" AND server_name = %s "
         if agent_host:
             sql += f" AND agent_host = '{agent_host}' "
         sql += " GROUP BY 1"
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute(sql)
+                cursor.execute(sql, (server_name, ))
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
                     series.plot(ax=self.axes[0], x='time', y=['CPU'], title='CPU / User', xticks=[], xlabel='')
