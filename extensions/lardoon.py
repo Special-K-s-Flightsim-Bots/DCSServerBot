@@ -101,7 +101,7 @@ class Lardoon(Extension):
                                              stdout=subprocess.DEVNULL,
                                              stderr=subprocess.DEVNULL)
         # run imports every 5 minutes
-        elif self.lastrun > (datetime.now() - timedelta(minutes=self.config.get('minutes', 5))):
+        elif self.lastrun < (datetime.now() - timedelta(minutes=self.config.get('minutes', 5))):
             try:
                 path = self.server.options['plugins']['Tacview'].get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
                 if not path:
