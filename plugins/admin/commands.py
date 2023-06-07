@@ -826,7 +826,7 @@ class Master(Agent):
         try:
             with closing(conn.cursor()) as cursor:
                 self.bot.log.debug(f'- Ban member {member.display_name} on the DCS servers.')
-                cursor.execute('INSERT INTO bans SELECT ucid, \'DCSServerBot\', %s FROM '
+                cursor.execute('INSERT INTO bans (ucid, banned_by, reason) SELECT ucid, \'DCSServerBot\', %s FROM '
                                'players WHERE discord_id = %s ON CONFLICT DO UPDATE SET reason = excluded.reason',
                                (self.bot.config['BOT']['MESSAGE_BAN'], member.id, ))
                 self.update_bans()

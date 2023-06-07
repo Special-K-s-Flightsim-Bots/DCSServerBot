@@ -537,7 +537,6 @@ class Scheduler(Plugin):
 
         server: Server = await self.bot.get_server(ctx)
         if server:
-            config = self.get_config(server)
             if server.status in [Status.UNREGISTERED, Status.LOADING]:
                 if params and params[0] == '-force' or \
                         await utils.yn_question(ctx, f"Server is in state {server.status.name}.\n"

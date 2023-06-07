@@ -17,6 +17,7 @@ from discord.ui import Select, View, Button
 from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
 from typing import Optional, cast
 from .listener import MissionEventListener
+from ..scheduler.commands import Scheduler
 
 
 class Mission(Plugin):
@@ -211,19 +212,38 @@ class Mission(Plugin):
 
             server.restart_pending = True
             if server.is_populated():
-                if delay > 0:
-                    message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
-                else:
-                    message = '!!! Server will be restarted NOW !!!'
-                # have we got a message to present to the users?
-                if len(args):
-                    message += ' Reason: {}'.format(' '.join(args))
-
-                if server.get_channel(Channel.STATUS).id == ctx.channel.id:
-                    await ctx.message.delete()
                 msg = await ctx.send(f'Restarting mission in {utils.format_time(delay)} (warning users before)...')
-                server.sendPopupMessage(Coalition.ALL, message, sender=ctx.message.author.display_name)
-                await asyncio.sleep(delay)
+                if delay > 0:
+                    scheduler = cast(Scheduler, self.bot.cogs['Scheduler'])
+                    warn_times = scheduler.get_warn_times(scheduler.get_config(server)).copy() or [300, 60, 10]
+                    while True:
+                        if warn_times[0] > delay:
+                            warn_times.pop(0)
+                        else:
+                            break
+                    if max(warn_times) < delay:
+                        warn_times.insert(0, delay)
+                    warn_text = '!!! Mission will be restarted in {} !!!'
+                    if len(args):
+                        warn_text += ' Reason: {}'.format(' '.join(args))
+                    restart_in = max(warn_times)
+                    while restart_in > 0 and server.is_populated():
+                        for warn_time in warn_times:
+                            if warn_time == restart_in:
+                                server.sendPopupMessage(
+                                    Coalition.ALL, warn_text.format(utils.format_time(warn_time)))
+                                chat_channel = server.get_channel(Channel.CHAT)
+                                if chat_channel:
+                                    await chat_channel.send(warn_text.format(utils.format_time(warn_time)))
+                        await asyncio.sleep(1)
+                        restart_in -= 1
+                else:
+                    message = '!!! Mission will be restarted NOW !!!'
+                    if len(args):
+                        message += ' Reason: {}'.format(' '.join(args))
+                    if server.get_channel(Channel.STATUS).id == ctx.channel.id:
+                        await ctx.message.delete()
+                    server.sendPopupMessage(Coalition.ALL, message, sender=ctx.message.author.display_name)
                 await msg.delete()
 
             msg = await ctx.send('Mission will restart now, please wait ...')

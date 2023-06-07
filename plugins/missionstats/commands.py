@@ -13,7 +13,7 @@ class MissionStatisticsAgent(Plugin):
     @commands.command(description='Display Mission Statistics')
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def missionstats(self, ctx):
+    async def missionstats(self, ctx: commands.Context):
         server: Server = await self.bot.get_server(ctx)
         if not server:
             return
@@ -45,7 +45,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
     @commands.command(description='Display statistics about sorties', usage='[user] [period]')
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def sorties(self, ctx, member: Optional[Union[discord.Member, str]], *params):
+    async def sorties(self, ctx: commands.Context, member: Optional[Union[discord.Member, str]], *params):
         try:
             timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
             member, period = parse_params(self, ctx, member, *params)
@@ -84,7 +84,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
     @commands.command(description='Module statistics', usage='[user] [period]', aliases=['modstats'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def modulestats(self, ctx, member: Optional[Union[discord.Member, str]], *params):
+    async def modulestats(self, ctx: commands.Context, member: Optional[Union[discord.Member, str]], *params):
         timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
         member, period = parse_params(self, ctx, member, *params)
         if not member:
@@ -127,7 +127,7 @@ class MissionStatisticsMaster(MissionStatisticsAgent):
     @commands.command(description='Refueling statistics', usage='[member] [period]')
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def refuelings(self, ctx, member: Optional[Union[discord.Member, str]], *params):
+    async def refuelings(self, ctx: commands.Context, member: Optional[Union[discord.Member, str]], *params):
         try:
             timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
             member, period = parse_params(self, ctx, member, *params)
