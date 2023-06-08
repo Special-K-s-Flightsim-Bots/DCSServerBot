@@ -1,11 +1,13 @@
 import aiohttp
+import certifi
+import gzip
+import json
 import luadata
 import math
 import os
 import re
 import shutil
-import xml
-import xmltodict
+import ssl
 from core.const import SAVED_GAMES
 from typing import Optional, List, Tuple
 from . import config
@@ -16,7 +18,7 @@ REGEXP = {
     'version': re.compile(r'"version": "(?P<version>.*)"'),
     'server_name': re.compile(r'\["name"\] = "(?P<server_name>.*)"')
 }
-PATCHNOTES_URL = 'https://www.digitalcombatsimulator.com/en/news/changelog/rss/'
+UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
 
 
 def findDCSInstallations(server_name: Optional[str] = None) -> List[Tuple[str, str]]:
@@ -57,15 +59,11 @@ def getInstalledVersion(path: str) -> Tuple[Optional[str], Optional[str]]:
 
 
 async def getLatestVersion(branch: str) -> Optional[str]:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(PATCHNOTES_URL) as response:
-            try:
-                xpars = xmltodict.parse(await response.text())
-                for item in xpars['rss']['channel']['item']:
-                    if branch in item['link']:
-                        return item['link'].split('/')[-2]
-            except xml.parsers.expat.ExpatError:
-                pass
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+            ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+        async with session.get(UPDATER_URL.format(branch)) as response:
+            if response.status == 200:
+                return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
     return None
 
 
