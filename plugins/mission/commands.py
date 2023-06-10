@@ -83,6 +83,9 @@ class Mission(Plugin):
                 report = Report(self.bot, self.plugin_name, 'serverStatus.json')
                 env = await report.render(server=server, num_players=num_players)
                 await ctx.send(embed=env.embed)
+            elif server.status == Status.LOADING:
+                await ctx.send('Mission is still loading, please try again in a bit.')
+                return
             else:
                 await ctx.send(f'There is no mission running on server {server.display_name}')
                 return
