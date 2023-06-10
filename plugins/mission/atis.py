@@ -14,8 +14,12 @@ class Main(report.EmbedElement):
         alt = int(airbase['alt'] * const.METER_IN_FEET)
         self.add_field(name='Altitude', value='{} ft'.format(alt))
         self.add_field(name='▬' * 30, value='_ _', inline=False)
-        self.add_field(name='Tower Frequencies', value='\n'.join(
-            '{:.3f} MHz'.format(x[0] / 1000000) for x in airbase['frequencyList']))
+        if airbase['frequencyList'] and isinstance(airbase['frequencyList'][0], list):
+            self.add_field(name='Tower Frequencies', value='\n'.join(
+                '{:.3f} MHz'.format(x[0] / 1000000) for x in airbase['frequencyList']))
+        else:
+            self.add_field(name='Tower Frequencies', value='\n'.join(
+                '{:.3f} MHz'.format(x / 1000000) for x in airbase['frequencyList']))
         weather = data['weather']
         active_runways = utils.get_active_runways(airbase['runwayList'], weather['wind']['atGround'])
         self.add_field(name='Runways (# = active)',
