@@ -627,12 +627,18 @@ class DCSServerBot(commands.Bot):
                 if server.status == Status.UNREGISTERED:
                     continue
                 channels = [Channel.ADMIN, Channel.STATUS]
+                if int(self.config[server.installation].get(Channel.EVENTS.value, '-1')) != -1:
+                    channels.append(Channel.EVENTS)
                 if int(self.config[server.installation][Channel.CHAT.value]) != -1:
                     channels.append(Channel.CHAT)
-                if int(self.config[server.installation][Channel.COALITION_BLUE.value]) != -1:
-                    channels.append(Channel.COALITION_BLUE)
-                if int(self.config[server.installation][Channel.COALITION_RED.value]) != -1:
-                    channels.append(Channel.COALITION_RED)
+                if int(self.config[server.installation].get(Channel.COALITION_BLUE_EVENTS.value, '-1')) != -1:
+                    channels.append(Channel.COALITION_BLUE_EVENTS)
+                if int(self.config[server.installation][Channel.COALITION_BLUE_CHAT.value]) != -1:
+                    channels.append(Channel.COALITION_BLUE_CHAT)
+                if int(self.config[server.installation].get(Channel.COALITION_RED_EVENTS.value, '-1')) != -1:
+                    channels.append(Channel.COALITION_RED_EVENTS)
+                if int(self.config[server.installation][Channel.COALITION_RED_CHAT.value]) != -1:
+                    channels.append(Channel.COALITION_RED_CHAT)
                 for channel in channels:
                     if server.get_channel(channel).id == ctx.channel.id:
                         return server

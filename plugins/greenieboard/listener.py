@@ -57,18 +57,18 @@ class GreenieBoardEventListener(EventListener):
 
     async def send_chat_message(self, player: Player, data: dict):
         server: Server = self.bot.servers[data['server_name']]
-        chat_channel = server.get_channel(Channel.CHAT)
-        if chat_channel is not None:
+        events_channel = server.get_channel(Channel.EVENTS)
+        if events_channel is not None:
             carrier = data['place']['name']
             if 'WO' in data['grade']:
-                await chat_channel.send(self.EVENT_TEXTS[player.side]['waveoff'].format(player.name, carrier))
+                await events_channel.send(self.EVENT_TEXTS[player.side]['waveoff'].format(player.name, carrier))
             elif data['grade'] == 'B':
-                await chat_channel.send(self.EVENT_TEXTS[player.side]['bolter'].format(player.name, carrier))
+                await events_channel.send(self.EVENT_TEXTS[player.side]['bolter'].format(player.name, carrier))
             else:
                 details = data['details']
                 if 'wire' in data and data['wire']:
                     details += f" WIRE# {data['wire']}"
-                await chat_channel.send(self.EVENT_TEXTS[player.side]['landing'].format(
+                await events_channel.send(self.EVENT_TEXTS[player.side]['landing'].format(
                     player.name, carrier, data['grade'].replace('_', '\\_'), details))
 
     @event(name="registerDCSServer")

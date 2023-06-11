@@ -131,7 +131,7 @@ class Agent(Plugin):
                                      user=ctx.message.author)
                 await self.do_update([120, 60], ctx)
         else:
-            await ctx.send("Can't check the latest version on the DCS World website. Try again later.")
+            await ctx.send("Can't check this branch for updates, use -force instead.")
 
     @commands.command(description='Change the password of a DCS server', aliases=['passwd'])
     @utils.has_role('DCS Admin')

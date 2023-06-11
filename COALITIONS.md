@@ -42,7 +42,9 @@ c) __Server Specific Sections__
 | ALLOW_PLAYERS_POOL     | Enable the in-game players pool view (default = false, if coalitions are enabled).                         |
 | Coalition Red          | Members of this **role** are part of the red coalition.                                                    |
 | Coalition Blue         | Members of this **role** are part of the blue coalition.                                                   |
+| COALITION_BLUE_EVENTS  | Coalition events channel for blue coalition. If not specified, the respective chat channel will be used.   |
 | COALITION_BLUE_CHANNEL | Coalition channel for blue coalition.                                                                      |
+| COALITION_RED_EVENTS   | Coalition events for red coalition. If not specified, the respective chat channel will be used.            |
 | COALITION_RED_CHANNEL  | Coalition channel for red coalition.                                                                       |
 
 **Attention!**<br/>

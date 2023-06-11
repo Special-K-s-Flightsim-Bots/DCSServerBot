@@ -206,9 +206,9 @@ class MissionStatisticsEventListener(EventListener):
                     else:
                         message = self.EVENT_TEXTS[win_coalition]['capture'].format(name)
                     update = True
-                    chat_channel = server.get_channel(Channel.CHAT)
-                    if chat_channel:
-                        await chat_channel.send(message)
+                    events_channel = server.get_channel(Channel.EVENTS)
+                    if events_channel:
+                        await events_channel.send(message)
             if update:
                 self.update[server.name] = True
 
