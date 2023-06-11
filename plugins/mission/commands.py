@@ -235,9 +235,9 @@ class Mission(Plugin):
                             if warn_time == restart_in:
                                 server.sendPopupMessage(
                                     Coalition.ALL, warn_text.format(utils.format_time(warn_time)))
-                                chat_channel = server.get_channel(Channel.CHAT)
-                                if chat_channel:
-                                    await chat_channel.send(warn_text.format(utils.format_time(warn_time)))
+                                events_channel = server.get_channel(Channel.EVENTS)
+                                if events_channel:
+                                    await events_channel.send(warn_text.format(utils.format_time(warn_time)))
                         await asyncio.sleep(1)
                         restart_in -= 1
                 else:

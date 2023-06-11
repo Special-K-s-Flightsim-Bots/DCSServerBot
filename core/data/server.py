@@ -485,9 +485,23 @@ class Server(DataObject):
                 finally:
                     self.pool.putconn(conn)
 
-    def get_channel(self, channel: Channel) -> discord.TextChannel:
+    def get_channel(self, channel: Channel) -> Optional[discord.TextChannel]:
         if channel not in self._channels:
-            self._channels[channel] = self.bot.get_channel(int(self.bot.config[self.installation][channel.value]))
+            channel_id = self.bot.config[self.installation].get(channel.value)
+            if not channel_id:
+                if channel == Channel.EVENTS:
+                    self._channels[channel] = self.get_channel(Channel.CHAT)
+                elif channel == Channel.COALITION_BLUE_EVENTS:
+                    self._channels[channel] = self.get_channel(Channel.COALITION_BLUE_CHAT)
+                elif channel == Channel.COALITION_RED_EVENTS:
+                    self._channels[channel] = self.get_channel(Channel.COALITION_RED_CHAT)
+                else:
+                    self.log.warn(f"Channel {channel.name} has unknown ID {channel_id}. Please check.")
+                    return None
+            elif int(channel_id) != -1:
+                self._channels[channel] = self.bot.get_channel(int(channel_id))
+            else:
+                return None
         return self._channels[channel]
 
     async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:

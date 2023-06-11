@@ -43,9 +43,9 @@ class GameMasterEventListener(EventListener):
         if self.bot.config.getboolean(server.installation, 'COALITIONS') \
                 and data['to'] == -2 and player.coalition in [Coalition.BLUE, Coalition.RED]:
             if player.coalition == Coalition.BLUE:
-                chat_channel = server.get_channel(Channel.COALITION_BLUE)
+                chat_channel = server.get_channel(Channel.COALITION_BLUE_CHAT)
             elif player.coalition == Coalition.RED:
-                chat_channel = server.get_channel(Channel.COALITION_RED)
+                chat_channel = server.get_channel(Channel.COALITION_RED_CHAT)
         else:
             chat_channel = server.get_channel(Channel.CHAT)
         if chat_channel:

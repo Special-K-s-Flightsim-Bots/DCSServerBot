@@ -44,11 +44,11 @@ class GameMasterAgent(Plugin):
                 continue
             if self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 sides = utils.get_sides(message, server)
-                if Coalition.BLUE in sides and server.get_channel(Channel.COALITION_BLUE).id == message.channel.id:
+                if Coalition.BLUE in sides and server.get_channel(Channel.COALITION_BLUE_CHAT).id == message.channel.id:
                     # TODO: ignore messages for now, as DCS does not understand the coalitions yet
                     # server.sendChatMessage(Coalition.BLUE, message.content, message.author.display_name)
                     pass
-                elif Coalition.RED in sides and server.get_channel(Channel.COALITION_RED).id == message.channel.id:
+                elif Coalition.RED in sides and server.get_channel(Channel.COALITION_RED_CHAT).id == message.channel.id:
                     # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
                     # server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
                     pass
