@@ -187,11 +187,12 @@ class MissionEventListener(EventListener):
             server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
                                                              map=data['current_map'], name=data['current_mission'])
 
-        server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
-        server.current_mission.update(data)
         if 'players' not in data:
             data['players'] = []
             server.status = Status.STOPPED
+        else:
+            server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
+        server.current_mission.update(data)
         server.afk.clear()
         for p in data['players']:
             if p['id'] == 1:
