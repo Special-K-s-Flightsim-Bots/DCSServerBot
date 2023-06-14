@@ -59,8 +59,12 @@ def getInstalledVersion(path: str) -> Tuple[Optional[str], Optional[str]]:
 
 
 async def getLatestVersion(branch: str) -> Optional[str]:
+    if 'DCS_USER' in config['DCS']:
+        auth = aiohttp.BasicAuth(login=config['DCS']['DCS_USER'], password=config['DCS']['DCS_PASSWORD'])
+    else:
+        auth = None
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-            ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+            ssl=ssl.create_default_context(cafile=certifi.where())), auth=auth) as session:
         async with session.get(UPDATER_URL.format(branch)) as response:
             if response.status == 200:
                 return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']

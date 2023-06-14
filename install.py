@@ -215,9 +215,13 @@ class Install:
             raise MissingParameter('DCS', str(key))
         num_installs = 0
         ports = set(config['BOT']['PORT'])
-        for _, installation in utils.findDCSInstallations():
+        installations = utils.findDCSInstallations()
+        if not installations:
+            raise Exception("No DCS instance found in Saved Games.")
+        for _, installation in installations:
             try:
                 if installation not in config:
+                    print(f"- No entry found for instance {installation} in your dcsserverbot.ini")
                     continue
                 num_installs += 1
                 try:

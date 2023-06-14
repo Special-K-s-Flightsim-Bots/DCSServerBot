@@ -552,7 +552,13 @@ class DCSServerBot(commands.Bot):
             if server.process:
                 break
         server.dcs_version = data['dcs_version']
-        server.status = Status.STOPPED
+        if data['channel'].startswith('sync-'):
+            if 'players' not in data:
+                server.status = Status.STOPPED
+            elif data['pause']:
+                server.status = Status.PAUSED
+            else:
+                server.status = Status.RUNNING
         # validate server ports
         dcs_ports: dict[int, str] = dict()
         webgui_ports: dict[int, str] = dict()
