@@ -5,7 +5,7 @@ import shutil
 import socket
 import sqlite3
 import subprocess
-from contextlib import suppress
+from contextlib import suppress, closing
 from core import utils, Server, Player
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -294,10 +294,10 @@ class ServerImpl(Server):
             conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
             try:
                 with conn:
-                    with conn.cursor() as cursor:
+                    with closing(conn.cursor()) as cursor:
                         cursor.execute("""
                             INSERT INTO net_bans (ucid, banned_from, banned_until, reason) 
-                            VALUES (?, datetime('now'), datetime('now', '? seconds'), ?)
+                            VALUES (?, datetime('now'), datetime('now', ? || ' seconds'), ?)
                             ON CONFLICT (ucid) DO UPDATE 
                             SET banned_from = excluded.banned_from, banned_until = excluded.banned_until, 
                                 reason = excluded.reason
@@ -314,7 +314,7 @@ class ServerImpl(Server):
             conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
             try:
                 with conn:
-                    with conn.cursor() as cursor:
+                    with closing(conn.cursor()) as cursor:
                         cursor.execute("DELETE FROM net_bans WHERE ucid = ?", (ucid, ))
             except sqlite3.Error as ex:
                 self.log.exception(ex)
@@ -326,9 +326,22 @@ class ServerImpl(Server):
         conn.row_factory = sqlite3.Row
         try:
             with conn:
-                with conn.cursor() as cursor:
+                with closing(conn.cursor()) as cursor:
                     cursor.execute("SELECT ucid, name, banned_until FROM net_bans")
                     return [x for x in cursor.fetchall()]
+        except sqlite3.Error as ex:
+            self.log.exception(ex)
+        finally:
+            conn.close()
+
+    async def is_banned(self, ucid: str) -> bool:
+        conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
+        conn.row_factory = sqlite3.Row
+        try:
+            with conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute("SELECT COUNT(*) FROM net_bans WHERE ucid = ?", (ucid, ))
+                    return cursor.fetchone()[0] > 0
         except sqlite3.Error as ex:
             self.log.exception(ex)
         finally:
@@ -378,10 +391,13 @@ class ServerImpl(Server):
             filename = await self.get_current_mission_file()
             if not filename:
                 return
-            miz = MizFile(self, filename)
-            if isinstance(preset, list):
-                for p in preset:
-                    apply_preset(p)
-            else:
-                apply_preset(preset)
-            miz.save()
+            try:
+                miz = MizFile(self, filename)
+                if isinstance(preset, list):
+                    for p in preset:
+                        apply_preset(p)
+                else:
+                    apply_preset(preset)
+                miz.save()
+            except Exception as ex:
+                self.log.exception("Exception while parsing mission: ", exc_info=ex)

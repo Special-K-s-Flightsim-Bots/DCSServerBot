@@ -3,7 +3,7 @@ import discord
 import sys
 import uuid
 import matplotlib.figure
-from core import EventListener, Plugin, Server, event, DEFAULT_TAG
+from core import EventListener, Plugin, Server, event
 from matplotlib import pyplot as plt
 
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 import asyncio
+import traceback
+
 import discord
 import os
 import re
@@ -11,9 +13,10 @@ from discord.app_commands import Choice, TransformerError
 from discord.ext import commands
 from discord.ui import Button, View, Select
 from pathlib import Path, PurePath
-from typing import Optional, cast, Union, TYPE_CHECKING
-from .helper import get_all_players, is_ucid
+from typing import Optional, cast, Union, TYPE_CHECKING, Iterable
 
+from .helper import get_all_players, is_ucid
+from ..services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
     from .. import Server, DCSServerBot, Player
@@ -102,7 +105,7 @@ async def pagination(bot: DCSServerBot, interaction: discord.Interaction, data: 
             return -1
 
 
-async def selection_list(bot: DCSServerBot, ctx: commands.Context, data: list, embed_formatter, num: int = 5,
+async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
                          marker: int = -1, marker_emoji='🔄'):
     message = None
     try:
@@ -112,7 +115,7 @@ async def selection_list(bot: DCSServerBot, ctx: commands.Context, data: list, e
             embed = embed_formatter(data[j * num:j * num + max_i],
                                     (marker - j * num) if marker in range(j * num, j * num + max_i + 1) else 0,
                                     marker_emoji)
-            message = await ctx.send(embed=embed)
+            message = await interaction.response.send_message(embed=embed)
             if j > 0:
                 await message.add_reaction('◀️')
             for i in range(1, max_i + 1):
@@ -123,7 +126,7 @@ async def selection_list(bot: DCSServerBot, ctx: commands.Context, data: list, e
             await message.add_reaction('⏹️')
             if ((j + 1) * num) < len(data):
                 await message.add_reaction('▶️')
-            react = await wait_for_single_reaction(bot, ctx, message)
+            react = await wait_for_single_reaction(bot, interaction, message)
             await message.delete()
             if react.emoji == '◀️':
                 j -= 1
@@ -281,41 +284,46 @@ async def populated_question(interaction: discord.Interaction, question: str, me
         await msg.delete()
 
 
-def check_roles(roles: list[str], interaction: discord.Interaction) -> bool:
-    valid_roles = set()
-    bot: DCSServerBot = interaction.client
-    for role in roles:
-        valid_roles.update(bot.roles[role])
-    for role in interaction.user.roles:
-        if role.name in valid_roles:
-            return True
+def check_roles(roles: Iterable[Union[str, int]], member: discord.Member) -> bool:
+    for role in member.roles:
+        for valid_role in roles:
+            if isinstance(valid_role, str) and role.name == valid_role:
+                return True
+            elif isinstance(valid_role, int) and role.id == valid_role:
+                return True
     return False
 
 
 def app_has_role(role: str):
     def predicate(interaction: Interaction) -> bool:
-        return check_roles([role], interaction)
+        return check_roles(interaction.client.roles[role], interaction.user)
 
     return app_commands.check(predicate)
 
 
 def app_has_roles(roles: list[str]):
     def predicate(interaction: Interaction) -> bool:
-        return check_roles(roles, interaction)
+        valid_roles = []
+        for role in roles:
+            valid_roles.extend(interaction.client.roles[role])
+        return check_roles(set(valid_roles), interaction.user)
 
     return app_commands.check(predicate)
 
 
 def app_has_not_role(role: str):
     def predicate(interaction: Interaction) -> bool:
-        return not check_roles([role], interaction)
+        return not check_roles(interaction.client[role], interaction.user)
 
     return app_commands.check(predicate)
 
 
 def app_has_not_roles(roles: list[str]):
     def predicate(interaction: Interaction) -> bool:
-        return not check_roles(roles, interaction)
+        invalid_roles = []
+        for role in roles:
+            invalid_roles.extend(interaction.client.roles[role])
+        return not check_roles(set(invalid_roles), interaction.user)
 
     return app_commands.check(predicate)
 
@@ -456,7 +464,9 @@ def get_all_linked_members(bot: DCSServerBot) -> list[discord.Member]:
     members: list[discord.Member] = []
     with bot.pool.connection() as conn:
         for row in conn.execute("SELECT discord_id FROM players WHERE discord_id <> -1"):
-            members.append(bot.guilds[0].get_member(row[0]))
+            member = bot.guilds[0].get_member(row[0])
+            if member:
+                members.append(member)
     return members
 
 
@@ -538,17 +548,20 @@ class UserTransformer(app_commands.Transformer):
             return interaction.client.guilds[0].get_member(int(value))
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
-        players = [
-            app_commands.Choice(name='✈ ' + name, value=ucid)
-            for idx, ucid, name in enumerate(get_all_players(interaction.client, name=current))
-            if idx < 25 and (not current or current.casefold() in name.casefold() or current.casefold() in ucid)
-        ]
-        members = [
-            app_commands.Choice(name='@' + member.display_name, value=str(member.id))
-            for idx, member in enumerate(get_all_linked_members(interaction.client))
-            if idx < 25 and (not current or current.casefold() in member.display_name.casefold())
-        ]
-        return players + members
+        try:
+            players = [
+                app_commands.Choice(name='✈ ' + name, value=ucid)
+                for ucid, name in get_all_players(interaction.client)
+                if not current or current.casefold() in name.casefold() or current.casefold() in ucid
+            ]
+            members = [
+                app_commands.Choice(name='@' + member.display_name, value=str(member.id))
+                for member in get_all_linked_members(interaction.client)
+                if not current or current.casefold() in member.display_name.casefold()
+            ]
+            return (players + members)[:25]
+        except Exception as ex:
+            traceback.print_exc()
 
 
 class PlayerTransformer(app_commands.Transformer):
@@ -570,13 +583,13 @@ class PlayerTransformer(app_commands.Transformer):
                 for x in server.get_active_players()
                 if current.casefold() in x.name.casefold()
             ]
-            return choices[:25]
         else:
-            return [
+            choices = [
                 app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
-                for idx, ucid, name in enumerate(get_all_players(interaction.client, name=current))
-                if idx < 25 and (not current or current.casefold() in name.casefold() or current.casefold() in ucid)
+                for ucid, name in get_all_players(interaction.client)
+                if not current or current.casefold() in name.casefold() or current.casefold() in ucid
             ]
+        return choices[:25]
 
 
 @dataclass

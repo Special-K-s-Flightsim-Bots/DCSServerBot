@@ -42,9 +42,9 @@ class GameMasterEventListener(EventListener):
         chat_channel: Optional[discord.TextChannel] = None
         if server.locals.get('coalitions') and data['to'] == -2 and player.coalition in [Coalition.BLUE, Coalition.RED]:
             if player.coalition == Coalition.BLUE:
-                chat_channel = self.bot.get_channel(server.channels[Channel.COALITION_BLUE])
+                chat_channel = self.bot.get_channel(server.channels[Channel.COALITION_BLUE_CHAT])
             elif player.coalition == Coalition.RED:
-                chat_channel = self.bot.get_channel(server.channels[Channel.COALITION_RED])
+                chat_channel = self.bot.get_channel(server.channels[Channel.COALITION_RED_CHAT])
         else:
             chat_channel = self.bot.get_channel(server.channels[Channel.CHAT])
         if chat_channel:

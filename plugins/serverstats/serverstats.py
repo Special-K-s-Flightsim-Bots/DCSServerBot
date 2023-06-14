@@ -161,13 +161,13 @@ class ServerLoad(report.MultiGraphElement):
               f"2) AS \"FPS\", ROUND(AVG(ping), 2) AS \"Ping\" FROM serverstats " \
               f"WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}') "
         if server_name:
-            sql += f" AND server_name = '{server_name}' "
+            sql += f" AND server_name = %s "
         if node:
             sql += f" AND node = '{node}' "
         sql += " GROUP BY 1"
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(sql)
+                cursor.execute(sql, (server_name, ))
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
                     series.plot(ax=self.axes[0], x='time', y=['CPU'], title='CPU / User', xticks=[], xlabel='')

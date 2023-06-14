@@ -188,25 +188,9 @@ def get_all_servers(self) -> list[str]:
         ]
 
 
-def get_all_players(self, **kwargs) -> list[Tuple[str, str]]:
-    name = kwargs.get('name')
-    ucid = kwargs.get('ucid')
-    sql = "SELECT ucid, name FROM players"
-    if name is not None:
-        sql += ' WHERE name ILIKE %s'
-        name = f'%{name}%'
-    elif ucid is not None:
-        sql += ' WHERE ucid ILIKE %s'
-        ucid = f'%{ucid}%'
-    sql += ' ORDER BY 2 LIMIT 25'
-
+def get_all_players(self) -> list[Tuple[str, str]]:
     with self.pool.connection() as conn:
-        return [(row[0], row[1]) for row in conn.execute(sql, (name or ucid, )).fetchall()]
-
-
-def is_banned(self, ucid: str):
-    with self.pool.connection() as conn:
-        return conn.execute(f"SELECT COUNT(*) FROM bans WHERE ucid = %s", (ucid,)).fetchone()[0] > 0
+        return [(row[0], row[1]) for row in conn.execute("SELECT ucid, name FROM players").fetchall()]
 
 
 def is_ucid(ucid: str) -> bool:

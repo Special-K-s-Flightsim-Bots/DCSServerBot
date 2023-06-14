@@ -229,7 +229,7 @@ class Plugin(commands.Cog):
                         if 'has_role' in check.__qualname__:
                             cmd.remove_check(check)
                     if len(params['roles']):
-                        cmd.add_check(utils.has_roles(params['roles'].copy()).predicate)
+                        cmd.add_check(utils.app_has_roles(params['roles'].copy()).predicate)
                 if 'description' in params:
                     cmd.description = params['description']
 
@@ -299,25 +299,30 @@ class Plugin(commands.Cog):
         with open(old_file, 'r') as infile:
             old = json.load(infile)
         new = {}
-        for config in old['configs']:
-            if 'installation' in config:
-                instance = config['installation']
-                new[instance] = config
-                del new[instance]['installation']
-            else:
-                new[DEFAULT_TAG] = config
+        if 'configs' in old:
+            for config in old['configs']:
+                if 'installation' in config:
+                    instance = config['installation']
+                    new[instance] = config
+                    del new[instance]['installation']
+                else:
+                    new[DEFAULT_TAG] = config
+        else:
+            new = old
         new_file = f'./config/plugins/{plugin_name}.yaml'
         with open(new_file, 'w') as outfile:
             yaml.dump(new, outfile, default_flow_style=False)
         shutil.move(old_file, './config/backup')
 
     def read_locals(self) -> dict:
-        if path.exists(f'./config/{self.plugin_name}.json'):
+        old_file = f'./config/{self.plugin_name}.json'
+        new_file = f'./config/plugins/{self.plugin_name}.yaml'
+        if path.exists(old_file):
             self.log.info('  => Migrating old JSON config format to YAML ...')
             self.migrate_to_3(self.plugin_name)
             self.log.info(f'  => Config file {old_file} migrated to {new_file}.')
-        if path.exists(f'./config/plugins/{self.plugin_name}.yaml'):
-            filename = f'./config/plugins/{self.plugin_name}.yaml'
+        if path.exists(new_file):
+            filename = new_file
         elif path.exists(f'./plugins/{self.plugin_name}/config/config.yaml'):
             filename = f'./plugins/{self.plugin_name}/config/config.yaml'
         else:

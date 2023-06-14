@@ -108,6 +108,16 @@ class ServerProxy(Server):
             "method": "bans"
         })
 
+    async def is_banned(self, ucid: str) -> bool:
+        return await self.sendtoDCSSync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "is_banned",
+            "params": {
+                "ucid": ucid
+            }
+        })
+
     async def modifyMission(self, preset: Union[list, dict]) -> None:
         await self.sendtoDCSSync({
             "command": "rpc",

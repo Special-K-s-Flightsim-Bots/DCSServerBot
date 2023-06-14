@@ -23,7 +23,6 @@ class Player(DataObject):
     active: bool = field(compare=False)
     side: Side = field(compare=False)
     ucid: str
-    banned: bool = field(compare=False)
     slot: int = field(compare=False, default=0)
     sub_slot: int = field(compare=False, default=0)
     unit_callsign: str = field(compare=False, default='')
@@ -47,11 +46,9 @@ class Player(DataObject):
                 with closing(conn.cursor()) as cursor:
                     cursor.execute("""
                         SELECT p.discord_id, 
-                               CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
                                p.manual, 
                                c.coalition 
                         FROM players p 
-                        LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
                         LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid 
                         WHERE p.ucid = %s
                         """, (self.ucid, ))
@@ -60,9 +57,8 @@ class Player(DataObject):
                         row = cursor.fetchone()
                         if row[0] != -1:
                             self.member = self._member = self.bot.guilds[0].get_member(row[0])
-                            self._verified = row[2]
-                        self.banned = row[1]
-                        if row[3]:
+                            self._verified = row[1]
+                        if row[2]:
                             self.coalition = Coalition.RED if row[3] == 'red' else Coalition.BLUE
                     cursor.execute("""
                         INSERT INTO players (ucid, discord_id, name, last_seen) VALUES (%s, -1, %s, NOW()) 
@@ -80,8 +76,8 @@ class Player(DataObject):
     def is_multicrew(self) -> bool:
         return self.sub_slot != 0
 
-    def is_banned(self) -> bool:
-        return self.banned
+    async def is_banned(self) -> bool:
+        return await self.server.is_banned(self.ucid)
 
     @property
     def member(self) -> discord.Member:
@@ -171,7 +167,10 @@ class Player(DataObject):
                     cursor.execute('UPDATE players SET last_seen = NOW() WHERE ucid = %s', (self.ucid, ))
 
     def has_discord_roles(self, roles: list[str]) -> bool:
-        return self.verified and self._member is not None and utils.check_roles(roles, self._member)
+        valid_roles = []
+        for role in roles:
+            valid_roles.extend(self.bot.roles[role])
+        return self.verified and self._member is not None and utils.check_roles(set(valid_roles), self._member)
 
     def sendChatMessage(self, message: str, sender: str = None):
         self.server.sendtoDCS({

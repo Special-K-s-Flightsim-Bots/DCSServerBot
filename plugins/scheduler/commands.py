@@ -110,10 +110,10 @@ class Scheduler(Plugin):
                         server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
                                                                                 when=utils.format_time(warn_time)),
                                                 self.bot.locals.get('message_timeout', 10))
-                        chat_channel = self.bot.get_channel(server.channels[Channel.CHAT])
-                        if chat_channel:
-                            await chat_channel.send(warn_text.format(item=item, what=what,
-                                                                     when=utils.format_time(warn_time)))
+                        events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+                        if events_channel:
+                            await events_channel.send(warn_text.format(item=item, what=what,
+                                                                       when=utils.format_time(warn_time)))
                 await asyncio.sleep(1)
                 restart_in -= 1
 

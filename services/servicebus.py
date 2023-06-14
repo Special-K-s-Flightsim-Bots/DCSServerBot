@@ -2,11 +2,10 @@ from __future__ import annotations
 import asyncio
 import concurrent
 import json
-import os
 import platform
 import psycopg
-import shutil
 import sys
+
 from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
@@ -17,7 +16,6 @@ from core.services.registry import ServiceRegistry
 from discord.ext import tasks
 from psycopg.types.json import Json
 from queue import Queue
-from shutil import copytree
 from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING
 
@@ -229,7 +227,7 @@ class ServiceBus(Service):
                 node=node,
                 port=-1,
                 name=server_name,
-                instance=instance
+                instance=instance  # TODO!
             )
             self.servers[server_name] = proxy
             proxy.settings = settings

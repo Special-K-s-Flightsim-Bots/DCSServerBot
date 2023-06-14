@@ -1,10 +1,8 @@
 import discord
-import json
 from core import Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
     PluginInstallationError, command
 from discord import app_commands
 from discord.ext import tasks
-from os import path
 from services import DCSServerBot
 from typing import Optional, Type, Literal
 from .listener import MessageOfTheDayListener
@@ -36,8 +34,7 @@ class MessageOfTheDay(Plugin):
             else:
                 server.sendPopupMessage(Coalition.ALL, message, timeout)
 
-    @staticmethod
-    def get_recipients(server: Server, config: dict) -> list[Player]:
+    def get_recipients(self, server: Server, config: dict) -> list[Player]:
         recp = list[Player]()
         players: list[Player] = server.get_active_players()
         in_roles = []

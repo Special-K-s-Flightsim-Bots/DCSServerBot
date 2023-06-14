@@ -4,7 +4,7 @@ import os
 import platform
 import psycopg
 from contextlib import closing
-from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, DEFAULT_TAG
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group
 from discord import app_commands, TextStyle, SelectOption
 from discord.app_commands import Range
 from discord.ext import commands
@@ -47,11 +47,11 @@ class GameMaster(Plugin):
                 continue
             if 'coalitions' in server.locals:
                 sides = utils.get_sides(message, server)
-                if Coalition.BLUE in sides and server.channels[Channel.COALITION_BLUE] == message.channel.id:
+                if Coalition.BLUE in sides and server.channels[Channel.COALITION_BLUE_CHAT] == message.channel.id:
                     # TODO: ignore messages for now, as DCS does not understand the coalitions yet
                     # server.sendChatMessage(Coalition.BLUE, message.content, message.author.display_name)
                     pass
-                elif Coalition.RED in sides and server.channels[Channel.COALITION_RED] == message.channel.id:
+                elif Coalition.RED in sides and server.channels[Channel.COALITION_RED_CHAT] == message.channel.id:
                     # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
                     # server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
                     pass
@@ -319,7 +319,7 @@ class GameMaster(Plugin):
             embed.set_thumbnail(url=member.avatar.url)
         if 'achievements' in config:
             for achievement in config['achievements']:
-                if utils.check_roles([achievement['role']], member):
+                if utils.check_roles([achievement['role']], interaction.user):
                     embed.add_field(name='Rank', value=achievement['role'])
                     break
             else:

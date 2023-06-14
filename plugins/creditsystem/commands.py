@@ -52,7 +52,7 @@ class CreditSystem(Plugin):
     async def info(self, interaction: discord.Interaction,
                    member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
         if member:
-            if not utils.check_roles(['DCS Admin'], interaction.user):
+            if not utils.check_roles(interaction.client, ['DCS Admin'], interaction.user):
                 await interaction.response.send_message('You need the DCS Admin role to use this command.',
                                                         ephemeral=True)
                 return
@@ -175,7 +175,7 @@ class CreditSystem(Plugin):
         if interaction.user == to:
             await interaction.response.send_message("You can't donate to yourself.", ephemeral=True)
             return
-        if utils.check_roles(['Admin', 'DCS Admin'], interaction.user):
+        if utils.check_roles(set(self.bot.roles['Admin'] + self.bot.roles['DCS Admin']), interaction.user):
             await self.admin_donate(interaction, to, donation)
             return
         receiver = self.bot.get_ucid_by_member(to)

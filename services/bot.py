@@ -100,7 +100,7 @@ class DCSServerBot(commands.Bot):
         self.log.info('- Discord Bot stopped.')
 
     @property
-    def roles(self) -> dict:
+    def roles(self) -> dict[str, list[Union[str, int]]]:
         return {
             "Admin": ["Admin"],
             "DCS Admin": ["DCS Admin"],
@@ -355,7 +355,6 @@ class DCSServerBot(commands.Bot):
                 else:
                     return None
 
-    @lru_cache()
     def get_member_by_ucid(self, ucid: str, verified: Optional[bool] = False) -> Optional[discord.Member]:
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
@@ -502,15 +501,11 @@ class DCSServerBot(commands.Bot):
                     or isinstance(ctx, discord.Message):
                 if server.status == Status.UNREGISTERED:
                     continue
-                channels = [Channel.ADMIN, Channel.STATUS]
-                if int(server.locals['channels'].get(Channel.CHAT.value, -1)) == -1:
-                    channels.append(Channel.CHAT)
-                if int(server.locals['channels'].get(Channel.COALITION_BLUE.value, -1)) != -1:
-                    channels.append(Channel.COALITION_BLUE)
-                if int(server.locals['channels'].get(Channel.COALITION_RED.value, -1)) != -1:
-                    channels.append(Channel.COALITION_RED)
-                for channel in channels:
-                    if server.channels[channel] == ctx.channel.id:
+                for channel in [Channel.ADMIN, Channel.STATUS, Channel.EVENTS, Channel.CHAT,
+                                Channel.COALITION_BLUE_EVENTS, Channel.COALITION_BLUE_CHAT,
+                                Channel.COALITION_RED_EVENTS, Channel.COALITION_RED_CHAT]:
+                    if int(server.locals['channels'].get(channel.value, -1)) != -1 and \
+                            server.channels[channel] == ctx.channel.id:
                         return server
             else:
                 if server_name == ctx:

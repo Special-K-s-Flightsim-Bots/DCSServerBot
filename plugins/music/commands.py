@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 
-from core import Plugin, utils, Server, TEventListener, PluginInstallationError, Status, Group, DEFAULT_TAG
+from core import Plugin, utils, Server, TEventListener, PluginInstallationError, Status, Group
 from discord import app_commands
 from discord.ext import commands
 from services import DCSServerBot

@@ -4,6 +4,9 @@ import os
 import psycopg
 import random
 from contextlib import closing
+
+from discord.ui import View, Button
+
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, Member, PersistentReport, Channel, command, DEFAULT_TAG
 from discord import app_commands
@@ -15,6 +18,7 @@ from typing import Union, Optional, Tuple, Literal
 
 from .filter import StatisticsFilter
 from .listener import UserStatisticsEventListener
+from .views import InfoView
 
 
 def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *params) \
@@ -189,74 +193,32 @@ class UserStatistics(Plugin):
                 player.member = None
                 player.verified = False
 
-    @commands.command(description='Shows player information', usage='<@member / ucid>')
-#    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def info(self, ctx, member: Union[discord.Member, str], *params):
+    @command(description='Shows player information')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def info(self, interaction: discord.Interaction,
+                   member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
         if isinstance(member, str):
-            name = member
-            if len(params):
-                name += ' ' + ' '.join(params)
-            if len(name) == 32:
-                ucid = member
-            else:
-                ucid, name = self.bot.get_ucid_by_name(name)
-            if ucid:
-                member = self.bot.get_member_by_ucid(ucid)
-            else:
-                await ctx.send('Player not found.')
-                return
-        else:
-            ucid = self.bot.get_ucid_by_member(member)
-
+            ucid = member
+            member = self.bot.get_member_by_ucid(ucid)
         player: Optional[Player] = None
         for server in self.bot.servers.values():
             if isinstance(member, discord.Member):
                 player = server.get_player(discord_id=member.id, active=True)
-            elif ucid:
-                player = server.get_player(ucid=ucid, active=True)
             else:
-                player = server.get_player(name=member, active=True)
+                player = server.get_player(ucid=ucid, active=True)
             if player:
                 break
+        else:
+            server = None
 
-        timeout = self.bot.locals.get('message_autodelete', 300)
-        report = Report(self.bot, self.plugin_name, 'info.json')
-        env = await report.render(member=member or ucid, player=player)
-        message = await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        view = InfoView(member=member or ucid, bot=self.bot, player=player, server=server)
+        embed = await view.render()
+        await interaction.response.send_message(embed=embed, view=view)
         try:
-            _member: Optional[Member] = None
-            if isinstance(member, discord.Member):
-                _member = DataObjectFactory().new('Member', member=member)
-                if len(_member.ucids):
-                    await message.add_reaction('🔀')
-                    if not _member.verified:
-                        await message.add_reaction('💯')
-                    await message.add_reaction('✅' if _member.banned else '⛔')
-            elif ucid:
-                await message.add_reaction('✅' if utils.is_banned(self, ucid) else '⛔')
-            if player:
-                await message.add_reaction('⏏️')
-            await message.add_reaction('⏹️')
-            react = await utils.wait_for_single_reaction(self.bot, ctx, message)
-            if react.emoji == '🔀':
-                await self.unlink(ctx, member)
-            elif react.emoji == '💯':
-                _member.verified = True
-                if player:
-                    player.verified = True
-            elif react.emoji == '✅':
-                await ctx.invoke(self.bot.get_command('unban'), user=member or ucid)
-                if player:
-                    player.banned = False
-            elif react.emoji == '⛔':
-                await ctx.invoke(self.bot.get_command('ban'), user=member or ucid)
-                if player:
-                    player.banned = True
-        except asyncio.TimeoutError:
-            pass
+            await view.wait()
         finally:
-            await message.delete()
+            await interaction.delete_original_response()
 
     @staticmethod
     def format_unmatched(data, marker, marker_emoji):
@@ -273,27 +235,27 @@ class UserStatistics(Plugin):
         embed.set_footer(text='Press a number to link this specific user.')
         return embed
 
-    @commands.command(description='Show players that could be linked')
-#    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def linkcheck(self, ctx):
-        message = await ctx.send('Please wait, this might take a bit ...')
+    @command(description='Show players that could be linked')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def linkcheck(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True, thinking=True)
         with self.pool.connection() as conn:
-            # check all unmatched players
-            unmatched = []
-            for row in conn.execute("""
-                SELECT ucid, name FROM players 
-                WHERE discord_id = -1 AND name IS NOT NULL 
-                ORDER BY last_seen DESC
-            """).fetchall():
-                matched_member = self.bot.match_user(dict(row), True)
-                if matched_member:
-                    unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
-            await message.delete()
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                # check all unmatched players
+                unmatched = []
+                for row in cursor.execute("""
+                    SELECT ucid, name FROM players 
+                    WHERE discord_id = -1 AND name IS NOT NULL 
+                    ORDER BY last_seen DESC
+                """).fetchall():
+                    matched_member = self.bot.match_user(dict(row), True)
+                    if matched_member:
+                        unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
             if len(unmatched) == 0:
-                await ctx.send('No unmatched member could be matched.')
+                await interaction.followup.send('No unmatched member could be matched.', ephemeral=True)
                 return
-        n = await utils.selection_list(self.bot, ctx, unmatched, self.format_unmatched)
+        n = await utils.selection_list(self.bot, interaction, unmatched, self.format_unmatched)
         if n != -1:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -301,10 +263,11 @@ class UserStatistics(Plugin):
                                  (unmatched[n]['match'].id, unmatched[n]['ucid']))
                     await self.bot.audit(
                         f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
-                        user=ctx.message.author)
-                    await ctx.send(
+                        user=interaction.user)
+                    await interaction.followup.send(
                         "DCS player {} linked to member {}.".format(utils.escape_string(unmatched[n]['name']),
-                                                                    unmatched[n]['match'].display_name))
+                                                                    unmatched[n]['match'].display_name),
+                        ephemeral=True)
 
     @staticmethod
     def format_suspicious(data, marker, marker_emoji):
@@ -321,11 +284,11 @@ class UserStatistics(Plugin):
         embed.set_footer(text='Press a number to unlink this specific user.')
         return embed
 
-    @commands.command(description='Show possibly mislinked players', aliases=['mislinked'])
-#    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def mislinks(self, ctx):
-        await ctx.send('Please wait, this might take a bit ...')
+    @command(description='Show possibly mislinked players')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def mislinks(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True, thinking=True)
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 # check all matched members
@@ -346,9 +309,9 @@ class UserStatistics(Plugin):
                             suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member,
                                                "match": matched_member})
                 if len(suspicious) == 0:
-                    await ctx.send('No mislinked players found.')
+                    await interaction.followup.send('No mislinked players found.', ephemeral=True)
                     return
-        n = await utils.selection_list(self.bot, ctx, suspicious, self.format_suspicious)
+        n = await utils.selection_list(self.bot, interaction, suspicious, self.format_suspicious)
         if n != -1:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -357,15 +320,17 @@ class UserStatistics(Plugin):
                                   'match' in suspicious[n], suspicious[n]['ucid']))
                     await self.bot.audit(
                         f"unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.",
-                        user=ctx.message.author)
+                        user=interaction.user)
                     if 'match' in suspicious[n]:
                         await self.bot.audit(
                             f"linked ucid {suspicious[n]['ucid']} to user {suspicious[n]['match'].display_name}.",
-                            user=ctx.message.author)
-                        await ctx.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked and re-linked to "
-                                       f"member {suspicious[n]['match'].display_name}.")
+                            user=interaction.user)
+                        await interaction.followup.send(
+                            f"Member {suspicious[n]['mismatch'].display_name} unlinked and re-linked to member "
+                            f"{suspicious[n]['match'].display_name}.", ephemeral=True)
                     else:
-                        await ctx.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked.")
+                        await interaction.followup.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked.",
+                                                        ephemeral=True)
 
     @command(description='Link your DCS and Discord user')
     @app_commands.guild_only()
@@ -422,6 +387,35 @@ class UserStatistics(Plugin):
         report = Report(self.bot, self.plugin_name, 'inactive.json')
         env = await report.render(period=f"{number} {period}")
         await interaction.response.send_message(embed=env.embed, ephemeral=True)
+
+    @command(description='Deletes the statistics of a specific user')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS', 'DCS Admin'])
+    async def delete_statistics(self, interaction: discord.Interaction, user: Optional[discord.Member]):
+        if not user:
+            user = interaction.user
+        elif user != interaction.user and not utils.check_roles(['DCS Admin'], interaction.user):
+            await interaction.response.send_message(
+                f'You are not allowed to delete statistics of user {user.display_name}!', ephemeral=True)
+            return
+        member = DataObjectFactory().new('Member', bot=self.bot, member=user)
+        if not member.verified:
+            await interaction.response.send_message(
+                f'User {user.display_name} has non-verified links. Statistics can not be deleted.', ephemeral=True)
+            return
+        if await utils.yn_question(interaction, f'I\'m going to **DELETE ALL STATISTICS** of user '
+                                                f'"{user.display_name}".\n\nAre you sure?'):
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    for ucid in member.ucids:
+                        conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
+                        conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid, ))
+                        conn.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))
+                        if 'greenieboard' in self.bot.node.plugins:
+                            conn.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
+                    conn.commit()
+                await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.', 
+                                                ephemeral=True)
 
     @tasks.loop(hours=1)
     async def expire_token(self):
@@ -492,7 +486,7 @@ class UserStatistics(Plugin):
         ucid = self.bot.get_ucid_by_member(member)
         if ucid:
             for server in self.bot.servers.values():
-                server.ban(ucid, 'Banned on discord.', 9999*86400)
+                server.ban(ucid, self.bot.locals.get('message_ban', 'User has been banned on Discord.'), 9999*86400)
 
 
 async def setup(bot: DCSServerBot):

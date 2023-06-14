@@ -1,15 +1,14 @@
-import traceback
-
 import aiohttp
 import asyncio
 import certifi
 import discord
-import os
 import pandas as pd
 import platform
 import psycopg
 import shutil
 import ssl
+import traceback
+
 from contextlib import closing
 from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError
 from discord import app_commands

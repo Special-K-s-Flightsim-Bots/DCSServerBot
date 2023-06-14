@@ -1,17 +1,14 @@
+import core
 import json
-import shutil
-from configparser import ConfigParser
-from pathlib import Path
-
 import os
 import platform
-from typing import Union
-
+import shutil
 import yaml
-from rich.prompt import IntPrompt
-
-import core
+from configparser import ConfigParser
 from core import utils, DEFAULT_TAG
+from pathlib import Path
+from typing import Union
+from rich.prompt import IntPrompt
 
 
 def migrate():
@@ -73,6 +70,7 @@ def migrate():
             'chat_command_prefix': cfg['BOT']['CHAT_COMMAND_PREFIX'],
             'automatch': cfg['BOT'].getboolean('AUTOMATCH'),
             'autoban': cfg['BOT'].getboolean('AUTOBAN'),
+            'message_ban': cfg['BOT']['MESSAGE_BAN'],
             'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT']),
             'message_autodelete': int(cfg['BOT']['MESSAGE_AUTODELETE']),
             "reports": {
@@ -111,6 +109,9 @@ def migrate():
         "desanitize": cfg['BOT'].getboolean('DESANITIZE'),
         "max_hung_minutes": int(cfg['DCS']['MAX_HUNG_MINUTES'])
     }
+    if 'DCS_USER' in cfg['DCS']:
+        nodes[platform.node()]['DCS']['dcs_user'] = cfg['DCS']['DCS_USER']
+        nodes[platform.node()]['DCS']['dcs_password'] = cfg['DCS']['DCS_PASSWORD']
     # add missing configs to userstats
     if DEFAULT_TAG not in userstats:
         userstats[DEFAULT_TAG] = {}
@@ -150,12 +151,14 @@ def migrate():
             servers[server_name] = {
                 "afk_time": int(cfg['DCS']['AFK_TIME']),
                 "ping_admin_on_crash": cfg[instance]['PING_ADMIN_ON_CRASH'],
+                "channels": {
+                    "admin": int(cfg[instance]['STATUS_CHANNEL']),
+                    "status": int(cfg[instance]['STATUS_CHANNEL']),
+                    "chat": int(cfg[instance]['CHAT_CHANNEL'])
+                }
             }
-            servers[server_name]['channels'] = {
-                "admin": int(cfg[instance]['STATUS_CHANNEL']),
-                "status": int(cfg[instance]['STATUS_CHANNEL']),
-                "chat": int(cfg[instance]['CHAT_CHANNEL'])
-            }
+            if 'EVENTS_CHANNEL' in cfg[instance]:
+                servers[server_name]['channels']['events'] = int(cfg[instance]['EVENTS_CHANNEL'])
             if cfg[instance].getboolean('CHAT_LOG'):
                 servers[server_name]['chat_log'] = {
                     "count": int(cfg[instance]['CHAT_LOGROTATE_COUNT']),
@@ -170,6 +173,10 @@ def migrate():
                 }
                 servers[server_name]['channels']['blue'] = int(cfg[instance]['COALITION_BLUE_CHANNEL'])
                 servers[server_name]['channels']['red'] = int(cfg[instance]['COALITION_RED_CHANNEL'])
+                if 'COALITION_BLUE_EVENTS' in cfg[instance]:
+                    servers[server_name]['channels']['blue_events'] = int(cfg[instance]['COALITION_BLUE_EVENTS'])
+                if 'COALITION_RED_EVENTS' in cfg[instance]:
+                    servers[server_name]['channels']['red_events'] = int(cfg[instance]['COALITION_RED_EVENTS'])
             if not cfg[instance].getboolean('STATISTICS'):
                 if instance not in userstats:
                     userstats[instance] = {}

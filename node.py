@@ -2,7 +2,6 @@ import aiofiles
 import aiohttp
 import asyncio
 import discord
-import json
 import logging
 import os
 import platform
@@ -10,11 +9,10 @@ import shutil
 import subprocess
 import sys
 import time
-import zipfile
-from contextlib import closing
-
 import yaml
+import zipfile
 
+from contextlib import closing
 from core import utils, ServiceRegistry, DataObjectFactory, Instance, Server
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
@@ -395,7 +393,7 @@ class Node:
                     # config = registry.new("Configuration")
                     # asyncio.create_task(config.start())
                     bot = cast(BotService, registry.new("Bot"))
-                    asyncio.create_task(bot.start(token=self.config['BOT']['TOKEN']))
+                    asyncio.create_task(bot.start())
                 else:
                     self.log.info("Second Master found, stepping back to Agent configuration.")
                     if self.config['BOT'].getboolean('USE_DASHBOARD'):

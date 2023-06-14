@@ -2,14 +2,13 @@ import asyncio
 import discord
 import psycopg
 from contextlib import closing, suppress
-from copy import deepcopy
 from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, PluginInstallationError, \
     command, DEFAULT_TAG
 from discord import app_commands
 from discord.ext import tasks
 from psycopg.rows import dict_row
 from services import DCSServerBot
-from typing import Type, Union, Optional
+from typing import Type, Union
 from .listener import PunishmentEventListener
 
 
@@ -184,7 +183,7 @@ class Punishment(Plugin):
     async def penalty(self, interaction: discord.Interaction,
                       user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
         if user:
-            if not utils.check_roles(['DCS Admin'], interaction.user):
+            if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
                 await interaction.response.send_message('You need the DCS Admin role to use this command.',
                                                         ephemeral=True)
                 return

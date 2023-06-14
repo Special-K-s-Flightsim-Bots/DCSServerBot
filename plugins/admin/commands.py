@@ -5,6 +5,8 @@ import json
 import os
 import platform
 import shutil
+import yaml
+
 from contextlib import closing
 from core import utils, Plugin, Status, Server, command
 from discord import app_commands
@@ -26,6 +28,16 @@ class Admin(Plugin):
             shutil.copyfile('config/samples/admin.yaml', 'config/plugins/admin.yaml')
             config = super().read_locals()
         return config
+
+    def migrate(self, version: str) -> None:
+        if version == '3.0':
+            path = Path('config/admin.yaml')
+            if path.exists():
+                data = yaml.safe_load(path)
+                for instance, values in data.items():
+                    for download in values['downloads']:
+                        download.replace('{server.installation}', '{server.instance.name}')
+                yaml.safe_dump(path)
 
     @command(description='Update your DCS installations')
     @app_commands.guild_only()

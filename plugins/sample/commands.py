@@ -15,9 +15,9 @@ class Sample(Plugin):
 
     Attributes
     ----------
-    bot: DCSServerBot
+    :param bot: DCSServerBot
         The discord bot instance.
-    listener: EventListener
+    :param listener: EventListener
         A listener class to receive events from DCS.
 
     Methods

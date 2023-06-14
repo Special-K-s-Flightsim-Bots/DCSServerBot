@@ -73,7 +73,7 @@ class ServerStats(Plugin):
             users = len(server.get_active_players())
             if not server.process or not server.process.is_running():
                 for exe in ['DCS_server.exe', 'DCS.exe']:
-                    server.process = utils.find_process(exe, server.instance)
+                    server.process = utils.find_process(exe, server.instance.name)
                     if server.process:
                         break
                 else:

@@ -93,18 +93,15 @@ class ServerInfo(report.EmbedElement):
 
 
 class Footer(report.EmbedElement):
-    def render(self, member: Union[discord.Member, str], player: Optional[Player]):
+    def render(self, member: Union[discord.Member, str], banned: bool, player: Optional[Player]):
+        footer = ''
         if isinstance(member, discord.Member):
-            _member: Member = DataObjectFactory().new('Member', member=member)
+            _member: Member = DataObjectFactory().new('Member', node=self.bot.node, member=member)
             if len(_member.ucids):
-                footer = '🔀 Unlink all DCS players from this user\n'
+                footer += '🔀 Unlink all DCS players from this user\n'
                 if not _member.verified:
                     footer += '💯 Verify this DCS link\n'
-                footer += '✅ Unban this user\n' if _member.banned else '⛔ Ban this user (DCS only)\n'
-            else:
-                footer = ''
-        else:
-            footer = '✅ Unban this user\n' if utils.is_banned(self, member) else '⛔ Ban this user (DCS only)\n'
-        footer += '⏏️ Kick this user from the active server\n' if player else ''
-        footer += '⏹️Cancel'
+        footer += '✅ Unban this user\n' if banned else '⛔ Ban this user (DCS only)\n'
+        if player:
+            footer += '⏏️ Kick this user from the active server'
         self.embed.set_footer(text=footer)

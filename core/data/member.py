@@ -1,27 +1,27 @@
+from __future__ import annotations
 import discord
 from contextlib import closing
-from core import DataObjectFactory, DataObject
+from core import DataObjectFactory, DataObject, ServiceRegistry
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services import DCSServerBot
 
 
 @dataclass
 @DataObjectFactory.register("Member")
 class Member(DataObject):
     member: discord.Member
-    ucids: dict[str] = field(default_factory=dict)
-    banned: bool = field(default=False, init=False)
+    ucids: dict[str] = field(default_factory=dict, init=False)
 
     def __post_init__(self):
         super().__post_init__()
+        self.bot: DCSServerBot = ServiceRegistry.get("Bot")
         with self.pool.connection() as conn:
-            banned = False
-            for row in conn.execute('SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, '
-                                    'manual FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid WHERE '
-                                    'p.discord_id = %s', (self.member.id, )).fetchall():
-                self.ucids[row[0]] = row[2]
-                if row[1] is True:
-                    banned = True
-            self.banned = banned
+            for row in conn.execute('SELECT ucid, manual FROM players WHERE discord_id = %s',
+                                    (self.member.id, )).fetchall():
+                self.ucids[row[0]] = row[1]
 
     @property
     def verified(self):
@@ -54,3 +54,11 @@ class Member(DataObject):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
+
+    @property
+    def banned(self) -> bool:
+        for server in self.bot.servers.values():
+            for ucid in self.ucids:
+                if server.is_banned(ucid):
+                    return True
+        return False

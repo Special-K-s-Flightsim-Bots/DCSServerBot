@@ -67,6 +67,10 @@ class Server(DataObject):
     def instance(self) -> Instance:
         raise NotImplemented()
 
+    @instance.setter
+    def instance(self, instance: Instance):
+        raise NotImplemented()
+
     @property
     def status(self) -> Status:
         return self._status
@@ -161,6 +165,9 @@ class Server(DataObject):
         pass
 
     async def bans(self) -> list[str]:
+        pass
+
+    async def is_banned(self, ucid: str) -> bool:
         pass
 
     @property
@@ -282,6 +289,12 @@ class Server(DataObject):
             self._channels = {}
             for key, value in self.locals['channels'].items():
                 self._channels[Channel(key)] = value
+            if Channel.EVENTS not in self._channels:
+                self._channels[Channel.EVENTS] = self._channels[Channel.CHAT]
+            if Channel.COALITION_BLUE_EVENTS not in self._channels and Channel.COALITION_BLUE_CHAT in self._channels:
+                self._channels[Channel.COALITION_BLUE_EVENTS] = self._channels[Channel.COALITION_BLUE_CHAT]
+            if Channel.COALITION_RED_EVENTS not in self._channels and Channel.COALITION_RED_CHAT in self._channels:
+                self._channels[Channel.COALITION_RED_EVENTS] = self._channels[Channel.COALITION_RED_CHAT]
         return self._channels
 
     async def wait_for_status_change(self, status: list[Status], timeout: int = 60) -> None:

@@ -1,6 +1,4 @@
 import discord
-import json
-import os
 from copy import deepcopy
 from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError, DEFAULT_TAG
 from discord.ext import commands

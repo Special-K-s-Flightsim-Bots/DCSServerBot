@@ -205,7 +205,8 @@ class MonitoringService(Service):
             return
         try:
             branch, old_version = utils.getInstalledVersion(self.node.locals['DCS']['installation'])
-            new_version = await utils.getLatestVersion(branch)
+            new_version = await utils.getLatestVersion(branch, userid=self.node.locals['DCS'].get('dcs_user'),
+                                                       password=self.node.locals['DCS'].get('dcs_password'))
             if new_version and old_version != new_version:
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 await self.do_update([300, 120, 60])
