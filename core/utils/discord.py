@@ -533,7 +533,7 @@ async def nodes_autocomplete(interaction: discord.Interaction, current: str) -> 
     return [
         app_commands.Choice(name=x, value=x)
         for x in interaction.client.node.get_active_nodes()
-        if current.casefold() in x.casefold()
+        if not current or current.casefold() in x.casefold()
     ]
 
 

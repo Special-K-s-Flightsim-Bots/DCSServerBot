@@ -303,42 +303,6 @@ class GameMaster(Plugin):
         else:
             await interaction.followup.send('Aborted.', ephemeral=True)
 
-    @command(description='Displays your current player profile')
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS')
-    async def profile(self, interaction: discord.Interaction, member: Optional[discord.Member] = None):
-        if not self.locals:
-            await interaction.response.send_message(f'CreditSystem is not activated, /profile does not work.',
-                                                    ephemeral=True)
-            return
-        config: dict = self.get_config()
-        if not member:
-            member = interaction.user
-        embed = discord.Embed(title="User Campaign Profile", colour=discord.Color.blue())
-        if member.avatar:
-            embed.set_thumbnail(url=member.avatar.url)
-        if 'achievements' in config:
-            for achievement in config['achievements']:
-                if utils.check_roles([achievement['role']], interaction.user):
-                    embed.add_field(name='Rank', value=achievement['role'])
-                    break
-            else:
-                embed.add_field(name='Rank', value='n/a')
-        ucid = self.bot.get_ucid_by_member(member, True)
-        if ucid:
-            campaigns = {}
-            for row in self.get_credits(ucid):
-                campaigns[row[1]] = {
-                    "points": row[2],
-                    "playtime": self.eventlistener.get_flighttime(ucid, row[0])
-                }
-
-            for campaign_name, value in campaigns.items():
-                embed.add_field(name='Campaign', value=campaign_name)
-                embed.add_field(name='Playtime', value=utils.format_time(value['playtime'] - value['playtime'] % 60))
-                embed.add_field(name='Points', value=value['points'])
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
 
 async def setup(bot: DCSServerBot):
     await bot.add_cog(GameMaster(bot, GameMasterEventListener))

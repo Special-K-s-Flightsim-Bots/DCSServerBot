@@ -58,7 +58,8 @@ def getInstalledVersion(path: str) -> Tuple[Optional[str], Optional[str]]:
     return branch, version
 
 
-async def getLatestVersion(branch: str, *, userid: Optional[str], password: Optional[str]) -> Optional[str]:
+async def getLatestVersion(branch: str, *, userid: Optional[str] = None,
+                           password: Optional[str] = None) -> Optional[str]:
     if userid:
         auth = aiohttp.BasicAuth(login=userid, password=password)
     else:

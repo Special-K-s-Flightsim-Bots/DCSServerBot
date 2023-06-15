@@ -52,7 +52,7 @@ class CreditSystem(Plugin):
     async def info(self, interaction: discord.Interaction,
                    member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
         if member:
-            if not utils.check_roles(interaction.client, ['DCS Admin'], interaction.user):
+            if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
                 await interaction.response.send_message('You need the DCS Admin role to use this command.',
                                                         ephemeral=True)
                 return

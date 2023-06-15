@@ -1,21 +1,20 @@
 import aiohttp
 import asyncio
 import discord
-import json
 import os
 import platform
 import shutil
 import yaml
 
 from contextlib import closing
-from core import utils, Plugin, Status, Server, command
+from core import utils, Plugin, Status, Server, command, ServiceRegistry
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
 from discord.ui import Select, View, Button
 from pathlib import Path
-from services import DCSServerBot
-from typing import Optional
+from services import DCSServerBot, MonitoringService
+from typing import Optional, cast
 from zipfile import ZipFile
 
 
@@ -44,17 +43,28 @@ class Admin(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(node=utils.nodes_autocomplete)
     @app_commands.describe(warn_time="Time in seconds to warn users before shutdown")
-    async def update(self, interaction: discord.Interaction, node: Optional[str], warn_time: Range[int, 0]):
-        self.bus.sendtoBot({
-            "command": "rpc",
-            "service": "Monitoring",
-            "method": "do_update",
-            "params": {
-                "warn_times": [warn_time]
-            }
-        }, node)
-        await interaction.response.send_message(
-            "Update command sent, DCS will update now (if a new version is available).")
+    async def update(self, interaction: discord.Interaction, node: Optional[str] = None, warn_time: Range[int, 0] = 60):
+        # TODO remote updates
+        branch, old_version = utils.getInstalledVersion(self.bot.node.locals['DCS']['installation'])
+        new_version = await utils.getLatestVersion(branch, userid=self.bot.node.locals['DCS'].get('dcs_user'),
+                                                   password=self.bot.node.locals['DCS'].get('dcs_password'))
+        if old_version == new_version:
+            await interaction.response.send_message(
+                f'Your installed version {old_version} is the latest on branch {branch}.', ephemeral=True)
+        elif new_version:
+            if await utils.yn_question(interaction,
+                                       f'Would you like to update from version {old_version} to {new_version}?\n'
+                                       f'All running DCS servers will be shut down!') is True:
+                await self.bot.audit(f"started an update of all DCS servers on node {platform.node()}.",
+                                     user=interaction.user)
+                await interaction.response.defer(thinking=True)
+                monitoring: MonitoringService = cast(MonitoringService, ServiceRegistry.get('Monitoring'))
+                await monitoring.do_update(warn_times=[warn_time] or [120, 60])
+                await interaction.followup.send(f"DCS updated to version {new_version}.", ephemeral=True)
+        else:
+            await interaction.response.send_message(
+                f"Can't update branch {branch}. You might need to provide proper DCS credentials to do so.",
+                ephemeral=True)
 
     @command(description='Download config files or missions')
     @app_commands.guild_only()
