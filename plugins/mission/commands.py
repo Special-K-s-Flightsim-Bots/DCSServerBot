@@ -5,6 +5,8 @@ import json
 import os
 import psycopg
 import re
+import yaml
+
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
     Group, ReportEnv
 from datetime import datetime
@@ -294,11 +296,11 @@ class Mission(Plugin):
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
         try:
-            with open('config/presets.json') as infile:
-                presets = json.load(infile)
+            with open('config/presets.yaml') as infile:
+                presets = yaml.safe_load(infile)
         except FileNotFoundError:
             await interaction.response.send_message(
-                f'No presets available, please configure them in config/presets.json.', ephemeral=True)
+                f'No presets available, please configure them in config/presets.yaml.', ephemeral=True)
             return
         options = [
             discord.SelectOption(label=k)
@@ -580,12 +582,12 @@ class Mission(Plugin):
         att = message.attachments[0]
         filename = await server.get_missions_dir() + os.path.sep + att.filename
         try:
-            ctx = utils.ContextWrapper(message)
+            ctx = await self.bot.get_context(message)
             stopped = False
             exists = False
             if os.path.exists(filename):
                 exists = True
-                if await utils.yn_question(message.interaction, 'File exists. Do you want to overwrite it?') is False:
+                if await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?') is False:
                     await message.channel.send('Upload aborted.')
                     return
                 if server.status in [Status.RUNNING, Status.PAUSED] and \

@@ -375,7 +375,7 @@ class PluginConflictError(PluginError):
 
 class PluginConfigurationError(PluginError):
     def __init__(self, plugin: str, option: str):
-        super().__init__(f'Option "{option}" missing in {plugin}.json!')
+        super().__init__(f'Option "{option}" missing in {plugin}.yaml!')
 
 
 class PluginInstallationError(PluginError):

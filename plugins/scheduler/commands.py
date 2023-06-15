@@ -104,7 +104,7 @@ class Scheduler(Plugin):
                 item = 'server'
             else:
                 item = 'mission'
-            while restart_in > 0 and server.is_populated() and not server.maintenance:
+            while restart_in > 0 and server.status == Status.RUNNING and not server.maintenance:
                 for warn_time in warn_times:
                     if warn_time == restart_in:
                         server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,

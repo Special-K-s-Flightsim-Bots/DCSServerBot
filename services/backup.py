@@ -1,8 +1,8 @@
-import asyncio
 import os
 import platform
 import shlex
 import shutil
+import subprocess
 import time
 from typing import cast
 
@@ -70,10 +70,10 @@ class BackupService(Service):
         config = self.locals['backups'].get('servers')
         for server_name, server in self.bus.servers.items():
             self.log.info(f'Backing up server "{server_name}" ...')
-            filename = f"{server.instance}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
+            filename = f"{server.instance.name}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
             zf = ZipFile(os.path.join(target, filename), mode="w")
             try:
-                root_dir = os.path.expandvars(server.locals['home'])
+                root_dir = os.path.expandvars(server.instance.home)
                 for directory in config.get('directories'):
                     self.zip_path(zf, root_dir, directory)
             except Exception as ex:
@@ -88,16 +88,14 @@ class BackupService(Service):
             target = self.mkdir()
             self.log.info("Backing up database...")
             config = self.locals['backups'].get('database')
-            cmd = os.path.join(os.path.expandvars(config['path']), "pg_dump")
+            cmd = os.path.join(os.path.expandvars(config['path']), "pg_dump.exe")
             filename = f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
             path = os.path.join(target, filename)
-            database = f"{os.path.basename(self.node.config['BOT']['DATABASE_URL'])}"
-            exe = f'"{cmd}" -U postgres -F t -f "{path}" -d "{database}"'
+            database = f"{os.path.basename(self.node.config['database']['url'])}"
+            exe = f'"{os.path.basename(cmd)}" -U postgres -F t -f "{path}" -d "{database}"'
             args = shlex.split(exe)
             os.environ['PGPASSWORD'] = config['password']
-            process = await asyncio.create_subprocess_exec(*args, stdin=asyncio.subprocess.DEVNULL,
-                                                           stdout=asyncio.subprocess.DEVNULL)
-            await process.wait()
+            subprocess.run(args, executable=cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
             self.log.info("Backup of database complete.")
         except Exception as ex:
             self.log.debug(ex)

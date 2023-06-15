@@ -272,50 +272,44 @@ class Admin(Plugin):
         async with aiohttp.ClientSession() as session:
             async with session.get(message.attachments[0].url) as response:
                 if response.status == 200:
-                    interaction = message.interaction
-                    if message.attachments[0].filename.endswith('.json'):
-                        data = await response.json(encoding="utf-8")
-                        if 'configs' in data:
-                            plugin = message.attachments[0].filename[:-5]
-                            if plugin not in self.bot.plugins:
-                                await message.channel.send(f"Plugin {plugin.title()} is not activated.")
-                                return True
-                            filename = f"config/{plugin}.json"
-                            if os.path.exists(filename) and not \
-                                    await utils.yn_question(interaction, f'Do you want to overwrite {filename} on '
-                                                                         f'node {platform.node()}?'):
-                                await message.channel.send('Aborted.')
-                                return True
-                            with open(filename, 'w', encoding="utf-8") as outfile:
-                                json.dump(data, outfile, indent=2)
-                            await self.bot.reload(plugin)
-                            await message.channel.send(f"Plugin {plugin.title()} re-configured.")
-                            return True
+                    ctx = await self.bot.get_context(message)
+                    if message.attachments[0].filename.endswith('.yaml'):
+                        data = yaml.safe_load(await response.text(encoding='utf-8', errors='ignore'))
+                        name = message.attachments[0].filename[:-5]
+                        if name in ['main', 'nodes', 'presets', 'servers']:
+                            targetpath = 'config'
+                            plugin = False
+                        elif name in ['backup', 'bot']:
+                            targetpath = os.path.join('config', 'services')
+                            plugin = False
+                        elif name in self.bot.node.plugins:
+                            targetpath = os.path.join('config', 'plugins')
+                            plugin = True
                         else:
                             return False
-                    else:
-                        if await utils.yn_question(interaction, f'Do you want to overwrite dcsserverbot.ini on '
-                                                                f'node {platform.node()}?'):
-                            with open('config/dcsserverbot.ini', 'w', encoding='utf-8') as outfile:
-                                outfile.writelines('\n'.join((await response.text(encoding='utf-8')).splitlines()))
-                            self.bot.config = utils.config = utils.reload()
-                            await message.channel.send('dcsserverbot.ini updated.')
-                            if await utils.yn_question(interaction, 'Do you want to restart the bot?'):
-                                exit(-1)
-                        else:
+                        targetfile = os.path.join(targetpath, name + '.yaml')
+                        if os.path.exists(targetfile) and not \
+                                await utils.yn_question(ctx, f'Do you want to overwrite {targetfile} on '
+                                                             f'node {platform.node()}?'):
                             await message.channel.send('Aborted.')
+                            return True
+                        with open(targetfile, 'w', encoding="utf-8") as outfile:
+                            yaml.safe_dump(data, outfile)
+                        if plugin:
+                            await self.bot.reload(name)
+                            await message.channel.send(f"Plugin {name.title()} re-loaded.")
+                        elif await utils.yn_question(ctx, 'Do you want to exit (restart) the bot?'):
+                            await message.channel.send('Bot restart initiated.')
+                            exit(-1)
                         return True
-                else:
-                    await message.channel.send(f'Error {response.status} while reading JSON file!')
-                    return True
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # ignore bot messages or messages that does not contain json attachments
         if message.author.bot or not message.attachments or \
                 not (
-                    message.attachments[0].filename.endswith('.json') or
-                    message.attachments[0].filename == 'dcsserverbot.ini'
+                    message.attachments[0].filename.endswith('.yaml') or
+                    message.attachments[0].filename.endswith('.json')
                 ):
             return
         # only Admin role is allowed to upload json files in channels

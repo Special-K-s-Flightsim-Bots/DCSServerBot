@@ -108,6 +108,7 @@ class Music(Plugin):
             return
         delete = True
         try:
+            ctx = await self.bot.get_context(message)
             for att in message.attachments:
                 if att.filename[-4:] not in ['.mp3', '.ogg']:
                     delete = False
@@ -118,7 +119,7 @@ class Music(Plugin):
                 else:
                     filename = self.get_music_dir() + os.path.sep + att.filename
                 if os.path.exists(filename):
-                    if not await utils.yn_question(message.interaction, 'File exists. Do you want to overwrite it?'):
+                    if not await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?'):
                         continue
                 async with aiohttp.ClientSession() as session:
                     async with session.get(att.url) as response:

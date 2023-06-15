@@ -6,6 +6,7 @@ import os
 import re
 import string
 import unicodedata
+import yaml
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple
 
@@ -218,9 +219,9 @@ class SettingsDict(dict):
                 if not data:
                     self.log.error("- Error while parsing {}!".format(os.path.basename(self.path)))
                     raise ex
-        elif self.path.lower().endswith('.json'):
+        elif self.path.lower().endswith('.yaml'):
             with open(self.path, encoding='utf-8') as file:
-                data = json.load(file)
+                data = yaml.safe_load(file)
         if data:
             self.clear()
             self.update(data)
@@ -234,7 +235,7 @@ class SettingsDict(dict):
         elif self.path.lower().endswith('.json'):
             with open(self.path, "w", encoding='utf-8') as outfile:
                 self.mtime = os.path.getmtime(self.path)
-                json.dump(self, outfile)
+                yaml.safe_dump(self, outfile)
         self.mtime = os.path.getmtime(self.path)
 
     def __setitem__(self, key, value):

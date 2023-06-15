@@ -90,6 +90,9 @@ class Server(DataObject):
     def coalitions(self) -> bool:
         return self.locals.get('coalitions', None) is not None
 
+    async def get_missions_dir(self) -> str:
+        pass
+
     def add_player(self, player: Player):
         self.players[player.id] = player
 

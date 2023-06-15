@@ -1,10 +1,9 @@
 from __future__ import annotations
 import asyncio
-import traceback
-
 import discord
 import os
 import re
+
 from core import Status
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,7 +15,6 @@ from pathlib import Path, PurePath
 from typing import Optional, cast, Union, TYPE_CHECKING, Iterable
 
 from .helper import get_all_players, is_ucid
-from ..services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
     from .. import Server, DCSServerBot, Player
@@ -225,16 +223,15 @@ class YNQuestionView(View):
         self.stop()
 
 
-async def yn_question(interaction: discord.Interaction, question: str, message: Optional[str] = None) -> bool:
+async def yn_question(ctx: Union[commands.Context, discord.Interaction], question: str,
+                      message: Optional[str] = None) -> bool:
     embed = discord.Embed(description=question, color=discord.Color.red())
     if message is not None:
         embed.add_field(name=message, value='_ _')
+    if isinstance(ctx, discord.Interaction):
+        ctx = await ctx.client.get_context(ctx)
     view = YNQuestionView()
-    if interaction.response.is_done():
-        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-    else:
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-        msg = await interaction.original_response()
+    msg = await ctx.send(embed=embed, view=view, ephemeral=True)
     try:
         if await view.wait():
             return False
@@ -548,20 +545,17 @@ class UserTransformer(app_commands.Transformer):
             return interaction.client.guilds[0].get_member(int(value))
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
-        try:
-            players = [
-                app_commands.Choice(name='✈ ' + name, value=ucid)
-                for ucid, name in get_all_players(interaction.client)
-                if not current or current.casefold() in name.casefold() or current.casefold() in ucid
-            ]
-            members = [
-                app_commands.Choice(name='@' + member.display_name, value=str(member.id))
-                for member in get_all_linked_members(interaction.client)
-                if not current or current.casefold() in member.display_name.casefold()
-            ]
-            return (players + members)[:25]
-        except Exception as ex:
-            traceback.print_exc()
+        players = [
+            app_commands.Choice(name='✈ ' + name, value=ucid)
+            for ucid, name in get_all_players(interaction.client)
+            if not current or current.casefold() in name.casefold() or current.casefold() in ucid
+        ]
+        members = [
+            app_commands.Choice(name='@' + member.display_name, value=str(member.id))
+            for member in get_all_linked_members(interaction.client)
+            if not current or current.casefold() in member.display_name.casefold()
+        ]
+        return (players + members)[:25]
 
 
 class PlayerTransformer(app_commands.Transformer):
