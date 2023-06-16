@@ -36,6 +36,7 @@ class Admin(Plugin):
                 for instance, values in data.items():
                     for download in values['downloads']:
                         download.replace('{server.installation}', '{server.instance.name}')
+                        download.replace('dcsserverbot.log*', 'dcssb-{server.node.name}.log*')
                 yaml.safe_dump(path)
 
     @command(description='Update your DCS installations')
@@ -70,8 +71,7 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def download(self, interaction: discord.Interaction,
-                       server: app_commands.Transform[Server, utils.ServerTransformer(
-                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])]) -> None:
+                       server: app_commands.Transform[Server, utils.ServerTransformer]) -> None:
         view = View()
         msg = None
         config = self.get_config(server)
@@ -211,19 +211,19 @@ class Admin(Plugin):
             self.command = "cancel"
             self.stop()
 
-    @command(description='Prune unused data in the database')
+    @command(name='prune', description='Prune unused data in the database')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    async def prune(self, interaction: discord.Interaction):
+    async def _prune(self, interaction: discord.Interaction):
         embed = discord.Embed(title=":warning: Database Prune :warning:")
         embed.description = "You are going to delete data from your database. Be advised.\n\n" \
                             "Please select the data to be pruned:"
         view = self.CleanupView()
-        msg = await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         try:
             await view.wait()
         finally:
-            await msg.delete()
+            await interaction.delete_original_response()
         if view.command == "cancel":
             await interaction.followup.send('Aborted.', ephemeral=True)
             return

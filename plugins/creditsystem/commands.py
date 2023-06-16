@@ -82,8 +82,8 @@ class CreditSystem(Plugin):
             color=discord.Color.blue())
         campaigns = points = ''
         for row in data:
-            campaigns += row[1] + '\n'
-            points += f"{row[2]}\n"
+            campaigns += row['name'] + '\n'
+            points += f"{row['credits']}\n"
         embed.add_field(name='Campaign', value=campaigns)
         embed.add_field(name='Points', value=points)
         embed.add_field(name='_ _', value='_ _')
@@ -92,9 +92,12 @@ class CreditSystem(Plugin):
             embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
             times = events = deltas = ''
             for row in data:
+                points = row['new_points'] - row['old_points']
+                if points == 0:
+                    continue
                 times += f"{row['time']:%m/%d %H:%M}\n"
                 events += row['event'].title() + '\n'
-                deltas += f"{row['new_points'] - row['old_points']}\n"
+                deltas += f"{points}\n"
             embed.add_field(name='Time', value=times)
             embed.add_field(name='Event', value=events)
             embed.add_field(name='Points', value=deltas)

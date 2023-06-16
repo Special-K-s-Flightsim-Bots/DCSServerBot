@@ -11,6 +11,8 @@ from discord.ui import View, Button, Select, Item
 from os import path
 from typing import Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 
+from discord.utils import MISSING
+
 from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound
 from ..data.const import Channel
 
@@ -128,7 +130,7 @@ class PaginationReport(Report):
         values = None
         if 'sql' in param:
             with self.pool.connection() as conn:
-                values = [x(0) for x in conn.execute(param['sql'], kwargs).fetchall()]
+                values = [x[0] for x in conn.execute(param['sql'], kwargs).fetchall()]
         elif 'values' in param:
             values = param['values']
         elif 'obj' in param:
@@ -237,7 +239,8 @@ class PaginationReport(Report):
             self.stop()
 
     async def render(self, *args, **kwargs) -> ReportEnv:
-        await self.interaction.response.defer()
+        if not self.interaction.response.is_done():
+            await self.interaction.response.defer()
         name, values = self.read_param(self.report_def['pagination']['param'], **kwargs)
         start_index = 0
         if 'start_index' in kwargs:
@@ -260,7 +263,7 @@ class PaginationReport(Report):
                     embed=env.embed,
                     view=view,
                     file=discord.File(env.filename,
-                                      filename=os.path.basename(env.filename)) if env.filename else None
+                                      filename=os.path.basename(env.filename)) if env.filename else MISSING
                 )
             finally:
                 if env.filename and os.path.exists(env.filename):
@@ -289,7 +292,7 @@ class PersistentReport(Report):
         env = None
         try:
             env = await super().render(*args, **kwargs)
-            file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None
+            file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else MISSING
             await self.bot.setEmbed(embed_name=self.embed_name, embed=env.embed, channel_id=self.channel_id,
                                     file=file, server=self.server)
             return env

@@ -5,7 +5,7 @@ DEFAULT:
     pattern: dcs*.log
   - directory: .
     label: DCSServerBot Logs
-    pattern: dcsserverbot.log*
+    pattern: dcssb-{server.node.name}.log*
   - directory: '%USERPROFILE%\Saved Games\{server.instance.name}\Missions'
     label: Missions
     pattern: '*.miz'

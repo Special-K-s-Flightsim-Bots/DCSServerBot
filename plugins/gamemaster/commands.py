@@ -143,8 +143,10 @@ class GameMaster(Plugin):
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     @app_commands.guild_only()
     async def do_script(self, interaction: discord.Interaction,
-                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
-        class ScriptModal(Modal, "Lua Script"):
+                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[
+                            Status.RUNNING, Status.PAUSED
+                        ])]):
+        class ScriptModal(Modal, title="Lua Script"):
             script = TextInput(label="Enter your script here", style=TextStyle.long, required=True)
 
         modal = ScriptModal()
@@ -154,17 +156,19 @@ class GameMaster(Plugin):
                 "command": "do_script",
                 "script": ' '.join(modal.script.value)
             })
-            await interaction.response.send_message('Script sent.', ephemeral=True)
+            await interaction.followup.send('Script sent.', ephemeral=True)
         else:
-            await interaction.response.send_message('Aborted', ephemeral=True)
+            await interaction.followup.send('Aborted', ephemeral=True)
 
     @command(description='Loads a lua file into the mission')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def do_script_file(self, interaction: discord.Interaction,
-                             server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                             server: app_commands.Transform[Server, utils.ServerTransformer(status=[
+                                 Status.RUNNING, Status.PAUSED
+                             ])],
                              filename: str):
-        if not os.path.exists(os.path.join(os.path.expandvars(server.locals['home']),
+        if not os.path.exists(os.path.join(os.path.expandvars(server.instance.home),
                                            filename)):
             interaction.response.send_message(f"File {filename} not found.", ephemeral=True)
         server.sendtoDCS({
@@ -192,11 +196,11 @@ class GameMaster(Plugin):
                                 roles = {
                                     "red": discord.utils.get(
                                         interaction.guild.roles,
-                                        name=server.locals['coalition']['red']
+                                        name=server.locals['coalitions']['red_role']
                                     ),
                                     "blue": discord.utils.get(
                                         interaction.guild.roles,
-                                        name=server.locals['coalition']['blue']
+                                        name=server.locals['coalitions']['blue_role']
                                     )
                                 }
                                 for row in cursor.execute("""
@@ -225,16 +229,19 @@ class GameMaster(Plugin):
             return []
         elif len(all_servers) == 1:
             return [self.bot.servers[all_servers[0]]]
-        for element in await utils.selection(interaction, title="Select all servers for this campaign",
-                                             options=[SelectOption(label=x, value=x) for x in all_servers]):
-            servers.append(self.bot.servers[element])
+        selection = await utils.selection(interaction, title="Select all servers for this campaign",
+                                          options=[SelectOption(label=x, value=x) for x in all_servers],
+                                          max_values=len(all_servers))
+        if selection:
+            for element in selection:
+                servers.append(self.bot.servers[element])
         return servers
 
     @campaign.command(description="Campaign info")
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(campaign=utils.campaign_autocomplete)
-    async def info(self, interaction: discord.Interaction, campaign: Optional[str]):
+    async def info(self, interaction: discord.Interaction, campaign: str):
         report = Report(self.bot, self.plugin_name, 'campaign.json')
         env = await report.render(campaign=utils.get_campaign(self, campaign), title='Campaign Overview')
         await interaction.response.send_message(embed=env.embed)
@@ -243,11 +250,14 @@ class GameMaster(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def add(self, interaction: discord.Interaction):
-        servers = await self.get_campaign_servers(interaction)
         modal = CampaignModal(self.eventlistener, servers)
         await interaction.response.send_modal(modal)
         if await modal.wait():
             await interaction.response.send_message('Aborted.', ephemeral=True)
+            return
+        servers = await self.get_campaign_servers(interaction)
+        if not servers:
+            await interaction.followup.send('Aborted.', ephemeral=True)
             return
 
     @campaign.command(description="Add a server to an existing campaign")
@@ -261,7 +271,8 @@ class GameMaster(Plugin):
                 with conn.transaction():
                     conn.execute("""
                         INSERT INTO campaigns_servers (campaign_id, server_name) 
-                        VALUES SELECT id, %s FROM campaigns WHERE name = %s 
+                        SELECT id, %s FROM campaigns WHERE name = %s 
+                        ON CONFLICT DO NOTHING
                         """, (server.name, campaign))
             await interaction.response.send_message(f"Server {server.name} added to campaign {campaign}.")
         except psycopg.errors.UniqueViolation:

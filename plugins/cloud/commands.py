@@ -189,13 +189,16 @@ class CloudHandler(Plugin):
                                                     f'your Discord and DCS accounts.', ephemeral=True)
             return
         await interaction.response.defer()
-        response = await self.get(f'stats/{ucid}')
-        if not len(response):
-            await interaction.followup.send('No cloud-based statistics found for this user.', ephemeral=True)
-            return
-        df = pd.DataFrame(response)
-        report = PaginationReport(self.bot, interaction, self.plugin_name, 'cloudstats.json')
-        await report.render(member=member, data=df, guild=None)
+        try:
+            response = await self.get(f'stats/{ucid}')
+            if not len(response):
+                await interaction.followup.send('No cloud-based statistics found for this user.', ephemeral=True)
+                return
+            df = pd.DataFrame(response)
+            report = PaginationReport(self.bot, interaction, self.plugin_name, 'cloudstats.json')
+            await report.render(member=member, data=df, guild=None)
+        except aiohttp.ClientError:
+            await interaction.followup.send('Cloud not connected.', ephemeral=True)
 
     @tasks.loop(minutes=15.0)
     async def cloud_bans(self):

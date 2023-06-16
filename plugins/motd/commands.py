@@ -28,7 +28,7 @@ class MessageOfTheDay(Plugin):
             else:
                 server.sendChatMessage(Coalition.ALL, message)
         elif config['display_type'].lower() == 'popup':
-            timeout = config.get('display_time', self.bot.locals.get('message_timeout', 10))
+            timeout = config.get('display_time', server.locals.get('message_timeout', 10))
             if player:
                 player.sendPopupMessage(message, timeout)
             else:

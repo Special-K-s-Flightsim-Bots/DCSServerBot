@@ -109,7 +109,7 @@ class Scheduler(Plugin):
                     if warn_time == restart_in:
                         server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
                                                                                 when=utils.format_time(warn_time)),
-                                                self.bot.locals.get('message_timeout', 10))
+                                                server.locals.get('message_timeout', 10))
                         events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
                         if events_channel:
                             await events_channel.send(warn_text.format(item=item, what=what,

@@ -188,7 +188,7 @@ class Player(DataObject):
 
     def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
-            timeout = self.config['BOT']['MESSAGE_TIMEOUT']
+            timeout = self.server.locals.get('message_timeout', 10)
         self.server.sendtoDCS({
             "command": "sendPopupMessage",
             "to": self.unit_name,

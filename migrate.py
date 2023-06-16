@@ -43,7 +43,8 @@ def migrate():
     nodes[platform.node()] = {}
     servers = {
         DEFAULT_TAG: {
-            "message_afk": cfg['DCS']['MESSAGE_AFK']
+            "message_afk": cfg['DCS']['MESSAGE_AFK'],
+            'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT'])
         }
     }
     main: dict[str, Union[int, str, list, dict]] = {
@@ -71,7 +72,6 @@ def migrate():
             'automatch': cfg['BOT'].getboolean('AUTOMATCH'),
             'autoban': cfg['BOT'].getboolean('AUTOBAN'),
             'message_ban': cfg['BOT']['MESSAGE_BAN'],
-            'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT']),
             'message_autodelete': int(cfg['BOT']['MESSAGE_AUTODELETE']),
             "reports": {
                 "num_workers": int(cfg['REPORTS']['NUM_WORKERS'])

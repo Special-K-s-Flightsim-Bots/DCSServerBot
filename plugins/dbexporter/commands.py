@@ -33,16 +33,15 @@ class DBExporter(Plugin):
                         WHERE table_schema = 'public' 
                         AND table_name not in ('pu_events_sdw', 'servers', 'message_persistence')
                     """).fetchall() if x[0] not in table_filter]:
-                        cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t')
-                        if cursor.rowcount > 0:
+                        rows = cursor.execute(f'SELECT ROW_TO_JSON(t) FROM (SELECT * FROM {table}) t').fetchall()
+                        if rows:
                             with open(f'export/{table}.json', 'w') as file:
-                                file.writelines([json.dumps(x[0]) + '\n' for x in cursor.fetchall()])
+                                file.writelines([json.dumps(x[0]) + '\n' for x in rows])
 
     @command(description='Exports database tables as json.')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def export(self, interaction: discord.Interaction):
-        await interaction.response.send_message("Exporting database tables ...")
         await interaction.response.defer(thinking=True, ephemeral=True)
         self.do_export([])
         await interaction.delete_original_response()

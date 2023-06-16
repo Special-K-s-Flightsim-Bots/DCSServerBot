@@ -216,7 +216,7 @@ class Server(DataObject):
 
     def sendPopupMessage(self, coalition: Coalition, message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
-            timeout = self.config['BOT']['MESSAGE_TIMEOUT']
+            timeout = self.locals.get('message_timeout', 10)
         self.sendtoDCS({
             "command": "sendPopupMessage",
             "to": coalition.value,

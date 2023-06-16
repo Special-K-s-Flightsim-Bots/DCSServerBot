@@ -10,9 +10,9 @@ from datetime import datetime
 from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Choice, TransformerError
 from discord.ext import commands
-from discord.ui import Button, View, Select
+from discord.ui import Button, View, Select, Item
 from pathlib import Path, PurePath
-from typing import Optional, cast, Union, TYPE_CHECKING, Iterable
+from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 
 from .helper import get_all_players, is_ucid
 
@@ -157,6 +157,8 @@ class SelectView(View):
 
     @discord.ui.select()
     async def callback(self, interaction: Interaction, select: Select):
+        if not interaction.response.is_done():
+            await interaction.response.defer()
         if select.max_values > 1:
             self.result = select.values
         else:
@@ -173,13 +175,6 @@ class SelectView(View):
         await interaction.response.defer()
         self.result = None
         self.stop()
-
-    async def interaction_check(self, interaction: Interaction, /) -> bool:
-        if interaction.user != (await interaction.original_response()).user:
-            await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
-            return False
-        else:
-            return True
 
 
 async def selection(interaction: discord.Interaction, *, title: Optional[str] = None, placeholder: Optional[str] = None,
