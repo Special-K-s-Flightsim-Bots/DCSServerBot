@@ -221,7 +221,6 @@ class Install:
         for _, installation in installations:
             try:
                 if installation not in config:
-                    print(f"- No entry found for instance {installation} in your dcsserverbot.ini")
                     continue
                 num_installs += 1
                 try:
@@ -236,8 +235,8 @@ class Install:
                         raise InvalidParameter(installation, 'DCS_PORT', 'Ports have to be unique for all servers!')
                     elif config[installation]['DCS_PORT'] in [8088, 10308, 10309]:
                         raise InvalidParameter(installation, 'DCS_PORT',
-                                               "Don't use the port of your DCS server (""10308), webgui_port (8088) or "
-                                               "webrtc_port (""10309)!")
+                                               "Don't use the port of your DCS server (10308), webgui_port (8088) or "
+                                               "webrtc_port (10309)!")
                     ports.add(config[installation]['DCS_PORT'])
                 if not path.exists(os.path.expandvars(config[installation]['DCS_HOME'])):
                     # ignore missing directories in the DCS section, as people might have a serverSettings.lua in their
