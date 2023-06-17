@@ -213,6 +213,27 @@ Plugin: [UserStats]
 | #hop_on            | TIMESTAMP NOT NULL  | Time the player occupied this unit.                                                                                           |
 | hop_off            | TIMESTAMP           | Time, the player left this unit or the server.                                                                                |
 
+## BG_GEOMETRY
+
+Plugin: [Battleground]
+
+| Column       | Type             | Description                                                                       |
+|--------------|------------------|-----------------------------------------------------------------------------------|
+| #id          | INTEGER NOT NULL | Auto-increment ID.                                                                |
+| type         | TEXT NOT NULL    | Type of geometry to be displayed in DCSBattleground                               |
+| name         | TEXT             | Name of geometry, if null the ID is used in DCSBattlegound                        |
+| posmgrs      | TEXT             | Coordinates, the screenshots should appear on in MGRS format.                     |
+| screenshot   | TEXT[]           | List of screenshots                                                               |
+| side         | TEXT NOT NULL    | Coalition side the screenshot should be displayed to.                             |
+| server       | TEXT NOT NULL    | server_name of the server the screenshots should be published to.                 |
+| position     | NUMERIC          | Used by DCSBattlegound to store markpoints                                        |
+| points       | NUMERIC          | Used by DCSBattlegound to store zones and waypoints                               |
+| center       | NUMERIC          | Used by DCSBattlegound to store circles                                           |
+| radius       | NUMERIC          | Used by DCSBattlegound to store circles                                           |
+| discordname  | TEXT NOT NULL    | Discord user that added the screenshots or draw in DCSBattleground                |
+| avatar       | TEXT NOT NULL    | Discord avatar of the user that added the screenshots or draw in DCSBattleground. |
+
+
 [Admin]: plugins/admin.md
 [CreditSystem]: plugins/creditsystem.md
 [GameMaster]: plugins/gamemaster.md
@@ -221,3 +242,4 @@ Plugin: [UserStats]
 [Punishment]: plugins/punishment.md
 [ServerStats]: plugins/serverstats.md
 [UserStats]: plugins/userstats.md
+[Battleground]: plugins/battleground.md
