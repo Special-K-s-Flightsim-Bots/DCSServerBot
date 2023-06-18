@@ -55,8 +55,5 @@ class Extension(ABC):
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         raise NotImplementedError()
 
-#    async def schedule(self):
-#        pass
-
     def is_installed(self) -> bool:
         pass

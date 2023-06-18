@@ -256,7 +256,8 @@ class Scheduler(Plugin):
                     elif server.status in [Status.RUNNING, Status.PAUSED]:
                         await self.check_mission_state(server, config)
                 except Exception as ex:
-                    self.log.warning("Exception in check_state(): " + str(ex))
+                    self.log.exception(ex)
+ #                   self.log.warning("Exception in check_state(): " + str(ex))
 
     @check_state.before_loop
     async def before_check(self):

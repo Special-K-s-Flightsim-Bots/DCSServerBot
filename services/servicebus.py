@@ -158,6 +158,9 @@ class ServiceBus(Service):
             else:
                 server.status = Status.RUNNING
             server.init_extensions()
+            for extension in server.extensions.values():
+                if not extension.is_running():
+                    asyncio.run_coroutine_threadsafe(extension.startup(), self.loop)
 
         # validate server ports
         dcs_ports: dict[int, str] = dict()
