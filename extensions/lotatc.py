@@ -38,10 +38,10 @@ class LotAtc(Extension):
         cfg = dict()
         instance = self.server.instance
         if os.path.exists(os.path.join(instance.home, 'Mods/services/LotAtc/config.lua')):
-            with open(os.path.join(instance.home, 'Mods/services/LotAtc/config.lua', 'r')) as file:
+            with open(os.path.join(instance.home, 'Mods/services/LotAtc/config.lua'), 'r') as file:
                 read_file(file, cfg)
         if os.path.exists(os.path.join(instance.home, 'Mods/services/LotAtc/config.custom.lua')):
-            with open(os.path.join(instance.home, 'Mods/services/LotAtc/config.custom.lua', 'r')) as file:
+            with open(os.path.join(instance.home, 'Mods/services/LotAtc/config.custom.lua'), 'r') as file:
                 read_file(file, cfg)
         return cfg
 
