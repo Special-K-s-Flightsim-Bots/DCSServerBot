@@ -189,9 +189,15 @@ def get_all_servers(self) -> list[str]:
         ]
 
 
-def get_all_players(self) -> list[Tuple[str, str]]:
+def get_all_players(self, linked: Optional[bool] = None) -> list[Tuple[str, str]]:
+    sql = "SELECT ucid, name FROM players WHERE length(ucid) = 32"
+    if linked is not None:
+        if linked:
+            sql += ' AND discord_id != -1'
+        else:
+            sql += ' AND discord_id = -1'
     with self.pool.connection() as conn:
-        return [(row[0], row[1]) for row in conn.execute("SELECT ucid, name FROM players").fetchall()]
+        return [(row[0], row[1]) for row in conn.execute(sql).fetchall()]
 
 
 def is_ucid(ucid: str) -> bool:

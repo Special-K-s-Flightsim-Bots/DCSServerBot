@@ -201,7 +201,7 @@ class MissionEventListener(EventListener):
                 Player.__name__, node=server.node, server=server, id=p['id'], name=p['name'], active=p['active'],
                 side=Side(p['side']), ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
                 unit_callsign=p['unit_callsign'], unit_name=p['unit_name'], unit_type=p['unit_type'],
-                group_id=p['group_id'], group_name=p['group_name'], banned=False)
+                group_id=p['group_id'], group_name=p['group_name'])
             server.add_player(player)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now()
@@ -254,8 +254,8 @@ class MissionEventListener(EventListener):
         player: Player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
             player: Player = DataObjectFactory().new(
-                Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'], active=data['active'],
-                side=Side(data['side']), ucid=data['ucid'], banned=False)
+                Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'],
+                active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
             player.update(data)
@@ -268,8 +268,8 @@ class MissionEventListener(EventListener):
         # unlikely, but can happen if the bot was restarted during a mission restart
         if not player:
             player = DataObjectFactory().new(
-                Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'], active=data['active'],
-                side=Side(data['side']), ucid=data['ucid'], banned=False)
+                Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'],
+                active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
             player.update(data)
@@ -309,7 +309,7 @@ class MissionEventListener(EventListener):
                 server.afk[player.ucid] = datetime.now()
                 self.send_dcs_event(server, Side.SPECTATOR,
                                     self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
-                                                                                                     data['name']))
+                                                                                          data['name']))
         finally:
             if player:
                 player.update(data)
@@ -351,7 +351,7 @@ class MissionEventListener(EventListener):
         elif data['eventName'] == 'self_kill':
             player = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None
             self.send_dcs_event(server, player.side,
-                                   self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
+                                self.EVENT_TEXTS[player.side][data['eventName']].format(player.name))
         elif data['eventName'] == 'kill':
             # Player is not an AI
             player1 = server.get_player(id=data['arg1']) if data['arg1'] != -1 else None

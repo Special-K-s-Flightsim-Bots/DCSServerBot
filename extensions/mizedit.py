@@ -1,8 +1,8 @@
 import random
-from datetime import datetime
-from typing import Optional
 
 from core import Extension, utils, Server
+from datetime import datetime
+from typing import Optional
 
 
 class MizEdit(Extension):
@@ -15,7 +15,7 @@ class MizEdit(Extension):
         now = datetime.now()
         if not presets:
             if isinstance(config['settings'], dict):
-                for key, value in config['restart']['settings'].items():
+                for key, value in config['settings'].items():
                     if utils.is_in_timeframe(now, key):
                         presets = value
                         break

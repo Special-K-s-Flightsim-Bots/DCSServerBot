@@ -10,14 +10,21 @@ from datetime import datetime
 from discord import Interaction, app_commands, SelectOption
 from discord.app_commands import Choice, TransformerError
 from discord.ext import commands
-from discord.ui import Button, View, Select, Item
+from discord.ui import Button, View, Select
+from enum import Enum, auto
 from pathlib import Path, PurePath
-from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
+from typing import Optional, cast, Union, TYPE_CHECKING, Iterable
 
 from .helper import get_all_players, is_ucid
 
 if TYPE_CHECKING:
     from .. import Server, DCSServerBot, Player
+
+
+class PlayerType(Enum):
+    ALL = auto()
+    PLAYER = auto()
+    MEMBER = auto()
 
 
 async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Interaction,
@@ -444,9 +451,8 @@ def get_interaction_param(interaction: discord.Interaction, name: str):
     root = interaction.data['options'][0]
     if root.get('options'):
         root = root['options']
-    for parameter in root:
-        if parameter['name'] == name:
-            return parameter['value']
+    if root.get(name):
+        return root[name]
     if name == 'server':
         return list(interaction.client.servers.keys())[0]
     return None
@@ -533,6 +539,12 @@ async def nodes_autocomplete(interaction: discord.Interaction, current: str) -> 
 
 
 class UserTransformer(app_commands.Transformer):
+
+    def __init__(self, *, sel_type: PlayerType = PlayerType.ALL, linked: Optional[bool] = None):
+        super().__init__()
+        self.sel_type = sel_type
+        self.linked = linked
+
     async def transform(self, interaction: discord.Interaction, value: str) -> Union[discord.Member, str]:
         if value and is_ucid(value):
             return interaction.client.get_member_by_ucid(value) or value
@@ -540,17 +552,20 @@ class UserTransformer(app_commands.Transformer):
             return interaction.client.guilds[0].get_member(int(value))
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
-        players = [
-            app_commands.Choice(name='✈ ' + name, value=ucid)
-            for ucid, name in get_all_players(interaction.client)
-            if not current or current.casefold() in name.casefold() or current.casefold() in ucid
-        ]
-        members = [
-            app_commands.Choice(name='@' + member.display_name, value=str(member.id))
-            for member in get_all_linked_members(interaction.client)
-            if not current or current.casefold() in member.display_name.casefold()
-        ]
-        return (players + members)[:25]
+        ret = []
+        if self.sel_type in [PlayerType.ALL, PlayerType.PLAYER]:
+            ret.extend([
+                app_commands.Choice(name='✈ ' + name, value=ucid)
+                for ucid, name in get_all_players(interaction.client, self.linked)
+                if not current or current.casefold() in name.casefold() or current.casefold() in ucid
+            ])
+        if self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:
+            ret.extend([
+                app_commands.Choice(name='@' + member.display_name, value=str(member.id))
+                for member in get_all_linked_members(interaction.client)
+                if not current or current.casefold() in member.display_name.casefold()
+            ])
+        return ret[:25]
 
 
 class PlayerTransformer(app_commands.Transformer):
@@ -561,7 +576,7 @@ class PlayerTransformer(app_commands.Transformer):
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Player:
         server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
-        return server.get_player(ucid=value, active=True)
+        return server.get_player(ucid=value, active=self.active)
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
         if self.active:

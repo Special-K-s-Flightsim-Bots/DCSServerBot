@@ -157,6 +157,8 @@ class ServiceBus(Service):
                 server.status = Status.PAUSED
             else:
                 server.status = Status.RUNNING
+            server.init_extensions()
+
         # validate server ports
         dcs_ports: dict[int, str] = dict()
         webgui_ports: dict[int, str] = dict()

@@ -8,7 +8,7 @@ from contextlib import closing
 from discord.ui import View, Button
 
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
-    DataObjectFactory, Member, PersistentReport, Channel, command, DEFAULT_TAG
+    DataObjectFactory, Member, PersistentReport, Channel, command, DEFAULT_TAG, PlayerType
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks
@@ -148,12 +148,18 @@ class UserStatistics(Plugin):
     @command(description="Links a member to a DCS user")
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def link(self, interaction: discord.Interaction, member: discord.Member, ucid: str):
+    @app_commands.rename(ucid="user")
+    async def link(self, interaction: discord.Interaction, member: discord.Member,
+                   ucid: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                       sel_type=PlayerType.PLAYER, linked=False)]
+                   ):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
+                # delete a token, if one existed
+                conn.execute('DELETE FROM players WHERE discord_id = %s AND LENGTH(ucid) = 4', (member.id, ))
         await interaction.response.send_message(
-            f'Member {utils.escape_string(member.display_name)} linked to ucid {ucid}')
+            f'Member {utils.escape_string(member.display_name)} linked to ucid {ucid}', ephemeral=True)
         await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',
                              user=interaction.user)
         # check if they are an active player on any of our servers
@@ -169,7 +175,7 @@ class UserStatistics(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(user='Name of player, member or UCID')
     async def unlink(self, interaction: discord.Interaction,
-                     user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
+                     user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]):
         if isinstance(user, discord.Member):
             member = user
             ucid = self.bot.get_ucid_by_member(member)
@@ -183,7 +189,7 @@ class UserStatistics(Plugin):
             with conn.transaction():
                 conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
         await interaction.response.send_message(
-            f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.')
+            f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.', ephemeral=True)
         await self.bot.audit(f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
                              user=interaction.user)
         # change the link status of that member if they are an active player
@@ -339,10 +345,10 @@ class UserStatistics(Plugin):
         async def send_token(token: str):
             await interaction.followup.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
                                             f"following into the DCS chat of one of our servers:"
-                                            f"```{self.prefix}linkme {token}```\n"
+                                            f"```{self.bot.locals['chat_command_prefix']}linkme {token}```\n"
                                             f"**The TOKEN will expire in 2 days.**", ephemeral=True)
 
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:

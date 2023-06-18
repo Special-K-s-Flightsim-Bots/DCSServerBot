@@ -63,7 +63,8 @@ class Music(Plugin):
                 f"You don't have any playlists to play. Please create one with /music add", ephemeral=True)
             return
         view = MusicPlayer(self.bot, music_dir=self.get_music_dir(), sink=sink, playlists=playlists)
-        msg = await interaction.response.send_message(embed=view.render(), view=view, ephemeral=True)
+        await interaction.response.send_message(embed=view.render(), view=view, ephemeral=True)
+        msg = await interaction.original_response()
         try:
             while not view.is_finished():
                 await msg.edit(embed=view.render(), view=view)

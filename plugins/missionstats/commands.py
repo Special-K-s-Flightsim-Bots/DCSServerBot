@@ -61,7 +61,7 @@ class MissionStatistics(Plugin):
         await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @staticmethod
-    def format_modules(data, marker, marker_emoji):
+    def format_modules(data):
         embed = discord.Embed(title=f"Select a module from the list", color=discord.Color.blue())
         ids = modules = ''
         for i in range(0, len(data)):

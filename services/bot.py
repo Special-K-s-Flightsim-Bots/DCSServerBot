@@ -345,7 +345,7 @@ class DCSServerBot(commands.Bot):
     def get_ucid_by_member(self, member: discord.Member, verified: Optional[bool] = False) -> Optional[str]:
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                sql = 'SELECT ucid FROM players WHERE discord_id = %s '
+                sql = 'SELECT ucid FROM players WHERE discord_id = %s AND LENGTH(ucid) = 32 '
                 if verified:
                     sql += 'AND manual IS TRUE '
                 sql += 'ORDER BY last_seen DESC'

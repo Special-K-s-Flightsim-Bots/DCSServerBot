@@ -33,7 +33,7 @@ class PlaytimesPerPlane(report.GraphElement):
                 values = []
                 for row in cursor.execute(sql, (member.id if isinstance(member, discord.Member) else member,)).fetchall():
                     labels.insert(0, row['slot'])
-                    values.insert(0, row['playtime'] / 3600.0)
+                    values.insert(0, float(row['playtime']) / 3600.0)
                 self.axes.bar(labels, values, width=0.5, color='mediumaquamarine')
                 for label in self.axes.get_xticklabels():
                     label.set_rotation(30)
@@ -71,7 +71,7 @@ class PlaytimesPerServer(report.GraphElement):
                 for row in cursor.execute(sql,
                                           (member.id if isinstance(member, discord.Member) else member,)).fetchall():
                     labels.insert(0, row['server_name'])
-                    values.insert(0, row['playtime'])
+                    values.insert(0, float(row['playtime']))
 
         if values:
             def func(pct, allvals):
@@ -109,7 +109,7 @@ class PlaytimesPerMap(report.GraphElement):
                 for row in cursor.execute(sql,
                                           (member.id if isinstance(member, discord.Member) else member,)).fetchall():
                     labels.insert(0, row['mission_theatre'])
-                    values.insert(0, row['playtime'])
+                    values.insert(0, float(row['playtime']))
         if values:
             def func(pct, allvals):
                 absolute = int(round(pct / 100. * np.sum(allvals)))
@@ -147,7 +147,7 @@ class RecentActivities(report.GraphElement):
                 for row in cursor.execute(sql,
                                           (member.id if isinstance(member, discord.Member) else member,)).fetchall():
                     labels.append(row['day'])
-                    values.append(row['playtime'] / 3600.0)
+                    values.append(float(row['playtime']) / 3600.0)
 
                 self.axes.set_title('Recent Activities', color='white', fontsize=25)
                 self.axes.set_yticks([])
@@ -246,8 +246,8 @@ class KDRatio(report.MultiGraphElement):
                             retval.append(name)
                             explode.append(0.02)
                     if len(values) > 0:
-                        angle1 = -180 * (result[0] + result[1]) / np.sum(values)
-                        angle2 = 180 - 180 * (result[2] + result[3]) / np.sum(values)
+                        angle1 = -180 * (result['AI Kills'] + result['Player Kills']) / np.sum(values)
+                        angle2 = 180 - 180 * (result['Deaths by AI'] + result['Deaths by Player']) / np.sum(values)
                         if angle1 == 0:
                             angle = angle2
                         elif angle2 == 180:
@@ -291,9 +291,9 @@ class KDRatio(report.MultiGraphElement):
                 if cursor.rowcount > 0:
                     labels = []
                     values = []
-                    for item in dict(cursor.fetchone()).items():
-                        labels.append(item[0].replace('_', ' ').title())
-                        values.append(item[1])
+                    for name, value in dict(cursor.fetchone()).items():
+                        labels.append(name.replace('_', ' ').title())
+                        values.append(value)
                     xpos = 0
                     bottom = 0
                     width = 0.2
@@ -339,9 +339,9 @@ class KDRatio(report.MultiGraphElement):
                 if cursor.rowcount > 0:
                     labels = []
                     values = []
-                    for item in dict(result).items():
-                        labels.append(item[0].replace('_', ' ').title())
-                        values.append(item[1])
+                    for name, value in dict(result).items():
+                        labels.append(name.replace('_', ' ').title())
+                        values.append(value)
                     xpos = 0
                     bottom = 0
                     width = 0.2

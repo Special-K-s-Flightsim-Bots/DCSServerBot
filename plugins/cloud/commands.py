@@ -97,7 +97,7 @@ class CloudHandler(Plugin):
             await self.post('register', bot)
             self.log.debug("Bot registered.")
         except aiohttp.ClientError:
-            self.log.debug('Bot could not register due to service unavailability. Ignored.')
+            self.log.debug('Cloud: Bot could not register due to service unavailability. Ignored.')
         except Exception as error:
             traceback.print_exc()
             self.log.debug("Error while registering: " + str(error))

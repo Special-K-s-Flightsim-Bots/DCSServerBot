@@ -140,12 +140,12 @@ class Punishment(Plugin):
             self.log.debug('Punishment - Running decay.')
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                        for d in self.decay_config:
-                            cursor.execute("""
-                                UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 
-                                WHERE time < (NOW() - interval '%s days') AND decay_run < %s
-                            """, (d['weight'], d['days'], d['days'], d['days']))
+                    for d in self.decay_config:
+                        conn.execute("""
+                            UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 
+                            WHERE time < (NOW() - interval '%s days') AND decay_run < %s
+                        """, (d['weight'], d['days'], d['days'], d['days']))
+                        conn.execute("DELETE FROM pu_events WHERE points = 0.0")
 
     @command(description='Set punishment to 0 for a user')
     @app_commands.guild_only()
@@ -174,8 +174,8 @@ class Punishment(Plugin):
                                     "command": "unban",
                                     "ucid": ucid
                                 })
-                    await interaction.response.send_message('All punishment points deleted and player unbanned '
-                                                            '(if they were banned by the bot before).')
+                    await interaction.followup.send('All punishment points deleted and player unbanned '
+                                                    '(if they were banned by the bot before).')
 
     @command(description='Displays your current penalty points')
     @app_commands.guild_only()
@@ -221,14 +221,14 @@ class Punishment(Plugin):
                     times += f"{row['time']:%m/%d %H:%M}\n"
                     events += ' '.join(row['event'].split('_')).title() + '\n'
                     points += f"{row['points']:.2f}\n"
-                    total += row['points']
+                    total += float(row['points'])
                 embed.description = f"Total penalty points: {total:.2f}"
                 embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
                 embed.add_field(name='Time', value=times)
                 embed.add_field(name='Event', value=events)
                 embed.add_field(name='Points', value=points)
                 embed.set_footer(text='Points decay over time, you might see different results on different days.')
-                if cursor.execute("SELECT COUNT(*) FROM bans b WHERE b.ucid = %s", (ucid, )).fetchone()[0] > 0:
+                if cursor.execute("SELECT COUNT(*) FROM bans b WHERE b.ucid = %s", (ucid, )).fetchone()['count'] > 0:
                     unban = self.read_unban_config()
                     if unban:
                         embed.set_footer(text=f"You are currently banned.\nAutomatic unban will happen, if your "

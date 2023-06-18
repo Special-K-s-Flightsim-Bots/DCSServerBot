@@ -78,7 +78,7 @@ class MessageOfTheDay(Plugin):
             # TODO
             pass
         if message:
-            await interaction.response.send_message.send(f"```{message}```")
+            await interaction.response.send_message(f"```{message}```")
 
     @tasks.loop(minutes=1.0)
     async def nudge(self):

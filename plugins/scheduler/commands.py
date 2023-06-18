@@ -397,47 +397,6 @@ class Scheduler(Plugin):
         await interaction.followup.send(f"Server {server.display_name} stopped.", ephemeral=True)
         await self.bot.audit('stopped the server', server=server, user=interaction.user)
 
-    @group.command(description='Sets the servers maintenance flag')
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    async def maintenance(self, interaction: discord.Interaction,
-                          server: app_commands.Transform[Server, utils.ServerTransformer]):
-        if not server.maintenance:
-            if (server.restart_pending or server.on_empty or server.on_mission_end) and \
-                    not await utils.yn_question(interaction, "Server is configured for a pending restart.\n"
-                                                             "Setting the maintenance flag will abort this restart.\n"
-                                                             "Are you sure?"):
-                await interaction.followup.send("Aborted.", ephemeral=True)
-                return
-            server.maintenance = True
-            server.restart_pending = False
-            server.on_empty.clear()
-            server.on_mission_end.clear()
-            if interaction.response.is_done():
-                await interaction.followup.send(f"Maintenance mode set for server {server.display_name}.",
-                                                ephemeral=True)
-            else:
-                await interaction.response.send_message(f"Maintenance mode set for server {server.display_name}.",
-                                                        ephemeral=True)
-            await self.bot.audit("set maintenance flag", user=interaction.user, server=server)
-        else:
-            await interaction.response.send_message(f"Server {server.display_name} is already in maintenance mode.",
-                                                    ephemeral=True)
-
-    @group.command(description='Clears the servers maintenance flag')
-    @utils.app_has_role('DCS Admin')
-    @app_commands.guild_only()
-    async def clear(self, interaction: discord.Interaction,
-                    server: app_commands.Transform[Server, utils.ServerTransformer]):
-        if server.maintenance:
-            server.maintenance = False
-            await interaction.response.send_message(f"Maintenance mode cleared for server {server.display_name}.",
-                                                    ephemeral=True)
-            await self.bot.audit("cleared maintenance flag", user=interaction.user, server=server)
-        else:
-            await interaction.response.send_message(f"Server {server.display_name} is not in maintenance mode.",
-                                                    ephemeral=True)
-
     @group.command(description='Change the password of a DCS server')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
@@ -501,6 +460,49 @@ class Scheduler(Plugin):
             await view.wait()
         finally:
             await msg.delete()
+
+    scheduler = Group(name="scheduler", description="Commands to manage the Scheduler")
+
+    @scheduler.command(description='Sets the servers maintenance flag')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def maintenance(self, interaction: discord.Interaction,
+                          server: app_commands.Transform[Server, utils.ServerTransformer]):
+        if not server.maintenance:
+            if (server.restart_pending or server.on_empty or server.on_mission_end) and \
+                    not await utils.yn_question(interaction, "Server is configured for a pending restart.\n"
+                                                             "Setting the maintenance flag will abort this restart.\n"
+                                                             "Are you sure?"):
+                await interaction.followup.send("Aborted.", ephemeral=True)
+                return
+            server.maintenance = True
+            server.restart_pending = False
+            server.on_empty.clear()
+            server.on_mission_end.clear()
+            if interaction.response.is_done():
+                await interaction.followup.send(f"Maintenance mode set for server {server.display_name}.",
+                                                ephemeral=True)
+            else:
+                await interaction.response.send_message(f"Maintenance mode set for server {server.display_name}.",
+                                                        ephemeral=True)
+            await self.bot.audit("set maintenance flag", user=interaction.user, server=server)
+        else:
+            await interaction.response.send_message(f"Server {server.display_name} is already in maintenance mode.",
+                                                    ephemeral=True)
+
+    @scheduler.command(description='Clears the servers maintenance flag')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def clear(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer]):
+        if server.maintenance:
+            server.maintenance = False
+            await interaction.response.send_message(f"Maintenance mode cleared for server {server.display_name}.",
+                                                    ephemeral=True)
+            await self.bot.audit("cleared maintenance flag", user=interaction.user, server=server)
+        else:
+            await interaction.response.send_message(f"Server {server.display_name} is not in maintenance mode.",
+                                                    ephemeral=True)
 
     @staticmethod
     def _format_bans(rows: dict):

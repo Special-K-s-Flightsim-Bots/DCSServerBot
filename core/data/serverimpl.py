@@ -236,7 +236,7 @@ class ServerImpl(Server):
         with suppress(Exception):
             self.process = Process(p.pid)
 
-    async def init_extensions(self):
+    def init_extensions(self):
         for extension in self.locals.get('extensions', {}):
             ext: Extension = self.extensions.get(extension)
             if not ext:
@@ -254,7 +254,7 @@ class ServerImpl(Server):
                     self.extensions[extension] = ext
 
     async def startup(self) -> None:
-        await self.init_extensions()
+        self.init_extensions()
         for ext in self.extensions:
             await self.extensions[ext].prepare()
             await self.extensions[ext].beforeMissionLoad()

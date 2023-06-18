@@ -507,9 +507,9 @@ class Mission(Plugin):
                     embed.add_field(name='_ _', value='_ _')
                 else:
                     embed.add_field(name='Server', value=player.server.display_name)
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
-            await interaction.response.send_message(f"No player is AFK for more than {minutes} minutes.")
+            await interaction.response.send_message(f"No player is AFK for more than {minutes} minutes.", ephemeral=True)
 
     @player.command(description='Sends a popup to a player')
     @app_commands.guild_only()
@@ -519,6 +519,15 @@ class Mission(Plugin):
                     player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
                     message: str, time: Optional[Range[int, 1, 30]] = -1):
         player.sendPopupMessage(message, time, interaction.user.display_name)
+        await interaction.response.send_message('Message sent.')
+
+    @player.command(description='Sends a chat message to a player')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
+    async def chat(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)], message: str):
+        player.sendChatMessage(message, interaction.user.display_name)
         await interaction.response.send_message('Message sent.')
 
     @tasks.loop(minutes=5.0)
