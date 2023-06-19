@@ -488,9 +488,9 @@ class ServerTransformer(app_commands.Transformer):
             if server and (not self.status or server.status in self.status):
                 return [app_commands.Choice(name=server.name, value=server.name)]
             choices: list[app_commands.Choice[str]] = [
-                app_commands.Choice(name=x, value=x)
-                for x in interaction.client.servers.keys()
-                if (not self.status or x.status in self.status) and current.casefold() in x.casefold()
+                app_commands.Choice(name=name, value=name)
+                for name, value in interaction.client.servers.items()
+                if (not self.status or value.status in self.status) and current.casefold() in name.casefold()
             ]
             return choices[:25]
         except Exception:
