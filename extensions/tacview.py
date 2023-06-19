@@ -6,7 +6,7 @@ import time
 import win32api
 
 from collections import deque
-from core import Extension, report, utils
+from core import Extension, report, utils, ServiceRegistry
 from discord.ext import tasks
 from typing import Optional
 
@@ -167,6 +167,8 @@ class Tacview(Extension):
     async def shutdown(self):
         if 'channel' not in self.config:
             return
+        # TODO: This will not work on remote servers! Maybe using a webhook here instead
+        bot = ServiceRegistry.get("Bot").bot
         log = self.locals.get('log', os.path.join(self.server.instance.home, 'Logs/dcs.log'))
         exp = re.compile(r'TACVIEW.DLL (.*): Successfully saved \[(?P<filename>.*)\]')
         filename = None
@@ -183,7 +185,7 @@ class Tacview(Extension):
         if filename:
             for i in range(0, 60):
                 if os.path.exists(filename):
-                    channel = self.bot.get_channel(self.config['channel'])
+                    channel = bot.get_channel(self.config['channel'])
                     try:
                         await channel.send(file=discord.File(filename))
                     except discord.HTTPException:

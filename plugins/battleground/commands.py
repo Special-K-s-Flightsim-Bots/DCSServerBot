@@ -23,6 +23,10 @@ class Battleground(Plugin):
             await interaction.response.send_message('You need to add one or more screenshots (.jpg/.gif/.png)',
                                                     ephemeral=True)
             return
+        if len(mgrs) != 15 or not mgrs[:2].isnumeric() or not mgrs[5:].isnumeric():
+            await interaction.response.send_message('The second parameter needs to be a MGRS coordinate '
+                                                    '(ex: 38TLN0274366889)', ephemeral=True)
+            return
         done = False
         for server in self.bot.servers.values():
             sides = utils.get_sides(interaction, server)
