@@ -28,6 +28,9 @@ class Battleground(Plugin):
         if not ctx.message.attachments or not ctx.message.attachments[0].filename[-4:] in ['.jpg', '.gif', '.png']:
             await ctx.send('You need to add one or more screenshots (.jpg/.gif/.png)')
             return
+        if len(mgrs) != 15 or not mgrs[:2].isnumeric() or not mgrs[5:].isnumeric():
+            await ctx.send('The second parameter need to be a MGRS coordinate (ex: 38TLN0274366889)')
+            return
         done = False
         for server in self.bot.servers.values():
             sides = utils.get_sides(ctx.message, server)
