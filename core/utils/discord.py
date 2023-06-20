@@ -1,7 +1,5 @@
 from __future__ import annotations
 import asyncio
-import traceback
-
 import discord
 import os
 import re
@@ -483,18 +481,15 @@ class ServerTransformer(app_commands.Transformer):
         return server
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
-        try:
-            server: Server = await interaction.client.get_server(interaction)
-            if server and (not self.status or server.status in self.status):
-                return [app_commands.Choice(name=server.name, value=server.name)]
-            choices: list[app_commands.Choice[str]] = [
-                app_commands.Choice(name=name, value=name)
-                for name, value in interaction.client.servers.items()
-                if (not self.status or value.status in self.status) and current.casefold() in name.casefold()
-            ]
-            return choices[:25]
-        except Exception:
-            traceback.print_exc()
+        server: Server = await interaction.client.get_server(interaction)
+        if server and (not self.status or server.status in self.status):
+            return [app_commands.Choice(name=server.name, value=server.name)]
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=name, value=name)
+            for name, value in interaction.client.servers.items()
+            if (not self.status or value.status in self.status) and current.casefold() in name.casefold()
+        ]
+        return choices[:25]
 
 
 async def airbase_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:

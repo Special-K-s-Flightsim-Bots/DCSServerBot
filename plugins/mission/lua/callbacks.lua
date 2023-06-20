@@ -263,6 +263,7 @@ function mission.onGameEvent(eventName,arg1,arg2,arg3,arg4,arg5,arg6,arg7)
             return
         else
             mission.last_to_landing[arg1] = os.clock()
+            mission.last_change_slot[arg1] = 0
         end
     end
 	local msg = {}
