@@ -71,6 +71,7 @@ function admin.onPlayerTryChangeSlot(playerID, side, slotID)
         end
 	else
 		admin.last_change_slot[playerID] = os.clock()
+    	admin.num_change_slots[playerID] = 0
 	end
 end
 
