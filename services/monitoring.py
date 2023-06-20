@@ -109,7 +109,7 @@ class MonitoringService(Service):
                             await ext.startup()
                 except asyncio.TimeoutError:
                     # check if the server process is still existent
-                    max_hung_minutes = int(self.node.config['DCS'].get('max_hung_minutes', 3))
+                    max_hung_minutes = int(self.node.locals['DCS'].get('max_hung_minutes', 3))
                     if max_hung_minutes > 0:
                         self.log.warning(f"Server \"{server.name}\" is not responding.")
                         # process might be in a hung state, so try again for a specified amount of times
@@ -168,7 +168,7 @@ class MonitoringService(Service):
         # wait for DCS servers to shut down
         if tasks:
             await asyncio.gather(*tasks)
-        self.log.info(f"Updating {self.node.config['DCS']['installation']} ...")
+        self.log.info(f"Updating {self.node.locals['DCS']['installation']} ...")
         if self.bot:
             for plugin in self.bot.cogs.values():  # type: Plugin
                 await plugin.before_dcs_update()
@@ -177,13 +177,13 @@ class MonitoringService(Service):
         startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
         startupinfo.wShowWindow = subprocess.SW_HIDE
         subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
-            self.node.config['DCS']['installation']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
-        if self.node.config['DCS'].get('desanitize', True):
+            self.node.locals['DCS']['installation']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
+        if self.node.locals['DCS'].get('desanitize', True):
             utils.desanitize(self)
         # run after_dcs_update() in all plugins
         for plugin in self.bot.cogs.values():  # type: Plugin
             await plugin.after_dcs_update()
-        self.log.info(f"{self.node.config['DCS']['installation']} updated to the latest version. "
+        self.log.info(f"{self.node.locals['DCS']['installation']} updated to the latest version. "
                       f"Starting up DCS servers again ...")
         for server in self.bus.servers.values():
             if server not in servers:

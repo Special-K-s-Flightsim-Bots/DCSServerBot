@@ -19,6 +19,7 @@ REGEXP = {
     'server_name': re.compile(r'\["name"\] = "(?P<server_name>.*)"')
 }
 UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
+LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 
 
 def findDCSInstances(server_name: Optional[str] = None) -> list[Tuple[str, str]]:
@@ -42,20 +43,10 @@ def findDCSInstances(server_name: Optional[str] = None) -> list[Tuple[str, str]]
     return instances
 
 
-def getInstalledVersion(path: str) -> Tuple[Optional[str], Optional[str]]:
-    branch = version = None
+def getInstalledVersion(path: str) -> Tuple[str, str]:
     with open(os.path.join(os.path.expandvars(path), 'autoupdate.cfg'), encoding='utf8') as cfg:
-        lines = cfg.readlines()
-    for line in lines:
-        if '"branch"' in line:
-            match = REGEXP['branch'].search(line)
-            if match:
-                branch = match.group('branch')
-        elif '"version"' in line:
-            match = REGEXP['version'].search(line)
-            if match:
-                version = match.group('version')
-    return branch, version
+        data = json.load(cfg)
+    return data['branch'], data['version']
 
 
 async def getLatestVersion(branch: str, *, userid: Optional[str] = None,
@@ -70,6 +61,31 @@ async def getLatestVersion(branch: str, *, userid: Optional[str] = None,
             if response.status == 200:
                 return json.loads(gzip.decompress(await response.read()))['versions2'][-1]['version']
     return None
+
+
+def getInstalledModules(path: str) -> set[str]:
+    with open(os.path.join(os.path.expandvars(path), 'autoupdate.cfg'), encoding='utf8') as cfg:
+        data = json.load(cfg)
+    return set(data['modules'])
+
+
+async def getAvailableModules(userid: Optional[str] = None, password: Optional[str] = None) -> set[str]:
+    licenses = {"CAUCASUS_terrain", "NEVADA_terrain", "NORMANDY_terrain", "PERSIANGULF_terrain", "THECHANNEL_terrain",
+                "SYRIA_terrain", "MARIANAISLANDS_terrain", "FALKLANDS_terrain", "SINAIMAP_terrain", "WWII-ARMOUR",
+                "SUPERCARRIER"}
+    if not userid:
+        return licenses
+    else:
+        auth = aiohttp.BasicAuth(login=userid, password=password)
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                ssl=ssl.create_default_context(cafile=certifi.where())), auth=auth) as session:
+            async with session.get(LICENSES_URL) as response:
+                if response.status == 200:
+                    all_licenses = (await response.text(encoding='utf8')).split('<br>')[1:]
+                    for license in all_licenses:
+                        if license.endswith('_terrain'):
+                            licenses.add(license)
+        return licenses
 
 
 def desanitize(self, _filename: str = None) -> None:

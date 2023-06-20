@@ -9,7 +9,7 @@ import yaml
 from contextlib import closing
 from core import utils, Plugin, Status, Server, command, ServiceRegistry
 from discord import app_commands
-from discord.app_commands import Range
+from discord.app_commands import Range, Group
 from discord.ext import commands
 from discord.ui import Select, View, Button
 from pathlib import Path
@@ -39,7 +39,9 @@ class Admin(Plugin):
                         download.replace('dcsserverbot.log*', 'dcssb-{server.node.name}.log*')
                 yaml.safe_dump(path)
 
-    @command(description='Update your DCS installations')
+    dcs = Group(name="dcs", description="Commands to manage your DCS installations")
+
+    @dcs.command(description='Update your DCS installations')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(node=utils.nodes_autocomplete)
@@ -60,12 +62,54 @@ class Admin(Plugin):
                                      user=interaction.user)
                 await interaction.response.defer(thinking=True)
                 monitoring: MonitoringService = cast(MonitoringService, ServiceRegistry.get('Monitoring'))
-                await monitoring.do_update(warn_times=[warn_time] or [120, 60])
+                await asyncio.to_thread(monitoring.do_update, warn_times=[warn_time] or [120, 60])
                 await interaction.followup.send(f"DCS updated to version {new_version}.", ephemeral=True)
         else:
             await interaction.response.send_message(
                 f"Can't update branch {branch}. You might need to provide proper DCS credentials to do so.",
                 ephemeral=True)
+
+    @dcs.command(name='install', description='Install available modules in your dedicated server')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(node=utils.nodes_autocomplete)
+    @app_commands.autocomplete(module=utils.available_modules_autocomplete)
+    async def _install(self, interaction: discord.Interaction, node: str, module: str):
+        # TODO: remote installs
+        for server in self.bus.servers.values():
+            if server.is_remote:
+                continue
+            elif server.status != Status.SHUTDOWN:
+                if not await utils.yn_question(interaction,
+                                               f"Do you want me to shutdown all servers for the installation?"):
+                    await interaction.followup.send("Aborted.", ephemeral=True)
+                    return
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
+        node = interaction.client.node
+        await asyncio.to_thread(node.handle_module, 'install', module)
+        await interaction.followup.send(f"Module {module} installed on node {node.name}", ephemeral=True)
+
+    @dcs.command(name='uninstall', description='Uninstall modules from your dedicated server')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(node=utils.nodes_autocomplete)
+    @app_commands.autocomplete(module=utils.installed_modules_autocomplete)
+    async def _uninstall(self, interaction: discord.Interaction, node: str, module: str):
+        # TODO: remote installs
+        for server in self.bus.servers.values():
+            if server.is_remote:
+                continue
+            elif server.status != Status.SHUTDOWN:
+                if not await utils.yn_question(interaction,
+                                               f"Do you want me to shutdown all servers for the uninstall?"):
+                    await interaction.followup.send("Aborted.", ephemeral=True)
+                    return
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
+        node = interaction.client.node
+        await asyncio.to_thread(node.handle_module, 'uninstall', module)
+        await interaction.followup.send(f"Module {module} uninstalled on node {node.name}", ephemeral=True)
 
     @command(description='Download config files or missions')
     @app_commands.guild_only()

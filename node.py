@@ -305,6 +305,17 @@ class Node:
             self.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
         return False
 
+    async def update(self):
+        # TODO move update from monitoring to here (or to Bus)
+        pass
+
+    def handle_module(self, what: str, module: str):
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        subprocess.run(['dcs_updater.exe', '--quiet', what, module], executable=os.path.expandvars(
+            self.locals['DCS']['installation']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
+
     async def register(self):
         self._public_ip = self.locals.get('public_ip')
         if not self._public_ip:
@@ -352,7 +363,7 @@ class Node:
                         master = False
             return master
 
-    def get_active_nodes(self):
+    def get_active_nodes(self) -> list[str]:
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:

@@ -16,6 +16,7 @@ from pathlib import Path, PurePath
 from typing import Optional, cast, Union, TYPE_CHECKING, Iterable
 
 from .helper import get_all_players, is_ucid
+from .dcs import getAvailableModules, getInstalledModules
 
 if TYPE_CHECKING:
     from .. import Server, DCSServerBot, Player
@@ -530,10 +531,36 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
     return choices[:25]
 
 
-async def nodes_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+async def nodes_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    all_nodes = [interaction.client.node.name]
+    all_nodes.extend(interaction.client.node.get_active_nodes())
     return [
         app_commands.Choice(name=x, value=x)
-        for x in interaction.client.node.get_active_nodes()
+        for x in all_nodes
+        if not current or current.casefold() in x.casefold()
+    ]
+
+
+async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    # TODO: support remote servers
+    node = interaction.client.node
+    userid = node.locals['DCS'].get('dcs_user')
+    password = node.locals['DCS'].get('dcs_password')
+    available_modules = await getAvailableModules(userid, password) - getInstalledModules(node.locals['DCS']['installation'])
+    return [
+        app_commands.Choice(name=x, value=x)
+        for x in available_modules
+        if not current or current.casefold() in x.casefold()
+    ]
+
+
+async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    # TODO: support remote servers
+    node = interaction.client.node
+    available_modules = getInstalledModules(node.locals['DCS']['installation'])
+    return [
+        app_commands.Choice(name=x, value=x)
+        for x in available_modules
         if not current or current.casefold() in x.casefold()
     ]
 
