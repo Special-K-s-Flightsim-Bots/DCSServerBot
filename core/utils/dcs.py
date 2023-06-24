@@ -5,7 +5,6 @@ import json
 import luadata
 import math
 import os
-import re
 import shutil
 import ssl
 
@@ -13,11 +12,6 @@ from core.const import SAVED_GAMES
 from typing import Optional, Tuple
 from .. import utils
 
-REGEXP = {
-    'branch': re.compile(r'"branch": "(?P<branch>.*)"'),
-    'version': re.compile(r'"version": "(?P<version>.*)"'),
-    'server_name': re.compile(r'\["name"\] = "(?P<server_name>.*)"')
-}
 UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
 LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 
@@ -82,9 +76,9 @@ async def getAvailableModules(userid: Optional[str] = None, password: Optional[s
             async with session.get(LICENSES_URL) as response:
                 if response.status == 200:
                     all_licenses = (await response.text(encoding='utf8')).split('<br>')[1:]
-                    for license in all_licenses:
-                        if license.endswith('_terrain'):
-                            licenses.add(license)
+                    for l in all_licenses:
+                        if l.endswith('_terrain'):
+                            licenses.add(l)
         return licenses
 
 

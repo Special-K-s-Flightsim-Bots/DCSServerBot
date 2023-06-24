@@ -301,7 +301,7 @@ class Scheduler(Plugin):
                 await self.launch_dcs(server, config, interaction.user)
                 await interaction.followup.send(
                     f"DCS server \"{server.display_name}\" started.\nServer is in maintenance mode now! "
-                    f"Use /server clear to reset maintenance mode.", ephemeral=True)
+                    f"Use /scheduler clear to reset maintenance mode.", ephemeral=True)
             except asyncio.TimeoutError:
                 await interaction.followup.send(f"Timeout while launching DCS server \"{server.display_name}\".\n"
                                                 f"The server might be running anyway, check with /status.",
@@ -327,7 +327,7 @@ class Scheduler(Plugin):
                 await self.teardown_dcs(server, interaction.user)
             await interaction.followup.send(
                 f"DCS server \"{server.display_name}\" shut down.\n"f"Server in maintenance mode now! "
-                f"Use /clear to reset maintenance mode.", ephemeral=True)
+                f"Use /scheduler clear to reset maintenance mode.", ephemeral=True)
 
         if server.status in [Status.UNREGISTERED, Status.LOADING]:
             if force or await utils.yn_question(interaction, f"Server is in state {server.status.name}.\n"

@@ -64,6 +64,8 @@ def migrate():
     }
     if 'OPT_PLUGINS' in cfg['BOT']:
         main["opt_plugins"] = [x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')]
+        if 'backup' in main['opt_plugins']:
+            del main['opt_plugins']['backup']
     if cfg['BOT'].getboolean('MASTER'):
         bot = {
             'token': cfg['BOT']['TOKEN'],
