@@ -168,8 +168,7 @@ class GameMaster(Plugin):
                                  Status.RUNNING, Status.PAUSED
                              ])],
                              filename: str):
-        if not os.path.exists(os.path.join(os.path.expandvars(server.instance.home),
-                                           filename)):
+        if not os.path.exists(os.path.join(server.instance.home, filename)):
             interaction.response.send_message(f"File {filename} not found.", ephemeral=True)
         server.sendtoDCS({
             "command": "do_script_file",

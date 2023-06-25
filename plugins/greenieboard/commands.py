@@ -144,7 +144,7 @@ class GreenieBoard(Plugin):
         try:
             for server in self.bot.servers.values():
                 config = self.get_config(server)
-                basedir = os.path.expandvars(server.instance.home)
+                basedir = server.instance.home
                 if 'Moose.AIRBOSS' in config and 'delete_after' in config['Moose.AIRBOSS']:
                     basedir += os.path.sep + config['Moose.AIRBOSS']['basedir'] if 'basedir' in config['Moose.AIRBOSS'] else ''
                     do_delete(basedir, config['Moose.AIRBOSS']['delete_after'])

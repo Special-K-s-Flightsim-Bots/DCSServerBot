@@ -73,7 +73,7 @@ class BackupService(Service):
             filename = f"{server.instance.name}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
             zf = ZipFile(os.path.join(target, filename), mode="w")
             try:
-                root_dir = os.path.expandvars(server.instance.home)
+                root_dir = server.instance.home
                 for directory in config.get('directories'):
                     self.zip_path(zf, root_dir, directory)
             except Exception as ex:

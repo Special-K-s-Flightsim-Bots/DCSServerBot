@@ -119,10 +119,8 @@ class MonitoringService(Service):
                             self.log.warning(message)
                             if server.process:
                                 now = datetime.now(timezone.utc)
-                                filename = os.path.join(
-                                    os.path.expandvars(server.locals['home']),
-                                    'Logs', f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp"
-                                )
+                                filename = os.path.join(server.instance.home, 'Logs',
+                                                        f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp")
                                 await asyncio.to_thread(create_dump, server.process.pid, filename,
                                                         MINIDUMP_TYPE.MiniDumpNormal, True)
                                 server.process.kill()

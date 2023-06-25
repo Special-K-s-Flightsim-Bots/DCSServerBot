@@ -23,7 +23,7 @@ class SchedulerListener(EventListener):
         elif method.startswith('run:'):
             cmd = method[4:].strip()
             dcs_installation = path.normpath(path.expandvars(self.bot.node.locals['DCS']['installation']))
-            dcs_home = path.normpath(path.expandvars(server.locals['home']))
+            dcs_home = path.normpath(server.instance.home)
             cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home, server=server,
                                       config=self.bot.locals)
             self.log.debug('Launching command: ' + cmd)

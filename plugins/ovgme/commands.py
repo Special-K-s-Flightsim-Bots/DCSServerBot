@@ -132,7 +132,7 @@ class OvGME(Plugin):
         path = os.path.expandvars(config[folder])
         os.makedirs(os.path.join(path, '.' + server.instance.name), exist_ok=True)
         target = os.path.expandvars(self.bot.node.locals['DCS']['installation']) if folder == 'RootFolder' else \
-            os.path.expandvars(server.instance.home)
+            server.instance.home
         for file in os.listdir(path):
             filename = os.path.join(path, file)
             if (os.path.isfile(filename) and file == package_name + '_v' + version + '.zip') or \
@@ -180,7 +180,7 @@ class OvGME(Plugin):
         path = os.path.expandvars(config[folder])
         ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
         target = os.path.expandvars(self.bot.node.locals['DCS']['installation']) if folder == 'RootFolder' else \
-            os.path.expandvars(server.instance.home)
+            server.instance.home
         if not os.path.exists(os.path.join(ovgme_path, 'install.log')):
             return False
         with open(os.path.join(ovgme_path, 'install.log')) as log:

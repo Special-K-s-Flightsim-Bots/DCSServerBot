@@ -522,17 +522,19 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
-    if not server:
-        return []
-    installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
-    choices: list[app_commands.Choice[str]] = [
-        app_commands.Choice(name=x.name[:-4], value=str(x))
-        for x in sorted(Path(PurePath(os.path.expandvars(server.locals['home']),
-                                      "Missions")).glob("*.miz"))
-        if str(x) not in installed_missions and current.casefold() in x.name.casefold()
-    ]
-    return choices[:25]
+    try:
+        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+        if not server:
+            return []
+        installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=x.name[:-4], value=str(x))
+            for x in sorted(Path(PurePath(server.instance.home, "Missions")).glob("*.miz"))
+            if str(x) not in installed_missions and current.casefold() in x.name.casefold()
+        ]
+        return choices[:25]
+    except Exception:
+        traceback.print_exc()
 
 
 async def nodes_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
