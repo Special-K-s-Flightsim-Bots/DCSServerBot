@@ -584,6 +584,8 @@ class Mission(Plugin):
         server: Server = await self.bot.get_server(message)
         # only DCS Admin role is allowed to upload missions in the servers admin channel
         if not server or not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
+            self.log.debug('### Server is none or role is not DCS Admin')
+            self.log.debug(self.bot.roles['DCS Admin'])
             return
         if server.is_remote:
             await message.channel.send('Upload to remote servers not supported atm.')

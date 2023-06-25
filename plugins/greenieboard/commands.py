@@ -1,10 +1,13 @@
+from copy import deepcopy
+
 import discord
 import os
 import shutil
 import time
 
 from contextlib import closing
-from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, TEventListener, Group
+from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, TEventListener, Group, Server, \
+    DEFAULT_TAG
 from discord import SelectOption, app_commands
 from discord.app_commands import Range
 from discord.ext import tasks
@@ -32,6 +35,22 @@ class GreenieBoard(Plugin):
             shutil.copyfile('config/samples/greenieboard.yaml', 'config/plugins/greenieboard.yaml')
             config = super().read_locals()
         return config
+
+    def get_config(self, server: Optional[Server] = None, plugin_name: str = None) -> dict:
+        # retrieve the config from another plugin
+        if plugin_name:
+            return super().get_config(server, plugin_name)
+        if not server:
+            return self.locals.get(DEFAULT_TAG, {})
+        if server.instance.name not in self._config:
+            default = deepcopy(self.locals.get(DEFAULT_TAG, {}))
+            specific = self.locals.get(server.instance.name, {})
+            if 'persistent_board' in default:
+                del default['persistent_board']
+            if 'persistent_channel' in default:
+                del default['persistent_channel']
+            self._config[server.instance.name] = default | specific
+        return self._config[server.instance.name]
 
     async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
         self.log.debug('Pruning Greenieboard ...')
