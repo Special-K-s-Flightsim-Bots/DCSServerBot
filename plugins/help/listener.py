@@ -22,13 +22,13 @@ class HelpListener(EventListener):
             f'You can use the following commands:\n'
         ]
         for listener in self.bot.eventListeners:
-            for chat_command in listener.chat_commands:
-                if chat_command.roles and not player.has_discord_roles(chat_command.roles):
+            for command in listener.chat_commands:
+                if command.roles and not player.has_discord_roles(command.roles):
                     continue
-                cmd = f"{self.prefix}{chat_command.name}"
-                if chat_command.usage:
-                    cmd += f" {chat_command.usage}"
-                if chat_command.help:
-                    cmd += '\u2000' * (20 - len(cmd)) + f"- {chat_command.help}"
+                cmd = f"{self.prefix}{command.name}"
+                if command.usage:
+                    cmd += f" {command.usage}"
+                if command.help:
+                    cmd += '\u2000' * (20 - len(cmd)) + f"- {command.help}"
                 messages.append(cmd)
         player.sendUserMessage('\n'.join(messages), 30)

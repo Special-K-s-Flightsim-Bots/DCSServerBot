@@ -14,6 +14,7 @@ from typing import Optional, Union, TYPE_CHECKING
 
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
+from ..plugin import DEFAULT_TAG
 from ..services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
@@ -53,7 +54,8 @@ class Server(DataObject):
         self.bus = ServiceRegistry.get("ServiceBus")
         self.status_change = asyncio.Event()
         if os.path.exists('config/servers.yaml'):
-            self.locals = yaml.safe_load(Path('config/servers.yaml').read_text())[self.name]
+            data = yaml.safe_load(Path('config/servers.yaml').read_text())
+            self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
 
     @property
     def host(self) -> str:

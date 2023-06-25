@@ -1,5 +1,7 @@
 from __future__ import annotations
 import asyncio
+import traceback
+
 import discord
 import os
 import re
@@ -452,10 +454,12 @@ def get_interaction_param(interaction: discord.Interaction, name: str):
     root = interaction.data['options'][0]
     if root.get('options'):
         root = root['options']
-    if root.get(name):
-        return root[name]
-    if name == 'server':
-        return list(interaction.client.servers.keys())[0]
+    if isinstance(root, dict):
+        return root.get(name)
+    elif isinstance(root, list):
+        for param in root:
+            if param['name'] == name:
+                return param['value']
     return None
 
 
@@ -500,7 +504,7 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
     choices: list[app_commands.Choice[int]] = [
         app_commands.Choice(name=x['name'], value=idx)
         for idx, x in enumerate(server.current_mission.airbases)
-        if current.casefold() in x['name'].casefold() or current.casefold() in x['code'].casefold()
+        if not current or current.casefold() in x['name'].casefold() or current.casefold() in x['code'].casefold()
     ]
     return choices[:25]
 
@@ -512,7 +516,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
     choices: list[app_commands.Choice[int]] = [
         app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
         for idx, x in enumerate(server.settings['missionList'])
-        if current.casefold() in x.casefold()
+        if not current or current.casefold() in x.casefold()
     ]
     return choices[:25]
 
