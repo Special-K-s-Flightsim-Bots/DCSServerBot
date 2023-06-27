@@ -55,7 +55,7 @@ class OvGME(Plugin):
             self.pool.putconn(conn)
 
     @staticmethod
-    def parse_filename(filename: str) -> Optional[Tuple[str, str]]:
+    def parse_filename(filename: str) -> Tuple[Optional[str], Optional[str]]:
         if filename.endswith('.zip'):
             filename = filename[:-4]
         exp = re.compile('(?P<package>.*)_v(?P<version>.*)')
@@ -63,7 +63,7 @@ class OvGME(Plugin):
         if match:
             return match.group('package'), match.group('version')
         else:
-            return None
+            return None, None
 
     @staticmethod
     def is_greater(v1: str, v2: str):
@@ -88,6 +88,9 @@ class OvGME(Plugin):
             for package in config['packages']:
                 version = package['version'] if package['version'] != 'latest' \
                     else self.get_latest_version(package['source'], package['name'])
+                if not version:
+                    self.log.warning(f"  - No version of package {package['name']} found.")
+                    continue
                 installed = self.check_package(server, package['source'], package['name'])
                 if (not installed or installed != version) and \
                         server.status != Status.SHUTDOWN:
@@ -295,11 +298,15 @@ class OvGME(Plugin):
                 available = []
                 config = self.get_config(server)
                 for folder in OVGME_FOLDERS:
-                    packages = [
-                        (folder, *self.parse_filename(x))
-                        for x in os.listdir(os.path.expandvars(config[folder]))
-                        if not x.startswith('.')
-                    ]
+                    packages = []
+                    for x in os.listdir(os.path.expandvars(config[folder])):
+                        if x.startswith('.'):
+                            continue
+                        package, version = self.parse_filename(x)
+                        if package:
+                            packages.append((folder, package, version))
+                        else:
+                            self.log.warning(f"{x} could not be parsed!")
                     if packages:
                         available.extend(packages)
                 return list(set(available) - set(derived.installed))
@@ -319,7 +326,7 @@ class OvGME(Plugin):
                                             inline=False)
                     packages = versions = update = ''
                     for i in range(0, len(derived.installed)):
-                        packages += derived.installed[i][1] + '\n'
+                        packages += utils.escape_string(derived.installed[i][1]) + '\n'
                         versions += derived.installed[i][2] + '\n'
                         latest = self.get_latest_version(derived.installed[i][0], derived.installed[i][1])
                         if latest != derived.installed[i][2]:
