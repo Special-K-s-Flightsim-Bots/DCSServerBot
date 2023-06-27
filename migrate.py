@@ -152,7 +152,7 @@ def migrate():
             # create server config
             servers[server_name] = {
                 "afk_time": int(cfg['DCS']['AFK_TIME']),
-                "ping_admin_on_crash": cfg[instance]['PING_ADMIN_ON_CRASH'],
+                "ping_admin_on_crash": cfg[instance].getboolean('PING_ADMIN_ON_CRASH'),
                 "channels": {
                     "admin": int(cfg[instance]['STATUS_CHANNEL']),
                     "status": int(cfg[instance]['STATUS_CHANNEL']),

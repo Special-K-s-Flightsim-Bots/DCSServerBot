@@ -510,15 +510,18 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
-    if not server:
-        return []
-    choices: list[app_commands.Choice[int]] = [
-        app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
-        for idx, x in enumerate(server.settings['missionList'])
-        if not current or current.casefold() in x.casefold()
-    ]
-    return choices[:25]
+    try:
+        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+        if not server:
+            return []
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
+            for idx, x in enumerate(server.settings['missionList'])
+            if not current or current.casefold() in x.casefold()
+        ]
+        return choices[:25]
+    except Exception:
+        traceback.print_exc()
 
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:

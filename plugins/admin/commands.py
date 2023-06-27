@@ -216,7 +216,7 @@ class Admin(Plugin):
         try:
             await view.wait()
         finally:
-            await msg.delete()
+            await interaction.delete_original_response()
 
     class CleanupView(View):
         def __init__(self):

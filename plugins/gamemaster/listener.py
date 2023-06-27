@@ -150,6 +150,9 @@ class GameMasterEventListener(EventListener):
         self.campaign('start', servers=[server])
 
     async def _join(self, server: Server, player: Player, params: list[str]):
+        if not server.locals.get('coalitions'):
+            player.sendChatMessage("Coalitions are not enabled on this server.")
+            return
         coalition = params[0] if params else ''
         if coalition.casefold() not in ['blue', 'red']:
             player.sendChatMessage(f"Usage: {self.prefix}join <blue|red>")
@@ -263,6 +266,8 @@ class GameMasterEventListener(EventListener):
 
     @chat_command(name="coalition", help="displays your current coalition")
     async def coalition(self, server: Server, player: Player, params: list[str]):
+        if not server.locals.get('coalitions'):
+            player.sendChatMessage("Coalitions are not enabled on this server.")
         await self._coalition(server, player)
 
     async def _password(self, server: Server, player: Player):
@@ -279,6 +284,8 @@ class GameMasterEventListener(EventListener):
 
     @chat_command(name="password", aliases=["passwd"], help="displays the coalition password")
     async def password(self, server: Server, player: Player, params: list[str]):
+        if not server.locals.get('coalitions'):
+            player.sendChatMessage("Coalitions are not enabled on this server.")
         await self._password(server, player)
 
     @chat_command(name="flag", roles=['DCS Admin', 'GameMaster'], usage="<flag> [value]", help="reads or sets a flag")
