@@ -725,7 +725,7 @@ class Master(Agent):
             else:
                 await ctx.send(f'Player {user} banned.')
             await self.bot.audit('banned ' +
-                                 ('member {}'.format(utils.escape_string(user.display_name)) if isinstance(user, discord.Member) else f' ucid {user}') +
+                                 ('member {}'.format(utils.escape_string(user.display_name)) if isinstance(user, discord.Member) else f'ucid {user}') +
                                  (f' with reason "{reason}"' if reason != 'n/a' else ''),
                                  user=ctx.message.author)
         except (Exception, psycopg2.DatabaseError) as error:
