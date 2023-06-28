@@ -1,4 +1,9 @@
 import re
+from contextlib import closing
+
+import discord
+import psycopg2
+
 from core import EventListener, Plugin, Server, Side, Status, utils, event
 from typing import Union, cast
 from plugins.creditsystem.player import CreditPlayer
@@ -17,6 +22,35 @@ class SlotBlockingListener(EventListener):
                 'plugin': self.plugin_name,
                 'params': config
             })
+            guild = self.bot.guilds[0]
+            roles = [
+                discord.utils.get(guild.roles, name=x)
+                for x in config.get('VIP', {}).get('discord', [])
+            ]
+            if not roles:
+                return
+            # get all linked members
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute('SELECT ucid, discord_id FROM players WHERE discord_id != -1')
+                    for row in cursor.fetchall():
+                        member = guild.get_member(row[1])
+                        if not member:
+                            continue
+                        for role in member.roles:
+                            if role in roles:
+                                server.sendtoDCS({
+                                    'command': 'uploadUserRoles',
+                                    'ucid': row[0],
+                                    'roles': [x.name for x in member.roles]
+                                })
+                                break
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+            finally:
+                self.pool.putconn(conn)
+
 
     def _get_points(self, server: Server, player: CreditPlayer) -> int:
         config = self.plugin.get_config(server)
