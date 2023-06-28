@@ -21,15 +21,20 @@ def migrate():
     # Migrate all plugins
     os.makedirs('config/plugins', exist_ok=True)
     plugins = [x.strip() for x in cfg['BOT']['PLUGINS'].split(',')]
-    plugins.extend([x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')])
+    if 'OPT_PLUGINS' in cfg['BOT']:
+        plugins.extend([x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')])
     for plugin_name in set(plugins):
         if os.path.exists(f'config/{plugin_name}.json'):
             if plugin_name == 'admin':
-                shutil.move(f'config/admin.json', './config/backup')
-                print(" - NOT migrated config/admin.json, falling back to default instead.")
+                shutil.move('config/admin.json', 'config/backup')
+                print("- NOT migrated config/admin.json, falling back to default instead.")
                 continue
             core.Plugin.migrate_to_3(plugin_name)
-            print(f"- Migrated config/{plugin_name}.json to config/plugins/{plugin_name}.yaml")
+            if plugin_name == 'backup':
+                shutil.move('config/plugins/backup.yaml', 'config/services')
+                print(f"- Migrated config/backup.json to config/services/backup.yaml")
+            else:
+                print(f"- Migrated config/{plugin_name}.json to config/plugins/{plugin_name}.yaml")
 
     if os.path.exists('config/plugins/scheduler.yaml'):
         scheduler = yaml.safe_load(Path('config/plugins/scheduler.yaml').read_text())
