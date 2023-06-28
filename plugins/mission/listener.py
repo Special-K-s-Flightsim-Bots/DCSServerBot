@@ -93,32 +93,40 @@ class MissionEventListener(EventListener):
         except Exception as ex:
             self.log.debug("Exception in print_queue(): " + str(ex))
 
+    @print_queue.before_loop
+    async def before_check(self):
+        await self.bot.wait_until_ready()
+
     @tasks.loop(seconds=5)
     async def update_player_embed(self):
         for server_name, update in self.player_embeds.items():
             if update:
-                server = self.bot.servers[server_name]
-                if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
-                    report = PersistentReport(self.bot, self.plugin_name, 'players.json', server, 'players_embed')
-                    await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
-                self.player_embeds[server_name] = False
+                try:
+                    server = self.bot.servers[server_name]
+                    if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+                        report = PersistentReport(self.bot, self.plugin_name, 'players.json', server, 'players_embed')
+                        await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
+                except Exception as ex:
+                    self.log.exception(ex)
+                finally:
+                    self.player_embeds[server_name] = False
 
     @tasks.loop(seconds=5)
     async def update_mission_embed(self):
         for server_name, update in self.mission_embeds.items():
             if update:
-                server = self.bot.servers[server_name]
-                if not server.settings:
-                    return
-                players = server.get_active_players()
-                num_players = len(players) + 1
-                report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', server, 'mission_embed')
-                await report.render(server=server, num_players=num_players)
-                self.mission_embeds[server_name] = False
-
-    @print_queue.before_loop
-    async def before_check(self):
-        await self.bot.wait_until_ready()
+                try:
+                    server = self.bot.servers[server_name]
+                    if not server.settings:
+                        return
+                    players = server.get_active_players()
+                    num_players = len(players) + 1
+                    report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', server, 'mission_embed')
+                    await report.render(server=server, num_players=num_players)
+                except Exception as ex:
+                    self.log.exception(ex)
+                finally:
+                    self.mission_embeds[server_name] = False
 
     @event(name="sendMessage")
     async def sendMessage(self, server: Server, data: dict) -> None:
