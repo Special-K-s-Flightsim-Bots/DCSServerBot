@@ -28,17 +28,6 @@ class Admin(Plugin):
             config = super().read_locals()
         return config
 
-    def migrate(self, version: str) -> None:
-        if version == '3.0':
-            path = Path('config/admin.yaml')
-            if path.exists():
-                data = yaml.safe_load(path)
-                for instance, values in data.items():
-                    for download in values['downloads']:
-                        download.replace('{server.installation}', '{server.instance.name}')
-                        download.replace('dcsserverbot.log*', 'dcssb-{server.node.name}.log*')
-                yaml.safe_dump(path)
-
     dcs = Group(name="dcs", description="Commands to manage your DCS installations")
 
     @dcs.command(description='Update your DCS installations')

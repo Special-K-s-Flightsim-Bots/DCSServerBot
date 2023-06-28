@@ -1,23 +1,26 @@
 DEFAULT:
   downloads:
-  - directory: '%USERPROFILE%\Saved Games\{server.instance.name}\logs'
-    label: DCS Logs
-    pattern: dcs*.log
-  - directory: .
-    label: DCSServerBot Logs
+  - label: DCS Logs
+    directory: '%USERPROFILE%\Saved Games\{server.instance.name}\logs'
+    pattern: dcs[-*].log
+  - label: DCSServerBot Logs
+    directory: .
     pattern: dcssb-{server.node.name}.log*
-  - directory: '%USERPROFILE%\Saved Games\{server.instance.name}\Missions'
-    label: Missions
+  - label: Missions
+    directory: '%USERPROFILE%\Saved Games\{server.instance.name}\Missions'
     pattern: '*.miz'
-  - directory: '%USERPROFILE%\Documents\Tacview'
-    label: Tacview
+  - label: Tacview
+    directory: '%USERPROFILE%\Documents\Tacview'
     pattern: Tacview-*.acmi
-  - directory: '%USERPROFILE%\Saved Games\{server.instance.name}\logs'
-    label: Chat Logs
+  - label: Chat Logs
+    directory: '%USERPROFILE%\Saved Games\{server.instance.name}\logs'
     pattern: chat.*log*
-  - directory: .\config
-    label: Config Files
-    pattern: '*.json'
-  - directory: .\config
-    label: dcsserverbot.ini
-    pattern: dcsserverbot.ini
+  - label: Main Config Files
+    directory: .\config
+    pattern: '*.yaml'
+  - label: Plugin Config Files
+    directory: .\config\plugins
+    pattern: '*.yaml'
+  - label: Service Config Files
+    directory: .\config\services
+    pattern: '*.yaml'

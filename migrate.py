@@ -24,6 +24,10 @@ def migrate():
     plugins.extend([x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')])
     for plugin_name in set(plugins):
         if os.path.exists(f'config/{plugin_name}.json'):
+            if plugin_name == 'admin':
+                shutil.move(f'config/admin.json', './config/backup')
+                print(" - NOT migrated config/admin.json, falling back to default instead.")
+                continue
             core.Plugin.migrate_to_3(plugin_name)
             print(f"- Migrated config/{plugin_name}.json to config/plugins/{plugin_name}.yaml")
 
@@ -65,7 +69,7 @@ def migrate():
     if 'OPT_PLUGINS' in cfg['BOT']:
         main["opt_plugins"] = [x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')]
         if 'backup' in main['opt_plugins']:
-            del main['opt_plugins']['backup']
+            main['opt_plugins'].remove('backup')
     if cfg['BOT'].getboolean('MASTER'):
         bot = {
             'token': cfg['BOT']['TOKEN'],
@@ -73,7 +77,7 @@ def migrate():
             'chat_command_prefix': cfg['BOT']['CHAT_COMMAND_PREFIX'],
             'automatch': cfg['BOT'].getboolean('AUTOMATCH'),
             'autoban': cfg['BOT'].getboolean('AUTOBAN'),
-            'message_ban': cfg['BOT']['MESSAGE_BAN'],
+            'message_ban': cfg['DCS']['MESSAGE_BAN'],
             'message_autodelete': int(cfg['BOT']['MESSAGE_AUTODELETE']),
             "reports": {
                 "num_workers": int(cfg['REPORTS']['NUM_WORKERS'])

@@ -35,6 +35,24 @@ class SlotBlocking(Plugin):
                 player: Player = server.get_player(discord_id=after.id)
                 if player:
                     player.member = after
+                else:
+                    ucid = self.bot.get_ucid_by_member(after)
+                    if not ucid:
+                        return
+                    roles = [
+                        discord.utils.get(self.bot.guilds[0].roles, name=x)
+                        for x in self.get_config(server).get('VIP', {}).get('discord', [])
+                    ]
+                    if not roles:
+                        return
+                    for role in after.roles:
+                        if role in roles:
+                            server.sendtoDCS({
+                                'command': 'uploadUserRoles',
+                                'ucid': ucid,
+                                'roles': [x.name for x in after.roles]
+                            })
+                            break
 
 
 async def setup(bot: DCSServerBot):
