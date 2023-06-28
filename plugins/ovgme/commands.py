@@ -46,7 +46,7 @@ class OvGME(Plugin):
         conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     @staticmethod
-    def parse_filename(filename: str) -> Optional[Tuple[str, str]]:
+    def parse_filename(filename: str) -> Tuple[Optional[str], Optional[str]]:
         if filename.endswith('.zip'):
             filename = filename[:-4]
         exp = re.compile('(?P<package>.*)_v(?P<version>.*)')
@@ -54,7 +54,7 @@ class OvGME(Plugin):
         if match:
             return match.group('package'), match.group('version')
         else:
-            return None
+            return None, None
 
     @staticmethod
     def is_greater(v1: str, v2: str):
@@ -271,11 +271,15 @@ class OvGME(Plugin):
                 available = []
                 config = self.get_config(server)
                 for folder in OVGME_FOLDERS:
-                    packages = [
-                        (folder, *self.parse_filename(x))
-                        for x in os.listdir(os.path.expandvars(config[folder]))
-                        if not x.startswith('.')
-                    ]
+                    packages = []
+                    for x in os.listdir(os.path.expandvars(config[folder])):
+                        if x.startswith('.'):
+                            continue
+                        package, version = self.parse_filename(x)
+                        if package:
+                            packages.append((folder, package, version))
+                        else:
+                            self.log.warning(f"{x} could not be parsed!")
                     if packages:
                         available.extend(packages)
                 return list(set(available) - set(derived.installed))

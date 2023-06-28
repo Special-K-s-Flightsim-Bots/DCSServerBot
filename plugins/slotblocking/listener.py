@@ -1,4 +1,6 @@
 import re
+import discord
+
 from core import EventListener, Plugin, Server, Side, Status, utils, event
 from typing import Union, cast
 from plugins.creditsystem.player import CreditPlayer
@@ -17,6 +19,27 @@ class SlotBlockingListener(EventListener):
                 'plugin': self.plugin_name,
                 'params': config
             })
+            guild = self.bot.guilds[0]
+            roles = [
+                discord.utils.get(guild.roles, name=x)
+                for x in config.get('VIP', {}).get('discord', [])
+            ]
+            if not roles:
+                return
+            # get all linked members
+            with self.pool.connection() as conn:
+                for row in conn.execute('SELECT ucid, discord_id FROM players WHERE discord_id != -1').fetchall():
+                    member = guild.get_member(row[1])
+                    if not member:
+                        continue
+                    for role in member.roles:
+                        if role in roles:
+                            server.sendtoDCS({
+                                'command': 'uploadUserRoles',
+                                'ucid': row[0],
+                                'roles': [x.name for x in member.roles]
+                            })
+                            break
 
     def _get_points(self, server: Server, player: CreditPlayer) -> int:
         config = self.plugin.get_config(server)

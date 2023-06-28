@@ -98,24 +98,32 @@ class MissionEventListener(EventListener):
     async def update_player_embed(self):
         for server_name, update in self.player_embeds.items():
             if update:
-                server = self.bot.servers[server_name]
-                if not server.locals.get('coalitions'):
-                    report = PersistentReport(self.bot, self.plugin_name, 'players.json', embed_name='players_embed',
-                                              server=server)
-                    await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
-                self.player_embeds[server_name] = False
+                try:
+                    server = self.bot.servers[server_name]
+                    if not server.locals.get('coalitions'):
+                        report = PersistentReport(self.bot, self.plugin_name, 'players.json', embed_name='players_embed',
+                                                  server=server)
+                        await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
+                except Exception as ex:
+                    self.log.exception(ex)
+                finally:
+                    self.player_embeds[server_name] = False
 
     @tasks.loop(seconds=5)
     async def update_mission_embed(self):
         for server_name, update in self.mission_embeds.items():
             if update:
-                server = self.bot.servers[server_name]
-                if not server.settings:
-                    return
-                report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', embed_name='mission_embed',
-                                          server=server)
-                await report.render(server=server)
-                self.mission_embeds[server_name] = False
+                try:
+                    server = self.bot.servers[server_name]
+                    if not server.settings:
+                        return
+                    report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', embed_name='mission_embed',
+                                              server=server)
+                    await report.render(server=server)
+                except Exception as ex:
+                    self.log.exception(ex)
+                finally:
+                    self.mission_embeds[server_name] = False
 
     @print_queue.before_loop
     async def before_check(self):
