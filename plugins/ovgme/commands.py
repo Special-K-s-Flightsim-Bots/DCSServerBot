@@ -11,6 +11,7 @@ from core import Status, Plugin, DCSServerBot, PluginConfigurationError, utils, 
 from discord import SelectOption, TextStyle
 from discord.ext import commands
 from discord.ui import View, Select, Button, Modal, TextInput
+from filecmp import cmp
 from typing import Optional, Tuple
 from urllib.parse import urlparse, unquote
 
@@ -154,7 +155,7 @@ class OvGME(Plugin):
                 ovgme_path = os.path.join(path, '.' + server.installation, package_name + '_v' + version)
                 os.makedirs(ovgme_path, exist_ok=True)
                 if os.path.isfile(filename) and file == package_name + '_v' + version + '.zip':
-                    with open(os.path.join(ovgme_path, 'install.log'), 'w') as log:
+                    with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding='utf-8') as log:
                         with zipfile.ZipFile(filename, 'r') as zfile:
                             for name in zfile.namelist():
                                 orig = os.path.join(target, name)
@@ -165,18 +166,21 @@ class OvGME(Plugin):
                                     log.write(f"w {name}\n")
                                 zfile.extract(name, target)
                 else:
-                    with open(os.path.join(ovgme_path, 'install.log'), 'w') as log:
+                    with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding='utf-8') as log:
                         def backup(p, names) -> list[str]:
-                            _dir = p[len(os.path.join(path, package_name + '_v' + version)):].replace('\\', '/').lstrip('/')
+                            _dir = p[len(os.path.join(path, package_name + '_v' + version)):].lstrip(os.path.sep)
                             for name in names:
+                                source = os.path.join(p, name)
                                 if len(_dir):
-                                    name = _dir + '/' + name
+                                    name = os.path.join(_dir, name)
                                 orig = os.path.join(target, name)
-                                if os.path.exists(orig) and os.path.isfile(orig):
-                                    log.write(f"x {name}\n")
-                                    shutil.copy2(orig, os.path.join(ovgme_path, name))
+                                if os.path.exists(orig) and os.path.isfile(orig) and not cmp(source, orig):
+                                    log.write("x {}\n".format(name.replace('\\', '/')))
+                                    dest = os.path.join(ovgme_path, name)
+                                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                                    shutil.copy2(orig, dest)
                                 else:
-                                    log.write(f"w {name}\n")
+                                    log.write("w {}\n".format(name.replace('\\', '/')))
                             return []
 
                         shutil.copytree(filename, target, ignore=backup, dirs_exist_ok=True)
@@ -203,7 +207,7 @@ class OvGME(Plugin):
             os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
         if not os.path.exists(os.path.join(ovgme_path, 'install.log')):
             return False
-        with open(os.path.join(ovgme_path, 'install.log')) as log:
+        with open(os.path.join(ovgme_path, 'install.log'), encoding='utf-8') as log:
             lines = log.readlines()
             # delete has to run reverse to clean the directories
             for i in range(len(lines) - 1, 0, -1):
