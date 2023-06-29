@@ -203,6 +203,7 @@ g) __DCS Section__
 | MESSAGE_BAN                     | Message a banned user gets when being rejected.                                                                                               |
 | MESSAGE_AFK                     | Message for players that are kicked because of being AFK.                                                                                     |
 | MESSAGE_SLOT_SPAMMING           | Message for players that got kicked because of slot spamming.                                                                                 |
+| MESSAGE_SERVER_FULL             | Message for players that can't join because the server is full and available slots are reserverd for VIPs.                                    |
 
 h) __Server Specific Sections__
 
