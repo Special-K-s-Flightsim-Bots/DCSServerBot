@@ -31,6 +31,7 @@ def migrate():
                 continue
             core.Plugin.migrate_to_3(plugin_name)
             if plugin_name == 'backup':
+                os.makedirs('config/services', exist_ok=True)
                 shutil.move('config/plugins/backup.yaml', 'config/services')
                 print(f"- Migrated config/backup.json to config/services/backup.yaml")
             else:
