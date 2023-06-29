@@ -105,6 +105,7 @@ The following parameters can be used to configure the bot:
 | MESSAGE_BAN                     | Message a banned user gets when being rejected.                                                                                               |
 | MESSAGE_AFK                     | Message for players that got kicked because of being AFK.                                                                                     |
 | MESSAGE_SLOT_SPAMMING           | Message for players that got kicked because of slot spamming.                                                                                 |
+| MESSAGE_SERVER_FULL             | Message for players that can't join because the server is full and available slots are reserverd for VIPs.                                    |
 
 # Server Specific Sections
 
