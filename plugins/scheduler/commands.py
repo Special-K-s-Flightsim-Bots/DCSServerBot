@@ -379,7 +379,7 @@ class Scheduler(Plugin):
             await interaction.response.send_message(
                 f"Server {server.display_name} is still {server.status.name}, please wait ...", ephemeral=True)
 
-    @group.command(description='Starts a stopped DCS server')
+    @group.command(description='Stops a running DCS server')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def stop(self, interaction: discord.Interaction,

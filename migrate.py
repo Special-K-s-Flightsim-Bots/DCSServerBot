@@ -163,7 +163,7 @@ def migrate():
                 "afk_time": int(cfg['DCS']['AFK_TIME']),
                 "ping_admin_on_crash": cfg[instance].getboolean('PING_ADMIN_ON_CRASH'),
                 "channels": {
-                    "admin": int(cfg[instance]['STATUS_CHANNEL']),
+                    "admin": int(cfg[instance]['ADMIN_CHANNEL']),
                     "status": int(cfg[instance]['STATUS_CHANNEL']),
                     "chat": int(cfg[instance]['CHAT_CHANNEL'])
                 }

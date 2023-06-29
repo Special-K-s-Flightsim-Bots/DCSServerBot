@@ -45,7 +45,7 @@ class Mission(Plugin):
     # New command group "/mission"
     mission = Group(name="mission", description="Commands to manage a DCS mission")
 
-    @mission.command(description='Manage the active mission')
+    @mission.command(description='Info about the running mission')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def info(self, interaction: Interaction, server: app_commands.Transform[Server, utils.ServerTransformer]):
@@ -563,7 +563,7 @@ class Mission(Plugin):
     async def afk_check(self):
         try:
             for server in self.bot.servers.values():
-                max_time = int(server.locals['afk_time'])
+                max_time = server.locals.get('afk_time', -1)
                 if max_time == -1:
                     continue
                 for ucid, dt in server.afk.items():

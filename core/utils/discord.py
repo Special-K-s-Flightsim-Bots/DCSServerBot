@@ -479,10 +479,13 @@ class ServerTransformer(app_commands.Transformer):
         super().__init__()
         self.status = status
 
-    async def transform(self, interaction: discord.Interaction, value: str) -> Server:
-        server = interaction.client.servers.get(value)
-        if not server:
-            raise TransformerError(value, self.type, self)
+    async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Server:
+        if value:
+            server = interaction.client.servers.get(value)
+            if not server:
+                raise TransformerError(value, self.type, self)
+        else:
+            server = list(interaction.client.servers.values())[0]
         return server
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
@@ -615,21 +618,24 @@ class PlayerTransformer(app_commands.Transformer):
         return server.get_player(ucid=value, active=self.active)
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
-        if self.active:
-            server: Server = await ServerTransformer().transform(interaction,
-                                                                 get_interaction_param(interaction, "server"))
-            choices: list[app_commands.Choice[str]] = [
-                app_commands.Choice(name=x.name, value=x.ucid)
-                for x in server.get_active_players()
-                if current.casefold() in x.name.casefold()
-            ]
-        else:
-            choices = [
-                app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
-                for ucid, name in get_all_players(interaction.client)
-                if not current or current.casefold() in name.casefold() or current.casefold() in ucid
-            ]
-        return choices[:25]
+        try:
+            if self.active:
+                server: Server = await ServerTransformer().transform(interaction,
+                                                                     get_interaction_param(interaction, "server"))
+                choices: list[app_commands.Choice[str]] = [
+                    app_commands.Choice(name=x.name, value=x.ucid)
+                    for x in server.get_active_players()
+                    if current.casefold() in x.name.casefold()
+                ]
+            else:
+                choices = [
+                    app_commands.Choice(name=f"{ucid} ({name})", value=ucid)
+                    for ucid, name in get_all_players(interaction.client)
+                    if not current or current.casefold() in name.casefold() or current.casefold() in ucid
+                ]
+            return choices[:25]
+        except Exception:
+            traceback.print_exc()
 
 
 @dataclass
