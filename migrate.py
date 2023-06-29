@@ -54,7 +54,8 @@ def migrate():
     servers = {
         DEFAULT_TAG: {
             "message_afk": cfg['DCS']['MESSAGE_AFK'],
-            'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT'])
+            'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT']),
+            'message_server_full': cfg['DCS']['MESSAGE_SERVER_FULL']
         }
     }
     main: dict[str, Union[int, str, list, dict]] = {

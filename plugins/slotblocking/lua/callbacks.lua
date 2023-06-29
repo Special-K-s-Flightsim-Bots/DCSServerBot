@@ -1,6 +1,7 @@
 local base 	    = _G
 local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
+local config	= base.require("DCSServerBotConfig")
 
 local slotblock = slotblock or {}
 
@@ -27,14 +28,14 @@ local function is_vip(ucid)
     if not dcsbot.params then
         return false
     end
-    local config = dcsbot.params['slotblocking']['VIP']
-    if not config then
+    local cfg = dcsbot.params['slotblocking']['VIP']
+    if not cfg then
         return false
     end
-    if config['ucid'] and has_value(config['ucid'], ucid) then
+    if cfg['ucid'] and has_value(cfg['ucid'], ucid) then
         return true
     end
-    if config['discord'] and dcsbot.userInfo[ucid].roles ~= nil and has_value(dcsbot.userInfo[ucid].roles, config['discord']) then
+    if cfg['discord'] and dcsbot.userInfo[ucid].roles ~= nil and has_value(dcsbot.userInfo[ucid].roles, cfg['discord']) then
         return true
     end
     return false
@@ -48,16 +49,16 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
     if not dcsbot.params or dcsbot.params['slotblocking'] == nil then
         return
     end
-    local config = dcsbot.params['slotblocking']['VIP']
-    if not config then
+    local cfg = dcsbot.params['slotblocking']['VIP']
+    if not cfg then
         return
     end
-    if config['slots'] then
+    if cfg['slots'] then
         local max = utils.loadSettingsRaw()['maxPlayers']
         local current = #net.get_player_list()
-        if (current + 1) > (max - config['slots']) then
+        if (current + 1) > (max - cfg['slots']) then
             if not is_vip(ucid) then
-                return false, 'Server is full, please try again later!'
+                return false, config.MESSAGE_SERVER_FULL
             end
         end
     end
