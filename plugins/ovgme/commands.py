@@ -147,7 +147,9 @@ class OvGME(Plugin):
                                 orig = os.path.join(target, name)
                                 if os.path.exists(orig) and os.path.isfile(orig):
                                     log.write(f"x {name}\n")
-                                    shutil.copy2(orig, os.path.join(ovgme_path, name))
+                                    dest = os.path.join(ovgme_path, name)
+                                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                                    shutil.copy2(orig, dest)
                                 else:
                                     log.write(f"w {name}\n")
                                 zfile.extract(name, target)

@@ -33,11 +33,11 @@ class ServerStats(Plugin):
         conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
     async def display_report(self, interaction: discord.Interaction, schema: str, period: str, server_name: str):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, schema)
         env = await report.render(period=period, server_name=server_name, node=platform.node())
         file = discord.File(env.filename) if env.filename else None
-        await interaction.followup.send(embed=env.embed, file=file)
+        await interaction.followup.send(embed=env.embed, file=file, ephemeral=True)
         if env.filename and os.path.exists(env.filename):
             await asyncio.to_thread(os.remove, env.filename)
 

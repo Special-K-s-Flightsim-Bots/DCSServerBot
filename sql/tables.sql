@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);
-INSERT INTO version (version) VALUES ('v1.6') ON CONFLICT (version) DO NOTHING;
+INSERT INTO version (version) VALUES ('v3.0') ON CONFLICT (version) DO NOTHING;
 CREATE TABLE IF NOT EXISTS plugins (plugin TEXT PRIMARY KEY, version TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS servers (server_name TEXT PRIMARY KEY, node TEXT NOT NULL, port BIGINT NOT NULL, status_channel BIGINT NOT NULL DEFAULT -1, chat_channel BIGINT NOT NULL DEFAULT -1, blue_password TEXT, red_password TEXT, last_seen TIMESTAMP DEFAULT NOW());
 CREATE UNIQUE INDEX IF NOT EXISTS idx_servers ON servers (node, port);

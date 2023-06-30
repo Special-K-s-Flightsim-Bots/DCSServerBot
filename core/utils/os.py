@@ -8,6 +8,7 @@ from contextlib import closing, suppress
 # API_URL = 'https://api4.ipify.org/'
 API_URL = 'https://api4.my-ip.io/ip'
 
+
 def is_open(ip, port):
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.settimeout(3)

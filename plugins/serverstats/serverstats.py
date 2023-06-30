@@ -167,7 +167,10 @@ class ServerLoad(report.MultiGraphElement):
         sql += " GROUP BY 1"
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                cursor.execute(sql, (server_name, ))
+                if server_name:
+                    cursor.execute(sql, (server_name, ))
+                else:
+                    cursor.execute(sql)
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
                     series.plot(ax=self.axes[0], x='time', y=['CPU'], title='CPU / User', xticks=[], xlabel='')
