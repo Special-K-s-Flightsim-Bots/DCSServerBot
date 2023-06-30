@@ -2,7 +2,7 @@ DEFAULT:
   downloads:
   - label: DCS Logs
     directory: '%USERPROFILE%\Saved Games\{server.instance.name}\logs'
-    pattern: dcs[-*].log
+    pattern: dcs*.log
   - label: DCSServerBot Logs
     directory: .
     pattern: dcssb-{server.node.name}.log*
