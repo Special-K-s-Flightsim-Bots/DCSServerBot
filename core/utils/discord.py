@@ -199,7 +199,7 @@ async def selection(interaction: discord.Interaction, *, title: Optional[str] = 
     msg = None
     try:
         if interaction.response.is_done():
-            msg = interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         else:
             await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
             msg = await interaction.original_response()

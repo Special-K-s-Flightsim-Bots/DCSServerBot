@@ -230,11 +230,20 @@ class GameMaster(Plugin):
             return [self.bot.servers[all_servers[0]]]
         selection = await utils.selection(interaction, title="Select all servers for this campaign",
                                           options=[SelectOption(label=x, value=x) for x in all_servers],
-                                          max_values=len(all_servers))
+                                          max_values=len(all_servers), ephemeral=True)
         if selection:
             for element in selection:
                 servers.append(self.bot.servers[element])
         return servers
+
+    @campaign.command(description="Lists all (active) campaigns")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(active="Display only active campaigns")
+    async def list(self, interaction: discord.Interaction, active: Optional[bool] = True):
+        report = Report(self.bot, self.plugin_name, 'active-campaigns.json' if active else 'all-campaigns.json')
+        env = await report.render()
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @campaign.command(description="Campaign info")
     @app_commands.guild_only()
@@ -249,15 +258,26 @@ class GameMaster(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def add(self, interaction: discord.Interaction):
-        modal = CampaignModal(self.eventlistener, servers)
+        modal = CampaignModal(self.eventlistener)
         await interaction.response.send_modal(modal)
         if await modal.wait():
             await interaction.response.send_message('Aborted.', ephemeral=True)
             return
-        servers = await self.get_campaign_servers(interaction)
-        if not servers:
-            await interaction.followup.send('Aborted.', ephemeral=True)
-            return
+        try:
+            servers = await self.get_campaign_servers(interaction)
+            if not servers:
+                await interaction.followup.send('Aborted.', ephemeral=True)
+                return
+            try:
+                self.eventlistener.campaign('add', servers=servers, name=modal.name.value,
+                                            description=modal.description.value, start=modal.start, end=modal.end)
+                await interaction.followup.send(f"Campaign {modal.name.value} added.", ephemeral=True)
+            except psycopg.errors.ExclusionViolation:
+                await interaction.followup.send(f"A campaign is already configured for this timeframe!", ephemeral=True)
+            except psycopg.errors.UniqueViolation:
+                await interaction.followup.send(f"A campaign with this name already exists!", ephemeral=True)
+        except Exception as ex:
+            self.log.exception(ex)
 
     @campaign.command(description="Add a server to an existing campaign")
     @app_commands.guild_only()
@@ -295,12 +315,14 @@ class GameMaster(Plugin):
     @utils.app_has_role('DCS Admin')
     async def start(self, interaction: discord.Interaction, campaign: str):
         try:
-            await interaction.response.defer()
+            await interaction.response.defer(ephemeral=True)
             servers: list[Server] = await self.get_campaign_servers(interaction)
             self.eventlistener.campaign('start', servers=servers, name=campaign)
-            await interaction.followup.send(f"Campaign {campaign} started.")
-        except (psycopg.errors.ExclusionViolation, psycopg.errors.UniqueViolation):
-            await interaction.followup.send(f"A campaign with this name already exists.", ephemeral=True)
+            await interaction.followup.send(f"Campaign {campaign} started.", ephemeral=True)
+        except psycopg.errors.ExclusionViolation:
+            await interaction.followup.send(f"A campaign is already configured for this timeframe!", ephemeral=True)
+        except psycopg.errors.UniqueViolation:
+            await interaction.followup.send(f"A campaign with this name already exists!", ephemeral=True)
 
     @campaign.command(description="Stop a campaign")
     @app_commands.guild_only()
