@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import traceback
+from functools import lru_cache
 
 import discord
 import os
@@ -455,7 +456,8 @@ def get_interaction_param(interaction: discord.Interaction, name: str):
     if root.get('options'):
         root = root['options']
     if isinstance(root, dict):
-        return root.get(name)
+        if root.get('name') == name:
+            return root.get('value')
     elif isinstance(root, list):
         for param in root:
             if param['name'] == name:
@@ -585,6 +587,35 @@ async def installed_modules_autocomplete(interaction: discord.Interaction, curre
     ]
 
 
+async def player_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+
+    @lru_cache
+    def get_modules(ucid: str) -> list[str]:
+        with interaction.client.pool.connection() as conn:
+            return [row[0] for row in conn.execute("""
+                SELECT DISTINCT slot, COUNT(*) FROM statistics 
+                WHERE player_ucid =  %s 
+                AND slot NOT IN ('', '?', '''forward_observer', 'instructor', 'observer', 'artillery_commander') 
+                GROUP BY 1 ORDER BY 2 DESC
+            """, (ucid, )).fetchall()]
+
+    try:
+        user = await UserTransformer().transform(interaction, get_interaction_param(interaction, "user"))
+        if isinstance(user, str):
+            ucid = user
+        else:
+            ucid = interaction.client.get_ucid_by_member(user)
+        if not ucid:
+            return []
+        return [
+            app_commands.Choice(name=x, value=x)
+            for x in get_modules(ucid)
+            if not current or current.casefold() in x.casefold()
+        ]
+    except Exception:
+        traceback.print_exc()
+
+
 class UserTransformer(app_commands.Transformer):
 
     def __init__(self, *, sel_type: PlayerType = PlayerType.ALL, linked: Optional[bool] = None):
@@ -592,11 +623,14 @@ class UserTransformer(app_commands.Transformer):
         self.sel_type = sel_type
         self.linked = linked
 
-    async def transform(self, interaction: discord.Interaction, value: str) -> Union[discord.Member, str]:
-        if value and is_ucid(value):
-            return interaction.client.get_member_by_ucid(value) or value
+    async def transform(self, interaction: discord.Interaction, value: str) -> Optional[Union[discord.Member, str]]:
+        if value:
+            if is_ucid(value):
+                return interaction.client.get_member_by_ucid(value) or value
+            else:
+                return interaction.client.guilds[0].get_member(int(value))
         else:
-            return interaction.client.guilds[0].get_member(int(value))
+            return interaction.user
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
         ret = []

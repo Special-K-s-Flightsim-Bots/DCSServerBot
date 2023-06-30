@@ -76,14 +76,18 @@ class MissionStatistics(Plugin):
     @command(description='Module statistics')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
+    @app_commands.autocomplete(module=utils.player_modules_autocomplete)
     async def modulestats(self, interaction: discord.Interaction,
                           user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]],
-                          period: Optional[str]):
+                          module: Optional[str], period: Optional[str]):
         if not user:
             user = interaction.user
+        if not module:
+            await interaction.response.send_message('You need to chose a module!', ephemeral=True)
+            return
         flt = StatisticsFilter.detect(self.bot, period)
         if period and not flt:
-            await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
+            await interaction.response.send_message('Please provide a valid period or campaign name!', ephemeral=True)
             return
         if isinstance(user, str):
             ucid = user
@@ -93,20 +97,9 @@ class MissionStatistics(Plugin):
             name = user.display_name
         else:
             name = user
-        with self.pool.connection() as conn:
-            modules = [row[0] for row in conn.execute("""
-                SELECT DISTINCT slot, COUNT(*) FROM statistics 
-                WHERE player_ucid =  %s 
-                AND slot NOT IN ('forward_observer', 'instructor', 'observer', 'artillery_commander') 
-                GROUP BY 1 ORDER BY 2 DESC
-            """, (ucid, )).fetchall()]
-            if not modules:
-                await interaction.response.send_message('No statistics found for this user.', ephemeral=True)
-                return
-        n = await utils.pagination(self.bot, interaction, modules, self.format_modules)
-        if n != -1:
-            report = PaginationReport(self.bot, interaction, self.plugin_name, 'modulestats.json')
-            await report.render(member_name=name, ucid=ucid, period=period, start_index=n, modules=modules, flt=flt)
+        report = Report(self.bot, self.plugin_name, 'modulestats.json')
+        env = await report.render(member_name=name, ucid=ucid, period=period, module=module, flt=flt)
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @command(description='Refueling statistics')
     @app_commands.guild_only()
