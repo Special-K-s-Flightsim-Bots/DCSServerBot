@@ -311,6 +311,65 @@ class Admin(Plugin):
             embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
             await interaction.response.send_message(embed=embed)
 
+    @command(description='Stop a specific node')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(node=utils.nodes_autocomplete)
+    async def exit(self, interaction: discord.Interaction, node: str):
+        if not await utils.yn_question(interaction, f"Do you want to shutdown node {node}?\n"
+                                                    f"It should autostart again, if being launched with run.cmd."):
+            await interaction.followup.send('Aborted.', ephemeral=True)
+            return
+        if node == platform.node():
+            await interaction.followup.send(f'Active node is going to shut down **NOW**.', ephemeral=True)
+            self.bot.node.shutdown()
+        else:
+            for n in self.bot.node.get_active_nodes():
+                if n == node:
+                    self.bus.sendtoBot({
+                        "command": "rpc",
+                        "service": "Node",
+                        "method": "shutdown"
+                    })
+                await interaction.followup.send(f'Node {node} shut down.')
+
+    @command(description='Upgrades the bot on all nodes')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def upgrade(self, interaction: discord.Interaction):
+        if not await utils.yn_question(interaction, f"Do you want to upgrade the bot on all nodes?"
+                                                    f"It should autostart again, if being launched with run.cmd."):
+            await interaction.followup.send('Aborted.', ephemeral=True)
+            return
+        # upgrading remote bots first
+        for n in self.bot.node.get_active_nodes():
+            self.bus.sendtoBot({
+                "command": "rpc",
+                "service": "Node",
+                "method": "upgrade"
+            })
+            await interaction.followup.send(f'Node {n} upgraded.')
+        await interaction.followup.send(f'Active node is going to be upgraded **NOW**.', ephemeral=True)
+        self.bot.node.upgrade()
+        await interaction.followup.send('No upgrade found.')
+
+    @command(description='Reloads a plugin')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(plugin=utils.plugins_autocomplete)
+    async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
+        await interaction.response.defer(ephemeral=True)
+        if plugin:
+            if await self.bot.reload(plugin):
+                await interaction.followup.send(f'Plugin {plugin.title()} reloaded.')
+            else:
+                await interaction.followup.send(f'Plugin {plugin.title()} could not be reloaded, check the log for details.')
+        else:
+            if await self.bot.reload():
+                await interaction.followup.send(f'All plugins reloaded.')
+            else:
+                await interaction.followup.send(f'One or more plugins could not be reloaded, check the log for details.')
+
     async def process_message(self, message: discord.Message) -> bool:
         async with aiohttp.ClientSession() as session:
             async with session.get(message.attachments[0].url) as response:

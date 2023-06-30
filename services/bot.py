@@ -146,18 +146,22 @@ class DCSServerBot(commands.Bot):
             self.log.exception(ex)
         return False
 
-    async def unload_plugin(self, plugin: str):
+    async def unload_plugin(self, plugin: str) -> bool:
         try:
             await self.unload_extension(f'plugins.{plugin}.commands')
+            return True
         except commands.ExtensionNotFound:
             self.log.debug(f'- No init.py found for plugin "{plugin}!"')
             pass
         except commands.ExtensionNotLoaded:
             pass
+        return False
 
-    async def reload_plugin(self, plugin: str):
-        await self.unload_plugin(plugin)
-        await self.load_plugin(plugin)
+    async def reload_plugin(self, plugin: str) -> bool:
+        if await self.unload_plugin(plugin):
+            return await self.load_plugin(plugin)
+        else:
+            return False
 
     def check_roles(self, roles: list, server: Optional[Server] = None):
         config_roles = []
@@ -280,12 +284,15 @@ class DCSServerBot(commands.Bot):
             self.log.exception(error)
             await interaction.followup.send("An unknown exception occurred.", ephemeral=True)
 
-    async def reload(self, plugin: Optional[str]):
+    async def reload(self, plugin: Optional[str] = None) -> bool:
         if plugin:
-            await self.reload_plugin(plugin)
+            return await self.reload_plugin(plugin)
         else:
+            rc = True
             for plugin in self.plugins:
-                await self.reload_plugin(plugin)
+                if not await self.reload_plugin(plugin):
+                    rc = False
+            return rc
 
     async def audit(self, message, *, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional[Server] = None):

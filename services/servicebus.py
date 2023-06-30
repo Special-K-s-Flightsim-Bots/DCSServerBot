@@ -267,7 +267,10 @@ class ServiceBus(Service):
     async def handle_master(self, data: dict):
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
         if data['command'] == 'rpc':
-            obj = ServiceRegistry.get(data['service'])
+            if data['service'] == 'Node':
+                obj = self.node
+            else:
+                obj = ServiceRegistry.get(data['service'])
             if not obj:
                 self.log.warning('RPC command received for unknown object/service.')
                 return

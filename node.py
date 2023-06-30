@@ -46,9 +46,8 @@ class Node:
         self.listen_address = self.config.get('listen_address', '0.0.0.0')
         self.listen_port = self.config.get('listen_port', 10042)
         self.log = self.init_logger()
-        if self.config.get('autoupdate', True) and self.upgrade():
-            self.log.warning('- Restart needed => exiting.')
-            exit(-1)
+        if self.config.get('autoupdate', True):
+            self.upgrade()
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
@@ -116,6 +115,10 @@ class Node:
 
     def del_instance(self, name: str):
         raise NotImplementedError()
+
+    @staticmethod
+    def shutdown():
+        exit(-1)
 
     @staticmethod
     def read_config():
@@ -265,7 +268,7 @@ class Node:
             shutil.unpack_archive(path, '{}'.format(path.replace('.zip', '')))
             os.remove(path)
 
-    def upgrade(self) -> bool:
+    def upgrade(self) -> None:
         try:
             import git
 
@@ -286,24 +289,24 @@ class Node:
                         try:
                             repo.remote().pull(repo.active_branch)
                             self.log.info('  => DCSServerBot updated to latest version.')
-                            if modules is True:
+                            if modules:
                                 self.log.warning('  => requirements.txt has changed. Installing missing modules...')
                                 subprocess.check_call([sys.executable, '-m', 'pip', '-q', 'install', '-r',
                                                        'requirements.txt'])
-                            return True
+                            self.log.warning('- Restart needed => exiting.')
+                            exit(-1)
                         except git.exc.GitCommandError:
                             self.log.error('  => Autoupdate failed!')
                             self.log.error('     Please revert back the changes in these files:')
                             for item in repo.index.diff(None):
                                 self.log.error(f'     ./{item.a_path}')
-                            return False
+                            return
                     else:
                         self.log.debug('- No update found for DCSServerBot.')
             except git.exc.InvalidGitRepositoryError:
                 self.log.error('No git repository found. Aborting. Please use "git clone" to install DCSServerBot.')
         except ImportError:
             self.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
-        return False
 
     async def update(self):
         # TODO move update from monitoring to here (or to Bus)

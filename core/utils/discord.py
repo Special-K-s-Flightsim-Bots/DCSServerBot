@@ -553,6 +553,14 @@ async def nodes_autocomplete(interaction: discord.Interaction, current: str) -> 
     ]
 
 
+async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    return [
+        app_commands.Choice(name=x, value=x.lower())
+        for x in interaction.client.cogs
+        if not current or current.casefold() in x.casefold()
+    ]
+
+
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     # TODO: support remote servers
     node = interaction.client.node
