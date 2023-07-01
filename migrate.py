@@ -146,12 +146,16 @@ def migrate():
                 i['missions_dir'] = cfg[instance]['MISSIONS_DIR']
             if instance in scheduler:
                 schedule = scheduler[instance]
-                if 'extensions' in schedule:
-                    i['extensions'] = schedule['extensions']
-                    del schedule['extensions']
                 if 'affinity' in schedule:
                     nodes[platform.node()]['instances'][instance]['affinity'] = schedule['affinity']
                     del schedule['affinity']
+                if 'settings' in schedule:
+                    if 'extensions' not in schedule:
+                        schedule['extensions'] = {}
+                    schedule['extensions']['MizEdit'] = {
+                        "settings": schedule['settings']
+                    }
+                    del schedule['settings']
             # fill missionstats
             m = missionstats[instance] = {}
             if 'EVENT_FILTER' in cfg['FILTER']:

@@ -57,8 +57,8 @@ class Scheduler(Plugin):
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:
         if 'schedule' in config and not server.maintenance:
-            warn_times: list[int] = Scheduler.get_warn_times(config)
-            restart_in: int = max(warn_times) if len(warn_times) and server.is_populated() else 0
+            warn_times: list[int] = Scheduler.get_warn_times(config) if server.is_populated() else [0]
+            restart_in: int = max(warn_times)
             now: datetime = datetime.now()
             weekday = (now + timedelta(seconds=restart_in)).weekday()
             for period, daystate in config['schedule'].items():  # type: str, dict
@@ -66,11 +66,14 @@ class Scheduler(Plugin):
                 # check, if the server should be running
                 if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server.status == Status.SHUTDOWN:
                     return Status.RUNNING
-                elif utils.is_in_timeframe(now, period) and state.upper() == 'P' and server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and not server.is_populated():
+                elif utils.is_in_timeframe(now, period) and state.upper() == 'P' and \
+                        server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and not server.is_populated():
                     return Status.SHUTDOWN
-                elif utils.is_in_timeframe(now + timedelta(seconds=restart_in), period) and state.upper() == 'N' and server.status == Status.RUNNING:
+                elif utils.is_in_timeframe(now + timedelta(seconds=restart_in), period) and state.upper() == 'N' and \
+                        server.status == Status.RUNNING:
                     return Status.SHUTDOWN
-                elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and server.status in [Status.PAUSED, Status.STOPPED]:
+                elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and \
+                        server.status in [Status.PAUSED, Status.STOPPED]:
                     return Status.SHUTDOWN
         return server.status
 
@@ -88,14 +91,12 @@ class Scheduler(Plugin):
 
     @staticmethod
     def get_warn_times(config: dict) -> list[int]:
-        if 'warn' in config and 'times' in config['warn']:
-            return config['warn']['times']
-        return []
+        return sorted(config.get('warn', {}).get('times', [0]), reverse=True)
 
-    async def warn_users(self, server: Server, config: dict, what: str):
+    async def warn_users(self, server: Server, config: dict, what: str, max_warn_time: Optional[int] = None):
         if 'warn' in config:
             warn_times = Scheduler.get_warn_times(config)
-            restart_in = max(warn_times) if len(warn_times) else 0
+            restart_in = max_warn_time or max(warn_times)
             warn_text = config['warn'].get('text', '!!! {item} will {what} in {when} !!!')
             if what == 'restart_with_shutdown':
                 what = 'restart'
@@ -142,7 +143,8 @@ class Scheduler(Plugin):
             if restart_in > 0 and populated:
                 self.log.info(f"  => DCS server \"{server.name}\" will be shut down "
                               f"by {self.plugin_name.title()} in {restart_in} seconds ...")
-                await self.bot.audit(f"{self.plugin_name.title()} will shut down DCS server in {utils.format_time(restart_in)}",
+                await self.bot.audit(
+                    f"{self.plugin_name.title()} will shut down DCS server in {utils.format_time(restart_in)}",
                                      server=server)
                 await self.warn_users(server, config, 'shutdown')
             # if the shutdown has been cancelled due to maintenance mode
@@ -153,7 +155,7 @@ class Scheduler(Plugin):
 
     @staticmethod
     def is_mission_change(server: Server, config: dict) -> bool:
-        if 'settings' in config['restart']:
+        if 'settings' in config:
             return True
         # check if someone overloaded beforeMissionLoad, which means the mission is likely to be changed
         for ext in server.extensions.values():
@@ -161,13 +163,13 @@ class Scheduler(Plugin):
                 return True
         return False
 
-    async def restart_mission(self, server: Server, config: dict):
+    async def restart_mission(self, server: Server, config: dict, rconf: dict, max_warn_time: int):
         # a restart is already pending, nothing more to do
         if server.restart_pending:
             return
-        method = config['restart']['method']
+        method = rconf['method']
         # shall we do something at mission end only?
-        if config['restart'].get('mission_end', False):
+        if rconf.get('mission_end', False):
             server.on_mission_end = {'command': method}
             server.restart_pending = True
             return
@@ -175,16 +177,14 @@ class Scheduler(Plugin):
         if server.is_populated():
             if not server.on_empty:
                 server.on_empty = {'command': method}
-            warn_times = Scheduler.get_warn_times(config)
-            restart_in = max(warn_times) if len(warn_times) else 0
-            if not config['restart'].get('populated', True):
-                if 'max_mission_time' not in config['restart']:
+            if not rconf.get('populated', True):
+                if 'max_mission_time' not in rconf:
                     server.restart_pending = True
                     return
-                elif server.current_mission.mission_time <= (config['restart']['max_mission_time'] * 60 - restart_in):
+                elif server.current_mission.mission_time <= (rconf['max_mission_time'] * 60 - max_warn_time):
                     return
             server.restart_pending = True
-            await self.warn_users(server, config, method)
+            await self.warn_users(server, config, method, max_warn_time)
             # in the unlikely event that we did restart already in the meantime while warning users or
             # if the restart has been cancelled due to maintenance mode
             if not server.restart_pending or not server.is_populated():
@@ -223,19 +223,28 @@ class Scheduler(Plugin):
                                  f"{server.current_mission.display_name}", server=server)
 
     async def check_mission_state(self, server: Server, config: dict):
-        if 'restart' in config:
-            warn_times = Scheduler.get_warn_times(config)
-            restart_in = max(warn_times) if len(warn_times) and server.is_populated() else 0
-            if 'mission_time' in config['restart'] and \
-                    (server.current_mission.mission_time + restart_in) >= (int(config['restart']['mission_time']) * 60):
-                asyncio.create_task(self.restart_mission(server, config))
-            if 'local_times' in config['restart']:
-                now = datetime.now()
-                if not config['restart'].get('mission_end', False):
-                    now += timedelta(seconds=restart_in)
-                for t in config['restart']['local_times']:
-                    if utils.is_in_timeframe(now, t):
-                        asyncio.create_task(self.restart_mission(server, config))
+        def check_mission_restart(rconf: dict):
+            # calculate the time when the mission has to restart
+            warn_times = Scheduler.get_warn_times(config) if server.is_populated() else [0]
+            # we check the warn times in the opposite order to see which one fits best
+            for warn_time in sorted(warn_times):
+                if 'local_times' in rconf:
+                    restart_time = datetime.now() + timedelta(seconds=warn_time)
+                    for t in rconf['local_times']:
+                        if utils.is_in_timeframe(restart_time, t):
+                            asyncio.create_task(self.restart_mission(server, config, rconf, warn_time))
+                            return
+                elif 'mission_time' in rconf:
+                    if (server.current_mission.mission_time + warn_time) >= rconf['mission_time'] * 60:
+                        asyncio.create_task(self.restart_mission(server, config, rconf, warn_time))
+                        return
+
+        if 'restart' in config and not server.restart_pending:
+            if isinstance(config['restart'], list):
+                for r in config['restart']:
+                    check_mission_restart(r)
+            else:
+                check_mission_restart(config['restart'])
 
     @tasks.loop(minutes=1.0)
     async def check_state(self):
@@ -251,7 +260,9 @@ class Scheduler(Plugin):
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
                         asyncio.create_task(self.launch_dcs(server, config))
-                    elif target_state == Status.SHUTDOWN and server.status in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
+                    elif target_state == Status.SHUTDOWN and server.status in [
+                        Status.STOPPED, Status.RUNNING, Status.PAUSED
+                    ]:
                         asyncio.create_task(self.teardown(server, config))
                     elif server.status in [Status.RUNNING, Status.PAUSED]:
                         await self.check_mission_state(server, config)
@@ -383,7 +394,8 @@ class Scheduler(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def stop(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED])]):
+                   server: app_commands.Transform[Server, utils.ServerTransformer(
+                       status=[Status.RUNNING, Status.PAUSED])]):
         if server.is_populated() and \
                 not await utils.yn_question(interaction, "People are flying on this server atm.\n"
                                                          "Do you really want to stop it?"):

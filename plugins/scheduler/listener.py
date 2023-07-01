@@ -44,8 +44,6 @@ class SchedulerListener(EventListener):
                 if self.plugin.is_mission_change(server, config):
                     for ext in server.extensions.values():
                         await ext.beforeMissionLoad()
-                    if 'settings' in config['restart']:
-                        await server.modifyMission(config['restart']['settings'])
                     await server.start()
                 message = 'started DCS server'
                 if 'user' not in what:
@@ -56,8 +54,6 @@ class SchedulerListener(EventListener):
                     await server.stop()
                     for ext in server.extensions.values():
                         await ext.beforeMissionLoad()
-                    if 'settings' in config['restart']:
-                        await server.modifyMission(config['restart']['settings'])
                     await server.start()
                 else:
                     await server.current_mission.restart()
@@ -71,8 +67,6 @@ class SchedulerListener(EventListener):
                 await server.stop()
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
-                if 'settings' in config['restart']:
-                    await server.modifyMission(config['restart']['settings'])
                 await server.start()
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
