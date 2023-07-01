@@ -1,10 +1,14 @@
 import numpy as np
 import pandas as pd
+import warnings
 from contextlib import closing
 from core import const, report
 from matplotlib.ticker import FuncFormatter
 from psycopg.rows import dict_row
 from typing import Optional
+
+# ignore pandas warnings (log scale et al)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 
 class ServerUsage(report.EmbedElement):
@@ -173,6 +177,10 @@ class ServerLoad(report.MultiGraphElement):
                     cursor.execute(sql)
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
+                    for column in [
+                        'CPU', 'FPS', 'Ping', 'Read', 'Recv', 'Sent', 'Users', 'Write', 'Memory (RAM)', 'Memory (paged)'
+                    ]:
+                        series[column] = series[column].astype(float)
                     series.plot(ax=self.axes[0], x='time', y=['CPU'], title='CPU / User', xticks=[], xlabel='')
                     self.axes[0].legend(loc='upper left')
                     ax2 = self.axes[0].twinx()
