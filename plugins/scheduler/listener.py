@@ -44,7 +44,7 @@ class SchedulerListener(EventListener):
                 if self.plugin.is_mission_change(server, config):
                     for ext in server.extensions.values():
                         await ext.beforeMissionLoad()
-                    if 'settings' in config['restart']:
+                    if 'settings' in config:
                         await self.plugin.change_mizfile(server, config)
                     await server.start()
                 message = 'started DCS server'
@@ -56,7 +56,7 @@ class SchedulerListener(EventListener):
                     await server.stop()
                     for ext in server.extensions.values():
                         await ext.beforeMissionLoad()
-                    if 'settings' in config['restart']:
+                    if 'settings' in config:
                         await self.plugin.change_mizfile(server, config)
                     await server.start()
                 else:
@@ -71,7 +71,7 @@ class SchedulerListener(EventListener):
                 await server.stop()
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
-                if 'settings' in config['restart']:
+                if 'settings' in config:
                     await self.plugin.change_mizfile(server, config)
                 await server.start()
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
