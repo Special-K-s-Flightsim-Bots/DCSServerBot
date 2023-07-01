@@ -137,7 +137,8 @@ class Mission(Plugin):
                 return
 
         server.restart_pending = True
-        await interaction.response.defer()
+        if not interaction.response.is_done():
+            await interaction.response.defer()
         if server.is_populated():
             if delay > 0:
                 message = f'!!! Server will be restarted in {utils.format_time(delay)}!!!'
