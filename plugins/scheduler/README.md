@@ -71,16 +71,16 @@ Examples:
       },
       "restart": {                            -- missions rotate every 4 hrs
         "method": "rotate",
-        "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
-        "settings": {                         -- Weather will change on a timed basis
-          "00:00-07:59": "Winter, Night, Calm",
-          "08:00-11:59": "Winter, Morning, Windy",
-          "12:00-19:59": "Summer, Noon, Calm",
-          "20:00-23:59": "Summer, Night, Storm"
-        }
+        "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"]
       },
-     "onMissionEnd": "load:Scripts/net/persist.lua", -- load a specific lua on restart 
-     "onShutdown": "run:shutdown /s"                 -- shutdown the PC when DCS is shut down
+      "settings": {                         -- Weather will change on a timed basis
+        "00:00-07:59": "Winter, Night, Calm",
+        "08:00-11:59": "Winter, Morning, Windy",
+        "12:00-19:59": "Summer, Noon, Calm",
+        "20:00-23:59": "Summer, Night, Storm",
+      }
+      "onMissionEnd": "load:Scripts/net/persist.lua", -- load a specific lua on restart 
+      "onShutdown": "run:shutdown /s"                 -- shutdown the PC when DCS is shut down
     },
     {
       "installation": "instance3",
@@ -98,13 +98,12 @@ Examples:
       "schedule": {
         "21:30": "NNNNNYN",                   -- Missions start on Saturdays at 21:30, so start the server there
         "23:00-00:00": "NNNNNPN"              -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated
-        },        
-        "settings": [                         -- Weather will change randomly
-          "Winter, Morning, Windy",
-          "Summer, Morning, Calm"
-        ]
       },
-     "onMissionStart": "load:Script/net/f10menu.lua"  -- load some lua in the mission on mission start
+      "settings": [                         -- Weather will change randomly
+        "Winter, Morning, Windy",
+        "Summer, Morning, Calm"
+      ],
+      "onMissionStart": "load:Script/net/f10menu.lua"  -- load some lua in the mission on mission start
     }
   ]
 }
@@ -183,8 +182,11 @@ it in the default section.
 | max_mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted, even if people are in.                                                                                                                                                                                                        |
 | local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                                                                                          |
 | populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                                                                                                                                                            |
-| settings         | Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is. Presets can be stacked by comma-separating them.                                                                                                                              |
 | mission_end      | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                                                                                                                                                                  |
+
+### Section "settings"
+Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is.<br>
+Presets can be stacked by comma-separating them.
 
 **Attention!**<br/>
 If using the presets / settings, your missions will be amended automatically by the bot. You might want to create safety copies upfront.

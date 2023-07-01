@@ -91,7 +91,9 @@ class Scheduler(Plugin):
                         'SRS' not in old['configs'][c]['extensions']:
                     continue
                 new['configs'][c]['extensions'] = {
-                    "SRS": {"config": self.bot.config[old['configs'][c]['installation']]['SRS_CONFIG'].replace('%%', '%')}
+                    "SRS": {
+                        "config": self.bot.config[old['configs'][c]['installation']]['SRS_CONFIG'].replace('%%', '%')
+                    }
                 }
                 dirty = True
         elif version == '1.2':
@@ -99,9 +101,19 @@ class Scheduler(Plugin):
                 old: dict = json.load(file)
             new = deepcopy(old)
             for config in new['configs']:
-                if 'extensions' in config and 'Tacview' in config['extensions'] and 'path' in config['extensions']['Tacview']:
+                if 'extensions' in config and 'Tacview' in config['extensions'] and \
+                        'path' in config['extensions']['Tacview']:
                     config['extensions']['Tacview']['tacviewExportPath'] = config['extensions']['Tacview']['path']
                     del config['extensions']['Tacview']['path']
+                    dirty = True
+        elif version == '1.3':
+            with open('config/scheduler.json') as file:
+                old: dict = json.load(file)
+            new = deepcopy(old)
+            for config in new['configs']:
+                if 'restart' in config and 'settings' in config['restart']:
+                    config['settings'] = deepcopy(config['restart']['settings'])
+                    del config['restart']['settings']
                     dirty = True
         else:
             return
@@ -115,7 +127,7 @@ class Scheduler(Plugin):
         if server.name not in self._config:
             if 'configs' in self.locals:
                 specific = default = None
-                for element in self.locals['configs']:  # type: dict
+                for element in self.locals['configs']:
                     if 'installation' in element or 'server_name' in element:
                         if ('installation' in element and server.installation == element['installation']) or \
                                 ('server_name' in element and server.name == element['server_name']):
@@ -146,8 +158,8 @@ class Scheduler(Plugin):
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:
         if 'schedule' in config and not server.maintenance:
-            warn_times: list[int] = Scheduler.get_warn_times(config)
-            restart_in: int = max(warn_times) if len(warn_times) and server.is_populated() else 0
+            warn_times: list[int] = Scheduler.get_warn_times(config) if server.is_populated() else [0]
+            restart_in: int = max(warn_times)
             now: datetime = datetime.now()
             weekday = (now + timedelta(seconds=restart_in)).weekday()
             for period, daystate in config['schedule'].items():  # type: str, dict
@@ -155,11 +167,14 @@ class Scheduler(Plugin):
                 # check, if the server should be running
                 if utils.is_in_timeframe(now, period) and state.upper() == 'Y' and server.status == Status.SHUTDOWN:
                     return Status.RUNNING
-                elif utils.is_in_timeframe(now, period) and state.upper() == 'P' and server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and not server.is_populated():
+                elif utils.is_in_timeframe(now, period) and state.upper() == 'P' and \
+                        server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and not server.is_populated():
                     return Status.SHUTDOWN
-                elif utils.is_in_timeframe(now + timedelta(seconds=restart_in), period) and state.upper() == 'N' and server.status == Status.RUNNING:
+                elif utils.is_in_timeframe(now + timedelta(seconds=restart_in), period) and state.upper() == 'N' and \
+                        server.status == Status.RUNNING:
                     return Status.SHUTDOWN
-                elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and server.status in [Status.PAUSED, Status.STOPPED]:
+                elif utils.is_in_timeframe(now, period) and state.upper() == 'N' and \
+                        server.status in [Status.PAUSED, Status.STOPPED]:
                     return Status.SHUTDOWN
         return server.status
 
@@ -183,7 +198,7 @@ class Scheduler(Plugin):
             await server.extensions[ext].prepare()
             await server.extensions[ext].beforeMissionLoad()
         # change the weather in the mission if provided
-        if not server.maintenance and 'restart' in config and 'settings' in config['restart']:
+        if not server.maintenance and 'settings' in config:
             await self.change_mizfile(server, config)
         self.log.info(f"  => DCS server \"{server.name}\" starting up ...")
         await server.startup()
@@ -198,14 +213,12 @@ class Scheduler(Plugin):
 
     @staticmethod
     def get_warn_times(config: dict) -> List[int]:
-        if 'warn' in config and 'times' in config['warn']:
-            return config['warn']['times']
-        return []
+        return sorted(config.get('warn', {}).get('times', [0]), reverse=True)
 
-    async def warn_users(self, server: Server, config: dict, what: str):
+    async def warn_users(self, server: Server, config: dict, what: str, max_warn_time: Optional[int] = None):
         if 'warn' in config:
             warn_times = Scheduler.get_warn_times(config)
-            restart_in = max(warn_times) if len(warn_times) else 0
+            restart_in = max_warn_time or max(warn_times)
             warn_text = config['warn'].get('text', '!!! {item} will {what} in {when} !!!')
             if what == 'restart_with_shutdown':
                 what = 'restart'
@@ -252,8 +265,9 @@ class Scheduler(Plugin):
             if restart_in > 0 and populated:
                 self.log.info(f"  => DCS server \"{server.name}\" will be shut down "
                               f"by {self.plugin_name.title()} in {restart_in} seconds ...")
-                await self.bot.audit(f"{self.plugin_name.title()} will shut down DCS server in {utils.format_time(restart_in)}",
-                                     server=server)
+                await self.bot.audit(
+                    f"{self.plugin_name.title()} will shut down DCS server in {utils.format_time(restart_in)}",
+                    server=server)
                 await self.warn_users(server, config, 'shutdown')
             # if the shutdown has been cancelled due to maintenance mode
             if not server.restart_pending:
@@ -307,16 +321,16 @@ class Scheduler(Plugin):
             return
         now = datetime.now()
         if not presets:
-            if isinstance(config['restart']['settings'], dict):
-                for key, value in config['restart']['settings'].items():
+            if isinstance(config['settings'], dict):
+                for key, value in config['settings'].items():
                     if utils.is_in_timeframe(now, key):
                         presets = value
                         break
                 if not presets:
                     # no preset found for the current time, so don't change anything
                     return
-            elif isinstance(config['restart']['settings'], list):
-                presets = random.choice(config['restart']['settings'])
+            elif isinstance(config['settings'], list):
+                presets = random.choice(config['settings'])
         miz = MizFile(server.bot, filename)
         for preset in [x.strip() for x in presets.split(',')]:
             if preset not in config['presets']:
@@ -337,7 +351,7 @@ class Scheduler(Plugin):
 
     @staticmethod
     def is_mission_change(server: Server, config: dict) -> bool:
-        if 'settings' in config['restart']:
+        if 'settings' in config:
             return True
         # check if someone overloaded beforeMissionLoad, which means the mission is likely to be changed
         for ext in server.extensions.values():
@@ -345,13 +359,13 @@ class Scheduler(Plugin):
                 return True
         return False
 
-    async def restart_mission(self, server: Server, config: dict):
+    async def restart_mission(self, server: Server, config: dict, rconf: dict, max_warn_time: int):
         # a restart is already pending, nothing more to do
         if server.restart_pending:
             return
-        method = config['restart']['method']
+        method = rconf['method']
         # shall we do something at mission end only?
-        if config['restart'].get('mission_end', False):
+        if rconf.get('mission_end', False):
             server.on_mission_end = {'command': method}
             server.restart_pending = True
             return
@@ -359,16 +373,14 @@ class Scheduler(Plugin):
         if server.is_populated():
             if not server.on_empty:
                 server.on_empty = {'command': method}
-            warn_times = Scheduler.get_warn_times(config)
-            restart_in = max(warn_times) if len(warn_times) else 0
-            if not config['restart'].get('populated', True):
-                if 'max_mission_time' not in config['restart']:
+            if not rconf.get('populated', True):
+                if 'max_mission_time' not in rconf:
                     server.restart_pending = True
                     return
-                elif server.current_mission.mission_time <= (config['restart']['max_mission_time'] * 60 - restart_in):
+                elif server.current_mission.mission_time <= (rconf['max_mission_time'] * 60 - max_warn_time):
                     return
             server.restart_pending = True
-            await self.warn_users(server, config, method)
+            await self.warn_users(server, config, method, max_warn_time)
             # in the unlikely event that we did restart already in the meantime while warning users or
             # if the restart has been cancelled due to maintenance mode
             if not server.restart_pending or not server.is_populated():
@@ -391,7 +403,7 @@ class Scheduler(Plugin):
                 await server.stop()
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
-                if 'settings' in config['restart']:
+                if 'settings' in config:
                     await self.change_mizfile(server, config)
                 await server.start()
             else:
@@ -404,26 +416,35 @@ class Scheduler(Plugin):
                 await server.stop()
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
-                if 'settings' in config['restart']:
+                if 'settings' in config:
                     await self.change_mizfile(server, config)
                 await server.start()
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
 
     async def check_mission_state(self, server: Server, config: dict):
-        if 'restart' in config:
-            warn_times = Scheduler.get_warn_times(config)
-            restart_in = max(warn_times) if len(warn_times) and server.is_populated() else 0
-            if 'mission_time' in config['restart'] and \
-                    (server.current_mission.mission_time + restart_in) >= (int(config['restart']['mission_time']) * 60):
-                asyncio.create_task(self.restart_mission(server, config))
-            if 'local_times' in config['restart']:
-                now = datetime.now()
-                if not config['restart'].get('mission_end', False):
-                    now += timedelta(seconds=restart_in)
-                for t in config['restart']['local_times']:
-                    if utils.is_in_timeframe(now, t):
-                        asyncio.create_task(self.restart_mission(server, config))
+        def check_mission_restart(rconf: dict):
+            # calculate the time when the mission has to restart
+            warn_times = Scheduler.get_warn_times(config) if server.is_populated() else [0]
+            # we check the warn times in the opposite order to see which one fits best
+            for warn_time in sorted(warn_times):
+                if 'local_times' in rconf:
+                    restart_time = datetime.now() + timedelta(seconds=warn_time)
+                    for t in rconf['local_times']:
+                        if utils.is_in_timeframe(restart_time, t):
+                            asyncio.create_task(self.restart_mission(server, config, rconf, warn_time))
+                            return
+                elif 'mission_time' in rconf:
+                    if (server.current_mission.mission_time + warn_time) >= rconf['mission_time'] * 60:
+                        asyncio.create_task(self.restart_mission(server, config, rconf, warn_time))
+                        return
+
+        if 'restart' in config and not server.restart_pending:
+            if isinstance(config['restart'], list):
+                for r in config['restart']:
+                    check_mission_restart(r)
+            else:
+                check_mission_restart(config['restart'])
 
     @staticmethod
     async def check_affinity(server: Server, config: dict):
@@ -451,12 +472,16 @@ class Scheduler(Plugin):
                     target_state = await self.check_server_state(server, config)
                     if target_state == Status.RUNNING and server.status == Status.SHUTDOWN:
                         asyncio.create_task(self.launch_dcs(server, config))
-                    elif target_state == Status.SHUTDOWN and server.status in [Status.STOPPED, Status.RUNNING, Status.PAUSED]:
+                    elif target_state == Status.SHUTDOWN and server.status in [
+                        Status.STOPPED, Status.RUNNING, Status.PAUSED
+                    ]:
                         asyncio.create_task(self.teardown(server, config))
                     elif server.status in [Status.RUNNING, Status.PAUSED]:
                         await self.check_mission_state(server, config)
                     # if the server is running, and should run, check if all the extensions are running, too
-                    if server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED] and target_state == server.status:
+                    if server.status in [
+                        Status.RUNNING, Status.PAUSED, Status.STOPPED
+                    ] and target_state == server.status:
                         for ext in server.extensions.values():
                             if not ext.is_running():
                                 await ext.startup()
@@ -597,8 +622,9 @@ class Scheduler(Plugin):
                 await self.bot.audit('stopped the server', server=server, user=ctx.message.author)
                 await ctx.send(f"Server {server.display_name} stopped.")
             elif server.status == Status.STOPPED:
-                await ctx.send(f"Server {server.display_name} is stopped already. Use {ctx.prefix}shutdown to terminate the "
-                               f"dcs.exe process.")
+                await ctx.send(
+                    f"Server {server.display_name} is stopped already. Use {ctx.prefix}shutdown to terminate the "
+                    f"dcs.exe process.")
             elif server.status == Status.SHUTDOWN:
                 await ctx.send(f"Server {server.display_name} is shut down already.")
             else:
@@ -702,7 +728,11 @@ class Scheduler(Plugin):
             return
 
         config = self.get_config(server)
-        presets = [discord.SelectOption(label=k) for k, v in config.get('presets', {}).items() if 'hidden' not in v or not v['hidden']]
+        presets = [
+            discord.SelectOption(label=k)
+            for k, v in config.get('presets', {}).items()
+            if 'hidden' not in v or not v['hidden']
+        ]
         if not presets:
             await ctx.send('No presets available, please configure them in your scheduler.json.')
             return
