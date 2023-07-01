@@ -55,8 +55,8 @@ function slotblock.onPlayerTryConnect(addr, name, ucid, playerID)
     end
     if cfg['slots'] then
         local max = utils.loadSettingsRaw()['maxPlayers']
-        local current = #net.get_player_list()
-        if (current + 1) > (max - cfg['slots']) then
+        local current = #net.get_player_list() + 1
+        if current >= (max - cfg['slots']) then
             if not is_vip(ucid) then
                 return false, config.MESSAGE_SERVER_FULL
             end
