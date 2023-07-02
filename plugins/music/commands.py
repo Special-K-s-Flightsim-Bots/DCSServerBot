@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import aiohttp
 import asyncio
 import discord
@@ -82,7 +84,21 @@ class Music(Plugin):
         song = os.path.join(self.get_music_dir(), song)
         title = get_tag(song).title or os.path.basename(song)
         await interaction.response.send_message(
-            '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist))
+            '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist), ephemeral=True)
+
+    @music.command(description="Add all available songs to a playlist")
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(playlist=playlist_autocomplete)
+    async def add_all(self, interaction: discord.Interaction, playlist: str):
+        if not await utils.yn_question(interaction, 'Do you really want to add ALL songs to the playlist?'):
+            return
+        p = Playlist(self.bot, playlist)
+        for song in [file.name for file in Path(interaction.command.binding.get_music_dir()).glob('*.mp3')]:
+            p.add(song)
+            song = os.path.join(self.get_music_dir(), song)
+            title = get_tag(song).title or os.path.basename(song)
+            await interaction.followup.send(
+                '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist), ephemeral=True)
 
     @music.command(description="Remove a song from a playlist")
     @utils.app_has_role('DCS Admin')
@@ -95,7 +111,7 @@ class Music(Plugin):
             song = os.path.join(self.get_music_dir(), song)
             title = get_tag(song).title or os.path.basename(song)
             await interaction.response.send_message(
-                '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist))
+                '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist), ephemeral=True)
         except OSError as ex:
             await interaction.response.send_message(ex)
 
