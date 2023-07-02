@@ -361,35 +361,35 @@ class Mission(Plugin):
                           server: app_commands.Transform[Server, utils.ServerTransformer(
                               status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
                           name: str):
-        # TODO: presets have to go into the central presets.yaml file
         miz = MizFile(self.bot, server.current_mission.filename)
-        if 'presets' not in self.get_config():
-            self.get_config()['presets'] = dict()
-        if name in self.get_config()['presets'] and \
+        if os.path.exists('config/presets.yaml'):
+            with open('config/presets.yaml', encoding='utf-8') as infile:
+                presets = yaml.safe_load(infile)
+        else:
+            presets = dict()
+        if name in presets and \
                 not await utils.yn_question(interaction, f'Do you want to overwrite the existing preset "{name}"?'):
             await interaction.followup.send('Aborted.', ephemeral=True)
             return
-        self.get_config()['presets'] |= {
-            name: {
-                "start_time": miz.start_time,
-                "date": miz.date.strftime('%Y-%m-%d'),
-                "temperature": miz.temperature,
-                "clouds": miz.clouds,
-                "wind": miz.wind,
-                "groundTurbulence": miz.groundTurbulence,
-                "enable_dust": miz.enable_dust,
-                "dust_density": miz.dust_density if miz.enable_dust else 0,
-                "qnh": miz.qnh,
-                "enable_fog": miz.enable_fog,
-                "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
-                "halo": miz.halo,
-                "forcedOptions": miz.forcedOptions,
-                "miscellaneous": miz.miscellaneous,
-                "difficulty": miz.difficulty
-            }
+        presets[name] = {
+            "start_time": miz.start_time,
+            "date": miz.date.strftime('%Y-%m-%d'),
+            "temperature": miz.temperature,
+            "clouds": miz.clouds,
+            "wind": miz.wind,
+            "groundTurbulence": miz.groundTurbulence,
+            "enable_dust": miz.enable_dust,
+            "dust_density": miz.dust_density if miz.enable_dust else 0,
+            "qnh": miz.qnh,
+            "enable_fog": miz.enable_fog,
+            "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
+            "halo": miz.halo,
+            "forcedOptions": miz.forcedOptions,
+            "miscellaneous": miz.miscellaneous,
+            "difficulty": miz.difficulty
         }
-        with open(f'config/{self.plugin_name}.json', 'w', encoding='utf-8') as file:
-            json.dump(self.locals, file, indent=2)
+        with open(f'config/presets.yaml', 'w', encoding='utf-8') as outfile:
+            yaml.safe_dump(presets, outfile)
         if interaction.response.is_done():
             await interaction.followup.send(f'Preset "{name}" added.')
         else:

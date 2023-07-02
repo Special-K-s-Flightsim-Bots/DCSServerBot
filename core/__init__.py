@@ -3,9 +3,11 @@ from .data.dataobject import *
 from .data.mission import *
 from .data.player import *
 from .data.server import *
-from .data.serverimpl import *
-from .data.serverproxy import *
+from .data.impl.serverimpl import *
+from .data.proxy.serverproxy import *
 from .data.instance import *
+from .data.impl.instanceimpl import *
+from .data.proxy.instanceproxy import *
 from .data.member import *
 
 from .autoexec import *

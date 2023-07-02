@@ -14,13 +14,13 @@ from typing import Optional, TYPE_CHECKING, Union
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 
-from .dataobject import DataObjectFactory
-from .const import Status, Channel
-from ..mizfile import MizFile
-from ..services import ServiceRegistry
+from core.data.dataobject import DataObjectFactory
+from core.data.const import Status, Channel
+from core.mizfile import MizFile
+from core.services import ServiceRegistry
 
 if TYPE_CHECKING:
-    from core import Plugin, Extension, Instance
+    from core import Plugin, Extension, InstanceImpl
     from services import DCSServerBot
 
 
@@ -57,7 +57,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 @dataclass
 @DataObjectFactory.register("Server")
 class ServerImpl(Server):
-    _instance: Instance = field(default=None)
+    _instance: InstanceImpl = field(default=None)
     bot: Optional[DCSServerBot] = field(compare=False, init=False)
 
     def __post_init__(self):
@@ -105,8 +105,14 @@ class ServerImpl(Server):
         return self._options
 
     @property
-    def instance(self) -> Instance:
+    def instance(self) -> InstanceImpl:
         return self._instance
+
+    @instance.setter
+    def instance(self, instance: InstanceImpl):
+        self._instance = instance
+        self.locals |= self.instance.locals
+        self.prepare()
 
     def _install_luas(self):
         dcs_path = os.path.join(self.instance.home, 'Scripts')
@@ -153,12 +159,6 @@ class ServerImpl(Server):
                 else:
                     self.settings[key] = value
         self._install_luas()
-
-    @instance.setter
-    def instance(self, instance: Instance):
-        self._instance = instance
-        self.locals |= self.instance.locals
-        self.prepare()
 
     async def get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:

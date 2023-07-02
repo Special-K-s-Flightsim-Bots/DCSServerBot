@@ -57,31 +57,6 @@ async def getLatestVersion(branch: str, *, userid: Optional[str] = None,
     return None
 
 
-def getInstalledModules(path: str) -> set[str]:
-    with open(os.path.join(os.path.expandvars(path), 'autoupdate.cfg'), encoding='utf8') as cfg:
-        data = json.load(cfg)
-    return set(data['modules'])
-
-
-async def getAvailableModules(userid: Optional[str] = None, password: Optional[str] = None) -> set[str]:
-    licenses = {"CAUCASUS_terrain", "NEVADA_terrain", "NORMANDY_terrain", "PERSIANGULF_terrain", "THECHANNEL_terrain",
-                "SYRIA_terrain", "MARIANAISLANDS_terrain", "FALKLANDS_terrain", "SINAIMAP_terrain", "WWII-ARMOUR",
-                "SUPERCARRIER"}
-    if not userid:
-        return licenses
-    else:
-        auth = aiohttp.BasicAuth(login=userid, password=password)
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-                ssl=ssl.create_default_context(cafile=certifi.where())), auth=auth) as session:
-            async with session.get(LICENSES_URL) as response:
-                if response.status == 200:
-                    all_licenses = (await response.text(encoding='utf8')).split('<br>')[1:]
-                    for l in all_licenses:
-                        if l.endswith('_terrain'):
-                            licenses.add(l)
-        return licenses
-
-
 def desanitize(self, _filename: str = None) -> None:
     # Sanitizing MissionScripting.lua
     if not _filename:

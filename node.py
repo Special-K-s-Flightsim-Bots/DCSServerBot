@@ -1,7 +1,9 @@
 import aiofiles
 import aiohttp
 import asyncio
+import certifi
 import discord
+import json
 import logging
 import os
 import platform
@@ -13,7 +15,7 @@ import yaml
 import zipfile
 
 from contextlib import closing
-from core import utils, ServiceRegistry, DataObjectFactory, Instance, Server
+from core import utils, ServiceRegistry, DataObjectFactory, Instance, Server, LICENSES_URL, InstanceImpl
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from matplotlib import font_manager
@@ -54,7 +56,7 @@ class Node:
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.db_version = None
         self.pool = self.init_db()
-        self.instances: list[Instance] = list()
+        self.instances: list[InstanceImpl] = list()
         self.locals: dict = self.read_locals()
         self.install_plugins()
         self.plugins: list[str] = ["mission", "scheduler", "help", "admin", "userstats", "missionstats",
@@ -152,7 +154,7 @@ class Node:
             for name, element in node.items():
                 if name == 'instances':
                     for _name, _element in node['instances'].items():
-                        instance: Instance = DataObjectFactory().new(Instance.__name__, node=self, name=_name)
+                        instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=_name)
                         instance.locals = _element
                         self.instances.append(instance)
                 else:
@@ -217,13 +219,6 @@ class Node:
                             cursor.execute('SELECT version FROM version')
                             self.db_version = cursor.fetchone()[0]
                             self.log.info(f"Database updated to {self.db_version}.")
-        # Make sure we only get back floats, not Decimal
-# TODO
-#        dec2float = psycopg.extensions.new_type(
-#            psycopg.extensions.DECIMAL.values,
-#            'DEC2FLOAT',
-#            lambda value, curs: float(value) if value is not None else None)
-#        psycopg.extensions.register_type(dec2float)
 
     async def install_fonts(self):
         font = self.config.get('reports', {}).get('cjk_font')
@@ -318,6 +313,31 @@ class Node:
         startupinfo.wShowWindow = subprocess.SW_HIDE
         subprocess.run(['dcs_updater.exe', '--quiet', what, module], executable=os.path.expandvars(
             self.locals['DCS']['installation']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
+
+    def get_installed_modules(self, path: str) -> set[str]:
+        with open(os.path.join(self.locals['DCS']['installation'], 'autoupdate.cfg'), encoding='utf8') as cfg:
+            data = json.load(cfg)
+        return set(data['modules'])
+
+    @staticmethod
+    async def get_available_modules(userid: Optional[str] = None, password: Optional[str] = None) -> set[str]:
+        licenses = {"CAUCASUS_terrain", "NEVADA_terrain", "NORMANDY_terrain", "PERSIANGULF_terrain",
+                    "THECHANNEL_terrain",
+                    "SYRIA_terrain", "MARIANAISLANDS_terrain", "FALKLANDS_terrain", "SINAIMAP_terrain", "WWII-ARMOUR",
+                    "SUPERCARRIER"}
+        if not userid:
+            return licenses
+        else:
+            auth = aiohttp.BasicAuth(login=userid, password=password)
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where())), auth=auth) as session:
+                async with session.get(LICENSES_URL) as response:
+                    if response.status == 200:
+                        all_licenses = (await response.text(encoding='utf8')).split('<br>')[1:]
+                        for l in all_licenses:
+                            if l.endswith('_terrain'):
+                                licenses.add(l)
+            return licenses
 
     async def register(self):
         self._public_ip = self.locals.get('public_ip')

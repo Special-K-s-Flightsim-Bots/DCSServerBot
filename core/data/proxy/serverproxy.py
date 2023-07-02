@@ -1,10 +1,15 @@
-from dataclasses import dataclass
+from __future__ import annotations
+from dataclasses import dataclass, field
 from core import Server, Status, utils
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core import InstanceProxy
 
 
 @dataclass
 class ServerProxy(Server):
+    _instance: InstanceProxy = field(default=None)
 
     @property
     def is_remote(self) -> bool:
@@ -33,6 +38,14 @@ class ServerProxy(Server):
     @options.setter
     def options(self, o: dict):
         self._options = utils.RemoteSettingsDict(self, "options", o)
+
+    @property
+    def instance(self) -> InstanceProxy:
+        return self._instance
+
+    @instance.setter
+    def instance(self, instance: InstanceProxy):
+        raise NotImplemented()
 
     async def get_current_mission_file(self) -> Optional[str]:
         data = await self.sendtoDCSSync({

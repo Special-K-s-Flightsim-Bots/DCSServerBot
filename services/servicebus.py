@@ -97,7 +97,7 @@ class ServiceBus(Service):
             "method": "init_remote_server",
             "params": {
                 "server_name": server.name,
-                "public_ip": self.config['BOT'].get('PUBLIC_IP', await utils.get_external_ip()),
+                "public_ip": self.node.locals.get('public_ip', await utils.get_public_ip()),
                 "status": Status.UNREGISTERED.value,
                 "instance": server.instance.name,
                 "settings": server.settings,
@@ -286,6 +286,10 @@ class ServiceBus(Service):
         if data['command'] == 'rpc':
             if data.get('object') == 'Server':
                 obj = self.servers[data['server_name']]
+            elif data.get('object') == 'Instance':
+                obj = self.servers[data['server_name']].instance
+            elif data.get('object') == 'Node':
+                obj = self.node
             else:
                 obj = ServiceRegistry.get(data['service'])
             if not obj:
