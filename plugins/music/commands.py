@@ -53,7 +53,7 @@ class Music(Plugin):
         if not sink:
             if not self.get_config(server):
                 await interaction.response.send_message(
-                    f"No entry for server {server.name} configured in your {self.plugin_name}.json.", ephemeral=True)
+                    f"No entry for server {server.name} configured in your {self.plugin_name}.yaml.", ephemeral=True)
                 return
             config = self.get_config(server)['sink']
             sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(
@@ -73,6 +73,25 @@ class Music(Plugin):
                 await asyncio.sleep(1)
         finally:
             await msg.delete()
+
+    @music.command(description="Play a song from a playlist")
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(playlist=playlist_autocomplete)
+    @app_commands.autocomplete(song=songs_autocomplete)
+    async def play(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
+                                                                                          Status.PAUSED])],
+                   playlist: str, song: str):
+        sink = self.sinks.get(server.name)
+        if not sink:
+            if not self.get_config(server):
+                await interaction.response.send_message(
+                    f"No entry for server {server.name} configured in your {self.plugin_name}.yaml.", ephemeral=True)
+                return
+        song = os.path.join(self.get_music_dir(), song)
+        title = get_tag(song).title or os.path.basename(song)
+        await interaction.response.send_message(f"Now playing {title} ...")
+        await sink.play(song)
 
     @music.command(description="Add a song to a playlist")
     @utils.app_has_role('DCS Admin')

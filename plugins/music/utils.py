@@ -2,6 +2,7 @@ import discord
 import eyed3
 import os
 
+from core import utils
 from discord import app_commands
 from eyed3.id3 import Tag
 from functools import lru_cache
@@ -106,7 +107,7 @@ async def songs_autocomplete(
         current: str,
 ) -> list[app_commands.Choice[str]]:
     music_dir = interaction.client.cogs['Music'].get_music_dir()
-    playlist = Playlist(interaction.client, interaction.data['options'][0]['options'][0]['value'])
+    playlist = Playlist(interaction.client, utils.get_interaction_param(interaction, 'playlist'))
     ret = []
     for song in playlist.items:
         title = get_tag(os.path.join(music_dir, song)).title or song

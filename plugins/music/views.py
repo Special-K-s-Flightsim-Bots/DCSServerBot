@@ -56,10 +56,14 @@ class MusicPlayer(PlayerBase):
         if self.titles:
             select = Select(placeholder="Pick a song from the list")
             select.options = [
-                SelectOption(label=x[:25], value=str(idx)) for idx, x in enumerate(self.titles)
+                SelectOption(label=x[:25], value=str(idx))
+                for idx, x in enumerate(self.titles)
+                if idx < 25
             ]
             select.callback = self.play
             self.add_item(select)
+            if len(self.titles) > 25:
+                footer += "Use /music play to access all songs in the list.\n"
         # Select Playlists
         if self.playlists:
             select = Select(placeholder="Pick a playlist to play")
