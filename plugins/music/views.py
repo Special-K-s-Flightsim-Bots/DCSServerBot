@@ -48,7 +48,8 @@ class MusicPlayer(PlayerBase):
         for idx, title in enumerate(self.titles):
             playlist.append(
                 f"{idx + 1}. - {utils.escape_string(title)}")
-        embed.add_field(name='_ _', value='\n'.join(playlist) or '- empty -')
+        all_songs = '\n'.join(playlist) or '- empty -'
+        embed.add_field(name='_ _', value=all_songs[:1024])
         footer = "▬" * 37 + "\n"
         self.clear_items()
         # Select Song
