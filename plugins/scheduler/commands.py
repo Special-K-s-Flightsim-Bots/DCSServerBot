@@ -396,17 +396,22 @@ class Scheduler(Plugin):
     async def stop(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.RUNNING, Status.PAUSED])]):
+        await interaction.response.defer(ephemeral=True)
         if server.is_populated() and \
                 not await utils.yn_question(interaction, "People are flying on this server atm.\n"
                                                          "Do you really want to stop it?"):
             await interaction.followup.send("Aborted.", ephemeral=True)
             return
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        msg = None
         try:
+            msg = await interaction.followup.send(f"Stopping server {server.name} ...", ephemeral=True)
             await server.stop()
         except asyncio.TimeoutError:
             await interaction.followup.send(f"Timeout while trying to stop server {server.name}.", ephemeral=True)
             return
+        finally:
+            if msg:
+                await msg.delete()
         await interaction.followup.send(f"Server {server.display_name} stopped.", ephemeral=True)
         await self.bot.audit('stopped the server', server=server, user=interaction.user)
 
