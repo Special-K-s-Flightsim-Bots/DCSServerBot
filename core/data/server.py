@@ -84,6 +84,7 @@ class Server(DataObject):
     @status.setter
     def status(self, status: Status):
         if status != self._status:
+            self.log.info(f"{self.name}: {self._status.name} => {status.name}")
             self._status = status
             self.status_change.set()
             self.status_change.clear()
@@ -236,6 +237,7 @@ class Server(DataObject):
     async def start(self) -> None:
         if self.status == Status.STOPPED:
             timeout = 300 if self.node.locals.get('slow_system', False) else 120
+            self.status = Status.LOADING
             self.sendtoDCS({"command": "start_server"})
             await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
 
@@ -318,7 +320,7 @@ class Server(DataObject):
             with conn.transaction():
                 conn.execute('UPDATE servers SET last_seen = NOW() WHERE node = %s AND server_name = %s',
                              (platform.node(), self.name))
-        if data['pause'] and self.status != Status.PAUSED:
+        if data['pause'] and self.status == Status.RUNNING:
             self.status = Status.PAUSED
         elif not data['pause'] and self.status != Status.RUNNING:
             self.status = Status.RUNNING

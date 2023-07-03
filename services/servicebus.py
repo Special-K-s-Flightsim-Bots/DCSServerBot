@@ -107,7 +107,7 @@ class ServiceBus(Service):
 
     async def register_servers(self):
         self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
-        timeout = (5 * len(self.servers)) if self.node.locals.get('slow_system', False) else (3 * len(self.servers))
+        timeout = (10 * len(self.servers)) if self.node.locals.get('slow_system', False) else (5 * len(self.servers))
         local_servers = [x for x in self.servers.values() if not x.is_remote]
         calls = []
         for server in local_servers:
@@ -151,12 +151,12 @@ class ServiceBus(Service):
                 break
         server.dcs_version = data['dcs_version']
         if data['channel'].startswith('sync-'):
-            if 'players' not in data:
-                server.status = Status.STOPPED
-            elif data['pause']:
-                server.status = Status.PAUSED
-            else:
-                server.status = Status.RUNNING
+#            if 'players' not in data:
+#                server.status = Status.STOPPED
+#            elif data['pause']:
+#                server.status = Status.PAUSED
+#            else:
+#                server.status = Status.RUNNING
             server.init_extensions()
             for extension in server.extensions.values():
                 if not extension.is_running():
@@ -387,12 +387,12 @@ class ServiceBus(Service):
                                 if not self.master:
                                     self.log.debug(f"Registering server {server.name} on Master node ...")
                             else:
-                                if 'players' not in data:
-                                    server.status = Status.STOPPED
-                                elif data['pause']:
-                                    server.status = Status.PAUSED
-                                else:
-                                    server.status = Status.RUNNING
+#                                if 'players' not in data:
+#                                    server.status = Status.STOPPED
+#                                elif data['pause']:
+#                                    server.status = Status.PAUSED
+#                                else:
+#                                    server.status = Status.RUNNING
                                 self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node} registered.")
                         elif server.status == Status.UNREGISTERED:
                             self.log.debug(

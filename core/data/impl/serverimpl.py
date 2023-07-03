@@ -62,7 +62,6 @@ class ServerImpl(Server):
 
     def __post_init__(self):
         super().__post_init__()
-        self.bot = ServiceRegistry.get("Bot").bot
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
@@ -131,8 +130,7 @@ class ServerImpl(Server):
             with open(r'Scripts/net/DCSServerBot/DCSServerBotConfig.lua.tmpl', 'r') as template:
                 with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), 'w') as outfile:
                     for line in template.readlines():
-                        line = utils.format_string(line, node=self.node, instance=self.instance, server=self,
-                                                   bot=self.bot)
+                        line = utils.format_string(line, node=self.node, instance=self.instance, server=self)
                         outfile.write(line)
         except KeyError as k:
             self.log.error(

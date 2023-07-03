@@ -101,7 +101,7 @@ class EventListener(metaclass=EventListenerMeta):
         self.pool = plugin.pool
         self.locals: dict = plugin.locals
         self.loop = plugin.loop
-        self.prefix = self.bot.locals.get('chat_command_prefix', '-')
+        self.prefix = self.bot.node.config.get('chat_command_prefix', '-')
 
     @property
     def events(self) -> Any:

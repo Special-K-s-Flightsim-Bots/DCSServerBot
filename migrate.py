@@ -62,6 +62,7 @@ def migrate():
         "guild_id": guild_id,
         "autoupdate": cfg['BOT'].getboolean('AUTOUPDATE'),
         "use_dashboard": cfg['BOT'].getboolean('USE_DASHBOARD'),
+        'chat_command_prefix': cfg['BOT']['CHAT_COMMAND_PREFIX'],
         "database": {
             "url": cfg['BOT']['DATABASE_URL'],
             "pool_min": int(cfg['DB']['MASTER_POOL_MIN']),
@@ -81,7 +82,6 @@ def migrate():
         bot = {
             'token': cfg['BOT']['TOKEN'],
             'owner': int(cfg['BOT']['OWNER']),
-            'chat_command_prefix': cfg['BOT']['CHAT_COMMAND_PREFIX'],
             'automatch': cfg['BOT'].getboolean('AUTOMATCH'),
             'autoban': cfg['BOT'].getboolean('AUTOBAN'),
             'message_ban': cfg['DCS']['MESSAGE_BAN'],
