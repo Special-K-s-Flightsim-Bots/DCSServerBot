@@ -102,7 +102,8 @@ class ServiceBus(Service):
                 "status": server.status.value,
                 "instance": server.instance.name,
                 "settings": server.settings,
-                "options": server.options
+                "options": server.options,
+                "node": self.node.name
             }
         })
 
@@ -337,7 +338,6 @@ class ServiceBus(Service):
         if not func:
             return
         kwargs = data.get('params', {})
-        #kwargs['node'] = data.get('node', platform.node())
         if asyncio.iscoroutinefunction(func):
             rc = await func(**kwargs) if kwargs else await func()
         else:
