@@ -1,4 +1,5 @@
 import os
+import re
 import shlex
 import subprocess
 from core import Plugin, DCSServerBot, TEventListener, utils, Server, Status, Report
@@ -127,7 +128,8 @@ class Commands(Plugin):
         elif data:
             if len(data) > 1:
                 for ret in data:
-                    await ctx.send(f"{ret['server_name']}: {ret['value']}")
+                    name = re.sub(self.bot.config['FILTER']['SERVER_FILTER'], '', ret['server_name']).strip()
+                    await ctx.send(f"{name}: {ret['value']}")
             else:
                 await ctx.send(data[0]['value'])
 
