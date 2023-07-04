@@ -1,15 +1,17 @@
-from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+import os
+import yaml
+
 from core.data.node import Node
+from core.data.proxy.instanceproxy import InstanceProxy
 
 
-@dataclass
 class NodeProxy(Node):
-    local_node: Any
-    name: str
-
-    def __post_init__(self):
+    def __init__(self, local_node: Any, name: str):
+        super().__init__(name)
+        self.local_node = local_node
         self.pool = self.local_node.pool
         self.log = self.local_node.log
 
@@ -32,3 +34,17 @@ class NodeProxy(Node):
     @property
     def extensions(self) -> dict:
         raise NotImplemented()
+
+    def read_locals(self) -> dict:
+        _locals = dict()
+        if os.path.exists('config/nodes.yaml'):
+            node: dict = yaml.safe_load(Path('config/nodes.yaml').read_text())[self.name]
+            for name, element in node.items():
+                if name == 'instances':
+                    for _name, _element in node['instances'].items():
+                        instance = InstanceProxy(self.local_node, _name)
+                        instance.locals = _element
+                        self.instances.append(instance)
+                else:
+                    _locals[name] = element
+        return _locals

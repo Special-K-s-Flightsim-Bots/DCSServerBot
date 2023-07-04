@@ -43,7 +43,7 @@ LOGLEVEL = {
 class NodeImpl(Node):
 
     def __init__(self):
-        self.name: str = platform.node()
+        super().__init__(platform.node())
         self.config = self.read_config()
         self.guild_id: int = int(self.config['guild_id'])
         self._public_ip: Optional[str] = None
@@ -58,7 +58,6 @@ class NodeImpl(Node):
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.db_version = None
         self.pool = self.init_db()
-        self.instances: list[InstanceImpl] = list()
         self.locals: dict = self.read_locals()
         self.install_plugins()
         self.plugins: list[str] = ["mission", "scheduler", "help", "admin", "userstats", "missionstats",
@@ -123,31 +122,6 @@ class NodeImpl(Node):
     @staticmethod
     def shutdown():
         exit(-1)
-
-    @staticmethod
-    def read_config():
-        config = yaml.safe_load(Path('config/main.yaml').read_text())
-        # set defaults
-        config['autoupdate'] = config.get('autoupdate', True)
-        config['logging'] = config.get('logging', {})
-        config['logging']['loglevel'] = config['logging'].get('loglevel', 'DEBUG')
-        config['logging']['logrotate_size'] = config['logging'].get('logrotate_size', 10485760)
-        config['logging']['logrotate_count'] = config['logging'].get('logrotate_count', 5)
-        config['database']['pool_min'] = config['database'].get('pool_min', 5)
-        config['database']['pool_max'] = config['database'].get('pool_max', 10)
-        config['messages'] = config.get('messages', {})
-        config['messages']['player_username'] = config['messages'].get('player_username',
-                                                                       'Your player name contains invalid characters. '
-                                                                       'Please change your name to join our server.')
-        config['messages']['player_default_username'] = \
-            config['messages'].get('player_default_username', 'Please change your default player name at the top right '
-                                                              'of the multiplayer selection list to an individual one!')
-        config['messages']['player_banned'] = config['messages'].get('player_banned', 'You are banned from this '
-                                                                                      'server. Reason: {}')
-        config['messages']['player_afk'] = config['messages'].get('player_afk',
-                                                                  '{player.name}, you have been kicked for being AFK '
-                                                                  'for more than {time}.')
-        return config
 
     def read_locals(self) -> dict:
         _locals = dict()

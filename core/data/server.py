@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class Server(DataObject):
-    name: str = field(compare=False)
+    name: str
     port: int
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
