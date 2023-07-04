@@ -430,9 +430,9 @@ class Node:
                     asyncio.create_task(bot.start())
                 else:
                     self.log.info("Second Master found, stepping back to Agent configuration.")
-                    if self.config['BOT'].getboolean('USE_DASHBOARD'):
+                    if self.config.get('use_dashboard', True):
                         await dashboard.stop()
                     # await config.stop()
                     await bot.stop()
-                if self.config['BOT'].getboolean('USE_DASHBOARD'):
+                if self.config.get('use_dashboard', True):
                     await dashboard.start()

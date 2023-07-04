@@ -45,7 +45,8 @@ class ServerProxy(Server):
 
     @instance.setter
     def instance(self, instance: InstanceProxy):
-        raise NotImplemented()
+        self._instance = instance
+        self._instance.server = self
 
     async def get_current_mission_file(self) -> Optional[str]:
         data = await self.sendtoDCSSync({

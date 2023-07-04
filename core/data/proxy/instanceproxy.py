@@ -10,3 +10,11 @@ if TYPE_CHECKING:
 @dataclass
 class InstanceProxy(Instance):
     _server: Optional[ServerProxy] = field(compare=False, repr=False, default=None, init=False)
+
+    @property
+    def server(self) -> Optional[ServerProxy]:
+        return self._server
+
+    @server.setter
+    def server(self, server: ServerProxy):
+        self._server = server

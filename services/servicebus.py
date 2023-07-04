@@ -10,7 +10,8 @@ from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
-from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, ServerProxy, EventListener
+from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
+    InstanceProxy
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
@@ -226,26 +227,27 @@ class ServiceBus(Service):
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
                            options: dict, node: str) -> ServerProxy:
-        proxy = self.servers.get(server_name)
-        if not proxy:
-            proxy = ServerProxy(
+        server = self.servers.get(server_name)
+        if not server:
+            server = ServerProxy(
                 node=node,
                 port=-1,
-                name=server_name,
-                instance=instance  # TODO!
+                name=server_name
             )
-            self.servers[server_name] = proxy
-            proxy.settings = settings
-            proxy.options = options
+            instance = InstanceProxy(name=instance, node=node)
+            server.instance = instance
+            self.servers[server_name] = server
+            server.settings = settings
+            server.options = options
             # add eventlistener queue
-            if proxy.name not in self.udp_server.message_queue:
-                self.udp_server.message_queue[proxy.name] = Queue()
-                self.executor.submit(self.udp_server.process, proxy)
+            if server.name not in self.udp_server.message_queue:
+                self.udp_server.message_queue[server.name] = Queue()
+                self.executor.submit(self.udp_server.process, server)
         else:
             # IP might have changed, so update it
-            proxy.public_ip = public_ip
-        proxy.status = Status(status)
-        return proxy
+            server.public_ip = public_ip
+        server.status = Status(status)
+        return server
 
     def sendtoBot(self, data: dict, node: Optional[str] = None):
         if self.master:

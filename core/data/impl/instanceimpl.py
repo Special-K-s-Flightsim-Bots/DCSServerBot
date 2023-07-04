@@ -1,6 +1,6 @@
 import os
 
-from core import Instance, Server, InstanceBusyError, Status, utils, ServerImpl, DataObjectFactory
+from core import Instance, InstanceBusyError, Status, utils, ServerImpl, DataObjectFactory
 from dataclasses import field, dataclass
 from typing import Optional
 
@@ -26,7 +26,7 @@ class InstanceImpl(Instance):
             self.missions_dir = os.path.expandvars(self.locals['missions_dir'])
 
     @property
-    def server(self) -> Optional[Server]:
+    def server(self) -> Optional[ServerImpl]:
         return self._server
 
     @server.setter
