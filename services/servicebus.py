@@ -244,12 +244,11 @@ class ServiceBus(Service):
             if server.name not in self.udp_server.message_queue:
                 self.udp_server.message_queue[server.name] = Queue()
                 self.executor.submit(self.udp_server.process, server)
+            self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node.name} registered.")
         else:
             # IP might have changed, so update it
             server.public_ip = public_ip
         server.status = Status(status)
-        self.servers[server.name] = server
-        self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node.name} registered.")
 
     def sendtoBot(self, data: dict, node: Optional[str] = None):
         if self.master:
