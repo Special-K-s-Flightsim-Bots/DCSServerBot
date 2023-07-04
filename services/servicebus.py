@@ -226,7 +226,7 @@ class ServiceBus(Service):
                 del self.servers[old_name]
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
-                           options: dict, node: str) -> ServerProxy:
+                           options: dict, node: str):
         server = self.servers.get(server_name)
         node = NodeProxy(self.node, node)
         if not server:
@@ -248,7 +248,8 @@ class ServiceBus(Service):
             # IP might have changed, so update it
             server.public_ip = public_ip
         server.status = Status(status)
-        return server
+        self.servers[server.name] = server
+        self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node.name} registered.")
 
     def sendtoBot(self, data: dict, node: Optional[str] = None):
         if self.master:
@@ -280,7 +281,7 @@ class ServiceBus(Service):
             rc = await self.rpc(obj, data)
             if rc:
                 data['return'] = rc
-                self.sendtoBot(data)
+                self.sendtoBot(data, node=data['node'])
         else:
             self.udp_server.message_queue[data['server_name']].put(data)
 
@@ -389,14 +390,6 @@ class ServiceBus(Service):
                                     return
                                 if not self.master:
                                     self.log.debug(f"Registering server {server.name} on Master node ...")
-                            else:
-#                                if 'players' not in data:
-#                                    server.status = Status.STOPPED
-#                                elif data['pause']:
-#                                    server.status = Status.PAUSED
-#                                else:
-#                                    server.status = Status.RUNNING
-                                self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node} registered.")
                         elif server.status == Status.UNREGISTERED:
                             self.log.debug(
                                 f"Command {command} for unregistered server {server.name} received, ignoring.")
