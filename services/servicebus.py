@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
-    InstanceProxy
+    InstanceProxy, NodeProxy
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
@@ -228,6 +228,7 @@ class ServiceBus(Service):
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
                            options: dict, node: str) -> ServerProxy:
         server = self.servers.get(server_name)
+        node = NodeProxy(self.node, node)
         if not server:
             server = ServerProxy(
                 node=node,

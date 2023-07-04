@@ -9,6 +9,8 @@ from .data.instance import *
 from .data.impl.instanceimpl import *
 from .data.proxy.instanceproxy import *
 from .data.member import *
+from .data.node import *
+from .data.proxy.nodeproxy import *
 
 from .autoexec import *
 from .const import *

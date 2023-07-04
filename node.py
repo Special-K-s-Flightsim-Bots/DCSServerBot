@@ -8,6 +8,7 @@ import logging
 import os
 import platform
 import shutil
+import ssl
 import subprocess
 import sys
 import time
@@ -15,7 +16,7 @@ import yaml
 import zipfile
 
 from contextlib import closing
-from core import utils, ServiceRegistry, DataObjectFactory, Instance, Server, LICENSES_URL, InstanceImpl
+from core import utils, ServiceRegistry, DataObjectFactory, Instance, Server, LICENSES_URL, InstanceImpl, Node
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from matplotlib import font_manager
@@ -27,6 +28,7 @@ from services import Dashboard, BotService
 from typing import cast, Optional, Union
 from version import __version__
 
+from core.data.node import Node
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -38,7 +40,7 @@ LOGLEVEL = {
 }
 
 
-class Node:
+class NodeImpl(Node):
 
     def __init__(self):
         self.name: str = platform.node()

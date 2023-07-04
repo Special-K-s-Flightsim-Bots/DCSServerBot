@@ -5,7 +5,7 @@ import platform
 import traceback
 from install import Install
 from migrate import migrate
-from node import Node
+from node import NodeImpl
 
 
 if __name__ == "__main__":
@@ -24,7 +24,7 @@ if __name__ == "__main__":
         asyncio.set_event_loop_policy(
             asyncio.WindowsSelectorEventLoopPolicy()
         )
-        asyncio.run(Node().run())
+        asyncio.run(NodeImpl().run())
     except (KeyboardInterrupt, asyncio.CancelledError):
         exit(-1)
     except Exception as ex:
