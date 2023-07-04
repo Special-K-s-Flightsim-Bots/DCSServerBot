@@ -116,7 +116,8 @@ class CloudHandlerMaster(CloudHandlerAgent):
                     FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')
                 """)
                 if cursor.rowcount == 0:
-                    num_bots = num_servers = 0
+                    num_bots = 1
+                    num_servers = 0
                 else:
                     row = cursor.fetchone()
                     num_bots = row[0]
