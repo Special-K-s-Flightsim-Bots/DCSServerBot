@@ -2,6 +2,9 @@ import os
 import re
 import shlex
 import subprocess
+
+import discord
+
 from core import Plugin, DCSServerBot, TEventListener, utils, Server, Status, Report
 from discord.ext import commands
 from discord.ext.commands import Command
@@ -127,9 +130,11 @@ class Commands(Plugin):
             await ctx.send(embed=env.embed)
         elif data:
             if len(data) > 1:
+                embed = discord.Embed(color=discord.Color.blue())
                 for ret in data:
                     name = re.sub(self.bot.config['FILTER']['SERVER_FILTER'], '', ret['server_name']).strip()
-                    await ctx.send(f"{name}: {ret['value']}")
+                    embed.add_field(name=name or '_ _', value=ret['value'] or '_ _', inline=False)
+                await ctx.send(embed=embed)
             else:
                 await ctx.send(data[0]['value'])
 
