@@ -54,6 +54,8 @@ class Server(DataObject):
         self.status_change = asyncio.Event()
         if os.path.exists('config/servers.yaml'):
             data = yaml.safe_load(Path('config/servers.yaml').read_text())
+            if not data.get(self.name):
+                self.log.warning(f'No configuration found for server {self.name} in server.yaml!')
             self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
 
     @property

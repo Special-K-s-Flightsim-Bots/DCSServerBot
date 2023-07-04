@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
-    InstanceProxy, NodeProxy
+    InstanceProxy, NodeProxy, Node
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
@@ -250,7 +250,7 @@ class ServiceBus(Service):
             server.public_ip = public_ip
         server.status = Status(status)
 
-    def sendtoBot(self, data: dict, node: Optional[str] = None):
+    def sendtoBot(self, data: dict, *, node: Optional[str] = None):
         if self.master:
             if node and node != platform.node():
                 self.log.debug('MASTER->{}: {}'.format(node, json.dumps(data)))
@@ -285,7 +285,7 @@ class ServiceBus(Service):
             self.udp_server.message_queue[data['server_name']].put(data)
 
     async def handle_agent(self, data: dict):
-        self.log.debug(f"MASTER->{data['node']}: {json.dumps(data)}")
+        self.log.debug(f"MASTER->{data.get('node', 'UNKNOWN')}: {json.dumps(data)}")
         if data['command'] == 'rpc':
             if data.get('object') == 'Server':
                 obj = self.servers[data['server_name']]

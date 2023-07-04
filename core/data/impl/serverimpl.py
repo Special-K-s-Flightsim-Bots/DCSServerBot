@@ -199,15 +199,16 @@ class ServerImpl(Server):
                     for plugin in bot.cogs.values():  # type: Plugin
                         plugin.rename(conn, self.name, new_name)
                 else:
-                    self.bus.sendtoBot({
-                        "command": "rpc",
-                        "service": "ServiceBus",
-                        "method": "rename",
-                        "params": {
-                            "old_name": self.name,
-                            "new_name": new_name
-                        }
-                    })
+                    for n in self.node.get_active_nodes():
+                        self.bus.sendtoBot({
+                            "command": "rpc",
+                            "service": "ServiceBus",
+                            "method": "rename",
+                            "params": {
+                                "old_name": self.name,
+                                "new_name": new_name
+                            }
+                        }, node=n)
                 conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
                              (new_name, self.name))
                 conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',

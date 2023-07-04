@@ -330,7 +330,7 @@ class Admin(Plugin):
                         "command": "rpc",
                         "service": "Node",
                         "method": "shutdown"
-                    })
+                    }, node=n)
                 await interaction.followup.send(f'Node {node} shut down.')
 
     @command(description='Upgrades the bot on all nodes')
@@ -347,7 +347,7 @@ class Admin(Plugin):
                 "command": "rpc",
                 "service": "Node",
                 "method": "upgrade"
-            })
+            }, node=n)
             await interaction.followup.send(f'Node {n} upgraded.')
         await interaction.followup.send(f'Active node is going to be upgraded **NOW**.', ephemeral=True)
         self.bot.node.upgrade()

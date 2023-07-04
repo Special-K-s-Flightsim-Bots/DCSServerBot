@@ -14,6 +14,7 @@ class NodeProxy(Node):
         self.local_node = local_node
         self.pool = self.local_node.pool
         self.log = self.local_node.log
+        self.locals = self.read_locals()
 
     @property
     def master(self) -> bool:
