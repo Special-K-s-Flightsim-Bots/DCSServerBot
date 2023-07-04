@@ -9,6 +9,7 @@ class Node:
     def __init__(self, name: str):
         self.name = name
         self.instances: list[Instance] = list()
+        self.config = self.read_config()
 
     @property
     def master(self) -> bool:

@@ -44,7 +44,6 @@ class NodeImpl(Node):
 
     def __init__(self):
         super().__init__(platform.node())
-        self.config = self.read_config()
         self.guild_id: int = int(self.config['guild_id'])
         self._public_ip: Optional[str] = None
         self.listen_address = self.config.get('listen_address', '0.0.0.0')
