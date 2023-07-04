@@ -51,42 +51,51 @@ class Commands(Plugin):
             await ctx.send('Done.')
 
     async def event(self, ctx: commands.Context, config: dict, **kwargs) -> list[dict]:
-        if 'sync' in config:
-            if 'server' in kwargs:
-                server = kwargs['server']
+        async def do_send(server: Server):
+            if 'sync' in config:
                 if server.status != Status.SHUTDOWN:
-                    return [await server.sendtoDCSSync(config)]
+                    return await server.sendtoDCSSync(config)
                 else:
-                    return []
+                    await ctx.send(f'Server {server.name} is {server.status.name}.')
+                    return None
             else:
-                ret = []
-                for server in self.bot.servers.values():
-                    if server.status != Status.SHUTDOWN:
-                        ret.append(await server.sendtoDCSSync(config))
-                return ret
-        elif 'sync' not in config:
-            if 'server' in kwargs:
-                server = kwargs['server']
                 if server.status != Status.SHUTDOWN:
                     server.sendtoDCS(config)
                     await ctx.send(f'Event sent to {server.name}.')
                 else:
                     await ctx.send(f'Server {server.name} is {server.status.name}.')
+                return None
+
+        ret = []
+        if 'server' in kwargs:
+            if isinstance(kwargs['server'], Server):
+                rc = await do_send(kwargs['server'])
+                if rc:
+                    ret.append(rc)
             else:
-                for server in self.bot.servers.values():
-                    if server.status != Status.SHUTDOWN:
-                        server.sendtoDCS(config)
-                        await ctx.send(f'Event sent to {server.name}.')
-                    else:
-                        await ctx.send(f'Server {server.name} is {server.status.name}.')
-                await ctx.send('Done.')
+                for server in kwargs['server']:  # type: Server
+                    rc = await do_send(server)
+                    if rc:
+                        ret.append(rc)
+        else:
+            for server in self.bot.servers.values():
+                rc = await do_send(server)
+                if rc:
+                    ret.append(rc)
+        return ret
 
     async def exec_command(self, ctx: commands.Context, *args):
         config = self.commands[ctx.command.name]
         if 'server' in config:
-            server: Server = self.bot.servers[config['server']]
+            if isinstance(config['server'], str):
+                server = self.bot.servers[config['server']]
+            elif isinstance(config['server'], list):
+                server = [self.bot.servers[x] for x in config['server']]
+            else:
+                self.log.error("server must be string or list in commands.json!")
+                return
         else:
-            server: Server = await self.bot.get_server(ctx)
+            server = await self.bot.get_server(ctx)
         if 'server_only' in config and config['server_only'] and not server:
             return
         if 'params' in config:

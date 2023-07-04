@@ -49,14 +49,17 @@ class MusicPlayer(PlayerBase):
         for idx, title in enumerate(self.titles):
             playlist.append(
                 f"{idx + 1}. - {utils.escape_string(title)}")
-        embed.add_field(name='_ _', value='\n'.join(playlist) or '- empty -')
+        all_songs = '\n'.join(playlist) or '- empty -'
+        embed.add_field(name='_ _', value=all_songs[:1024])
         footer = "▬" * 37 + "\n"
         self.clear_items()
         # Select Song
         if self.titles:
             select = Select(placeholder="Pick a song from the list")
             select.options = [
-                SelectOption(label=x[:25], value=str(idx)) for idx, x in enumerate(self.titles)
+                SelectOption(label=x[:25], value=str(idx))
+                for idx, x in enumerate(self.titles)
+                if idx < 25
             ]
             select.callback = self.play
             self.add_item(select)
