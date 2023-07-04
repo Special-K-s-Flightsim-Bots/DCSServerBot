@@ -99,7 +99,7 @@ class ServiceBus(Service):
             "params": {
                 "server_name": server.name,
                 "public_ip": self.node.locals.get('public_ip', await utils.get_public_ip()),
-                "status": Status.UNREGISTERED.value,
+                "status": server.status.value,
                 "instance": server.instance.name,
                 "settings": server.settings,
                 "options": server.options
