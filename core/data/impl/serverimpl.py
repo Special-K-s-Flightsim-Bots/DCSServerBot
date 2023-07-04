@@ -401,3 +401,18 @@ class ServerImpl(Server):
                 miz.save()
             except Exception as ex:
                 self.log.exception("Exception while parsing mission: ", exc_info=ex)
+
+    async def keep_alive(self):
+        # we set a longer timeout in here because, we don't want to risk false restarts
+        timeout = 20 if self.node.locals.get('slow_system', False) else 10
+        data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE servers SET last_seen = NOW() WHERE node = %s AND server_name = %s',
+                             (platform.node(), self.name))
+        if data['pause'] and self.status == Status.RUNNING:
+            self.status = Status.PAUSED
+        elif not data['pause'] and self.status != Status.RUNNING:
+            self.status = Status.RUNNING
+        self.current_mission.mission_time = data['mission_time']
+        self.current_mission.real_time = data['real_time']

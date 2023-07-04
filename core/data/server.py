@@ -1,7 +1,6 @@
 from __future__ import annotations
 import asyncio
 import os
-import platform
 import uuid
 import yaml
 from contextlib import suppress
@@ -311,21 +310,6 @@ class Server(DataObject):
 
         if self.status not in status:
             await asyncio.wait_for(wait(status), timeout)
-
-    async def keep_alive(self):
-        # we set a longer timeout in here because, we don't want to risk false restarts
-        timeout = 20 if self.node.locals.get('slow_system', False) else 10
-        data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE servers SET last_seen = NOW() WHERE node = %s AND server_name = %s',
-                             (platform.node(), self.name))
-        if data['pause'] and self.status == Status.RUNNING:
-            self.status = Status.PAUSED
-        elif not data['pause'] and self.status != Status.RUNNING:
-            self.status = Status.RUNNING
-        self.current_mission.mission_time = data['mission_time']
-        self.current_mission.real_time = data['real_time']
 
     async def shutdown(self, force: bool = False) -> None:
         slow_system = self.node.locals.get('slow_system', False)
