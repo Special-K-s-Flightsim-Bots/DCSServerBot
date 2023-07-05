@@ -296,7 +296,7 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def status(self, interaction: discord.Interaction):
-        embed = discord.Embed(title=f"Server Status ({platform.node()})", color=discord.Color.blue())
+        embed = discord.Embed(title=f"Server Status", color=discord.Color.blue())
         names = []
         status = []
         nodes = []

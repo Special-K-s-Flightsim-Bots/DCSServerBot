@@ -16,7 +16,7 @@ import yaml
 import zipfile
 
 from contextlib import closing
-from core import utils, ServiceRegistry, DataObjectFactory, Instance, Server, LICENSES_URL, InstanceImpl, Node
+from core import utils
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from matplotlib import font_manager
@@ -24,11 +24,16 @@ from pathlib import Path
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
-from services import Dashboard, BotService
-from typing import cast, Optional, Union
+from typing import Optional, Union
 from version import __version__
 
+from core.data.dataobject import DataObjectFactory
 from core.data.node import Node
+from core.data.instance import Instance
+from core.data.impl.instanceimpl import InstanceImpl
+from core.data.server import Server
+from core.services.registry import ServiceRegistry
+from core.utils.dcs import LICENSES_URL
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -215,8 +220,8 @@ class NodeImpl(Node):
                         zip_ref.extractall('fonts')
 
                     os.remove('fonts/temp.zip')
-                    for font in font_manager.findSystemFonts('fonts'):
-                        font_manager.fontManager.addfont(font)
+                    for f in font_manager.findSystemFonts('fonts'):
+                        font_manager.fontManager.addfont(f)
                     self.log.info('- CJK font installed and loaded.')
 
                 fonts = {
@@ -227,8 +232,8 @@ class NodeImpl(Node):
 
                 asyncio.get_event_loop().create_task(fetch_file(fonts[font]))
             else:
-                for font in font_manager.findSystemFonts('fonts'):
-                    font_manager.fontManager.addfont(font)
+                for f in font_manager.findSystemFonts('fonts'):
+                    font_manager.fontManager.addfont(f)
                 self.log.debug('- CJK fonts loaded.')
 
     def install_plugins(self):
@@ -289,7 +294,7 @@ class NodeImpl(Node):
         subprocess.run(['dcs_updater.exe', '--quiet', what, module], executable=os.path.expandvars(
             self.locals['DCS']['installation']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
 
-    def get_installed_modules(self, path: str) -> set[str]:
+    def get_installed_modules(self) -> set[str]:
         with open(os.path.join(self.locals['DCS']['installation'], 'autoupdate.cfg'), encoding='utf8') as cfg:
             data = json.load(cfg)
         return set(data['modules'])
@@ -371,43 +376,3 @@ class NodeImpl(Node):
                         AND master is False 
                         AND last_seen > (DATE(NOW()) - interval '1 minute')
                     """, (self.guild_id, ))]
-
-    async def run(self):
-        await self.register()
-        async with ServiceRegistry(node=self) as registry:
-            bus = registry.new("ServiceBus")
-            if self.master:
-                await self.install_fonts()
-                # config = registry.new("Configuration")
-                # asyncio.create_task(config.start())
-                bot = cast(BotService, registry.new("Bot"))
-                asyncio.create_task(bot.start())
-            asyncio.create_task(bus.start())
-            asyncio.create_task(registry.new("Monitoring").start())
-            asyncio.create_task(registry.new("Backup").start())
-            if self.config.get('use_dashboard', True):
-                dashboard = cast(Dashboard, registry.new("Dashboard"))
-                asyncio.create_task(dashboard.start())
-            while True:
-                # wait until the master changes
-                while self.master == self.check_master():
-                    await asyncio.sleep(1)
-                # switch master
-                self.master = not self.master
-                if self.master:
-                    self.log.info("Master is not responding... taking over.")
-                    if self.config.get('use_dashboard', True):
-                        await dashboard.stop()
-                    await self.install_fonts()
-                    # config = registry.new("Configuration")
-                    # asyncio.create_task(config.start())
-                    bot = cast(BotService, registry.new("Bot"))
-                    asyncio.create_task(bot.start())
-                else:
-                    self.log.info("Second Master found, stepping back to Agent configuration.")
-                    if self.config.get('use_dashboard', True):
-                        await dashboard.stop()
-                    # await config.stop()
-                    await bot.stop()
-                if self.config.get('use_dashboard', True):
-                    await dashboard.start()
