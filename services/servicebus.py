@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
-    InstanceProxy, NodeProxy, Node
+    InstanceProxy, NodeProxy
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
@@ -169,6 +169,9 @@ class ServiceBus(Service):
         webgui_ports: dict[int, str] = dict()
         webrtc_ports: dict[int, str] = dict()
         for server in self.servers.values():
+            # only check ports of local servers
+            if server.is_remote:
+                continue
             dcs_port = server.settings.get('port', 10308)
             if dcs_port in dcs_ports:
                 self.log.error(f'Server "{server.name}" shares its DCS port with server '

@@ -309,7 +309,7 @@ class Admin(Plugin):
             embed.add_field(name='Status', value='\n'.join(status))
             embed.add_field(name='Node', value='\n'.join(nodes))
             embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @command(description='Stop a specific node')
     @app_commands.guild_only()
