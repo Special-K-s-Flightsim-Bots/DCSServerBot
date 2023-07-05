@@ -157,12 +157,14 @@ class GameMasterEventListener(EventListener):
     @event(name="stopCampaign")
     async def stopCampaign(self, server: Server, data: dict) -> None:
         _, name = utils.get_running_campaign(server)
-        self.campaign('delete', name=name)
+        if name:
+            self.campaign('delete', name=name)
 
     @event(name="resetCampaign")
     async def resetCampaign(self, server: Server, data: dict) -> None:
         _, name = utils.get_running_campaign(server)
-        self.campaign('delete', name=name)
+        if name:
+            self.campaign('delete', name=name)
         self.campaign('start', servers=[server])
 
     async def _join(self, server: Server, player: Player, params: list[str]):
