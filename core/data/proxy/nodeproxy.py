@@ -9,12 +9,13 @@ from core.data.proxy.instanceproxy import InstanceProxy
 
 
 class NodeProxy(Node):
-    def __init__(self, local_node: Any, name: str):
+    def __init__(self, local_node: Any, name: str, public_ip: str):
         super().__init__(name)
         self.local_node = local_node
         self.pool = self.local_node.pool
         self.log = self.local_node.log
         self.locals = self.read_locals()
+        self._public_ip = public_ip
 
     @property
     def master(self) -> bool:
@@ -26,7 +27,7 @@ class NodeProxy(Node):
 
     @property
     def public_ip(self) -> str:
-        raise NotImplemented()
+        return self._public_ip
 
     @property
     def installation(self) -> str:

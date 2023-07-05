@@ -21,6 +21,9 @@ class GameMasterEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
+        # TODO: move chat logging to each server
+        if server.is_remote:
+            return
         if server.locals.get('chat_log') and server.name not in self.chat_log:
             self.chat_log[server.name] = logging.getLogger(name=f'chat-{server.name}')
             self.chat_log[server.name].setLevel(logging.INFO)

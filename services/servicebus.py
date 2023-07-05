@@ -232,8 +232,8 @@ class ServiceBus(Service):
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
                            options: dict, node: str):
         server = self.servers.get(server_name)
-        node = NodeProxy(self.node, node)
         if not server:
+            node = NodeProxy(self.node, node, public_ip)
             server = ServerProxy(
                 node=node,
                 port=-1,
@@ -251,7 +251,7 @@ class ServiceBus(Service):
             self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node.name} registered.")
         else:
             # IP might have changed, so update it
-            server.public_ip = public_ip
+            server.node.public_ip = public_ip
         server.status = Status(status)
 
     def sendtoBot(self, data: dict, *, node: Optional[str] = None):
