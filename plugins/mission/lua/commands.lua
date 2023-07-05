@@ -348,6 +348,9 @@ function dcsbot.sendPopupMessage(json)
 end
 
 function dcsbot.uploadUserRoles(json)
-    log.write('DCSServerBot', log.DEBUG, 'Mission: uploadUserRoles()')
-    dcsbot.userInfo[json.ucid].roles = json.roles
+	log.write('DCSServerBot', log.DEBUG, 'Mission: uploadUserRoles()')
+	if dcsbot.userInfo[json.ucid] == nil then
+		dcsbot.userInfo[json.ucid] = {}
+	end
+    	dcsbot.userInfo[json.ucid].roles = json.roles
 end
