@@ -57,7 +57,7 @@ get the idea) and dir as a shell command.
     {
       "name": "mission_status",     -- new Discord command .mission_status
       "description": "Display Mission Status",
-      "server": "My Server Name",   -- run it on a specific server only
+      "server": "My Server Name",   -- run it on a specific server only, can be a list of servers with []
       "event": {
         "sync": true,               -- we need to wait for the response
         "command": "getVariable",   -- send a getVariable event
