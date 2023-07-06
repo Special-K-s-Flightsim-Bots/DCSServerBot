@@ -46,6 +46,39 @@ class PunishmentAgent(Plugin):
                 return None
         return self._config[server.name] if server.name in self._config else None
 
+    @commands.command(name='punish', description='Adds punishment points to a user', usage='<member|ucid> <points>')
+    @utils.has_role('DCS Admin')
+    @commands.guild_only()
+    async def _punish(self, ctx, user: Union[discord.Member, str], points: int):
+        server: Server = await self.bot.get_server(ctx)
+        if not server:
+            return
+        if isinstance(user, str) and len(user) != 32:
+            await ctx.send(f'Usage: {ctx.prefix}punish <@member|ucid> <points>')
+            return
+        if isinstance(user, str):
+            if len(user) < 32:
+                await ctx.send(f'Usage: {ctx.prefix}punish <@member|ucid> <points>')
+                return
+            else:
+                ucid = user
+        else:
+            ucid = self.bot.get_ucid_by_member(user)
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("""
+                    INSERT INTO pu_events (init_id, server_name, event, points)
+                    VALUES (%s, %s, %s, %s) 
+                """, (ucid, server.name, 'admin', points))
+            conn.commit()
+            await ctx.send(f'User punished with {points} points.')
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+
     async def punish(self, server: Server, player: Player, punishment: dict, reason: str):
         if punishment['action'] == 'ban':
             conn = self.pool.getconn()

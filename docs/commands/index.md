@@ -113,10 +113,11 @@ These commands can be used to administrate the bot itself.
 
 ## Plugin Punishment
 
-| Command  | Parameter         | Channel | Role      | Description                                            |
-|----------|-------------------|---------|-----------|--------------------------------------------------------|
-| .forgive | \<member>/\<ucid> | all     | DCS Admin | Deletes all punishment points for this member / user.  |
-| .penalty | [member] / [ucid] | all     | DCS       | Displays the players penalty points.                   |
+| Command  | Parameter                     | Channel | Role      | Description                                            |
+|----------|-------------------------------|---------|-----------|--------------------------------------------------------|
+| .forgive | \<member>/\<ucid>             | all     | DCS Admin | Deletes all punishment points for this member / user.  |
+| .penalty | [member] / [ucid]             | all     | DCS       | Displays the players penalty points.                   |
+| .punish  | \<member> / \<ucid> \<points> | Admin   | DCS Admin | Add punishment points to a user.                       |
 
 ## Plugin Scheduler
 

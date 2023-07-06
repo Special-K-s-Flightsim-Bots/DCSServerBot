@@ -111,17 +111,18 @@ class SRS(Extension):
         return version
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        if self.locals:
-            host = self.config['host'] if 'host' in self.config else self.bot.external_ip
-            value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
-            show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
-            if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] == 'true' and \
-                    'External AWACS Mode Settings' in self.locals:
-                blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
-                red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
-                if blue or red:
-                    value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
-            embed.add_field(name="SRS (online)" if self.is_running() else "SRS (offline)", value=value)
+        if not self.locals:
+            return
+        host = self.config['host'] if 'host' in self.config else self.bot.external_ip
+        value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
+        show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
+        if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] == 'true' and \
+                'External AWACS Mode Settings' in self.locals:
+            blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
+            red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
+            if blue or red:
+                value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
+        embed.add_field(name="SRS (online)" if self.is_running() else "SRS (offline)", value=value)
 
     def is_installed(self) -> bool:
         global ports

@@ -83,10 +83,11 @@ Decay can only be configured once, so there is no need for a server specific con
 
 ## Discord Commands
 
-| Command  | Parameter         | Channel | Role      | Description                                            |
-|----------|-------------------|---------|-----------|--------------------------------------------------------|
-| .forgive | \<member>/\<ucid> | all     | DCS Admin | Deletes all punishment points for this member / user.  |
-| .penalty | [member] / [ucid] | all     | DCS       | Displays the players penalty points.                   |
+| Command  | Parameter                     | Channel | Role      | Description                                           |
+|----------|-------------------------------|---------|-----------|-------------------------------------------------------|
+| .forgive | \<member> / \<ucid>           | all     | DCS Admin | Deletes all punishment points for this member / user. |
+| .penalty | [member] / [ucid]             | all     | DCS       | Displays the players penalty points.                  |
+| .punish  | \<member> / \<ucid> \<points> | Admin   | DCS Admin | Add punishment points to a user.                      |
 
 ## How to use the penalty system inside of missions
 To use the penalty system inside of missions, you can use the commands

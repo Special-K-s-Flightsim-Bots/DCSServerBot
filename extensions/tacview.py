@@ -91,6 +91,8 @@ class Tacview(Extension):
         return version
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+        if not self.locals:
+            return
         name = 'Tacview'
         if not self.locals.get('tacviewModuleEnabled', True):
             value = 'disabled'
