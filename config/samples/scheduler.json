@@ -52,11 +52,11 @@
       "restart": {
         "method": "rotate",
         "local_times": ["00:00", "04:00", "08:00"],
-        "populated": true,
-        "settings": {
-          "00:00-07:59": "Winter,Nighttime,Sounds",
-          "08:00-11:59": "Summer,Noon,Sounds"
-        }
+        "populated": true
+      },
+      "settings": {
+        "00:00-07:59": "Winter,Nighttime,Sounds",
+        "08:00-11:59": "Summer,Noon,Sounds"
       },
       "extensions": {
         "SRS": {
@@ -73,12 +73,12 @@
       "restart": {
         "method": "restart_with_shutdown",
         "mission_time": 480,
-        "populated": false,
-        "settings": [
-          "Winter,Late Evening,Heavy Storm,Sounds",
-          "Summer,Morning,Slight Breeze,Sounds"
-        ]
+        "populated": false
       },
+      "settings": [
+        "Winter,Late Evening,Heavy Storm,Sounds",
+        "Summer,Morning,Slight Breeze,Sounds"
+      ],
       "extensions": {
         "SRS": {
           "config": "%USERPROFILE%\\Saved Games\\instance3\\Config\\SRS.cfg"
