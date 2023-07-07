@@ -29,6 +29,10 @@ class NodeProxy(Node):
     def public_ip(self) -> str:
         return self._public_ip
 
+    @public_ip.setter
+    def public_ip(self, public_ip: str):
+        self._public_ip = public_ip
+
     @property
     def installation(self) -> str:
         raise NotImplemented()

@@ -1,7 +1,6 @@
 .env
 __pycache__/
 *.db
-*.log*
 config/dcsserverbot.ini
 config/*.json
 config/*.yaml
@@ -20,3 +19,4 @@ Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 /build/
 /fonts/
 /Music/
+/logs/

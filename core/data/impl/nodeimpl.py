@@ -147,7 +147,8 @@ class NodeImpl(Node):
         formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S')
         formatter.converter = time.gmtime
-        fh = RotatingFileHandler(f'dcssb-{self.name}.log', encoding='utf-8',
+        os.makedirs('logs', exist_ok=True)
+        fh = RotatingFileHandler(os.path.join('logs', f'dcssb-{self.name}.log'), encoding='utf-8',
                                  maxBytes=self.config['logging']['logrotate_size'],
                                  backupCount=self.config['logging']['logrotate_count'])
         fh.setLevel(LOGLEVEL[self.config['logging']['loglevel']])
@@ -178,7 +179,7 @@ class NodeImpl(Node):
                     # initial setup
                     if len(tables) == 0:
                         self.log.info('Initializing Database ...')
-                        with open('tables.sql') as tables_sql:
+                        with open('sql/tables.sql') as tables_sql:
                             for query in tables_sql.readlines():
                                 self.log.debug(query.rstrip())
                                 cursor.execute(query.rstrip())

@@ -21,15 +21,13 @@ class GameMasterEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        # TODO: move chat logging to each server
-        if server.is_remote:
-            return
         if server.locals.get('chat_log') and server.name not in self.chat_log:
+            os.makedirs('logs', exist_ok=True)
             self.chat_log[server.name] = logging.getLogger(name=f'chat-{server.name}')
             self.chat_log[server.name].setLevel(logging.INFO)
             formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
                                           datefmt='%Y-%m-%d %H:%M:%S')
-            filename = os.path.join(server.instance.home, r'Logs\chat.log')
+            filename = os.path.join('logs', f'{utils.slugify(server.name)}-chat.log')
             fh = RotatingFileHandler(filename, encoding='utf-8',
                                      maxBytes=int(server.locals['chat_log'].get('size', 1048576)),
                                      backupCount=int(server.locals['chat_log'].get('count', 10)))
