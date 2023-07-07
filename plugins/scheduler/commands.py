@@ -233,6 +233,8 @@ class Scheduler(Plugin):
                         server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
                                                                                 when=utils.format_time(warn_time)),
                                                 self.bot.config['BOT']['MESSAGE_TIMEOUT'])
+                        if 'sound' in config['warn']:
+                            server.playSound(Coalition.ALL, config['warn']['sound'])
                         events_channel = server.get_channel(Channel.EVENTS)
                         if events_channel:
                             await events_channel.send(warn_text.format(item=item, what=what,
@@ -315,6 +317,8 @@ class Scheduler(Plugin):
                 miz.miscellaneous = value['miscellaneous']
             if 'difficulty' in value:
                 miz.difficulty = value['difficulty']
+            if 'files' in value:
+                miz.files = value['files']
 
         filename = server.get_current_mission_file()
         if not filename:

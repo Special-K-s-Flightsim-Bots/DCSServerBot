@@ -212,3 +212,10 @@ class Player(DataObject):
             "message": message,
             "time": timeout
         })
+
+    def playSound(self, sound: str):
+        self.sendtoDCS({
+            "command": "playSound",
+            "to": self.unit_name,
+            "sound": sound
+        })

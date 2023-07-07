@@ -22,7 +22,8 @@ To be able to create a message on "birth", `MISSION_STATISTICS = true` has to be
         "message": "{player[name]}, welcome to {server[server_name]}!",         -- OR
         "report": "greetings.json",                                             -- report file, has to be placed in /reports/motd
         "display_type": "popup",                                                -- chat or popup
-        "display_time": 20                                                      -- only relevant for popup
+        "display_time": 20,                                                     -- only relevant for popup
+        "sound": "notify.ogg"                                                   -- play this sound (has to be loaded first!)
       },
       "nudge": {
         "delay": 600,                                                           -- every 10 mins
@@ -44,6 +45,9 @@ To be able to create a message on "birth", `MISSION_STATISTICS = true` has to be
 
 recipients can be a list of Discord groups that the player either is part of or not (!).
 !@everyone means, this message is for people that are not a member of your Discord only.
+
+If you want to play sounds, make sure that you loaded them into the mission first (see Scheduler).
+
 
 ### Optional Nudge Layout for multiple Recipient Groups
 

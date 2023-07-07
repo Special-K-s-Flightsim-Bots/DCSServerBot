@@ -4,7 +4,8 @@
       "on_birth": {
         "message": "{player.name}, welcome to {server.name}!",
         "display_type": "popup",
-        "display_time": 20
+        "display_time": 20,
+        "sound": "notify.ogg"
       },
       "nudge": {
         "delay": 600,

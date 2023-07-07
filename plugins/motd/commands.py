@@ -62,8 +62,12 @@ class MessageOfTheDay(Plugin):
             timeout = config['display_time'] if 'display_time' in config else self.bot.config['BOT']['MESSAGE_TIMEOUT']
             if player:
                 player.sendPopupMessage(message, timeout)
+                if 'sound' in config:
+                    player.playSound(config['sound'])
             else:
                 server.sendPopupMessage(Coalition.ALL, message, timeout)
+                if 'sound' in config:
+                    server.playSound(Coalition.ALL, config['sound'])
 
     @staticmethod
     def get_recipients(server: Server, config: dict) -> list[Player]:
