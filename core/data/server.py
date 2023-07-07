@@ -303,6 +303,13 @@ class Server(DataObject):
             "time": timeout
         })
 
+    def playSound(self, coalition: Coalition, sound: str):
+        self.sendtoDCS({
+            "command": "playSound",
+            "to": coalition.value,
+            "sound": sound
+        })
+
     def rename(self, new_name: str, update_settings: bool = False) -> None:
         # call rename() in all Plugins
         for plugin in self.bot.cogs.values():  # type: Plugin

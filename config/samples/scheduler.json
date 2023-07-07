@@ -3,7 +3,8 @@
     {
       "warn": {
         "times": [ 600, 300, 60, 10],
-        "text": "!!! {item} will {what} in {when} !!!"
+        "text": "!!! {item} will {what} in {when} !!!",
+        "sounds": "notify.ogg"
       },
       "presets": {
         "Winter": {"date": "2016-01-10", "temperature": -10},
@@ -15,7 +16,8 @@
         "Late Evening": {"start_time": "22:00"},
         "Slight Breeze":  {"clouds": "Preset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
         "Rainy":  {"clouds": "RainyPreset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
-        "Heavy Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}}
+        "Heavy Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}},
+        "Sounds": ["sounds/alarm.ogg", "sounds/beep.ogg", "sounds/chirp.ogg", "sounds/morse.ogg", "sounds/notify.ogg", "sounds/page.ogg"]
       },
       "extensions": {
         "SRS": {
@@ -52,8 +54,8 @@
         "local_times": ["00:00", "04:00", "08:00"],
         "populated": true,
         "settings": {
-          "00:00-07:59": "Winter,Nighttime",
-          "08:00-11:59": "Summer,Noon"
+          "00:00-07:59": "Winter,Nighttime,Sounds",
+          "08:00-11:59": "Summer,Noon,Sounds"
         }
       },
       "extensions": {
@@ -73,8 +75,8 @@
         "mission_time": 480,
         "populated": false,
         "settings": [
-          "Winter,Late Evening,Heavy Storm",
-          "Summer,Morning,Slight Breeze"
+          "Winter,Late Evening,Heavy Storm,Sounds",
+          "Summer,Morning,Slight Breeze,Sounds"
         ]
       },
       "extensions": {

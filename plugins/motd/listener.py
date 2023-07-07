@@ -15,6 +15,8 @@ class MessageOfTheDayListener(EventListener):
             report = Report(self.bot, self.plugin_name, config['on_birth']['report'])
             env = await report.render(server=server, player=player, guild=self.bot.guilds[0])
             message = utils.embed_to_simpletext(env.embed)
+        if 'sound' in config['on_birth']:
+            player.playSound(config['on_birth']['sound'])
         return message
 
     @event(name="onPlayerStart")

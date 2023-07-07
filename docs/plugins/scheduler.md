@@ -23,7 +23,8 @@ Examples:
     {
       "warn": {
         "times": [ 600, 300, 60, 10],         -- warn users at 10 mins, 5 mins, 1 min and 10 sec before the event
-        "text": "!!! {item} will {what} in {when} !!!"
+        "text": "!!! {item} will {what} in {when} !!!",
+        "sound": "notify.ogg"                 -- play this sound (needs to be loaded with a preset first!)
       },
       "presets": {                            -- Weather presets (see below)
           "Winter": { "date": "2016-01-10", "temperature": -10 },
@@ -37,7 +38,8 @@ Examples:
           "Calm": {"clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
           "Windy": {"clouds": "Preset3", "wind": {"at8000":  {"speed": 15, "dir":  105}, "at2000": {"speed" 10, "dir": 130}, "atGround": {"speed": 10, "dir": 20}}},
           "Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}, "hidden":  true},
-          "Default": ["Summer", "Morning", "Calm"]
+          "Default": ["Summer", "Morning", "Calm"],
+          "Sounds": ["sounds/notify.ogg"] 
       },
       "extensions": {
         "SRS": {
@@ -81,10 +83,10 @@ Examples:
         "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"]
       },
       "settings": {                         -- Weather will change on a timed basis
-        "00:00-07:59": "Winter, Night, Calm",
-        "08:00-11:59": "Winter, Morning, Windy",
-        "12:00-19:59": "Summer, Noon, Calm",
-        "20:00-23:59": "Summer, Night, Storm",
+        "00:00-07:59": "Winter, Night, Calm, Sounds",
+        "08:00-11:59": "Winter, Morning, Windy, Sounds",
+        "12:00-19:59": "Summer, Noon, Calm, Sounds",
+        "20:00-23:59": "Summer, Night, Storm, Sounds",
       }
       "onMissionEnd": "load:Scripts/net/persist.lua", -- load a specific lua on restart 
       "onShutdown": "run:shutdown /s"                 -- shutdown the PC when DCS is shut down
@@ -107,8 +109,8 @@ Examples:
         "23:00-00:00": "NNNNNPN"              -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated
       },
       "settings": [                         -- Weather will change randomly
-        "Winter, Morning, Windy",
-        "Summer, Morning, Calm"
+        "Winter, Morning, Windy, Sounds",
+        "Summer, Morning, Calm, Sounds"
       ],
       "onMissionStart": "load:Script/net/f10menu.lua"  -- load some lua in the mission on mission start
     }
