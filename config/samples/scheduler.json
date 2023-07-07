@@ -4,7 +4,7 @@
       "warn": {
         "times": [ 600, 300, 60, 10],
         "text": "!!! {item} will {what} in {when} !!!",
-        "sounds": "notify.ogg"
+        "sound": "notify.ogg"
       },
       "presets": {
         "Winter": {"date": "2016-01-10", "temperature": -10},
