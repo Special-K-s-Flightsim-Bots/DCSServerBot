@@ -1,6 +1,4 @@
 from __future__ import annotations
-import discord
-
 from core import Server, Status, utils, UploadStatus
 from dataclasses import dataclass, field
 from typing import Optional, Union, TYPE_CHECKING
@@ -118,14 +116,15 @@ class ServerProxy(Server):
         })
 
     async def bans(self) -> list[str]:
-        return await self.sendtoDCSSync({
+        data = await self.sendtoDCSSync({
             "command": "rpc",
             "object": "Server",
             "method": "bans"
         })
+        return data["return"]
 
     async def is_banned(self, ucid: str) -> bool:
-        return await self.sendtoDCSSync({
+        data = await self.sendtoDCSSync({
             "command": "rpc",
             "object": "Server",
             "method": "is_banned",
@@ -133,6 +132,7 @@ class ServerProxy(Server):
                 "ucid": ucid
             }
         })
+        return data["return"]
 
     async def modifyMission(self, preset: Union[list, dict]) -> None:
         await self.sendtoDCSSync({
@@ -152,7 +152,7 @@ class ServerProxy(Server):
         })
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
-        return UploadStatus(await self.sendtoDCSSync({
+        data = await self.sendtoDCSSync({
             "command": "rpc",
             "object": "Server",
             "method": "uploadMission",
@@ -161,4 +161,5 @@ class ServerProxy(Server):
                 "url": url,
                 "force": force
             }
-        }, timeout=60))
+        }, timeout=60)
+        return UploadStatus(data["return"])
