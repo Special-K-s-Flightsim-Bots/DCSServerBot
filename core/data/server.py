@@ -99,14 +99,15 @@ class Server(DataObject):
             self.status_change.set()
             self.status_change.clear()
             if not self.node.master:
-                self.sendtoDCS({
+                self.bus.sendtoBot({
                     "command": "rpc",
                     "object": "Server",
                     "method": "status",
                     "params": {
-                        "status": self.status
-                    }
-                })
+                        "status": self.status.value
+                    },
+                    "server_name": self.name
+                }, node=self.node.name)
 
     @property
     def coalitions(self) -> bool:

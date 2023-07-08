@@ -328,7 +328,7 @@ class Admin(Plugin):
                 if n == node:
                     self.bus.sendtoBot({
                         "command": "rpc",
-                        "service": "Node",
+                        "object": "Node",
                         "method": "shutdown"
                     }, node=n)
                 await interaction.followup.send(f'Node {node} shut down.')
@@ -345,7 +345,7 @@ class Admin(Plugin):
         for n in self.bot.node.get_active_nodes():
             self.bus.sendtoBot({
                 "command": "rpc",
-                "service": "Node",
+                "object": "Node",
                 "method": "upgrade"
             }, node=n)
             await interaction.followup.send(f'Node {n} upgraded.')

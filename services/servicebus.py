@@ -3,6 +3,7 @@ import asyncio
 import concurrent
 import json
 import platform
+import traceback
 from enum import Enum
 
 import psycopg
@@ -283,7 +284,11 @@ class ServiceBus(Service):
     async def handle_master(self, data: dict):
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
         if data['command'] == 'rpc':
-            if data['service'] == 'Node':
+            if data.get('object') == 'Server':
+                obj = self.servers[data['server_name']]
+            elif data.get('object') == 'Instance':
+                obj = self.servers[data['server_name']].instance
+            elif data.get('object') == 'Node':
                 obj = self.node
             else:
                 obj = ServiceRegistry.get(data['service'])
@@ -292,8 +297,10 @@ class ServiceBus(Service):
                 return
             rc = await self.rpc(obj, data)
             if rc:
-                data['return'] = rc
-                self.sendtoBot(data, node=data['node'])
+                if isinstance(rc, Enum):
+                    rc = rc.value
+                self.sendtoBot({"command": data['method'], "channel": data['channel'], "return": rc,
+                                "server_name": data['server_name']})
         else:
             self.udp_server.message_queue[data['server_name']].put(data)
 
@@ -348,15 +355,18 @@ class ServiceBus(Service):
 
     @staticmethod
     async def rpc(obj: object, data: dict) -> Optional[dict]:
-        func = attrgetter(data.get('method'))(obj)
-        if not func:
-            return
-        kwargs = data.get('params', {})
-        if asyncio.iscoroutinefunction(func):
-            rc = await func(**kwargs) if kwargs else await func()
-        else:
-            rc = func(**kwargs) if kwargs else func()
-        return rc
+        try:
+            func = attrgetter(data.get('method'))(obj)
+            if not func:
+                return
+            kwargs = data.get('params', {})
+            if asyncio.iscoroutinefunction(func):
+                rc = await func(**kwargs) if kwargs else await func()
+            else:
+                rc = func(**kwargs) if kwargs else func()
+            return rc
+        except Exception:
+            traceback.print_exc()
 
     async def start_udp_listener(self):
         class RequestHandler(BaseRequestHandler):
