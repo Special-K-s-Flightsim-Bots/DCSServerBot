@@ -308,7 +308,8 @@ class ServiceBus(Service):
             if rc:
                 if isinstance(rc, Enum):
                     rc = rc.value
-                self.sendtoBot({"channel": data['channel'], "return": rc})
+                self.sendtoBot({"command": data['method'], "channel": data['channel'], "return": rc,
+                                "server_name": data['server_name']})
         else:
             server_name = data['server_name']
             if server_name not in self.servers:
