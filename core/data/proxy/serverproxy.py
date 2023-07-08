@@ -19,7 +19,7 @@ class ServerProxy(Server):
         data = await self.sendtoDCSSync({
             "command": "rpc",
             "object": "Server",
-            "method": "missions_dir"
+            "method": "get_missions_dir"
         })
         return data["return"]
 
