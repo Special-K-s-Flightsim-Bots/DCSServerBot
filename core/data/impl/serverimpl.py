@@ -183,13 +183,19 @@ class ServerImpl(Server):
             filename = self.current_mission.filename
         return filename
 
-    def sendtoDCS(self, message: dict):
-        # As Lua does not support large numbers, convert them to strings
+    def serialize(self, message: dict):
         for key, value in message.items():
             if isinstance(value, int):
                 message[key] = str(value)
             elif isinstance(value, Enum):
                 message[key] = value.value
+            elif isinstance(value, dict):
+                message[key] = self.serialize(value)
+        return message
+
+    def sendtoDCS(self, message: dict):
+        # As Lua does not support large numbers, convert them to strings
+        message = self.serialize(message)
         msg = json.dumps(message)
         self.log.debug(f"HOST->{self.name}: {msg}")
         dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
