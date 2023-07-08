@@ -68,7 +68,8 @@ class ServerStats(Plugin):
     @tasks.loop(minutes=1.0)
     async def schedule(self):
         for server_name, server in self.bot.servers.items():
-            if server.status not in [Status.RUNNING, Status.PAUSED]:
+            # TODO: support remote servers
+            if server.is_remote or server.status not in [Status.RUNNING, Status.PAUSED]:
                 continue
             users = len(server.get_active_players())
             if not server.process or not server.process.is_running():
