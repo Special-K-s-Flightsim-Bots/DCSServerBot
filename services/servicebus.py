@@ -370,8 +370,8 @@ class ServiceBus(Service):
                 else:
                     rc = func(**kwargs) if kwargs else func()
                 return rc
-            else:
-                for key, value in data.get('params'):
+            elif 'param' in data:
+                for key, value in data['params'].items():
                     setattr(obj, key, value)
         except Exception:
             traceback.print_exc()
