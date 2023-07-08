@@ -32,7 +32,7 @@ Examples:
           "Windy": {"clouds": "Preset3", "wind": {"at8000":  {"speed": 15, "dir":  105}, "at2000": {"speed" 10, "dir": 130}, "atGround": {"speed": 10, "dir": 20}}},
           "Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}, "hidden":  true},
           "Default": ["Summer", "Morning", "Calm"],
-          "Sounds": ["sounds/notify.ogg"] 
+          "Sounds": { "files": ["sounds/notify.ogg"] } 
       },
       "extensions": {
         "SRS": {
