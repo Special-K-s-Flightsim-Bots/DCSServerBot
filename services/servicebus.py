@@ -307,10 +307,8 @@ class ServiceBus(Service):
             rc = await self.rpc(obj, data)
             if rc:
                 if isinstance(rc, Enum):
-                    data['return'] = rc.value
-                else:
-                    data['return'] = rc
-                self.sendtoBot(data)
+                    rc = rc.value
+                self.sendtoBot({"channel": data['channel'], "return": rc})
         else:
             server_name = data['server_name']
             if server_name not in self.servers:
