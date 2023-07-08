@@ -221,21 +221,6 @@ class GameMaster(Plugin):
     # New command group "/mission"
     campaign = Group(name="campaign", description="Commands to manage DCS campaigns")
 
-    async def get_campaign_servers(self, interaction: discord.Interaction) -> list[Server]:
-        servers: list[Server] = list()
-        all_servers = list(self.bot.servers.keys())
-        if len(all_servers) == 0:
-            return []
-        elif len(all_servers) == 1:
-            return [self.bot.servers[all_servers[0]]]
-        selection = await utils.selection(interaction, title="Select all servers for this campaign",
-                                          options=[SelectOption(label=x, value=x) for x in all_servers],
-                                          max_values=len(all_servers), ephemeral=True)
-        if selection:
-            for element in selection:
-                servers.append(self.bot.servers[element])
-        return servers
-
     @campaign.command(description="Lists all (active) campaigns")
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
@@ -264,7 +249,8 @@ class GameMaster(Plugin):
             await interaction.response.send_message('Aborted.', ephemeral=True)
             return
         try:
-            servers = await self.get_campaign_servers(interaction)
+            servers = await utils.server_selection(self.bus, interaction, title="Select all servers for this campaign",
+                                                   multi_select=True)
             if not servers:
                 await interaction.followup.send('Aborted.', ephemeral=True)
                 return
@@ -316,7 +302,9 @@ class GameMaster(Plugin):
     async def start(self, interaction: discord.Interaction, campaign: str):
         try:
             await interaction.response.defer(ephemeral=True)
-            servers: list[Server] = await self.get_campaign_servers(interaction)
+            servers: list[Server] = await utils.server_selection(self.bus, interaction,
+                                                                 title="Select all servers for this campaign",
+                                                                 multi_select=True)
             self.eventlistener.campaign('start', servers=servers, name=campaign)
             await interaction.followup.send(f"Campaign {campaign} started.", ephemeral=True)
         except psycopg.errors.ExclusionViolation:

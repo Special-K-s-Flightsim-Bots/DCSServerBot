@@ -1,14 +1,13 @@
-import aiohttp
 import asyncio
 import discord
-import json
 import os
 import psycopg
 import re
+import traceback
 import yaml
 
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
-    Group, ReportEnv
+    Group, ReportEnv, UploadStatus
 from datetime import datetime
 from discord import Interaction, app_commands
 from discord.app_commands import Range
@@ -119,6 +118,10 @@ class Mission(Plugin):
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
                       delay: Optional[int] = 120, reason: Optional[str] = None):
+        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            await interaction.response.send_message(
+                f"Can't restart server {server.name} as it is {server.status.name}!", ephemeral=True)
+            return
         if server.restart_pending and not await utils.yn_question(interaction,
                                                                   'A restart is currently pending.\n'
                                                                   'Would you still like to restart the mission?'):
@@ -155,7 +158,11 @@ class Mission(Plugin):
             await msg.delete()
 
         msg = await interaction.followup.send('Mission will restart now, please wait ...', ephemeral=True)
-        await server.current_mission.restart()
+        if server.current_mission:
+            await server.current_mission.restart()
+        else:
+            await server.stop()
+            await server.start()
         await self.bot.audit("restarted mission", server=server, user=interaction.user)
         await msg.delete()
         await interaction.followup.send('Mission restarted.', ephemeral=True)
@@ -169,6 +176,10 @@ class Mission(Plugin):
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
                    mission_id: int):
+        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            await interaction.response.send_message(
+                f"Can't load mission on server {server.name} as it is {server.status.name}!", ephemeral=True)
+            return
         if server.restart_pending and not await utils.yn_question(interaction,
                                                                   'A restart is currently pending.\n'
                                                                   'Would you still like to change the mission?'):
@@ -582,52 +593,47 @@ class Mission(Plugin):
         # ignore bot messages or messages that do not contain miz attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.miz'):
             return
+        # only DCS Admin role is allowed to upload missions
+        if not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
+            return
+        # check if the upload happens in the servers admin channel (if provided)
         server: Server = await self.bot.get_server(message)
-        # only DCS Admin role is allowed to upload missions in the servers admin channel
-        if not server or not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
-            self.log.debug('### Server is none or role is not DCS Admin')
-            self.log.debug(self.bot.roles['DCS Admin'])
-            return
-        if server.is_remote:
-            await message.channel.send('Upload to remote servers not supported atm.')
-            return
+        ctx = await self.bot.get_context(message)
+        if not server:
+            # check if there is a central admin channel configured
+            if self.bot.locals.get('admin_channel') and int(self.bot.locals['admin_channel']) != message.channel.id:
+                return
+            try:
+                server = await utils.server_selection(self.bus, ctx, title="Where do you want to upload this mission to?")
+                if not server:
+                    await ctx.send('Aborted.')
+                    return
+            except Exception:
+                traceback.print_exc()
+                return
         att = message.attachments[0]
-        filename = await server.get_missions_dir() + os.path.sep + att.filename
         try:
-            ctx = await self.bot.get_context(message)
-            stopped = False
-            exists = False
-            if os.path.exists(filename):
-                exists = True
-                if await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?') is False:
+            rc = await server.uploadMission(att)
+            if rc == UploadStatus.FILE_IN_USE:
+                if not await utils.yn_question(message.interaction,
+                                               'A mission is currently active.\n'
+                                               'Do you want me to stop the DCS-server to replace it?'):
                     await message.channel.send('Upload aborted.')
                     return
-                if server.status in [Status.RUNNING, Status.PAUSED] and \
-                        os.path.normpath(server.current_mission.filename) == os.path.normpath(filename):
-                    if await utils.yn_question(message.interaction,
-                                               'A mission is currently active.\n'
-                                               'Do you want me to stop the DCS-server to replace it?') is True:
-                        await server.stop()
-                        stopped = True
-                    else:
-                        await message.channel.send('Upload aborted.')
-                        return
-            async with aiohttp.ClientSession() as session:
-                async with session.get(att.url) as response:
-                    if response.status == 200:
-                        with open(filename, 'wb') as outfile:
-                            outfile.write(await response.read())
-                    else:
-                        await message.channel.send(f'Error {response.status} while reading MIZ file!')
-            if not server.locals.get('autoscan', False):
-                server.addMission(filename)
-            name = os.path.basename(filename)[:-4]
-            await message.channel.send(
-                f'Mission "{name}" uploaded and added.' if not exists else f"Mission {name} replaced.")
+            elif rc == UploadStatus.FILE_EXISTS:
+                if not await utils.yn_question(ctx, 'File exists. Do you want to overwrite it?'):
+                    await message.channel.send('Upload aborted.')
+                    return
+            if rc != UploadStatus.OK:
+                await server.uploadMission(att, force=True)
+
+            filename = os.path.join(await server.get_missions_dir(), att.filename)
+            name = os.path.basename(att.filename)[:-4]
+            await message.channel.send(f'Mission "{name}" uploaded.')
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
-            if stopped:
-                await server.start()
-            elif server.status != Status.SHUTDOWN and await utils.yn_question(ctx, 'Do you want to load this mission?'):
+
+            if server.status != Status.SHUTDOWN and server.current_mission.filename != filename and \
+                    await utils.yn_question(ctx, 'Do you want to load this mission?'):
                 data = await server.sendtoDCSSync({"command": "listMissions"})
                 missions = data['missionList']
                 for idx, mission in enumerate(missions):
@@ -638,8 +644,6 @@ class Mission(Plugin):
                         await tmp.delete()
                         await message.channel.send(f'Mission {name} loaded.')
                         break
-        except Exception as ex:
-            self.log.exception(ex)
         finally:
             await message.delete()
 

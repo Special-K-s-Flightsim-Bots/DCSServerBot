@@ -111,6 +111,9 @@ class Scheduler(Plugin):
                         server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
                                                                                 when=utils.format_time(warn_time)),
                                                 server.locals.get('message_timeout', 10))
+                        if 'sound' in config['warn']:
+                            server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
+                                                                                time=warn_time))
                         events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
                         if events_channel:
                             await events_channel.send(warn_text.format(item=item, what=what,

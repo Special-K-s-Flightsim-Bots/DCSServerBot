@@ -14,7 +14,9 @@ class MizFile:
         self.log = root.log
         self.filename = filename
         self.mission = dict()
+        self.options = dict()
         self._load()
+        self._files: list[str] = list()
 
     def _load(self):
         with zipfile.ZipFile(self.filename, 'r') as miz:
@@ -39,8 +41,10 @@ class MizFile:
                     elif item.filename == 'options':
                         zout.writestr(item, "options = " + luadata.serialize(self.options, 'utf-8', indent='\t',
                                                                              indent_level=0))
-                    else:
+                    elif os.path.basename(item.filename) not in [os.path.basename(x) for x in self._files]:
                         zout.writestr(item, zin.read(item.filename))
+                for file in self._files:
+                    zout.write(file, f'l10n/DEFAULT/{os.path.basename(file)}')
         try:
             os.remove(self.filename)
             os.rename(tmpname, self.filename)
@@ -228,3 +232,11 @@ class MizFile:
             self.options['difficulty'] = values
         else:
             self.options['difficulty'] |= values
+
+    @property
+    def files(self) -> list:
+        return self._files
+
+    @files.setter
+    def files(self, files: list[str]):
+        self._files = files

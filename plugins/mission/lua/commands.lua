@@ -338,6 +338,12 @@ function dcsbot.sendPopupMessage(json)
 	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.sendPopupMessage("' .. to .. '", ' .. utils.basicSerialize(message) .. ', ' .. tostring(time) ..')') .. ')')
 end
 
+function dcsbot.playSound(json)
+	log.write('DCSServerBot', log.DEBUG, 'Mission: playSound()')
+	to = json.to or 'all'
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.playSound("' .. to .. '", ' .. utils.basicSerialize(json.sound) .. ')') .. ')')
+end
+
 function dcsbot.uploadUserRoles(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: uploadUserRoles()')
     dcsbot.userInfo[json.ucid].roles = json.roles

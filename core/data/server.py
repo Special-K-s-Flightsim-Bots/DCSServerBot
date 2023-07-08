@@ -1,9 +1,12 @@
 from __future__ import annotations
 import asyncio
+import discord
 import os
 import uuid
 import yaml
+
 from contextlib import suppress
+from enum import Enum
 from pathlib import Path
 from core import utils
 from dataclasses import dataclass, field
@@ -22,6 +25,13 @@ if TYPE_CHECKING:
     from .instance import Instance
     from ..extension import Extension
     from services import ServiceBus
+
+
+class UploadStatus(Enum):
+    OK = 0
+    FILE_EXISTS = 1
+    FILE_IN_USE = 2
+    READ_ERROR = 3
 
 
 @dataclass
@@ -229,6 +239,13 @@ class Server(DataObject):
             "time": timeout
         })
 
+    def playSound(self, coalition: Coalition, sound: str):
+        self.sendtoDCS({
+            "command": "playSound",
+            "to": coalition.value,
+            "sound": sound
+        })
+
     async def stop(self) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING]:
             timeout = 120 if self.node.locals.get('slow_system', False) else 60
@@ -289,6 +306,9 @@ class Server(DataObject):
         await self._load({"command": "startNextMission"})
 
     async def modifyMission(self, preset: Union[list, dict]) -> None:
+        pass
+
+    async def uploadMission(self, att: discord.Attachment, force: bool = False) -> UploadStatus:
         pass
 
     @property

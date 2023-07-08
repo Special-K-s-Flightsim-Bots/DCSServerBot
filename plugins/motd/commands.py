@@ -31,10 +31,15 @@ class MessageOfTheDay(Plugin):
             timeout = config.get('display_time', server.locals.get('message_timeout', 10))
             if player:
                 player.sendPopupMessage(message, timeout)
+                if 'sound' in config:
+                    player.playSound(config['sound'])
             else:
                 server.sendPopupMessage(Coalition.ALL, message, timeout)
+                if 'sound' in config:
+                    server.playSound(Coalition.ALL, config['sound'])
 
-    def get_recipients(self, server: Server, config: dict) -> list[Player]:
+    @staticmethod
+    def get_recipients(server: Server, config: dict) -> list[Player]:
         recp = list[Player]()
         players: list[Player] = server.get_active_players()
         in_roles = []

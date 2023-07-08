@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import aiohttp
+import discord
 import json
 import os
 import platform
@@ -6,8 +9,10 @@ import shutil
 import socket
 import sqlite3
 import subprocess
+import traceback
+
 from contextlib import suppress, closing
-from core import utils, Server, Player
+from core import utils, Server, Player, UploadStatus
 from dataclasses import dataclass, field
 from datetime import datetime
 from psutil import Process
@@ -388,6 +393,8 @@ class ServerImpl(Server):
                 miz.miscellaneous = value['miscellaneous']
             if 'difficulty' in value:
                 miz.difficulty = value['difficulty']
+            if 'files' in value:
+                miz.files = value['files']
 
         if self.status in [Status.STOPPED, Status.SHUTDOWN]:
             filename = await self.get_current_mission_file()
@@ -418,3 +425,30 @@ class ServerImpl(Server):
             self.status = Status.RUNNING
         self.current_mission.mission_time = data['mission_time']
         self.current_mission.real_time = data['real_time']
+
+    async def uploadMission(self, att: discord.Attachment, force: bool = False) -> UploadStatus:
+        stopped = False
+        filename = os.path.join(await self.get_missions_dir(), att.filename)
+        try:
+            if self.current_mission and os.path.normpath(self.current_mission.filename) == os.path.normpath(filename):
+                if not force:
+                    return UploadStatus.FILE_IN_USE
+                await self.stop()
+                stopped = True
+            elif os.path.exists(filename) and not force:
+                return UploadStatus.FILE_EXISTS
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(att.url) as response:
+                    if response.status == 200:
+                        with open(filename, 'wb') as outfile:
+                            outfile.write(await response.read())
+                    else:
+                        return UploadStatus.READ_ERROR
+            if not self.locals.get('autoscan', False):
+                self.addMission(filename)
+            if stopped:
+                await self.start()
+            return UploadStatus.OK
+        except Exception:
+            traceback.print_exc()

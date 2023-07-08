@@ -1,6 +1,8 @@
 from __future__ import annotations
+import discord
+
+from core import Server, Status, utils, UploadStatus
 from dataclasses import dataclass, field
-from core import Server, Status, utils
 from typing import Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -147,4 +149,15 @@ class ServerProxy(Server):
             "command": "rpc",
             "object": "Server",
             "method": "init_extensions"
+        })
+
+    async def uploadMission(self, att: discord.Attachment, force: bool = False) -> UploadStatus:
+        return await self.sendtoDCSSync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "uploadMission",
+            "params": {
+                "att": att,
+                "force": force
+            }
         })

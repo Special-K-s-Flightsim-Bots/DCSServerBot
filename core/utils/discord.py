@@ -1,8 +1,6 @@
 from __future__ import annotations
 import asyncio
 import traceback
-from functools import lru_cache
-
 import discord
 import os
 import re
@@ -15,13 +13,14 @@ from discord.app_commands import Choice, TransformerError
 from discord.ext import commands
 from discord.ui import Button, View, Select
 from enum import Enum, auto
+from functools import lru_cache
 from pathlib import Path, PurePath
 from typing import Optional, cast, Union, TYPE_CHECKING, Iterable
 
 from .helper import get_all_players, is_ucid
 
 if TYPE_CHECKING:
-    from .. import Server, DCSServerBot, Player
+    from core import Server, DCSServerBot, Player, ServiceBus
 
 
 class PlayerType(Enum):
@@ -187,9 +186,10 @@ class SelectView(View):
         self.stop()
 
 
-async def selection(interaction: discord.Interaction, *, title: Optional[str] = None, placeholder: Optional[str] = None,
-                    embed: discord.Embed = None, options: list[SelectOption], min_values: Optional[int] = 1,
-                    max_values: Optional[int] = 1, ephemeral: bool = False) -> Optional[str]:
+async def selection(interaction: Union[discord.Interaction, commands.Context], *, title: Optional[str] = None,
+                    placeholder: Optional[str] = None, embed: discord.Embed = None,
+                    options: list[SelectOption], min_values: Optional[int] = 1,
+                    max_values: Optional[int] = 1, ephemeral: bool = False) -> Optional[Union[list, str]]:
     if len(options) == 1:
         return options[0].value
     if not embed and title:
@@ -197,11 +197,14 @@ async def selection(interaction: discord.Interaction, *, title: Optional[str] = 
     view = SelectView(placeholder=placeholder, options=options, min_values=min_values, max_values=max_values)
     msg = None
     try:
-        if interaction.response.is_done():
-            msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+        if isinstance(interaction, discord.Interaction):
+            if interaction.response.is_done():
+                msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
+            else:
+                await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
+                msg = await interaction.original_response()
         else:
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
-            msg = await interaction.original_response()
+            msg = await interaction.send(embed=embed, view=view)
         if await view.wait():
             return None
         return view.result
@@ -680,6 +683,27 @@ class PlayerTransformer(app_commands.Transformer):
             return choices[:25]
         except Exception:
             traceback.print_exc()
+
+
+async def server_selection(bus: ServiceBus,
+                           interaction: Union[discord.Interaction, commands.Context], *, title: str,
+                           multi_select: Optional[bool] = False) -> Optional[Union[Server, list[Server]]]:
+    all_servers = list(bus.servers.keys())
+    if len(all_servers) == 0:
+        return []
+    elif len(all_servers) == 1:
+        return [bus.servers[all_servers[0]]]
+    if multi_select:
+        max_values = len(all_servers)
+    else:
+        max_values = 1
+    s = await selection(interaction, title=title,
+                        options=[SelectOption(label=x, value=x) for x in all_servers],
+                        max_values=max_values, ephemeral=True)
+    if multi_select:
+        return [bus.servers[x] for x in s]
+    else:
+        return bus.servers[s]
 
 
 @dataclass

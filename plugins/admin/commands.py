@@ -363,12 +363,14 @@ class Admin(Plugin):
             if await self.bot.reload(plugin):
                 await interaction.followup.send(f'Plugin {plugin.title()} reloaded.')
             else:
-                await interaction.followup.send(f'Plugin {plugin.title()} could not be reloaded, check the log for details.')
+                await interaction.followup.send(
+                    f'Plugin {plugin.title()} could not be reloaded, check the log for details.')
         else:
             if await self.bot.reload():
                 await interaction.followup.send(f'All plugins reloaded.')
             else:
-                await interaction.followup.send(f'One or more plugins could not be reloaded, check the log for details.')
+                await interaction.followup.send(
+                    f'One or more plugins could not be reloaded, check the log for details.')
 
     async def process_message(self, message: discord.Message) -> bool:
         async with aiohttp.ClientSession() as session:
