@@ -305,7 +305,7 @@ class ServiceBus(Service):
             self.udp_server.message_queue[data['server_name']].put(data)
 
     async def handle_agent(self, data: dict):
-        self.log.debug(f"MASTER->{self.node}: {json.dumps(data)}")
+        self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
         if data['command'] == 'rpc':
             if data.get('object') == 'Server':
                 obj = self.servers[data['server_name']]
