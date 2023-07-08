@@ -143,6 +143,9 @@ class GreenieBoard(Plugin):
 
         try:
             for server in self.bot.servers.values():
+                # TODO: support remote servers
+                if server.is_remote:
+                    continue
                 config = self.get_config(server)
                 basedir = server.instance.home
                 if 'Moose.AIRBOSS' in config and 'delete_after' in config['Moose.AIRBOSS']:

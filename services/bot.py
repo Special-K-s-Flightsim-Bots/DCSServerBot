@@ -80,7 +80,6 @@ class DCSServerBot(commands.Bot):
         self.locals = kwargs['locals']
         self.plugins = self.node.plugins
         self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
-        self.servers: dict[str, Server] = self.bus.servers
         self.eventListeners: list[EventListener] = self.bus.eventListeners
         self.audit_channel = None
         self.mission_stats = None
@@ -115,6 +114,10 @@ class DCSServerBot(commands.Bot):
             "mission": "!.*",
         } | self.locals.get('filter', {})
 
+    @property
+    def servers(self) -> dict[str, Server]:
+        return self.bus.servers
+
     async def setup_hook(self) -> None:
         self.log.info('- Loading Plugins ...')
         for plugin in self.plugins:
@@ -123,6 +126,10 @@ class DCSServerBot(commands.Bot):
         remote_nodes = self.node.get_active_nodes()
         if remote_nodes:
             self.log.info("- Searching for running remote DCS servers ...")
+            # cleaning up any remote server in the list
+            for key, value in self.servers.copy().items():
+                if value.is_remote:
+                    del self.servers[key]
             # ask any active agent to register its servers with us
             for node in remote_nodes:
                 self.bus.sendtoBot({

@@ -184,22 +184,8 @@ class MissionEventListener(EventListener):
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # the server is starting up
-        if not data['channel'].startswith('sync-'):
+        if not data['channel'].startswith('sync-') or server.status not in [Status.PAUSED, Status.RUNNING]:
             return
-        # no mission is registered with the server, set the state to STOPPED
-        if 'current_mission' not in data:
-            server.status = Status.STOPPED
-            return
-        # the server was started already, but the bot wasn't
-        if not server.current_mission:
-            server.current_mission = DataObjectFactory().new(
-                Mission.__name__, node=server.node, server=server, map=data['current_map'], name=data['current_mission'])
-
-        if 'players' not in data:
-            data['players'] = []
-            server.status = Status.STOPPED
-        else:
-            server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server.current_mission.update(data)
         server.afk.clear()
         for p in data['players']:

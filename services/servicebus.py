@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
-    InstanceProxy, NodeProxy
+    InstanceProxy, NodeProxy, Mission
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
@@ -155,12 +155,19 @@ class ServiceBus(Service):
                 break
         server.dcs_version = data['dcs_version']
         if data['channel'].startswith('sync-'):
-#            if 'players' not in data:
-#                server.status = Status.STOPPED
-#            elif data['pause']:
-#                server.status = Status.PAUSED
-#            else:
-#                server.status = Status.RUNNING
+            if 'current_mission' not in data:
+                server.status = Status.STOPPED
+            # the server was started already, but the bot wasn't
+            if not server.current_mission:
+                server.current_mission = DataObjectFactory().new(
+                    Mission.__name__, node=server.node, server=server, map=data['current_map'],
+                    name=data['current_mission'])
+            if 'players' not in data:
+                data['players'] = []
+                server.status = Status.STOPPED
+            else:
+                server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
+
             server.init_extensions()
             for extension in server.extensions.values():
                 if not extension.is_running():
