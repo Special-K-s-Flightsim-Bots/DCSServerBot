@@ -1,6 +1,5 @@
 from __future__ import annotations
 import asyncio
-import discord
 import os
 import uuid
 import yaml

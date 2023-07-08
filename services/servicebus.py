@@ -3,6 +3,8 @@ import asyncio
 import concurrent
 import json
 import platform
+from enum import Enum
+
 import psycopg
 import sys
 
@@ -304,7 +306,10 @@ class ServiceBus(Service):
                 return
             rc = await self.rpc(obj, data)
             if rc:
-                data['return'] = rc
+                if isinstance(rc, Enum):
+                    data['return'] = rc.value
+                else:
+                    data['return'] = rc
                 self.sendtoBot(data)
         else:
             server_name = data['server_name']

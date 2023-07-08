@@ -152,7 +152,7 @@ class ServerProxy(Server):
         })
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
-        return await self.sendtoDCSSync({
+        return UploadStatus(await self.sendtoDCSSync({
             "command": "rpc",
             "object": "Server",
             "method": "uploadMission",
@@ -161,4 +161,4 @@ class ServerProxy(Server):
                 "url": url,
                 "force": force
             }
-        })
+        }, timeout=60))
