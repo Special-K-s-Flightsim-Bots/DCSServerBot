@@ -151,13 +151,14 @@ class ServerProxy(Server):
             "method": "init_extensions"
         })
 
-    async def uploadMission(self, att: discord.Attachment, force: bool = False) -> UploadStatus:
+    async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         return await self.sendtoDCSSync({
             "command": "rpc",
             "object": "Server",
             "method": "uploadMission",
             "params": {
-                "att": att,
+                "filename": filename,
+                "url": url,
                 "force": force
             }
         })

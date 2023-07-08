@@ -308,7 +308,7 @@ class Server(DataObject):
     async def modifyMission(self, preset: Union[list, dict]) -> None:
         pass
 
-    async def uploadMission(self, att: discord.Attachment, force: bool = False) -> UploadStatus:
+    async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         pass
 
     @property

@@ -426,9 +426,9 @@ class ServerImpl(Server):
         self.current_mission.mission_time = data['mission_time']
         self.current_mission.real_time = data['real_time']
 
-    async def uploadMission(self, att: discord.Attachment, force: bool = False) -> UploadStatus:
+    async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         stopped = False
-        filename = os.path.join(await self.get_missions_dir(), att.filename)
+        filename = os.path.join(await self.get_missions_dir(), filename)
         try:
             if self.current_mission and os.path.normpath(self.current_mission.filename) == os.path.normpath(filename):
                 if not force:
@@ -439,7 +439,7 @@ class ServerImpl(Server):
                 return UploadStatus.FILE_EXISTS
 
             async with aiohttp.ClientSession() as session:
-                async with session.get(att.url) as response:
+                async with session.get(url) as response:
                     if response.status == 200:
                         with open(filename, 'wb') as outfile:
                             outfile.write(await response.read())

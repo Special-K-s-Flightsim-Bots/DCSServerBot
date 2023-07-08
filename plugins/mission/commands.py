@@ -613,7 +613,7 @@ class Mission(Plugin):
                 return
         att = message.attachments[0]
         try:
-            rc = await server.uploadMission(att)
+            rc = await server.uploadMission(att.filename, att.url)
             if rc == UploadStatus.FILE_IN_USE:
                 if not await utils.yn_question(message.interaction,
                                                'A mission is currently active.\n'
@@ -625,7 +625,7 @@ class Mission(Plugin):
                     await message.channel.send('Upload aborted.')
                     return
             if rc != UploadStatus.OK:
-                await server.uploadMission(att, force=True)
+                await server.uploadMission(att.filename, att.url, force=True)
 
             filename = os.path.join(await server.get_missions_dir(), att.filename)
             name = os.path.basename(att.filename)[:-4]
@@ -644,6 +644,8 @@ class Mission(Plugin):
                         await tmp.delete()
                         await message.channel.send(f'Mission {name} loaded.')
                         break
+        except Exception:
+            traceback.print_exc()
         finally:
             await message.delete()
 
