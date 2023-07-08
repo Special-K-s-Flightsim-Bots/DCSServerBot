@@ -98,6 +98,15 @@ class Server(DataObject):
             self._status = status
             self.status_change.set()
             self.status_change.clear()
+            if not self.node.master:
+                self.sendtoDCS({
+                    "command": "rpc",
+                    "object": "Server",
+                    "method": "status",
+                    "params": {
+                        "status": self.status
+                    }
+                })
 
     @property
     def coalitions(self) -> bool:
