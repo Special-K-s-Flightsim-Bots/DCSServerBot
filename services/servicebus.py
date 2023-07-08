@@ -134,6 +134,20 @@ class ServiceBus(Service):
                 self.log.exception(ret[i])
             else:
                 num += 1
+                if not self.master:
+                    data = ret[0]
+                    if 'current_mission' not in data:
+                        server.status = Status.STOPPED
+                        continue
+                    if not server.current_mission:
+                        server.current_mission = DataObjectFactory().new(
+                            Mission.__name__, node=server.node, server=server, map=data['current_map'],
+                            name=data['current_mission'])
+                    if 'players' not in data:
+                        server.status = Status.STOPPED
+                    else:
+                        server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
+                    server.current_mission.update(data)
         if num == 0:
             self.log.info('- No running local servers found.')
 

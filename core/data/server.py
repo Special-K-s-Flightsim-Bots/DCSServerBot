@@ -100,7 +100,7 @@ class Server(DataObject):
             self._status = status
             self.status_change.set()
             self.status_change.clear()
-            if not self.node.master:
+            if self.is_remote:
                 self.bus.sendtoBot({
                     "command": "rpc",
                     "object": "Server",
