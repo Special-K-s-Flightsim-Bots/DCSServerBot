@@ -46,7 +46,7 @@ class Server(DataObject):
     mission_id: int = field(default=-1, compare=False)
     players: dict[int, Player] = field(default_factory=dict, compare=False)
     process: Optional[Process] = field(default=None, compare=False)
-    maintenance: bool = field(default=False, compare=False)
+    _maintenance: bool = field(default=False, compare=False)
     restart_pending: bool = field(default=False, compare=False)
     on_mission_end: dict = field(default_factory=dict, compare=False)
     on_empty: dict = field(default_factory=dict, compare=False)
@@ -86,6 +86,14 @@ class Server(DataObject):
     @property
     def status(self) -> Status:
         return self._status
+
+    @property
+    def maintenance(self) -> bool:
+        return self._maintenance
+
+    @maintenance.setter
+    def maintenance(self, maintenance: bool):
+        self._maintenance = maintenance
 
     @property
     def display_name(self) -> str:

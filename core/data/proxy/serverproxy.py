@@ -48,6 +48,21 @@ class ServerProxy(Server):
         self._instance = instance
         self._instance.server = self
 
+    @property
+    def maintenance(self) -> bool:
+        return self._maintenance
+
+    @maintenance.setter
+    def maintenance(self, maintenance: bool):
+        self._maintenance = maintenance
+        self.sendtoDCS({
+            "command": "rpc",
+            "object": "Server",
+            "params": {
+                "maintenance": self.maintenance
+            }
+        })
+
     async def get_current_mission_file(self) -> Optional[str]:
         data = await self.sendtoDCSSync({
             "command": "rpc",

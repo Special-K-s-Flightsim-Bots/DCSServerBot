@@ -119,8 +119,7 @@ def migrate():
     nodes[platform.node()]['DCS'] = {
         "installation": cfg['DCS']['DCS_INSTALLATION'],
         "autoupdate": cfg['DCS'].getboolean('AUTOUPDATE'),
-        "desanitize": cfg['BOT'].getboolean('DESANITIZE'),
-        "max_hung_minutes": int(cfg['DCS']['MAX_HUNG_MINUTES'])
+        "desanitize": cfg['BOT'].getboolean('DESANITIZE')
     }
     if 'DCS_USER' in cfg['DCS']:
         nodes[platform.node()]['DCS']['dcs_user'] = cfg['DCS']['DCS_USER']
@@ -141,6 +140,7 @@ def migrate():
                 "bot_port": int(cfg[instance]['DCS_PORT']),
                 "server": server_name,
                 "server_user": cfg['DCS']['SERVER_USER'],
+                "max_hung_minutes": int(cfg['DCS']['MAX_HUNG_MINUTES'])
             }
             if 'MISSIONS_DIR' in cfg[instance]:
                 i['missions_dir'] = cfg[instance]['MISSIONS_DIR']
