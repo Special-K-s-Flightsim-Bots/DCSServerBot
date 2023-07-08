@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from psutil import Process
-from typing import Optional, TYPE_CHECKING, Union, cast
+from typing import Optional, TYPE_CHECKING, Union
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 

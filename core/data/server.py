@@ -92,7 +92,9 @@ class Server(DataObject):
         return utils.escape_string(self.name)
 
     @status.setter
-    def status(self, status: Status):
+    def status(self, status: Union[Status, str]):
+        if isinstance(status, str):
+            status = Status(status)
         if status != self._status:
             self.log.info(f"{self.name}: {self._status.name} => {status.name}")
             self._status = status
@@ -102,7 +104,6 @@ class Server(DataObject):
                 self.bus.sendtoBot({
                     "command": "rpc",
                     "object": "Server",
-                    "method": "status",
                     "params": {
                         "status": self.status.value
                     },

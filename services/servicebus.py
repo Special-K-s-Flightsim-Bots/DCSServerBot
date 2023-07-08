@@ -285,9 +285,11 @@ class ServiceBus(Service):
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
         if data['command'] == 'rpc':
             if data.get('object') == 'Server':
-                obj = self.servers[data['server_name']]
+                obj = self.servers.get(data['server_name'])
             elif data.get('object') == 'Instance':
-                obj = self.servers[data['server_name']].instance
+                server = self.servers.get(data['server_name'])
+                if server:
+                    obj = server.instance
             elif data.get('object') == 'Node':
                 obj = self.node
             else:
@@ -308,9 +310,11 @@ class ServiceBus(Service):
         self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
         if data['command'] == 'rpc':
             if data.get('object') == 'Server':
-                obj = self.servers[data['server_name']]
+                obj = self.servers.get(data['server_name'])
             elif data.get('object') == 'Instance':
-                obj = self.servers[data['server_name']].instance
+                server = self.servers.get(data['server_name'])
+                if server:
+                    obj = server.instance
             elif data.get('object') == 'Node':
                 obj = self.node
             else:
@@ -356,15 +360,19 @@ class ServiceBus(Service):
     @staticmethod
     async def rpc(obj: object, data: dict) -> Optional[dict]:
         try:
-            func = attrgetter(data.get('method'))(obj)
-            if not func:
-                return
-            kwargs = data.get('params', {})
-            if asyncio.iscoroutinefunction(func):
-                rc = await func(**kwargs) if kwargs else await func()
+            if 'method' in data:
+                func = attrgetter(data.get('method'))(obj)
+                if not func:
+                    return
+                kwargs = data.get('params', {})
+                if asyncio.iscoroutinefunction(func):
+                    rc = await func(**kwargs) if kwargs else await func()
+                else:
+                    rc = func(**kwargs) if kwargs else func()
+                return rc
             else:
-                rc = func(**kwargs) if kwargs else func()
-            return rc
+                for key, value in data.get('params'):
+                    setattr(obj, key, value)
         except Exception:
             traceback.print_exc()
 
