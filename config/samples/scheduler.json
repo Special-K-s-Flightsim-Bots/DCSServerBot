@@ -17,7 +17,7 @@
         "Slight Breeze":  {"clouds": "Preset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
         "Rainy":  {"clouds": "RainyPreset1", "wind": {"at8000":  {"speed": 10, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 5, "dir": 20}}},
         "Heavy Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}},
-        "Sounds": ["sounds/alarm.ogg", "sounds/beep.ogg", "sounds/chirp.ogg", "sounds/morse.ogg", "sounds/notify.ogg", "sounds/page.ogg"]
+        "Sounds": {"files": ["sounds/alarm.ogg", "sounds/beep.ogg", "sounds/chirp.ogg", "sounds/morse.ogg", "sounds/notify.ogg", "sounds/page.ogg"]}
       },
       "extensions": {
         "SRS": {
