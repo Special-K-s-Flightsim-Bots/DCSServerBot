@@ -359,7 +359,6 @@ class ServiceBus(Service):
                 return rc
             elif 'params' in data:
                 for key, value in data['params'].items():
-                    print(f"Setting {key} to {value}")
                     setattr(obj, key, value)
         except Exception:
             traceback.print_exc()
