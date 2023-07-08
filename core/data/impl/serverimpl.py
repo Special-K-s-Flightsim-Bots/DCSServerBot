@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import aiohttp
-import discord
 import json
 import os
 import platform
@@ -15,8 +14,9 @@ from contextlib import suppress, closing
 from core import utils, Server, Player, UploadStatus
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from psutil import Process
-from typing import Optional, TYPE_CHECKING, Union
+from typing import Optional, TYPE_CHECKING, Union, cast
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 
@@ -186,8 +186,10 @@ class ServerImpl(Server):
     def sendtoDCS(self, message: dict):
         # As Lua does not support large numbers, convert them to strings
         for key, value in message.items():
-            if type(value) == int:
+            if isinstance(value, int):
                 message[key] = str(value)
+            elif isinstance(value, Enum):
+                message[key] = value.value
         msg = json.dumps(message)
         self.log.debug(f"HOST->{self.name}: {msg}")
         dcs_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
