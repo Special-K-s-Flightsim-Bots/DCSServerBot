@@ -25,6 +25,9 @@ def migrate():
         if not os.path.exists('config/main.yaml'):
             print("[red]ATTENTION:[/]The Master Node needs to be migrated first! Aborting.")
             exit(-1)
+    else:
+        guild_id = IntPrompt.ask(
+            'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
     # TODO: only for BETA testing!
     if 'dcsserverbot3' not in cfg['BOT']['DATABASE_URL']:
         yn = Prompt.ask(f"[red]ATTENTION:[/] Your DATABASE_URL is {cfg['BOT']['DATABASE_URL']}.\n"
@@ -32,7 +35,6 @@ def migrate():
                         choices=['y', 'n'], default='n')
         if yn.lower() != 'y':
             exit(-1)
-    guild_id = IntPrompt.ask('Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
     print("Now, lean back and enjoy the migration...\n")
 
     try:
