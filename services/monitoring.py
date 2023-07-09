@@ -1,11 +1,9 @@
 from __future__ import annotations
 import asyncio
-import math
 import os
-import traceback
-
 import psutil
 import subprocess
+import traceback
 import win32gui
 import win32process
 
@@ -188,7 +186,7 @@ class MonitoringService(Service):
         try:
             await self.check_popups()
             await self.heartbeat()
-            if 'serverstats' in self.node.config['opt_plugins']:
+            if 'serverstats' in self.node.config.get('opt_plugins', []):
                 await self.serverload()
         except Exception:
             traceback.print_exc()

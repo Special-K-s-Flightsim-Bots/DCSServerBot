@@ -1,4 +1,5 @@
 DEFAULT:
+  decay:
   - days: 60
     weight: 0
   - days: 30
