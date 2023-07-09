@@ -247,9 +247,10 @@ def migrate():
                 del schedule['presets']
 
         # write main configuration
-        with open('config/main.yaml', 'w') as out:
-            yaml.safe_dump(main, out)
-            print("- Created config/main.yaml")
+        if master:
+            with open('config/main.yaml', 'w') as out:
+                yaml.safe_dump(main, out)
+                print("- Created config/main.yaml")
         with open('config/nodes.yaml', 'w') as out:
             yaml.safe_dump(nodes, out)
             print("- Created config/nodes.yaml")
