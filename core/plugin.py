@@ -2,6 +2,7 @@ from __future__ import annotations
 import inspect
 import json
 import os
+import platform
 import psycopg
 import shutil
 import sys
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
     from services import DCSServerBot, ServiceBus
 
 DEFAULT_TAG = 'DEFAULT'
+BACKUP_FOLDER = f'config/backup/{platform.node()}'
 
 
 def command(
@@ -294,25 +296,35 @@ class Plugin(commands.Cog):
 
     @staticmethod
     def migrate_to_3(plugin_name: str):
-        os.makedirs('./config/backup', exist_ok=True)
-        old_file = f'./config/{plugin_name}.json'
+        os.makedirs(BACKUP_FOLDER, exist_ok=True)
+        old_file = f'config/{plugin_name}.json'
+        if plugin_name == 'backup':
+            os.makedirs('config/services', exist_ok=True)
+            new_file = f'config/services/backup.yaml'
+        else:
+            new_file = f'config/plugins/{plugin_name}.yaml'
         with open(old_file, 'r') as infile:
             old = json.load(infile)
-        new = {}
+        if os.path.exists(new_file):
+            new = yaml.safe_load(Path(new_file).read_text())
+            exists = True
+        else:
+            new = {}
+            exists = False
         if 'configs' in old:
             for config in old['configs']:
                 if 'installation' in config:
                     instance = config['installation']
                     new[instance] = config
                     del new[instance]['installation']
-                else:
+                elif not exists:
+                    # we only overwrite the default on the master
                     new[DEFAULT_TAG] = config
         else:
             new = old
-        new_file = f'./config/plugins/{plugin_name}.yaml'
         with open(new_file, 'w') as outfile:
             yaml.dump(new, outfile, default_flow_style=False)
-        shutil.move(old_file, './config/backup')
+        shutil.move(old_file, BACKUP_FOLDER)
 
     def read_locals(self) -> dict:
         old_file = f'./config/{self.plugin_name}.json'
