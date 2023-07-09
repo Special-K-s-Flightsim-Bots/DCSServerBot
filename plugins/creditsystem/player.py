@@ -44,8 +44,8 @@ class CreditPlayer(Player):
         if not config:
             self._points = p
             return
-        if 'max_points' in config and p > config['max_points']:
-            self._points = config['max_points']
+        if 'max_points' in config and p > int(config['max_points']):
+            self._points = int(config['max_points'])
         elif p < 0:
             self._points = 0
         else:
