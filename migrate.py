@@ -76,13 +76,17 @@ def migrate():
         else:
             nodes = {}
         nodes[platform.node()] = {}
-        servers = {
-            DEFAULT_TAG: {
-                "message_afk": cfg['DCS']['MESSAGE_AFK'],
-                'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT']),
-                'message_server_full': cfg['DCS']['MESSAGE_SERVER_FULL']
+        if os.path.exists('config/servers.yaml'):
+            servers = yaml.safe_load(Path('config/servers.yaml').read_text())
+        else:
+            servers = {
+                DEFAULT_TAG: {
+                    "message_afk": cfg['DCS']['MESSAGE_AFK'],
+                    'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT']),
+                    'message_server_full': cfg['DCS']['MESSAGE_SERVER_FULL']
+                }
             }
-        }
+
         # main.yaml is only created on the Master node
         if master:
             main: dict[str, Union[int, str, list, dict]] = {
