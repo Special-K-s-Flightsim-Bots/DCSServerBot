@@ -53,7 +53,7 @@ def migrate():
                     shutil.move('config/admin.json', BACKUP_FOLDER)
                     if master:
                         print("[yellow]- NOT migrated config/admin.json, falling back to default instead.[/]")
-                        continue
+                    continue
                 core.Plugin.migrate_to_3(plugin_name)
                 if plugin_name == 'backup':
                     print(f"- Migrated config/backup.json to config/services/backup.yaml")
