@@ -8,16 +8,26 @@ from configparser import ConfigParser
 from core import utils, DEFAULT_TAG
 from pathlib import Path
 from typing import Union
-from rich.prompt import IntPrompt
+from rich.prompt import IntPrompt, Prompt
 
 
 def migrate():
-    print("Thanks for using DCSServerBot 2.x. We are now going to migrate you over to version 3.0!")
-    guild_id = IntPrompt.ask("First of all, we need your Discord Guild ID")
-    print("Now, lean back and enjoy the migration...")
     cfg = ConfigParser()
     cfg.read('config/default.ini', encoding='utf-8')
     cfg.read('config/dcsserverbot.ini', encoding='utf-8')
+    if not cfg['BOT'].getboolean('MASTER'):
+        print("Agent node migration is not supported yet!")
+        exit(-1)
+    print("\nThanks for using DCSServerBot 2.x. We are now going to migrate you over to version 3.0!")
+    # TODO: only for BETA testing!
+    if 'dcsserverbot3' not in cfg['BOT']['DATABASE_URL']:
+        yn = Prompt.ask(f"[red]ATTENTION:[/red] Your DATABASE_URL is {cfg['BOT']['DATABASE_URL']}.\n"
+                        f"This looks like a production migration. Do you want to continue?",
+                        choices=['y', 'n'], default='n')
+        if yn.lower() != 'y':
+            exit(-1)
+    guild_id = IntPrompt.ask('Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID"')
+    print("Now, lean back and enjoy the migration...")
     # Migrate all plugins
     os.makedirs('config/plugins', exist_ok=True)
     plugins = [x.strip() for x in cfg['BOT']['PLUGINS'].split(',')]
@@ -156,6 +166,9 @@ def migrate():
                         "settings": schedule['settings']
                     }
                     del schedule['settings']
+                if 'extensions' in schedule:
+                    i['extensions'] = schedule['extensions']
+                    del schedule['extensions']
             # fill missionstats
             m = missionstats[instance] = {}
             if 'EVENT_FILTER' in cfg['FILTER']:

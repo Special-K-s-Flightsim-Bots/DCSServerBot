@@ -18,8 +18,9 @@ class Sneaker(Extension):
 
     def create_config(self):
         cfg = {"servers": []}
-        if os.path.exists('config\\sneaker.json'):
-            with open('config\\sneaker.json') as file:
+        filename = os.path.join('config', 'sneaker.json')
+        if os.path.exists(filename):
+            with open(filename) as file:
                 cfg = json.load(file)
         for s in cfg['servers']:
             if s['name'] == self.server.name:

@@ -372,6 +372,7 @@ class Admin(Plugin):
                 await interaction.followup.send(
                     f'One or more plugins could not be reloaded, check the log for details.')
 
+    # TODO: remote server implementation
     async def process_message(self, message: discord.Message) -> bool:
         async with aiohttp.ClientSession() as session:
             async with session.get(message.attachments[0].url) as response:
@@ -416,7 +417,7 @@ class Admin(Plugin):
                     message.attachments[0].filename.endswith('.json')
                 ):
             return
-        # only Admin role is allowed to upload json files in channels
+        # only Admin role is allowed to upload config files in channels
         if not utils.check_roles(self.bot.roles['Admin'], message.author):
             return
         if await self.bot.get_server(message) and await self.process_message(message):

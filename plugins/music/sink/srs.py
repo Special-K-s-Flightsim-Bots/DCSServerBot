@@ -36,7 +36,7 @@ class SRSSink(Sink):
                 srs_inst = os.path.expandvars(self.server.extensions['SRS'].config['installation'])
                 srs_port = self.server.extensions['SRS'].locals['Server Settings']['SERVER_PORT']
             except KeyError:
-                raise SinkInitError("You need to set the SRS path in your scheduler.json")
+                raise SinkInitError("You need to set the SRS path in your nodes.yaml")
             self.current = file
             self.process = subprocess.Popen(
                 [

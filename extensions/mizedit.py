@@ -46,3 +46,6 @@ class MizEdit(Extension):
     async def beforeMissionLoad(self) -> bool:
         await self.change_mizfile(self.server, self.config)
         return True
+
+    def is_installed(self) -> bool:
+        return True

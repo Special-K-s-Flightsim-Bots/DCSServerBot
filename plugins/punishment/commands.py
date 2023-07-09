@@ -16,7 +16,7 @@ class Punishment(Plugin):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
         if not self.locals:
-            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
         self.check_punishments.add_exception_type(psycopg.DatabaseError)
         self.check_punishments.start()
         self.decay_config = self.locals.get(DEFAULT_TAG, {}).get('decay')

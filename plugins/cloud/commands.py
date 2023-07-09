@@ -25,7 +25,7 @@ class CloudHandler(Plugin):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
         if not len(self.locals):
-            raise commands.ExtensionFailed(self.plugin_name, FileNotFoundError("No cloud.json available."))
+            raise commands.ExtensionFailed(self.plugin_name, FileNotFoundError("No cloud.yaml available."))
         self.config = self.get_config()
         if not self.config:
             raise PluginConfigurationError(plugin=self.plugin_name, option=DEFAULT_TAG)
@@ -258,4 +258,7 @@ class CloudHandler(Plugin):
 
 
 async def setup(bot: DCSServerBot):
+    if not os.path.exists('config/plugins/cloud.yaml'):
+        bot.log.info('No cloud.yaml found, copying the sample.')
+        shutil.copyfile('config/samples/cloud.yaml', 'config/plugins/cloud.yaml')
     await bot.add_cog(CloudHandler(bot, CloudListener))

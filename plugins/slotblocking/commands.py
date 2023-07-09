@@ -12,7 +12,7 @@ class SlotBlocking(Plugin):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener=eventlistener)
         if not self.locals:
-            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
 
     def get_config(self, server: Server, plugin_name: str = None) -> Optional[dict]:
         if plugin_name:
