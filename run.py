@@ -21,7 +21,6 @@ class Main:
         async with ServiceRegistry(node=self.node) as registry:
             bus = registry.new("ServiceBus")
             if self.node.master:
-                await self.node.install_fonts()
                 # config = registry.new("Configuration")
                 # asyncio.create_task(config.start())
                 bot = cast(BotService, registry.new("Bot"))
@@ -42,7 +41,6 @@ class Main:
                     self.log.info("Master is not responding... taking over.")
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.stop()
-                    await self.node.install_fonts()
                     # config = registry.new("Configuration")
                     # asyncio.create_task(config.start())
                     bot = cast(BotService, registry.new("Bot"))

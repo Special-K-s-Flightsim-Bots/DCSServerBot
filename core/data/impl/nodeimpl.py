@@ -201,42 +201,6 @@ class NodeImpl(Node):
                             self.db_version = cursor.fetchone()[0]
                             self.log.info(f"Database updated to {self.db_version}.")
 
-    async def install_fonts(self):
-        font = self.config.get('reports', {}).get('cjk_font')
-        if font:
-            if not os.path.exists('fonts'):
-                os.makedirs('fonts')
-
-                async def fetch_file(url: str):
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(url) as resp:
-                            assert resp.status == 200
-                            data = await resp.read()
-
-                    async with aiofiles.open(
-                            os.path.join('fonts', "temp.zip"), "wb") as outfile:
-                        await outfile.write(data)
-
-                    with zipfile.ZipFile('fonts/temp.zip', 'r') as zip_ref:
-                        zip_ref.extractall('fonts')
-
-                    os.remove('fonts/temp.zip')
-                    for f in font_manager.findSystemFonts('fonts'):
-                        font_manager.fontManager.addfont(f)
-                    self.log.info('- CJK font installed and loaded.')
-
-                fonts = {
-                    "TC": "https://fonts.google.com/download?family=Noto%20Sans%20TC",
-                    "JP": "https://fonts.google.com/download?family=Noto%20Sans%20JP",
-                    "KR": "https://fonts.google.com/download?family=Noto%20Sans%20KR"
-                }
-
-                asyncio.get_event_loop().create_task(fetch_file(fonts[font]))
-            else:
-                for f in font_manager.findSystemFonts('fonts'):
-                    font_manager.fontManager.addfont(f)
-                self.log.debug('- CJK fonts loaded.')
-
     def install_plugins(self):
         for file in Path('plugins').glob('*.zip'):
             path = file.__str__()
