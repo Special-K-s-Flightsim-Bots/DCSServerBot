@@ -2,6 +2,7 @@ import aiohttp
 import asyncio
 import certifi
 import discord
+import os
 import pandas as pd
 import platform
 import psycopg
