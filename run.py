@@ -6,8 +6,6 @@ import traceback
 
 from core import NodeImpl, ServiceRegistry
 from migrate import migrate
-from services import BotService, Dashboard
-from typing import cast
 
 
 class Main:
@@ -19,18 +17,16 @@ class Main:
     async def run(self):
         await self.node.register()
         async with ServiceRegistry(node=self.node) as registry:
-            bus = registry.new("ServiceBus")
-            if self.node.master:
-                # config = registry.new("Configuration")
-                # asyncio.create_task(config.start())
-                bot = cast(BotService, registry.new("Bot"))
-                asyncio.create_task(bot.start())
-            asyncio.create_task(bus.start())
-            asyncio.create_task(registry.new("Monitoring").start())
-            asyncio.create_task(registry.new("Backup").start())
-            if self.node.config.get('use_dashboard', True):
-                dashboard = cast(Dashboard, registry.new("Dashboard"))
-                asyncio.create_task(dashboard.start())
+            for name in registry.services().keys():
+                if not self.node.master and registry.master_only(name):
+                    continue
+                if name == 'Dashboard':
+                    if self.node.config.get('use_dashboard', True):
+                        dashboard = registry.new(name)
+                        asyncio.create_task(dashboard.start())
+                    continue
+                else:
+                    asyncio.create_task(registry.new(name).start())
             while True:
                 # wait until the master changes
                 while self.node.master == self.node.check_master():
@@ -41,16 +37,16 @@ class Main:
                     self.log.info("Master is not responding... taking over.")
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.stop()
-                    # config = registry.new("Configuration")
-                    # asyncio.create_task(config.start())
-                    bot = cast(BotService, registry.new("Bot"))
-                    asyncio.create_task(bot.start())
+                    for name in registry.services().keys():
+                        if registry.master_only(name):
+                            asyncio.create_task(registry.new(name).start())
                 else:
                     self.log.info("Second Master found, stepping back to Agent configuration.")
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.stop()
-                    # await config.stop()
-                    await bot.stop()
+                    for name in registry.services().keys():
+                        if registry.master_only(name):
+                            await registry.get(name).stop()
                 if self.node.config.get('use_dashboard', True):
                     await dashboard.start()
 

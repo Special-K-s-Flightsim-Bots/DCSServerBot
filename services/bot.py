@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from services import ServiceBus
 
 
-@ServiceRegistry.register("Bot")
+@ServiceRegistry.register("Bot", master_only=True)
 class BotService(Service):
 
     def __init__(self, node, name: str):
