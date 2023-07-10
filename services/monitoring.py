@@ -52,9 +52,10 @@ class MonitoringService(Service):
         for server in [x for x in self.bus.servers.values() if x.is_remote]:
             if server.node.name not in active_nodes:
                 self.log.warning(f"- Node {server.node.name} not responding, removing server {server.name}.")
-                del self.bus.servers[server.node.name]
+                del self.bus.servers[server.name]
             else:
                 used_nodes.add(server.node.name)
+        # any new nodes detected?
         for node in set(active_nodes) - used_nodes:
             await self.bus.register_remote_servers(node)
 
