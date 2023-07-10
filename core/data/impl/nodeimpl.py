@@ -327,11 +327,15 @@ class NodeImpl(Node):
                                        (master, self.guild_id, self.name))
                     # split brain detected, so step back
                     else:
-                        self.log.warning("Split brain detected, stepping back from master.")
-                        cursor.execute('UPDATE nodes SET master = False, last_seen = NOW() '
-                                       'WHERE guild_id = %s and node = %s',
-                                       (self.guild_id, self.name))
-                        master = False
+                        if self.locals.get('preferred_master', False):
+                            cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node <> %s',
+                                           (self.guild_id, self.name))
+                        else:
+                            self.log.warning("Split brain detected, stepping back from master.")
+                            cursor.execute('UPDATE nodes SET master = False, last_seen = NOW() '
+                                           'WHERE guild_id = %s and node = %s',
+                                           (self.guild_id, self.name))
+                            master = False
             return master
 
     def get_active_nodes(self) -> list[str]:
