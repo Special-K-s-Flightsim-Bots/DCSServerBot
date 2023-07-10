@@ -46,6 +46,18 @@ class MonitoringService(Service):
             self.autoupdate.cancel()
         self.monitoring.cancel()
 
+    async def check_nodes(self):
+        active_nodes: list[str] = self.node.get_active_nodes()
+        used_nodes: set[str] = set()
+        for server in [x for x in self.bus.servers.values() if x.is_remote]:
+            if server.node.name not in active_nodes:
+                self.log.warning(f"- Node {server.node.name} not responding, removing server {server.name}.")
+                del self.bus.servers[server.node.name]
+            else:
+                used_nodes.add(server.node.name)
+        for node in set(active_nodes) - used_nodes:
+            await self.bus.register_remote_servers(node)
+
     @staticmethod
     async def check_affinity(server: Server, affinity: list[int]):
         if not server.process:
@@ -184,6 +196,8 @@ class MonitoringService(Service):
     @tasks.loop(minutes=1.0)
     async def monitoring(self):
         try:
+            if self.node.master:
+                await self.check_nodes()
             await self.check_popups()
             await self.heartbeat()
             if 'serverstats' in self.node.config.get('opt_plugins', []):

@@ -165,22 +165,10 @@ class DCSServerBot(commands.Bot):
         for plugin in self.plugins:
             if not await self.load_plugin(plugin.lower()):
                 self.log.info(f'  => {plugin.title()} NOT loaded.')
-        remote_nodes = self.node.get_active_nodes()
-        if remote_nodes:
-            self.log.info("- Searching for running remote DCS servers ...")
-            # cleaning up any remote server in the list
-            for key, value in self.servers.copy().items():
-                if value.is_remote:
-                    del self.servers[key]
-            # ask any active agent to register its servers with us
-            for node in remote_nodes:
-                self.bus.sendtoBot({
-                    "command": "rpc",
-                    "service": "ServiceBus",
-                    "method": "register_servers"
-                }, node=node)
-        else:
-            self.log.debug("- No remote nodes found, skipping.")
+        # cleanup remote servers (if any)
+        for key, value in self.bus.servers.copy().items():
+            if value.is_remote:
+                del self.bus.servers[key]
 
     async def load_plugin(self, plugin: str) -> bool:
         try:

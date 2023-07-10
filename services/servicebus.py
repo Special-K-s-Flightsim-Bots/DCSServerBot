@@ -57,7 +57,7 @@ class ServiceBus(Service):
         if self.master:
             self.bot = ServiceRegistry.get("Bot").bot
             await self.bot.wait_until_ready()
-        await self.register_servers()
+        await self.register_local_servers()
 
     async def stop(self):
         if self.udp_server:
@@ -110,7 +110,7 @@ class ServiceBus(Service):
             }
         })
 
-    async def register_servers(self):
+    async def register_local_servers(self):
         self.log.info('- Searching for running local DCS servers (this might take a bit) ...')
         timeout = (10 * len(self.servers)) if self.node.locals.get('slow_system', False) else (5 * len(self.servers))
         local_servers = [x for x in self.servers.values() if not x.is_remote]
@@ -136,6 +136,14 @@ class ServiceBus(Service):
                 num += 1
         if num == 0:
             self.log.info('- No running local servers found.')
+
+    async def register_remote_servers(self, node: str):
+        self.log.info(f"- Sending register event to newly discovered node {node}.")
+        self.sendtoBot({
+            "command": "rpc",
+            "service": "ServiceBus",
+            "method": "register_servers"
+        }, node=node)
 
     def register_server(self, data: dict) -> bool:
         server_name = data['server_name']

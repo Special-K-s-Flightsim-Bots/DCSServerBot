@@ -1,6 +1,4 @@
-import aiofiles
 import aiohttp
-import asyncio
 import certifi
 import discord
 import json
@@ -13,13 +11,11 @@ import subprocess
 import sys
 import time
 import yaml
-import zipfile
 
 from contextlib import closing
 from core import utils
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
-from matplotlib import font_manager
 from pathlib import Path
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
@@ -325,8 +321,9 @@ class NodeImpl(Node):
                         cursor.execute('UPDATE nodes SET master = %s, last_seen = NOW() '
                                        'WHERE guild_id = %s and node = %s',
                                        (master, self.guild_id, self.name))
-                    # split brain detected, so step back
+                    # split brain detected
                     else:
+                        # we are the preferred master,
                         if self.locals.get('preferred_master', False):
                             cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node <> %s',
                                            (self.guild_id, self.name))
@@ -346,5 +343,5 @@ class NodeImpl(Node):
                         SELECT node FROM nodes 
                         WHERE guild_id = %s
                         AND master is False 
-                        AND last_seen > (DATE(NOW()) - interval '1 minute')
+                        AND last_seen > (NOW() - interval '1 minute')
                     """, (self.guild_id, ))]
