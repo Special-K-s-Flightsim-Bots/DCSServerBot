@@ -319,6 +319,9 @@ class NodeImpl(Node):
                         master = True
                     # there is only one master, might be me, might be others
                     elif count == 1:
+                        # if we are the preferred master, take it back
+                        if not master and self.locals.get('preferred_master', False):
+                            master = True
                         cursor.execute('UPDATE nodes SET master = %s, last_seen = NOW() '
                                        'WHERE guild_id = %s and node = %s',
                                        (master, self.guild_id, self.name))
