@@ -1,6 +1,4 @@
 local base		= _G
-local config	= require('DCSServerBotConfig')
-
 dcsbot 			= base.dcsbot
 
 local GROUP_CATEGORY = {
@@ -160,7 +158,7 @@ function onEvent(event)
 			if category == Object.Category.UNIT then
 				msg.target.type = 'UNIT'
 				msg.target.unit = event.target
-				if msg.target.unit and msg.target.unit:isExist() then
+				if msg.target.unit then
 					msg.target.unit_name = msg.target.unit:getName()
 					msg.target.group = msg.target.unit:getGroup()
 					if msg.target.group and msg.target.group:isExist() then
