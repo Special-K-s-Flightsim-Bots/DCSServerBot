@@ -135,7 +135,10 @@ class DCSServerBot(commands.Bot):
         await super().start(token, reconnect=reconnect)
 
     async def close(self):
-        await self.audit(message="Discord Bot stopped.")
+        try:
+            await self.audit(message="Discord Bot stopped.")
+        except aiohttp.ClientError:
+            pass
         self.log.info('- Unloading Plugins ...')
         await super().close()
         self.log.info('- Discord Bot stopped.')

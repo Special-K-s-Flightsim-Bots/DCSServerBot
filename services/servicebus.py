@@ -3,11 +3,9 @@ import asyncio
 import concurrent
 import json
 import platform
-import traceback
-from enum import Enum
-
 import psycopg
 import sys
+import traceback
 
 from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
@@ -18,6 +16,7 @@ from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec,
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from discord.ext import tasks
+from enum import Enum
 from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
@@ -142,7 +141,7 @@ class ServiceBus(Service):
         self.sendtoBot({
             "command": "rpc",
             "service": "ServiceBus",
-            "method": "register_servers"
+            "method": "register_local_servers"
         }, node=node)
 
     def register_server(self, data: dict) -> bool:
@@ -313,8 +312,10 @@ class ServiceBus(Service):
                     rc = rc.value
                 self.sendtoBot({"command": data['method'], "channel": data['channel'], "return": rc,
                                 "server_name": data['server_name']})
-        else:
+        elif data['server_name'] in self.udp_server.message_queue:
             self.udp_server.message_queue[data['server_name']].put(data)
+        else:
+            self.log.warning(f"Intercom: message ignored, no server {data['server_name']} registered.")
 
     async def handle_agent(self, data: dict):
         self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
