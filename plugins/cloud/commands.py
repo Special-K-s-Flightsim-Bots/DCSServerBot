@@ -241,7 +241,7 @@ class CloudHandlerMaster(CloudHandlerAgent):
         finally:
             self.pool.putconn(conn)
 
-    @tasks.loop(minutes=1.0)
+    @tasks.loop(seconds=10)
     async def cloud_sync(self):
         conn = self.pool.getconn()
         try:
