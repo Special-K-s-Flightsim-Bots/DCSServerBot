@@ -57,7 +57,7 @@ class MonitoringService(Service):
                 used_nodes.add(server.node.name)
         # any new nodes detected?
         for node in set(active_nodes) - used_nodes:
-            await self.bus.register_remote_servers(node)
+            await self.bus.register_remote_node(node)
 
     @staticmethod
     async def check_affinity(server: Server, affinity: list[int]):

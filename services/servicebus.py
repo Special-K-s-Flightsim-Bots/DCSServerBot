@@ -67,6 +67,15 @@ class ServiceBus(Service):
         self.log.debug('- Listener stopped.')
         self.executor.shutdown(wait=True)
         self.log.debug('- Executor stopped.')
+        if not self.master:
+            self.sendtoBot({
+                "command": "rpc",
+                "service": "ServiceBus",
+                "method": "unregister_remote_node",
+                "params": {
+                    "node": self.node.name
+                }
+            })
         self.intercom.cancel()
         self.log.debug('- Intercom stopped.')
         await super().stop()
@@ -136,13 +145,19 @@ class ServiceBus(Service):
         if num == 0:
             self.log.info('- No running local servers found.')
 
-    async def register_remote_servers(self, node: str):
-        self.log.info(f"- Sending register event to newly discovered node {node}.")
+    async def register_remote_node(self, node: str):
+        self.log.info(f"- Registering remote node {node}.")
         self.sendtoBot({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "register_local_servers"
         }, node=node)
+
+    async def unregister_remote_node(self, node: str):
+        self.log.info(f"- Unregistering remote node {node}.")
+        for server in [x for x in self.servers.values() if x.is_remote]:
+            if server.node.name == node:
+                del self.servers[server.name]
 
     def register_server(self, data: dict) -> bool:
         server_name = data['server_name']
