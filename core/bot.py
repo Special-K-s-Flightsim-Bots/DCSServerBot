@@ -244,6 +244,8 @@ class DCSServerBot(commands.Bot):
             pass
         elif isinstance(err, asyncio.TimeoutError):
             await ctx.send('A timeout occurred. Is the DCS server running?')
+        elif isinstance(err, commands.MemberNotFound):
+            await ctx.send(str(err))
         else:
             self.log.exception(err)
             await ctx.send("An unknown exception occurred.")
