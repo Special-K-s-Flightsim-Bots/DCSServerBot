@@ -1,6 +1,6 @@
 {
   "color": "blue",
-  "title": "Cloud Statistics for {member.display_name}",
+  "title": "Cloud Statistics for {user}",
   "description": "{guild}",
   "pagination":
   {

@@ -102,6 +102,7 @@ class CloudHandlerMaster(CloudHandlerAgent):
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
             self.master_bans.start()
         if 'token' in self.config:
+            self.cloud_sync.add_exception_type(aiohttp.ClientError)
             self.cloud_sync.start()
 
     async def cog_load(self) -> None:
@@ -184,16 +185,25 @@ class CloudHandlerMaster(CloudHandlerAgent):
     @commands.command(description='Generate Cloud Statistics', usage='[@member]', aliases=['cstats', 'globalstats', 'gstats'])
     @utils.has_role('DCS')
     @commands.guild_only()
-    async def cloudstats(self, ctx, member: Optional[discord.Member] = None):
+    async def cloudstats(self, ctx, member: Optional[Union[discord.Member, str]] = None, *params):
         try:
             if 'token' not in self.config:
                 await ctx.send('Cloud statistics are not activated on this server.')
                 return
             if not member:
                 member = ctx.message.author
-            ucid = self.bot.get_ucid_by_member(member)
+            if isinstance(member, str):
+                if len(params):
+                    member += ' ' + ' '.join(params)
+                if utils.is_ucid(member):
+                    ucid = member
+                    member = self.bot.get_member_or_name_by_ucid(ucid)
+                else:
+                    ucid, member = self.bot.get_ucid_by_name(member)
+            else:
+                ucid = self.bot.get_ucid_by_member(member)
             if not ucid:
-                await ctx.send(f'The account is not properly linked. Use {ctx.prefix}linkme to link your Discord and DCS accounts.')
+                await ctx.send(f'This account is not known.')
                 return
             response = await self.get(f'stats/{ucid}')
             if not len(response):
@@ -201,8 +211,10 @@ class CloudHandlerMaster(CloudHandlerAgent):
                 return
             df = pd.DataFrame(response)
             timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'cloudstats.json', timeout if timeout > 0 else None)
-            await report.render(member=member, data=df, guild=None)
+            report = PaginationReport(self.bot, ctx, self.plugin_name, 'cloudstats.json',
+                                      timeout if timeout > 0 else None)
+            await report.render(user=utils.escape_string(member.display_name) if isinstance(member, discord.Member) else member,
+                                data=df, guild=None)
         finally:
             await ctx.message.delete()
 
@@ -246,8 +258,7 @@ class CloudHandlerMaster(CloudHandlerAgent):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute('SELECT ucid FROM players WHERE synced IS FALSE AND discord_id <> -1 ORDER BY '
-                               'last_seen DESC LIMIT 10')
+                cursor.execute('SELECT ucid FROM players WHERE synced IS FALSE ORDER BY last_seen DESC LIMIT 10')
                 for row in cursor.fetchall():
                     cursor.execute('SELECT s.player_ucid, m.mission_theatre, s.slot, SUM(s.kills) as kills, '
                                    'SUM(s.pvp) as pvp, SUM(deaths) as deaths, SUM(ejections) as ejections, '
