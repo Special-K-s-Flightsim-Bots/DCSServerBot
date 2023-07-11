@@ -54,6 +54,7 @@ class NodeImpl(Node):
             self.upgrade()
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
+        self.all_nodes: Optional[dict] = None
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.db_version = None
@@ -69,6 +70,17 @@ class NodeImpl(Node):
             self.plugins.remove('cloud')
             self.plugins.append('cloud')
         try:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    row = conn.execute("""
+                            SELECT count(*) FROM nodes 
+                            WHERE guild_id = %s AND node = %s AND last_seen > (NOW() - interval '2 seconds')
+                        """, (self.guild_id, self.name)).fetchone()
+                    if row[0] > 0:
+                        self.log.error(f"A node with name {self.name} is already running for this guild!")
+                        exit(-1)
+                    conn.execute("INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) "
+                                 "ON CONFLICT (guild_id, node) DO NOTHING", (self.guild_id, self.name))
             self._master = self.check_master()
         except UndefinedTable:
             # should only happen when an upgrade to 3.0 is needed
@@ -126,7 +138,8 @@ class NodeImpl(Node):
     def read_locals(self) -> dict:
         _locals = dict()
         if os.path.exists('config/nodes.yaml'):
-            node: dict = yaml.safe_load(Path('config/nodes.yaml').read_text())[self.name]
+            self.all_nodes: dict = yaml.safe_load(Path('config/nodes.yaml').read_text())
+            node: dict = self.all_nodes[self.name]
             for name, element in node.items():
                 if name == 'instances':
                     for _name, _element in node['instances'].items():
@@ -284,17 +297,6 @@ class NodeImpl(Node):
         self._public_ip = self.locals.get('public_ip')
         if not self._public_ip:
             self._public_ip = await utils.get_public_ip()
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                row = conn.execute("""
-                        SELECT COUNT(*) FROM nodes 
-                        WHERE guild_id = %s AND node = %s AND last_seen > (NOW() - interval '2 seconds')
-                    """, (self.guild_id, self.name)).fetchone()
-                if row[0] > 0:
-                    self.log.error(f"A node with name {self.name} is already running for this guild!")
-                    exit(-1)
-                conn.execute("INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) "
-                             "ON CONFLICT (guild_id, node) DO NOTHING", (self.guild_id, self.name))
 
     async def unregister(self):
         with self.pool.connection() as conn:
