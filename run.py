@@ -24,29 +24,31 @@ class Main:
                     continue
                 else:
                     asyncio.create_task(registry.new(name).start())
-            while True:
-                # wait until the master changes
-                while self.node.master == self.node.check_master():
-                    await asyncio.sleep(1)
-                # switch master
-                self.node.master = not self.node.master
-                if self.node.master:
-                    self.log.info("Master is not responding... taking over.")
+            try:
+                while True:
+                    # wait until the master changes
+                    while self.node.master == self.node.check_master():
+                        await asyncio.sleep(1)
+                    # switch master
+                    self.node.master = not self.node.master
+                    if self.node.master:
+                        self.log.info("Master is not responding... taking over.")
+                        if self.node.config.get('use_dashboard', True):
+                            await dashboard.stop()
+                        for name in registry.services().keys():
+                            if registry.master_only(name):
+                                asyncio.create_task(registry.new(name).start())
+                    else:
+                        self.log.info("Second Master found, stepping back to Agent configuration.")
+                        if self.node.config.get('use_dashboard', True):
+                            await dashboard.stop()
+                        for name in registry.services().keys():
+                            if registry.master_only(name):
+                                await registry.get(name).stop()
                     if self.node.config.get('use_dashboard', True):
-                        await dashboard.stop()
-                    for name in registry.services().keys():
-                        if registry.master_only(name):
-                            asyncio.create_task(registry.new(name).start())
-                else:
-                    self.log.info("Second Master found, stepping back to Agent configuration.")
-                    if self.node.config.get('use_dashboard', True):
-                        await dashboard.stop()
-                    for name in registry.services().keys():
-                        if registry.master_only(name):
-                            await registry.get(name).stop()
-                if self.node.config.get('use_dashboard', True):
-                    await dashboard.start()
-
+                        await dashboard.start()
+            finally:
+                await self.node.unregister()
 
 if __name__ == "__main__":
     if os.path.exists('config/dcsserverbot.ini'):

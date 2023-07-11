@@ -289,6 +289,11 @@ class NodeImpl(Node):
                 conn.execute("INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) "
                              "ON CONFLICT (guild_id, node) DO NOTHING", (self.guild_id, self.name))
 
+    async def unregister(self):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
+
     def check_master(self) -> bool:
         with self.pool.connection() as conn:
             with conn.transaction():
