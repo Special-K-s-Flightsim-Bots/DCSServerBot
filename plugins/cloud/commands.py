@@ -177,18 +177,22 @@ class CloudHandler(Plugin):
     @cloud.command(description='Generate Cloud Statistics')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    async def statistics(self, interaction: discord.Interaction, member: Optional[discord.Member] = None):
+    async def statistics(self, interaction: discord.Interaction,
+                         user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]],
+                         period: Optional[str]):
         if 'token' not in self.config:
             await interaction.response.send_message('Cloud statistics are not activated in this Discord.',
                                                     ephemeral=True)
             return
-        if not member:
-            member = interaction.user
-        ucid = self.bot.get_ucid_by_member(member)
-        if not ucid:
-            await interaction.response.send_message(f'The account is not properly linked. Use /linkme to link '
-                                                    f'your Discord and DCS accounts.', ephemeral=True)
-            return
+        if not user:
+            user = interaction.user
+        if isinstance(user, discord.Member):
+            member = user
+            name = member.display_name
+            ucid = self.bot.get_ucid_by_member(member)
+        else:
+            ucid = user
+            member, name = self.bot.get_member_or_name_by_ucid(ucid)
         await interaction.response.defer()
         try:
             response = await self.get(f'stats/{ucid}')
@@ -197,7 +201,7 @@ class CloudHandler(Plugin):
                 return
             df = pd.DataFrame(response)
             report = PaginationReport(self.bot, interaction, self.plugin_name, 'cloudstats.json')
-            await report.render(member=member, data=df, guild=None)
+            await report.render(user=name, data=df, guild=None)
         except aiohttp.ClientError:
             await interaction.followup.send('Cloud not connected.', ephemeral=True)
 
@@ -232,7 +236,7 @@ class CloudHandler(Plugin):
                     with closing(conn.cursor(row_factory=dict_row)) as cursor:
                         for row in cursor.execute("""
                             SELECT ucid FROM players 
-                            WHERE synced IS FALSE AND discord_id <> -1 
+                            WHERE synced IS FALSE 
                             ORDER BY last_seen DESC 
                             LIMIT 10
                         """).fetchall():

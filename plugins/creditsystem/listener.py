@@ -74,7 +74,7 @@ class CreditSystemListener(EventListener):
         if data['points'] != 0:
             player: CreditPlayer = cast(CreditPlayer, server.get_player(name=data['name']))
             old_points = player.points
-            player.points += data['points']
+            player.points += int(data['points'])
             if old_points != player.points:
                 player.audit('mission', old_points, 'Unknown mission achievement')
 

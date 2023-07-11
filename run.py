@@ -50,6 +50,7 @@ class Main:
             finally:
                 await self.node.unregister()
 
+
 if __name__ == "__main__":
     if os.path.exists('config/dcsserverbot.ini'):
         migrate()

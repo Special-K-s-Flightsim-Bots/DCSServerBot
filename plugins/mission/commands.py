@@ -29,6 +29,7 @@ class Mission(Plugin):
 
     async def cog_unload(self):
         self.afk_check.cancel()
+        self.update_channel_name.add_exception_type(AttributeError)
         self.update_channel_name.cancel()
         await super().cog_unload()
 

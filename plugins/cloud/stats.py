@@ -1,4 +1,3 @@
-import discord
 import matplotlib.pyplot as plt
 import numpy as np
 from core import report, utils, Pagination
@@ -15,7 +14,7 @@ class GuildPagination(Pagination):
 
 class PlaytimesPerGuild(report.GraphElement):
 
-    def render(self, member: discord.Member, data: DataFrame, guild: Optional[str] = None):
+    def render(self, data: DataFrame, guild: Optional[str] = None):
         if not len(data):
             self.axes.set_visible(False)
             return
@@ -43,7 +42,7 @@ class PlaytimesPerGuild(report.GraphElement):
 
 class PlaytimesPerPlane(report.GraphElement):
 
-    def render(self, member: discord.Member, data: DataFrame, guild: Optional[str] = None):
+    def render(self, data: DataFrame, guild: Optional[str] = None):
         labels = []
         values = []
         if guild:
@@ -70,7 +69,7 @@ class PlaytimesPerPlane(report.GraphElement):
 
 class PlaytimesPerMap(report.GraphElement):
 
-    def render(self, member: discord.Member, data: DataFrame, guild: Optional[str] = None):
+    def render(self, data: DataFrame, guild: Optional[str] = None):
         if not len(data):
             self.axes.set_visible(False)
             return
@@ -98,7 +97,7 @@ class PlaytimesPerMap(report.GraphElement):
 
 class FlightPerformance(report.GraphElement):
 
-    def render(self, member: discord.Member, data: DataFrame, guild: Optional[str] = None):
+    def render(self, data: DataFrame, guild: Optional[str] = None):
         if not len(data):
             self.axes.set_visible(False)
             return
@@ -287,7 +286,7 @@ class KDRatio(report.MultiGraphElement):
             retval = True
         return retval
 
-    def render(self, member: discord.Member, data: DataFrame, guild: Optional[str] = None):
+    def render(self, data: DataFrame, guild: Optional[str] = None):
         retval = self.draw_kill_performance(self.axes[1], data, guild)
         i = 0
         if ('AI Kills' in retval or 'Player Kills' in retval) and \

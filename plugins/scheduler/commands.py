@@ -285,6 +285,27 @@ class Scheduler(Plugin):
 
     group = Group(name="server", description="Commands to manage a DCS server")
 
+    @group.command(description='List of all registered servers')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def list(self, interaction: discord.Interaction):
+        embed = discord.Embed(title=f"Server List", color=discord.Color.blue())
+        names = []
+        status = []
+        players = []
+        for server in self.bot.servers.values():
+            names.append(server.display_name)
+            status.append(server.status.name.title())
+            if server.status in [Status.RUNNING, Status.PAUSED]:
+                players.append(f"{len(server.players) + 1}/{server.settings.get('maxPlayers', 0)}")
+            else:
+                players.append('-')
+        if len(names):
+            embed.add_field(name='Server', value='\n'.join(names))
+            embed.add_field(name='Status', value='\n'.join(status))
+            embed.add_field(name='Players', value='\n'.join(players))
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
     @group.command(description='Starts a DCS/DCS-SRS server')
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()

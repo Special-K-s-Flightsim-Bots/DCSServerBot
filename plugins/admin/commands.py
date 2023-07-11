@@ -7,7 +7,7 @@ import shutil
 import yaml
 
 from contextlib import closing
-from core import utils, Plugin, Status, Server, command, ServiceRegistry
+from core import utils, Plugin, Status, Server, command, ServiceRegistry, NodeImpl
 from discord import app_commands
 from discord.app_commands import Range, Group
 from discord.ext import commands
@@ -292,66 +292,76 @@ class Admin(Plugin):
                             await interaction.followup.send(f"All data older than {days} days pruned.", ephemeral=True)
         await self.bot.audit(f'pruned the database', user=interaction.user)
 
-    @command(description='Status of all registered servers')
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS')
-    async def status(self, interaction: discord.Interaction):
-        embed = discord.Embed(title=f"Server Status", color=discord.Color.blue())
-        names = []
-        status = []
-        nodes = []
-        for server in self.bot.servers.values():
-            names.append(server.display_name)
-            status.append(server.status.name.title())
-            nodes.append(server.node.name)
-        if len(names):
-            embed.add_field(name='Server', value='\n'.join(names))
-            embed.add_field(name='Status', value='\n'.join(status))
-            embed.add_field(name='Node', value='\n'.join(nodes))
-            embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+    node = Group(name="node", description="Commands to manage your nodes")
 
-    @command(description='Stop a specific node')
+    @node.command(description='Status of all nodes')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def list(self, interaction: discord.Interaction):
+        embed = discord.Embed(title=f"Node Status", color=discord.Color.blue())
+        master: NodeImpl = self.bot.node
+        # master node
+        names = []
+        instances = []
+        status = []
+        embed.add_field(name="▬" * 32, value=f"**Master: {master.name}**", inline=False)
+        for server in [server for server in self.bus.servers.values() if server.node == master]:
+            instances.append(server.instance.name)
+            names.append(server.name)
+            status.append(server.status.name)
+        embed.add_field(name="Instance", value='\n'.join(instances))
+        embed.add_field(name="Server", value='\n'.join(names))
+        embed.add_field(name="Status", value='\n'.join(status))
+        embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
+        ## agent nodes
+        names = []
+        instances = []
+        status = []
+        for node in master.get_active_nodes():
+            embed.add_field(name="▬" * 32, value=f"Agent: {node}", inline=False)
+            for server in [server for server in self.bus.servers.values() if server.node.name == node]:
+                instances.append(server.instance.name)
+                names.append(server.name)
+                status.append(server.status.name)
+            embed.add_field(name="Instance", value='\n'.join(instances))
+            embed.add_field(name="Server", value='\n'.join(names))
+            embed.add_field(name="Status", value='\n'.join(status))
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[str] = None):
+        if not node:
+            msg = f"Do you want to {method} all nodes?\n"
+        else:
+            msg = f"Do you want to {method} node {node}?\n"
+        if not await utils.yn_question(interaction,
+                                       msg + "It should autostart again, if being launched with run.cmd."):
+            await interaction.followup.send('Aborted.', ephemeral=True)
+            return
+        for n in self.bot.node.get_active_nodes():
+            if not node or node == n:
+                self.bus.sendtoBot({
+                    "command": "rpc",
+                    "object": "Node",
+                    "method": method
+                }, node=n)
+            await interaction.followup.send(f'Node {node} - {method} sent.', ephemeral=True)
+        if not node or node == platform.node():
+            await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=True)
+            self.bot.node.shutdown()
+
+    @node.command(description='Stop a specific node')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(node=utils.nodes_autocomplete)
-    async def exit(self, interaction: discord.Interaction, node: str):
-        if not await utils.yn_question(interaction, f"Do you want to shutdown node {node}?\n"
-                                                    f"It should autostart again, if being launched with run.cmd."):
-            await interaction.followup.send('Aborted.', ephemeral=True)
-            return
-        if node == platform.node():
-            await interaction.followup.send(f'Active node is going to shut down **NOW**.', ephemeral=True)
-            self.bot.node.shutdown()
-        else:
-            for n in self.bot.node.get_active_nodes():
-                if n == node:
-                    self.bus.sendtoBot({
-                        "command": "rpc",
-                        "object": "Node",
-                        "method": "shutdown"
-                    }, node=n)
-                await interaction.followup.send(f'Node {node} shut down.')
+    async def exit(self, interaction: discord.Interaction, node: Optional[str] = None):
+        await self.run_on_nodes(interaction, "shutdown", node)
 
-    @command(description='Upgrades the bot on all nodes')
+    @node.command(description='Upgrade a node')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    async def upgrade(self, interaction: discord.Interaction):
-        if not await utils.yn_question(interaction, f"Do you want to upgrade the bot on all nodes?"
-                                                    f"It should autostart again, if being launched with run.cmd."):
-            await interaction.followup.send('Aborted.', ephemeral=True)
-            return
-        # upgrading remote bots first
-        for n in self.bot.node.get_active_nodes():
-            self.bus.sendtoBot({
-                "command": "rpc",
-                "object": "Node",
-                "method": "upgrade"
-            }, node=n)
-            await interaction.followup.send(f'Node {n} upgraded.')
-        await interaction.followup.send(f'Active node is going to be upgraded **NOW**.', ephemeral=True)
-        self.bot.node.upgrade()
-        await interaction.followup.send('No upgrade found.')
+    @app_commands.autocomplete(node=utils.nodes_autocomplete)
+    async def upgrade(self, interaction: discord.Interaction, node: Optional[str] = None):
+        await self.run_on_nodes(interaction, "upgrade", node)
 
     @command(description='Reloads a plugin')
     @app_commands.guild_only()

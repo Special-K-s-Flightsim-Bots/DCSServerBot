@@ -106,7 +106,9 @@ class Command(app_commands.Command):
         super().__init__(name=name, description=description, callback=callback, nsfw=nsfw, parent=parent,
                          guild_ids=guild_ids, auto_locale_strings=auto_locale_strings, extras=extras)
         bot: DCSServerBot = ServiceRegistry.get("Bot").bot
-        if 'server' in self._params and len(bot.servers) == 1:
+        num_servers = len(bot.servers)
+        nodes = len(bot.node.all_nodes)
+        if 'server' in self._params and num_servers == 1 and nodes == 1:
             del self._params['server']
 
     async def _do_call(self, interaction: Interaction, params: Dict[str, Any]) -> T:
