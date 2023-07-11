@@ -137,7 +137,7 @@ class DCSServerBot(commands.Bot):
     async def close(self):
         try:
             await self.audit(message="Discord Bot stopped.")
-        except aiohttp.ClientError:
+        except Exception:
             pass
         self.log.info('- Unloading Plugins ...')
         await super().close()

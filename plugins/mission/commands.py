@@ -649,6 +649,14 @@ class Mission(Plugin):
         finally:
             await message.delete()
 
+    @commands.Cog.listener()
+    async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
+        self.bot.log.debug(f"Member {member.display_name} has been banned.")
+        ucid = self.bot.get_ucid_by_member(member)
+        if ucid:
+            for server in self.bot.servers.values():
+                server.ban(ucid, self.bot.locals.get('message_ban', 'User has been banned on Discord.'), 9999*86400)
+
 
 async def setup(bot: DCSServerBot):
     if 'gamemaster' not in bot.plugins:

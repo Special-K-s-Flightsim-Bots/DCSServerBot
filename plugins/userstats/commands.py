@@ -498,20 +498,10 @@ class UserStatistics(Plugin):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     self.bot.log.debug(f'- Deleting their statistics due to WIPE_STATS_ON_LEAVE')
-                    conn.execute("""
-                        DELETE FROM statistics 
-                        WHERE player_ucid IN (
-                            SELECT ucid FROM players WHERE discord_id = %s
-                        )
-                        """, (member.id, ))
-
-    @commands.Cog.listener()
-    async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
-        self.bot.log.debug(f"Member {member.display_name} has been banned.")
-        ucid = self.bot.get_ucid_by_member(member)
-        if ucid:
-            for server in self.bot.servers.values():
-                server.ban(ucid, self.bot.locals.get('message_ban', 'User has been banned on Discord.'), 9999*86400)
+                    ucids = [row[0] for row in conn.execute(
+                        'SELECT ucid FROM players WHERE discord_id = %s', (member.id, )).fetchall()]
+                    for plugin in self.bot.cogs.values():  # type: Plugin
+                        await plugin.prune(conn, ucids=ucids)
 
 
 async def setup(bot: DCSServerBot):

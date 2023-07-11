@@ -286,6 +286,13 @@ class NodeImpl(Node):
             self._public_ip = await utils.get_public_ip()
         with self.pool.connection() as conn:
             with conn.transaction():
+                row = conn.execute("""
+                        SELECT COUNT(*) FROM nodes 
+                        WHERE guild_id = %s AND node = %s AND last_seen > (NOW() - interval '2 seconds')
+                    """, (self.guild_id, self.name)).fetchone()
+                if row[0] > 0:
+                    self.log.error(f"A node with name {self.name} is already running for this guild!")
+                    exit(-1)
                 conn.execute("INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) "
                              "ON CONFLICT (guild_id, node) DO NOTHING", (self.guild_id, self.name))
 
