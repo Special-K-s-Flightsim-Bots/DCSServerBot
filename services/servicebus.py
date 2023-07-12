@@ -352,6 +352,8 @@ class ServiceBus(Service):
             if rc:
                 if isinstance(rc, Enum):
                     rc = rc.value
+                elif isinstance(rc, bool):
+                    rc = str(rc)
                 self.sendtoBot({"command": data['method'], "channel": data['channel'], "return": rc,
                                 "server_name": data['server_name']})
         else:

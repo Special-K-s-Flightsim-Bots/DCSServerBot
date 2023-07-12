@@ -147,7 +147,7 @@ class ServerProxy(Server):
                 "ucid": ucid
             }
         })
-        return data["return"]
+        return data["return"] == "True"
 
     async def modifyMission(self, preset: Union[list, dict]) -> None:
         await self.sendtoDCSSync({

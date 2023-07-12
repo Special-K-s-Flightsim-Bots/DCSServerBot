@@ -28,7 +28,7 @@ class HighscorePlaytime(report.GraphElement):
               "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
         if server_name:
-            sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
+            sql += "AND m.server_name = %s"
             self.env.embed.description = utils.escape_string(server_name)
             if server_name in self.bot.servers:
                 sql += ' AND s.side in (' + ','.join([str(x) for x in get_sides(interaction, self.bot.servers[server_name])]) + ')'
@@ -40,7 +40,11 @@ class HighscorePlaytime(report.GraphElement):
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 labels = []
                 values = []
-                for row in cursor.execute(sql).fetchall():
+                if server_name:
+                    rows = cursor.execute(sql, (server_name, )).fetchall()
+                else:
+                    rows = cursor.execute(sql).fetchall()
+                for row in rows:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
@@ -85,17 +89,24 @@ class HighscoreElement(report.GraphElement):
         sql = f"SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, {sql_parts[kill_type]} AS value FROM " \
               f"players p, statistics s, missions m WHERE s.player_ucid = p.ucid AND s.mission_id = m.id "
         if server_name:
-            sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
+            sql += "AND m.server_name = %s"
             if server_name in self.bot.servers:
                 sql += ' AND s.side in (' + ','.join([str(x) for x in get_sides(interaction, self.bot.servers[server_name])]) + ')'
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
-        sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0 ORDER BY 3 DESC LIMIT {limit}'
+        sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
+        if kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:
+            sql += f' AND SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) > 1800'
+        sql += f' ORDER BY 3 DESC LIMIT {limit}'
 
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 labels = []
                 values = []
-                for row in cursor.execute(sql).fetchall():
+                if server_name:
+                    rows = cursor.execute(sql, (server_name, )).fetchall()
+                else:
+                    rows = cursor.execute(sql).fetchall()
+                for row in rows:
                     member = self.bot.guilds[0].get_member(row['discord_id']) if row['discord_id'] != '-1' else None
                     name = member.display_name if member else row['name']
                     labels.insert(0, name)
