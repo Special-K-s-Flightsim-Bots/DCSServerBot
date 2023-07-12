@@ -79,7 +79,10 @@ class HighscoreElement(report.GraphElement):
             if server_name in self.bot.servers:
                 sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
-        sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0 ORDER BY 3 DESC LIMIT {limit}'
+        sql += f' AND s.hop_off IS NOT NULL GROUP BY 1, 2 HAVING {sql_parts[kill_type]} > 0'
+        if kill_type in ['Most Efficient Killers', 'Most Wasteful Pilots']:
+            sql += f' AND SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) > 1800'
+        sql += f' ORDER BY 3 DESC LIMIT {limit}'
 
         conn = self.pool.getconn()
         try:
