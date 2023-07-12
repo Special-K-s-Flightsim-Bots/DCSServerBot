@@ -39,6 +39,7 @@ class CloudHandler(Plugin):
             self.cloud_bans.add_exception_type(psycopg.DatabaseError)
             self.cloud_bans.start()
         if 'token' in self.config:
+            self.cloud_sync.add_exception_type(IndexError)
             self.cloud_sync.add_exception_type(aiohttp.ClientError)
             self.cloud_sync.add_exception_type(psycopg.DatabaseError)
             self.cloud_sync.start()

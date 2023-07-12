@@ -322,7 +322,7 @@ class ServiceBus(Service):
                 self.log.warning('RPC command received for unknown object/service.')
                 return
             rc = await self.rpc(obj, data)
-            if rc:
+            if rc is not None:
                 if isinstance(rc, Enum):
                     rc = rc.value
                 self.sendtoBot({"command": data['method'], "channel": data['channel'], "return": rc,
@@ -349,7 +349,7 @@ class ServiceBus(Service):
                 self.log.warning('RPC command received for unknown object/service.')
                 return
             rc = await self.rpc(obj, data)
-            if rc:
+            if rc is not None:
                 if isinstance(rc, Enum):
                     rc = rc.value
                 elif isinstance(rc, bool):
