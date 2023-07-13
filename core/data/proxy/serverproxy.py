@@ -16,7 +16,7 @@ class ServerProxy(Server):
         return True
 
     async def get_missions_dir(self) -> str:
-        data = await self.sendtoDCSSync({
+        data = await self.send_to_dcs_sync({
             "command": "rpc",
             "object": "Server",
             "method": "get_missions_dir"
@@ -55,7 +55,7 @@ class ServerProxy(Server):
     @maintenance.setter
     def maintenance(self, maintenance: bool):
         self._maintenance = maintenance
-        self.sendtoDCS({
+        self.send_to_dcs({
             "command": "rpc",
             "object": "Server",
             "params": {
@@ -64,19 +64,19 @@ class ServerProxy(Server):
         })
 
     async def get_current_mission_file(self) -> Optional[str]:
-        data = await self.sendtoDCSSync({
+        data = await self.send_to_dcs_sync({
             "command": "rpc",
             "object": "Server",
             "method": "get_current_mission_file"
         })
         return data["return"]
 
-    def sendtoDCS(self, message: dict):
+    def send_to_dcs(self, message: dict):
         message['server_name'] = self.name
-        self.bus.sendtoBot(message, node=self.node.name)
+        self.bus.send_to_node(message, node=self.node.name)
 
     def rename(self, new_name: str, update_settings: bool = False) -> None:
-        self.sendtoDCS({
+        self.send_to_dcs({
             "command": "rpc",
             "object": "Server",
             "method": "rename",
@@ -87,7 +87,7 @@ class ServerProxy(Server):
         })
 
     async def startup(self) -> None:
-        self.sendtoDCS({
+        self.send_to_dcs({
             "command": "rpc",
             "object": "Server",
             "method": "do_startup",
@@ -100,7 +100,7 @@ class ServerProxy(Server):
     async def shutdown(self, force: bool = False) -> None:
         await super().shutdown(force)
         if self.status != Status.SHUTDOWN:
-            self.sendtoDCS({
+            self.send_to_dcs({
                 "command": "rpc",
                 "object": "Server",
                 "method": "terminate",
@@ -109,7 +109,7 @@ class ServerProxy(Server):
         self.status = Status.SHUTDOWN
 
     def ban(self, ucid: str, reason: str = 'n/a', period: int = 30*86400):
-        self.sendtoDCS({
+        self.send_to_dcs({
             "command": "rpc",
             "object": "Server",
             "method": "ban",
@@ -121,7 +121,7 @@ class ServerProxy(Server):
         })
 
     def unban(self, ucid: str):
-        self.sendtoDCS({
+        self.send_to_dcs({
             "command": "rpc",
             "object": "Server",
             "method": "unban",
@@ -131,7 +131,7 @@ class ServerProxy(Server):
         })
 
     async def bans(self) -> list[str]:
-        data = await self.sendtoDCSSync({
+        data = await self.send_to_dcs_sync({
             "command": "rpc",
             "object": "Server",
             "method": "bans"
@@ -139,7 +139,7 @@ class ServerProxy(Server):
         return data["return"]
 
     async def is_banned(self, ucid: str) -> bool:
-        data = await self.sendtoDCSSync({
+        data = await self.send_to_dcs_sync({
             "command": "rpc",
             "object": "Server",
             "method": "is_banned",
@@ -150,7 +150,7 @@ class ServerProxy(Server):
         return data["return"] == "True"
 
     async def modifyMission(self, preset: Union[list, dict]) -> None:
-        await self.sendtoDCSSync({
+        await self.send_to_dcs_sync({
             "command": "rpc",
             "object": "Server",
             "method": "modifyMission",
@@ -160,14 +160,14 @@ class ServerProxy(Server):
         })
 
     async def init_extensions(self):
-        await self.sendtoDCSSync({
+        await self.send_to_dcs_sync({
             "command": "rpc",
             "object": "Server",
             "method": "init_extensions"
         })
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
-        data = await self.sendtoDCSSync({
+        data = await self.send_to_dcs_sync({
             "command": "rpc",
             "object": "Server",
             "method": "uploadMission",

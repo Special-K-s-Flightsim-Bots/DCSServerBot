@@ -298,7 +298,7 @@ class Admin(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def list(self, interaction: discord.Interaction):
-        embed = discord.Embed(title=f"Node Status", color=discord.Color.blue())
+        embed = discord.Embed(title=f"All Nodes", color=discord.Color.blue())
         master: NodeImpl = self.bot.node
         # master node
         names = []
@@ -339,7 +339,7 @@ class Admin(Plugin):
             return
         for n in self.bot.node.get_active_nodes():
             if not node or node == n:
-                self.bus.sendtoBot({
+                self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Node",
                     "method": method

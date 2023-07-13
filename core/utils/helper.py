@@ -281,4 +281,4 @@ class RemoteSettingsDict(dict):
                 "value": value
             }
         }
-        self.server.sendtoDCS(msg)
+        self.server.send_to_dcs(msg)

@@ -40,7 +40,7 @@ class Service(ABC):
         if not os.path.exists(filename):
             return {}
         self.log.debug(f'  => Reading service configuration from {filename} ...')
-        return yaml.safe_load(Path(filename).read_text())
+        return yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
 
 
 class ServiceInstallationError(Exception):

@@ -9,7 +9,7 @@ from discord.app_commands.transformers import CommandParameter
 from discord.ext import commands
 from functools import partial
 from services import DCSServerBot
-from typing import Type, Optional, Union
+from typing import Type, Optional, Union, cast
 
 
 class Commands(Plugin):
@@ -60,29 +60,29 @@ class Commands(Plugin):
     async def event(self, interaction: discord.Interaction, config: dict, **kwargs: Optional[Union[int, str]]) -> list[dict]:
         if 'sync' in config:
             if 'server' in kwargs:
-                server = kwargs['server']
+                server: Server = cast(Server, kwargs['server'])
                 if server.status != Status.SHUTDOWN:
-                    return [await server.sendtoDCSSync(config)]
+                    return [await server.send_to_dcs_sync(config)]
                 else:
                     return []
             else:
                 ret = []
                 for server in self.bot.servers.values():
                     if server.status != Status.SHUTDOWN:
-                        ret.append(await server.sendtoDCSSync(config))
+                        ret.append(await server.send_to_dcs_sync(config))
                 return ret
         elif 'sync' not in config:
             if 'server' in kwargs:
-                server = kwargs['server']
+                server: Server = cast(Server, kwargs['server'])
                 if server.status != Status.SHUTDOWN:
-                    server.sendtoDCS(config)
+                    server.send_to_dcs(config)
                     await interaction.followup.send(f'Event sent to {server.name}.')
                 else:
                     await interaction.followup.send(f'Server {server.name} is {server.status.name}.')
             else:
                 for server in self.bot.servers.values():
                     if server.status != Status.SHUTDOWN:
-                        server.sendtoDCS(config)
+                        server.send_to_dcs(config)
                         await interaction.followup.send(f'Event sent to {server.name}.')
                     else:
                         await interaction.followup.send(f'Server {server.name} is {server.status.name}.')

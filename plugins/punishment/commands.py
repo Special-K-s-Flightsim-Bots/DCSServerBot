@@ -170,7 +170,7 @@ class Punishment(Plugin):
                             cursor.execute("DELETE FROM bans WHERE ucid = %s AND banned_by = %s",
                                            (self.plugin_name, ucid))
                             for server_name, server in self.bot.servers.items():
-                                server.sendtoDCS({
+                                server.send_to_dcs({
                                     "command": "unban",
                                     "ucid": ucid
                                 })

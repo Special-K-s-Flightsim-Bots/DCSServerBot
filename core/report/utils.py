@@ -42,7 +42,7 @@ async def parse_input(self, kwargs: dict, params: list[Any]):
                             new_args[name] = value
         elif 'callback' in param:
             try:
-                data: dict = await kwargs['server'].sendtoDCSSync({
+                data: dict = await kwargs['server'].send_to_dcs_sync({
                     "command": "getVariable", "name": param['callback']
                 })
                 if 'value' in data:

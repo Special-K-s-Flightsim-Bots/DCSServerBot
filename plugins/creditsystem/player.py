@@ -25,7 +25,7 @@ class CreditPlayer(Player):
                                (campaign_id, self.ucid))
                 if cursor.rowcount == 1:
                     self._points = cursor.fetchone()[0]
-                    self.server.sendtoDCS({
+                    self.server.send_to_dcs({
                         'command': 'updateUserPoints',
                         'ucid': self.ucid,
                         'points': self._points
@@ -60,7 +60,7 @@ class CreditPlayer(Player):
                     VALUES (%s, %s, %s) 
                     ON CONFLICT (campaign_id, player_ucid) DO UPDATE SET points = EXCLUDED.points
                 """, (campaign_id, self.ucid, self._points))
-                self.server.sendtoDCS({
+                self.server.send_to_dcs({
                     'command': 'updateUserPoints',
                     'ucid': self.ucid,
                     'points': self._points

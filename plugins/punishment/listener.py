@@ -113,7 +113,7 @@ class PunishmentEventListener(EventListener):
                     reason = cursor.fetchone()[0]
                     # ban them on all servers on this node as it wasn't populated yet
                     for s in self.bot.servers.values():
-                        s.sendtoDCS({
+                        s.send_to_dcs({
                             "command": "ban",
                             "ucid": data['ucid'],
                             "reason": reason

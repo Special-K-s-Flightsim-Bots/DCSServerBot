@@ -179,7 +179,7 @@ class MissionEventListener(EventListener):
     async def callback(self, server: Server, data: dict):
         if data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown']:
             data['command'] = data['subcommand']
-            server.sendtoDCS(data)
+            server.send_to_dcs(data)
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
@@ -397,7 +397,7 @@ class MissionEventListener(EventListener):
         name = ' '.join(params)
         for airbase in server.current_mission.airbases:
             if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
-                response = await server.sendtoDCSSync({
+                response = await server.send_to_dcs_sync({
                     "command": "getWeatherInfo",
                     "x": airbase['position']['x'],
                     "y": airbase['position']['y'],
@@ -422,7 +422,7 @@ class MissionEventListener(EventListener):
 
     @chat_command(name="list", roles=['DCS Admin'], help="lists available missions")
     async def list(self, server: Server, player: Player, params: list[str]):
-        response = await server.sendtoDCSSync({"command": "listMissions"})
+        response = await server.send_to_dcs_sync({"command": "listMissions"})
         missions = response['missionList']
         message = 'The following missions are available:\n'
         for i in range(0, len(missions)):

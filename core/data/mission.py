@@ -33,16 +33,16 @@ class Mission(DataObject):
 
     async def pause(self):
         if self.server.status == Status.RUNNING:
-            self.server.sendtoDCS({"command": "pauseMission"})
+            self.server.send_to_dcs({"command": "pauseMission"})
             await self.server.wait_for_status_change([Status.PAUSED])
 
     async def unpause(self):
         if self.server.status == Status.PAUSED:
-            self.server.sendtoDCS({"command": "unpauseMission"})
+            self.server.send_to_dcs({"command": "unpauseMission"})
             await self.server.wait_for_status_change([Status.RUNNING])
 
     async def restart(self):
-        self.server.sendtoDCS({"command": "restartMission"})
+        self.server.send_to_dcs({"command": "restartMission"})
         # wait for a status change (STOPPED or LOADING)
         timeout = 180 if self.node.locals.get('slow_system', False) else 120
         await self.server.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout)

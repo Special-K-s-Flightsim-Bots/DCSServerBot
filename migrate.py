@@ -63,21 +63,21 @@ def migrate():
                     print(f"- Migrated config/{plugin_name}.json to config/plugins/{plugin_name}.yaml")
 
         if os.path.exists('config/plugins/scheduler.yaml'):
-            scheduler = yaml.safe_load(Path('config/plugins/scheduler.yaml').read_text())
+            scheduler = yaml.safe_load(Path('config/plugins/scheduler.yaml').read_text(encoding='utf-8'))
         else:
             scheduler = {}
         if os.path.exists('config/plugins/userstats.yaml'):
-            userstats = yaml.safe_load(Path('config/plugins/userstats.yaml').read_text())
+            userstats = yaml.safe_load(Path('config/plugins/userstats.yaml').read_text(encoding='utf-8'))
         else:
             userstats = {}
         # If we are not the first node to be migrated
         if os.path.exists('config/nodes.yaml'):
-            nodes = yaml.safe_load(Path('config/nodes.yaml').read_text())
+            nodes = yaml.safe_load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
         else:
             nodes = {}
         nodes[platform.node()] = {}
         if os.path.exists('config/servers.yaml'):
-            servers = yaml.safe_load(Path('config/servers.yaml').read_text())
+            servers = yaml.safe_load(Path('config/servers.yaml').read_text(encoding='utf-8'))
         else:
             servers = {
                 DEFAULT_TAG: {

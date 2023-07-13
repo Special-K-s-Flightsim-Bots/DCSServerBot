@@ -14,7 +14,7 @@ class SlotBlockingListener(EventListener):
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         config: dict = self.plugin.get_config(server)
         if config:
-            server.sendtoDCS({
+            server.send_to_dcs({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,
                 'params': config
@@ -34,7 +34,7 @@ class SlotBlockingListener(EventListener):
                         continue
                     for role in member.roles:
                         if role in roles:
-                            server.sendtoDCS({
+                            server.send_to_dcs({
                                 'command': 'uploadUserRoles',
                                 'ucid': row[0],
                                 'roles': [x.name for x in member.roles]

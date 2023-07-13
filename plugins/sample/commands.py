@@ -43,7 +43,7 @@ class Sample(Plugin):
                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])], text: str):
         await interaction.response.defer(thinking=True)
         # Calls can be done async (default) or synchronous, which means we will wait for a response from DCS
-        data = await server.sendtoDCSSync({
+        data = await server.send_to_dcs_sync({
             "command": "sample",    # command name
             "message": text         # the message to transfer
         })

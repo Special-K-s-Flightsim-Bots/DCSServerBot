@@ -193,7 +193,7 @@ class ServerImpl(Server):
                 message[key] = self.serialize(value)
         return message
 
-    def sendtoDCS(self, message: dict):
+    def send_to_dcs(self, message: dict):
         # As Lua does not support large numbers, convert them to strings
         message = self.serialize(message)
         msg = json.dumps(message)
@@ -213,7 +213,7 @@ class ServerImpl(Server):
                         plugin.rename(conn, self.name, new_name)
                 else:
                     for n in self.node.get_active_nodes():
-                        self.bus.sendtoBot({
+                        self.bus.send_to_node({
                             "command": "rpc",
                             "service": "ServiceBus",
                             "method": "rename",
@@ -299,7 +299,7 @@ class ServerImpl(Server):
     def ban(self, ucid: str, reason: str = 'n/a', period: int = 30*86400):
         player: Player = self.get_player(ucid=ucid, active=True)
         if player and self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            self.sendtoDCS({
+            self.send_to_dcs({
                 "command": "ban",
                 "id": player.id,
                 "period": period,
@@ -324,7 +324,7 @@ class ServerImpl(Server):
 
     def unban(self, ucid: str):
         if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            self.sendtoDCS({"command": "unban", "ucid": ucid})
+            self.send_to_dcs({"command": "unban", "ucid": ucid})
         else:
             conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
             try:
@@ -422,7 +422,7 @@ class ServerImpl(Server):
     async def keep_alive(self):
         # we set a longer timeout in here because, we don't want to risk false restarts
         timeout = 20 if self.node.locals.get('slow_system', False) else 10
-        data = await self.sendtoDCSSync({"command": "getMissionUpdate"}, timeout)
+        data = await self.send_to_dcs_sync({"command": "getMissionUpdate"}, timeout)
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE servers SET last_seen = NOW() WHERE node = %s AND server_name = %s',

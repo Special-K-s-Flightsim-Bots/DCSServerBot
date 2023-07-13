@@ -7,17 +7,17 @@ class SchedulerListener(EventListener):
 
     async def run(self, server: Server, method: str) -> None:
         if method.startswith('load:'):
-            server.sendtoDCS({
+            server.send_to_dcs({
                 "command": "do_script_file",
                 "file": method[5:].strip().replace('\\', '/')
             })
         elif method.startswith('lua:'):
-            server.sendtoDCS({
+            server.send_to_dcs({
                 "command": "do_script",
                 "script": method[4:].strip()
             })
         elif method.startswith('call:'):
-            server.sendtoDCS({
+            server.send_to_dcs({
                 "command": method[5:].strip()
             })
         elif method.startswith('run:'):
@@ -99,7 +99,7 @@ class SchedulerListener(EventListener):
                 self.bot.loop.call_soon(asyncio.create_task, self.process(server, server.on_empty.copy()))
                 server.on_empty.clear()
         elif data['eventName'] == 'mission_end':
-            self.bot.bus.sendtoBot({"command": "onMissionEnd", "server_name": server.name})
+            self.bot.bus.send_to_node({"command": "onMissionEnd", "server_name": server.name})
             if server.on_mission_end:
                 self.bot.loop.call_soon(asyncio.create_task, self.process(server, server.on_mission_end.copy()))
                 server.on_mission_end.clear()

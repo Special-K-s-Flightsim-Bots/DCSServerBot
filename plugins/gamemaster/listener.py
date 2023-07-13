@@ -84,7 +84,7 @@ class GameMasterEventListener(EventListener):
                 side = Side.RED
             else:
                 side = Side.SPECTATOR
-            server.sendtoDCS({
+            server.send_to_dcs({
                 "command": "setUserCoalition",
                 "ucid": player.ucid,
                 "coalition": side.value
@@ -297,12 +297,12 @@ class GameMasterEventListener(EventListener):
         flag = params[0]
         if len(params) > 1:
             value = int(params[1])
-            server.sendtoDCS({
+            server.send_to_dcs({
                 "command": "setFlag",
                 "flag": flag,
                 "value": value
             })
             player.sendChatMessage(f"Flag {flag} set to {value}.")
         else:
-            response = await server.sendtoDCSSync({"command": "getFlag", "flag": flag})
+            response = await server.send_to_dcs_sync({"command": "getFlag", "flag": flag})
             player.sendChatMessage(f"Flag {flag} has value {response['value']}.")

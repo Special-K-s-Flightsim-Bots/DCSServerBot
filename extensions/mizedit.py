@@ -1,4 +1,7 @@
 import random
+from pathlib import Path
+
+import yaml
 
 from core import Extension, utils, Server
 from datetime import datetime
@@ -6,6 +9,10 @@ from typing import Optional
 
 
 class MizEdit(Extension):
+
+    def __init__(self, server: Server, config: dict):
+        super().__init__(server, config)
+        self.presets = yaml.safe_load(Path("config/presets.yaml").read_text(encoding='utf-8'))
 
     @property
     def version(self) -> str:
@@ -26,22 +33,22 @@ class MizEdit(Extension):
                 presets = random.choice(config['settings'])
         modifications = []
         for preset in [x.strip() for x in presets.split(',')]:
-            if preset not in config['presets']:
+            if preset not in self.presets:
                 self.log.error(f'Preset {preset} not found, ignored.')
                 continue
-            value = config['presets'][preset]
+            value = self.presets[preset]
             if isinstance(value, list):
                 for inner_preset in value:
-                    if inner_preset not in config['presets']:
+                    if inner_preset not in self.presets:
                         self.log.error(f'Preset {inner_preset} not found, ignored.')
                         continue
-                    inner_value = config['presets'][inner_preset]
+                    inner_value = self.presets[inner_preset]
                     modifications.append(inner_value)
             elif isinstance(value, dict):
                 modifications.append(value)
-            self.log.info(f"  => Preset {preset} added to list.")
+            self.log.info(f"  => Preset {preset} applied.")
         await self.server.modifyMission(modifications)
-        self.log.info(f"  => Mission {server.current_mission} modified.")
+        self.log.info(f"  => Mission modified.")
 
     async def beforeMissionLoad(self) -> bool:
         await self.change_mizfile(self.server, self.config)

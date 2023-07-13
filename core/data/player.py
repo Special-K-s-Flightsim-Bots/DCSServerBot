@@ -93,7 +93,7 @@ class Player(DataObject):
             self._member = member
         if member:
             roles = [x.name for x in member.roles]
-            self.server.sendtoDCS({
+            self.server.send_to_dcs({
                 'command': 'uploadUserRoles',
                 'id': self.id,
                 'ucid': self.ucid,
@@ -123,7 +123,7 @@ class Player(DataObject):
             side = Side.RED
         else:
             side = Side.SPECTATOR
-        self.server.sendtoDCS({
+        self.server.send_to_dcs({
             "command": "setUserCoalition",
             "ucid": self.ucid,
             "coalition": side.value
@@ -173,7 +173,7 @@ class Player(DataObject):
         return self.verified and self._member is not None and utils.check_roles(set(valid_roles), self._member)
 
     def sendChatMessage(self, message: str, sender: str = None):
-        self.server.sendtoDCS({
+        self.server.send_to_dcs({
             "command": "sendChatMessage",
             "to": self.id,
             "from": sender,
@@ -189,7 +189,7 @@ class Player(DataObject):
     def sendPopupMessage(self, message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
             timeout = self.server.locals.get('message_timeout', 10)
-        self.server.sendtoDCS({
+        self.server.send_to_dcs({
                 "command": "sendPopupMessage",
                 "to": self.unit_name,
                 "from": sender,
@@ -198,7 +198,7 @@ class Player(DataObject):
         })
 
     def playSound(self, sound: str):
-        self.sendtoDCS({
+        self.server.send_to_dcs({
             "command": "playSound",
             "to": self.unit_name,
             "sound": sound

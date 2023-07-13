@@ -65,7 +65,7 @@ class GameMaster(Plugin):
     async def chat(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    message: str):
-        server.sendtoDCS({
+        server.send_to_dcs({
             "command": "sendChatMessage",
             "channel": interaction.channel.id,
             "message": message,
@@ -104,14 +104,14 @@ class GameMaster(Plugin):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    flag: str, value: Optional[int] = None):
         if value is not None:
-            server.sendtoDCS({
+            server.send_to_dcs({
                 "command": "setFlag",
                 "flag": flag,
                 "value": value
             })
             await interaction.response.send_message(f"Flag {flag} set to {value}.")
         else:
-            data = await server.sendtoDCSSync({"command": "getFlag", "flag": flag})
+            data = await server.send_to_dcs_sync({"command": "getFlag", "flag": flag})
             await interaction.response.send_message(f"Flag {flag} has value {data['value']}.")
 
     @command(description='Set or get a mission variable')
@@ -121,7 +121,7 @@ class GameMaster(Plugin):
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                        name: str, value: Optional[str] = None):
         if value is not None:
-            server.sendtoDCS({
+            server.send_to_dcs({
                 "command": "setVariable",
                 "name": name,
                 "value": value
@@ -129,7 +129,7 @@ class GameMaster(Plugin):
             await interaction.response.send_message(f"Variable {name} set to {value}.")
         else:
             try:
-                data = await server.sendtoDCSSync({"command": "getVariable", "name": name})
+                data = await server.send_to_dcs_sync({"command": "getVariable", "name": name})
             except asyncio.TimeoutError:
                 await interaction.response.send_message('Timeout while retrieving variable. Most likely a lua error '
                                                         'occurred. Check your dcs.log.')
@@ -152,7 +152,7 @@ class GameMaster(Plugin):
         modal = ScriptModal()
         await interaction.response.send_modal(modal)
         if await modal.wait():
-            server.sendtoDCS({
+            server.send_to_dcs({
                 "command": "do_script",
                 "script": ' '.join(modal.script.value)
             })
@@ -170,7 +170,7 @@ class GameMaster(Plugin):
                              filename: str):
         if not os.path.exists(os.path.join(server.instance.home, filename)):
             interaction.response.send_message(f"File {filename} not found.", ephemeral=True)
-        server.sendtoDCS({
+        server.send_to_dcs({
             "command": "do_script_file",
             "file": filename.replace('\\', '/')
         })

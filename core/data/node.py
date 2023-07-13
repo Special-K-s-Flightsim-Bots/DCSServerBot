@@ -33,7 +33,7 @@ class Node:
 
     @staticmethod
     def read_config():
-        config = yaml.safe_load(Path('config/main.yaml').read_text())
+        config = yaml.safe_load(Path('config/main.yaml').read_text(encoding='utf-8'))
         # set defaults
         config['autoupdate'] = config.get('autoupdate', True)
         config['logging'] = config.get('logging', {})

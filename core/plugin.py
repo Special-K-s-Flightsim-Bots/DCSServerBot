@@ -308,7 +308,7 @@ class Plugin(commands.Cog):
         with open(old_file, 'r') as infile:
             old = json.load(infile)
         if os.path.exists(new_file):
-            new = yaml.safe_load(Path(new_file).read_text())
+            new = yaml.safe_load(Path(new_file).read_text(encoding='utf-8'))
             exists = True
         else:
             new = {}
@@ -342,7 +342,7 @@ class Plugin(commands.Cog):
         else:
             return {}
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
-        return yaml.safe_load(Path(filename).read_text())
+        return yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
 
     def get_config(self, server: Optional[Server] = None, plugin_name: str = None) -> dict:
         # retrieve the config from another plugin

@@ -49,10 +49,10 @@ class MissionStatisticsEventListener(EventListener):
 
     def _toggle_mission_stats(self, server: Server):
         if self.plugin.get_config(server).get('enabled', True):
-            server.sendtoDCS({"command": "enableMissionStats"})
-            server.sendtoDCS({"command": "getMissionSituation", "channel": server.channels[Channel.STATUS]})
+            server.send_to_dcs({"command": "enableMissionStats"})
+            server.send_to_dcs({"command": "getMissionSituation", "channel": server.channels[Channel.STATUS]})
         else:
-            server.sendtoDCS({"command": "disableMissionStats"})
+            server.send_to_dcs({"command": "disableMissionStats"})
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:

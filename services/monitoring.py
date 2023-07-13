@@ -76,7 +76,7 @@ class MonitoringService(Service):
             if self.bus.master:
                 await ServiceRegistry.get("Bot").alert(message, server.channels[Channel.ADMIN])
             else:
-                await self.bus.sendtoBot({
+                self.bus.send_to_node({
                     "command": "rpc",
                     "service": "Bot",
                     "method": "alert",
@@ -103,7 +103,6 @@ class MonitoringService(Service):
             if server.is_remote or server.maintenance or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
             if server.process is not None and not server.process.is_running():
-                server.status = Status.SHUTDOWN
                 server.process = None
                 message = f"Server \"{server.name}\" died. Setting state to SHUTDOWN."
                 self.log.warning(message)
@@ -182,7 +181,7 @@ class MonitoringService(Service):
                 bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
                 bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
             self.net_io_counters = net_io_counters
-            self.bus.sendtoBot({
+            self.bus.send_to_node({
                 "command": "serverLoad",
                 "cpu": cpu,
                 "mem_total": memory.private,

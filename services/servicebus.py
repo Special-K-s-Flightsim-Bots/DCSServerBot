@@ -68,7 +68,7 @@ class ServiceBus(Service):
         self.executor.shutdown(wait=True)
         self.log.debug('- Executor stopped.')
         if not self.master:
-            self.sendtoBot({
+            self.send_to_node({
                 "command": "rpc",
                 "service": "ServiceBus",
                 "method": "unregister_remote_node",
@@ -103,7 +103,7 @@ class ServiceBus(Service):
                 server.settings['listLoop'] = True
 
     async def send_init(self, server: Server):
-        self.sendtoBot({
+        self.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "init_remote_server",
@@ -126,7 +126,7 @@ class ServiceBus(Service):
         for server in local_servers:
             if server.is_remote:
                 continue
-            calls.append(server.sendtoDCSSync({"command": "registerDCSServer"}, timeout))
+            calls.append(server.send_to_dcs_sync({"command": "registerDCSServer"}, timeout))
             if not self.master:
                 server.status = Status.UNREGISTERED
                 await self.send_init(server)
@@ -147,7 +147,7 @@ class ServiceBus(Service):
 
     async def register_remote_node(self, node: str):
         self.log.info(f"- Registering remote node {node}.")
-        self.sendtoBot({
+        self.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
             "method": "register_local_servers"
@@ -177,21 +177,22 @@ class ServiceBus(Service):
             if server.process:
                 break
         server.dcs_version = data['dcs_version']
-        if data['channel'].startswith('sync-'):
-            # if we are not the master, we still need to do some basic initialization
-            if not self.master:
-                if 'current_mission' not in data:
+        # if we are an agent, initialize the server
+        if not self.master:
+            if 'current_mission' not in data:
+                server.status = Status.STOPPED
+            else:
+                if not server.current_mission:
+                    server.current_mission = DataObjectFactory().new(
+                        Mission.__name__, node=server.node, server=server, map=data['current_map'],
+                        name=data['current_mission'])
+                if 'players' not in data:
                     server.status = Status.STOPPED
                 else:
-                    if not server.current_mission:
-                        server.current_mission = DataObjectFactory().new(
-                            Mission.__name__, node=server.node, server=server, map=data['current_map'],
-                            name=data['current_mission'])
-                    if 'players' not in data:
-                        server.status = Status.STOPPED
-                    else:
-                        server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
-                    server.current_mission.update(data)
+                    server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
+                server.current_mission.update(data)
+        # the DCS server is running already, make sure that the extensions are running, too
+        if data['channel'].startswith('sync-'):
             # init and load extensions, if necessary
             server.init_extensions()
             for extension in server.extensions.values():
@@ -288,7 +289,7 @@ class ServiceBus(Service):
             server.node.public_ip = public_ip
         server.status = Status(status)
 
-    def sendtoBot(self, data: dict, *, node: Optional[str] = None):
+    def send_to_node(self, data: dict, *, node: Optional[str] = None):
         if self.master:
             if node and node != platform.node():
                 self.log.debug('MASTER->{}: {}'.format(node, json.dumps(data)))
@@ -325,7 +326,7 @@ class ServiceBus(Service):
             if rc is not None:
                 if isinstance(rc, Enum):
                     rc = rc.value
-                self.sendtoBot({"command": data['method'], "channel": data['channel'], "return": rc,
+                self.send_to_node({"command": data['method'], "channel": data['channel'], "return": rc,
                                 "server_name": data['server_name']})
         elif data['server_name'] in self.udp_server.message_queue:
             self.udp_server.message_queue[data['server_name']].put(data)
@@ -354,7 +355,7 @@ class ServiceBus(Service):
                     rc = rc.value
                 elif isinstance(rc, bool):
                     rc = str(rc)
-                self.sendtoBot({"command": data['method'], "channel": data['channel'], "return": rc,
+                self.send_to_node({"command": data['method'], "channel": data['channel'], "return": rc,
                                 "server_name": data['server_name']})
         else:
             server_name = data['server_name']
@@ -363,7 +364,7 @@ class ServiceBus(Service):
                     f"Command {data['command']} for unknown server {server_name} received, ignoring")
             else:
                 server: Server = self.servers[server_name]
-                server.sendtoDCS(data)
+                server.send_to_dcs(data)
 
     @tasks.loop(seconds=1)
     async def intercom(self):
@@ -471,7 +472,7 @@ class ServiceBus(Service):
                                 ]
                             )
                         else:
-                            self.sendtoBot(data)
+                            self.send_to_node(data)
                     except Exception as ex:
                         self.log.exception(ex)
                     finally:

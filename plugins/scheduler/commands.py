@@ -36,7 +36,7 @@ class Scheduler(Plugin):
         else:
             for cfg in config.values():
                 if 'presets' in cfg and isinstance(cfg['presets'], str):
-                    cfg['presets'] = yaml.safe_load(Path(cfg['presets']).read_text())
+                    cfg['presets'] = yaml.safe_load(Path(cfg['presets']).read_text(encoding='utf-8'))
         return config
 
     async def install(self):
@@ -122,7 +122,7 @@ class Scheduler(Plugin):
                 restart_in -= 1
 
     async def teardown_dcs(self, server: Server, member: Optional[discord.Member] = None):
-        self.bot.bus.sendtoBot({"command": "onShutdown", "server_name": server.name})
+        self.bot.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
         await asyncio.sleep(1)
         await server.shutdown()
         if not member:
@@ -289,7 +289,7 @@ class Scheduler(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def list(self, interaction: discord.Interaction):
-        embed = discord.Embed(title=f"Server List", color=discord.Color.blue())
+        embed = discord.Embed(title=f"All Servers", color=discord.Color.blue())
         names = []
         status = []
         players = []
@@ -451,7 +451,7 @@ class Scheduler(Plugin):
             async def on_submit(derived, interaction: discord.Interaction):
                 await interaction.response.defer()
                 if coalition:
-                    server.sendtoDCS({
+                    server.send_to_dcs({
                         "command": "setCoalitionPassword",
                         ("redPassword" if coalition == 'red' else "bluePassword"): derived.password.value or ''
                     })

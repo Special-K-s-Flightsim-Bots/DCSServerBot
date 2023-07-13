@@ -24,12 +24,12 @@ class Mission(Plugin):
 
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
+        self.update_channel_name.add_exception_type(AttributeError)
         self.update_channel_name.start()
         self.afk_check.start()
 
     async def cog_unload(self):
         self.afk_check.cancel()
-        self.update_channel_name.add_exception_type(AttributeError)
         self.update_channel_name.cancel()
         await super().cog_unload()
 
@@ -80,7 +80,7 @@ class Mission(Plugin):
                        status=[Status.RUNNING, Status.PAUSED])],
                    idx: int):
         airbase = server.current_mission.airbases[idx]
-        data = await server.sendtoDCSSync({
+        data = await server.send_to_dcs_sync({
             "command": "getWeatherInfo",
             "x": airbase['position']['x'],
             "y": airbase['position']['y'],
@@ -104,7 +104,7 @@ class Mission(Plugin):
                 return {"Blue": row[0], "Red": row[1]}
 
         timeout = self.bot.locals.get('message_autodelete', 300)
-        mission_info = await server.sendtoDCSSync({
+        mission_info = await server.send_to_dcs_sync({
             "command": "getMissionDetails"
         })
         mission_info['passwords'] = read_passwords(server)
@@ -309,7 +309,7 @@ class Mission(Plugin):
                      server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
         try:
-            with open('config/presets.yaml') as infile:
+            with open('config/presets.yaml', encoding='utf-8') as infile:
                 presets = yaml.safe_load(infile)
         except FileNotFoundError:
             await interaction.response.send_message(
@@ -635,7 +635,7 @@ class Mission(Plugin):
 
             if server.status != Status.SHUTDOWN and server.current_mission.filename != filename and \
                     await utils.yn_question(ctx, 'Do you want to load this mission?'):
-                data = await server.sendtoDCSSync({"command": "listMissions"})
+                data = await server.send_to_dcs_sync({"command": "listMissions"})
                 missions = data['missionList']
                 for idx, mission in enumerate(missions):
                     if os.path.normpath(mission) == os.path.normpath(filename):

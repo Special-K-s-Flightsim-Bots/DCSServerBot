@@ -12,7 +12,7 @@ class CreditSystemListener(EventListener):
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         if config:
-            server.sendtoDCS({
+            server.send_to_dcs({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,
                 'params': config
@@ -61,7 +61,7 @@ class CreditSystemListener(EventListener):
             player.points = self.get_initial_points(player, config)
             player.audit('init', player.points, 'Initial points received')
         else:
-            server.sendtoDCS({
+            server.send_to_dcs({
                 'command': 'updateUserPoints',
                 'ucid': player.ucid,
                 'points': player.points

@@ -138,7 +138,7 @@ class NodeImpl(Node):
     def read_locals(self) -> dict:
         _locals = dict()
         if os.path.exists('config/nodes.yaml'):
-            self.all_nodes: dict = yaml.safe_load(Path('config/nodes.yaml').read_text())
+            self.all_nodes: dict = yaml.safe_load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
             node: dict = self.all_nodes[self.name]
             for name, element in node.items():
                 if name == 'instances':

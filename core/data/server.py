@@ -62,7 +62,7 @@ class Server(DataObject):
         self.bus = ServiceRegistry.get("ServiceBus")
         self.status_change = asyncio.Event()
         if os.path.exists('config/servers.yaml'):
-            data = yaml.safe_load(Path('config/servers.yaml').read_text())
+            data = yaml.safe_load(Path('config/servers.yaml').read_text(encoding='utf-8'))
             if not data.get(self.name):
                 self.log.warning(f'No configuration found for server {self.name} in server.yaml!')
             self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
@@ -108,8 +108,8 @@ class Server(DataObject):
             self._status = status
             self.status_change.set()
             self.status_change.clear()
-            if self.is_remote:
-                self.bus.sendtoBot({
+            if not self.node.master:
+                self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Server",
                     "params": {
@@ -178,7 +178,7 @@ class Server(DataObject):
             return True
 
     def move_to_spectators(self, player: Player, reason: str = 'n/a'):
-        self.sendtoDCS({
+        self.send_to_dcs({
             "command": "force_player_slot",
             "playerID": player.id,
             "sideID": 0,
@@ -187,7 +187,7 @@ class Server(DataObject):
         })
 
     def kick(self, player: Player, reason: str = 'n/a'):
-        self.sendtoDCS({
+        self.send_to_dcs({
             "command": "kick",
             "id": player.id,
             "reason": reason
@@ -216,7 +216,7 @@ class Server(DataObject):
     async def get_current_mission_file(self) -> Optional[str]:
         raise NotImplemented()
 
-    def sendtoDCS(self, message: dict):
+    def send_to_dcs(self, message: dict):
         raise NotImplemented()
 
     def rename(self, new_name: str, update_settings: bool = False) -> None:
@@ -225,20 +225,20 @@ class Server(DataObject):
     async def startup(self) -> None:
         raise NotImplemented()
 
-    async def sendtoDCSSync(self, message: dict, timeout: Optional[int] = 5.0):
+    async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0):
         future = self.bus.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
         message['channel'] = token
         self.listeners[token] = future
         try:
-            self.sendtoDCS(message)
+            self.send_to_dcs(message)
             return await asyncio.wait_for(future, timeout)
         finally:
             del self.listeners[token]
 
     def sendChatMessage(self, coalition: Coalition, message: str, sender: str = None):
         if coalition == Coalition.ALL:
-            self.sendtoDCS({
+            self.send_to_dcs({
                 "command": "sendChatMessage",
                 "from": sender,
                 "message": message
@@ -249,7 +249,7 @@ class Server(DataObject):
     def sendPopupMessage(self, coalition: Coalition, message: str, timeout: Optional[int] = -1, sender: str = None):
         if timeout == -1:
             timeout = self.locals.get('message_timeout', 10)
-        self.sendtoDCS({
+        self.send_to_dcs({
             "command": "sendPopupMessage",
             "to": coalition.value,
             "from": sender,
@@ -258,7 +258,7 @@ class Server(DataObject):
         })
 
     def playSound(self, coalition: Coalition, sound: str):
-        self.sendtoDCS({
+        self.send_to_dcs({
             "command": "playSound",
             "to": coalition.value,
             "sound": sound
@@ -267,14 +267,14 @@ class Server(DataObject):
     async def stop(self) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING]:
             timeout = 120 if self.node.locals.get('slow_system', False) else 60
-            self.sendtoDCS({"command": "stop_server"})
+            self.send_to_dcs({"command": "stop_server"})
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     async def start(self) -> None:
         if self.status == Status.STOPPED:
             timeout = 300 if self.node.locals.get('slow_system', False) else 120
             self.status = Status.LOADING
-            self.sendtoDCS({"command": "start_server"})
+            self.send_to_dcs({"command": "start_server"})
             await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
 
     async def restart(self) -> None:
@@ -283,12 +283,12 @@ class Server(DataObject):
 
     async def _load(self, message):
         stopped = self.status == Status.STOPPED
-        self.sendtoDCS(message)
+        self.send_to_dcs(message)
         if not stopped:
             # wait for a status change (STOPPED or LOADING)
             await self.wait_for_status_change([Status.STOPPED, Status.LOADING], timeout=120)
         else:
-            self.sendtoDCS({"command": "start_server"})
+            self.send_to_dcs({"command": "start_server"})
         # wait until we are running again
         try:
             await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
@@ -301,7 +301,7 @@ class Server(DataObject):
         if path in self.settings['missionList']:
             return
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            self.sendtoDCS({"command": "addMission", "path": path})
+            self.send_to_dcs({"command": "addMission", "path": path})
         else:
             missions = self.settings['missionList']
             missions.append(path)
@@ -311,7 +311,7 @@ class Server(DataObject):
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
             raise AttributeError("Can't delete the running mission!")
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            self.sendtoDCS({"command": "deleteMission", "id": mission_id})
+            self.send_to_dcs({"command": "deleteMission", "id": mission_id})
         else:
             missions = self.settings['missionList']
             del missions[mission_id - 1]
@@ -354,7 +354,7 @@ class Server(DataObject):
     async def shutdown(self, force: bool = False) -> None:
         slow_system = self.node.locals.get('slow_system', False)
         timeout = 300 if slow_system else 180
-        self.sendtoDCS({"command": "shutdown"})
+        self.send_to_dcs({"command": "shutdown"})
         with suppress(asyncio.TimeoutError):
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
