@@ -832,9 +832,11 @@ class Master(Agent):
         try:
             with closing(conn.cursor()) as cursor:
                 self.bot.log.debug(f'- Ban member {member.display_name} on the DCS servers.')
-                cursor.execute('INSERT INTO bans (ucid, banned_by, reason) SELECT ucid, \'DCSServerBot\', %s FROM '
-                               'players WHERE discord_id = %s ON CONFLICT DO UPDATE SET reason = excluded.reason',
-                               (self.bot.config['BOT']['MESSAGE_BAN'], member.id, ))
+                cursor.execute("""
+                    INSERT INTO bans (ucid, banned_by, reason) 
+                    SELECT ucid, 'DCSServerBot', %s FROM players WHERE discord_id = %s 
+                    ON CONFLICT (ucid) DO UPDATE SET reason = excluded.reason
+                """, (self.bot.config['BOT']['MESSAGE_BAN'], member.id, ))
                 self.update_bans()
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:
@@ -852,8 +854,9 @@ class Master(Agent):
             try:
                 with closing(conn.cursor()) as cursor:
                     # auto-unban them if they were auto-banned
-                    cursor.execute('DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE '
-                                   'discord_id = %s)', (member.id, ))
+                    cursor.execute("""
+                        DELETE FROM bans WHERE ucid IN (SELECT ucid FROM players WHERE discord_id = %s)
+                    """, (member.id, ))
                     self.update_bans()
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
