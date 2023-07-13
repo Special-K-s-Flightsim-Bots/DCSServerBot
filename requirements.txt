@@ -19,4 +19,4 @@ certifi==2023.5.7
 fastapi==0.100.0
 uvicorn==0.22.0
 python-multipart==0.0.6
-starlette==0.29.0
+starlette==0.28.0
