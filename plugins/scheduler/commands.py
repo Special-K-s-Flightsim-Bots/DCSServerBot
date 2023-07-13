@@ -338,7 +338,7 @@ class Scheduler(Plugin):
                     f"Use /scheduler clear to reset maintenance mode.", ephemeral=True)
             except asyncio.TimeoutError:
                 await interaction.followup.send(f"Timeout while launching DCS server \"{server.display_name}\".\n"
-                                                f"The server might be running anyway, check with /status.",
+                                                f"The server might be running anyway, check with /server list.",
                                                 ephemeral=True)
             finally:
                 await msg.delete()

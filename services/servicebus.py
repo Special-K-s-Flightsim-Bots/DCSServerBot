@@ -179,17 +179,11 @@ class ServiceBus(Service):
         server.dcs_version = data['dcs_version']
         # if we are an agent, initialize the server
         if not self.master:
-            if 'current_mission' not in data:
-                server.status = Status.STOPPED
-            else:
+            if 'current_mission' in data:
                 if not server.current_mission:
                     server.current_mission = DataObjectFactory().new(
                         Mission.__name__, node=server.node, server=server, map=data['current_map'],
                         name=data['current_mission'])
-                if 'players' not in data:
-                    server.status = Status.STOPPED
-                else:
-                    server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
                 server.current_mission.update(data)
         # the DCS server is running already, make sure that the extensions are running, too
         if data['channel'].startswith('sync-'):
