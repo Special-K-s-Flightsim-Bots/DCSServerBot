@@ -29,7 +29,7 @@ class RealWeather(Extension):
                 for key in list(cfg.keys()):
                     if key in self.config:
                         cfg[key] = self.config[key]
-                cwd = self.server.instance.missions_dir
+                cwd = await self.server.get_missions_dir()
                 with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
                     json.dump(cfg, outfile, indent=2)
                 subprocess.run(executable=os.path.join(rw_home, 'realweather.exe'), args=[], cwd=cwd, shell=True)
