@@ -101,14 +101,16 @@ class Server(DataObject):
 
     @status.setter
     def status(self, status: Union[Status, str]):
+        propagate: bool = True
         if isinstance(status, str):
             status = Status(status)
+            propagate = False
         if status != self._status:
             self.log.info(f"{self.name}: {self._status.name} => {status.name}")
             self._status = status
             self.status_change.set()
             self.status_change.clear()
-            if not self.node.master:
+            if self.is_remote or (propagate and not self.node.master):
                 self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Server",
