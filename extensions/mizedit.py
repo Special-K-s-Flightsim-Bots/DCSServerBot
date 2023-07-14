@@ -1,10 +1,9 @@
 import random
-from pathlib import Path
-
 import yaml
 
 from core import Extension, utils, Server
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 
@@ -18,19 +17,19 @@ class MizEdit(Extension):
     def version(self) -> str:
         return "1.0.0"
 
-    async def change_mizfile(self, server: Server, config: dict, presets: Optional[str] = None):
+    async def change_mizfile(self, presets: Optional[str] = None):
         now = datetime.now()
         if not presets:
-            if isinstance(config['settings'], dict):
-                for key, value in config['settings'].items():
+            if isinstance(self.config['settings'], dict):
+                for key, value in self.config['settings'].items():
                     if utils.is_in_timeframe(now, key):
                         presets = value
                         break
                 if not presets:
                     # no preset found for the current time, so don't change anything
                     return
-            elif isinstance(config['settings'], list):
-                presets = random.choice(config['settings'])
+            elif isinstance(self.config['settings'], list):
+                presets = random.choice(self.config['settings'])
         modifications = []
         for preset in [x.strip() for x in presets.split(',')]:
             if preset not in self.presets:
@@ -51,7 +50,7 @@ class MizEdit(Extension):
         self.log.info(f"  => Mission modified.")
 
     async def beforeMissionLoad(self) -> bool:
-        await self.change_mizfile(self.server, self.config)
+        await self.change_mizfile()
         return True
 
     def is_installed(self) -> bool:

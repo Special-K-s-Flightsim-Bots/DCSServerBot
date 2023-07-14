@@ -4,9 +4,8 @@ import subprocess
 from core import Extension, report, Server
 from datetime import datetime, timedelta
 from discord.ext import tasks
-from typing import Optional
-
 from extensions import TACVIEW_DEFAULT_DIR
+from typing import Optional
 
 # Globals
 process: Optional[subprocess.Popen] = None

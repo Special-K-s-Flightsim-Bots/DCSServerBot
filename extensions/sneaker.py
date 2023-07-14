@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+
 from typing import Optional, cast
 from core import Extension, report, Status, ServiceRegistry, Server
 from services import ServiceBus

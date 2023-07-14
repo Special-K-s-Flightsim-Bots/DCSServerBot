@@ -1,6 +1,6 @@
 import re
 import shutil
-from core import Instance
+from core import InstanceImpl
 from dataclasses import dataclass, field
 from os import path
 from typing import Any
@@ -8,7 +8,7 @@ from typing import Any
 
 @dataclass
 class Autoexec:
-    instance: Instance
+    instance: InstanceImpl
     values: dict = field(init=False, default_factory=dict)
 
     def __post_init__(self):

@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import win32api
 import win32con
+
 from configparser import RawConfigParser
 from core import Extension, utils, report, Server
 from typing import Optional

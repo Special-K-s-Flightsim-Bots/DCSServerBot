@@ -1,6 +1,7 @@
 import os
 import re
 import win32api
+
 from core import Extension, report
 from typing import Any, Optional, TextIO
 

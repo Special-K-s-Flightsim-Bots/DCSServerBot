@@ -12,7 +12,7 @@ from discord.ext import tasks
 from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
 from typing import TYPE_CHECKING, Optional
 
-from core import Status, utils, Server, Channel, Coalition, Plugin, ServerImpl
+from core import Status, utils, Server, Channel, Coalition, Plugin, ServerImpl, Autoexec
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 
@@ -33,6 +33,7 @@ class MonitoringService(Service):
 
     async def start(self):
         await super().start()
+        self.check_autoexec()
         if self.bus.master:
             self.bot = ServiceRegistry.get("Bot").bot
             await self.bot.wait_until_ready()
@@ -45,6 +46,20 @@ class MonitoringService(Service):
         if self.node.locals['DCS'].get('autoupdate', False):
             self.autoupdate.cancel()
         self.monitoring.cancel()
+
+    def check_autoexec(self):
+        for instance in self.node.instances:
+            try:
+                cfg = Autoexec(instance)
+                if cfg.crash_report_mode is None:
+                    self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
+                    cfg.crash_report_mode = 'silent'
+                elif cfg.crash_report_mode != 'silent':
+                    self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! DCSServerBot '
+                                     'will not work properly on DCS crashes, please change it manually to "silent" '
+                                     'to avoid that.')
+            except Exception as ex:
+                self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
     async def check_nodes(self):
         active_nodes: list[str] = self.node.get_active_nodes()

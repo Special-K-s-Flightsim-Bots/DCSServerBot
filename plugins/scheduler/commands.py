@@ -1,7 +1,7 @@
 import asyncio
 import discord
 import yaml
-from core import Plugin, PluginRequiredError, utils, Status, Autoexec, Extension, Server, Coalition, Channel, \
+from core import Plugin, PluginRequiredError, utils, Status, Extension, Server, Coalition, Channel, \
     TEventListener, Group
 from datetime import datetime, timedelta
 from discord import app_commands
@@ -38,21 +38,6 @@ class Scheduler(Plugin):
                 if 'presets' in cfg and isinstance(cfg['presets'], str):
                     cfg['presets'] = yaml.safe_load(Path(cfg['presets']).read_text(encoding='utf-8'))
         return config
-
-    async def install(self):
-        await super().install()
-        for instance in self.bot.node.instances:
-            try:
-                cfg = Autoexec(instance)
-                if cfg.crash_report_mode is None:
-                    self.log.info('  => Adding crash_report_mode = "silent" to autoexec.cfg')
-                    cfg.crash_report_mode = 'silent'
-                elif cfg.crash_report_mode != 'silent':
-                    self.log.warning('=> crash_report_mode is NOT "silent" in your autoexec.cfg! The Scheduler '
-                                     'will not work properly on DCS crashes, please change it manually to "silent" '
-                                     'to avoid that.')
-            except Exception as ex:
-                self.log.error(f"  => Error while parsing autoexec.cfg: {ex.__repr__()}")
 
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:
