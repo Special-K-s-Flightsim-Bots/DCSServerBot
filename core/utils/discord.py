@@ -299,11 +299,25 @@ def check_roles(roles: Iterable[Union[str, int]], member: discord.Member) -> boo
     return False
 
 
+def has_role(role: str):
+    def predicate(ctx: commands.Context) -> bool:
+        return check_roles([role], ctx.author)
+
+    return commands.check(predicate)
+
+
 def app_has_role(role: str):
     def predicate(interaction: Interaction) -> bool:
         return check_roles(interaction.client.roles[role], interaction.user)
 
     return app_commands.check(predicate)
+
+
+def has_roles(roles: list[str]):
+    def predicate(ctx):
+        return check_roles(roles, ctx.author)
+
+    return commands.check(predicate)
 
 
 def app_has_roles(roles: list[str]):
