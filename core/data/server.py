@@ -68,10 +68,6 @@ class Server(DataObject):
             self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
 
     @property
-    def host(self) -> str:
-        return self.node.host_ip
-
-    @property
     def is_remote(self) -> bool:
         raise NotImplemented()
 

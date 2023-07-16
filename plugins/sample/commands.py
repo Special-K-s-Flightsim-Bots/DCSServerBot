@@ -1,6 +1,6 @@
 import discord
 import psycopg
-from core import DCSServerBot, Plugin, utils, Server, EventListener, TEventListener, Status, command
+from core import DCSServerBot, Plugin, utils, Server, TEventListener, Status, command
 from discord import app_commands
 from typing import Type
 from .listener import SampleEventListener

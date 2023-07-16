@@ -1,7 +1,11 @@
 from __future__ import annotations
-from core import DataObject
+
+import os
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
+
+from core import DataObject
+from ..const import SAVED_GAMES
 
 if TYPE_CHECKING:
     from core import Server
@@ -16,6 +20,10 @@ class InstanceBusyError(Exception):
 class Instance(DataObject):
     name: str
     locals: dict = field(repr=False, default_factory=dict)
+
+    @property
+    def home(self) -> str:
+        return self.locals.get('home', os.path.join(SAVED_GAMES, self.name))
 
     @property
     def dcs_port(self) -> int:

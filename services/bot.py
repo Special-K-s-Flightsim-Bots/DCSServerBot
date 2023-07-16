@@ -5,6 +5,7 @@ import asyncio
 import discord
 import os
 import re
+import zipfile
 
 from contextlib import closing
 from core import ServiceRegistry, Service, Status, Channel, Player, EventListener, utils

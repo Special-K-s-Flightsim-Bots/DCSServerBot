@@ -5,10 +5,8 @@ import psycopg
 import random
 from contextlib import closing
 
-from discord.ui import View, Button
-
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
-    DataObjectFactory, Member, PersistentReport, Channel, command, DEFAULT_TAG, PlayerType
+    DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, PlayerType
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands, tasks

@@ -1,11 +1,9 @@
 import asyncio
 import discord
-import math
 import os
 import platform
-import psutil
 import psycopg
-from core import utils, Plugin, TEventListener, Status, PluginRequiredError, Report, PaginationReport, Server, command
+from core import utils, Plugin, TEventListener, PluginRequiredError, Report, PaginationReport, Server, command
 from discord import app_commands
 from discord.ext import tasks
 from services import DCSServerBot

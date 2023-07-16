@@ -1,5 +1,5 @@
 import discord
-from core import DataObjectFactory, Member, Player, Server, utils, Report
+from core import DataObjectFactory, Member, Player, Server, Report
 from discord.ui import View, Button
 from services import DCSServerBot
 from typing import Union, Optional

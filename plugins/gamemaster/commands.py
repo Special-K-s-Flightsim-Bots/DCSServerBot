@@ -5,7 +5,7 @@ import platform
 import psycopg
 from contextlib import closing
 from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group
-from discord import app_commands, TextStyle, SelectOption
+from discord import app_commands, TextStyle
 from discord.app_commands import Range
 from discord.ext import commands
 from discord.ui import Modal, TextInput

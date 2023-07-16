@@ -3,7 +3,7 @@ import psycopg
 from discord import app_commands
 from discord.app_commands import Group
 
-from core import Plugin, utils, Channel, Coalition, command, Server
+from core import Plugin, utils, Channel, Coalition, Server
 from services import DCSServerBot
 
 

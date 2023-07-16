@@ -176,6 +176,7 @@ def migrate():
         for server_name, instance in utils.findDCSInstances():
             if instance in cfg:
                 i = nodes[platform.node()]['instances'][instance] = {
+                    "home": cfg[instance]['DCS_HOME'],
                     "bot_port": int(cfg[instance]['DCS_PORT']),
                     "server": server_name,
                     "server_user": cfg['DCS']['SERVER_USER'],

@@ -30,7 +30,7 @@ class Sneaker(Extension):
         else:
             cfg['servers'].append({
                 "name": self.server.name,
-                "hostname": self.server.host,
+                "hostname": self.node.listen_address,
                 "port": int(self.server.options['plugins']['Tacview']['tacviewRealTimeTelemetryPort']),
                 "radar_refresh_rate": 5,
                 "enable_friendly_ground_units": True,

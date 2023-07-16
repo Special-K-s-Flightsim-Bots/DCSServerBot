@@ -14,7 +14,7 @@ class SlotBlocking(Plugin):
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
 
-    def get_config(self, server: Server, plugin_name: str = None) -> Optional[dict]:
+    def get_config(self, server: Optional[Server] = None, plugin_name: str = None) -> dict:
         if plugin_name:
             return super().get_config(server, plugin_name)
         if server.instance.name not in self._config:

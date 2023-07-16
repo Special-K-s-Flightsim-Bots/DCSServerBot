@@ -1,6 +1,6 @@
 import discord
 
-from core import Plugin, PluginRequiredError, utils, Report, PaginationReport, Status, Server, command
+from core import Plugin, PluginRequiredError, utils, Report, Status, Server, command
 from discord import app_commands
 from plugins.userstats.filter import StatisticsFilter, MissionStatisticsFilter
 from services import DCSServerBot
