@@ -176,7 +176,7 @@ class GameMasterEventListener(EventListener):
                     cursor.execute("""
                         SELECT coalition FROM coalitions 
                         WHERE server_name = %s AND player_ucid = %s AND coalition_leave > (NOW() - interval %s)
-                    """, (server.name, player.ucid, server.locals['coalition']['lock_time']))
+                    """, (server.name, player.ucid, server.locals['coalitions']['lock_time']))
                     if cursor.rowcount == 1:
                         if cursor.fetchone()[0] != coalition.casefold():
                             player.sendChatMessage(f"You can't join the {coalition} coalition in-between "
