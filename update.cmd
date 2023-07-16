@@ -14,6 +14,7 @@ if %ERRORLEVEL% EQU 9009 (
 if not exist venv (
     python -m venv venv
 )
+echo Installing Python Libraries ...
 venv\Scripts\python.exe -m pip install --upgrade pip >NUL 2>NUL
 venv\Scripts\pip -q install -r requirements.txt
 if %ERRORLEVEL% NEQ 0 (
