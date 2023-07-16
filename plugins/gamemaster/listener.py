@@ -180,7 +180,7 @@ class GameMasterEventListener(EventListener):
                     if cursor.rowcount == 1:
                         if cursor.fetchone()[0] != coalition.casefold():
                             player.sendChatMessage(f"You can't join the {coalition} coalition in-between "
-                                                   f"{server.locals['coalition']['lock_time']} of "
+                                                   f"{server.locals['coalitions']['lock_time']} of "
                                                    f"leaving a coalition.")
                             await self.bot.audit(
                                 f"{player.display_name} tried to join a new coalition in-between the time limit.",
@@ -239,9 +239,9 @@ class GameMasterEventListener(EventListener):
             if player.member:
                 roles = {
                     Coalition.RED: discord.utils.get(player.member.guild.roles,
-                                                     name=server.locals['coalition']['red']),
+                                                     name=server.locals['coalitions']['red']),
                     Coalition.BLUE: discord.utils.get(player.member.guild.roles,
-                                                      name=server.locals['coalition']['blue'])
+                                                      name=server.locals['coalitions']['blue'])
                 }
                 await player.member.remove_roles(roles[player.coalition])
         except discord.Forbidden:
