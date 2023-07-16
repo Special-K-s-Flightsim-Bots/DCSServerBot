@@ -1,10 +1,10 @@
-discord.py==2.3.0
-pandas==2.0.2
-numpy==1.24.3
-matplotlib==3.7.1
+discord.py==2.3.1
+pandas==2.0.3
+numpy==1.25.1
+matplotlib==3.7.2
 psycopg[binary]==3.1.9
 psycopg_pool==3.1.7
-GitPython==3.1.31
+GitPython==3.1.32
 psutil==5.9.5
 pypiwin32==223
 watchdog==3.0.0
@@ -16,3 +16,6 @@ eyeD3==0.9.7
 pywin32==306
 minidump==0.0.21
 certifi==2023.5.7
+fastapi==0.100.0
+uvicorn==0.23.0
+python-multipart==0.0.6
