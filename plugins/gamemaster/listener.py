@@ -175,7 +175,7 @@ class GameMasterEventListener(EventListener):
                     # check if the player is eligible to change the coalitions
                     cursor.execute("""
                         SELECT coalition FROM coalitions 
-                        WHERE server_name = %s AND player_ucid = %s AND coalition_leave > (NOW() - interval %s)
+                        WHERE server_name = %s AND player_ucid = %s AND coalition_leave > (NOW() - interval '%s')
                     """, (server.name, player.ucid, server.locals['coalitions']['lock_time']))
                     if cursor.rowcount == 1:
                         if cursor.fetchone()[0] != coalition.casefold():
