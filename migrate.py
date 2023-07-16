@@ -1,11 +1,11 @@
-import traceback
-
 import core
 import json
 import os
 import platform
 import shutil
+import traceback
 import yaml
+
 from configparser import ConfigParser
 from core import utils, DEFAULT_TAG, BACKUP_FOLDER
 from pathlib import Path
@@ -59,6 +59,14 @@ def migrate():
                 core.Plugin.migrate_to_3(plugin_name)
                 if plugin_name == 'backup':
                     print(f"- Migrated config/backup.json to config/services/backup.yaml")
+                elif plugin_name == 'commands':
+                    data = yaml.safe_load(Path('config/plugins/commands.yaml').read_text(encoding='utf-8'))
+                    data[DEFAULT_TAG] = {
+                        "command_prefix": cfg['BOT']['COMMAND_PREFIX']
+                    }
+                    with open('config/plugins/commands.yaml', 'w') as out:
+                        yaml.safe_dump(data, out)
+                    print(f"- Migrated config/commands.json to config/plugins/commands.yaml")
                 else:
                     print(f"- Migrated config/{plugin_name}.json to config/plugins/{plugin_name}.yaml")
 

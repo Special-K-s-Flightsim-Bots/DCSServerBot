@@ -1,5 +1,3 @@
-import inspect
-
 import discord
 import os
 import re
@@ -8,7 +6,7 @@ import subprocess
 
 from core import Plugin, TEventListener, utils, Server, Status, Report, DEFAULT_TAG
 from discord.ext import commands
-from discord.ext.commands import Command, HybridCommand
+from discord.ext.commands import Command
 from services import DCSServerBot
 from typing import Type, Optional
 
