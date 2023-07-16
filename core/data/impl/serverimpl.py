@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import aiohttp
+import asyncio
 import json
 import os
 import platform
 import shutil
 import socket
 import sqlite3
-import subprocess
 import traceback
 
 from contextlib import suppress, closing
@@ -233,7 +233,7 @@ class ServerImpl(Server):
     async def do_startup(self):
         basepath = self.node.installation
         for exe in ['DCS_server.exe', 'DCS.exe']:
-            path = os.path.join(basepath, f'bin\\{exe}')
+            path = os.path.join(basepath, 'bin', exe)
             if os.path.exists(path):
                 break
         else:
@@ -245,9 +245,7 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance))
-        p = subprocess.Popen(
-            [exe, '--server', '--norender', '-w', self.instance.name], executable=path
-        )
+        p = await asyncio.create_subprocess_exec(path, '--server', '--norender', '-w', self.instance.name)
         with suppress(Exception):
             self.process = Process(p.pid)
 

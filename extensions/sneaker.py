@@ -1,13 +1,13 @@
 from __future__ import annotations
+import asyncio
 import json
 import os
-import subprocess
 
 from typing import Optional, cast
 from core import Extension, report, Status, ServiceRegistry, Server
 from services import ServiceBus
 
-process: Optional[subprocess.Popen] = None
+process: Optional[asyncio.subprocess.Process] = None
 servers: set[str] = set()
 
 
@@ -54,26 +54,29 @@ class Sneaker(Extension):
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
         if 'config' not in self.config:
-            self.create_config()
-            if process:
+            if process and process.returncode is None:
                 process.kill()
+            self.create_config()
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(
                 f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config\\sneaker.json")
-            process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
-                                       executable=os.path.expandvars(self.config['cmd']),
-                                       stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL)
+            process = asyncio.create_subprocess_exec(
+                os.path.expandvars(self.config['cmd']),
+                "--bind", self.config['bind'],
+                "--config", 'config\\sneaker.json',
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL)
         else:
             if not process:
                 cmd = os.path.basename(self.config['cmd'])
                 self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                                f"--config {self.config['config']}")
-                process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config",
-                                            os.path.expandvars(self.config['config'])],
-                                           executable=os.path.expandvars(self.config['cmd']),
-                                           stdout=subprocess.DEVNULL,
-                                           stderr=subprocess.DEVNULL)
+                process = asyncio.create_subprocess_exec(
+                    os.path.expandvars(self.config['cmd']),
+                    "--bind", self.config['bind'],
+                    "--config", os.path.expandvars(self.config['config']),
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL)
         servers.add(self.server.name)
         return self.is_running()
 
@@ -81,22 +84,29 @@ class Sneaker(Extension):
         global process, servers
 
         servers.remove(self.server.name)
-        if process and not servers:
+        if not servers and process is not None and process.returncode is None:
             process.kill()
             process = None
             return await super().shutdown()
         elif 'config' not in self.config:
+            if process and process.returncode is None:
+                process.kill()
             self.create_config()
-            process.kill()
             cmd = os.path.basename(self.config['cmd'])
-            process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
-                                       executable=os.path.expandvars(self.config['cmd']))
+            self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
+                           f"--config {self.config['config']}")
+            process = asyncio.create_subprocess_exec(
+                os.path.expandvars(self.config['cmd']),
+                "--bind", self.config['bind'],
+                "--config", 'config\\sneaker.json',
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL)
         return True
 
     def is_running(self) -> bool:
         global process, servers
 
-        if process and process.poll() is None:
+        if process is not None and process.returncode is None:
             return self.server.name in servers
         else:
             return False

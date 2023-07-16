@@ -2,7 +2,6 @@ from __future__ import annotations
 import asyncio
 import os
 import psutil
-import subprocess
 import traceback
 import win32gui
 import win32process
@@ -12,7 +11,7 @@ from discord.ext import tasks
 from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
 from typing import TYPE_CHECKING, Optional
 
-from core import Status, utils, Server, Channel, Coalition, Plugin, ServerImpl, Autoexec
+from core import Status, utils, Server, Channel, ServerImpl, Autoexec
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 
@@ -27,7 +26,6 @@ class MonitoringService(Service):
         self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
         self.bot: Optional[DCSServerBot] = None
         self.hung = dict[str, int]()
-        self.update_pending = False
         self.io_counters = {}
         self.net_io_counters = None
 
@@ -38,8 +36,6 @@ class MonitoringService(Service):
             self.bot = ServiceRegistry.get("Bot").bot
             await self.bot.wait_until_ready()
         self.monitoring.start()
-        if self.node.locals['DCS'].get('autoupdate', False):
-            self.autoupdate.start()
 
     async def stop(self):
         await super().stop()
@@ -219,76 +215,3 @@ class MonitoringService(Service):
                 await self.serverload()
         except Exception:
             traceback.print_exc()
-
-    async def do_update(self, warn_times: list[int]):
-        async def shutdown_with_warning(server: Server):
-            if server.is_populated():
-                shutdown_in = max(warn_times) if len(warn_times) else 0
-                while shutdown_in > 0:
-                    for warn_time in warn_times:
-                        if warn_time == shutdown_in:
-                            server.sendPopupMessage(Coalition.ALL, f'Server is going down for a DCS update in '
-                                                                   f'{utils.format_time(warn_time)}!')
-                    await asyncio.sleep(1)
-                    shutdown_in -= 1
-            await server.shutdown()
-
-        self.update_pending = True
-        self.log.info('Shutting down DCS servers, warning users before ...')
-        servers = []
-        tasks = []
-        for server_name, server in self.bus.servers.items():
-            if server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
-                continue
-            if server.maintenance:
-                servers.append(server)
-            else:
-                server.maintenance = True
-                tasks.append(asyncio.create_task(shutdown_with_warning(server)))
-        # wait for DCS servers to shut down
-        if tasks:
-            await asyncio.gather(*tasks)
-        self.log.info(f"Updating {self.node.locals['DCS']['installation']} ...")
-        if self.bot:
-            for plugin in self.bot.cogs.values():  # type: Plugin
-                await plugin.before_dcs_update()
-        # disable any popup on the remote machine
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
-        startupinfo.wShowWindow = subprocess.SW_HIDE
-        subprocess.run(['dcs_updater.exe', '--quiet', 'update'], executable=os.path.expandvars(
-            self.node.locals['DCS']['installation']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
-        if self.node.locals['DCS'].get('desanitize', True):
-            utils.desanitize(self)
-        # run after_dcs_update() in all plugins
-        for plugin in self.bot.cogs.values():  # type: Plugin
-            await plugin.after_dcs_update()
-        self.log.info(f"{self.node.locals['DCS']['installation']} updated to the latest version. "
-                      f"Starting up DCS servers again ...")
-        for server in self.bus.servers.values():
-            if server not in servers:
-                # let the scheduler do its job
-                server.maintenance = False
-            else:
-                try:
-                    # the server was running before (being in maintenance mode), so start it again
-                    await server.startup()
-                except asyncio.TimeoutError:
-                    self.log.warning(f'Timeout while starting {server.display_name}, please check it manually!')
-        self.update_pending = False
-        await self.log.info('DCS servers started (or Scheduler taking over in a bit).')
-
-    @tasks.loop(minutes=5.0)
-    async def autoupdate(self):
-        # don't run, if an update is currently running
-        if self.update_pending:
-            return
-        try:
-            branch, old_version = utils.getInstalledVersion(self.node.locals['DCS']['installation'])
-            new_version = await utils.getLatestVersion(branch, userid=self.node.locals['DCS'].get('dcs_user'),
-                                                       password=self.node.locals['DCS'].get('dcs_password'))
-            if new_version and old_version != new_version:
-                self.log.info('A new version of DCS World is available. Auto-updating ...')
-                await self.do_update([300, 120, 60])
-        except Exception as ex:
-            self.log.debug("Exception in autoupdate(): " + str(ex))

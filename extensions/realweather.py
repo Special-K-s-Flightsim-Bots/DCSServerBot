@@ -1,7 +1,7 @@
+import asyncio
 import json
 import os
 import shutil
-import subprocess
 
 from core import Extension, report
 from typing import Optional
@@ -32,7 +32,8 @@ class RealWeather(Extension):
                 cwd = await self.server.get_missions_dir()
                 with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
                     json.dump(cfg, outfile, indent=2)
-                subprocess.run(executable=os.path.join(rw_home, 'realweather.exe'), args=[], cwd=cwd, shell=True)
+                proc = await asyncio.create_subprocess_exec(os.path.join(rw_home, 'realweather.exe'), cwd=cwd)
+                await proc.communicate()
                 self.log.info(f"Real weather applied to mission.")
                 return True
         except Exception as ex:

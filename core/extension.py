@@ -29,14 +29,14 @@ class Extension(ABC):
     async def startup(self) -> bool:
         schedule = self.__class__.__dict__.get('schedule')
         if schedule and not schedule.is_running():
-            schedule.start()
+            schedule.start(self)
         self.log.info(f"  => {self.name} v{self.version} launched for \"{self.server.name}\".")
         return True
 
     async def shutdown(self) -> bool:
         schedule = self.__class__.__dict__.get('schedule')
         if schedule and schedule.is_running():
-            schedule.cancel()
+            schedule.cancel(self)
         self.log.info(f"  => {self.name} shut down for \"{self.server.name}\".")
         return True
 

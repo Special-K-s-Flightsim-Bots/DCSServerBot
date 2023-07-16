@@ -605,7 +605,8 @@ class Mission(Plugin):
             if self.bot.locals.get('admin_channel') and int(self.bot.locals['admin_channel']) != message.channel.id:
                 return
             try:
-                server = await utils.server_selection(self.bus, ctx, title="Where do you want to upload this mission to?")
+                server = await utils.server_selection(self.bus, ctx,
+                                                      title="Where do you want to upload this mission to?")
                 if not server:
                     await ctx.send('Aborted.')
                     return

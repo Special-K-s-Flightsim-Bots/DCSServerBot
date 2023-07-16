@@ -12,6 +12,9 @@ class Main:
         self.log = node.log
 
     async def run(self):
+        if self.node.config.get('autoupdate', True):
+            await self.node.upgrade()
+
         await self.node.register()
         async with ServiceRegistry(node=self.node) as registry:
             for name in registry.services().keys():
@@ -65,7 +68,7 @@ if __name__ == "__main__":
     try:
         # Install.verify()
         asyncio.set_event_loop_policy(
-            asyncio.WindowsSelectorEventLoopPolicy()
+            asyncio.WindowsProactorEventLoopPolicy()
         )
         asyncio.run(Main(NodeImpl()).run())
     except (KeyboardInterrupt, asyncio.CancelledError):

@@ -3,7 +3,6 @@ import os
 import platform
 import shlex
 import shutil
-import subprocess
 import time
 from typing import cast
 
@@ -87,7 +86,6 @@ class BackupService(Service):
     async def backup_database(self):
         try:
             target = self.mkdir()
-            self.log.info("Backing up database...")
             config = self.locals['backups'].get('database')
             cmd = os.path.join(os.path.expandvars(config['path']), "pg_dump.exe")
             filename = f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
@@ -96,7 +94,10 @@ class BackupService(Service):
             exe = f'"{os.path.basename(cmd)}" -U postgres -F t -f "{path}" -d "{database}"'
             args = shlex.split(exe)
             os.environ['PGPASSWORD'] = config['password']
-            subprocess.run(args, executable=cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            self.log.info("Backing up database...")
+            process = await asyncio.create_subprocess_exec(cmd, *args, stdin=asyncio.subprocess.DEVNULL,
+                                                                      stdout=asyncio.subprocess.DEVNULL)
+            await process.communicate()
             self.log.info("Backup of database complete.")
         except Exception as ex:
             self.log.debug(ex)

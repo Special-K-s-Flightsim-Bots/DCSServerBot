@@ -28,7 +28,7 @@ Examples:
           "Late Evening": { "start_time": "22:00" },
           "Night": { "start_time": "01:00" },
           "Calm": {"clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
-          "Windy": {"clouds": "Preset3", "wind": {"at8000":  {"speed": 15, "dir":  105}, "at2000": {"speed" 10, "dir": 130}, "atGround": {"speed": 10, "dir": 20}}},
+          "Windy": {"clouds": "Preset3", "wind": {"at8000":  {"speed": 15, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 10, "dir": 20}}},
           "Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}, "hidden":  true},
           "Default": ["Summer", "Morning", "Calm"]
       },

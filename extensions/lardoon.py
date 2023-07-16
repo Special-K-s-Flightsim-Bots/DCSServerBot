@@ -1,15 +1,14 @@
+import asyncio
 import os
-import subprocess
+import traceback
 
 from core import Extension, report, Server
-from datetime import datetime, timedelta
 from discord.ext import tasks
 from extensions import TACVIEW_DEFAULT_DIR
 from typing import Optional
 
 # Globals
-process: Optional[subprocess.Popen] = None
-prune: Optional[subprocess.Popen] = None
+process: Optional[asyncio.subprocess.Process] = None
 servers: set[str] = set()
 imports: set[str] = set()
 
@@ -18,8 +17,7 @@ class Lardoon(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        self._import: Optional[subprocess.Popen] = None
-        self.lastrun = datetime(year=1970, day=1, month=1)
+        self._import: Optional[asyncio.subprocess.Process] = None
 
     async def startup(self) -> bool:
         global process, servers
@@ -28,13 +26,16 @@ class Lardoon(Extension):
         if 'Tacview' not in self.server.options['plugins']:
             self.log.warning('Lardoon needs Tacview to be enabled in your server!')
             return False
-        if not process:
+        if not process or process.returncode is not None:
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
-            process = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
-                                       executable=os.path.expandvars(self.config['cmd']),
-                                       stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL)
+            process = await asyncio.create_subprocess_exec(
+                os.path.expandvars(self.config['cmd']),
+                "serve",
+                "--bind", self.config['bind'],
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
+            )
             servers.add(self.server.name)
         return self.is_running()
 
@@ -42,7 +43,7 @@ class Lardoon(Extension):
         global process, servers
 
         servers.remove(self.server.name)
-        if process is not None and not servers:
+        if process is not None and process.returncode is None and not servers:
             process.kill()
             process = None
             return await super().shutdown()
@@ -52,7 +53,7 @@ class Lardoon(Extension):
     def is_running(self) -> bool:
         global process, servers
 
-        if process and process.poll() is None:
+        if process is not None and process.returncode is None:
             return self.server.name in servers
         else:
             return False
@@ -80,37 +81,19 @@ class Lardoon(Extension):
 
     @tasks.loop(minutes=1.0)
     async def schedule(self):
-        global imports, prune
-
-        # check if prune is running
-        if prune:
-            if prune.poll() is not None:
-                prune = None
-
-        # check if an active import job is running
-        elif self._import:
-            if self._import.poll() is not None:
-                self._import = None
-                imports.remove(self.server.name)
-                if not imports:
-                    # run prune
-                    cmd = os.path.basename(self.config['cmd'])
-                    prune = subprocess.Popen([cmd, "prune", "--no-dry-run"],
-                                             executable=os.path.expandvars(self.config['cmd']),
-                                             stdout=subprocess.DEVNULL,
-                                             stderr=subprocess.DEVNULL)
-        # run imports every 5 minutes
-        elif self.lastrun < (datetime.now() - timedelta(minutes=self.config.get('minutes', 5))):
-            try:
-                path = self.server.options['plugins']['Tacview'].get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
-                if not path:
-                    path = TACVIEW_DEFAULT_DIR
-                cmd = os.path.basename(self.config['cmd'])
-                self._import = subprocess.Popen([cmd, "import", "-p", path],
-                                                executable=os.path.expandvars(self.config['cmd']),
-                                                stdout=subprocess.DEVNULL,
-                                                stderr=subprocess.DEVNULL)
-                imports.add(self.server.name)
-            except KeyError:
-                pass
-            self.lastrun = datetime.now()
+        minutes = self.config.get('minutes', 5)
+        if self.schedule.minutes != minutes:
+            self.schedule.change_interval(minutes=minutes)
+        try:
+            path = self.server.options['plugins']['Tacview'].get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
+            if not path:
+                path = TACVIEW_DEFAULT_DIR
+            cmd = os.path.expandvars(self.config['cmd'])
+            proc = await asyncio.create_subprocess_exec(
+                cmd,  "import", "-p", path, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            await proc.communicate()
+            proc = await asyncio.create_subprocess_exec(
+                cmd, "prune",  "--no-dry-run", stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            await proc.communicate()
+        except Exception:
+            traceback.print_exc()

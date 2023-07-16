@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 import certifi
 import discord
 import json
@@ -10,17 +11,19 @@ import ssl
 import subprocess
 import sys
 import time
+import traceback
 import yaml
 
 from contextlib import closing
-from core import utils
+from core import utils, Status, Coalition
 from datetime import datetime
+from discord.ext import tasks
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING, Awaitable, Callable, Any
 from version import __version__
 
 from core.data.dataobject import DataObjectFactory
@@ -30,6 +33,9 @@ from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
 from core.services.registry import ServiceRegistry
 from core.utils.dcs import LICENSES_URL
+
+if TYPE_CHECKING:
+    from services import ServiceBus
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -50,11 +56,13 @@ class NodeImpl(Node):
         self.listen_address = self.config.get('listen_address', '0.0.0.0')
         self.listen_port = self.config.get('listen_port', 10042)
         self.log = self.init_logger()
-        if self.config.get('autoupdate', True):
-            self.upgrade()
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
         self.all_nodes: Optional[dict] = None
+        self.update_pending = False
+        self.before_update: dict[str, Callable[[Any], Awaitable[Any]]] = dict()
+        self.after_update: dict[str, Callable[[Any], Awaitable[Any]]] = dict()
+
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.db_version = None
@@ -130,6 +138,12 @@ class NodeImpl(Node):
 
     def del_instance(self, name: str):
         raise NotImplementedError()
+
+    def register_callback(self, what: str, name: str, func: Awaitable):
+        if what == 'before_dcs_update':
+            self.before_update[name] = func
+        else:
+            self.after_update[name] = func
 
     @staticmethod
     def shutdown():
@@ -217,7 +231,7 @@ class NodeImpl(Node):
             shutil.unpack_archive(path, '{}'.format(path.replace('.zip', '')))
             os.remove(path)
 
-    def upgrade(self) -> None:
+    async def upgrade(self) -> None:
         try:
             import git
 
@@ -240,8 +254,9 @@ class NodeImpl(Node):
                             self.log.info('  => DCSServerBot updated to latest version.')
                             if modules:
                                 self.log.warning('  => requirements.txt has changed. Installing missing modules...')
-                                subprocess.check_call([sys.executable, '-m', 'pip', '-q', 'install', '-r',
-                                                       'requirements.txt'])
+                                proc = await asyncio.create_subprocess_exec(
+                                    sys.executable, '-m', 'pip', '-q','install', '-r', 'requirements.txt')
+                                await proc.communicate()
                             self.log.warning('- Restart needed => exiting.')
                             exit(-1)
                         except git.exc.GitCommandError:
@@ -257,16 +272,78 @@ class NodeImpl(Node):
         except ImportError:
             self.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
 
-    async def update(self):
-        # TODO move update from monitoring to here (or to Bus)
-        pass
+    async def update(self, warn_times: list[int]):
+        async def shutdown_with_warning(server: Server):
+            if server.is_populated():
+                shutdown_in = max(warn_times) if len(warn_times) else 0
+                while shutdown_in > 0:
+                    for warn_time in warn_times:
+                        if warn_time == shutdown_in:
+                            server.sendPopupMessage(Coalition.ALL, f'Server is going down for a DCS update in '
+                                                                   f'{utils.format_time(warn_time)}!')
+                    await asyncio.sleep(1)
+                    shutdown_in -= 1
+            await server.shutdown()
 
-    def handle_module(self, what: str, module: str):
+        self.update_pending = True
+        self.log.info('Shutting down local DCS servers (user warnings may apply) ...')
+        servers = []
+        tasks = []
+        bus = ServiceRegistry.get('ServiceBus')  # type: ServiceBus
+        for server in [x for x in bus.servers.values() if not x.is_remote]:
+            if server.maintenance:
+                servers.append(server)
+            else:
+                server.maintenance = True
+                if server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
+                    tasks.append(asyncio.create_task(shutdown_with_warning(server)))
+        # wait for DCS servers to shut down
+        if tasks:
+            await asyncio.gather(*tasks)
+        self.log.info(f"Updating {self.locals['DCS']['installation']} ...")
+        # call before update hooks
+        for callback in self.before_update.values():
+            await callback(self)
+        # disable any popup on the remote machine
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
         startupinfo.wShowWindow = subprocess.SW_HIDE
-        subprocess.run(['dcs_updater.exe', '--quiet', what, module], executable=os.path.expandvars(
-            self.locals['DCS']['installation']) + '\\bin\\dcs_updater.exe', startupinfo=startupinfo)
+        try:
+            process = await asyncio.create_subprocess_exec(
+                os.path.join(os.path.expandvars(self.locals['DCS']['installation']), 'bin', 'dcs_updater.exe'),
+                '--quiet', 'update', startupinfo=startupinfo
+            )
+            await process.communicate()
+        except Exception:
+            traceback.print_exc()
+        if self.locals['DCS'].get('desanitize', True):
+            utils.desanitize(self)
+        # call after update hooks
+        for callback in self.after_update.values():
+            await callback(self)
+        self.log.info(f"{self.locals['DCS']['installation']} updated to the latest version. "
+                      f"Starting up DCS servers again ...")
+        for server in [x for x in bus.servers.values() if not x.is_remote]:
+            if server not in servers:
+                # let the scheduler do its job
+                server.maintenance = False
+            else:
+                try:
+                    # the server was running before (being in maintenance mode), so start it again
+                    await server.startup()
+                except asyncio.TimeoutError:
+                    self.log.warning(f'Timeout while starting {server.display_name}, please check it manually!')
+        self.update_pending = False
+        self.log.info('DCS servers started (or Scheduler taking over in a bit).')
+
+    async def handle_module(self, what: str, module: str):
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        proc = await asyncio.create_subprocess_exec(
+            os.path.join(os.path.expandvars(self.locals['DCS']['installation']), 'bin', 'dcs_updater.exe'),
+            '--quiet', what, module, startupinfo=startupinfo)
+        await proc.communicate()
 
     def get_installed_modules(self) -> set[str]:
         with open(os.path.join(self.locals['DCS']['installation'], 'autoupdate.cfg'), encoding='utf8') as cfg:
@@ -297,11 +374,15 @@ class NodeImpl(Node):
         self._public_ip = self.locals.get('public_ip')
         if not self._public_ip:
             self._public_ip = await utils.get_public_ip()
+        if self.locals['DCS'].get('autoupdate', False):
+            self.autoupdate.start()
 
     async def unregister(self):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
+        if self.locals['DCS'].get('autoupdate', False):
+            self.autoupdate.cancel()
 
     def check_master(self) -> bool:
         with self.pool.connection() as conn:
@@ -359,3 +440,18 @@ class NodeImpl(Node):
                         AND master is False 
                         AND last_seen > (NOW() - interval '1 minute')
                     """, (self.guild_id, ))]
+
+    @tasks.loop(minutes=5.0)
+    async def autoupdate(self):
+        # don't run, if an update is currently running
+        if self.update_pending:
+            return
+        try:
+            branch, old_version = utils.getInstalledVersion(self.locals['DCS']['installation'])
+            new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
+                                                       password=self.locals['DCS'].get('dcs_password'))
+            if new_version and old_version != new_version:
+                self.log.info('A new version of DCS World is available. Auto-updating ...')
+                await self.update([300, 120, 60])
+        except Exception as ex:
+            self.log.debug("Exception in autoupdate(): " + str(ex))

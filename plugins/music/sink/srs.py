@@ -1,6 +1,5 @@
 import asyncio
 import discord
-import subprocess
 import os
 
 from core import Server, Status
@@ -16,7 +15,7 @@ class SRSSink(Sink):
 
     def __init__(self, bot: DCSServerBot, server: Server, config: dict, music_dir: str):
         super().__init__(bot, server, config, music_dir)
-        self.process: Optional[subprocess.Popen] = None
+        self.process: Optional[asyncio.subprocess.Process] = None
 
     def render(self) -> discord.Embed:
         embed = discord.Embed(colour=discord.Colour.blue())
@@ -38,30 +37,26 @@ class SRSSink(Sink):
             except KeyError:
                 raise SinkInitError("You need to set the SRS path in your nodes.yaml")
             self.current = file
-            self.process = subprocess.Popen(
-                [
-                    "DCS-SR-ExternalAudio.exe",
-                    "-f", self.config['frequency'],
-                    "-m", self.config['modulation'],
-                    "-c", self.config['coalition'],
-                    "-v", self.config.get('volume', '1.0'),
-                    "-p", srs_port,
-                    "-n", self.config.get('name', 'DCSSB MusicBox'),
-                    "-i", file
-                ],
-                executable=srs_inst + os.path.sep + "DCS-SR-ExternalAudio.exe",
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+            self.process = await asyncio.create_subprocess_exec(
+                os.path.join(srs_inst, "DCS-SR-ExternalAudio.exe"),
+                "-f", self.config['frequency'],
+                "-m", self.config['modulation'],
+                "-c", self.config['coalition'],
+                "-v", self.config.get('volume', '1.0'),
+                "-p", srs_port,
+                "-n", self.config.get('name', 'DCSSB MusicBox'),
+                "-i", file,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
             )
-            while self.process.poll() is None:
-                await asyncio.sleep(1)
+            await self.process.communicate()
         except Exception as ex:
             self.log.exception(ex)
         finally:
             self.current = None
 
     async def skip(self) -> None:
-        if self.process and self.process.poll() is None:
+        if self.process.returncode is None:
             self.process.kill()
             self.current = None
 

@@ -1,3 +1,6 @@
+import asyncio.subprocess
+import traceback
+
 import discord
 import os
 import re
@@ -26,14 +29,16 @@ class Commands(Plugin):
         cmd: list[str] = [config['cmd']]
         if 'args' in config:
             cmd.extend([utils.format_string(x, **kwargs) for x in shlex.split(config['args'])])
+        if 'cwd' in config:
+            cwd = os.path.expandvars(config['cwd'])
+        else:
+            cwd = None
         if 'shell' in config:
-            if 'cwd' in config:
-                cwd = os.path.expandvars(config['cwd'])
-            else:
-                cwd = None
             try:
-                p = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, timeout=300)
+                p = await asyncio.subprocess.create_subprocess_shell(*cmd, cwd=cwd, stdout=asyncio.subprocess.PIPE)
+                stdout, _ = p.communicate()
             except Exception as ex:
+                traceback.print_exc()
                 await ctx.send(ex.__str__())
                 return
             output = p.stdout.decode('cp1252', 'ignore')
@@ -52,7 +57,9 @@ class Commands(Plugin):
                 tmp += '```'
                 await ctx.send(tmp)
         else:
-            subprocess.Popen(cmd, executable=os.path.expandvars(config['cwd']) + os.path.sep + config['cmd'])
+            await asyncio.subprocess.create_subprocess_exec(*cmd, cwd=cwd,
+                                                            stdin=asyncio.subprocess.DEVNULL,
+                                                            stdout=asyncio.subprocess.DEVNULL)
             await ctx.send('Done.')
 
     async def event(self, ctx: commands.Context, config: dict, **kwargs) -> list[dict]:

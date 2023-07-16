@@ -65,6 +65,9 @@ class Scheduler(Plugin):
     async def launch_dcs(self, server: Server, config: dict, member: Optional[discord.Member] = None):
         self.log.info(f"  => DCS server \"{server.name}\" starting up ...")
         await server.startup()
+        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+            self.log.info(f'  => DCS server "{server.name}" NOT started.')
+            return
         if not member:
             self.log.info(f"  => DCS server \"{server.name}\" started by "
                           f"{self.plugin_name.title()}.")

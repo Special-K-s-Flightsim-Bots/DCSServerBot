@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import subprocess
@@ -82,9 +83,9 @@ class SRS(Extension):
                 info.wShowWindow = win32con.SW_MINIMIZE
             else:
                 info = None
-            self.process = subprocess.Popen(
-                ['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.config['config']))],
-                executable=os.path.expandvars(self.config['installation']) + r'\SR-Server.exe', startupinfo=info)
+            self.process = await asyncio.create_subprocess_exec(
+                os.path.join(os.path.expandvars(self.config['installation']), 'SR-Server.exe'),
+                '-cfg={}'.format(os.path.expandvars(self.config['config'])), startupinfo=info)
         return self.is_running()
 
     async def shutdown(self):

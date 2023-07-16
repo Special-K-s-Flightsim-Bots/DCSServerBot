@@ -76,7 +76,7 @@ class Admin(Plugin):
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=True)
         node = interaction.client.node
-        await asyncio.to_thread(node.handle_module, 'install', module)
+        await node.handle_module('install', module)
         await interaction.followup.send(f"Module {module} installed on node {node.name}", ephemeral=True)
 
     @dcs.command(name='uninstall', description='Uninstall modules from your dedicated server')
@@ -97,7 +97,7 @@ class Admin(Plugin):
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=True)
         node = interaction.client.node
-        await asyncio.to_thread(node.handle_module, 'uninstall', module)
+        await node.handle_module('uninstall', module)
         await interaction.followup.send(f"Module {module} uninstalled on node {node.name}", ephemeral=True)
 
     @command(description='Download config files or missions')
@@ -313,7 +313,7 @@ class Admin(Plugin):
         embed.add_field(name="Server", value='\n'.join(names))
         embed.add_field(name="Status", value='\n'.join(status))
         embed.set_footer(text=f"Bot Version: v{self.bot.version}.{self.bot.sub_version}")
-        ## agent nodes
+        # agent nodes
         names = []
         instances = []
         status = []
