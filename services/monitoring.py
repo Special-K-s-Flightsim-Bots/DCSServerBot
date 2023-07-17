@@ -39,8 +39,6 @@ class MonitoringService(Service):
 
     async def stop(self):
         await super().stop()
-        if self.node.locals['DCS'].get('autoupdate', False):
-            self.autoupdate.cancel()
         self.monitoring.cancel()
 
     def check_autoexec(self):
