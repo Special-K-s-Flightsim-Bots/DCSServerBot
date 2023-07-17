@@ -60,7 +60,7 @@ class Sneaker(Extension):
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(
                 f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config\\sneaker.json")
-            process = asyncio.create_subprocess_exec(
+            process = await asyncio.create_subprocess_exec(
                 os.path.expandvars(self.config['cmd']),
                 "--bind", self.config['bind'],
                 "--config", 'config\\sneaker.json',
@@ -71,7 +71,7 @@ class Sneaker(Extension):
                 cmd = os.path.basename(self.config['cmd'])
                 self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                                f"--config {self.config['config']}")
-                process = asyncio.create_subprocess_exec(
+                process = await asyncio.create_subprocess_exec(
                     os.path.expandvars(self.config['cmd']),
                     "--bind", self.config['bind'],
                     "--config", os.path.expandvars(self.config['config']),
@@ -95,7 +95,7 @@ class Sneaker(Extension):
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                            f"--config {self.config['config']}")
-            process = asyncio.create_subprocess_exec(
+            process = await asyncio.create_subprocess_exec(
                 os.path.expandvars(self.config['cmd']),
                 "--bind", self.config['bind'],
                 "--config", 'config\\sneaker.json',
