@@ -173,14 +173,15 @@ class GameMasterEventListener(EventListener):
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
                     # check if the player is eligible to change the coalitions
-                    cursor.execute("""
+                    cursor.execute(f"""
                         SELECT coalition FROM coalitions 
-                        WHERE server_name = %s AND player_ucid = %s AND coalition_leave > (NOW() - interval '%s')
-                    """, (server.name, player.ucid, server.locals['coalitions']['lock_time']))
+                        WHERE server_name = %s AND player_ucid = %s 
+                        AND coalition_leave > (NOW() - interval '{server.locals['coalitions'].get('lock_time', '1 day')}')
+                    """, (server.name, player.ucid))
                     if cursor.rowcount == 1:
                         if cursor.fetchone()[0] != coalition.casefold():
                             player.sendChatMessage(f"You can't join the {coalition} coalition in-between "
-                                                   f"{server.locals['coalitions']['lock_time']} of "
+                                                   f"{server.locals['coalitions'].get('lock_time', '1 day')} of "
                                                    f"leaving a coalition.")
                             await self.bot.audit(
                                 f"{player.display_name} tried to join a new coalition in-between the time limit.",
@@ -207,9 +208,9 @@ class GameMasterEventListener(EventListener):
             if player.member:
                 roles = {
                     Coalition.RED: discord.utils.get(player.member.guild.roles,
-                                                     name=server.locals['coalitions']['red']),
+                                                     name=server.locals['coalitions']['red_role']),
                     Coalition.BLUE: discord.utils.get(player.member.guild.roles,
-                                                      name=server.locals['coalitions']['blue']),
+                                                      name=server.locals['coalitions']['blue_role']),
                 }
                 role = roles[player.coalition]
                 if role:
@@ -239,9 +240,9 @@ class GameMasterEventListener(EventListener):
             if player.member:
                 roles = {
                     Coalition.RED: discord.utils.get(player.member.guild.roles,
-                                                     name=server.locals['coalitions']['red']),
+                                                     name=server.locals['coalitions']['red_role']),
                     Coalition.BLUE: discord.utils.get(player.member.guild.roles,
-                                                      name=server.locals['coalitions']['blue'])
+                                                      name=server.locals['coalitions']['blue_role'])
                 }
                 await player.member.remove_roles(roles[player.coalition])
         except discord.Forbidden:

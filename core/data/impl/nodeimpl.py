@@ -86,7 +86,7 @@ class NodeImpl(Node):
                         """, (self.guild_id, self.name)).fetchone()
                     if row[0] > 0:
                         self.log.error(f"A node with name {self.name} is already running for this guild!")
-                        exit(-1)
+                        exit(-2)
                     conn.execute("INSERT INTO nodes (guild_id, node, master) VALUES (%s, %s, False) "
                                  "ON CONFLICT (guild_id, node) DO NOTHING", (self.guild_id, self.name))
             self._master = self.check_master()

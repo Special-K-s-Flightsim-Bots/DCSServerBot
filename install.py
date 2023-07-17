@@ -78,7 +78,7 @@ class Install:
             port = input('Enter the port to your PostgreSQL-database or press ENTER if you need to install it first: ')
             if not port.isnumeric():
                 print('Aborting.')
-                exit(-1)
+                exit(-2)
         while True:
             passwd = getpass('Please enter your PostgreSQL master password (user=postgres): ')
             url = f'postgres://postgres:{quote(passwd)}@localhost:{port}/postgres'

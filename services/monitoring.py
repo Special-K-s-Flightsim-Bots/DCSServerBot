@@ -38,8 +38,8 @@ class MonitoringService(Service):
         self.monitoring.start()
 
     async def stop(self):
-        await super().stop()
         self.monitoring.cancel()
+        await super().stop()
 
     def check_autoexec(self):
         for instance in self.node.instances:

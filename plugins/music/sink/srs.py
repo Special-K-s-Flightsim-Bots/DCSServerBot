@@ -56,7 +56,7 @@ class SRSSink(Sink):
             self.current = None
 
     async def skip(self) -> None:
-        if self.process.returncode is None:
+        if self.process is not None and self.process.returncode is None:
             self.process.kill()
             self.current = None
 

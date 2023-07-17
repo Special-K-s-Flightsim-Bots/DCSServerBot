@@ -1,11 +1,10 @@
-from copy import deepcopy
-
 import discord
 import os
 import shutil
 import time
 
 from contextlib import closing
+from copy import deepcopy
 from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, TEventListener, Group, Server, \
     DEFAULT_TAG
 from discord import SelectOption, app_commands

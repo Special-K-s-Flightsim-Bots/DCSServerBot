@@ -63,19 +63,22 @@ class Scheduler(Plugin):
         return server.status
 
     async def launch_dcs(self, server: Server, config: dict, member: Optional[discord.Member] = None):
-        self.log.info(f"  => DCS server \"{server.name}\" starting up ...")
-        await server.startup()
-        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            self.log.info(f'  => DCS server "{server.name}" NOT started.')
-            return
-        if not member:
-            self.log.info(f"  => DCS server \"{server.name}\" started by "
-                          f"{self.plugin_name.title()}.")
-            await self.bot.audit(f"{self.plugin_name.title()} started DCS server", server=server)
-        else:
-            self.log.info(f"  => DCS server \"{server.name}\" started by "
-                          f"{member.display_name}.")
-            await self.bot.audit(f"started DCS server", user=member, server=server)
+        self.log.info(f'  => DCS server "{server.name}" starting up ...')
+        try:
+            await server.startup()
+            if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+                self.log.info(f'  => DCS server "{server.name}" NOT started.')
+                return
+            if not member:
+                self.log.info(f'  => DCS server "{server.name}" started by '
+                              f'{self.plugin_name.title()}.')
+                await self.bot.audit(f"{self.plugin_name.title()} started DCS server", server=server)
+            else:
+                self.log.info(f'  => DCS server "{server.name}" started by '
+                              f'{member.display_name}.')
+                await self.bot.audit(f"started DCS server", user=member, server=server)
+        except asyncio.TimeoutError:
+            self.log.warning(f'  => DCS server "{server.name}" timeout while launching.')
 
     @staticmethod
     def get_warn_times(config: dict) -> list[int]:
@@ -325,8 +328,8 @@ class Scheduler(Plugin):
                     f"DCS server \"{server.display_name}\" started.\nServer is in maintenance mode now! "
                     f"Use /scheduler clear to reset maintenance mode.", ephemeral=True)
             except asyncio.TimeoutError:
-                await interaction.followup.send(f"Timeout while launching DCS server \"{server.display_name}\".\n"
-                                                f"The server might be running anyway, check with /server list.",
+                await interaction.followup.send(f'Timeout while launching DCS server "{server.display_name}".\n'
+                                                f'The server might be running anyway, check with /server list.',
                                                 ephemeral=True)
             finally:
                 await msg.delete()

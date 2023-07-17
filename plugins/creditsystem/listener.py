@@ -80,14 +80,13 @@ class CreditSystemListener(EventListener):
 
     def get_flighttime(self, ucid: str, campaign_id: int) -> int:
         with self.pool.connection() as conn:
-            with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                return cursor.execute("""
-                    SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime 
-                    FROM statistics s, missions m, campaigns c, campaigns_servers cs 
-                    WHERE s.player_ucid = %s AND c.id = %s AND s.mission_id = m.id AND cs.campaign_id = c.id 
-                    AND m.server_name = cs.server_name 
-                    AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)
-                """, (ucid, campaign_id)).fetchone()[0]
+            return conn.execute("""
+                SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime 
+                FROM statistics s, missions m, campaigns c, campaigns_servers cs 
+                WHERE s.player_ucid = %s AND c.id = %s AND s.mission_id = m.id AND cs.campaign_id = c.id 
+                AND m.server_name = cs.server_name 
+                AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)
+            """, (ucid, campaign_id)).fetchone()[0]
 
     async def process_achievements(self, server: Server, player: CreditPlayer):
         # only members can achieve roles

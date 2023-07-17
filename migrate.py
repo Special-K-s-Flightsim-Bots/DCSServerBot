@@ -24,7 +24,7 @@ def migrate():
     if not master:
         if not os.path.exists('config/main.yaml'):
             print("[red]ATTENTION:[/]The Master Node needs to be migrated first! Aborting.")
-            exit(-1)
+            exit(-2)
     else:
         guild_id = IntPrompt.ask(
             'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
@@ -34,7 +34,7 @@ def migrate():
                         f"This looks like a production migration. Do you want to continue?",
                         choices=['y', 'n'], default='n')
         if yn.lower() != 'y':
-            exit(-1)
+            exit(-2)
     print("Now, lean back and enjoy the migration...\n")
 
     try:
@@ -111,6 +111,10 @@ def migrate():
                     "loglevel": cfg['LOGGING']['LOGLEVEL'],
                     "logrotate_count": int(cfg['LOGGING']['LOGROTATE_COUNT']),
                     "logrotate_size": int(cfg['LOGGING']['LOGROTATE_SIZE'])
+                },
+                "messages": {
+                    "player_username": cfg['DCS']['MESSAGE_PLAYER_USERNAME'],
+                    "player_default_username": cfg['DCS']['MESSAGE_PLAYER_DEFAULT_USERNAME']
                 }
             }
             if 'OPT_PLUGINS' in cfg['BOT']:
@@ -122,7 +126,7 @@ def migrate():
                 'owner': int(cfg['BOT']['OWNER']),
                 'automatch': cfg['BOT'].getboolean('AUTOMATCH'),
                 'autoban': cfg['BOT'].getboolean('AUTOBAN'),
-                'message_ban': cfg['DCS']['MESSAGE_BAN'],
+                'message_ban': cfg['BOT']['MESSAGE_BAN'],
                 'message_autodelete': int(cfg['BOT']['MESSAGE_AUTODELETE']),
                 "reports": {
                     "num_workers": int(cfg['REPORTS']['NUM_WORKERS'])
@@ -228,8 +232,8 @@ def migrate():
                     servers[server_name]['coalitions'] = {
                         "lock_time": cfg[instance]['COALITION_LOCK_TIME'],
                         "allow_players_pool": cfg[instance].getboolean('ALLOW_PLAYERS_POOL'),
-                        "blue_role": [x.strip() for x in cfg[instance]['Coalition Blue'].split(',')],
-                        "red_role": [x.strip() for x in cfg[instance]['Coalition Red'].split(',')]
+                        "blue_role": cfg[instance]['Coalition Blue'],
+                        "red_role": cfg[instance]['Coalition Red']
                     }
                     servers[server_name]['channels']['blue'] = int(cfg[instance]['COALITION_BLUE_CHANNEL'])
                     servers[server_name]['channels']['red'] = int(cfg[instance]['COALITION_RED_CHANNEL'])
@@ -284,4 +288,4 @@ def migrate():
     except Exception:
         print("\n[red]Migration to DCSServerBot 3.0 failed![/]\n")
         traceback.print_exc()
-        exit(-1)
+        exit(-2)
