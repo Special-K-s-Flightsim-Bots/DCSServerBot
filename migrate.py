@@ -177,6 +177,7 @@ def migrate():
 
         nodes[platform.node()]['instances'] = {}
         missionstats = {}
+        presets = {}
         for server_name, instance in utils.findDCSInstances():
             if instance in cfg:
                 i = nodes[platform.node()]['instances'][instance] = {
@@ -203,6 +204,9 @@ def migrate():
                     if 'extensions' in schedule:
                         i['extensions'] = schedule['extensions']
                         del schedule['extensions']
+                    # unusual, but people might have done it
+                    if 'presets' in schedule:
+                        presets |= schedule['presets']
                 # fill missionstats
                 m = missionstats[instance] = {}
                 if 'EVENT_FILTER' in cfg['FILTER']:
@@ -254,10 +258,10 @@ def migrate():
             # remove any presets from scheduler.yaml to a separate presets.yaml
             if 'presets' in schedule:
                 if isinstance(schedule['presets'], dict):
-                    presets = schedule['presets']
+                    presets |= schedule['presets']
                 else:
                     with open(schedule['presets'], 'r') as pin:
-                        presets = json.load(pin)
+                        presets |= json.load(pin)
                     shutil.move(schedule['presets'], BACKUP_FOLDER)
                 with open('config/presets.yaml', 'w') as pout:
                     yaml.safe_dump(presets, pout)
