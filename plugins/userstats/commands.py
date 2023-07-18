@@ -47,11 +47,11 @@ class UserStatistics(Plugin):
         super().__init__(bot, listener)
         self.expire_token.add_exception_type(psycopg.DatabaseError)
         self.expire_token.start()
-        if 'configs' in self.locals:
+        if self.locals:
             self.persistent_highscore.start()
 
     async def cog_unload(self):
-        if 'configs' in self.locals:
+        if self.locals:
             self.persistent_highscore.cancel()
         self.expire_token.cancel()
         await super().cog_unload()
