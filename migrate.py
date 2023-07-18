@@ -74,6 +74,10 @@ def migrate():
             scheduler = yaml.safe_load(Path('config/plugins/scheduler.yaml').read_text(encoding='utf-8'))
         else:
             scheduler = {}
+        if os.path.exists('config/presets.yaml'):
+            presets = yaml.safe_load(Path('config/presets.yaml').read_text(encoding='utf-8'))
+        else:
+            presets = {}
         if os.path.exists('config/plugins/userstats.yaml'):
             userstats = yaml.safe_load(Path('config/plugins/userstats.yaml').read_text(encoding='utf-8'))
         else:
@@ -177,7 +181,6 @@ def migrate():
 
         nodes[platform.node()]['instances'] = {}
         missionstats = {}
-        presets = {}
         for server_name, instance in utils.findDCSInstances():
             if instance in cfg:
                 i = nodes[platform.node()]['instances'][instance] = {
@@ -207,6 +210,7 @@ def migrate():
                     # unusual, but people might have done it
                     if 'presets' in schedule:
                         presets |= schedule['presets']
+                        del schedule['presets']
                 # fill missionstats
                 m = missionstats[instance] = {}
                 if 'EVENT_FILTER' in cfg['FILTER']:
@@ -263,8 +267,6 @@ def migrate():
                     with open(schedule['presets'], 'r') as pin:
                         presets |= json.load(pin)
                     shutil.move(schedule['presets'], BACKUP_FOLDER)
-                with open('config/presets.yaml', 'w') as pout:
-                    yaml.safe_dump(presets, pout)
                 del schedule['presets']
 
         # write main configuration
@@ -282,6 +284,11 @@ def migrate():
         if scheduler:
             with open('config/plugins/scheduler.yaml', 'w') as out:
                 yaml.safe_dump(scheduler, out)
+                print("- Updated config/plugins/scheduler.yaml")
+            if presets:
+                with open('config/presets.yaml', 'w') as out:
+                    yaml.safe_dump(presets, out)
+                print("- Created config/presets.yaml")
         if missionstats:
             with open('config/plugins/missionstats.yaml', 'w') as out:
                 yaml.safe_dump(missionstats, out)
