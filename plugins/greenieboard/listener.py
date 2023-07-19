@@ -148,11 +148,14 @@ class GreenieBoardEventListener(EventListener):
                        os.path.sep + (config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')
             if not os.path.exists(filepath):
                 os.mkdir(filepath)
-            filename = filepath + os.path.sep + f'{uuid.uuid4()}.png'
-            fig, _ = self.funkplot.PlotTrapSheet(data)
-            fig.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
-            plt.close(fig)
-            data['trapsheet'] = filename
+            try:
+                filename = filepath + os.path.sep + f'{uuid.uuid4()}.png'
+                fig, _ = self.funkplot.PlotTrapSheet(data)
+                fig.savefig(filename, bbox_inches='tight', facecolor='#2C2F33')
+                plt.close(fig)
+                data['trapsheet'] = filename
+            except TypeError:
+                self.log.error("No trapsheet data received from DCS!")
         else:
             del data['trapsheet']
         data['grade'] = self.normalize_airboss_lso_rating(data['grade'])
