@@ -158,7 +158,7 @@ class PunishmentEventListener(EventListener):
         config = self.plugin.get_config(server)
         if 'forgive' not in config:
             target.sendChatMessage(
-                f'{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}forgive is not enabled on this server.')
+                f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}forgive is not enabled on this server.")
             return
 
         async with self.lock:
