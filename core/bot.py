@@ -315,7 +315,7 @@ class DCSServerBot(commands.Bot):
         try:
             with closing(conn.cursor()) as cursor:
                 search = f'%{name}%'
-                cursor.execute('SELECT ucid, name FROM players WHERE LOWER(name) like LOWER(%s) '
+                cursor.execute('SELECT ucid, name FROM players WHERE name ILIKE %s '
                                'ORDER BY last_seen DESC LIMIT 1', (search, ))
                 if cursor.rowcount >= 1:
                     res = cursor.fetchone()
