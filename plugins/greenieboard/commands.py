@@ -163,7 +163,7 @@ class GreenieBoardMaster(GreenieBoardAgent):
                                   ])
         if n:
             report = PaginationReport(self.bot, ctx, self.plugin_name, 'lsoRating.json',
-                                      timeout if timeout > 0 else None)
+                                      timeout if timeout > 0 else None, keep_image=True)
             await report.render(landings=landings, start_index=int(n), formatter=format_landing)
         await ctx.message.delete()
 
