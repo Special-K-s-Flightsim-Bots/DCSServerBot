@@ -55,9 +55,11 @@ class PunishmentEventListener(EventListener):
                 if 'target' in data and data['target'] != -1:
                     target = server.get_player(name=data['target'])
                     if 'forgive' in config:
-                        target.sendChatMessage(f"{target.name}, you are a victim of a {data['eventName']} event by "
-                                               f"player {data['initiator']}.\nIf you send -forgive in this chat within "
-                                               f"the next {config['forgive']} seconds, you can pardon the other player.")
+                        target.sendChatMessage(
+                            f"{target.name}, you are a victim of a {data['eventName']} event by player "
+                            f"{data['initiator']}.\nIf you send {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}forgive "
+                            f"in this chat within the next {config['forgive']} seconds, you can pardon the other "
+                            f"player.")
                 else:
                     target = None
                 hours = self._get_flight_hours(initiator)
@@ -155,7 +157,8 @@ class PunishmentEventListener(EventListener):
     async def forgive(self, server: Server, target: Player, params: list[str]):
         config = self.plugin.get_config(server)
         if 'forgive' not in config:
-            target.sendChatMessage('-forgive is not enabled on this server.')
+            target.sendChatMessage(
+                f'{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}forgive is not enabled on this server.')
             return
 
         async with self.lock:
