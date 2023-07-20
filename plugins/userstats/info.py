@@ -18,6 +18,7 @@ class Header(report.EmbedElement):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+                self.log.debug(sql)
                 cursor.execute(sql)
                 rows = list(cursor.fetchall())
                 if not rows:
