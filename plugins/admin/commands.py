@@ -716,8 +716,11 @@ class Master(Agent):
                     # ban a specific ucid only
                     ucids = [user]
                 for ucid in ucids:
-                    cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
-                                   (ucid, ctx.message.author.display_name, reason))
+                    try:
+                        cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
+                                       (ucid, ctx.message.author.display_name, reason))
+                    except psycopg2.errors.UniqueViolation:
+                        ctx.send(f'UCID {ucid} was banned already.')
                 conn.commit()
                 await super().ban(self, ctx, user, *args)
             if isinstance(user, discord.Member):
