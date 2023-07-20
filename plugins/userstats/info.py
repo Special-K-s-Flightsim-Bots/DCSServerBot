@@ -12,18 +12,17 @@ class Header(report.EmbedElement):
               'FROM players p LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) WHERE p.discord_id = '
         if isinstance(member, str):
             sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
-                   f"p.ucid = '{member}' OR LOWER(p.name) ILIKE '{member.casefold()}' "
+                   f"p.ucid = '{member}' OR p.name ILIKE '%{member}%'"
         else:
             sql += f"'{member.id}'"
-        sql += ' GROUP BY p.ucid, b.ucid'
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                 cursor.execute(sql)
-                if cursor.rowcount == 0:
+                rows = list(cursor.fetchall())
+                if not rows:
                     self.embed.description = 'User "{}" is not linked.'.format(utils.escape_string(member if isinstance(member, str) else member.display_name))
                     return
-                rows = list(cursor.fetchall())
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
             raise
