@@ -189,6 +189,9 @@ class PunishmentEventListener(EventListener):
                             player.sendChatMessage(
                                 f'You have been forgiven by {target.name} and will not be punished '
                                 f'for your recent actions.')
+                            await server.get_channel(Channel.ADMIN).send(
+                                f"Player {target.name} forgave player {player.name} (ucid={player.ucid}) for his "
+                                f"recent actions. Punishment points cleared.")
                     if not names:
                         names = ['another player']
                     target.sendChatMessage(
