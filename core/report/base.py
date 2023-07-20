@@ -118,10 +118,11 @@ class PaginationReport(Report):
         pass
 
     def __init__(self, bot: DCSServerBot, interaction: discord.Interaction, plugin: str, filename: str,
-                 pagination: Optional[list] = None):
+                 pagination: Optional[list] = None, keep_image: bool = False):
         super().__init__(bot, plugin, filename)
         self.interaction = interaction
         self.pagination = pagination
+        self.keep_image = keep_image
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
 
@@ -146,12 +147,13 @@ class PaginationReport(Report):
         return name, values
 
     class PaginationReportView(View):
-        def __init__(self, name, values, index, func, *args, **kwargs):
+        def __init__(self, name, values, index, func, keep_image: bool, *args, **kwargs):
             super().__init__()
             self.name = name
             self.values = values
             self.index = index
             self.func = func
+            self.keep_image = keep_image
             self.args = args
             self.kwargs = kwargs
             select: Select = cast(Select, self.children[0])
@@ -200,7 +202,7 @@ class PaginationReport(Report):
                 else:
                     await interaction.edit_original_response(embed=env.embed, view=self, attachments=[])
             finally:
-                if env.filename and os.path.exists(env.filename):
+                if not self.keep_image and env.filename and os.path.exists(env.filename):
                     os.remove(env.filename)
                     env.filename = None
 
@@ -255,7 +257,7 @@ class PaginationReport(Report):
         func = super().render
 
         message = None
-        view = self.PaginationReportView(name, values, start_index, func, *args, **kwargs)
+        view = self.PaginationReportView(name, values, start_index, func, self.keep_image, *args, **kwargs)
         env = await view.render(values[start_index])
         try:
             try:

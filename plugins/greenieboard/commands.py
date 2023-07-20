@@ -98,7 +98,7 @@ class GreenieBoard(Plugin):
                                       for idx, x in enumerate(landings)
                                   ])
         if n:
-            report = PaginationReport(self.bot, interaction, self.plugin_name, 'lsoRating.json')
+            report = PaginationReport(self.bot, interaction, self.plugin_name, 'lsoRating.json', keep_image=True)
             await report.render(landings=landings, start_index=int(n), formatter=format_landing)
 
     @traps.command(description='Display the current greenieboard')

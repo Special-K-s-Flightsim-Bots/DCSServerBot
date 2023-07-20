@@ -145,6 +145,12 @@ class NodeImpl(Node):
         else:
             self.after_update[name] = func
 
+    def unregister_callback(self, what: str, name: str):
+        if what == 'before_dcs_update':
+            del self.before_update[name]
+        else:
+            del self.after_update[name]
+
     @staticmethod
     def shutdown():
         exit(-1)

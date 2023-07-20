@@ -125,13 +125,16 @@ class FunkManEventListener(EventListener):
     @event(name="moose_lso_grade")
     async def moose_lso_grade(self, server: Server, data: dict) -> None:
         embed = self.create_lso_embed(data)
-        fig, _ = self.get_funkplot().PlotTrapSheet(data)
-        filename = self.save_fig(fig)
+        filename = None
         try:
+            fig, _ = self.get_funkplot().PlotTrapSheet(data)
+            filename = self.save_fig(fig)
             embed.set_image(url=f"attachment://{filename}")
             config = self.plugin.get_config(server)
             channel = self.bot.get_channel(int(config['CHANNELID_AIRBOSS']))
             await channel.send(embed=embed, file=discord.File(filename))
+        except TypeError:
+            self.log.error("No trapsheet data received from DCS!")
         finally:
-            if os.path.exists(filename):
+            if filename and os.path.exists(filename):
                 os.remove(filename)
