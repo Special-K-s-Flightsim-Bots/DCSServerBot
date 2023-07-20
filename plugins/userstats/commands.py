@@ -298,7 +298,7 @@ class UserStatisticsMaster(UserStatisticsAgent):
             name = member
             if len(params):
                 name += ' ' + ' '.join(params)
-            if len(name) == 32:
+            if utils.is_ucid(name):
                 ucid = member
             else:
                 ucid, name = self.bot.get_ucid_by_name(name)
