@@ -8,11 +8,21 @@ from typing import Union, Optional
 
 class Header(report.EmbedElement):
     def render(self, member: Union[discord.Member, str]):
-        sql = 'SELECT p.last_seen, CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned ' \
-              'FROM players p LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) WHERE p.discord_id = '
+        sql = """
+            SELECT p.last_seen, CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned 
+            FROM players p 
+            LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) 
+            WHERE p.discord_id = 
+        """
         if isinstance(member, str):
-            sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
-                   f"p.ucid = '{member}' OR p.name ILIKE '%{member}%'"
+            sql += f"""
+                (
+                    SELECT discord_id 
+                    FROM players 
+                    WHERE ucid = '{member}' AND discord_id != -1
+                ) 
+                OR p.ucid = '{member}'
+            """
         else:
             sql += f"'{member.id}'"
         conn = self.bot.pool.getconn()
