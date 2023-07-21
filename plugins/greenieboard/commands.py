@@ -190,7 +190,7 @@ class GreenieBoardMaster(GreenieBoardAgent):
             if not ucid:
                 await ctx.send(f'Member {user.display_name} is not linked.')
                 return
-        elif len(user) != 32:
+        elif not utils.is_ucid(user):
             await ctx.send(f'Usage: {ctx.prefix}add_trap <@member|ucid>')
             return
         else:

@@ -53,17 +53,17 @@ class PunishmentAgent(Plugin):
         server: Server = await self.bot.get_server(ctx)
         if not server:
             return
-        if isinstance(user, str) and len(user) != 32:
-            await ctx.send(f'Usage: {ctx.prefix}punish <@member|ucid> <points>')
-            return
         if isinstance(user, str):
-            if len(user) < 32:
+            if not utils.is_ucid(user):
                 await ctx.send(f'Usage: {ctx.prefix}punish <@member|ucid> <points>')
                 return
             else:
                 ucid = user
         else:
             ucid = self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await ctx.send(f'Member {user.display_name} not linked.')
+                return
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
@@ -286,7 +286,7 @@ class PunishmentMaster(PunishmentAgent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def forgive(self, ctx, user: Union[discord.Member, str]):
-        if isinstance(user, str) and len(user) != 32:
+        if isinstance(user, str) and not utils.is_ucid(user):
             await ctx.send(f'Usage: {ctx.prefix}forgive <@member|ucid>')
             return
 
@@ -328,7 +328,7 @@ class PunishmentMaster(PunishmentAgent):
                 await ctx.send('You need the DCS Admin role to use this command.')
                 return
             if isinstance(member, str):
-                if len(member) != 32:
+                if not utils.is_ucid(member):
                     await ctx.send(f'Usage: {ctx.prefix}penalty [@member] / [ucid]')
                     return
                 ucid = member
