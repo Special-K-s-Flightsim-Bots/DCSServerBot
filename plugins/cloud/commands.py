@@ -182,7 +182,8 @@ class CloudHandlerMaster(CloudHandlerAgent):
         finally:
             self.pool.putconn(conn)
 
-    @commands.command(description='Generate Cloud Statistics', usage='[@member]', aliases=['cstats', 'globalstats', 'gstats'])
+    @commands.command(description='Generate Cloud Statistics', usage='[@member|name|ucid]',
+                      aliases=['cstats', 'globalstats', 'gstats'])
     @utils.has_role('DCS')
     @commands.guild_only()
     async def cloudstats(self, ctx, member: Optional[Union[discord.Member, str]] = None, *params):
@@ -192,6 +193,10 @@ class CloudHandlerMaster(CloudHandlerAgent):
                 return
             if not member:
                 member = ctx.message.author
+            if isinstance(member, discord.Member):
+                ucid = self.bot.get_ucid_by_member(member)
+                if not ucid:
+                    member = member.name
             if isinstance(member, str):
                 if len(params):
                     member += ' ' + ' '.join(params)
@@ -200,8 +205,6 @@ class CloudHandlerMaster(CloudHandlerAgent):
                     member = self.bot.get_member_or_name_by_ucid(ucid)
                 else:
                     ucid, member = self.bot.get_ucid_by_name(member)
-            else:
-                ucid = self.bot.get_ucid_by_member(member)
             if not ucid:
                 await ctx.send(f'This account is not known.')
                 return
