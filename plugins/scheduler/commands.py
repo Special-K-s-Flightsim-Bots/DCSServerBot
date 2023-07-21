@@ -169,9 +169,9 @@ class Scheduler(Plugin):
             return
         # check if the server is populated
         if server.is_populated():
-            if not server.on_empty:
-                server.on_empty = {'command': method}
             if not rconf.get('populated', True):
+                if not server.on_empty:
+                    server.on_empty = {'command': method}
                 if 'max_mission_time' not in rconf:
                     server.restart_pending = True
                     return
@@ -219,7 +219,10 @@ class Scheduler(Plugin):
     async def check_mission_state(self, server: Server, config: dict):
         def check_mission_restart(rconf: dict):
             # calculate the time when the mission has to restart
-            warn_times = Scheduler.get_warn_times(config) if server.is_populated() else [0]
+            if server.is_populated() and rconf.get('populated', 'True'):
+                warn_times = Scheduler.get_warn_times(config)
+            else:
+                warn_times = [0]
             # we check the warn times in the opposite order to see which one fits best
             for warn_time in sorted(warn_times):
                 if 'local_times' in rconf:

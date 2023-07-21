@@ -268,7 +268,7 @@ class PaginationReport(Report):
                                       filename=os.path.basename(env.filename)) if env.filename else MISSING
                 )
             finally:
-                if env.filename and os.path.exists(env.filename):
+                if not self.keep_image and env.filename and os.path.exists(env.filename):
                     os.remove(env.filename)
                     env.filename = None
             await view.wait()
