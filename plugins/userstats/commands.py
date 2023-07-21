@@ -294,6 +294,10 @@ class UserStatisticsMaster(UserStatisticsAgent):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def info(self, ctx, member: Union[discord.Member, str], *params):
+        if isinstance(member, discord.Member):
+            ucid = self.bot.get_ucid_by_member(member)
+            if not ucid:
+                member = member.name
         if isinstance(member, str):
             name = member
             if len(params):
@@ -307,8 +311,6 @@ class UserStatisticsMaster(UserStatisticsAgent):
             else:
                 await ctx.send('Player not found.')
                 return
-        else:
-            ucid = self.bot.get_ucid_by_member(member)
 
         player: Optional[Player] = None
         for server in self.bot.servers.values():
