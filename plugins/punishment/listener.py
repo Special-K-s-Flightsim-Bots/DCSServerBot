@@ -1,7 +1,7 @@
 import asyncio
 import psycopg2
 from contextlib import closing
-from core import EventListener, Plugin, Server, Player, Status, event, chat_command
+from core import EventListener, Plugin, Server, Player, Status, event, chat_command, Channel
 
 
 class PunishmentEventListener(EventListener):
