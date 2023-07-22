@@ -43,6 +43,8 @@ class CloudHandler(Plugin):
             self.cloud_sync.add_exception_type(aiohttp.ClientError)
             self.cloud_sync.add_exception_type(psycopg.DatabaseError)
             self.cloud_sync.start()
+        if self.config.get('register', True):
+            self.register.start()
 
     @property
     def session(self):
@@ -63,48 +65,9 @@ class CloudHandler(Plugin):
             )
         return self._session
 
-    async def on_ready(self) -> None:
-        if not self.config.get('register', True):
-            return
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("""
-                    SELECT count(distinct node) as num_bots, count(distinct server_name) as num_servers 
-                    FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')
-                """)
-                if cursor.rowcount == 0:
-                    num_bots = num_servers = 0
-                else:
-                    row = cursor.fetchone()
-                    num_bots = row[0]
-                    num_servers = row[1]
-        try:
-            _, dcs_version = utils.getInstalledVersion(self.bot.node.locals['DCS']['installation'])
-            bot = {
-                "guild_id": self.bot.guilds[0].id,
-                "bot_version": f"{self.bot.version}.{self.bot.sub_version}",
-                "variant": "DCSServerBot",
-                "dcs_version": dcs_version,
-                "python_version": '.'.join(platform.python_version_tuple()),
-                "num_bots": num_bots,
-                "num_servers": num_servers,
-                "plugins": [
-                    {
-                        "name": p.plugin_name,
-                        "version": p.plugin_version
-                    } for p in self.bot.cogs.values()
-                ]
-            }
-            self.log.debug("Registering with this data: " + str(bot))
-            await self.post('register', bot)
-            self.log.debug("Bot registered.")
-        except aiohttp.ClientError:
-            self.log.debug('Cloud: Bot could not register due to service unavailability. Ignored.')
-        except Exception as error:
-            traceback.print_exc()
-            self.log.debug("Error while registering: " + str(error))
-
     async def cog_unload(self) -> None:
+        if self.config.get('register', True):
+            self.register.cancel()
         if 'token' in self.config:
             self.cloud_sync.cancel()
         if self.config.get('dcs-ban', False) or self.config.get('discord-ban', False):
@@ -229,7 +192,7 @@ class CloudHandler(Plugin):
                 reason = next(x['reason'] for x in bans if x['discord_id'] == user.id)
                 await guild.ban(user, reason='DGSA: ' + reason)
 
-    @tasks.loop(minutes=1.0)
+    @tasks.loop(seconds=10)
     async def cloud_sync(self):
         with self.pool.connection() as conn:
             with conn.pipeline():
@@ -261,6 +224,45 @@ class CloudHandler(Plugin):
                                 line['client'] = self.client
                                 await self.post('upload', line)
                             cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
+
+    @tasks.loop(hours=24)
+    async def register(self):
+        with self.pool.connection() as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute("""
+                    SELECT count(distinct node) as num_bots, count(distinct server_name) as num_servers 
+                    FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')
+                """)
+                if cursor.rowcount == 0:
+                    num_bots = num_servers = 0
+                else:
+                    row = cursor.fetchone()
+                    num_bots = row[0]
+                    num_servers = row[1]
+        try:
+            _, dcs_version = utils.getInstalledVersion(self.bot.node.locals['DCS']['installation'])
+            bot = {
+                "guild_id": self.bot.guilds[0].id,
+                "bot_version": f"{self.bot.version}.{self.bot.sub_version}",
+                "variant": "DCSServerBot",
+                "dcs_version": dcs_version,
+                "python_version": '.'.join(platform.python_version_tuple()),
+                "num_bots": num_bots,
+                "num_servers": num_servers,
+                "plugins": [
+                    {
+                        "name": p.plugin_name,
+                        "version": p.plugin_version
+                    } for p in self.bot.cogs.values()
+                ]
+            }
+            self.log.debug("Updating registration with this data: " + str(bot))
+            await self.post('register', bot)
+        except aiohttp.ClientError:
+            self.log.debug('Cloud: Bot could not register due to service unavailability. Ignored.')
+        except Exception as error:
+            traceback.print_exc()
+            self.log.debug("Error while registering: " + str(error))
 
 
 async def setup(bot: DCSServerBot):
