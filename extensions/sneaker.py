@@ -94,7 +94,7 @@ class Sneaker(Extension):
             self.create_config()
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
-                           f"--config {self.config['config']}")
+                           f"--config config\\sneaker.json")
             process = await asyncio.create_subprocess_exec(
                 os.path.expandvars(self.config['cmd']),
                 "--bind", self.config['bind'],
