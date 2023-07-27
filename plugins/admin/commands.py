@@ -50,8 +50,7 @@ class Admin(Plugin):
                 await self.bot.audit(f"started an update of all DCS servers on node {platform.node()}.",
                                      user=interaction.user)
                 await interaction.response.defer(thinking=True)
-                monitoring: MonitoringService = cast(MonitoringService, ServiceRegistry.get('Monitoring'))
-                await asyncio.to_thread(monitoring.do_update, warn_times=[warn_time] or [120, 60])
+                await self.node.update(warn_times=[warn_time] or [120, 60])
                 await interaction.followup.send(f"DCS updated to version {new_version}.", ephemeral=True)
         else:
             await interaction.response.send_message(

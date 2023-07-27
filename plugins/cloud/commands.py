@@ -264,6 +264,10 @@ class CloudHandler(Plugin):
             traceback.print_exc()
             self.log.debug("Error while registering: " + str(error))
 
+    @register.before_loop
+    async def before_register(self):
+        await self.bot.wait_until_ready()
+
 
 async def setup(bot: DCSServerBot):
     if not os.path.exists('config/plugins/cloud.yaml'):
