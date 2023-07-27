@@ -287,6 +287,10 @@ class CloudHandlerMaster(CloudHandlerAgent):
         finally:
             self.pool.putconn(conn)
 
+    @register.before_loop
+    async def before_register(self):
+        await self.bot.wait_until_ready()
+
 
 async def setup(bot: DCSServerBot):
     if not os.path.exists('config/cloud.json'):
