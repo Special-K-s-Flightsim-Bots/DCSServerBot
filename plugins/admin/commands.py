@@ -130,6 +130,8 @@ class Agent(Plugin):
                 await self.bot.audit(f"started an update of all DCS servers on node {platform.node()}.",
                                      user=ctx.message.author)
                 await self.do_update([120, 60], ctx)
+                await self.bot.audit(f"updated DCS from version {old_version} to {new_version}",
+                                     user=ctx.message.author)
         else:
             await ctx.send("Can't check this branch for updates, use -force instead.")
 
@@ -534,6 +536,7 @@ class Agent(Plugin):
             if new_version and old_version != new_version:
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 await self.do_update([300, 120, 60])
+                await self.bot.audit(f"DCS auto-updated from version {old_version} to {new_version}.")
         except Exception as ex:
             self.log.debug("Exception in check_for_dcs_update(): " + str(ex))
 
