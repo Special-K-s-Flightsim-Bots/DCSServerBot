@@ -37,11 +37,12 @@ class Admin(Plugin):
     @app_commands.describe(warn_time="Time in seconds to warn users before shutdown")
     async def update(self, interaction: discord.Interaction, node: Optional[str] = None, warn_time: Range[int, 0] = 60):
         # TODO remote updates
+        await interaction.response.defer(thinking=True, ephemeral=True)
         branch, old_version = utils.getInstalledVersion(self.bot.node.locals['DCS']['installation'])
         new_version = await utils.getLatestVersion(branch, userid=self.bot.node.locals['DCS'].get('dcs_user'),
                                                    password=self.bot.node.locals['DCS'].get('dcs_password'))
         if old_version == new_version:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f'Your installed version {old_version} is the latest on branch {branch}.', ephemeral=True)
         elif new_version:
             if await utils.yn_question(interaction,
@@ -49,11 +50,16 @@ class Admin(Plugin):
                                        f'All running DCS servers will be shut down!') is True:
                 await self.bot.audit(f"started an update of all DCS servers on node {platform.node()}.",
                                      user=interaction.user)
-                await interaction.response.defer(thinking=True)
-                await self.node.update(warn_times=[warn_time] or [120, 60])
-                await interaction.followup.send(f"DCS updated to version {new_version}.", ephemeral=True)
+                msg = await interaction.followup.send(f"Updating DCS to version {new_version}, please wait ...",
+                                                      ephemeral=True)
+                rc = await self.bot.node.update(warn_times=[warn_time] or [120, 60])
+                if rc == 0:
+                    await msg.edit(f"DCS updated to version {new_version}.")
+                    await self.bot.audit(f"updated DCS from {old_version} to {new_version}.", user=interaction.user)
+                else:
+                    await msg.edit(content=f"Error while updating DCS, code={rc}")
         else:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"Can't update branch {branch}. You might need to provide proper DCS credentials to do so.",
                 ephemeral=True)
 

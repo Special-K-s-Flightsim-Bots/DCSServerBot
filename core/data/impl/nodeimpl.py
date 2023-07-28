@@ -51,6 +51,7 @@ class NodeImpl(Node):
 
     def __init__(self):
         super().__init__(platform.node())
+        self.node = self  # to be able to address self.node
         self.guild_id: int = int(self.config['guild_id'])
         self._public_ip: Optional[str] = None
         self.listen_address = self.config.get('listen_address', '0.0.0.0')
@@ -320,8 +321,11 @@ class NodeImpl(Node):
                 '--quiet', 'update', startupinfo=startupinfo
             )
             await process.communicate()
+            if process.returncode != 0:
+                return process.returncode
         except Exception:
             traceback.print_exc()
+            return -1
         if self.locals['DCS'].get('desanitize', True):
             utils.desanitize(self)
         # call after update hooks
@@ -341,6 +345,7 @@ class NodeImpl(Node):
                     self.log.warning(f'Timeout while starting {server.display_name}, please check it manually!')
         self.update_pending = False
         self.log.info('DCS servers started (or Scheduler taking over in a bit).')
+        return 0
 
     async def handle_module(self, what: str, module: str):
         startupinfo = subprocess.STARTUPINFO()
@@ -458,6 +463,9 @@ class NodeImpl(Node):
                                                        password=self.locals['DCS'].get('dcs_password'))
             if new_version and old_version != new_version:
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
-                await self.update([300, 120, 60])
+                rc = await self.update([300, 120, 60])
+                if rc == 0:
+                    pass
+                    # TODO audit message
         except Exception as ex:
             self.log.debug("Exception in autoupdate(): " + str(ex))
