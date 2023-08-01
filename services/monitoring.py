@@ -130,7 +130,7 @@ class MonitoringService(Service):
                     for ext in server.extensions.values():
                         if not ext.is_running():
                             await ext.startup()
-                except asyncio.TimeoutError:
+                except (TimeoutError, asyncio.TimeoutError):
                     # check if the server process is still existent
                     max_hung_minutes = int(server.instance.locals.get('max_hung_minutes', 3))
                     if max_hung_minutes > 0:
