@@ -182,7 +182,6 @@ def alternate_parse_settings(path: str):
 
 
 def get_all_servers(self) -> list[str]:
-    retval: list[str] = list()
     conn = self.pool.getconn()
     try:
         with closing(conn.cursor()) as cursor:

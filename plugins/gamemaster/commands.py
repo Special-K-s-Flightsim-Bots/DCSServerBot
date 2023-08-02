@@ -291,15 +291,15 @@ class GameMasterMaster(GameMasterAgent):
         embed.add_field(name='Server Name', value=names)
         return embed
 
-    async def get_campaign_servers(self, ctx) -> list[Server]:
-        servers: list[Server] = list()
-        all_servers = utils.get_all_servers(self)
+    async def get_campaign_servers(self, ctx) -> list[str]:
+        servers: list[str] = list()
+        all_servers: list[str] = utils.get_all_servers(self)
         if len(all_servers) == 0:
             return []
         elif len(all_servers) == 1:
-            return [self.bot.servers[all_servers[0]]]
+            return [all_servers[0]]
         for element in await utils.multi_selection_list(self.bot, ctx, all_servers, self.format_servers):
-            servers.append(self.bot.servers[all_servers[element]])
+            servers.append(all_servers[element])
         return servers
 
     @commands.command(brief='Campaign Management',
@@ -342,8 +342,8 @@ class GameMasterMaster(GameMasterAgent):
                 await ctx.send(f"Usage: {ctx.prefix}.campaign add <name> <start> [stop]")
                 return
             description = await utils.input_value(self.bot, ctx, 'Please enter a short description for this campaign '
-                                                             '(. for none):')
-            servers: list[Server] = await self.get_campaign_servers(ctx)
+                                                                 '(. for none):')
+            servers: list[str] = await self.get_campaign_servers(ctx)
             try:
                 self.eventlistener.campaign('add', servers=servers, name=name, description=description,
                                             start=dateparser.parse(start_time, settings={'TIMEZONE': 'UTC'}) if start_time else None,
@@ -358,7 +358,7 @@ class GameMasterMaster(GameMasterAgent):
                 if not name:
                     await ctx.send(f"Usage: {ctx.prefix}.campaign start <name>")
                     return
-                servers: list[Server] = await self.get_campaign_servers(ctx)
+                servers: list[str] = await self.get_campaign_servers(ctx)
                 self.eventlistener.campaign('start', servers=servers, name=name)
                 await ctx.send(f"Campaign {name} started.")
             except psycopg2.errors.ExclusionViolation:
