@@ -103,7 +103,7 @@ class GameMasterEventListener(EventListener):
             if self.get_coalition_password(server, player.coalition):
                 await self._password(server, player)
 
-    def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
+    def campaign(self, command: str, *, servers: Optional[list[str]] = None, name: Optional[str] = None,
                  description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
         conn = self.pool.getconn()
         try:
@@ -114,10 +114,10 @@ class GameMasterEventListener(EventListener):
                     if servers:
                         cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s', (name,))
                         campaign_id = cursor.fetchone()[0]
-                        for server in servers:
+                        for server_name in servers:
                             # add this server to the server list
                             cursor.execute('INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING',
-                                           (campaign_id, server.name))
+                                           (campaign_id, server_name))
                 elif command == 'start':
                     cursor.execute('SELECT id FROM campaigns WHERE name ILIKE %s AND NOW() BETWEEN start AND '
                                    'COALESCE(stop, NOW())', (name,))
@@ -128,9 +128,9 @@ class GameMasterEventListener(EventListener):
                                        'COALESCE(stop, NOW())', (name,))
                         # don't use currval() in here, as we can't rely on the sequence name
                         campaign_id = cursor.fetchone()[0]
-                        for server in servers:
+                        for server_name in servers:
                             cursor.execute("INSERT INTO campaigns_servers VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                                           (campaign_id, server.name,))
+                                           (campaign_id, server_name,))
                 elif command == 'stop':
                     cursor.execute('UPDATE campaigns SET stop = NOW() WHERE name ILIKE %s AND NOW() BETWEEN start AND '
                                    'COALESCE(stop, NOW())', (name,))
@@ -150,7 +150,7 @@ class GameMasterEventListener(EventListener):
     async def startCampaign(self, server: Server, data: dict) -> None:
         name = data['name'] or '_internal_'
         try:
-            self.campaign('start', servers=[server], name=name)
+            self.campaign('start', servers=[server.name], name=name)
         except psycopg2.errors.UniqueViolation:
             await self.resetCampaign(data)
 
@@ -165,7 +165,7 @@ class GameMasterEventListener(EventListener):
         _, name = utils.get_running_campaign(server)
         if name:
             self.campaign('delete', name=name)
-        self.campaign('start', servers=[server])
+        self.campaign('start', servers=[server.name])
 
     async def _join(self, server: Server, player: Player, params: list[str]):
         coalition = params[0] if params else ''
