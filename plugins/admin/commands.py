@@ -160,7 +160,6 @@ class Admin(Plugin):
                 await interaction.followup.send('File copied to the specified location.', ephemeral=True)
             if zipped:
                 os.remove(filename)
-            await msg.delete()
 
         async def _choice(interaction: discord.Interaction):
             for download in config['downloads']:
@@ -188,6 +187,7 @@ class Admin(Plugin):
 
             async def _download(interaction: discord.Interaction):
                 await send_file(interaction, files[select2.values[0]], target)
+                view.stop()
 
             select2.callback = _download
             view.clear_items()
