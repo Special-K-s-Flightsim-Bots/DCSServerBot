@@ -346,8 +346,8 @@ class GameMasterMaster(GameMasterAgent):
             servers: list[str] = await self.get_campaign_servers(ctx)
             try:
                 self.eventlistener.campaign('add', servers=servers, name=name, description=description,
-                                            start=dateparser.parse(start_time, settings={'TIMEZONE': 'UTC'}) if start_time else None,
-                                            end=dateparser.parse(end_time, settings={'TIMEZONE': 'UTC'}) if end_time else None)
+                                            start=dateparser.parse(start_time, date_formats=['%Y%m%d', '%d%m%Y'], settings={'TIMEZONE': 'UTC'}) if start_time else None,
+                                            end=dateparser.parse(end_time, date_formats=['%Y%m%d', '%d%m%Y'], settings={'TIMEZONE': 'UTC'}) if end_time else None)
                 await ctx.send(f"Campaign {name} added.")
             except psycopg2.errors.ExclusionViolation:
                 await ctx.send(f"A campaign is already configured for this timeframe!")
