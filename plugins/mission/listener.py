@@ -181,6 +181,12 @@ class MissionEventListener(EventListener):
             data['command'] = data['subcommand']
             server.sendtoDCS(data)
 
+    def init_mission(self, server: Server, data: dict) -> None:
+        if not server.current_mission:
+            server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
+                                                             map=data['current_map'], name=data['current_mission'])
+        server.current_mission.update(data)
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # the server is starting up
@@ -191,16 +197,12 @@ class MissionEventListener(EventListener):
             server.status = Status.STOPPED
             return
         # the server was started already, but the bot wasn't
-        if not server.current_mission:
-            server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
-                                                             map=data['current_map'], name=data['current_mission'])
-
+        self.init_mission(server, data)
         if 'players' not in data:
             data['players'] = []
             server.status = Status.STOPPED
         else:
             server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
-        server.current_mission.update(data)
         server.afk.clear()
         for p in data['players']:
             if p['id'] == 1:
@@ -231,7 +233,7 @@ class MissionEventListener(EventListener):
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        server.current_mission.update(data)
+        self.init_mission(server, data)
         self.display_mission_embed(server)
 
     @event(name="onSimulationStart")
