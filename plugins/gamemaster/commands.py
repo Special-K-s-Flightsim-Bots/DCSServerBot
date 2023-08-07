@@ -203,39 +203,27 @@ class GameMasterAgent(Plugin):
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def reset_coalitions(self, ctx):
-        if await utils.yn_question(ctx, f'Do you want to mass-reset all coalition-bindings from your players on node '
-                                        f'{platform.node()}?') is False:
+        if await utils.yn_question(ctx, f'Do you want to mass-reset all coalition-bindings from your players '
+                                        f'on node {platform.node()}?') is False:
             await ctx.send('Aborted.')
             return
         for server in self.bot.servers.values():
             if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
                 continue
-            roles = {
-                "red": discord.utils.get(ctx.guild.roles, name=self.bot.config[server.installation]['Coalition Red']),
-                "blue": discord.utils.get(ctx.guild.roles, name=self.bot.config[server.installation]['Coalition Blue'])
-            }
-            conn = self.bot.pool.getconn()
             try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT p.ucid, p.discord_id, c.coalition FROM players p, coalitions c '
-                                   'WHERE p.ucid = c.player_ucid and c.server_name = %s AND c.coalition IS NOT NULL',
-                                   (server.name,))
-                    for row in cursor.fetchall():
-                        if row[1] != -1:
-                            member = self.bot.guilds[0].get_member(row[1])
-                            await member.remove_roles(roles[row[2]])
-                        cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
-                                       (server.name, row[0]))
-                conn.commit()
+                await self.eventlistener.reset_coalitions(server, True)
                 await ctx.send(f'Coalition bindings reset for all players on node {platform.node()}.')
             except discord.Forbidden:
                 await ctx.send('The bot is missing the "Manage Roles" permission.')
-                await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.bot.log.exception(error)
-                conn.rollback()
-            finally:
-                self.bot.pool.putconn(conn)
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        # did a member change its roles?
+        if before.roles != after.roles:
+            for server in self.bot.servers.values():
+                player: Player = server.get_player(discord_id=after.id)
+                if player:
+                    player.member = after
 
 
 class GameMasterMaster(GameMasterAgent):

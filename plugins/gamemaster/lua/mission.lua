@@ -40,4 +40,14 @@ function dcsbot.setVariable(name, value)
     _G[name] = value
 end
 
+function dcsbot.resetUserCoalitions(discord_roles)
+    env.info('DCSServerBot - resetUserCoalitions')
+    msg = {}
+    msg.command = 'resetUserCoalitions'
+    if discord_roles then
+        msg.discord_roles = true
+    end
+	dcsbot.sendBotTable(msg, channel)
+end
+
 env.info("DCSServerBot - GameMaster: mission.lua loaded.")

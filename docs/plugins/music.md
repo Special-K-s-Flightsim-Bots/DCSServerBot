@@ -25,7 +25,8 @@ but it is only used as a default configuration, as long as you haven't changed a
         "modulation": "FM",
         "coalition": "2",
         "volume": "1.0",
-        "name": "My Music Box"
+        "name": "My Music Box",
+        "popup": "Now playing on SRS {frequency} {modulation}: {song}"  -- OPTIONAL, send a popup to DCS on new songs
       }
     }
   ]

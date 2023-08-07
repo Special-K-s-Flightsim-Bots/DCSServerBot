@@ -234,6 +234,47 @@ class GameMasterEventListener(EventListener):
         except discord.Forbidden:
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
+    async def reset_coalitions(self, server: Server, discord_roles: bool):
+        guild = self.bot.guilds[0]
+        roles = {
+            "red": discord.utils.get(guild.roles, name=self.bot.config[server.installation]['Coalition Red']),
+            "blue": discord.utils.get(guild.roles, name=self.bot.config[server.installation]['Coalition Blue'])
+        }
+        conn = self.bot.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute('SELECT p.ucid, p.discord_id, c.coalition FROM players p, coalitions c '
+                               'WHERE p.ucid = c.player_ucid and c.server_name = %s AND c.coalition IS NOT NULL',
+                               (server.name,))
+                for row in cursor.fetchall():
+                    if discord_roles and row[1] != -1:
+                        member = self.bot.guilds[0].get_member(row[1])
+                        await member.remove_roles(roles[row[2]])
+                    cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
+                                   (server.name, row[0]))
+                server.sendtoDCS({"command": "resetUserCoalitions"})
+            conn.commit()
+        except discord.Forbidden:
+            await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
+            raise
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.bot.log.exception(error)
+            conn.rollback()
+        finally:
+            self.bot.pool.putconn(conn)
+
+    @event(name="resetUserCoalitions")
+    async def resetUserCoalitions(self, server: Server, data: dict) -> None:
+        if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+            self.log.warning(
+                f'Event "resetUserCoalitions" received, but COALITIONS are disabled on server "{server.name}"')
+            return
+        discord_roles = data.get('discord_roles', False)
+        try:
+            await self.reset_coalitions(server, discord_roles)
+        except discord.Forbidden:
+            self.log.error('The bot is missing the "Manage Roles" permission.')
+
     @chat_command(name="join", usage="<coalition>", help="join a coalition")
     async def join(self, server: Server, player: Player, params: list[str]):
         await self._join(server, player, params)
