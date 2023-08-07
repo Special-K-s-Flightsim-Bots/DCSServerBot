@@ -108,6 +108,7 @@ Decay can only be configured once, so there is no need for a server specific con
 |----------|-------------------|---------|-----------|--------------------------------------------------------|
 | .forgive | \<member>/\<ucid> | all     | DCS Admin | Deletes all punishment points for this member / user.  |
 | .penalty | [member] / [ucid] | all     | DCS       | Displays the players penalty points.                   |
+| .punish  | \<member> / \<ucid> \<points> | Admin   | DCS Admin | Add punishment points to a user.                       |
 
 ## How to use the penalty system inside of missions
 

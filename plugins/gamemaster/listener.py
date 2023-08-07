@@ -210,13 +210,51 @@ class GameMasterEventListener(EventListener):
                     Coalition.RED: discord.utils.get(player.member.guild.roles,
                                                      name=server.locals['coalitions']['red_role']),
                     Coalition.BLUE: discord.utils.get(player.member.guild.roles,
-                                                      name=server.locals['coalitions']['blue_role']),
+                                                      name=server.locals['coalitions']['blue_role'])
                 }
                 role = roles[player.coalition]
                 if role:
                     await player.member.add_roles(role)
         except discord.Forbidden:
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
+
+    async def reset_coalitions(self, server: Server, discord_roles: bool):
+        guild = self.bot.guilds[0]
+        roles = {
+            "red": discord.utils.get(guild.roles, name=server.locals['coalitions']['red_role']),
+            "blue": discord.utils.get(guild.roles, name=server.locals['coalitions']['blue_role'])
+        }
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    for row in cursor.execute("""
+                        SELECT p.ucid, p.discord_id, c.coalition 
+                        FROM players p, coalitions c 
+                        WHERE p.ucid = c.player_ucid AND c.server_name = %s AND c.coalition IS NOT NULL
+                    """, (server.name,)).fetchall():
+                        if discord_roles and row[1] != -1:
+                            member = guild.get_member(row[1])
+                            try:
+                                await member.remove_roles(roles[row[2]])
+                            except discord.Forbidden:
+                                await self.bot.audit(f'permission "Manage Roles" missing.',
+                                                     user=self.bot.member)
+                                raise
+                        cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
+                                       (server.name, row[0]))
+                    server.send_to_dcs({"command": "resetUserCoalitions"})
+
+    @event(name="resetUserCoalitions")
+    async def resetUserCoalitions(self, server: Server, data: dict) -> None:
+        if not server.locals.get('coalitions'):
+            self.log.warning(
+                f'Event "resetUserCoalitions" received, but COALITIONS are disabled on server "{server.name}"')
+            return
+        discord_roles = data.get('discord_roles', False)
+        try:
+            await self.reset_coalitions(server, discord_roles)
+        except discord.Forbidden:
+            self.log.error('The bot is missing the "Manage Roles" permission.')
 
     @chat_command(name="join", usage="<coalition>", help="join a coalition")
     async def join(self, server: Server, player: Player, params: list[str]):

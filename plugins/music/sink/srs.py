@@ -2,13 +2,14 @@ import asyncio
 import discord
 import os
 
-from core import Server, Status
+from core import Server, Status, Coalition, utils
 from discord import TextStyle
 from discord.ui import Modal, TextInput
 from services import DCSServerBot
 from typing import Optional
 
 from . import SinkInitError, Sink
+from ..utils import get_tag
 
 
 class SRSSink(Sink):
@@ -49,6 +50,14 @@ class SRSSink(Sink):
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL
             )
+            if 'popup' in self.config:
+                kwargs = self.config.copy()
+                kwargs['song'] = get_tag(file).title or os.path.basename(file)
+                self.server.sendPopupMessage(Coalition.ALL, utils.format_string(self.config['popup'], **kwargs))
+            if 'chat' in self.config:
+                kwargs = self.config.copy()
+                kwargs['song'] = get_tag(file).title or os.path.basename(file)
+                self.server.sendChatMessage(Coalition.ALL, utils.format_string(self.config['popup'], **kwargs))
             await self.process.communicate()
         except Exception as ex:
             self.log.exception(ex)

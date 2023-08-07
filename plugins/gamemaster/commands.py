@@ -4,7 +4,7 @@ import os
 import platform
 import psycopg
 from contextlib import closing
-from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group
+from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player
 from discord import app_commands, TextStyle
 from discord.app_commands import Range
 from discord.ext import commands
@@ -185,35 +185,12 @@ class GameMaster(Plugin):
             await interaction.response.send_message('Aborted.')
             return
         try:
-            with self.pool.connection() as conn:
-                with conn.pipeline():
-                    with conn.transaction():
-                        with closing(conn.cursor()) as cursor:
-                            for server in self.bot.servers.values():
-                                if not server.locals.get('coalitions'):
-                                    continue
-                                roles = {
-                                    "red": discord.utils.get(
-                                        interaction.guild.roles,
-                                        name=server.locals['coalitions']['red_role']
-                                    ),
-                                    "blue": discord.utils.get(
-                                        interaction.guild.roles,
-                                        name=server.locals['coalitions']['blue_role']
-                                    )
-                                }
-                                for row in cursor.execute("""
-                                    SELECT p.ucid, p.discord_id, c.coalition 
-                                    FROM players p, coalitions c 
-                                    WHERE p.ucid = c.player_ucid and c.server_name = %s AND c.coalition IS NOT NULL
-                                """, (server.name,)).fetchall():
-                                    if row[1] != -1:
-                                        member = self.bot.guilds[0].get_member(row[1])
-                                        await member.remove_roles(roles[row[2]])
-                                    cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
-                                                   (server.name, row[0]))
-                    await interaction.response.send_message(
-                        f'Coalition bindings reset for all players.', ephemmeral=True)
+            for server in self.bot.servers.values():
+                if not server.locals.get('coalitions'):
+                    continue
+                await self.eventlistener.reset_coalitions(server, True)
+                await interaction.response.send_message(
+                    f'Coalition bindings reset for all players.', ephemmeral=True)
         except discord.Forbidden:
             await interaction.response.send_message('The bot is missing the "Manage Roles" permission.', ephemeral=True)
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
@@ -322,6 +299,15 @@ class GameMaster(Plugin):
             await interaction.followup.send("Campaign stopped.")
         else:
             await interaction.followup.send('Aborted.', ephemeral=True)
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        # did a member change its roles?
+        if before.roles != after.roles:
+            for server in self.bot.servers.values():
+                player: Player = server.get_player(discord_id=after.id)
+                if player:
+                    player.member = after
 
 
 async def setup(bot: DCSServerBot):

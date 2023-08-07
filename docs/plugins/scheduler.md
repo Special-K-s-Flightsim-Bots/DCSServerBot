@@ -23,7 +23,8 @@ Examples:
     {
       "warn": {
         "times": [ 600, 300, 60, 10],         -- warn users at 10 mins, 5 mins, 1 min and 10 sec before the event
-        "text": "!!! {item} will {what} in {when} !!!"
+        "text": "!!! {item} will {what} in {when} !!!",
+        "sound": "notify.ogg"                 -- play this sound (needs to be loaded with a preset first!)
       },
       "presets": {                            -- Weather presets (see below)
           "Winter": { "date": "2016-01-10", "temperature": -10 },
@@ -37,7 +38,8 @@ Examples:
           "Calm": {"clouds": "Preset1", "wind": {"at8000":  {"speed": 2, "dir": 305}, "at2000": {"speed": 5, "dir": 280}, "atGround": {"speed": 0, "dir": 290}}},
           "Windy": {"clouds": "Preset3", "wind": {"at8000":  {"speed": 15, "dir":  105}, "at2000": {"speed": 10, "dir": 130}, "atGround": {"speed": 10, "dir": 20}}},
           "Storm": {"clouds": "RainyPreset3", "wind": {"at8000":  {"speed": 25, "dir": 305}, "at2000": {"speed": 20, "dir": 280}, "atGround": {"speed": 15, "dir": 290}}, "hidden":  true},
-          "Default": ["Summer", "Morning", "Calm"]
+          "Default": ["Summer", "Morning", "Calm"],
+          "Sounds": { "files": ["sounds/notify.ogg"] } 
       },
       "extensions": {
         "SRS": {
@@ -78,14 +80,14 @@ Examples:
       },
       "restart": {                            -- missions rotate every 4 hrs
         "method": "rotate",
-        "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"],
-        "settings": {                         -- Weather will change on a timed basis
-          "00:00-07:59": "Winter, Night, Calm",
-          "08:00-11:59": "Winter, Morning, Windy",
-          "12:00-19:59": "Summer, Noon, Calm",
-          "20:00-23:59": "Summer, Night, Storm"
-        }
+        "local_times": ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"]
       },
+      "settings": {                         -- Weather will change on a timed basis
+        "00:00-07:59": "Winter, Night, Calm, Sounds",
+        "08:00-11:59": "Winter, Morning, Windy, Sounds",
+        "12:00-19:59": "Summer, Noon, Calm, Sounds",
+        "20:00-23:59": "Summer, Night, Storm, Sounds",
+      }
      "onMissionEnd": "load:Scripts/net/persist.lua", -- load a specific lua on restart 
      "onShutdown": "run:shutdown /s"                 -- shutdown the PC when DCS is shut down
     },
@@ -105,13 +107,12 @@ Examples:
       "schedule": {
         "21:30": "NNNNNYN",                   -- Missions start on Saturdays at 21:30, so start the server there
         "23:00-00:00": "NNNNNPN"              -- Mission ends somewhere between 23:00 and 00:00, so shutdown when no longer populated
-        },        
-        "settings": [                         -- Weather will change randomly
-          "Winter, Morning, Windy",
-          "Summer, Morning, Calm"
-        ]
       },
-     "onMissionStart": "load:Script/net/f10menu.lua"  -- load some lua in the mission on mission start
+      "settings": [                         -- Weather will change randomly
+        "Winter, Morning, Windy, Sounds",
+        "Summer, Morning, Calm, Sounds"
+      ],
+      "onMissionStart": "load:Script/net/f10menu.lua"  -- load some lua in the mission on mission start
     }
   ]
 }
@@ -196,8 +197,11 @@ it in the default section.
 | max_mission_time | Time in minutes (according to the mission time passed) when the mission has to be restarted, even if people are in.                                                                                                                                                                                                        |
 | local_times      | List of times in the format HH24:MM, when the mission should be restated or rotated (see method).                                                                                                                                                                                                                          |
 | populated        | If **false**, the mission will be restarted / rotated only, if no player is in (default: true).                                                                                                                                                                                                                            |
-| settings         | Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is. Presets can be stacked by comma-separating them.                                                                                                                              |
 | mission_end      | Only apply the method on mission end (usually in combination with restart_with_shutdown).                                                                                                                                                                                                                                  |
+
+### Section "settings"
+Timeframes in which a weather preset is valid or a list of presets that should change randomly. If not provided, the mission will run as is.<br>
+Presets can be stacked by comma-separating them.
 
 ### on-commands
 
@@ -237,14 +241,14 @@ The following environment variables can be used in the "run" command:
 If a server gets started or stopped manually (using `.startup` / `.shutdown`), it will be put in "maintenance" mode.
 To clear this and give the control back to the scheduler, use the following command.
 
-| Command      | Parameter | Channel       | Role      | Description                                                                                                                                   |
-|--------------|-----------|---------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| .startup     |           | admin-channel | DCS Admin | Starts a dedicated DCS server process.                                                                                                        |
-| .shutdown    | [-force]  | admin-channel | DCS Admin | Shuts the dedicated DCS server process down.<br/>If `-force` is used, no player check will be executed and no onShutdown command will be run.   |
-| .start       |           | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                                                  |
-| .stop        |           | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                           |
-| .status      |           | all           | DCS       | Shows the status of all configured DCS servers.                                                                                               |
-| .maintenance |           | admin-channel | DCS Admin | Sets the servers maintenance mode.                                                                                                            |
-| .clear       |           | admin-channel | DCS Admin | Clears the maintenance state of a server.                                                                                                     |
-| .preset      |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. Multiple selections will apply all presets at once.                                      |
-| .reset       |           | admin-channel | DCS Admin | Calls a configurable reset command.                                                                                                           |
+| Command      | Parameter | Channel       | Role      | Description                                                                                                                                    |
+|--------------|-----------|---------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| .startup     |           | admin-channel | DCS Admin | Starts a dedicated DCS server process.                                                                                                         |
+| .shutdown    | [-force]  | admin-channel | DCS Admin | Shuts the dedicated DCS server process down.<br/>If `-force` is used, no player check will be executed and no onShutdown command will be run.  |
+| .start       |           | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                                                   |
+| .stop        |           | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                            |
+| .status      |           | all           | DCS       | Shows the status of all configured DCS servers.                                                                                                |
+| .maintenance |           | admin-channel | DCS Admin | Sets the servers maintenance mode.                                                                                                             |
+| .clear       |           | admin-channel | DCS Admin | Clears the maintenance state of a server.                                                                                                      |
+| .preset      |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. Multiple selections will apply all presets at once.                                       |
+| .reset       |           | admin-channel | DCS Admin | Calls a configurable reset command.                                                                                                            |
