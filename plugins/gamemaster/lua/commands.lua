@@ -48,3 +48,10 @@ function dcsbot.setUserCoalition(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: setUserCoalition()')
     dcsbot.userInfo[json.ucid].coalition = tonumber(json.coalition)
 end
+
+function dcsbot.resetUserCoalitions(json)
+    log.write('DCSServerBot', log.DEBUG, 'GameMaster: resetUserCoalitions()')
+    for _, item in pairs(dcsbot.userInfo) do
+        item.coalition = nil
+    end
+end

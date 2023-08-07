@@ -5,8 +5,8 @@ import psutil
 import socket
 from contextlib import closing, suppress
 
-# API_URL = 'https://api4.ipify.org/'
-API_URL = 'https://api4.my-ip.io/ip'
+API_URL = 'https://api4.ipify.org/'
+# API_URL = 'https://api4.my-ip.io/ip'
 
 
 def is_open(ip, port):
