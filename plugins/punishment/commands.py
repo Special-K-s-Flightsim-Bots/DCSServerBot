@@ -1,13 +1,16 @@
 import asyncio
 import discord
 import psycopg2
+
 from contextlib import closing, suppress
 from copy import deepcopy
 from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, \
     PluginInstallationError
 from discord.ext import tasks, commands
-from typing import Type, Union, Optional
+from typing import Type, Union, Optional, cast
+
 from .listener import PunishmentEventListener
+from ..creditsystem.player import CreditPlayer
 
 
 class PunishmentAgent(Plugin):
@@ -79,14 +82,16 @@ class PunishmentAgent(Plugin):
         finally:
             self.pool.putconn(conn)
 
-    async def punish(self, server: Server, player: Player, punishment: dict, reason: str):
+    async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: Optional[float] = None):
+        player: Player = server.get_player(ucid=ucid, active=True)
+        member = self.bot.get_member_by_ucid(ucid)
         if punishment['action'] == 'ban':
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, '
-                                   '%s, %s) ON CONFLICT DO NOTHING',
-                                   (player.ucid, self.plugin_name, reason))
+                    cursor.execute(
+                        'INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING',
+                        (ucid, self.plugin_name, reason))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
@@ -97,31 +102,40 @@ class PunishmentAgent(Plugin):
             for s in self.bot.servers.values():
                 s.sendtoDCS({
                     "command": "ban",
-                    "ucid": player.ucid,
+                    "ucid": ucid,
                     "reason": reason
                 })
-            if player.member:
-                message = "Member {} banned by {} for {}.".format(utils.escape_string(player.member.display_name),
+            if member:
+                message = "Member {} banned by {} for {}.".format(utils.escape_string(member.display_name),
                                                                   utils.escape_string(self.bot.member.name), reason)
                 await server.get_channel(Channel.ADMIN).send(message)
                 await self.bot.audit(message)
                 with suppress(Exception):
                     guild = self.bot.guilds[0]
-                    channel = await player.member.create_dm()
+                    channel = await member.create_dm()
                     await channel.send("You have been banned from the DCS servers on {} for {}.\n"
                                        "To check your current penalty points, use the {}penalty "
                                        "command.".format(utils.escape_string(guild.name), reason,
                                                          self.bot.config['BOT']['COMMAND_PREFIX']))
-            else:
+            elif player:
                 message = f"Player {player.display_name} (ucid={player.ucid}) banned by {self.bot.member.name} " \
                           f"for {reason}."
                 await server.get_channel(Channel.ADMIN).send(message)
                 await self.bot.audit(message)
+            else:
+                message = f"Player with ucid {ucid} banned by {self.bot.member.name} for {reason}."
+                await server.get_channel(Channel.ADMIN).send(message)
+                await self.bot.audit(message)
+
+        # everything after that point can only be executed if players are active
+        if not player:
+            return
 
         if punishment['action'] == 'kick' and player.active:
             server.kick(player, reason)
             await server.get_channel(Channel.ADMIN).send(f"Player {player.display_name} (ucid={player.ucid}) kicked by "
                                                          f"{self.bot.member.name} for {reason}.")
+            return
 
         elif punishment['action'] == 'move_to_spec':
             server.move_to_spectators(player)
@@ -130,6 +144,7 @@ class PunishmentAgent(Plugin):
                                                          f"spectators by {self.bot.member.name} for {reason}.")
 
         elif punishment['action'] == 'credits' and type(player).__name__ == 'CreditPlayer':
+            player: CreditPlayer = cast(CreditPlayer, player)
             old_points = player.points
             player.points -= punishment['penalty']
             player.audit('punishment', old_points, f"Punished for {reason}")
@@ -142,7 +157,9 @@ class PunishmentAgent(Plugin):
             player.sendUserMessage(f"{player.name}, you have been punished for: {reason}!")
             
         elif punishment['action'] == 'message':
-            player.sendUserMessage(f"{player.name}, check your fire: {reason}!")  
+            player.sendUserMessage(f"{player.name}, check your fire: {reason}!")
+        if points:
+            player.sendChatMessage(f"Your current punishment points are: {points}")
 
     @tasks.loop(minutes=1.0)
     async def check_punishments(self):
@@ -153,30 +170,28 @@ class PunishmentAgent(Plugin):
                     for server_name, server in self.bot.servers.items():
                         cursor.execute('SELECT * FROM pu_events_sdw WHERE server_name = %s', (server_name, ))
                         for row in cursor.fetchall():
-                            config = self.get_config(server)
-                            # we are not initialized correctly yet
-                            if not config:
-                                continue
-                            player: Player = server.get_player(ucid=row['init_id'], active=True)
-                            if not player:
-                                continue
-                            if 'punishments' in config:
-                                for punishment in config['punishments']:
-                                    if row['points'] < punishment['points']:
-                                        continue
-                                    reason = None
-                                    for penalty in config['penalties']:
-                                        if penalty['event'] == row['event']:
-                                            reason = penalty['reason'] if 'reason' in penalty else row['event']
-                                            break
-                                    if not reason:
-                                        self.log.warning(f"No penalty or reason configured for event {row['event']}.")
-                                        reason = row['event']
-                                    await self.punish(server, player, punishment, reason)
-                                    if player.active:
-                                        player.sendChatMessage(f"Your current punishment points are: {row['points']}")
-                                    break
-                            cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
+                            try:
+                                config = self.get_config(server)
+                                # we are not initialized correctly yet
+                                if not config:
+                                    continue
+                                if 'punishments' in config:
+                                    for punishment in config['punishments']:
+                                        if row['points'] < punishment['points']:
+                                            continue
+                                        reason = None
+                                        for penalty in config['penalties']:
+                                            if penalty['event'] == row['event']:
+                                                reason = penalty['reason'] if 'reason' in penalty else row['event']
+                                                break
+                                        if not reason:
+                                            self.log.warning(
+                                                f"No penalty or reason configured for event {row['event']}.")
+                                            reason = row['event']
+                                        await self.punish(server, row['init_id'], punishment, reason, row['points'])
+                                        break
+                            finally:
+                                cursor.execute('DELETE FROM pu_events_sdw WHERE id = %s', (row['id'], ))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
@@ -249,9 +264,12 @@ class PunishmentMaster(PunishmentAgent):
             try:
                 with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
                     for d in self.decay_config:
-                        cursor.execute('UPDATE pu_events SET points = ROUND((points * %s)::numeric, 2), decay_run = %s '
-                                       'WHERE time < (NOW() - interval \'%s days\') AND decay_run < %s',
-                                       (d['weight'], d['days'], d['days'], d['days']))
+                        cursor.execute("""
+                            UPDATE pu_events 
+                            SET points = ROUND((points * %s)::numeric, 2), decay_run = %s 
+                            WHERE time < (timezone('utc', now()) - interval '%s days') AND decay_run < %s
+                        """, (d['weight'], d['days'], d['days'], d['days']))
+                        cursor.execute("DELETE FROM pu_events WHERE points = 0")
                     if self.unban_config:
                         cursor.execute(f"SELECT ucid FROM bans b, (SELECT init_id, SUM(points) AS points FROM "
                                        f"pu_events GROUP BY init_id) p WHERE b.ucid = p.init_id AND "
@@ -336,7 +354,8 @@ class PunishmentMaster(PunishmentAgent):
             else:
                 ucid = self.bot.get_ucid_by_member(member)
                 if not ucid:
-                    await ctx.send("Member {} is not linked to any DCS user.".format(utils.escape_string(member.display_name)))
+                    await ctx.send(
+                        "Member {} is not linked to any DCS user.".format(utils.escape_string(member.display_name)))
                     return
         else:
             member = ctx.message.author
@@ -350,11 +369,16 @@ class PunishmentMaster(PunishmentAgent):
                 cursor.execute("SELECT event, points, time FROM pu_events WHERE init_id = %s ORDER BY time DESC",
                                (ucid, ))
                 if cursor.rowcount == 0:
-                    await ctx.send('{} has no penalty points.'.format(member.display_name if isinstance(member, discord.Member) else member))
+                    await ctx.send('{} has no penalty points.'.format(
+                        member.display_name if isinstance(member, discord.Member) else member)
+                    )
                     return
                 embed = discord.Embed(
-                    title="Penalty Points for {}".format(member.display_name if isinstance(member, discord.Member) else member),
-                    color=discord.Color.blue())
+                    title="Penalty Points for {}".format(
+                        member.display_name if isinstance(member, discord.Member) else member
+                    ),
+                    color=discord.Color.blue()
+                )
                 times = events = points = ''
                 total = 0.0
                 for row in cursor.fetchall():
@@ -364,7 +388,7 @@ class PunishmentMaster(PunishmentAgent):
                     total += row['points']
                 embed.description = f"Total penalty points: {total:.2f}"
                 embed.add_field(name='▬' * 10 + ' Log ' + '▬' * 10, value='_ _', inline=False)
-                embed.add_field(name='Time', value=times)
+                embed.add_field(name='Time (UTC)', value=times)
                 embed.add_field(name='Event', value=events)
                 embed.add_field(name='Points', value=points)
                 embed.set_footer(text='Points decay over time, you might see different results on different days.')
