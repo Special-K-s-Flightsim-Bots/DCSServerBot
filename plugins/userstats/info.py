@@ -9,7 +9,8 @@ from typing import Union, Optional
 class Header(report.EmbedElement):
     def render(self, member: Union[discord.Member, str]):
         sql = """
-            SELECT p.last_seen, CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned 
+            SELECT p.last_seen, 
+                   CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned, b.reason, b.banned_by, b.banned_at
             FROM players p 
             LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) 
             WHERE p.discord_id = 
@@ -56,6 +57,9 @@ class Header(report.EmbedElement):
             self.add_field(name='Last seen:', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
         if banned:
             self.add_field(name='Status', value='Banned')
+            self.add_field(name='Banned at', value=rows[0]['banned_at'].strftime('%Y-%m-%d'))
+            self.add_field(name='Banned by', value=rows[0]['banned_by'])
+            self.add_field(name='Reason', value=rows[0]['reason'])
 
 
 class UCIDs(report.EmbedElement):

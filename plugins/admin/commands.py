@@ -773,18 +773,14 @@ class Master(Agent):
 
     def format_bans(self, rows):
         embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
-        ucids = names = reasons = ''
         for ban in rows:
+            embed.add_field(name='UCID', value=ban['ucid'])
             if ban['discord_id'] != -1:
                 user = self.bot.get_user(ban['discord_id'])
             else:
                 user = None
-            names += utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>') + '\n'
-            ucids += ban['ucid'] + '\n'
-            reasons += ban['reason'] + '\n'
-        embed.add_field(name='UCID', value=ucids)
-        embed.add_field(name='Name', value=names)
-        embed.add_field(name='Reason', value=reasons)
+            embed.add_field(name='Name', value=utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>'))
+            embed.add_field(name='Reason', value=ban['reason'])
         return embed
 
     @commands.command(description='Shows active bans')
@@ -797,7 +793,7 @@ class Master(Agent):
                 cursor.execute('SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, '
                                'b.reason FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid')
                 rows = list(cursor.fetchall())
-                await utils.pagination(self.bot, ctx, rows, self.format_bans, 20)
+                await utils.pagination(self.bot, ctx, rows, self.format_bans, 8)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
         finally:
