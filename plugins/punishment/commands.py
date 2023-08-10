@@ -6,7 +6,7 @@ from contextlib import closing, suppress
 from copy import deepcopy
 from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, \
     PluginInstallationError
-from datetime import timezone, datetime
+from datetime import timezone, datetime, timedelta
 from discord.ext import tasks, commands
 from typing import Type, Union, Optional, cast
 
