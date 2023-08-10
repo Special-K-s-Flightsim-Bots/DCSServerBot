@@ -22,7 +22,8 @@ end
 
 function dcsbot.ban(json)
     log.write('DCSServerBot', log.DEBUG, 'Admin: ban()')
-    dcsbot.banList[json.ucid] = json.reason
+    banned_until = json.banned_until or 'never'
+    dcsbot.banList[json.ucid] = json.reason .. '.\nExpires ' .. banned_until
     dcsbot.kick(json)
 end
 

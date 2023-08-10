@@ -16,7 +16,7 @@ The punishment is configured with a file named config\punishment.json. You'll fi
         { "event": "zone-bombing", "reason": "Bombing in a safe zone", "default": 50 }   -- example of a custom event
       ],
       "punishments": [
-        { "points": 100, "action": "ban" },
+        { "points": 100, "action": "ban", "days": 30},  -- ban for 30 days (default)
         { "points": 60, "action": "kick" },
         { "points": 40, "action": "move_to_spec" },
         { "points": 10, "action": "warn" },
@@ -28,7 +28,6 @@ The punishment is configured with a file named config\punishment.json. You'll fi
         { "discord":  "DCS Admin" }
       ],
       "forgive" : 30,
-      "unban": 75,
       "flightHoursWeight": [
         { "time": 0, "weight": 1.4 },
         { "time": 3, "weight": 1 },
@@ -71,9 +70,6 @@ User that should not be punished. Can be either ucids or discord groups.
 To prevent actions to be executed against an initiator, victims can use the -forgive command inside the in-game chat.
 This will delete the punishments to this user that are not executed already and delete the events from this specific occasion.
 
-### Unban
-Auto-unban when the user reached <= this amount of points.
-
 ### Weight per Flighthours
 Weight punishment by flight hours. This will be the sum of flight hours over all servers handled by this bot.
 
@@ -83,11 +79,11 @@ Decay can only be configured once, so there is no need for a server specific con
 
 ## Discord Commands
 
-| Command  | Parameter                     | Channel | Role      | Description                                           |
-|----------|-------------------------------|---------|-----------|-------------------------------------------------------|
-| .forgive | \<member> / \<ucid>           | all     | DCS Admin | Deletes all punishment points for this member / user. |
-| .penalty | [member] / [ucid]             | all     | DCS       | Displays the players penalty points.                  |
-| .punish  | \<member> / \<ucid> \<points> | Admin   | DCS Admin | Add punishment points to a user.                      |
+| Command  | Parameter                     | Channel | Role      | Description                                                                                 |
+|----------|-------------------------------|---------|-----------|---------------------------------------------------------------------------------------------|
+| .forgive | \<member> / \<ucid>           | all     | DCS Admin | Deletes all punishment points for this member / user and unbans them (if they were banned). |
+| .penalty | [member] / [ucid]             | all     | DCS       | Displays the players penalty points.                                                        |
+| .punish  | \<member> / \<ucid> \<points> | Admin   | DCS Admin | Add punishment points to a user.                                                            |
 
 ## How to use the penalty system inside of missions
 To use the penalty system inside of missions, you can use the commands

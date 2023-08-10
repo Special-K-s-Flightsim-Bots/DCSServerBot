@@ -41,10 +41,13 @@ class Player(DataObject):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, '
-                               'p.manual, c.coalition FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid '
-                               'LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid WHERE p.ucid = %s',
-                               (self.ucid, ))
+                cursor.execute("""
+                    SELECT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
+                           p.manual, c.coalition 
+                    FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
+                    LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid 
+                    WHERE p.ucid = %s AND b.banned_until >= NOW()
+                """, (self.ucid, ))
                 # existing member found?
                 if cursor.rowcount == 1:
                     row = cursor.fetchone()

@@ -6,6 +6,7 @@ from contextlib import closing, suppress
 from copy import deepcopy
 from core import DCSServerBot, Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, \
     PluginInstallationError
+from datetime import timezone, datetime
 from discord.ext import tasks, commands
 from typing import Type, Union, Optional, cast
 
@@ -23,6 +24,32 @@ class PunishmentAgent(Plugin):
     async def cog_unload(self):
         self.check_punishments.cancel()
         await super().cog_unload()
+
+    def migrate(self, version: str) -> None:
+        if version == "1.4":
+            conn = self.pool.getconn()
+            try:
+                with closing(conn.cursor()) as cursor:
+                # migrate active bans from the punishment system and migrate them to the new method (fix days only)
+                    cursor.execute("SELECT ucid, banned_at FROM bans WHERE banned_by = %s", (self.plugin_name, ))
+                    for row in cursor.fetchall():
+                        for server in self.bot.servers.values():
+                            config = self.get_config(server)
+                            now = datetime.now()
+                            delta = now - row[1]
+                            ban_days = next(x.get('days', 30) for x in config.get('punishments', {}) if x['action'] == 'ban')
+                            if delta.days < ban_days:
+                                cursor.execute("UPDATE bans SET banned_until = %s WHERE ucid = %s",
+                                               (now + timedelta(ban_days - delta.days), row[0]))
+                            else:
+                                cursor.execute("DELETE FROM bans WHERE ucid = %s", (row[0]))
+                conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                self.log.exception(error)
+                conn.rollback()
+            finally:
+                self.pool.putconn(conn)
+
 
     def get_config(self, server: Server) -> Optional[dict]:
         if server.name not in self._config:
@@ -212,7 +239,6 @@ class PunishmentMaster(PunishmentAgent):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
         self.decay_config = self.read_decay_config()
-        self.unban_config = self.read_unban_config()
         self.decay.start()
 
     async def cog_unload(self):
@@ -249,13 +275,6 @@ class PunishmentMaster(PunishmentAgent):
                     return element['decay']
         return None
 
-    def read_unban_config(self):
-        if 'configs' in self.locals:
-            for element in self.locals['configs']:
-                if 'unban' in element:
-                    return element['unban']
-        return None
-
     @tasks.loop(hours=12.0)
     async def decay(self):
         if self.decay_config:
@@ -270,30 +289,7 @@ class PunishmentMaster(PunishmentAgent):
                             WHERE time < (timezone('utc', now()) - interval '%s days') AND decay_run < %s
                         """, (d['weight'], d['days'], d['days'], d['days']))
                         cursor.execute("DELETE FROM pu_events WHERE points = 0")
-                    if self.unban_config:
-                        cursor.execute(f"SELECT ucid FROM bans b, (SELECT init_id, SUM(points) AS points FROM "
-                                       f"pu_events GROUP BY init_id) p WHERE b.ucid = p.init_id AND "
-                                       f"b.banned_by = '{self.plugin_name}' AND p.points <= %s", (self.unban_config,))
-                        for row in cursor.fetchall():
-                            for server_name, server in self.bot.servers.items():
-                                server.sendtoDCS({
-                                    "command": "unban",
-                                    "ucid": row['ucid']
-                                })
-                            cursor.execute('DELETE FROM bans WHERE ucid = %s', (row['ucid'], ))
-                            cursor.execute('SELECT discord_id, name FROM players WHERE ucid = %s', (row['ucid'],))
-                            banned = cursor.fetchone()
-                            await self.bot.audit(f"Player {banned['name']} (ucid={row['ucid']}) unbanned by "
-                                                 f"{self.bot.member.name} due to decay.")
-                            if banned['discord_id'] != -1:
-                                with suppress(Exception):
-                                    guild = self.bot.guilds[0]
-                                    member = await guild.fetch_member(banned['discord_id'])
-                                    channel = await member.create_dm()
-                                    await channel.send(
-                                        f"You have been auto-unbanned from the DCS servers on {guild.name}.\n"
-                                        f"Please behave according to the rules to not risk another ban.")
-                        conn.commit()
+                conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
                 self.log.exception(error)
@@ -392,15 +388,15 @@ class PunishmentMaster(PunishmentAgent):
                 embed.add_field(name='Event', value=events)
                 embed.add_field(name='Points', value=points)
                 embed.set_footer(text='Points decay over time, you might see different results on different days.')
-                cursor.execute("SELECT COUNT(*) FROM bans b WHERE b.ucid = %s", (ucid, ))
-                if cursor.fetchone()[0] > 0:
-                    unban = self.read_unban_config()
-                    if unban:
-                        embed.set_footer(text=f"You are currently banned.\nAutomatic unban will happen, if your "
-                                              f"points decayed below {unban}.")
-                    else:
-                        embed.set_footer(text=f"You are currently banned.\n"
-                                              f"Please contact an admin if you want to get unbanned.")
+                cursor.execute("SELECT reason, banned_until FROM bans b WHERE b.ucid = %s", (ucid, ))
+                if cursor.rowcount > 0:
+                    row = cursor.fetchone()
+                    until: datetime = row[1].astimezone(timezone.utc)
+                    embed.add_field(name="Banned until", value=f"<t:{int(until.timestamp())}:f>")
+                    embed.add_field(name="Reason", value=row[0])
+                    embed.add_field(name='_ _', value='_ _')
+                    embed.set_footer(text=f"You are currently banned.\n"
+                                          f"Please contact an admin if you want to get unbanned.")
                 timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
                 await ctx.send(embed=embed, delete_after=timeout if timeout > 0 else None)
         except (Exception, psycopg2.DatabaseError) as error:

@@ -21,18 +21,18 @@ These commands can be used to administrate the bot itself.
 
 ## Plugin Admin
 
-| Command   | Parameter             | Channel       | Role      | Description                                                                                                             |
-|-----------|-----------------------|---------------|-----------|-------------------------------------------------------------------------------------------------------------------------|
-| .update   | [-force]              | admin-channel | DCS Admin | Updates DCS World to the latest available version. -force can be used, if no update could be detected automatically.    |
-| .config   |                       | admin-channel | DCS Admin | Configure name, description, password and num max players for your server.                                              |
-| .password | [coalition]*          | admin-channel | DCS Admin | Changes the password of a DCS server or a specific coalition* on this server.                                           |
-| .kick     | name [reason]         | admin-channel | DCS Admin | Kicks the user with the in-game name "name" from the DCS server. The "reason" will be provided to the user.             |
-| .spec     | name [reason]         | admin-channel | DCS Admin | Moves the user with the in-game name "name" to spectators. The "reason" will be provided to the user as a chat message. |
-| .ban      | @member/ucid [reason] | all           | DCS Admin | Bans a specific player either by their Discord ID or UCID.                                                              |
-| .unban    | @member/ucid          | all           | DCS Admin | Unbans a specific player either by their Discord ID or UCID.                                                            |
-| .bans     |                       | all           | DCS Admin | Lists the current active bans.                                                                                          |
-| .download |                       | admin-channel | DCS Admin | Download a dcs.log, dcsserverbot.log, bot config file or a mission into a DM, path or configured channel.               |
-| .shell    |                       | admin-channel | Admin     | Runs a shell command on a specific node.                                                                                |
+| Command   | Parameter                     | Channel       | Role      | Description                                                                                                             |
+|-----------|-------------------------------|---------------|-----------|-------------------------------------------------------------------------------------------------------------------------|
+| .update   | [-force]                      | admin-channel | DCS Admin | Updates DCS World to the latest available version. -force can be used, if no update could be detected automatically.    |
+| .config   |                               | admin-channel | DCS Admin | Configure name, description, password and num max players for your server.                                              |
+| .password | [coalition]*                  | admin-channel | DCS Admin | Changes the password of a DCS server or a specific coalition* on this server.                                           |
+| .kick     | name [reason]                 | admin-channel | DCS Admin | Kicks the user with the in-game name "name" from the DCS server. The "reason" will be provided to the user.             |
+| .spec     | name [reason]                 | admin-channel | DCS Admin | Moves the user with the in-game name "name" to spectators. The "reason" will be provided to the user as a chat message. |
+| .ban      | @member/ucid [days] [reason]  | all           | DCS Admin | Bans a specific player either by their Discord ID or UCID for the given amount of days (optional).                      |
+| .unban    | @member/ucid                  | all           | DCS Admin | Unbans a specific player either by their Discord ID or UCID.                                                            |
+| .bans     |                               | all           | DCS Admin | Lists the current active bans.                                                                                          |
+| .download |                               | admin-channel | DCS Admin | Download a dcs.log, dcsserverbot.log, bot config file or a mission into a DM, path or configured channel.               |
+| .shell    |                               | admin-channel | Admin     | Runs a shell command on a specific node.                                                                                |
 
 ## Plugin Cloud
 
