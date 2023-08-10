@@ -391,8 +391,11 @@ class PunishmentMaster(PunishmentAgent):
                 cursor.execute("SELECT reason, banned_until FROM bans b WHERE b.ucid = %s", (ucid, ))
                 if cursor.rowcount > 0:
                     row = cursor.fetchone()
-                    until: datetime = row[1].astimezone(timezone.utc)
-                    embed.add_field(name="Banned until", value=f"<t:{int(until.timestamp())}:f>")
+                    if row[1].year == 9999:
+                        until = 'never'
+                    else:
+                        until = f"<t:{int(row[1].astimezone(timezone.utc).timestamp())}:f>"
+                    embed.add_field(name="Ban expires", value=until)
                     embed.add_field(name="Reason", value=row[0])
                     embed.add_field(name='_ _', value='_ _')
                     embed.set_footer(text=f"You are currently banned.\n"
