@@ -220,7 +220,7 @@ def is_banned(self, ucid: str):
     conn = self.pool.getconn()
     try:
         with closing(conn.cursor()) as cursor:
-            cursor.execute(f"SELECT COUNT(*) FROM bans WHERE ucid = %s", (ucid,))
+            cursor.execute(f"SELECT COUNT(*) FROM bans WHERE ucid = %s AND banned_until >= NOW()", (ucid,))
             return cursor.fetchone()[0] > 0
     except (Exception, psycopg2.DatabaseError) as error:
         self.log.exception(error)

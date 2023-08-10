@@ -9,8 +9,10 @@ import psycopg2.extras
 import shlex
 import shutil
 import subprocess
+
 from contextlib import closing
 from core import utils, DCSServerBot, Plugin, Player, Status, Server, Coalition
+from datetime import datetime, timedelta, timezone
 from discord import Interaction, SelectOption
 from discord.ext import commands, tasks
 from discord.ui import Select, View, Button, Modal, TextInput
@@ -28,15 +30,17 @@ STATUS_EMOJI = {
 }
 
 
-class Agent(Plugin):
+class AdminAgent(Plugin):
 
     def __init__(self, bot, listener):
         super().__init__(bot, listener)
         self.update_pending = False
         if self.bot.config.getboolean('DCS', 'AUTOUPDATE') is True:
             self.check_for_dcs_update.start()
+        self.check_for_unban.start()
 
     async def cog_unload(self):
+        self.check_for_unban.cancel()
         if self.bot.config.getboolean('DCS', 'AUTOUPDATE') is True:
             self.check_for_dcs_update.cancel()
         await super().cog_unload()
@@ -309,7 +313,7 @@ class Agent(Plugin):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT ucid, reason FROM bans')
+                cursor.execute('SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()')
                 banlist = [dict(row) for row in cursor.fetchall()]
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)
@@ -321,19 +325,30 @@ class Agent(Plugin):
             servers = self.bot.servers.values()
         for server in servers:
             for ban in banlist:
+                if ban['banned_until'].year == 9999:
+                    until = 'never'
+                else:
+                    until = ban['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
                 server.sendtoDCS({
                     "command": "ban",
                     "ucid": ban['ucid'],
-                    "reason": ban['reason']
+                    "reason": ban['reason'],
+                    "banned_until": until
                 })
 
-    @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [reason]')
+    @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [days] [reason]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user: Union[discord.Member, str], *args):
         if len(args) > 0:
-            reason = ' '.join(args)
+            if args[0].isnumeric():
+                until = (datetime.now(timezone.utc) + timedelta(days=int(args[0]))).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+                reason = ' '.join(args[1:])
+            else:
+                until = 'never'
+                reason = ' '.join(args)
         else:
+            until = datetime(year=9999, month=12, day=31)
             reason = 'n/a'
         conn = self.pool.getconn()
         try:
@@ -347,10 +362,13 @@ class Agent(Plugin):
                     ucids = [user]
                 for ucid in ucids:
                     for server in self.bot.servers.values():
+                        if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
+                            continue
                         server.sendtoDCS({
                             "command": "ban",
                             "ucid": ucid,
-                            "reason": reason
+                            "reason": reason,
+                            "banned_until": until
                         })
                         player = server.get_player(ucid=ucid)
                         if player:
@@ -376,6 +394,8 @@ class Agent(Plugin):
                     ucids = [user]
                 for ucid in ucids:
                     for server in self.bot.servers.values():
+                        if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
+                            continue
                         server.sendtoDCS({"command": "unban", "ucid": ucid})
                         player = server.get_player(ucid=ucid)
                         if player:
@@ -544,6 +564,34 @@ class Agent(Plugin):
     async def before_check(self):
         await self.bot.wait_until_ready()
 
+    @tasks.loop(minutes=1.0)
+    async def check_for_unban(self):
+        conn = self.pool.getconn()
+        try:
+            with closing(conn.cursor()) as cursor:
+                # migrate active bans from the punishment system and migrate them to the new method (fix days only)
+                cursor.execute("""SELECT ucid FROM bans WHERE banned_until < NOW()""")
+                for row in cursor.fetchall():
+                    for server in self.bot.servers.values():
+                        if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
+                            continue
+                        server.sendtoDCS({
+                            "command": "unban",
+                            "ucid": row[0]
+                        })
+                # we need to make sure that every agent got the unban information
+                cursor.execute("DELETE FROM bans WHERE banned_until < (NOW() - interval '1 minutes')")
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            self.log.exception(error)
+            conn.rollback()
+        finally:
+            self.pool.putconn(conn)
+
+    @check_for_unban.before_loop
+    async def before_check_unban(self):
+        await self.bot.wait_until_ready()
+
     async def process_message(self, message) -> bool:
         async with aiohttp.ClientSession() as session:
             async with session.get(message.attachments[0].url) as response:
@@ -601,7 +649,7 @@ class Agent(Plugin):
             await message.delete()
 
 
-class Master(Agent):
+class AdminMaster(AdminAgent):
 
     class CleanupView(View):
         def __init__(self, ctx: commands.Context):
@@ -700,13 +748,19 @@ class Master(Agent):
             self.bot.pool.putconn(conn)
         await self.bot.audit(f'pruned the database', user=ctx.message.author)
 
-    @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [reason]')
+    @commands.command(description='Bans a user by ucid or discord id', usage='<member|ucid> [days] [reason]')
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def ban(self, ctx, user: Union[discord.Member, str], *args):
         if len(args) > 0:
-            reason = ' '.join(args)
+            if args[0].isnumeric():
+                until = (datetime.now() + timedelta(days=int(args[0])))
+                reason = ' '.join(args[1:])
+            else:
+                until = datetime(year=9999, month=12, day=31)
+                reason = ' '.join(args)
         else:
+            until = datetime(year=9999, month=12, day=31)
             reason = 'n/a'
         conn = self.bot.pool.getconn()
         try:
@@ -720,8 +774,10 @@ class Master(Agent):
                     ucids = [user]
                 for ucid in ucids:
                     try:
-                        cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s)',
-                                       (ucid, ctx.message.author.display_name, reason))
+                        cursor.execute("""
+                            INSERT INTO bans (ucid, banned_by, reason, banned_until) 
+                            VALUES (%s, %s, %s, %s)
+                        """, (ucid, ctx.message.author.display_name, reason, until))
                     except psycopg2.errors.UniqueViolation:
                         ctx.send(f'UCID {ucid} was banned already.')
                 conn.commit()
@@ -774,12 +830,14 @@ class Master(Agent):
     def format_bans(self, rows):
         embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
         for ban in rows:
-            embed.add_field(name='UCID', value=ban['ucid'])
             if ban['discord_id'] != -1:
                 user = self.bot.get_user(ban['discord_id'])
             else:
                 user = None
-            embed.add_field(name='Name', value=utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>'))
+            embed.add_field(name=utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>'),
+                            value=ban['ucid'])
+            until = ban['banned_until'].strftime('%Y-%m-%d %H:%M')
+            embed.add_field(name=f"Banned by: {ban['banned_by']}", value=f"Exp.: {until}" if not until.startswith('9999') else '_ _')
             embed.add_field(name='Reason', value=ban['reason'])
         return embed
 
@@ -790,8 +848,12 @@ class Master(Agent):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute('SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, '
-                               'b.reason FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid')
+                cursor.execute("""
+                    SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
+                           b.banned_until 
+                    FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
+                    WHERE b.banned_until >= NOW()
+                """)
                 rows = list(cursor.fetchall())
                 await utils.pagination(self.bot, ctx, rows, self.format_bans, 8)
         except (Exception, psycopg2.DatabaseError) as error:
@@ -916,6 +978,6 @@ async def setup(bot: DCSServerBot):
         bot.log.info('No admin.json found, copying the sample.')
         shutil.copyfile('config/samples/admin.json', 'config/admin.json')
     if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(Master(bot, AdminEventListener))
+        await bot.add_cog(AdminMaster(bot, AdminEventListener))
     else:
-        await bot.add_cog(Agent(bot, AdminEventListener))
+        await bot.add_cog(AdminAgent(bot, AdminEventListener))

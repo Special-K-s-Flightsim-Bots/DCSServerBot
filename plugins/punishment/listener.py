@@ -1,5 +1,7 @@
 import asyncio
 import psycopg2
+
+from datetime import timezone
 from contextlib import closing
 from core import EventListener, Plugin, Server, Player, Status, event, chat_command, Channel
 
@@ -133,15 +135,21 @@ class PunishmentEventListener(EventListener):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT reason FROM bans WHERE ucid = %s', (data['ucid'], ))
+                cursor.execute('SELECT reason, banned_until FROM bans WHERE ucid = %s AND banned_until >= NOW()',
+                               (data['ucid'], ))
                 if cursor.rowcount > 0:
-                    reason = cursor.fetchone()[0]
+                    row = cursor.fetchone()
+                    if row[1].year == 9999:
+                        until = 'never'
+                    else:
+                        until = row[1].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
                     # ban them on all servers on this node as it wasn't populated yet
                     for s in self.bot.servers.values():
                         s.sendtoDCS({
                             "command": "ban",
                             "ucid": data['ucid'],
-                            "reason": reason
+                            "reason": row[0],
+                            "banned_until": until
                         })
         except (Exception, psycopg2.DatabaseError) as error:
             self.log.exception(error)

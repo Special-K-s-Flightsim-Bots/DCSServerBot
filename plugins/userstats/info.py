@@ -1,8 +1,9 @@
 import discord
 import psycopg2
+
 from contextlib import closing
 from core import report, Side, Player, DataObjectFactory, Member, utils
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Union, Optional
 
 
@@ -10,7 +11,7 @@ class Header(report.EmbedElement):
     def render(self, member: Union[discord.Member, str]):
         sql = """
             SELECT p.last_seen, 
-                   CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned, b.reason, b.banned_by, b.banned_at
+                   CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned, b.reason, b.banned_by, b.banned_until
             FROM players p 
             LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) 
             WHERE p.discord_id = 
@@ -57,7 +58,8 @@ class Header(report.EmbedElement):
             self.add_field(name='Last seen:', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
         if banned:
             self.add_field(name='Status', value='Banned')
-            self.add_field(name='Banned at', value=rows[0]['banned_at'].strftime('%Y-%m-%d'))
+            self.add_field(name='Banned until (UTC)',
+                           value=rows[0]['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M'))
             self.add_field(name='Banned by', value=rows[0]['banned_by'])
             self.add_field(name='Reason', value=rows[0]['reason'])
 
@@ -107,8 +109,12 @@ class History(report.EmbedElement):
                     return
                 rows = cursor.fetchall()
                 self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
-                self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name'] or 'n/a') for row in rows]))
-                self.add_field(name='Time', value='\n'.join([f"{row['time']:%y-%m-%d %H:%M:%S}" for row in rows]))
+                self.add_field(name='DCS Name', 
+                               value='\n'.join([utils.escape_string(row['name'] or 'n/a') for row in rows]))
+                self.add_field(name='Time (UTC)', 
+                               value='\n'.join([
+                                   f"{row['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S}" for row in rows
+                               ]))
                 self.add_field(name='_ _', value='_ _')
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
