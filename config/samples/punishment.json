@@ -2,7 +2,7 @@
   "configs": [
 	{
 		"punishments": [
-			{ "points": 100, "action": "ban", "delay": 10 },
+			{ "points": 100, "action": "ban", "delay": 10, "days": 5 },
 			{ "points": 60, "action": "kick", "delay": 10 },
 			{ "points": 40, "action": "move_to_spec", "delay": 10 },
             { "points": 12, "action": "credits", "penalty": 10, "delay": 10 },
@@ -13,7 +13,6 @@
 			{ "time": 3, "weight": 1 },
 			{ "time": 10, "weight": 0.7 }
 		],
-		"unban": 75,
 		"decay": [
 			{ "days": 60, "weight": 0 },
 			{ "days": 30, "weight": 0.25 },

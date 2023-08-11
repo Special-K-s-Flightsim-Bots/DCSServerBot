@@ -26,7 +26,7 @@ class PunishmentAgent(Plugin):
         await super().cog_unload()
 
     def migrate(self, version: str) -> None:
-        if version == "1.4":
+        if version in["1.4", "1.5"]:
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
@@ -37,7 +37,7 @@ class PunishmentAgent(Plugin):
                             config = self.get_config(server)
                             now = datetime.now()
                             delta = now - row[1]
-                            ban_days = next(x.get('days', 30) for x in config.get('punishments', {}) if x['action'] == 'ban')
+                            ban_days = next(x.get('days', 3) for x in config.get('punishments', {}) if x['action'] == 'ban')
                             if delta.days < ban_days:
                                 cursor.execute("UPDATE bans SET banned_until = %s WHERE ucid = %s",
                                                (now + timedelta(ban_days - delta.days), row[0]))
@@ -49,7 +49,6 @@ class PunishmentAgent(Plugin):
                 conn.rollback()
             finally:
                 self.pool.putconn(conn)
-
 
     def get_config(self, server: Server) -> Optional[dict]:
         if server.name not in self._config:
@@ -113,12 +112,15 @@ class PunishmentAgent(Plugin):
         player: Player = server.get_player(ucid=ucid, active=True)
         member = self.bot.get_member_by_ucid(ucid)
         if punishment['action'] == 'ban':
+            until = datetime.now() + timedelta(days=punishment.get('days', 3))
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute(
-                        'INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING',
-                        (ucid, self.plugin_name, reason))
+                    cursor.execute("""
+                        INSERT INTO bans (ucid, banned_by, reason, banned_until) 
+                        VALUES (%s, %s, %s, %s) 
+                        ON CONFLICT DO NOTHING
+                    """, (ucid, self.plugin_name, reason, until))
                     conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 conn.rollback()
@@ -130,7 +132,8 @@ class PunishmentAgent(Plugin):
                 s.sendtoDCS({
                     "command": "ban",
                     "ucid": ucid,
-                    "reason": reason
+                    "reason": reason,
+                    "banned_until": until.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
                 })
             if member:
                 message = "Member {} banned by {} for {}.".format(utils.escape_string(member.display_name),
@@ -141,7 +144,7 @@ class PunishmentAgent(Plugin):
                     guild = self.bot.guilds[0]
                     channel = await member.create_dm()
                     await channel.send("You have been banned from the DCS servers on {} for {}.\n"
-                                       "To check your current penalty points, use the {}penalty "
+                                       "To check your current penalty status, use the {}penalty "
                                        "command.".format(utils.escape_string(guild.name), reason,
                                                          self.bot.config['BOT']['COMMAND_PREFIX']))
             elif player:
