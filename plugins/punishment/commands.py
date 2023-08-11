@@ -42,7 +42,7 @@ class PunishmentAgent(Plugin):
                                 cursor.execute("UPDATE bans SET banned_until = %s WHERE ucid = %s",
                                                (now + timedelta(ban_days - delta.days), row[0]))
                             else:
-                                cursor.execute("DELETE FROM bans WHERE ucid = %s", (row[0]))
+                                cursor.execute("DELETE FROM bans WHERE ucid = %s", (row[0], ))
                 conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
