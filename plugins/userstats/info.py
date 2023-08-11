@@ -57,9 +57,12 @@ class Header(report.EmbedElement):
         if last_seen != datetime(1970, 1, 1):
             self.add_field(name='Last seen:', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
         if banned:
+            if rows[0]['banned_until'].year == 9999:
+                until = 'never'
+            else:
+                until = rows[0]['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M')
             self.add_field(name='Status', value='Banned')
-            self.add_field(name='Banned until (UTC)',
-                           value=rows[0]['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M'))
+            self.add_field(name='Banned until (UTC)', value=until)
             self.add_field(name='Banned by', value=rows[0]['banned_by'])
             self.add_field(name='Reason', value=rows[0]['reason'])
 
