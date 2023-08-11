@@ -84,9 +84,10 @@ dcsserverbot.ini. **All changes will happen on the bot that is controlling the s
 
 ## Tables
 ### Bans
-| Column    | Type                             | Description                                          |
-|-----------|----------------------------------|------------------------------------------------------|
-| #ucid     | TEXT NOT NULL                    | Unique ID of this player. FK to the players table.   |
-| banned_by | TEXT NOT NULL                    | User name that banned or DCSServerBot for auto bans. |
-| reason    | TEXT                             | Reason for the ban.                                  |
-| banned_at | TIMESTAMP NOT NULL DEFAULT NOW() | When was that user banned.                           |
+| Column       | Type                                                      | Description                                          |
+|--------------|-----------------------------------------------------------|------------------------------------------------------|
+| #ucid        | TEXT NOT NULL                                             | Unique ID of this player. FK to the players table.   |
+| banned_by    | TEXT NOT NULL                                             | User name that banned or DCSServerBot for auto bans. |
+| reason       | TEXT                                                      | Reason for the ban.                                  |
+| banned_at    | TIMESTAMP NOT NULL DEFAULT NOW()                          | When was that user banned.                           |
+| banned_until | TIMESTAMP NOT NULL DEFAULT TO_DATE('99991231','YYYYMMDD') | Until when is that user banned.                      |
