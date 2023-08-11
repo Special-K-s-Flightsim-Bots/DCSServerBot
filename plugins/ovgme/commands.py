@@ -198,6 +198,7 @@ class OvGME(Plugin):
                     conn.rollback()
                 finally:
                     self.pool.putconn(conn)
+                self.log.info(f"- Package {package_name}_v{version} installed on server {server.name}.")
                 return True
         return False
 
@@ -239,6 +240,7 @@ class OvGME(Plugin):
             conn.rollback()
         finally:
             self.pool.putconn(conn)
+        self.log.info(f"- Package {package_name}_v{version} uninstalled from server {server.name}.")
         return True
 
     def format_packages(self, data, marker, marker_emoji):
