@@ -382,7 +382,7 @@ class PunishmentMaster(PunishmentAgent):
                 times = events = points = ''
                 total = 0.0
                 for row in cursor.fetchall():
-                    times += f"{row['time'].astimezone(timezone.utc):%m/%d %H:%M}\n"
+                    times += f"{row['time']:%m/%d %H:%M}\n"
                     events += ' '.join(row['event'].split('_')).title() + '\n'
                     points += f"{row['points']:.2f}\n"
                     total += row['points']
