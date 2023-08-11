@@ -26,7 +26,7 @@ class PunishmentAgent(Plugin):
         await super().cog_unload()
 
     def migrate(self, version: str) -> None:
-        if version in["1.4", "1.5"]:
+        if version in ["1.4", "1.5"]:
             conn = self.pool.getconn()
             try:
                 with closing(conn.cursor()) as cursor:
@@ -47,6 +47,7 @@ class PunishmentAgent(Plugin):
             except (Exception, psycopg2.DatabaseError) as error:
                 self.log.exception(error)
                 conn.rollback()
+                raise
             finally:
                 self.pool.putconn(conn)
 
