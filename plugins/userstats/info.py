@@ -30,12 +30,20 @@ class Header(report.EmbedElement):
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                self.log.debug(sql)
                 cursor.execute(sql)
                 rows = list(cursor.fetchall())
                 if not rows:
-                    self.embed.description = 'User "{}" is not linked.'.format(utils.escape_string(member if isinstance(member, str) else member.display_name))
-                    return
+                    self.embed.description = 'User "{}" is not linked or unknown.'.format(
+                        utils.escape_string(member if isinstance(member, str) else member.display_name)
+                    )
+                    if isinstance(member, str) and utils.is_ucid(member):
+                        cursor.execute("""
+                            SELECT 1 as banned, reason, banned_by, banned_until 
+                            FROM bans WHERE ucid = %s
+                        """, (member, ))
+                        rows = list(cursor.fetchall())
+                        if not rows:
+                            return
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
             raise
@@ -50,7 +58,7 @@ class Header(report.EmbedElement):
         last_seen = datetime(1970, 1, 1)
         banned = False
         for row in rows:
-            if row['last_seen'] and row['last_seen'] > last_seen:
+            if row.get('last_seen') and row['last_seen'] > last_seen:
                 last_seen = row['last_seen']
             if row['banned'] == 1:
                 banned = True
@@ -62,7 +70,7 @@ class Header(report.EmbedElement):
             else:
                 until = rows[0]['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M')
             self.add_field(name='Status', value='Banned')
-            self.add_field(name='Banned until (UTC)', value=until)
+            self.add_field(name='Ban expires (UTC)', value=until)
             self.add_field(name='Banned by', value=rows[0]['banned_by'])
             self.add_field(name='Reason', value=rows[0]['reason'])
 
