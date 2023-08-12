@@ -279,10 +279,10 @@ class Scheduler(Plugin):
 
     group = Group(name="server", description="Commands to manage a DCS server")
 
-    @group.command(description='List of all registered servers')
+    @group.command(name='list', description='List of all registered servers')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    async def list(self, interaction: discord.Interaction):
+    async def _list(self, interaction: discord.Interaction):
         embed = discord.Embed(title=f"All Servers", color=discord.Color.blue())
         names = []
         status = []
@@ -538,30 +538,6 @@ class Scheduler(Plugin):
         else:
             await interaction.response.send_message(f"Server {server.display_name} is not in maintenance mode.",
                                                     ephemeral=True)
-
-    @staticmethod
-    def _format_bans(rows: dict):
-        embed = discord.Embed(title='List of Bans', color=discord.Color.blue())
-        ucids = names = until = ''
-        for ban in rows:
-            names += utils.escape_string(ban['name']) + '\n'
-            ucids += ban['ucid'] + '\n'
-            until += f"<t:{ban['banned_until']}:R>\n"
-        embed.add_field(name='UCID', value=ucids)
-        embed.add_field(name='Name', value=names)
-        embed.add_field(name='Until', value=until)
-        return embed
-
-    @group.command(description='Shows active bans')
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    async def bans(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer]):
-        bans = await server.bans()
-        if not bans:
-            await interaction.response.send_message('No player is banned on this server.')
-        else:
-            await utils.pagination(self.bot, interaction, bans, self._format_bans, 20)
 
 
 async def setup(bot: DCSServerBot):

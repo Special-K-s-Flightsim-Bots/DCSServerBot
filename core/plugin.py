@@ -300,11 +300,7 @@ class Plugin(commands.Cog):
     def migrate_to_3(plugin_name: str):
         os.makedirs(BACKUP_FOLDER, exist_ok=True)
         old_file = f'config/{plugin_name}.json'
-        if plugin_name == 'backup':
-            os.makedirs('config/services', exist_ok=True)
-            new_file = f'config/services/backup.yaml'
-        else:
-            new_file = f'config/plugins/{plugin_name}.yaml'
+        new_file = f'config/plugins/{plugin_name}.yaml'
         with open(old_file, 'r') as infile:
             old = json.load(infile)
         if os.path.exists(new_file):

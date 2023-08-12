@@ -410,10 +410,10 @@ class Mission(Plugin):
     # New command group "/player"
     player = Group(name="player", description="Commands to manage DCS players")
 
-    @player.command(description='Lists the current players on this server')
+    @player.command(name='list', description='Lists the current players on this server')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    async def list(self, interaction: discord.Interaction,
+    async def _list(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
         timeout = self.bot.locals.get('message_autodelete', 300)
         report = Report(self.bot, self.plugin_name, 'players.json')
@@ -432,7 +432,7 @@ class Mission(Plugin):
         await interaction.response.send_message(f"Player {player.display_name} (ucid={player.ucid}) kicked.",
                                                 ephemeral=True)
 
-    @player.command(description='Bans a user by name or ucid')
+    @player.command(description='Bans a player from a running server')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def ban(self, interaction: discord.Interaction,
@@ -441,8 +441,7 @@ class Mission(Plugin):
 
         class BanModal(Modal):
             reason = TextInput(label="Reason", default="n/a", max_length=80, required=False)
-            period = TextInput(label="Time in Days", default=str(30), required=False)
-            everywhere = TextInput(label="Ban on all servers", default="y", required=True, min_length=1, max_length=1)
+            period = TextInput(label="Days (empty = forever)", required=False)
 
             def __init__(self, server: Server, player: Player):
                 super().__init__(title="Ban Details")
@@ -450,29 +449,17 @@ class Mission(Plugin):
                 self.player = player
 
             async def on_submit(derived, interaction: discord.Interaction):
-                if not derived.period.value.isnumeric():
-                    raise ValueError("Period must be a number!")
-                if derived.everywhere.value.casefold() != 'y':
-                    derived.server.ban(derived.player.ucid, derived.reason.value, int(derived.period.value) * 86400)
-                    await interaction.response.send_message(
-                        f"Player {player.display_name} banned on server {derived.server.display_name} "
-                        f"for {derived.period.value} days.")
+                if derived.period.value:
+                    days = int(derived.period.value)
                 else:
-                    for server in self.bot.servers.values():
-                        server.ban(derived.player.ucid, derived.reason.value, int(derived.period.value) * 86400)
-                    await interaction.response.send_message(f"Player {player.display_name} banned on all servers "
-                                                            f"for {derived.period.value} days.")
-
+                    days = None
+                self.bus.ban(derived.player.ucid, derived.reason.value, interaction.user.display_name, days)
+                await interaction.response.send_message(f"Player {player.display_name} banned on all servers " +
+                                                        (f"for {days} days." if days else ""))
+                await self.bot.audit(f'banned player {player.display_name} with reason "{derived.reason.value}"' +
+                                     f' for {days} days.' if days else ' permanently.',
+                                     user=interaction.user)
         await interaction.response.send_modal(BanModal(server, player))
-
-    @player.command(description='Unbans a user by name or ucid')
-    @app_commands.guild_only()
-    @utils.app_has_role('DCS Admin')
-    @app_commands.rename(ucid="player")
-    async def unban(self, interaction: discord.Interaction, ucid: str):
-        for server in self.bot.servers.values():
-            server.unban(ucid)
-        await interaction.response.send_message(f"Player with UCID {ucid} unbanned on all servers.")
 
     @player.command(description='Moves a player to spectators')
     @app_commands.guild_only()

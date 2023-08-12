@@ -7,11 +7,10 @@ import os
 import platform
 import shutil
 import socket
-import sqlite3
 import traceback
 
-from contextlib import suppress, closing
-from core import utils, Server, Player, UploadStatus
+from contextlib import suppress
+from core import utils, Server, UploadStatus
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -293,72 +292,6 @@ class ServerImpl(Server):
         if self.process and self.process.is_running():
             self.process.kill()
         self.process = None
-
-    def ban(self, ucid: str, reason: str = 'n/a', period: int = 30*86400):
-        player: Player = self.get_player(ucid=ucid, active=True)
-        if player and self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            self.send_to_dcs({
-                "command": "ban",
-                "id": player.id,
-                "period": period,
-                "reason": reason
-            })
-        else:
-            conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
-            try:
-                with conn:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute("""
-                            INSERT INTO net_bans (ucid, banned_from, banned_until, reason) 
-                            VALUES (?, datetime('now'), datetime('now', ? || ' seconds'), ?)
-                            ON CONFLICT (ucid) DO UPDATE 
-                            SET banned_from = excluded.banned_from, banned_until = excluded.banned_until, 
-                                reason = excluded.reason
-                        """, (ucid, period, reason))
-            except sqlite3.Error as ex:
-                self.log.exception(ex)
-            finally:
-                conn.close()
-
-    def unban(self, ucid: str):
-        if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-            self.send_to_dcs({"command": "unban", "ucid": ucid})
-        else:
-            conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
-            try:
-                with conn:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute("DELETE FROM net_bans WHERE ucid = ?", (ucid, ))
-            except sqlite3.Error as ex:
-                self.log.exception(ex)
-            finally:
-                conn.close()
-
-    async def bans(self) -> list[str]:
-        conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
-        conn.row_factory = sqlite3.Row
-        try:
-            with conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute("SELECT ucid, name, banned_until FROM net_bans")
-                    return [x for x in cursor.fetchall()]
-        except sqlite3.Error as ex:
-            self.log.exception(ex)
-        finally:
-            conn.close()
-
-    async def is_banned(self, ucid: str) -> bool:
-        conn = sqlite3.connect(os.path.join(self.instance.home, 'Config', 'serverdata.sqlite3'))
-        conn.row_factory = sqlite3.Row
-        try:
-            with conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute("SELECT COUNT(*) FROM net_bans WHERE ucid = ?", (ucid, ))
-                    return cursor.fetchone()[0] > 0
-        except sqlite3.Error as ex:
-            self.log.exception(ex)
-        finally:
-            conn.close()
 
     async def modifyMission(self, preset: Union[list, dict]) -> None:
         def apply_preset(value: dict):

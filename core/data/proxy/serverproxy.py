@@ -108,47 +108,6 @@ class ServerProxy(Server):
             })
         self.status = Status.SHUTDOWN
 
-    def ban(self, ucid: str, reason: str = 'n/a', period: int = 30*86400):
-        self.send_to_dcs({
-            "command": "rpc",
-            "object": "Server",
-            "method": "ban",
-            "params": {
-                "ucid": ucid,
-                "reason": reason,
-                "period": period
-            }
-        })
-
-    def unban(self, ucid: str):
-        self.send_to_dcs({
-            "command": "rpc",
-            "object": "Server",
-            "method": "unban",
-            "params": {
-                "ucid": ucid
-            }
-        })
-
-    async def bans(self) -> list[str]:
-        data = await self.send_to_dcs_sync({
-            "command": "rpc",
-            "object": "Server",
-            "method": "bans"
-        })
-        return data["return"]
-
-    async def is_banned(self, ucid: str) -> bool:
-        data = await self.send_to_dcs_sync({
-            "command": "rpc",
-            "object": "Server",
-            "method": "is_banned",
-            "params": {
-                "ucid": ucid
-            }
-        })
-        return data["return"] == "True"
-
     async def modifyMission(self, preset: Union[list, dict]) -> None:
         await self.send_to_dcs_sync({
             "command": "rpc",

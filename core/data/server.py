@@ -191,18 +191,6 @@ class Server(DataObject):
             "reason": reason
         })
 
-    def ban(self, ucid: str, reason: str = 'n/a', period: int = 30*86400):
-        pass
-
-    def unban(self, ucid: str):
-        pass
-
-    async def bans(self) -> list[str]:
-        pass
-
-    async def is_banned(self, ucid: str) -> bool:
-        pass
-
     @property
     def settings(self) -> dict:
         raise NotImplemented()

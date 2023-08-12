@@ -521,6 +521,15 @@ class ServerTransformer(app_commands.Transformer):
             traceback.print_exc()
 
 
+async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
+    choices: list[app_commands.Choice[int]] = [
+        app_commands.Choice(name=x['name'] or x['ucid'], value=x['ucid'])
+        for x in interaction.client.bus.bans()
+        if not current or current.casefold() in x['name'].casefold() or current.casefold() in x['ucid'].casefold()
+    ]
+    return choices[:25]
+
+
 async def airbase_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
     if not server:

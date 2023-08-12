@@ -7,14 +7,14 @@ import shutil
 import yaml
 
 from contextlib import closing
-from core import utils, Plugin, Status, Server, command, ServiceRegistry, NodeImpl
+from core import utils, Plugin, Status, Server, command, NodeImpl
 from discord import app_commands
 from discord.app_commands import Range, Group
 from discord.ext import commands
-from discord.ui import Select, View, Button
+from discord.ui import Select, View, Button, TextInput, Modal
 from pathlib import Path
-from services import DCSServerBot, MonitoringService
-from typing import Optional, cast
+from services import DCSServerBot
+from typing import Optional, Union
 from zipfile import ZipFile
 
 
@@ -29,6 +29,85 @@ class Admin(Plugin):
         return config
 
     dcs = Group(name="dcs", description="Commands to manage your DCS installations")
+
+    @dcs.command(description='Bans a user by name or ucid')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def ban(self, interaction: discord.Interaction,
+                  user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]]):
+
+        class BanModal(Modal):
+            reason = TextInput(label="Reason", default="n/a", max_length=80, required=False)
+            period = TextInput(label="Days (empty = forever)", required=False)
+
+            def __init__(self, user: Union[discord.Member, str]):
+                super().__init__(title="Ban Details")
+                self.user = user
+
+            async def on_submit(derived, interaction: discord.Interaction):
+                if derived.period.value:
+                    days = int(derived.period.value)
+                else:
+                    days = None
+
+                if isinstance(derived.user, discord.Member):
+                    ucid = self.bot.get_ucid_by_member(derived.user)
+                    name = derived.user.display_name
+                elif utils.is_ucid(derived.user):
+                    ucid = derived.user
+                    # check if we should ban a member
+                    name = self.bot.get_member_or_name_by_ucid(ucid)
+                    if isinstance(name, discord.Member):
+                        name = name.display_name
+                    elif not name:
+                        name = ucid
+                else:
+                    ucid, name = self.bot.get_ucid_by_name(derived.user)
+
+                self.bus.ban(ucid, derived.reason.value, interaction.user.display_name, days)
+                await interaction.response.send_message(f"Player {name} banned on all servers" +
+                                                        (f" for {days} days." if days else ""))
+                await self.bot.audit(f'banned player {name} (ucid={ucid} with reason "{derived.reason.value}"' +
+                                     f' for {days} days.' if days else ' permanently.',
+                                     user=interaction.user)
+
+            async def on_error(derived, interaction: discord.Interaction, error: Exception) -> None:
+                self.log.exception(error)
+
+        await interaction.response.send_modal(BanModal(user))
+
+    @dcs.command(description='Unbans a user by name or ucid')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.rename(ucid="user")
+    @app_commands.autocomplete(ucid=utils.bans_autocomplete)
+    async def unban(self, interaction: discord.Interaction, ucid: str):
+        self.bus.unban(ucid)
+        name = self.bot.get_member_or_name_by_ucid(ucid)
+        if isinstance(name, discord.Member):
+            name = name.display_name
+        elif not name:
+            name = ucid
+        await interaction.response.send_message(f"Player {name} unbanned on all servers.")
+        await self.bot.audit(f'unbanned player {name} (ucid={ucid})', user=interaction.user)
+
+    @dcs.command(description='Shows active bans')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(user=utils.bans_autocomplete)
+    async def bans(self, interaction: discord.Interaction, user: str):
+        ban = next(x for x in self.bus.bans() if x['ucid'] == user)
+        embed = discord.Embed(title='Bans Information', color=discord.Color.blue())
+        if ban['discord_id'] != -1:
+            user = self.bot.get_user(ban['discord_id'])
+        else:
+            user = None
+        embed.add_field(name=utils.escape_string(user.name if user else ban['name'] if ban['name'] else '<unknown>'),
+                        value=ban['ucid'])
+        until = ban['banned_until'].strftime('%Y-%m-%d %H:%M')
+        embed.add_field(name=f"Banned by: {ban['banned_by']}", value=f"Exp.: {until}" if not until.startswith('9999') else '_ _')
+        embed.add_field(name='Reason', value=ban['reason'])
+        await interaction.response.send_message(embed=embed)
 
     @dcs.command(description='Update your DCS installations')
     @app_commands.guild_only()
@@ -299,10 +378,10 @@ class Admin(Plugin):
 
     node = Group(name="node", description="Commands to manage your nodes")
 
-    @node.command(description='Status of all nodes')
+    @node.command(name='list', description='Status of all nodes')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    async def list(self, interaction: discord.Interaction):
+    async def _list(self, interaction: discord.Interaction):
         embed = discord.Embed(title=f"All Nodes", color=discord.Color.blue())
         master: NodeImpl = self.bot.node
         # master node
@@ -468,8 +547,7 @@ class Admin(Plugin):
         self.bot.log.debug(f'Member {member.display_name} has joined guild {member.guild.name}')
         ucid = self.bot.get_ucid_by_member(member)
         if ucid and self.bot.locals.get('autoban', False):
-            for server in self.bot.servers.values():
-                server.unban(ucid)
+            self.bus.unban(ucid)
         if self.bot.locals.get('greeting_dm'):
             channel = await member.create_dm()
             await channel.send(self.bot.locals['greeting_dm'].format(name=member.name, guild=member.guild.name))
@@ -480,8 +558,7 @@ class Admin(Plugin):
         ucid = self.bot.get_ucid_by_member(member)
         if ucid and self.bot.locals.get('autoban', False):
             self.bot.log.debug(f'- Banning them on our DCS servers due to AUTOBAN')
-            for server in self.bot.servers.values():
-                server.ban(ucid, 'Player left discord.', 9999*86400)
+            self.bus.ban(ucid, self.bot.member.display_name, 'Player left discord.')
 
 
 async def setup(bot: DCSServerBot):

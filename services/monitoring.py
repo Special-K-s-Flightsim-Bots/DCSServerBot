@@ -174,33 +174,37 @@ class MonitoringService(Service):
                     self.log.warning(f"Could not find a running DCS instance for server {server.name}, "
                                      f"skipping server load gathering.")
                     continue
-            cpu = server.process.cpu_percent()
-            memory = server.process.memory_full_info()
-            io_counters = server.process.io_counters()
-            if server.process.pid not in self.io_counters:
-                write_bytes = read_bytes = 0
-            else:
-                write_bytes = io_counters.write_bytes - self.io_counters[server.process.pid].write_bytes
-                read_bytes = io_counters.read_bytes - self.io_counters[server.process.pid].read_bytes
-            self.io_counters[server.process.pid] = io_counters
-            net_io_counters = psutil.net_io_counters(pernic=False)
-            if not self.net_io_counters:
-                bytes_sent = bytes_recv = 0
-            else:
-                bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
-                bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
-            self.net_io_counters = net_io_counters
-            self.bus.send_to_node({
-                "command": "serverLoad",
-                "cpu": cpu,
-                "mem_total": memory.private,
-                "mem_ram": memory.rss,
-                "read_bytes": read_bytes,
-                "write_bytes": write_bytes,
-                "bytes_recv": bytes_recv,
-                "bytes_sent": bytes_sent,
-                "server_name": server.name
-            })
+            try:
+                cpu = server.process.cpu_percent()
+                memory = server.process.memory_full_info()
+                io_counters = server.process.io_counters()
+                if server.process.pid not in self.io_counters:
+                    write_bytes = read_bytes = 0
+                else:
+                    write_bytes = io_counters.write_bytes - self.io_counters[server.process.pid].write_bytes
+                    read_bytes = io_counters.read_bytes - self.io_counters[server.process.pid].read_bytes
+                self.io_counters[server.process.pid] = io_counters
+                net_io_counters = psutil.net_io_counters(pernic=False)
+                if not self.net_io_counters:
+                    bytes_sent = bytes_recv = 0
+                else:
+                    bytes_sent = int((net_io_counters.bytes_sent - self.net_io_counters.bytes_sent) / 7200)
+                    bytes_recv = int((net_io_counters.bytes_recv - self.net_io_counters.bytes_recv) / 7200)
+                self.net_io_counters = net_io_counters
+                self.bus.send_to_node({
+                    "command": "serverLoad",
+                    "cpu": cpu,
+                    "mem_total": memory.private,
+                    "mem_ram": memory.rss,
+                    "read_bytes": read_bytes,
+                    "write_bytes": write_bytes,
+                    "bytes_recv": bytes_recv,
+                    "bytes_sent": bytes_sent,
+                    "server_name": server.name
+                })
+            except PermissionError:
+                self.log.warning(f"Server {server.name} was not started by the bot, "
+                                 f"skipping server load gathering.")
 
     @tasks.loop(minutes=1.0)
     async def monitoring(self):

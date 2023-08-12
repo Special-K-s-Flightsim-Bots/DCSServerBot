@@ -418,7 +418,7 @@ class MissionEventListener(EventListener):
         self.bot.loop.call_soon(asyncio.create_task, server.current_mission.restart())
 
     @chat_command(name="list", roles=['DCS Admin'], help="lists available missions")
-    async def list(self, server: Server, player: Player, params: list[str]):
+    async def _list(self, server: Server, player: Player, params: list[str]):
         response = await server.send_to_dcs_sync({"command": "listMissions"})
         missions = response['missionList']
         message = 'The following missions are available:\n'

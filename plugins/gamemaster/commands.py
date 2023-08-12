@@ -198,11 +198,11 @@ class GameMaster(Plugin):
     # New command group "/mission"
     campaign = Group(name="campaign", description="Commands to manage DCS campaigns")
 
-    @campaign.command(description="Lists all (active) campaigns")
+    @campaign.command(name='list', description="Lists all (active) campaigns")
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.describe(active="Display only active campaigns")
-    async def list(self, interaction: discord.Interaction, active: Optional[bool] = True):
+    async def _list(self, interaction: discord.Interaction, active: Optional[bool] = True):
         report = Report(self.bot, self.plugin_name, 'active-campaigns.json' if active else 'all-campaigns.json')
         env = await report.render()
         await interaction.response.send_message(embed=env.embed, ephemeral=True)

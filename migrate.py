@@ -35,6 +35,8 @@ def migrate():
                         choices=['y', 'n'], default='n')
         if yn.lower() != 'y':
             exit(-2)
+    single_admin = Prompt.ask(f"Do you want a central admin channel for your servers (Y) or keep separate ones (N)?",
+                              choices=['y', 'n'], default='n')
     print("Now, lean back and enjoy the migration...\n")
 
     try:
@@ -57,8 +59,9 @@ def migrate():
                         print("[yellow]- NOT migrated config/admin.json, falling back to default instead.[/]")
                     continue
                 core.Plugin.migrate_to_3(plugin_name)
-                if plugin_name == 'backup':
-                    print(f"- Migrated config/backup.json to config/services/backup.yaml")
+                if plugin_name in ['backup', 'ovgme']:
+                    shutil.move(f'config/plugins/{plugin_name}.yaml', f'config/services/{plugin_name}.yaml')
+                    print(f"- Migrated config/{plugin_name}.json to config/services/{plugin_name}.yaml")
                 elif plugin_name == 'commands':
                     data = yaml.safe_load(Path('config/plugins/commands.yaml').read_text(encoding='utf-8'))
                     data[DEFAULT_TAG] = {
@@ -140,6 +143,14 @@ def migrate():
                     "mission_name": cfg['FILTER']['MISSION_FILTER']
                 }
             }
+            # take the first admin channel as the single one
+            if single_admin:
+                for server_name, instance in utils.findDCSInstances():
+                    if instance in cfg and 'ADMIN_CHANNEL' in cfg[instance]:
+                        print(f"- Configured ADMIN_CHANNEL of instance {instance} as single admin channel.")
+                        bot['admin_channel'] = int(cfg[instance]['ADMIN_CHANNEL'])
+                        break
+
             if 'GREETING_DM' in cfg['BOT']:
                 bot['greeting_dm'] = cfg['BOT']['GREETING_DM']
             if 'CJK_FONT' in cfg['REPORTS']:
@@ -224,11 +235,12 @@ def migrate():
                     "afk_time": int(cfg['DCS']['AFK_TIME']),
                     "ping_admin_on_crash": cfg[instance].getboolean('PING_ADMIN_ON_CRASH'),
                     "channels": {
-                        "admin": int(cfg[instance]['ADMIN_CHANNEL']),
                         "status": int(cfg[instance]['STATUS_CHANNEL']),
                         "chat": int(cfg[instance]['CHAT_CHANNEL'])
                     }
                 }
+                if not single_admin:
+                    servers[server_name]['channels']['admin'] = int(cfg[instance]['ADMIN_CHANNEL'])
                 if 'EVENTS_CHANNEL' in cfg[instance]:
                     servers[server_name]['channels']['events'] = int(cfg[instance]['EVENTS_CHANNEL'])
                 if cfg[instance].getboolean('CHAT_LOG'):

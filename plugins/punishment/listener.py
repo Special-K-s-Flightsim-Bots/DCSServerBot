@@ -43,14 +43,7 @@ class PunishmentEventListener(EventListener):
                     points = penalty['default']
                 else:
                     points = penalty['human'] if 'target' in data else penalty['AI']
-                if 'target' in data and data['target'] != -1:
-                    target = server.get_player(name=data['target'])
-                    if 'forgive' in config:
-                        target.sendChatMessage(f"{target.name}, you are a victim of a {data['eventName']} event by "
-                                               f"player {data['initiator']}.\nIf you send -forgive in this chat within "
-                                               f"the next {config['forgive']} seconds, you can pardon the other player.")
-                else:
-                    target = None
+                # apply flight hours to points
                 hours = self._get_flight_hours(initiator)
                 if 'flightHoursWeight' in config:
                     weight = 1
@@ -60,8 +53,19 @@ class PunishmentEventListener(EventListener):
                     points = points * weight
                 # check if an action should be run immediately
                 if 'action' in penalty:
-                    await self.plugin.punish(server, initiator, penalty,
+                    await self.plugin.punish(server, initiator.ucid, penalty,
                                              penalty['reason'] if 'reason' in penalty else penalty['event'])
+                # ignore events where no punishment points were given
+                if points == 0:
+                    return
+                if 'target' in data and data['target'] != -1:
+                    target = server.get_player(name=data['target'])
+                    if 'forgive' in config:
+                        target.sendChatMessage(f"{target.name}, you are a victim of a {data['eventName']} event by "
+                                               f"player {data['initiator']}.\nIf you send -forgive in this chat within "
+                                               f"the next {config['forgive']} seconds, you can pardon the other player.")
+                else:
+                    target = None
                 # add the event to the database
                 async with self.lock:
                     with self.pool.connection() as conn:
@@ -144,7 +148,7 @@ class PunishmentEventListener(EventListener):
                             x[0] for x in cursor.execute("""
                                 SELECT DISTINCT init_id 
                                 FROM pu_events 
-                                WHERE target_id = %s AND time >= (NOW() - interval '%s seconds)'
+                                WHERE target_id = %s AND time >= (timezone('utc', now())  - interval '%s seconds')
                             """, (target.ucid, config['forgive'])).fetchall()
                         ]
                         # there were no events, so forgive would not do anything
@@ -153,11 +157,13 @@ class PunishmentEventListener(EventListener):
                             return
                         # clean the punishment table from these events
                         cursor.execute("""
-                            DELETE FROM pu_events WHERE target_id = %s AND time >= (NOW() - interval '%s seconds')
+                            DELETE FROM pu_events 
+                            WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '%s seconds')
                         """, (target.ucid, config['forgive']))
                         # cancel pending punishment tasks
                         cursor.execute("""
-                            DELETE FROM pu_events_sdw WHERE target_id = %s AND time >= (NOW() - interval '%s seconds')
+                            DELETE FROM pu_events_sdw 
+                            WHERE target_id = %s AND time >= (timezone('utc', now()) - interval '%s seconds')
                         """, (target.ucid, config['forgive']))
                         names = []
                         for initiator in initiators:

@@ -1,17 +1,21 @@
 import json
 import os
 import shutil
+import yaml
+
 from abc import ABC
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import yaml
+if TYPE_CHECKING:
+    from ..data.impl.nodeimpl import NodeImpl
 
 
 class Service(ABC):
     def __init__(self, node, name: str):
         self.name = name
         self.running: bool = False
-        self.node = node
+        self.node: NodeImpl = node
         self.log = node.log
         self.pool = node.pool
         self.config = node.config

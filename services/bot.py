@@ -255,7 +255,9 @@ class DCSServerBot(commands.Bot):
         return ret
 
     def check_channels(self, server: Server):
-        channels = ['admin', 'status', 'chat']
+        channels = ['status', 'chat']
+        if not self.locals.get('admin_channel'):
+            channels.append('admin')
         if server.locals.get('coalitions'):
             channels.extend(['red', 'blue'])
         for c in channels:
@@ -276,6 +278,8 @@ class DCSServerBot(commands.Bot):
                 self.member = self.guilds[0].get_member(self.user.id)
                 self.log.info('- Checking Roles & Channels ...')
                 self.check_roles(['Admin', 'DCS Admin', 'DCS', 'GameMaster'])
+                if self.locals.get('admin_channel'):
+                    self.check_channel(self.locals['admin_channel'])
                 for server in self.servers.values():
                     if server.locals.get('coalitions'):
                         self.check_roles(['Coalition Red', 'Coalition Blue'], server)

@@ -15,8 +15,10 @@ from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec,
     InstanceProxy, NodeProxy, Mission
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
+from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from enum import Enum
+from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
@@ -257,6 +259,64 @@ class ServiceBus(Service):
                 self.servers[new_name] = self.servers[old_name]
                 self.servers[new_name].rename(new_name, True)
                 del self.servers[old_name]
+
+    def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
+        if days:
+            until: datetime = datetime.now() + timedelta(days=days)
+            until_str = until.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+        else:
+            until = datetime(year=9999, month=12, day=31)
+            until_str = 'never'
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    INSERT INTO bans (ucid, banned_by, reason, banned_until) 
+                    VALUES (%s, %s, %s, %s) 
+                    ON CONFLICT DO NOTHING
+                """, (ucid, banned_by, reason, until))
+        for server in self.servers.values():
+            if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
+                continue
+            server.send_to_dcs({
+                "command": "ban",
+                "ucid": ucid,
+                "reason": reason,
+                "banned_until": until_str
+            })
+            player = server.get_player(ucid=ucid)
+            if player:
+                player.banned = True
+
+    def unban(self, ucid: str):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("DELETE FROM bans WHERE ucid = %s", (ucid, ))
+        for server in self.servers.values():
+            if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
+                continue
+            server.send_to_dcs({
+                "command": "unban",
+                "ucid": ucid
+            })
+            player = server.get_player(ucid=ucid)
+            if player:
+                player.banned = False
+
+    def bans(self) -> list[dict]:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                return [
+                    x for x in cursor.execute("""
+                        SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
+                               b.banned_until 
+                        FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
+                        WHERE b.banned_until >= NOW()
+                    """)
+                ]
+
+    def is_banned(self, ucid: str) -> Optional[dict]:
+        with self.pool.connection() as conn:
+            return conn.execute("SELECT * FROM bans WHERE ucid = %s AND banned_until >= NOW()", (ucid, )).fetchone()
 
     def init_remote_server(self, server_name: str, public_ip: str, status: str, instance: str, settings: dict,
                            options: dict, node: str):
