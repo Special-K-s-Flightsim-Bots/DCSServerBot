@@ -50,10 +50,9 @@ class InfoView(View):
         return env.embed
 
     async def is_banned(self) -> bool:
-        for server in self.bot.servers.values():
-            for ucid in self.ucids:
-                if await server.is_banned(ucid):
-                    return True
+        for ucid in self.ucids:
+            if self.bot.bus.is_banned(ucid):
+                return True
         return False
 
     async def on_cancel(self, interaction: discord.Interaction):
@@ -63,17 +62,15 @@ class InfoView(View):
     async def on_ban(self, interaction: discord.Interaction):
         await interaction.response.defer()
         # TODO: reason modal
-        for server in self.bot.servers.values():
-            for ucid in self.ucids:
-                server.ban(ucid)
+        for ucid in self.ucids:
+            self.bot.bus.ban(ucid=ucid, reason='n/a', banned_by=interaction.user.display_name)
         await interaction.followup.send("User has been banned.")
         self.stop()
 
     async def on_unban(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        for server in self.bot.servers.values():
-            for ucid in self.ucids:
-                server.unban(ucid)
+        for ucid in self.ucids:
+            self.bot.bus.unban(ucid)
         await interaction.followup.send("User has been unbanned.")
         self.stop()
 
