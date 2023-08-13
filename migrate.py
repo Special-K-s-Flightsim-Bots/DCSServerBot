@@ -90,7 +90,9 @@ def migrate():
             nodes = yaml.safe_load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
         else:
             nodes = {}
-        nodes[platform.node()] = {}
+        nodes[platform.node()] = {
+            "autoupdate": cfg['BOT'].getboolean('AUTOUPDATE')
+        }
         if os.path.exists('config/servers.yaml'):
             servers = yaml.safe_load(Path('config/servers.yaml').read_text(encoding='utf-8'))
         else:
@@ -106,7 +108,6 @@ def migrate():
         if master:
             main: dict[str, Union[int, str, list, dict]] = {
                 "guild_id": guild_id,
-                "autoupdate": cfg['BOT'].getboolean('AUTOUPDATE'),
                 "use_dashboard": cfg['BOT'].getboolean('USE_DASHBOARD'),
                 'chat_command_prefix': cfg['BOT']['CHAT_COMMAND_PREFIX'],
                 "database": {
@@ -296,7 +297,7 @@ def migrate():
         if scheduler:
             with open('config/plugins/scheduler.yaml', 'w') as out:
                 yaml.safe_dump(scheduler, out)
-                print("- Updated config/plugins/scheduler.yaml")
+                print("- Created config/plugins/scheduler.yaml")
             if presets:
                 with open('config/presets.yaml', 'w') as out:
                     yaml.safe_dump(presets, out)

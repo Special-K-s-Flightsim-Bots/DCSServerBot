@@ -12,7 +12,7 @@ class Main:
         self.log = node.log
 
     async def run(self):
-        if self.node.config.get('autoupdate', True):
+        if self.node.locals.get('autoupdate', False):
             await self.node.upgrade()
 
         await self.node.register()
