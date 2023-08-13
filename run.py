@@ -58,10 +58,10 @@ if __name__ == "__main__":
     if os.path.exists('config/dcsserverbot.ini'):
         migrate()
     elif not os.path.exists('config/main.yaml'):
-        print("Please run 'python install.py' first.")
+        print("Please run 'install.cmd' first.")
         exit(-2)
     if int(platform.python_version_tuple()[0]) < 3 or int(platform.python_version_tuple()[1]) < 9:
-        print("You need Python 3.9 or higher to run DCSServerBot!")
+        print("You need Python 3.9 or higher to run DCSServerBot (3.11 recommended)!")
         exit(-2)
     elif int(platform.python_version_tuple()[1]) == 9:
         print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
