@@ -66,7 +66,6 @@ if __name__ == "__main__":
     elif int(platform.python_version_tuple()[1]) == 9:
         print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
     try:
-        # Install.verify()
         asyncio.set_event_loop_policy(
             asyncio.WindowsProactorEventLoopPolicy()
         )

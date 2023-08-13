@@ -139,7 +139,7 @@ class Scheduler(Plugin):
                               f"by {self.plugin_name.title()} in {restart_in} seconds ...")
                 await self.bot.audit(
                     f"{self.plugin_name.title()} will shut down DCS server in {utils.format_time(restart_in)}",
-                                     server=server)
+                    server=server)
                 await self.warn_users(server, config, 'shutdown')
             # if the shutdown has been cancelled due to maintenance mode
             if not server.restart_pending:
@@ -161,27 +161,35 @@ class Scheduler(Plugin):
         # a restart is already pending, nothing more to do
         if server.restart_pending:
             return
+        self.log.debug(f"Scheduler: restart_mission(server={server.name}, method={rconf['method']}) triggered.")
         method = rconf['method']
         # shall we do something at mission end only?
         if rconf.get('mission_end', False):
+            self.log.debug(f"Scheduler: setting mission_end trigger.")
             server.on_mission_end = {'command': method}
             server.restart_pending = True
             return
         # check if the server is populated
         if server.is_populated():
+            self.log.debug(f"Scheduler: Server is populated.")
             if not rconf.get('populated', True):
                 if not server.on_empty:
                     server.on_empty = {'command': method}
                 if 'max_mission_time' not in rconf:
+                    self.log.debug("Scheduler: Setting on_empty trigger.")
                     server.restart_pending = True
                     return
                 elif server.current_mission.mission_time <= (rconf['max_mission_time'] * 60 - max_warn_time):
+                    self.log.debug("Scheduler: We have not reached max_mission_time yet, waiting.")
                     return
             server.restart_pending = True
+            self.log.debug("Scheduler: Warning users ...")
             await self.warn_users(server, config, method, max_warn_time)
             # in the unlikely event that we did restart already in the meantime while warning users or
             # if the restart has been cancelled due to maintenance mode
             if not server.restart_pending or not server.is_populated():
+                self.log.debug(f"Scheduler: After warning users: restart_pending={server.restart_pending}, "
+                               f"is_populated={server.is_populated()}.")
                 return
             else:
                 server.on_empty.clear()
@@ -189,30 +197,37 @@ class Scheduler(Plugin):
             server.restart_pending = True
 
         if 'shutdown' in method:
+            self.log.debug(f"Scheduler: Shutting down DCS Server {server.name}")
             await self.teardown_dcs(server)
         if method == 'restart_with_shutdown':
             try:
+                self.log.debug(f"Scheduler: Starting DCS Server {server.name}")
                 await self.launch_dcs(server, config)
             except asyncio.TimeoutError:
                 await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
                                      server=server)
         elif method == 'restart':
             if self.is_mission_change(server, config):
+                self.log.debug(f"Scheduler: Restart with mission update")
                 await server.stop()
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
                 await server.start()
             else:
+                self.log.debug(f"Scheduler: Restart without mission update")
                 await server.current_mission.restart()
             await self.bot.audit(f"{self.plugin_name.title()} restarted mission "
                                  f"{server.current_mission.display_name}", server=server)
         elif method == 'rotate':
             await server.loadNextMission()
             if self.is_mission_change(server, config):
+                self.log.debug(f"Scheduler: Rotate with mission update")
                 await server.stop()
                 for ext in server.extensions.values():
                     await ext.beforeMissionLoad()
                 await server.start()
+            else:
+                self.log.debug(f"Scheduler: Rotate without mission update")
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
 
