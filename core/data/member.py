@@ -17,9 +17,11 @@ class Member(DataObject):
         conn = self.pool.getconn()
         try:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, '
-                               'manual FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid WHERE '
-                               'p.discord_id = %s', (self.member.id, ))
+                cursor.execute("""
+                    SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, manual 
+                    FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
+                    WHERE p.discord_id = %s AND COALESCE(b.banned_until, NOW()) >= NOW()
+                """, (self.member.id, ))
                 banned = False
                 for row in cursor.fetchall():
                     self.ucids[row[0]] = row[2]
