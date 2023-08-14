@@ -46,7 +46,7 @@ class Player(DataObject):
                            p.manual, c.coalition 
                     FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
                     LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid 
-                    WHERE p.ucid = %s AND b.banned_until >= NOW()
+                    WHERE p.ucid = %s AND COALESCE(b.banned_until, NOW()) >= NOW()
                 """, (self.ucid, ))
                 # existing member found?
                 if cursor.rowcount == 1:

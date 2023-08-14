@@ -855,6 +855,9 @@ class AdminMaster(AdminAgent):
                     WHERE b.banned_until >= NOW()
                 """)
                 rows = list(cursor.fetchall())
+                if not rows:
+                    await ctx.send("There are no players banned on this server.")
+                    return
                 await utils.pagination(self.bot, ctx, rows, self.format_bans, 8)
         except (Exception, psycopg2.DatabaseError) as error:
             self.bot.log.exception(error)
