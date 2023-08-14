@@ -14,14 +14,19 @@ if TYPE_CHECKING:
 class Member(DataObject):
     member: discord.Member
     ucids: dict[str] = field(default_factory=dict, init=False)
+    banned: bool = field(default=False, init=False)
 
     def __post_init__(self):
         super().__post_init__()
         self.bot: DCSServerBot = ServiceRegistry.get("Bot")
         with self.pool.connection() as conn:
-            for row in conn.execute('SELECT ucid, manual FROM players WHERE discord_id = %s',
-                                    (self.member.id, )).fetchall():
-                self.ucids[row[0]] = row[1]
+            for row in conn.execute("""
+                SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, manual 
+                FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
+                WHERE p.discord_id = %s AND COALESCE(b.banned_until, NOW()) >= NOW()
+            """, (self.member.id, )).fetchall():
+                self.ucids[row[0]] = row[2]
+                self.banned = row[1] is True
 
     @property
     def verified(self):
@@ -54,11 +59,3 @@ class Member(DataObject):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
-
-    @property
-    def banned(self) -> bool:
-        for server in self.bot.servers.values():
-            for ucid in self.ucids:
-                if server.is_banned(ucid):
-                    return True
-        return False

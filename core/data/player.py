@@ -23,6 +23,7 @@ class Player(DataObject):
     active: bool = field(compare=False)
     side: Side = field(compare=False)
     ucid: str
+    banned: bool = field(compare=False)
     slot: int = field(compare=False, default=0)
     sub_slot: int = field(compare=False, default=0)
     unit_callsign: str = field(compare=False, default='')
@@ -45,19 +46,19 @@ class Player(DataObject):
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
                     cursor.execute("""
-                        SELECT p.discord_id, 
-                               p.manual, 
-                               c.coalition 
-                        FROM players p 
+                        SELECT p.discord_id, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, 
+                               p.manual, c.coalition 
+                        FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
                         LEFT OUTER JOIN coalitions c ON p.ucid = c.player_ucid 
-                        WHERE p.ucid = %s
-                        """, (self.ucid, ))
+                        WHERE p.ucid = %s AND COALESCE(b.banned_until, NOW()) >= NOW()
+                    """, (self.ucid, ))
                     # existing member found?
                     if cursor.rowcount == 1:
                         row = cursor.fetchone()
                         if row[0] != -1:
                             self.member = self._member = self.bot.guilds[0].get_member(row[0])
                             self._verified = row[1]
+                        self.banned = row[1]
                         if row[2]:
                             self.coalition = Coalition.RED if row[2] == 'red' else Coalition.BLUE
                     cursor.execute("""
@@ -76,8 +77,8 @@ class Player(DataObject):
     def is_multicrew(self) -> bool:
         return self.sub_slot != 0
 
-    async def is_banned(self) -> bool:
-        return await self.server.is_banned(self.ucid)
+    def is_banned(self) -> bool:
+        return self.banned
 
     @property
     def member(self) -> discord.Member:

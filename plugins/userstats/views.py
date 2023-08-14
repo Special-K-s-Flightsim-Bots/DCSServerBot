@@ -29,7 +29,7 @@ class InfoView(View):
                 self.add_item(button)
         else:
             self.ucids = [self.member]
-        banned = await self.is_banned()
+        banned = self.is_banned()
         if banned:
             button = Button(emoji="✅")
             button.callback = self.on_unban
@@ -49,7 +49,7 @@ class InfoView(View):
         env = await report.render(member=self.member, player=self.player, banned=banned)
         return env.embed
 
-    async def is_banned(self) -> bool:
+    def is_banned(self) -> bool:
         for ucid in self.ucids:
             if self.bot.bus.is_banned(ucid):
                 return True
