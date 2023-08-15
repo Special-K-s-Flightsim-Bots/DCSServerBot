@@ -148,7 +148,7 @@ class Punishment(Plugin):
     @tasks.loop(hours=12.0)
     async def decay(self):
         if self.decay_config:
-            self.log.debug('Punishment - Running decay.')
+            self.log.debug('Punishment - Running decay ...')
             with self.pool.connection() as conn:
                 with conn.transaction():
                     for d in self.decay_config:

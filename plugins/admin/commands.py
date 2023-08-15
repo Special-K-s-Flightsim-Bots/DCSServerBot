@@ -23,7 +23,7 @@ class Admin(Plugin):
     def read_locals(self) -> dict:
         config = super().read_locals()
         if not config:
-            self.log.info('No admin.yaml found, copying the sample.')
+            self.log.info('  - No admin.yaml found, copying the sample.')
             shutil.copyfile('config/samples/admin.yaml', 'config/plugins/admin.yaml')
             config = super().read_locals()
         return config

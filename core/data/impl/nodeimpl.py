@@ -452,6 +452,10 @@ class NodeImpl(Node):
                         AND last_seen > (NOW() - interval '1 minute')
                     """, (self.guild_id, ))]
 
+    async def shell_command(self, cmd: str):
+        self.log.debug('Running shell-command: ' + cmd)
+        await asyncio.create_subprocess_shell(cmd)
+
     @tasks.loop(minutes=5.0)
     async def autoupdate(self):
         # don't run, if an update is currently running

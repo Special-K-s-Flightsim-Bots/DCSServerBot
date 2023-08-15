@@ -148,7 +148,7 @@ def migrate():
             if single_admin:
                 for server_name, instance in utils.findDCSInstances():
                     if instance in cfg and 'ADMIN_CHANNEL' in cfg[instance]:
-                        print(f"- Configured ADMIN_CHANNEL of instance {instance} as single admin channel.")
+                        print(f"[yellow]- Configured ADMIN_CHANNEL of instance {instance} as single admin channel.[/]")
                         bot['admin_channel'] = int(cfg[instance]['ADMIN_CHANNEL'])
                         break
 

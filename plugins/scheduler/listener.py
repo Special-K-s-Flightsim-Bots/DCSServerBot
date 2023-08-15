@@ -26,8 +26,18 @@ class SchedulerListener(EventListener):
             dcs_home = path.normpath(server.instance.home)
             cmd = utils.format_string(cmd, dcs_installation=dcs_installation, dcs_home=dcs_home, server=server,
                                       config=self.bot.locals)
-            self.log.debug('Launching command: ' + cmd)
-            await asyncio.create_subprocess_shell(cmd)
+            if server.is_remote:
+                self.bot.bus.send_to_node({
+                    "command": "rpc",
+                    "object": "Node",
+                    "method": "shell_command",
+                    "params": {
+                        "cmd": cmd
+                    }
+                })
+            else:
+                self.log.debug('Running shell-command: ' + cmd)
+                await asyncio.create_subprocess_shell(cmd)
 
     async def process(self, server: Server, what: dict) -> None:
         config = self.plugin.get_config(server)
