@@ -30,10 +30,9 @@ class OvGMEService(Service):
         asyncio.create_task(self.install_packages())
 
     async def stop(self):
-        if 'ovgme' not in self.node.plugins:
-            return
         self.node.unregister_callback('before_dcs_update', self.name)
         self.node.unregister_callback('after_dcs_update', self.name)
+        await super().stop()
 
     async def before_dcs_update(self):
         # uninstall all RootFolder-packages

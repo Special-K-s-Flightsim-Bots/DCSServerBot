@@ -88,12 +88,12 @@ class ServiceBus(Service):
         return self.node.master
 
     def register_eventListener(self, listener: EventListener):
-        self.log.debug(f'- Registering EventListener {type(listener).__name__}')
+        self.log.debug(f'  - Registering EventListener {type(listener).__name__}')
         self.eventListeners.append(listener)
 
     def unregister_eventListener(self, listener: EventListener):
         self.eventListeners.remove(listener)
-        self.log.debug(f'- EventListener {type(listener).__name__} unregistered.')
+        self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
     async def init_servers(self):
         for instance in self.node.instances:
@@ -146,7 +146,7 @@ class ServiceBus(Service):
             else:
                 num += 1
         if num == 0:
-            self.log.info('- No running local servers found.')
+            self.log.debug('- No running local servers found.')
 
     async def register_remote_node(self, node: str):
         self.log.info(f"- Registering remote node {node}.")
@@ -550,4 +550,4 @@ class ServiceBus(Service):
         port = self.node.listen_port
         self.udp_server = MyThreadingUDPServer((host, port), RequestHandler)
         self.executor.submit(self.udp_server.serve_forever)
-        self.log.debug('- Listener started on interface {} port {} accepting commands.'.format(host, port))
+        self.log.debug('  - Listener started on interface {} port {} accepting commands.'.format(host, port))

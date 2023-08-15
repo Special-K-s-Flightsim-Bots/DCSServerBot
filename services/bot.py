@@ -142,7 +142,7 @@ class DCSServerBot(commands.Bot):
             pass
         self.log.info('- Unloading Plugins ...')
         await super().close()
-        self.log.info('- Discord Bot stopped.')
+        self.log.info("- Stopping Services ...")
 
     @property
     def roles(self) -> dict[str, list[Union[str, int]]]:
@@ -290,7 +290,7 @@ class DCSServerBot(commands.Bot):
                 self.log.info('- Discord Commands registered.')
                 if 'discord_status' in self.locals:
                     await self.change_presence(activity=discord.Game(name=self.locals['discord_status']))
-                self.log.info('- Discord Bot started.')
+                self.log.info('DCSServerBot started, accepting commands.')
                 await self.audit(message="Discord Bot started.")
             else:
                 self.log.warning('- Discord connection re-established.')

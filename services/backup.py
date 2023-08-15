@@ -19,7 +19,7 @@ class BackupService(Service):
     def __init__(self, node, name: str):
         super().__init__(node, name)
         if not self.locals:
-            self.log.debug("No backup.yaml configured, skipping backup service.")
+            self.log.debug("  - No backup.yaml configured, skipping backup service.")
             return
         self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
 

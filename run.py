@@ -18,7 +18,7 @@ class Main:
         await self.node.register()
         async with ServiceRegistry(node=self.node) as registry:
             if registry.services():
-                self.log.info("- Starting Services ...")
+                self.log.info("- Loading Services ...")
             for name in registry.services().keys():
                 if not registry.can_run(name):
                     continue
@@ -31,10 +31,10 @@ class Main:
                 else:
                     try:
                         asyncio.create_task(registry.new(name).start())
-                        self.log.info(f"  => {name} started.")
+                        self.log.debug(f"  => {name} loaded.")
                     except ServiceInstallationError as ex:
                         self.log.error(f"  - {ex.__str__()}")
-                        self.log.info(f"  => {name} NOT started.")
+                        self.log.info(f"  => {name} NOT loaded.")
             try:
                 while True:
                     # wait until the master changes
@@ -46,27 +46,22 @@ class Main:
                         self.log.info("Master is not responding... taking over.")
                         if self.node.config.get('use_dashboard', True):
                             await dashboard.stop()
-                            self.log.info("  => Dashboard stopped.")
                         for name in registry.services().keys():
                             if registry.master_only(name):
                                 try:
                                     asyncio.create_task(registry.new(name).start())
-                                    self.log.info(f"  => {name} started.")
                                 except ServiceInstallationError as ex:
                                     self.log.error(f"  - {ex.__str__()}")
-                                    self.log.info(f"  => {name} NOT started.")
+                                    self.log.info(f"  => {name} NOT loaded.")
                     else:
                         self.log.info("Second Master found, stepping back to Agent configuration.")
                         if self.node.config.get('use_dashboard', True):
                             await dashboard.stop()
-                            self.log.info("  => Dashboard stopped.")
                         for name in registry.services().keys():
                             if registry.master_only(name):
                                 await registry.get(name).stop()
-                                self.log.info(f"  => {name} stopped.")
                     if self.node.config.get('use_dashboard', True):
                         await dashboard.start()
-                        self.log.info("  => Dashboard started.")
             finally:
                 await self.node.unregister()
 

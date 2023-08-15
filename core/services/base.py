@@ -22,12 +22,12 @@ class Service(ABC):
         self.locals = self.read_locals()
 
     async def start(self, *args, **kwargs):
-        self.log.debug(f'- Starting service {self.name} ...')
+        self.log.info(f'  => Starting Service {self.name} ...')
         self.running = True
 
     async def stop(self, *args, **kwargs):
         self.running = False
-        self.log.debug(f'- Service {self.name} stopped.')
+        self.log.info(f'  => Service {self.name} stopped.')
 
     async def is_running(self) -> bool:
         return self.running
@@ -43,7 +43,7 @@ class Service(ABC):
         filename = f'./config/services/{self.name.lower()}.yaml'
         if not os.path.exists(filename):
             return {}
-        self.log.debug(f'  => Reading service configuration from {filename} ...')
+        self.log.debug(f'  - Reading service configuration from {filename} ...')
         return yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
 
 
