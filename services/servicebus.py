@@ -201,7 +201,7 @@ class ServiceBus(Service):
         webrtc_ports: dict[int, str] = dict()
         for server in self.servers.values():
             # only check ports of local servers
-            if server.is_remote:
+            if server.is_remote or server.status == Status.SHUTDOWN:
                 continue
             dcs_port = server.settings.get('port', 10308)
             if dcs_port in dcs_ports:

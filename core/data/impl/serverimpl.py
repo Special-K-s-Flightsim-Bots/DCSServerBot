@@ -267,20 +267,18 @@ class ServerImpl(Server):
 
     async def startup(self) -> None:
         self.init_extensions()
-        for ext in self.extensions:
-            await self.extensions[ext].prepare()
-            await self.extensions[ext].beforeMissionLoad()
+        for ext in self.extensions.values():
+            await ext.prepare()
+            await ext.beforeMissionLoad()
         await self.do_startup()
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
-        for ext in self.extensions:
-            await self.extensions[ext].startup()
+        for ext in self.extensions.values():
+            await ext.startup()
 
     async def shutdown(self, force: bool = False) -> None:
         if not force:
-            for ext in self.extensions:
-                await self.extensions[ext].shutdown()
             await super().shutdown(False)
         self.terminate()
         for ext in self.extensions.values():
