@@ -67,8 +67,9 @@ class ServiceBus(Service):
             self.log.debug("- All messages processed.")
             self.udp_server.server_close()
         self.log.debug('- Listener stopped.')
-        self.executor.shutdown(wait=True)
-        self.log.debug('- Executor stopped.')
+        if self.executor:
+            self.executor.shutdown(wait=True)
+            self.log.debug('- Executor stopped.')
         if not self.master:
             self.send_to_node({
                 "command": "rpc",
@@ -440,14 +441,16 @@ class ServiceBus(Service):
                                 self.log.exception(ex)
                             cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
-    @staticmethod
-    async def rpc(obj: object, data: dict) -> Optional[dict]:
+    async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         try:
             if 'method' in data:
                 func = attrgetter(data.get('method'))(obj)
                 if not func:
                     return
                 kwargs = data.get('params', {})
+                # servers will be passed by name
+                if 'server' in kwargs:
+                    kwargs['server'] = self.servers[kwargs['server']]
                 if asyncio.iscoroutinefunction(func):
                     rc = await func(**kwargs) if kwargs else await func()
                 else:

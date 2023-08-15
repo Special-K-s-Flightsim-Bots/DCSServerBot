@@ -3,7 +3,7 @@ import discord
 import os
 import psycopg
 
-from core import Status, Plugin, utils, Server, command, ServiceRegistry
+from core import Status, Plugin, utils, Server, command, ServiceRegistry, PluginInstallationError
 from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 
@@ -20,7 +20,9 @@ class OvGME(Plugin):
 
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
-        self.service: OvGMEService = cast(OvGMEService, ServiceRegistry.new("OvGME"))
+        self.service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+        if not self.service:
+            raise PluginInstallationError(plugin=self.plugin_name, reason='OvGME service not loaded.')
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))

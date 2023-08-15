@@ -186,7 +186,6 @@ class DCSServerBot(commands.Bot):
             self.log.warning(f'  - Plugin "{plugin} was already loaded"')
         except commands.ExtensionFailed as ex:
             self.log.error(f'  - {ex.original if ex.original else ex}')
-            self.log.exception(ex)
         except Exception as ex:
             self.log.exception(ex)
         return False

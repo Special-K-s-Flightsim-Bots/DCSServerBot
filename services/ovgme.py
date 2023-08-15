@@ -5,7 +5,7 @@ import shutil
 import zipfile
 
 from contextlib import closing, suppress
-from core import ServiceRegistry, Service, Server, Status, DEFAULT_TAG
+from core import ServiceRegistry, Service, Server, Status, DEFAULT_TAG, ServiceInstallationError
 from filecmp import cmp
 from psycopg.rows import dict_row
 from typing import Optional, Tuple, TYPE_CHECKING
@@ -14,16 +14,16 @@ if TYPE_CHECKING:
     from services import ServiceBus
 
 
-@ServiceRegistry.register("OvGME")
+@ServiceRegistry.register("OvGME", plugin='ovgme')
 class OvGMEService(Service):
 
     def __init__(self, node, name: str):
         super().__init__(node, name)
+        if not os.path.exists('config/services/ovgme.yaml'):
+            raise ServiceInstallationError(service='OvGME', reason="config/services/ovgme.yaml missing!")
         self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
 
     async def start(self):
-        if 'ovgme' not in self.node.plugins:
-            return
         await super().start()
         self.node.register_callback('before_dcs_update', self.name, self.before_dcs_update)
         self.node.register_callback('after_dcs_update', self.name, self.after_dcs_update)
@@ -143,6 +143,20 @@ class OvGMEService(Service):
                 return cursor.fetchone()[0] if cursor.rowcount == 1 else None
 
     async def install_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
+        if server.is_remote:
+            self.bus.send_to_node({
+                "command": "rpc",
+                "service": "OvGME",
+                "method": "install_package",
+                "params": {
+                    "server": server.name,
+                    "folder": folder,
+                    "package_name": package_name,
+                    "version": version
+                }
+            }, node=server.node)
+            return True
+
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
         os.makedirs(os.path.join(path, '.' + server.instance.name), exist_ok=True)
@@ -196,6 +210,20 @@ class OvGMEService(Service):
         return False
 
     async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
+        if server.is_remote:
+            self.bus.send_to_node({
+                "command": "rpc",
+                "service": "OvGME",
+                "method": "uninstall_package",
+                "params": {
+                    "server": server.name,
+                    "folder": folder,
+                    "package_name": package_name,
+                    "version": version
+                }
+            }, node=server.node)
+            return True
+
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
         ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)

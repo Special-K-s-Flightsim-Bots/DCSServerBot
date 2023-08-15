@@ -8,6 +8,7 @@ class ServiceRegistry:
     _node = None
     _registry: dict[str, Service] = dict[str, Service]()
     _master_only: set[str] = set[str]()
+    _plugins: dict[str, str] = dict[str, str]()
     _singletons: dict[str, Service] = dict[str, Service]()
 
     def __new__(cls, node):
@@ -23,11 +24,13 @@ class ServiceRegistry:
         await self.shutdown()
 
     @classmethod
-    def register(cls, name: str, master_only: bool = False) -> Callable:
+    def register(cls, name: str, master_only: bool = False, plugin: str = None) -> Callable:
         def inner_wrapper(wrapped_class: Any) -> Callable:
             cls._registry[name] = wrapped_class
             if master_only:
                 cls._master_only.add(name)
+            if plugin:
+                cls._plugins[name] = plugin
             return wrapped_class
 
         return inner_wrapper
@@ -45,8 +48,15 @@ class ServiceRegistry:
         return cls._singletons.get(name)
 
     @classmethod
-    def master_only(cls, name: str) -> bool:
-        return name in cls._master_only
+    def can_run(cls, name: str) -> bool:
+        # check master only
+        if not cls._node.master and name in cls._master_only:
+            return False
+        # check plugin dependencies
+        plugin = cls._plugins.get(name)
+        if plugin and plugin not in cls._node.plugins:
+            return False
+        return True
 
     @classmethod
     def services(cls) -> dict[str, Service]:
