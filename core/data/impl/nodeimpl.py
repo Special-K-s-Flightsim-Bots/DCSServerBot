@@ -61,8 +61,8 @@ class NodeImpl(Node):
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
         self.all_nodes: Optional[dict] = None
         self.update_pending = False
-        self.before_update: dict[str, Callable[[Any], Awaitable[Any]]] = dict()
-        self.after_update: dict[str, Callable[[Any], Awaitable[Any]]] = dict()
+        self.before_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
+        self.after_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
 
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
@@ -310,7 +310,7 @@ class NodeImpl(Node):
         self.log.info(f"Updating {self.locals['DCS']['installation']} ...")
         # call before update hooks
         for callback in self.before_update.values():
-            await callback(self)
+            await callback()
         # disable any popup on the remote machine
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
@@ -330,7 +330,7 @@ class NodeImpl(Node):
             utils.desanitize(self)
         # call after update hooks
         for callback in self.after_update.values():
-            await callback(self)
+            await callback()
         self.log.info(f"{self.locals['DCS']['installation']} updated to the latest version. "
                       f"Starting up DCS servers again ...")
         for server in [x for x in bus.servers.values() if not x.is_remote]:
@@ -472,4 +472,4 @@ class NodeImpl(Node):
                     pass
                     # TODO audit message
         except Exception as ex:
-            self.log.debug("Exception in autoupdate(): " + str(ex))
+            self.log.exception(ex)
