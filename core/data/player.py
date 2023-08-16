@@ -23,7 +23,7 @@ class Player(DataObject):
     active: bool = field(compare=False)
     side: Side = field(compare=False)
     ucid: str
-    banned: bool = field(compare=False)
+    banned: bool = field(compare=False, init=False)
     slot: int = field(compare=False, default=0)
     sub_slot: int = field(compare=False, default=0)
     unit_callsign: str = field(compare=False, default='')
