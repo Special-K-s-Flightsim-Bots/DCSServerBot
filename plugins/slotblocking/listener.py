@@ -13,9 +13,8 @@ class SlotBlockingListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
 
-    @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
-        config: dict = self.plugin.get_config(server)
+    def load_params_into_mission(self, server: Server):
+        config: dict = self.plugin.get_config(server, use_cache=False)
         if config:
             server.sendtoDCS({
                 'command': 'loadParams',
@@ -51,6 +50,15 @@ class SlotBlockingListener(EventListener):
             finally:
                 self.pool.putconn(conn)
 
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
+        # the server is running already
+        if data['channel'].startswith('sync-'):
+            self.load_params_into_mission(server)
+
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        self.load_params_into_mission(server)
 
     def _get_points(self, server: Server, player: CreditPlayer) -> int:
         config = self.plugin.get_config(server)

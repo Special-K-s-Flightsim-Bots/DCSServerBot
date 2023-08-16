@@ -10,7 +10,7 @@ from core import utils
 from discord.ext import commands
 from os import path
 from shutil import copytree
-from typing import Type, Optional, TYPE_CHECKING
+from typing import Type, Optional, TYPE_CHECKING, Tuple
 from .listener import TEventListener
 
 if TYPE_CHECKING:
@@ -174,26 +174,43 @@ class Plugin(commands.Cog):
         with open(filename, encoding='utf-8') as file:
             return json.load(file)
 
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    self._config[server.name] = default | specific
+    # get default and specific configs to be merged in derived implementations
+    def get_base_config(self, server: Server) -> Tuple[Optional[dict], Optional[dict]]:
+        def filter_element(element: dict) -> dict:
+            if 'terrains' in element:
+                for terrain in element['terrains'].keys():
+                    if server.current_mission.map.casefold() == terrain.casefold():
+                        return element['terrains'][terrain]
+            elif 'missions' in element:
+                for mission in element['missions'].keys():
+                    if server.current_mission.map.casefold() == mission.casefold():
+                        return element['missions'][mission]
+            else:
+                return element
+
+        if 'configs' in self.locals:
+            specific = default = None
+            for element in self.locals['configs']:
+                if not element.get('installation'):
+                    default = deepcopy(filter_element(element))
+                elif element['installation'] == server.installation:
+                    specific = deepcopy(filter_element(element))
+            return default, specific
+        else:
+            return None, None
+
+    def get_config(self, server: Server, *, use_cache: Optional[bool] = True) -> Optional[dict]:
+        if server.name not in self._config or not use_cache:
+            default, specific = self.get_base_config(server)
+            if default and not specific:
+                self._config[server.name] = default
+            elif specific and not default:
+                self._config[server.name] = specific
+            elif default and specific:
+                self._config[server.name] = default | specific
             else:
                 return None
-        return self._config[server.name] if server.name in self._config else None
+        return self._config.get(server.name)
 
     def rename(self, old_name: str, new_name: str) -> None:
         # this function has to be implemented in your own plugins, if a server rename takes place

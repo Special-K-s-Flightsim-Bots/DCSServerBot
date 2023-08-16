@@ -78,6 +78,11 @@ class GreenieBoardEventListener(EventListener):
         except FileNotFoundError as ex:
             self.log.error(f'  => File not found: {ex}')
 
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        # make sure the config cache is re-read on mission changes
+        self.plugin.get_config(server, use_cache=False)
+
     def process_lso_event(self, config: dict, server: Server, player: Player, data: dict):
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
         night = time > 20 * 3600 or time < 6 * 3600

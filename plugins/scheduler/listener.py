@@ -138,6 +138,8 @@ class SchedulerListener(EventListener):
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        # invalidate the config cache
+        self.plugin.get_config(server, use_cache=False)
         server.restart_pending = False
         server.on_empty.clear()
         server.on_mission_end.clear()

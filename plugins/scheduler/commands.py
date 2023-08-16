@@ -123,37 +123,29 @@ class Scheduler(Plugin):
                 json.dump(new, file, indent=2)
                 self.log.info('  => config/scheduler.json migrated to new format, please verify!')
 
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    merged = default | specific
-                    if 'extensions' in merged and 'extensions' not in specific:
-                        del merged['extensions']
-                    elif 'extensions' in default and 'extensions' in specific:
-                        for ext in (default['extensions'] | specific['extensions']):
-                            if ext in default['extensions'] and ext in specific['extensions']:
-                                merged['extensions'][ext] = default['extensions'][ext] | specific['extensions'][ext]
-                            elif ext in specific['extensions']:
-                                merged['extensions'][ext] = specific['extensions'][ext]
-                            elif ext in merged['extensions']:
-                                del merged['extensions'][ext]
-                    self._config[server.name] = merged
+    def get_config(self, server: Server, *, use_cache: Optional[bool] = True) -> Optional[dict]:
+        if server.name not in self._config or not use_cache:
+            default, specific = self.get_base_config(server)
+            if default and not specific:
+                self._config[server.name] = default
+            elif specific and not default:
+                self._config[server.name] = specific
+            elif default and specific:
+                merged = default | specific
+                if 'extensions' in merged and 'extensions' not in specific:
+                    del merged['extensions']
+                elif 'extensions' in default and 'extensions' in specific:
+                    for ext in (default['extensions'] | specific['extensions']):
+                        if ext in default['extensions'] and ext in specific['extensions']:
+                            merged['extensions'][ext] = default['extensions'][ext] | specific['extensions'][ext]
+                        elif ext in specific['extensions']:
+                            merged['extensions'][ext] = specific['extensions'][ext]
+                        elif ext in merged['extensions']:
+                            del merged['extensions'][ext]
+                self._config[server.name] = merged
             else:
                 return None
-        return self._config[server.name] if server.name in self._config else None
+        return self._config.get(server.name)
 
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:
