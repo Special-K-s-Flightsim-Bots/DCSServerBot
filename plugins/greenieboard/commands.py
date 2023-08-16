@@ -35,15 +35,15 @@ class GreenieBoard(Plugin):
             config = super().read_locals()
         return config
 
-    def get_config(self, server: Optional[Server] = None, plugin_name: str = None) -> dict:
+    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
+                   use_cache: Optional[bool] = True) -> dict:
         # retrieve the config from another plugin
         if plugin_name:
-            return super().get_config(server, plugin_name)
+            return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
         if not server:
             return self.locals.get(DEFAULT_TAG, {})
         if server.instance.name not in self._config:
-            default = deepcopy(self.locals.get(DEFAULT_TAG, {}))
-            specific = self.locals.get(server.instance.name, {})
+            default, specific = self.get_base_config(server)
             if 'persistent_board' in default:
                 del default['persistent_board']
             if 'persistent_channel' in default:

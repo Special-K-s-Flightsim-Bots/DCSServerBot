@@ -120,8 +120,9 @@ class EventListener(metaclass=EventListenerMeta):
         except Exception as ex:
             self.log.exception(ex)
 
-    def get_config(self, server: Optional[Server] = None, plugin_name: str = None) -> dict:
-        return self.plugin.get_config(server, plugin_name)
+    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
+                   use_cache: Optional[bool] = True) -> dict:
+        return self.plugin.get_config(server, plugin_name=plugin_name, use_cache=use_cache)
 
     @event(name="onChatCommand")
     async def onChatCommand(self, server: Server, data: dict) -> None:

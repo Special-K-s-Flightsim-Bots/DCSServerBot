@@ -96,9 +96,15 @@ class SchedulerListener(EventListener):
             player: Player = server.get_player(id=data['id'])
             player.sendChatMessage("*** Mission is about to be restarted soon! ***")
 
-    @event(name="onPlayerChangeSlot")
-    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
-        if not server.is_populated() and server.on_empty:
+#    @event(name="onPlayerChangeSlot")
+#    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
+#        if not server.is_populated() and server.on_empty:
+#           self.bot.loop.call_soon(asyncio.create_task, self.process(server, server.on_empty.copy()))
+#            server.on_empty.clear()
+
+    @event(name="onSimulationPause")
+    async def onSimulationPause(self, server: Server, data: dict) -> None:
+        if server.on_empty:
             self.bot.loop.call_soon(asyncio.create_task, self.process(server, server.on_empty.copy()))
             server.on_empty.clear()
 
@@ -122,6 +128,8 @@ class SchedulerListener(EventListener):
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        # invalidate the config cache
+        self.plugin.get_config(server, use_cache=False)
         server.restart_pending = False
         server.on_empty.clear()
         server.on_mission_end.clear()

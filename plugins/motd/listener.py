@@ -19,6 +19,11 @@ class MessageOfTheDayListener(EventListener):
             player.playSound(config['on_birth']['sound'])
         return message
 
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        # make sure the config cache is re-read on mission changes
+        self.plugin.get_config(server, use_cache=False)
+
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1:

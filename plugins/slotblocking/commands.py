@@ -14,15 +14,14 @@ class SlotBlocking(Plugin):
         if not self.locals:
             raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
 
-    def get_config(self, server: Optional[Server] = None, plugin_name: str = None) -> dict:
+    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
+                   use_cache: Optional[bool] = True) -> dict:
         if plugin_name:
-            return super().get_config(server, plugin_name)
-        if server.instance.name not in self._config:
-            vips = self.locals.get(server.instance.name, {}).get('VIP')
-            if vips:
-                vips |= self.locals.get(DEFAULT_TAG, {}).get('VIP', {})
-            self._config[server.instance.name] = \
-                deepcopy(self.locals.get(DEFAULT_TAG, {}) | self.locals.get(server.instance.name, {}))
+            return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
+        if server.instance.name not in self._config or not use_cache:
+            default, specific = self.get_base_config(server)
+            vips = default.get('VIP', {}) | specific.get('VIP', {})
+            self._config[server.instance.name] = default | specific
             if vips:
                 self._config[server.instance.name]['VIP'] = vips
         return self._config[server.instance.name]

@@ -22,6 +22,7 @@ class OvGMEService(Service):
         if not os.path.exists('config/services/ovgme.yaml'):
             raise ServiceInstallationError(service='OvGME', reason="config/services/ovgme.yaml missing!")
         self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
+        self._config = dict[str, dict]()
 
     async def start(self):
         await super().start()
@@ -46,8 +47,10 @@ class OvGMEService(Service):
     def get_config(self, server: Optional[Server] = None) -> dict:
         if not server:
             return self.locals.get(DEFAULT_TAG)
-        else:
-            return self.locals.get(DEFAULT_TAG) | (self.locals.get(server.instance.name) or {})
+        elif server.instance.name not in self._config:
+            self._config[server.instance.name] = (self.locals.get(DEFAULT_TAG, {}) |
+                                                  self.locals.get(server.instance.name, {}))
+        return self._config[server.instance.name]
 
     @staticmethod
     def is_greater(v1: str, v2: str):

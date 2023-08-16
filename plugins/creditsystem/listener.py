@@ -1,22 +1,29 @@
 import discord
-from contextlib import closing
 from core import EventListener, Server, Status, utils, event, chat_command, Player
-from psycopg.rows import dict_row
 from typing import cast
 from .player import CreditPlayer
 
 
 class CreditSystemListener(EventListener):
 
-    @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
-        config = self.plugin.get_config(server)
+    def load_params_into_mission(self, server: Server):
+        config = self.plugin.get_config(server, use_cache=False)
         if config:
             server.send_to_dcs({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,
                 'params': config
             })
+
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
+        # the server is running already
+        if data['channel'].startswith('sync-'):
+            self.load_params_into_mission(server)
+
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        self.load_params_into_mission(server)
 
     @staticmethod
     def get_points_per_kill(config: dict, data: dict) -> int:

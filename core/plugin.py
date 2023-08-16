@@ -18,7 +18,7 @@ from discord.ext import commands, tasks
 from discord.utils import MISSING, _shorten
 from os import path
 from pathlib import Path
-from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List
+from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, Tuple
 
 from .listener import TEventListener
 
@@ -340,17 +340,36 @@ class Plugin(commands.Cog):
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
         return yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
 
-    def get_config(self, server: Optional[Server] = None, plugin_name: str = None) -> dict:
+    # get default and specific configs to be merged in derived implementations
+    def get_base_config(self, server: Server) -> Tuple[Optional[dict], Optional[dict]]:
+        def filter_element(element: dict) -> dict:
+            if 'terrains' in element:
+                for terrain in element['terrains'].keys():
+                    if server.current_mission.map.casefold() == terrain.casefold():
+                        return element['terrains'][terrain]
+            elif 'missions' in element:
+                for mission in element['missions'].keys():
+                    if server.current_mission.map.casefold() == mission.casefold():
+                        return element['missions'][mission]
+            else:
+                return element
+
+        default = deepcopy(filter_element(self.locals.get(DEFAULT_TAG, {})))
+        specific = deepcopy(filter_element(self.locals.get(server.instance.name, {})))
+        return default, specific
+
+    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
+                   use_cache: Optional[bool] = True) -> dict:
         # retrieve the config from another plugin
         if plugin_name:
             for plugin in self.bot.cogs.values():  # type: Plugin
                 if plugin.plugin_name == plugin_name:
-                    return plugin.get_config(server)
+                    return plugin.get_config(server, use_cache=use_cache)
         if not server:
             return self.locals.get(DEFAULT_TAG, {})
-        if server.instance.name not in self._config:
-            self._config[server.instance.name] = \
-                deepcopy(self.locals.get(DEFAULT_TAG, {}) | self.locals.get(server.instance.name, {}))
+        if server.instance.name not in self._config or not use_cache:
+            default, specific = self.get_base_config(server)
+            self._config[server.instance.name] = default | specific
         return self._config[server.instance.name]
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str) -> None:

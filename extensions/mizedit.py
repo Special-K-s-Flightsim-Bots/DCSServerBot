@@ -45,9 +45,8 @@ class MizEdit(Extension):
                     modifications.append(inner_value)
             elif isinstance(value, dict):
                 modifications.append(value)
-            self.log.info(f"  => Preset {preset} applied.")
+            self.log.info(f"  - Preset {preset} applied.")
         await self.server.modifyMission(modifications)
-        self.log.info(f"  => Mission modified.")
 
     async def beforeMissionLoad(self) -> bool:
         await self.change_mizfile()

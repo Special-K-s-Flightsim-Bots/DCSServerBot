@@ -10,9 +10,8 @@ class SlotBlockingListener(EventListener):
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
 
-    @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
-        config: dict = self.plugin.get_config(server)
+    def load_params_into_mission(self, server: Server):
+        config: dict = self.plugin.get_config(server, use_cache=False)
         if config:
             server.send_to_dcs({
                 'command': 'loadParams',
@@ -40,6 +39,15 @@ class SlotBlockingListener(EventListener):
                                 'roles': [x.name for x in member.roles]
                             })
                             break
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
+        # the server is running already
+        if data['channel'].startswith('sync-'):
+            self.load_params_into_mission(server)
+
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        self.load_params_into_mission(server)
 
     def _get_points(self, server: Server, player: CreditPlayer) -> int:
         config = self.plugin.get_config(server)
@@ -106,7 +114,7 @@ class SlotBlockingListener(EventListener):
                 player.audit('buy', old_points, 'Points taken for using a reserved module')
                 player.deposit = 0
             # if mission statistics are enabled, use BIRTH events instead
-            if player and not self.get_config(server, 'missionstats').get('enabled', True) and \
+            if player and not self.get_config(server, plugin_name='missionstats').get('enabled', True) and \
                     Side(data['side']) != Side.SPECTATOR:
                 # only pilots have to "pay" for their plane
                 if int(data['sub_slot']) == 0:
