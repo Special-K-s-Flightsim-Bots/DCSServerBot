@@ -59,7 +59,7 @@ def migrate():
                         print("[yellow]- NOT migrated config/admin.json, falling back to default instead.[/]")
                     continue
                 core.Plugin.migrate_to_3(plugin_name)
-                if plugin_name in ['backup', 'ovgme']:
+                if plugin_name in ['backup', 'ovgme', 'music']:
                     shutil.move(f'config/plugins/{plugin_name}.yaml', f'config/services/{plugin_name}.yaml')
                     print(f"- Migrated config/{plugin_name}.json to config/services/{plugin_name}.yaml")
                 elif plugin_name == 'commands':

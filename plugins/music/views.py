@@ -6,7 +6,7 @@ from discord import SelectOption
 from discord.ui import View, Select, Button
 from services import DCSServerBot
 
-from .sink import Sink, Mode
+from services.music.sink import Sink, Mode
 from .utils import get_tag
 
 

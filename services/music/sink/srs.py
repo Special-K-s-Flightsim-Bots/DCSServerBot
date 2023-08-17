@@ -2,20 +2,19 @@ import asyncio
 import discord
 import os
 
-from core import Server, Status, Coalition, utils
+from core import Server, Status, Coalition, utils, NodeImpl
 from discord import TextStyle
 from discord.ui import Modal, TextInput
-from services import DCSServerBot
 from typing import Optional
 
 from . import SinkInitError, Sink
-from ..utils import get_tag
+from plugins.music.utils import get_tag
 
 
 class SRSSink(Sink):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict, music_dir: str):
-        super().__init__(bot, server, config, music_dir)
+    def __init__(self, node: NodeImpl, server: Server, config: dict, music_dir: str):
+        super().__init__(node, server, config, music_dir)
         self.process: Optional[asyncio.subprocess.Process] = None
 
     def render(self) -> discord.Embed:
@@ -25,12 +24,12 @@ class SRSSink(Sink):
         return embed
 
     async def play(self, file: str) -> None:
-        self.log.debug(f"Playing {file} ...")
         if self.current and self.process:
             await self.skip()
         if self.server.status != Status.RUNNING:
             await self.stop()
             return
+        self.log.debug(f"Playing {file} ...")
         try:
             try:
                 srs_inst = os.path.expandvars(self.server.extensions['SRS'].config['installation'])

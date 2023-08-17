@@ -1,35 +1,33 @@
-import sys
-from core import EventListener, Server, event
-from .sink import Sink
+from typing import cast
+
+from core import EventListener, Server, event, ServiceRegistry, Plugin
+from services.music.service import MusicService
 
 
 class MusicEventListener(EventListener):
 
+    def __init__(self, plugin: Plugin):
+        super().__init__(plugin)
+        self.service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        if not self.plugin.sinks.get(server.name):
-            if not self.plugin.get_config(server):
-                self.log.warning(f"No config\\music.json found or no entry for server {server.name} configured.")
-                return
-            config = self.plugin.get_config(server)['sink']
-            sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(
-                bot=self.bot, server=server, config=config, music_dir=self.plugin.get_config(server)['music_dir'])
-            self.plugin.sinks[server.name] = sink
-        if server.get_active_players():
-            await self.plugin.sinks[server.name].start()
+        # if we've just started, we need to start the Sinks
+        if not data['channel'].startswith('sync-') and not server.is_remote:
+            await self.service.start_sink(server)
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        if len(server.get_active_players()) == 1 and server.name in self.plugin.sinks:
-            await self.plugin.sinks[server.name].start()
+        if len(server.get_active_players()) == 1:
+            await self.service.start_sink(server)
 
     @event(name="onPlayerStop")
     async def onPlayerStop(self, server: Server, data: dict) -> None:
-        if not server.get_active_players() and server.name in self.plugin.sinks:
-            await self.plugin.sinks[server.name].stop()
+        if not server.get_active_players():
+            await self.service.stop_sink(server)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'disconnect':
-            if not server.get_active_players() and server.name in self.plugin.sinks:
-                await self.plugin.sinks[server.name].stop()
+            if not server.get_active_players():
+                await self.service.stop_sink(server)

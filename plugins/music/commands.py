@@ -1,20 +1,18 @@
-from pathlib import Path
-
 import aiohttp
 import asyncio
 import discord
-import logging
 import os
 import sys
 
-from core import Plugin, utils, Server, TEventListener, PluginInstallationError, Status, Group
+from core import Plugin, utils, Server, TEventListener, PluginInstallationError, Status, Group, ServiceRegistry
 from discord import app_commands
 from discord.ext import commands
-from services import DCSServerBot
-from typing import Type
+from pathlib import Path
+from services import DCSServerBot, MusicService
+from typing import Type, cast, Optional
 
 from .listener import MusicEventListener
-from .sink import Sink
+from services.music.sink import Sink
 from .utils import playlist_autocomplete, all_songs_autocomplete, songs_autocomplete, get_all_playlists, get_tag, \
     Playlist
 from .views import MusicPlayer
@@ -24,15 +22,13 @@ class Music(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
-        if not self.locals:
-            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
-        self.sinks: dict[str, Sink] = dict()
-        logging.getLogger(name='eyed3.mp3.headers').setLevel(logging.FATAL)
+        self.service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
 
-    async def cog_unload(self):
-        for sink in self.sinks.values():
-            await sink.stop()
-        await super().cog_unload()
+    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
+                   use_cache: Optional[bool] = True) -> dict:
+        if plugin_name:
+            return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
+        return self.service.get_config(server)
 
     def get_music_dir(self) -> str:
         music_dir = self.get_config()['music_dir']
@@ -49,7 +45,7 @@ class Music(Plugin):
     async def player(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
                                                                                             Status.PAUSED])]):
-        sink = self.sinks.get(server.name)
+        sink = self.service.sinks.get(server.name)
         if not sink:
             if not self.get_config(server):
                 await interaction.response.send_message(
@@ -58,7 +54,7 @@ class Music(Plugin):
             config = self.get_config(server)['sink']
             sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(
                 bot=self.bot, server=server, config=config, music_dir=self.get_config(server)['music_dir'])
-            self.sinks[server.name] = sink
+            self.service.sinks[server.name] = sink
         playlists = get_all_playlists(self.bot)
         if not playlists:
             await interaction.response.send_message(
@@ -82,7 +78,7 @@ class Music(Plugin):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
                                                                                           Status.PAUSED])],
                    playlist: str, song: str):
-        sink = self.sinks.get(server.name)
+        sink = self.service.sinks.get(server.name)
         if not sink:
             if not self.get_config(server):
                 await interaction.response.send_message(

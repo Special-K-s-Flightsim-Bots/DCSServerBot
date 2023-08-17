@@ -3,12 +3,11 @@ import discord
 import os
 from abc import ABC
 from contextlib import suppress, closing
-from core import Server
+from core import Server, NodeImpl
 from discord.ext import tasks
 from discord.ui import Modal
 from enum import Enum
 from random import randrange
-from services import DCSServerBot
 from typing import Optional
 
 __all__ = [
@@ -24,11 +23,11 @@ class Mode(Enum):
 
 
 class DBConfig(dict):
-    def __init__(self, bot: DCSServerBot, server: Server, sink_type: str, *, default: dict):
+    def __init__(self, node: NodeImpl, server: Server, sink_type: str, *, default: dict):
         super().__init__()
-        self.bot = bot
-        self.log = bot.log
-        self.pool = bot.pool
+        self.node = node
+        self.log = node.log
+        self.pool = node.pool
         self.server = server
         self.sink_type = sink_type
         self.read()
@@ -69,12 +68,12 @@ class DBConfig(dict):
 
 class Sink(ABC):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict, music_dir: str):
-        self.bot = bot
-        self.log = bot.log
-        self.pool = bot.pool
+    def __init__(self, node: NodeImpl, server: Server, config: dict, music_dir: str):
+        self.node = node
+        self.log = node.log
+        self.pool = node.pool
         self.server = server
-        self._config = DBConfig(bot, server, self.__class__.__name__, default=config)
+        self._config = DBConfig(node, server, self.__class__.__name__, default=config)
         self.music_dir = music_dir
         self._current = None
         self._mode = Mode(int(self.config['mode']))

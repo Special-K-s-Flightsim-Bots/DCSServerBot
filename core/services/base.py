@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 import os
 import shutil
@@ -5,9 +6,12 @@ import yaml
 
 from abc import ABC
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
+from ..const import DEFAULT_TAG
 
 if TYPE_CHECKING:
+    from .. import Server
     from ..data.impl.nodeimpl import NodeImpl
 
 
@@ -20,6 +24,7 @@ class Service(ABC):
         self.pool = node.pool
         self.config = node.config
         self.locals = self.read_locals()
+        self._config = dict[str, dict]()
 
     async def start(self, *args, **kwargs):
         self.log.info(f'  => Starting Service {self.name} ...')
@@ -45,6 +50,14 @@ class Service(ABC):
             return {}
         self.log.debug(f'  - Reading service configuration from {filename} ...')
         return yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
+
+    def get_config(self, server: Optional[Server] = None) -> dict:
+        if not server:
+            return self.locals.get(DEFAULT_TAG)
+        elif server.instance.name not in self._config:
+            self._config[server.instance.name] = (self.locals.get(DEFAULT_TAG, {}) |
+                                                  self.locals.get(server.instance.name, {}))
+        return self._config[server.instance.name]
 
 
 class ServiceInstallationError(Exception):

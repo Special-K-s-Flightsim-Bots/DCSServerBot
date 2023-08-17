@@ -15,7 +15,7 @@ from typing import Optional, Union, TYPE_CHECKING
 
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
-from ..plugin import DEFAULT_TAG
+from ..const import DEFAULT_TAG
 from ..services.registry import ServiceRegistry
 
 if TYPE_CHECKING:

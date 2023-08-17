@@ -16,6 +16,6 @@ eyeD3==0.9.7
 pywin32==306
 minidump==0.0.21
 certifi==2023.7.22
-fastapi==0.101.0
+fastapi==0.101.1
 uvicorn==0.23.2
 python-multipart==0.0.6

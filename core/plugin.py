@@ -20,13 +20,13 @@ from os import path
 from pathlib import Path
 from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, List, Tuple
 
+from .const import DEFAULT_TAG
 from .listener import TEventListener
 
 if TYPE_CHECKING:
     from core import Server
     from services import DCSServerBot, ServiceBus
 
-DEFAULT_TAG = 'DEFAULT'
 BACKUP_FOLDER = f'config/backup/{platform.node()}'
 
 
@@ -343,14 +343,19 @@ class Plugin(commands.Cog):
     # get default and specific configs to be merged in derived implementations
     def get_base_config(self, server: Server) -> Tuple[Optional[dict], Optional[dict]]:
         def filter_element(element: dict) -> dict:
+            full = deepcopy(element)
             if 'terrains' in element:
+                del full['terrains']
                 for terrain in element['terrains'].keys():
                     if server.current_mission.map.casefold() == terrain.casefold():
-                        return element['terrains'][terrain]
+                        return full | element['terrains'][terrain]
+                return full
             elif 'missions' in element:
+                del full['missions']
                 for mission in element['missions'].keys():
                     if server.current_mission.map.casefold() == mission.casefold():
-                        return element['missions'][mission]
+                        return full | element['missions'][mission]
+                return full
             else:
                 return element
 

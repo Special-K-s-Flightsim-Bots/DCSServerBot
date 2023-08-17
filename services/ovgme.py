@@ -5,7 +5,7 @@ import shutil
 import zipfile
 
 from contextlib import closing, suppress
-from core import ServiceRegistry, Service, Server, Status, DEFAULT_TAG, ServiceInstallationError
+from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError
 from filecmp import cmp
 from psycopg.rows import dict_row
 from typing import Optional, Tuple, TYPE_CHECKING
@@ -43,14 +43,6 @@ class OvGMEService(Service):
 
     async def after_dcs_update(self):
         await self.install_packages()
-
-    def get_config(self, server: Optional[Server] = None) -> dict:
-        if not server:
-            return self.locals.get(DEFAULT_TAG)
-        elif server.instance.name not in self._config:
-            self._config[server.instance.name] = (self.locals.get(DEFAULT_TAG, {}) |
-                                                  self.locals.get(server.instance.name, {}))
-        return self._config[server.instance.name]
 
     @staticmethod
     def is_greater(v1: str, v2: str):

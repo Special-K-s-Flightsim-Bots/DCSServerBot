@@ -41,3 +41,5 @@ if not os.path.exists(SAVED_GAMES):
                        r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders", 0),
         '{4C5C32FF-BB9D-43b0-B5B4-2D72E54EAAA4}'
     )[0]
+
+DEFAULT_TAG = 'DEFAULT'
