@@ -3,8 +3,9 @@ import logging
 import sys
 
 from core import ServiceRegistry, Service, Server
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from .sink import Sink
+from .sink.remote import RemoteSink
 
 if TYPE_CHECKING:
     from .. import ServiceBus
@@ -26,38 +27,46 @@ class MusicService(Service):
         for sink in self.sinks.values():
             await sink.stop()
 
-    async def start_sink(self, server: Server):
+    async def start_sink(self, server: Server) -> Optional[Sink]:
+        if not self.get_config(server):
+            self.log.debug(
+                f"No config\\services\\music.yaml found or no entry for server {server.name} configured.")
+            return
+        config = self.get_config(server)['sink']
         if server.is_remote:
-            self.bus.send_to_node({
+            await server.send_to_dcs_sync({
                 "command": "rpc",
                 "service": "Music",
                 "method": "start_sink",
                 "params": {
                     "server": server.name
                 }
-            }, node=server.node)
-            return
+            })
+            return RemoteSink(node=self.node, server=server, config=config,
+                              music_dir=self.get_config(server)['music_dir'])
         if not self.sinks.get(server.name):
-            if not self.get_config(server):
-                self.log.debug(f"No config\\services\\music.yaml found or no entry for server {server.name} configured.")
-                return
-            config = self.get_config(server)['sink']
             sink: Sink = getattr(sys.modules['services.music.sink'], config['type'])(
                 node=self.node, server=server, config=config, music_dir=self.get_config(server)['music_dir'])
             self.sinks[server.name] = sink
         if server.get_active_players():
             await self.sinks[server.name].start()
+        return self.sinks[server.name]
 
     async def stop_sink(self, server: Server):
         if server.is_remote:
-            self.bus.send_to_node({
+            await server.send_to_dcs_sync({
                 "command": "rpc",
                 "service": "Music",
                 "method": "stop_sink",
                 "params": {
                     "server": server.name
                 }
-            }, node=server.node)
+            })
             return
         if self.sinks.get(server.name):
             await self.sinks[server.name].stop()
+
+    async def get_sink(self, server: Server):
+        if server.is_remote:
+            pass
+        return self.sinks.get(server.name)

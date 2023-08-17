@@ -138,7 +138,7 @@ class OvGMEService(Service):
 
     async def install_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         if server.is_remote:
-            self.bus.send_to_node({
+            return await server.send_to_dcs_sync({
                 "command": "rpc",
                 "service": "OvGME",
                 "method": "install_package",
@@ -148,8 +148,7 @@ class OvGMEService(Service):
                     "package_name": package_name,
                     "version": version
                 }
-            }, node=server.node)
-            return True
+            })
 
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])
@@ -205,7 +204,7 @@ class OvGMEService(Service):
 
     async def uninstall_package(self, server: Server, folder: str, package_name: str, version: str) -> bool:
         if server.is_remote:
-            self.bus.send_to_node({
+            return await server.send_to_dcs_sync({
                 "command": "rpc",
                 "service": "OvGME",
                 "method": "uninstall_package",
@@ -215,8 +214,7 @@ class OvGMEService(Service):
                     "package_name": package_name,
                     "version": version
                 }
-            }, node=server.node)
-            return True
+            })
 
         config = self.get_config(server)
         path = os.path.expandvars(config[folder])

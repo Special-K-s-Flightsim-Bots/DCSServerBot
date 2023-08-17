@@ -1,20 +1,13 @@
 import aiohttp
 import asyncio
-import discord
-import os
-import sys
 
-from core import Plugin, utils, Server, TEventListener, PluginInstallationError, Status, Group, ServiceRegistry
-from discord import app_commands
+from core import Plugin, Server, TEventListener, PluginInstallationError, Status, Group, ServiceRegistry
 from discord.ext import commands
-from pathlib import Path
-from services import DCSServerBot, MusicService
+from services import MusicService
 from typing import Type, cast, Optional
 
 from .listener import MusicEventListener
-from services.music.sink import Sink
-from .utils import playlist_autocomplete, all_songs_autocomplete, songs_autocomplete, get_all_playlists, get_tag, \
-    Playlist
+from .utils import *
 from .views import MusicPlayer
 
 
@@ -23,6 +16,8 @@ class Music(Plugin):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
         self.service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
+        if not self.service.locals:
+            raise PluginInstallationError(plugin=self.plugin_name, reason=r"No config\services\music.yaml found!")
 
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
                    use_cache: Optional[bool] = True) -> dict:
@@ -45,16 +40,9 @@ class Music(Plugin):
     async def player(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
                                                                                             Status.PAUSED])]):
-        sink = self.service.sinks.get(server.name)
+        sink = await self.service.get_sink(server) or await self.service.start_sink(server)
         if not sink:
-            if not self.get_config(server):
-                await interaction.response.send_message(
-                    f"No entry for server {server.name} configured in your {self.plugin_name}.yaml.", ephemeral=True)
-                return
-            config = self.get_config(server)['sink']
-            sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(
-                bot=self.bot, server=server, config=config, music_dir=self.get_config(server)['music_dir'])
-            self.service.sinks[server.name] = sink
+            return
         playlists = get_all_playlists(self.bot)
         if not playlists:
             await interaction.response.send_message(
@@ -78,12 +66,9 @@ class Music(Plugin):
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
                                                                                           Status.PAUSED])],
                    playlist: str, song: str):
-        sink = self.service.sinks.get(server.name)
+        sink = await self.service.get_sink(server) or await self.service.start_sink(server)
         if not sink:
-            if not self.get_config(server):
-                await interaction.response.send_message(
-                    f"No entry for server {server.name} configured in your {self.plugin_name}.yaml.", ephemeral=True)
-                return
+            return
         song = os.path.join(self.get_music_dir(), song)
         title = get_tag(song).title or os.path.basename(song)
         await interaction.response.send_message(f"Now playing {title} ...")

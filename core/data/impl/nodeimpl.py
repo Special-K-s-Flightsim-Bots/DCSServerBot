@@ -123,7 +123,7 @@ class NodeImpl(Node):
         if self.master:
             await ServiceRegistry.get("Bot").bot.audit(message, user=user, server=server)
         else:
-            ServiceRegistry.get("ServiceBus").sendtoBot({
+            ServiceRegistry.get("ServiceBus").send_to_node({
                 "command": "rpc",
                 "service": "Bot",
                 "method": "audit",
@@ -140,7 +140,7 @@ class NodeImpl(Node):
     def del_instance(self, name: str):
         raise NotImplementedError()
 
-    def register_callback(self, what: str, name: str, func: Awaitable):
+    def register_callback(self, what: str, name: str, func: Callable[[], Awaitable[Any]]):
         if what == 'before_dcs_update':
             self.before_update[name] = func
         else:

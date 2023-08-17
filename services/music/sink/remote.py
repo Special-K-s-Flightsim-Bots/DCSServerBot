@@ -1,4 +1,5 @@
 import discord
+from discord.ui import Modal
 
 from . import Sink
 
@@ -11,6 +12,7 @@ class RemoteSink(Sink):
         pass
 
     async def stop(self) -> None:
+        pass
 
     def render(self) -> discord.Embed:
         pass
