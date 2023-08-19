@@ -123,8 +123,8 @@ function dcsbot.registerDCSServer(json)
             msg.clouds = clouds
         end
         -- slots
-        msg.num_slots_blue = table.getn(DCS.getAvailableSlots('blue'))
-        msg.num_slots_red = table.getn(DCS.getAvailableSlots('red'))
+    	msg.num_slots_blue = table.getn(dcsbot.blue_slots)
+    	msg.num_slots_red = table.getn(dcsbot.red_slots)
         -- players
         plist = net.get_player_list()
         num_players = table.getn(plist)
@@ -137,7 +137,15 @@ function dcsbot.registerDCSServer(json)
                 msg.players[i].group_name = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_GROUPNAME)
                 msg.players[i].group_id = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_GROUP_MISSION_ID)
                 msg.players[i].unit_callsign = DCS.getUnitProperty(msg.players[i].slot, DCS.UNIT_CALLSIGN)
-                -- server user is never active
+                -- DCS MC bug workaround
+				if msg.players[i].sub_slot > 0 and msg.players[i].side == 0 then
+					if dcsbot.blue_slots[msg.players[i].slot] ~= nil then
+						msg.players[i].side = 2
+					else
+						msg.players[i].side = 1
+					end
+				end
+				-- server user is never active
                 if (msg.players[i].id == 1) then
                     msg.players[i].active = false
                 else
