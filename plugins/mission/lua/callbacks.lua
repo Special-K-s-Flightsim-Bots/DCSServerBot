@@ -6,8 +6,6 @@ local dcsbot    = base.dcsbot
 local utils 	= base.require("DCSServerBotUtils")
 local config	= base.require("DCSServerBotConfig")
 
-local JSON = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
-
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = {}
 dcsbot.blue_slots = {}
