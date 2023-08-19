@@ -7,6 +7,8 @@ local utils 	= base.require("DCSServerBotUtils")
 local config	= base.require("DCSServerBotConfig")
 
 dcsbot.userInfo = dcsbot.userInfo or {}
+dcsbot.red_slots = {}
+dcsbot.blue_slots = {}
 
 local mission = mission or {}
 mission.last_to_landing = {}
@@ -69,8 +71,19 @@ function mission.onMissionLoadEnd()
     msg.mission_time = 0
     msg.start_time = DCS.getCurrentMission().mission.start_time
     msg.date = DCS.getCurrentMission().mission.date
-    msg.num_slots_blue = table.getn(DCS.getAvailableSlots('blue'))
-    msg.num_slots_red = table.getn(DCS.getAvailableSlots('red'))
+
+    dcsbot.red_slots = {}
+    for k,v in pairs(DCS.getAvailableSlots("red")) do
+        dcsbot.red_slots[v.unitId] = v
+    end
+
+    dcsbot.blue_slots = {}
+    for k,v in pairs(DCS.getAvailableSlots("blue")) do
+        dcsbot.blue_slots[v.unitId] = v
+    end
+
+    msg.num_slots_blue = table.getn(dcsbot.blue_slots)
+    msg.num_slots_red = table.getn(dcsbot.red_slots)
     msg.weather = DCS.getCurrentMission().mission.weather
     local clouds = msg.weather.clouds
     if clouds.preset ~= nil then
@@ -211,6 +224,14 @@ function mission.onPlayerChangeSlot(id)
     msg.name = net.get_player_info(id, 'name')
     msg.side = net.get_player_info(id, 'side')
     msg.unit_type, msg.slot, msg.sub_slot = utils.getMulticrewAllParameters(id)
+    -- DCS MC bug workaround
+    if msg.sub_slot > 0 and msg.side == 0 then
+        if dcsbot.blue_slots[msg.slot] ~= nil then
+            msg.side = 2
+        else
+            msg.side = 1
+        end
+    end
     msg.unit_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_NAME)
     msg.group_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUPNAME)
     msg.group_id = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUP_MISSION_ID)
