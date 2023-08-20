@@ -564,9 +564,9 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
             return []
         installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
         choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=x.name[:-4], value=str(x))
-            for x in sorted(Path(PurePath(server.instance.home, "Missions")).glob("*.miz"))
-            if str(x) not in installed_missions and current.casefold() in x.name.casefold()
+            app_commands.Choice(name=os.path.basename(x)[:-4], value=x)
+            for x in await server.listAvailableMissions()
+            if x not in installed_missions and current.casefold() in os.path.basename(x).casefold()
         ]
         return choices[:25]
     except Exception:

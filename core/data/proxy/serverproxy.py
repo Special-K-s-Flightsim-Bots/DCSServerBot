@@ -137,3 +137,11 @@ class ServerProxy(Server):
             }
         }, timeout=60)
         return UploadStatus(data["return"])
+
+    async def listAvailableMissions(self) -> list[str]:
+        data = await self.send_to_dcs_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "listAvailableMissions"
+        }, timeout=60)
+        return data['return']

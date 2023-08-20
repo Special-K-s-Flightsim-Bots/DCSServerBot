@@ -315,6 +315,9 @@ class Server(DataObject):
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         pass
 
+    async def listAvailableMissions(self) -> list[str]:
+        pass
+
     @property
     def channels(self) -> dict:
         if not self._channels:

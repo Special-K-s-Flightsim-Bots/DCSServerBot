@@ -14,6 +14,7 @@ from core import utils, Server, UploadStatus
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path, PurePath
 from psutil import Process
 from typing import Optional, TYPE_CHECKING, Union
 from watchdog.observers import Observer
@@ -389,3 +390,6 @@ class ServerImpl(Server):
             return UploadStatus.OK
         except Exception:
             traceback.print_exc()
+
+    async def listAvailableMissions(self) -> list[str]:
+        return [str(x) for x in sorted(Path(PurePath(self.instance.home, "Missions")).glob("*.miz"))]
