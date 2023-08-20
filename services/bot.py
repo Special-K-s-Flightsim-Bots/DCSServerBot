@@ -551,6 +551,8 @@ class DCSServerBot(commands.Bot):
 
     async def get_server(self, ctx: Union[discord.Interaction, discord.Message, str]) \
             -> Optional[Server]:
+        if len(self.servers) == 1:
+            return list(self.servers.values())[0]
         for server_name, server in self.servers.items():
             if isinstance(ctx, commands.Context) or isinstance(ctx, discord.Interaction) \
                     or isinstance(ctx, discord.Message):
