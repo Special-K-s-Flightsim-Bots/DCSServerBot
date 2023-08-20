@@ -7,8 +7,8 @@ local utils 	= base.require("DCSServerBotUtils")
 local config	= base.require("DCSServerBotConfig")
 
 dcsbot.userInfo = dcsbot.userInfo or {}
-dcsbot.red_slots = {}
-dcsbot.blue_slots = {}
+dcsbot.red_slots = dcsbot.red_slots or {}
+dcsbot.blue_slots = dcsbot.blue_slots or {}
 
 local mission = mission or {}
 mission.last_to_landing = {}
@@ -72,18 +72,21 @@ function mission.onMissionLoadEnd()
     msg.start_time = DCS.getCurrentMission().mission.start_time
     msg.date = DCS.getCurrentMission().mission.date
 
+    num_slots_red = 0
     dcsbot.red_slots = {}
     for k,v in pairs(DCS.getAvailableSlots("red")) do
         dcsbot.red_slots[v.unitId] = v
+        num_slots_red = num_slots_red + 1
     end
 
     dcsbot.blue_slots = {}
     for k,v in pairs(DCS.getAvailableSlots("blue")) do
         dcsbot.blue_slots[v.unitId] = v
+        num_slots_blue = num_slots_blue + 1
     end
 
-    msg.num_slots_blue = table.getn(dcsbot.blue_slots)
-    msg.num_slots_red = table.getn(dcsbot.red_slots)
+    msg.num_slots_blue = num_slots_blue
+    msg.num_slots_red = num_slots_red
     msg.weather = DCS.getCurrentMission().mission.weather
     local clouds = msg.weather.clouds
     if clouds.preset ~= nil then

@@ -10,6 +10,8 @@ local mod_dictionary= require('dictionary')
 
 dcsbot.registered = false
 dcsbot.userInfo = dcsbot.userInfo or {}
+dcsbot.red_slots = dcsbot.red_slots or {}
+dcsbot.blue_slots = dcsbot.blue_slots or {}
 
 function dcsbot.loadParams(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: loadParams(' .. json.plugin ..')')
@@ -114,8 +116,22 @@ function dcsbot.registerDCSServer(json)
             msg.clouds = clouds
         end
         -- slots
-    	msg.num_slots_blue = table.getn(dcsbot.blue_slots)
-    	msg.num_slots_red = table.getn(dcsbot.red_slots)
+		num_slots_red = 0
+		dcsbot.red_slots = {}
+		for k,v in pairs(DCS.getAvailableSlots("red")) do
+			dcsbot.red_slots[v.unitId] = v
+			num_slots_red = num_slots_red + 1
+		end
+
+		num_slots_blue = 0
+		dcsbot.blue_slots = {}
+		for k,v in pairs(DCS.getAvailableSlots("blue")) do
+			dcsbot.blue_slots[v.unitId] = v
+			num_slots_blue = num_slots_blue + 1
+		end
+
+		msg.num_slots_blue = num_slots_blue
+		msg.num_slots_red = num_slots_red
         -- players
         plist = net.get_player_list()
         num_players = table.getn(plist)
