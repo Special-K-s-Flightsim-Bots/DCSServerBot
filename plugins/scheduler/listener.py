@@ -88,6 +88,12 @@ class SchedulerListener(EventListener):
             await self.bot.audit(message, server=server, user=what['user'] if 'user' in what else None)
         server.restart_pending = False
 
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
+        # init and start extensions if necessary
+        await server.init_extensions()
+        await server.startup_extensions()
+
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:

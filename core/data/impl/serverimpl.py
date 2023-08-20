@@ -249,7 +249,7 @@ class ServerImpl(Server):
         with suppress(Exception):
             self.process = Process(p.pid)
 
-    def init_extensions(self):
+    async def init_extensions(self):
         for extension in self.locals.get('extensions', {}):
             ext: Extension = self.extensions.get(extension)
             if not ext:
@@ -267,7 +267,7 @@ class ServerImpl(Server):
                     self.extensions[extension] = ext
 
     async def startup(self) -> None:
-        self.init_extensions()
+        await self.init_extensions()
         for ext in self.extensions.values():
             await ext.prepare()
             await ext.beforeMissionLoad()
@@ -275,16 +275,17 @@ class ServerImpl(Server):
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
         await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
-        for ext in self.extensions.values():
+
+    async def startup_extensions(self) -> None:
+        for ext in [x for x in self.extensions.values() if not x.is_running()]:
             await ext.startup()
 
     async def shutdown(self, force: bool = False) -> None:
         if not force:
             await super().shutdown(False)
         self.terminate()
-        for ext in self.extensions.values():
-            if ext.is_running():
-                await ext.shutdown()
+        for ext in [x for x in self.extensions.values() if x.is_running()]:
+            await ext.shutdown()
         self.status = Status.SHUTDOWN
 
     def terminate(self) -> None:

@@ -211,6 +211,9 @@ class Server(DataObject):
     async def startup(self) -> None:
         raise NotImplemented()
 
+    async def startup_extensions(self) -> None:
+        raise NotImplemented()
+
     async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0):
         future = self.bus.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
@@ -310,13 +313,13 @@ class Server(DataObject):
         await self._load({"command": "startNextMission"})
 
     async def modifyMission(self, preset: Union[list, dict]) -> None:
-        pass
+        raise NotImplemented()
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
-        pass
+        raise NotImplemented()
 
     async def listAvailableMissions(self) -> list[str]:
-        pass
+        raise NotImplemented()
 
     @property
     def channels(self) -> dict:
@@ -348,4 +351,4 @@ class Server(DataObject):
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     async def init_extensions(self):
-        pass
+        raise NotImplemented()

@@ -91,7 +91,7 @@ class SRS(Extension):
     async def shutdown(self):
         if self.config.get('autostart', True):
             p = self.process or utils.find_process('SR-Server.exe', self.server.instance.name)
-            if p is not None and p.returncode is None:
+            if p is not None and (not isinstance(p, asyncio.subprocess.Process) or p.returncode is None):
                 p.kill()
                 self.process = None
         return await super().shutdown()

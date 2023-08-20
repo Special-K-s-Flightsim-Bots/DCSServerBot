@@ -87,24 +87,32 @@ class ServerProxy(Server):
         })
 
     async def startup(self) -> None:
+        await self.send_to_dcs_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "startup",
+            "server_name": self.name
+        }, timeout=300 if self.node.locals.get('slow_system', False) else 180)
+
+    async def startup_extensions(self) -> None:
         self.send_to_dcs({
             "command": "rpc",
             "object": "Server",
-            "method": "do_startup",
+            "method": "startup_extensions",
             "server_name": self.name
         })
-        timeout = 300 if self.node.locals.get('slow_system', False) else 180
-        self.status = Status.LOADING
-        await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
 
     async def shutdown(self, force: bool = False) -> None:
         await super().shutdown(force)
         if self.status != Status.SHUTDOWN:
-            self.send_to_dcs({
+            await self.send_to_dcs_sync({
                 "command": "rpc",
                 "object": "Server",
-                "method": "terminate",
-                "server_name": self.name
+                "method": "shutdown",
+                "server_name": self.name,
+                "params": {
+                    "force": force
+                }
             })
         self.status = Status.SHUTDOWN
 

@@ -188,13 +188,6 @@ class ServiceBus(Service):
                         Mission.__name__, node=server.node, server=server, map=data['current_map'],
                         name=data['current_mission'])
                 server.current_mission.update(data)
-        # the DCS server is running already, make sure that the extensions are running, too
-        if data['channel'].startswith('sync-'):
-            # init and load extensions, if necessary
-            server.init_extensions()
-            for extension in server.extensions.values():
-                if not extension.is_running():
-                    asyncio.run_coroutine_threadsafe(extension.startup(), self.loop)
 
         # validate server ports
         dcs_ports: dict[int, str] = dict()
