@@ -543,7 +543,7 @@ class Scheduler(Plugin):
             else:
                 await ctx.send(f"DCS server \"{server.display_name}\" is already started.")
 
-    @commands.command(description='Shutdown a DCS/DCS-SRS server')
+    @commands.command(description='Shutdown a DCS/DCS-SRS server', usage="[-force]")
     @utils.has_role('DCS Admin')
     @commands.guild_only()
     async def shutdown(self, ctx, *params):
