@@ -201,7 +201,7 @@ function mission.onPlayerChangeSlot(id)
     msg.unit_type, msg.slot, msg.sub_slot = utils.getMulticrewAllParameters(id)
     -- DCS MC bug workaround
     if msg.sub_slot > 0 and msg.side == 0 then
-        if dcsbot.blue_slots[msg.slot] ~= nil then
+        if dcsbot.blue_slots[net.get_player_info(PlayerId, 'slot')] ~= nil then
             msg.side = 2
         else
             msg.side = 1
