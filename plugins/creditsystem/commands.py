@@ -1,7 +1,6 @@
 import discord
 import psycopg2
 from contextlib import closing
-from copy import deepcopy
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, Server
 from discord.ext import commands
 from typing import Optional, cast, Union
