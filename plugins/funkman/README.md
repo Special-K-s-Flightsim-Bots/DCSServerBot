@@ -35,7 +35,8 @@ If you have configured your FunkMan.ini already, DCSServerBot will automatically
       "CHANNELID_MAIN": "1011372894162526329",
       "CHANNELID_RANGE": "1006216842509041786",
       "CHANNELID_AIRBOSS": "1011372920968323155",
-      "IMAGEPATH": "../FunkMan/funkpics/"
+      "IMAGEPATH": "../FunkMan/funkpics/",
+      "delete_after": 300                     -- delete after 5 mins (default = never)
     }
   ]
 }
