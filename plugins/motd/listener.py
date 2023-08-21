@@ -1,3 +1,5 @@
+from typing import Optional
+
 from core import EventListener, utils, Server, Report, Player, event
 
 
@@ -23,7 +25,7 @@ class MessageOfTheDayListener(EventListener):
                 if message:
                     return message
         else:
-        message = None
+            message = None
             if 'recipients' in config:
                 players = self.plugin.get_recipients(server, config)
                 if player not in players:
@@ -32,11 +34,11 @@ class MessageOfTheDayListener(EventListener):
                 message = utils.format_string(config['message'], server=server, player=player)
             elif 'report' in config:
                 report = Report(self.bot, self.plugin_name, config['report'])
-            env = await report.render(server=server, player=player, guild=self.bot.guilds[0])
-            message = utils.embed_to_simpletext(env.embed)
+                env = await report.render(server=server, player=player, guild=self.bot.guilds[0])
+                message = utils.embed_to_simpletext(env.embed)
             if 'sound' in config:
-            player.playSound(config['on_birth']['sound'])
-        return message
+                player.playSound(config['on_birth']['sound'])
+            return message
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
