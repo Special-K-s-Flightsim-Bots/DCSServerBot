@@ -1,6 +1,5 @@
-from typing import Optional
-
 from core import EventListener, utils, Server, Report, Player, event
+from typing import Optional
 
 
 class MessageOfTheDayListener(EventListener):

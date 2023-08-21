@@ -101,7 +101,7 @@ class FunkManEventListener(EventListener):
         try:
             config = self.plugin.get_config(server)
             channel = self.bot.get_channel(int(config[channel]))
-            await channel.send(file=discord.File(filename))
+            await channel.send(file=discord.File(filename), delete_after=self.config.get('delete_after'))
         finally:
             if os.path.exists(filename):
                 os.remove(filename)
@@ -110,7 +110,7 @@ class FunkManEventListener(EventListener):
     async def moose_text(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)
         channel = self.bot.get_channel(int(config['CHANNELID_MAIN']))
-        await channel.send(data['text'])
+        await channel.send(data['text'], delete_after=self.config.get('delete_after'))
 
     @event(name="moose_bomb_result")
     async def moose_bomb_result(self, server: Server, data: dict) -> None:
@@ -132,7 +132,7 @@ class FunkManEventListener(EventListener):
             embed.set_image(url=f"attachment://{filename}")
             config = self.plugin.get_config(server)
             channel = self.bot.get_channel(int(config['CHANNELID_AIRBOSS']))
-            await channel.send(embed=embed, file=discord.File(filename))
+            await channel.send(embed=embed, file=discord.File(filename), delete_after=self.config.get('delete_after'))
         except TypeError:
             self.log.error("No trapsheet data received from DCS!")
         finally:

@@ -72,9 +72,13 @@ class MissionEventListener(EventListener):
         for channel in self.queue.keys():
             if self.queue[channel].empty():
                 continue
-            messages: set = set()
+            messages: list[str] = []
+            message_old = ''
             while not self.queue[channel].empty():
-                messages.add(self.queue[channel].get())
+                message = self.queue[channel].get()
+                if message != message_old:
+                    messages.append(message)
+                    message_old = message
                 if messages.__sizeof__() > 1900:
                     if not flush:
                         break
