@@ -179,28 +179,25 @@ class Tacview(Extension):
         server: Server = self.bot.servers[data['server_name']]
         log = self.locals.get('log',
                               os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Logs/dcs.log')
-        exp = re.compile(r'Successfully saved \[(?P<filename>.*)\]')
-        filename = None
+        exp = re.compile(r'TACVIEW.DLL \(Main\): Successfully saved (?P<filename>.*)')
         lines = deque(open(log, encoding='utf-8'), 50)
         for line in lines:
             match = exp.search(line)
             if match:
-                filename = match.group('filename')
-                break
+                filename = match.group('filename')[1:-1]
+                for i in range(0, 60):
+                    if os.path.exists(filename):
+                        channel = self.bot.get_channel(self.config['channel'])
+                        try:
+                            await channel.send(file=discord.File(filename))
+                        except discord.HTTPException:
+                            self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
+                        break
+                    await asyncio.sleep(1)
+                else:
+                    self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
         else:
             self.log.info("Can't find TACVIEW file to be sent. Was the server even running?")
             self.log.debug('First line to check: ' + lines[0])
             self.log.debug('Last line to check: ' + lines[-1])
-        if filename:
-            for i in range(0, 60):
-                if os.path.exists(filename):
-                    channel = self.bot.get_channel(self.config['channel'])
-                    try:
-                        await channel.send(file=discord.File(filename))
-                    except discord.HTTPException:
-                        self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
-                    break
-                await asyncio.sleep(1)
-            else:
-                self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
         return True
