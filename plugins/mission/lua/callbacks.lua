@@ -53,7 +53,6 @@ function mission.onMissionLoadEnd()
     num_slots_blue = 0
     dcsbot.blue_slots = {}
     for k,v in pairs(DCS.getAvailableSlots("blue")) do
-        log.write('DCSServerBot', log.DEBUG, '### ID: ' .. v.unitId)
         dcsbot.blue_slots[v.unitId] = v
         num_slots_blue = num_slots_blue + 1
     end
