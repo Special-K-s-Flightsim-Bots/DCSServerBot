@@ -49,7 +49,7 @@ recipients can be a list of Discord groups that the player either is part of or 
 If you want to play sounds, make sure that you loaded them into the mission first (see Scheduler).
 
 
-### Optional Nudge Layout for multiple Recipient Groups
+### Optional Layout for multiple Recipient Groups
 
 ```json
       "nudge": {
