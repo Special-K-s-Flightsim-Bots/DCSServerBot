@@ -133,7 +133,7 @@ class Admin(Plugin):
                                                       ephemeral=True)
                 rc = await self.bot.node.update(warn_times=[warn_time] or [120, 60])
                 if rc == 0:
-                    await msg.edit(f"DCS updated to version {new_version}.")
+                    await msg.edit(content=f"DCS updated to version {new_version}.")
                     await self.bot.audit(f"updated DCS from {old_version} to {new_version}.", user=interaction.user)
                 else:
                     await msg.edit(content=f"Error while updating DCS, code={rc}")
