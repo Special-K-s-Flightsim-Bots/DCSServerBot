@@ -278,14 +278,20 @@ class ServerImpl(Server):
 
     async def startup_extensions(self) -> None:
         for ext in [x for x in self.extensions.values() if not x.is_running()]:
-            await ext.startup()
+            try:
+                await ext.startup()
+            except Exception as ex:
+                self.log.exception(ex)
 
     async def shutdown(self, force: bool = False) -> None:
         if not force:
             await super().shutdown(False)
         self.terminate()
         for ext in [x for x in self.extensions.values() if x.is_running()]:
-            await ext.shutdown()
+            try:
+                await ext.shutdown()
+            except Exception as ex:
+                self.log.exception(ex)
         self.status = Status.SHUTDOWN
 
     def terminate(self) -> None:
