@@ -2,6 +2,8 @@ import asyncio
 import os
 import shutil
 import subprocess
+from contextlib import suppress
+
 import win32api
 import win32con
 
@@ -91,8 +93,10 @@ class SRS(Extension):
     async def shutdown(self):
         if self.config.get('autostart', True):
             p = self.process or utils.find_process('SR-Server.exe', self.server.instance.name)
-            if p is not None and (not isinstance(p, asyncio.subprocess.Process) or p.returncode is None):
-                p.kill()
+            if p is not None and ((isinstance(p, asyncio.subprocess.Process) and p.returncode is None) or
+                                  (not isinstance(p, asyncio.subprocess.Process) and p.is_running())):
+                with suppress(ProcessLookupError):
+                    p.kill()
                 self.process = None
         return await super().shutdown()
 
