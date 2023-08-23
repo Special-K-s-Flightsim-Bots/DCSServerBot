@@ -528,8 +528,10 @@ class DCSServerBot(commands.Bot):
             self.log.error(f"No server {data['server_name']} found in any serverSettings.lua.\n"
                            f"Please check your server configurations!")
             return False
-        _, installation = installations[0]
-        if installation not in self.config:
+        for _, installation in installations:
+            if installation in self.config:
+                break
+        else:
             self.log.error(f"No section found for server {data['server_name']} in your dcsserverbot.ini.\n"
                            f"Please add a configuration for it!")
             return False
