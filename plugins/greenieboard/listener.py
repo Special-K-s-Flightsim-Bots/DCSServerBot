@@ -176,6 +176,10 @@ class GreenieBoardEventListener(EventListener):
         if player:
             update = False
             if 'Moose.AIRBOSS' in config:
+                if server.is_remote:
+                    self.log.warning('Moose.AIRBOSS is not supported on remote servers. '
+                                     'Please use the Funkman protocol instead.')
+                    return
                 if data['eventName'] == 'S_EVENT_AIRBOSS':
                     self.process_airboss_event(config, server, player, data)
                     update = True
