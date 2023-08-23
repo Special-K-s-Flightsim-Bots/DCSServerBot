@@ -1,15 +1,19 @@
 import asyncio
 import discord
+import json
 import os
 import psycopg2
+
 from abc import ABC
 from contextlib import suppress, closing
-from core import DCSServerBot, Server
+from copy import deepcopy
+from core import DCSServerBot, Server, Plugin
 from discord.ext import tasks
 from discord.ui import Modal
 from enum import Enum
 from random import randrange
-from typing import Optional
+from typing import Optional, cast
+
 
 __all__ = [
     "Mode",
@@ -23,71 +27,16 @@ class Mode(Enum):
     SHUFFLE = 2
 
 
-class DBConfig(dict):
-    def __init__(self, bot: DCSServerBot, server: Server, sink_type: str, *, default: dict):
-        super().__init__()
-        self.bot = bot
-        self.log = bot.log
-        self.pool = bot.pool
-        self.server = server
-        self.sink_type = sink_type
-        self.read()
-        if len(self) == 0:
-            self._load(default)
-
-    def read(self):
-        data = dict()
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT param, value FROM music_config WHERE sink_type = %s AND server_name = %s',
-                               (self.sink_type, self.server.name))
-                for row in cursor.fetchall():
-                    data[row[0]] = row[1]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-        if data:
-            self.clear()
-            self.update(data)
-
-    def write(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('DELETE FROM music_config WHERE sink_type = %s AND server_name = %s',
-                               (self.sink_type, self.server.name))
-                for name, value in self.items():
-                    cursor.execute('INSERT INTO music_config (sink_type, server_name, param, value) '
-                                   'VALUES (%s, %s, %s, %s)', (self.sink_type, self.server.name, name, value))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-
-    def _load(self, new: dict):
-        for k, v in new.items():
-            self[k] = v
-
-    def __setitem__(self, key, value):
-        super().__setitem__(key, value)
-        if len(self):
-            self.write()
-
-
 class Sink(ABC):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict, music_dir: str):
+    def __init__(self, bot: DCSServerBot, server: Server, music_dir: str):
         self.bot = bot
         self.log = bot.log
         self.pool = bot.pool
         self.server = server
-        self._config = DBConfig(bot, server, self.__class__.__name__, default=config)
         self.music_dir = music_dir
         self._current = None
+        self.plugin: Plugin = cast(Plugin, self.bot.cogs.get('MusicMasterOnly') or self.bot.cogs.get('MusicMaster') or self.bot.cogs.get('MusicAgent'))
         self._mode = Mode(int(self.config['mode']))
         self.songs: list[str] = []
         self._playlist = None
@@ -143,11 +92,26 @@ class Sink(ABC):
 
     @property
     def config(self) -> dict:
-        return self._config
+        return self.plugin.get_config(self.server)['sink']
 
     @config.setter
     def config(self, config: dict) -> None:
-        self._config = config
+        configs = self.plugin.locals
+        default = specific = None
+        for cfg in configs['configs']:
+            if not cfg.get('installation'):
+                default = cfg
+            elif cfg['installation'] == self.server.installation:
+                specific = cfg
+        if specific:
+            specific['sink'] |= config
+        else:
+            specific = deepcopy(default)
+            specific['installation'] = self.server.installation
+            specific['sink'] |= config
+            self.plugin.locals['configs'].append(specific)
+        with open(os.path.join('config', 'music.json'), 'w', encoding='utf-8') as outfile:
+            json.dump(self.plugin.locals, outfile, indent=2)
 
     def is_running(self) -> bool:
         return self.queue_worker.is_running()

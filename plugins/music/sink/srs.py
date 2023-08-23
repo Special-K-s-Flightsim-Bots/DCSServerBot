@@ -14,8 +14,8 @@ from ..utils import get_tag
 
 class SRSSink(Sink):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict, music_dir: str):
-        super().__init__(bot, server, config, music_dir)
+    def __init__(self, bot: DCSServerBot, server: Server, music_dir: str):
+        super().__init__(bot, server, music_dir)
         self.process: Optional[subprocess.Popen] = None
 
     def render(self) -> discord.Embed:
@@ -101,6 +101,8 @@ class SRSSink(Sink):
                 else:
                     raise ValueError("Coalition must be 1 or 2!")
                 self.config['name'] = derived.name.value
+                # write the config
+                self.config = self.config
                 await self.stop()
                 await self.start()
 

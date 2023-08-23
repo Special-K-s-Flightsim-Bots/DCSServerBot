@@ -13,7 +13,7 @@ class MusicEventListener(EventListener):
                 return
             config = self.plugin.get_config(server)['sink']
             sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(
-                bot=self.bot, server=server, config=config, music_dir=self.plugin.get_config(server)['music_dir'])
+                bot=self.bot, server=server, music_dir=self.plugin.get_config(server)['music_dir'])
             self.plugin.sinks[server.name] = sink
         if server.get_active_players():
             await self.plugin.sinks[server.name].start()

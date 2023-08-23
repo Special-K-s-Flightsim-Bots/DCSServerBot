@@ -51,7 +51,7 @@ class MusicAgent(Plugin):
                 return
             config = self.get_config(server)['sink']
             sink: Sink = getattr(sys.modules['plugins.music.sink'], config['type'])(
-                bot=self.bot, server=server, config=config, music_dir=self.get_config(server)['music_dir'])
+                bot=self.bot, server=server, music_dir=self.get_config(server)['music_dir'])
             self.sinks[server.name] = sink
         playlists = get_all_playlists(self.bot)
         if not playlists:

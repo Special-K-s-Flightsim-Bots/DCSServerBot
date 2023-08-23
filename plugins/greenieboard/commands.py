@@ -5,7 +5,6 @@ import psycopg2
 import shutil
 import time
 from contextlib import closing
-from copy import deepcopy
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
 from datetime import datetime
 from discord import SelectOption, TextStyle, app_commands
