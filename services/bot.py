@@ -5,6 +5,7 @@ import asyncio
 import discord
 import os
 import re
+import shutil
 import zipfile
 
 from contextlib import closing
@@ -91,7 +92,13 @@ class BotService(Service):
                         await outfile.write(data)
 
                     with zipfile.ZipFile('fonts/temp.zip', 'r') as zip_ref:
-                        zip_ref.extractall('fonts')
+                        for file in zip_ref.namelist():
+                            if not file.endswith('.ttf') and not file.endswith('.otf'):
+                                continue
+                            zip_ref.extract(file, 'fonts')
+                            if file != os.path.basename(file):
+                                shutil.move(os.path.join('fonts', file), 'fonts')
+                                os.rmdir(os.path.join('fonts', os.path.dirname(file)))
 
                     os.remove('fonts/temp.zip')
                     for f in font_manager.findSystemFonts('fonts'):
@@ -104,7 +111,7 @@ class BotService(Service):
                     "KR": "https://fonts.google.com/download?family=Noto%20Sans%20KR"
                 }
 
-                asyncio.get_event_loop().create_task(fetch_file(fonts[font]))
+                await fetch_file(fonts[font])
             else:
                 for f in font_manager.findSystemFonts('fonts'):
                     font_manager.fontManager.addfont(f)
