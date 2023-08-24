@@ -245,7 +245,8 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
-        p = await asyncio.create_subprocess_exec(path, '--server', '--norender', '-w', self.instance.name)
+        p = await asyncio.create_subprocess_exec(path, '--server', '--norender', '-w', self.instance.name,
+                                                 start_new_session=True)
         with suppress(Exception):
             self.process = Process(p.pid)
 
