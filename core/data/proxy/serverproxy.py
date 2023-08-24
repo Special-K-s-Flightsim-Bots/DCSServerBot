@@ -19,7 +19,8 @@ class ServerProxy(Server):
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
-            "method": "get_missions_dir"
+            "method": "get_missions_dir",
+            "server_name": self.name
         }, node=self.node.name)
         return data["return"]
 
@@ -58,6 +59,7 @@ class ServerProxy(Server):
         self.bus.send_to_node({
             "command": "rpc",
             "object": "Server",
+            "server_name": self.name,
             "params": {
                 "maintenance": self.maintenance
             }
@@ -67,7 +69,8 @@ class ServerProxy(Server):
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
-            "method": "get_current_mission_file"
+            "method": "get_current_mission_file",
+            "server_name": self.name
         }, node=self.node.name)
         return data["return"]
 
@@ -83,7 +86,8 @@ class ServerProxy(Server):
             "params": {
                 "new_name": new_name,
                 "update_settings": update_settings
-            }
+            },
+            "server_name": self.name
         }, node=self.node.name)
 
     async def startup(self) -> None:
@@ -112,7 +116,7 @@ class ServerProxy(Server):
                 "server_name": self.name,
                 "params": {
                     "force": force
-                }
+                },
             }, node=self.node.name)
         self.status = Status.SHUTDOWN
 
@@ -121,6 +125,7 @@ class ServerProxy(Server):
             "command": "rpc",
             "object": "Server",
             "method": "modifyMission",
+            "server_name": self.name,
             "params": {
                 "preset": preset
             }
@@ -130,7 +135,8 @@ class ServerProxy(Server):
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
-            "method": "init_extensions"
+            "method": "init_extensions",
+            "server_name": self.name
         }, node=self.node.name)
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
@@ -142,7 +148,8 @@ class ServerProxy(Server):
                 "filename": filename,
                 "url": url,
                 "force": force
-            }
+            },
+            "server_name": self.name
         }, timeout=60, node=self.node.name)
         return UploadStatus(data["return"])
 
@@ -150,6 +157,7 @@ class ServerProxy(Server):
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
-            "method": "listAvailableMissions"
+            "method": "listAvailableMissions",
+            "server_name": self.name
         }, timeout=60, node=self.node.name)
         return data['return']

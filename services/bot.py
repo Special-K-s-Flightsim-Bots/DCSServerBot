@@ -294,7 +294,7 @@ class DCSServerBot(commands.Bot):
                 self.log.info('- Discord Commands registered.')
                 if 'discord_status' in self.locals:
                     await self.change_presence(activity=discord.Game(name=self.locals['discord_status']))
-                self.log.info('DCSServerBot started, accepting commands.')
+                self.log.info('DCSServerBot MASTER started, accepting commands.')
                 await self.audit(message="Discord Bot started.")
             else:
                 self.log.warning('- Discord connection re-established.')
