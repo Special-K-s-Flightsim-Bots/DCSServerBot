@@ -57,6 +57,7 @@ class Lardoon(Extension):
         if process and process.poll() is None:
             return self.server.name in servers
         else:
+            process = None
             return False
 
     @property
