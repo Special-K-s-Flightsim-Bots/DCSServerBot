@@ -16,11 +16,11 @@ class ServerProxy(Server):
         return True
 
     async def get_missions_dir(self) -> str:
-        data = await self.send_to_dcs_sync({
+        data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "get_missions_dir"
-        })
+        }, node=self.node.name)
         return data["return"]
 
     @property
@@ -55,20 +55,20 @@ class ServerProxy(Server):
     @maintenance.setter
     def maintenance(self, maintenance: bool):
         self._maintenance = maintenance
-        self.send_to_dcs({
+        self.bus.send_to_node({
             "command": "rpc",
             "object": "Server",
             "params": {
                 "maintenance": self.maintenance
             }
-        })
+        }, node=self.node.name)
 
     async def get_current_mission_file(self) -> Optional[str]:
-        data = await self.send_to_dcs_sync({
+        data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "get_current_mission_file"
-        })
+        }, node=self.node.name)
         return data["return"]
 
     def send_to_dcs(self, message: dict):
@@ -76,7 +76,7 @@ class ServerProxy(Server):
         self.bus.send_to_node(message, node=self.node.name)
 
     def rename(self, new_name: str, update_settings: bool = False) -> None:
-        self.send_to_dcs({
+        self.bus.send_to_node({
             "command": "rpc",
             "object": "Server",
             "method": "rename",
@@ -84,28 +84,28 @@ class ServerProxy(Server):
                 "new_name": new_name,
                 "update_settings": update_settings
             }
-        })
+        }, node=self.node.name)
 
     async def startup(self) -> None:
-        await self.send_to_dcs_sync({
+        await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "startup",
             "server_name": self.name
-        }, timeout=300 if self.node.locals.get('slow_system', False) else 180)
+        }, timeout=300 if self.node.locals.get('slow_system', False) else 180, node=self.node.name)
 
     async def startup_extensions(self) -> None:
-        self.send_to_dcs({
+        self.bus.send_to_node({
             "command": "rpc",
             "object": "Server",
             "method": "startup_extensions",
             "server_name": self.name
-        })
+        }, node=self.node.name)
 
     async def shutdown(self, force: bool = False) -> None:
         await super().shutdown(force)
         if self.status != Status.SHUTDOWN:
-            await self.send_to_dcs_sync({
+            await self.bus.send_to_node_sync({
                 "command": "rpc",
                 "object": "Server",
                 "method": "shutdown",
@@ -113,28 +113,28 @@ class ServerProxy(Server):
                 "params": {
                     "force": force
                 }
-            })
+            }, node=self.node.name)
         self.status = Status.SHUTDOWN
 
     async def modifyMission(self, preset: Union[list, dict]) -> None:
-        await self.send_to_dcs_sync({
+        await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "modifyMission",
             "params": {
                 "preset": preset
             }
-        })
+        }, node=self.node.name)
 
     async def init_extensions(self):
-        await self.send_to_dcs_sync({
+        await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "init_extensions"
-        })
+        }, node=self.node.name)
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
-        data = await self.send_to_dcs_sync({
+        data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "uploadMission",
@@ -143,13 +143,13 @@ class ServerProxy(Server):
                 "url": url,
                 "force": force
             }
-        }, timeout=60)
+        }, timeout=60, node=self.node.name)
         return UploadStatus(data["return"])
 
     async def listAvailableMissions(self) -> list[str]:
-        data = await self.send_to_dcs_sync({
+        data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "listAvailableMissions"
-        }, timeout=60)
+        }, timeout=60, node=self.node.name)
         return data['return']

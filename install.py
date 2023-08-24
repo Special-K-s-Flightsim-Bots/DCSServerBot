@@ -290,23 +290,23 @@ DCSServerBot needs the following permissions on them to work:
                     scheduler[name] = {}
         print("\n\nAll set. Writing / updating your config files now...")
         if master:
-            with open('config/main.yaml', 'w') as out:
+            with open('config/main.yaml', 'w', encoding='utf-8') as out:
                 yaml.safe_dump(main, out)
                 print("- Created config/main.yaml")
             os.makedirs('config/services', exist_ok=True)
-            with open('config/services/bot.yaml', 'w') as out:
+            with open('config/services/bot.yaml', 'w', encoding='utf-8') as out:
                 yaml.safe_dump(bot, out)
                 print("- Created config/services/bot.yaml")
-        with open('config/nodes.yaml', 'w') as out:
+        with open('config/nodes.yaml', 'w', encoding='utf-8') as out:
             yaml.safe_dump(nodes, out)
             print("- Created config/nodes.yaml")
-        with open('config/servers.yaml', 'w') as out:
+        with open('config/servers.yaml', 'w', encoding='utf-8') as out:
             yaml.safe_dump(servers, out)
             print("- Created config/servers.yaml")
         # write plugin configuration
         if scheduler:
             os.makedirs('config/plugins', exist_ok=True)
-            with open('config/plugins/scheduler.yaml', 'w') as out:
+            with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
                 yaml.safe_dump(scheduler, out)
                 print("- Created config/plugins/scheduler.yaml")
         print("""

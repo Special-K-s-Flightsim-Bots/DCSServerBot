@@ -37,12 +37,6 @@ def findDCSInstances(server_name: Optional[str] = None) -> list[Tuple[str, str]]
     return instances
 
 
-def getInstalledVersion(path: str) -> Tuple[str, str]:
-    with open(os.path.join(os.path.expandvars(path), 'autoupdate.cfg'), encoding='utf8') as cfg:
-        data = json.load(cfg)
-    return data['branch'], data['version']
-
-
 async def getLatestVersion(branch: str, *, userid: Optional[str] = None,
                            password: Optional[str] = None) -> Optional[str]:
     if userid:

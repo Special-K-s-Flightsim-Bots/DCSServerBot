@@ -1,14 +1,18 @@
 import asyncio
 import discord
+import yaml
 import os
+
 from abc import ABC
 from contextlib import suppress, closing
-from core import Server, NodeImpl
+from copy import deepcopy
+from core import Server, DEFAULT_TAG, Service
 from discord.ext import tasks
 from discord.ui import Modal
 from enum import Enum
 from random import randrange
 from typing import Optional
+
 
 __all__ = [
     "Mode",
@@ -22,58 +26,13 @@ class Mode(Enum):
     SHUFFLE = 2
 
 
-class DBConfig(dict):
-    def __init__(self, node: NodeImpl, server: Server, sink_type: str, *, default: dict):
-        super().__init__()
-        self.node = node
-        self.log = node.log
-        self.pool = node.pool
-        self.server = server
-        self.sink_type = sink_type
-        self.read()
-        if len(self) == 0:
-            self._load(default)
-
-    def read(self):
-        data = dict()
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                for row in cursor.execute(
-                        'SELECT param, value FROM music_config WHERE sink_type = %s AND server_name = %s',
-                        (self.sink_type, self.server.name)).fetchall():
-                    data[row[0]] = row[1]
-        if data:
-            self.clear()
-            self.update(data)
-
-    def write(self):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('DELETE FROM music_config WHERE sink_type = %s AND server_name = %s',
-                                   (self.sink_type, self.server.name))
-                    for name, value in self.items():
-                        cursor.execute('INSERT INTO music_config (sink_type, server_name, param, value) '
-                                       'VALUES (%s, %s, %s, %s)', (self.sink_type, self.server.name, name, value))
-
-    def _load(self, new: dict):
-        for k, v in new.items():
-            self[k] = v
-
-    def __setitem__(self, key, value):
-        super().__setitem__(key, value)
-        if len(self):
-            self.write()
-
-
 class Sink(ABC):
 
-    def __init__(self, node: NodeImpl, server: Server, config: dict, music_dir: str):
-        self.node = node
-        self.log = node.log
-        self.pool = node.pool
+    def __init__(self, service: Service, server: Server, music_dir: str):
+        self.service = service
+        self.log = service.log
+        self.pool = service.pool
         self.server = server
-        self._config = DBConfig(node, server, self.__class__.__name__, default=config)
         self.music_dir = music_dir
         self._current = None
         self._mode = Mode(int(self.config['mode']))
@@ -116,11 +75,21 @@ class Sink(ABC):
 
     @property
     def config(self) -> dict:
-        return self._config
+        return self.service.get_config(self.server)['sink']
 
     @config.setter
     def config(self, config: dict) -> None:
-        self._config = config
+        configs = self.service.locals
+        default = configs.get(DEFAULT_TAG)
+        specific = configs.get(self.server.instance.name)
+        if specific:
+            specific['sink'] |= config
+        else:
+            specific = deepcopy(default)
+            specific['sink'] |= config
+            self.service.locals[self.server.instance.name] = specific
+        with open(os.path.join('config', 'music.json'), 'w', encoding='utf-8') as outfile:
+            yaml.safe_dump(self.service.locals, outfile)
 
     def is_running(self) -> bool:
         return self.queue_worker.is_running()

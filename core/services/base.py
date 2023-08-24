@@ -38,13 +38,6 @@ class Service(ABC):
         return self.running
 
     def read_locals(self) -> dict:
-        if os.path.exists(f'./config/{self.name}.json'):
-            os.makedirs('./config/backup', exist_ok=True)
-            with open(f'./config/{self.name.lower()}.json', 'r') as infile:
-                data = json.load(infile)
-            with open(f'./config/services/{self.name.lower()}.yaml', 'w') as outfile:
-                yaml.dump(data, outfile, default_flow_style=False)
-            shutil.move(f'./config/{self.name.lower()}.json', './config/backup')
         filename = f'./config/services/{self.name.lower()}.yaml'
         if not os.path.exists(filename):
             return {}

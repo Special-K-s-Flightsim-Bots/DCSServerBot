@@ -16,7 +16,7 @@ from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
-from typing import cast, Union
+from typing import cast
 
 from .servicebus import ServiceBus
 from .bot import DCSServerBot, BotService
@@ -24,9 +24,9 @@ from .bot import DCSServerBot, BotService
 
 class Header:
     """Display header with clock."""
-    def __init__(self, node):
-        self.node = node
-        self.log = node.log
+    def __init__(self, service: Service):
+        self.node = service.node
+        self.log = service.log
 
     def __rich__(self) -> Panel:
         grid = Table.grid(expand=True)
@@ -41,8 +41,8 @@ class Header:
 
 class Servers:
     """Displaying List of Servers"""
-    def __init__(self, bot: Union[DCSServerBot, ServiceBus]):
-        self.bot = bot
+    def __init__(self, service: Service):
+        self.bot = service.bot
 
     def __rich__(self) -> Panel:
         table = Table(expand=True, show_edge=False)
@@ -61,14 +61,15 @@ class Servers:
 
 class Bot:
     """Displaying Bot Info"""
-    def __init__(self, bot: DCSServerBot):
-        self.bot = bot
-        self.pool = bot.pool
-        self.log = bot.log
+    def __init__(self, service: Service):
+        self.service = service
+        self.bot = service.bot
+        self.pool = service.pool
+        self.log = service.log
 
     def __rich__(self) -> Panel:
-
-        msg = f"Node:\t\t{platform.node()}\n"
+        msg = f"Node:\t\t{self.bot.node.name}\n"
+        msg += f"DCS-Version:\t{self.service.dcs_version}\n"
         if math.isinf(self.bot.latency) or math.isnan(self.bot.latency):
             msg += "Heartbeat:\t[bold red]Disconnected![/]"
         else:
@@ -138,6 +139,8 @@ class Dashboard(Service):
         self.queue = None
         self.log_handler = None
         self.old_handler = None
+        self.dcs_branch = None
+        self.dcs_version = None
 
     def create_layout(self):
         layout = Layout()
@@ -174,6 +177,7 @@ class Dashboard(Service):
             self.bot: DCSServerBot = cast(BotService, ServiceRegistry.get("Bot")).bot
         else:
             self.bot = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
+        self.dcs_branch, self.dcs_version = await self.bot.node.get_dcs_branch_and_version()
         self.hook_logging()
         self.update.add_exception_type(psycopg.DatabaseError)
         self.update.start()
@@ -186,12 +190,10 @@ class Dashboard(Service):
 
     @tasks.loop(reconnect=True)
     async def update(self):
-        header = Header(self.node)
+        header = Header(self)
+        servers = Servers(self)
         if self.node.master:
-            servers = Servers(self.bot)
-            bot = Bot(self.bot)
-        else:
-            servers = Servers(self.bot)
+            bot = Bot(self)
         log = Log(self.queue)
 
         def do_update():

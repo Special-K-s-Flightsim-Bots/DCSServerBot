@@ -592,11 +592,13 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    # TODO: support remote servers
-    node = interaction.client.node
+    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+    if not server:
+        return []
+    node = server.node
     userid = node.locals['DCS'].get('dcs_user')
     password = node.locals['DCS'].get('dcs_password')
-    available_modules = await node.get_available_modules(userid, password) - node.get_installed_modules()
+    available_modules = await node.get_available_modules(userid, password) - await node.get_installed_modules()
     return [
         app_commands.Choice(name=x, value=x)
         for x in available_modules
@@ -605,9 +607,11 @@ async def available_modules_autocomplete(interaction: discord.Interaction, curre
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    # TODO: support remote servers
-    node = interaction.client.node
-    available_modules = node.get_installed_modules()
+    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+    if not server:
+        return []
+    node = server.node
+    available_modules = await node.get_installed_modules()
     return [
         app_commands.Choice(name=x, value=x)
         for x in available_modules

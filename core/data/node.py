@@ -1,7 +1,9 @@
 import yaml
-from pathlib import Path
 
-from core.data.instance import Instance
+from pathlib import Path
+from typing import Union, Optional, Tuple
+
+from .instance import Instance
 
 
 class Node:
@@ -9,6 +11,7 @@ class Node:
     def __init__(self, name: str):
         self.name = name
         self.instances: list[Instance] = list()
+        self.locals = None
         self.config = self.read_config()
 
     @property
@@ -54,3 +57,30 @@ class Node:
                                                                   '{player.name}, you have been kicked for being AFK '
                                                                   'for more than {time}.')
         return config
+
+    def read_locals(self) -> dict:
+        raise NotImplemented()
+
+    async def upgrade(self) -> None:
+        raise NotImplemented()
+
+    async def update(self, warn_times: list[int]):
+        raise NotImplemented()
+
+    async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
+        raise NotImplemented()
+
+    async def handle_module(self, what: str, module: str) -> None:
+        raise NotImplemented()
+
+    async def get_installed_modules(self) -> set[str]:
+        raise NotImplemented()
+
+    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> set[str]:
+        raise NotImplemented()
+
+    async def read_file(self, path: str) -> Union[bytes, int]:
+        raise NotImplemented()
+
+    async def list_directory(self, path: str, pattern: str) -> list[str]:
+        raise NotImplemented()

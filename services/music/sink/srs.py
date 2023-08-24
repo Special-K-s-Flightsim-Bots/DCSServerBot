@@ -2,7 +2,7 @@ import asyncio
 import discord
 import os
 
-from core import Server, Status, Coalition, utils, NodeImpl
+from core import Server, Status, Coalition, utils, Service
 from discord import TextStyle
 from discord.ui import Modal, TextInput
 from typing import Optional
@@ -13,8 +13,8 @@ from plugins.music.utils import get_tag
 
 class SRSSink(Sink):
 
-    def __init__(self, node: NodeImpl, server: Server, config: dict, music_dir: str):
-        super().__init__(node, server, config, music_dir)
+    def __init__(self, service: Service, server: Server, music_dir: str):
+        super().__init__(service, server, music_dir)
         self.process: Optional[asyncio.subprocess.Process] = None
 
     def render(self) -> discord.Embed:
@@ -96,6 +96,8 @@ class SRSSink(Sink):
                 else:
                     raise ValueError("Coalition must be 1 or 2!")
                 self.config['name'] = derived.name.value
+                # write the config
+                self.config = self.config
                 await self.stop()
                 await self.start()
 

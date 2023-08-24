@@ -34,7 +34,7 @@ class SchedulerListener(EventListener):
                     "params": {
                         "cmd": cmd
                     }
-                })
+                }, node=server.node.name)
             else:
                 self.log.debug('Running shell-command: ' + cmd)
                 await asyncio.create_subprocess_shell(cmd)

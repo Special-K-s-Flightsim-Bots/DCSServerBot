@@ -67,7 +67,7 @@ def migrate():
                     data[DEFAULT_TAG] = {
                         "command_prefix": cfg['BOT']['COMMAND_PREFIX']
                     }
-                    with open('config/plugins/commands.yaml', 'w') as out:
+                    with open('config/plugins/commands.yaml', 'w', encoding='utf-8') as out:
                         yaml.safe_dump(data, out)
                     print(f"- Migrated config/commands.json to config/plugins/commands.yaml")
                 else:
@@ -123,6 +123,10 @@ def migrate():
                 "messages": {
                     "player_username": cfg['DCS']['MESSAGE_PLAYER_USERNAME'],
                     "player_default_username": cfg['DCS']['MESSAGE_PLAYER_DEFAULT_USERNAME']
+                },
+                "filter": {
+                    "server_name": cfg['FILTER']['SERVER_FILTER'],
+                    "mission_name": cfg['FILTER']['MISSION_FILTER']
                 }
             }
             if 'OPT_PLUGINS' in cfg['BOT']:
@@ -138,10 +142,6 @@ def migrate():
                 'message_autodelete': int(cfg['BOT']['MESSAGE_AUTODELETE']),
                 "reports": {
                     "num_workers": int(cfg['REPORTS']['NUM_WORKERS'])
-                },
-                "filter": {
-                    "server_name": cfg['FILTER']['SERVER_FILTER'],
-                    "mission_name": cfg['FILTER']['MISSION_FILTER']
                 }
             }
             # take the first admin channel as the single one
@@ -166,7 +166,7 @@ def migrate():
             for role in ['Admin', 'DCS Admin', 'DCS', 'GameMaster']:
                 bot['roles'][role] = [x.strip() for x in cfg['ROLES'][role].split(',')]
             os.makedirs('config/services', exist_ok=True)
-            with open('config/services/bot.yaml', 'w') as out:
+            with open('config/services/bot.yaml', 'w', encoding='utf-8') as out:
                 yaml.safe_dump(bot, out)
                 print("- Created config/services/bot.yaml")
 
@@ -277,33 +277,33 @@ def migrate():
                 if isinstance(schedule['presets'], dict):
                     presets |= schedule['presets']
                 else:
-                    with open(schedule['presets'], 'r') as pin:
+                    with open(schedule['presets'], 'r', encoding='utf-8') as pin:
                         presets |= json.load(pin)
                     shutil.move(schedule['presets'], BACKUP_FOLDER)
                 del schedule['presets']
 
         # write main configuration
         if master:
-            with open('config/main.yaml', 'w') as out:
+            with open('config/main.yaml', 'w', encoding='utf-8') as out:
                 yaml.safe_dump(main, out)
                 print("- Created config/main.yaml")
-        with open('config/nodes.yaml', 'w') as out:
+        with open('config/nodes.yaml', 'w', encoding='utf-8') as out:
             yaml.safe_dump(nodes, out)
             print("- Created config/nodes.yaml")
-        with open('config/servers.yaml', 'w') as out:
+        with open('config/servers.yaml', 'w', encoding='utf-8') as out:
             yaml.safe_dump(servers, out)
             print("- Created config/servers.yaml")
         # write plugin configuration
         if scheduler:
-            with open('config/plugins/scheduler.yaml', 'w') as out:
+            with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
                 yaml.safe_dump(scheduler, out)
                 print("- Created config/plugins/scheduler.yaml")
             if presets:
-                with open('config/presets.yaml', 'w') as out:
+                with open('config/presets.yaml', 'w', encoding='utf-8') as out:
                     yaml.safe_dump(presets, out)
                 print("- Created config/presets.yaml")
         if missionstats:
-            with open('config/plugins/missionstats.yaml', 'w') as out:
+            with open('config/plugins/missionstats.yaml', 'w', encoding='utf-8') as out:
                 yaml.safe_dump(missionstats, out)
             print("- Created config/plugins/missionstats.yaml")
         shutil.move('config/default.ini', BACKUP_FOLDER)

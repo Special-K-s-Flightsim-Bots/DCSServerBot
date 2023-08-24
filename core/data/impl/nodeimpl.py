@@ -23,7 +23,7 @@ from pathlib import Path
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
-from typing import Optional, Union, TYPE_CHECKING, Awaitable, Callable, Any
+from typing import Optional, Union, TYPE_CHECKING, Awaitable, Callable, Any, Tuple
 from version import __version__
 
 from core.data.dataobject import DataObjectFactory
@@ -279,6 +279,11 @@ class NodeImpl(Node):
         except ImportError:
             self.log.error('Autoupdate functionality requires "git" executable to be in the PATH.')
 
+    async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
+        with open(os.path.join(self.installation, 'autoupdate.cfg'), encoding='utf8') as cfg:
+            data = json.load(cfg)
+        return data['branch'], data['version']
+
     async def update(self, warn_times: list[int]):
         async def shutdown_with_warning(server: Server):
             if server.is_populated():
@@ -356,13 +361,12 @@ class NodeImpl(Node):
             '--quiet', what, module, startupinfo=startupinfo)
         await proc.communicate()
 
-    def get_installed_modules(self) -> set[str]:
+    async def get_installed_modules(self) -> set[str]:
         with open(os.path.join(self.locals['DCS']['installation'], 'autoupdate.cfg'), encoding='utf8') as cfg:
             data = json.load(cfg)
         return set(data['modules'])
 
-    @staticmethod
-    async def get_available_modules(userid: Optional[str] = None, password: Optional[str] = None) -> set[str]:
+    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> set[str]:
         licenses = {"CAUCASUS_terrain", "NEVADA_terrain", "NORMANDY_terrain", "PERSIANGULF_terrain",
                     "THECHANNEL_terrain",
                     "SYRIA_terrain", "MARIANAISLANDS_terrain", "FALKLANDS_terrain", "SINAIMAP_terrain", "WWII-ARMOUR",
@@ -456,13 +460,33 @@ class NodeImpl(Node):
         self.log.debug('Running shell-command: ' + cmd)
         await asyncio.create_subprocess_shell(cmd)
 
+    async def read_file(self, path: str) -> Union[bytes, int]:
+        path = os.path.expandvars(path)
+        if self.node.master:
+            with open(path, mode='rb') as file:
+                return file.read()
+        else:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    with open(path, mode='rb') as file:
+                        conn.execute("INSERT INTO files (name, data) VALUES (%s, %s)",
+                                     (path, psycopg.Binary(file.read())))
+                    return conn.execute("SELECT currval('files_id_seq')").fetchone()[0]
+
+    async def list_directory(self, path: str, pattern: str) -> list[str]:
+        directory = Path(os.path.expandvars(path))
+        ret = []
+        for file in sorted(directory.glob(pattern), key=os.path.getmtime, reverse=True):
+            ret.append(os.path.join(directory.__str__(), file.name))
+        return ret
+
     @tasks.loop(minutes=5.0)
     async def autoupdate(self):
         # don't run, if an update is currently running
         if self.update_pending:
             return
         try:
-            branch, old_version = utils.getInstalledVersion(self.locals['DCS']['installation'])
+            branch, old_version = await self.get_dcs_branch_and_version()
             new_version = await utils.getLatestVersion(branch, userid=self.locals['DCS'].get('dcs_user'),
                                                        password=self.locals['DCS'].get('dcs_password'))
             if new_version and old_version != new_version:

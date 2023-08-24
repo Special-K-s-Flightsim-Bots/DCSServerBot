@@ -6,13 +6,14 @@ import platform
 import psycopg
 import sys
 import traceback
+import uuid
 
 from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
-    InstanceProxy, NodeProxy, Mission
+    InstanceProxy, NodeProxy, Mission, Node
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timedelta, timezone
@@ -22,7 +23,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Json
 from queue import Queue
 from socketserver import BaseRequestHandler, ThreadingUDPServer
-from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING
+from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from core import Plugin
@@ -36,6 +37,7 @@ class ServiceBus(Service):
         super().__init__(node, name)
         self.bot: Optional[DCSServerBot] = None
         self.version = self.node.bot_version
+        self.listeners: dict[str, asyncio.Future] = dict()
         self.eventListeners: list[EventListener] = []
         self.servers: dict[str, Server] = dict()
         self.udp_server = None
@@ -50,7 +52,9 @@ class ServiceBus(Service):
         # cleanup the intercom channels
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
+                # conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
+                conn.execute("DELETE FROM intercom WHERE time < NOW() - interval '300 seconds'")
+                conn.execute("UPDATE intercom SET node = 'Master' WHERE node = %s", (self.node.name, ))
         self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
         await self.start_udp_listener()
         await self.init_servers()
@@ -86,6 +90,13 @@ class ServiceBus(Service):
     @property
     def master(self) -> bool:
         return self.node.master
+
+    @property
+    def filter(self) -> dict:
+        return {
+            "server": "!.*",
+            "mission": "!.*",
+        } | self.node.config.get('filter', {})
 
     def register_eventListener(self, listener: EventListener):
         self.log.debug(f'  - Registering EventListener {type(listener).__name__}')
@@ -337,7 +348,9 @@ class ServiceBus(Service):
             server.node.public_ip = public_ip
         server.status = Status(status)
 
-    def send_to_node(self, data: dict, *, node: Optional[str] = None):
+    def send_to_node(self, data: dict, *, node: Optional[Union[Node, str]] = None):
+        if isinstance(node, Node):
+            node = node.name
         if self.master:
             if node and node != platform.node():
                 self.log.debug('MASTER->{}: {}'.format(node, json.dumps(data)))
@@ -353,6 +366,18 @@ class ServiceBus(Service):
                     with conn.transaction():
                         conn.execute("INSERT INTO intercom (node, data) VALUES ('Master', %s)", (Json(data),))
                         self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
+
+    async def send_to_node_sync(self, message: dict, timeout: Optional[int] = 5.0, *,
+                                node: Optional[Union[Node, str]] = None):
+        future = self.loop.create_future()
+        token = 'sync-' + str(uuid.uuid4())
+        message['channel'] = token
+        self.listeners[token] = future
+        try:
+            self.send_to_node(message, node=node)
+            return await asyncio.wait_for(future, timeout)
+        finally:
+            del self.listeners[token]
 
     async def handle_master(self, data: dict):
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
@@ -374,8 +399,12 @@ class ServiceBus(Service):
             if rc is not None:
                 if isinstance(rc, Enum):
                     rc = rc.value
-                self.send_to_node({"command": data['method'], "channel": data['channel'], "return": rc,
-                                "server_name": data['server_name']})
+                self.send_to_node({
+                    "command": data['method'],
+                    "channel": data['channel'],
+                    "return": rc,
+                    "server_name": data['server_name']
+                }, node=data['node'])
         elif data['server_name'] in self.udp_server.message_queue:
             self.udp_server.message_queue[data['server_name']].put(data)
         else:
@@ -403,8 +432,12 @@ class ServiceBus(Service):
                     rc = rc.value
                 elif isinstance(rc, bool):
                     rc = str(rc)
-                self.send_to_node({"command": data['method'], "channel": data['channel'], "return": rc,
-                                "server_name": data['server_name']})
+                self.send_to_node({
+                    "command": data['method'],
+                    "channel": data['channel'],
+                    "return": rc,
+                    "server_name": data['server_name']
+                })
         else:
             server_name = data['server_name']
             if server_name not in self.servers:

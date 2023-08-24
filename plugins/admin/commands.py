@@ -1,21 +1,56 @@
 import aiohttp
-import asyncio
 import discord
 import os
 import platform
 import shutil
+import traceback
 import yaml
 
 from contextlib import closing
-from core import utils, Plugin, Status, Server, command, NodeImpl
+from core import utils, Plugin, Status, Server, command, NodeImpl, ServerTransformer, Node
 from discord import app_commands
 from discord.app_commands import Range, Group
 from discord.ext import commands
 from discord.ui import Select, View, Button, TextInput, Modal
-from pathlib import Path
+from io import BytesIO
 from services import DCSServerBot
 from typing import Optional, Union
-from zipfile import ZipFile
+from zipfile import ZipFile, ZIP_DEFLATED
+
+
+async def label_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    try:
+        server: Server = await ServerTransformer().transform(interaction,
+                                                             utils.get_interaction_param(interaction, "server"))
+        if not server:
+            return []
+        config = interaction.client.cogs['Admin'].get_config(server)
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=x['label'], value=x['label']) for x in config['downloads']
+            if not current or current.casefold() in x['label'].casefold()
+        ]
+        return choices[:25]
+    except Exception:
+        traceback.print_exc()
+
+
+async def file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    try:
+        server: Server = await ServerTransformer().transform(interaction,
+                                                             utils.get_interaction_param(interaction, "server"))
+        if not server:
+            return []
+        label = utils.get_interaction_param(interaction, "what")
+        config = interaction.client.cogs['Admin'].get_config(server)
+        config = next(x for x in config['downloads'] if x['label'] == label)
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=os.path.basename(x), value=os.path.basename(x))
+            for x in await server.node.list_directory(config['directory'].format(server=server), config['pattern'])
+            if not current or current.casefold() in x
+        ]
+        return choices[:25]
+    except Exception:
+        traceback.print_exc()
 
 
 class Admin(Plugin):
@@ -115,11 +150,14 @@ class Admin(Plugin):
     @app_commands.autocomplete(node=utils.nodes_autocomplete)
     @app_commands.describe(warn_time="Time in seconds to warn users before shutdown")
     async def update(self, interaction: discord.Interaction, node: Optional[str] = None, warn_time: Range[int, 0] = 60):
-        # TODO remote updates
+        _node: Node = next(x.node for x in self.bus.servers.values() if x.node.name == node)
+        if not _node:
+            await interaction.response.send_message(f"Can't reach node {node}, is it even active?")
+            return
         await interaction.response.defer(thinking=True, ephemeral=True)
-        branch, old_version = utils.getInstalledVersion(self.bot.node.locals['DCS']['installation'])
-        new_version = await utils.getLatestVersion(branch, userid=self.bot.node.locals['DCS'].get('dcs_user'),
-                                                   password=self.bot.node.locals['DCS'].get('dcs_password'))
+        branch, old_version = await _node.get_dcs_branch_and_version()
+        new_version = await utils.getLatestVersion(branch, userid=_node.locals['DCS'].get('dcs_user'),
+                                                   password=_node.locals['DCS'].get('dcs_password'))
         if old_version == new_version:
             await interaction.followup.send(
                 f'Your installed version {old_version} is the latest on branch {branch}.', ephemeral=True)
@@ -131,10 +169,11 @@ class Admin(Plugin):
                                      user=interaction.user)
                 msg = await interaction.followup.send(f"Updating DCS to version {new_version}, please wait ...",
                                                       ephemeral=True)
-                rc = await self.bot.node.update(warn_times=[warn_time] or [120, 60])
+                rc = await _node.update(warn_times=[warn_time] or [120, 60])
                 if rc == 0:
-                    await msg.edit(content=f"DCS updated to version {new_version}.")
-                    await self.bot.audit(f"updated DCS from {old_version} to {new_version}.", user=interaction.user)
+                    await msg.edit(content=f"DCS updated to version {new_version} on node {node}.")
+                    await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node}.",
+                                         user=interaction.user)
                 else:
                     await msg.edit(content=f"Error while updating DCS, code={rc}")
         else:
@@ -148,20 +187,20 @@ class Admin(Plugin):
     @app_commands.autocomplete(node=utils.nodes_autocomplete)
     @app_commands.autocomplete(module=utils.available_modules_autocomplete)
     async def _install(self, interaction: discord.Interaction, node: str, module: str):
-        # TODO: remote installs
-        for server in self.bus.servers.values():
-            if server.is_remote:
-                continue
-            elif server.status != Status.SHUTDOWN:
-                if not await utils.yn_question(interaction,
-                                               f"Do you want me to shutdown all servers for the installation?"):
-                    await interaction.followup.send("Aborted.", ephemeral=True)
-                    return
-        if not interaction.response.is_done():
-            await interaction.response.defer(ephemeral=True)
-        node = interaction.client.node
-        await node.handle_module('install', module)
-        await interaction.followup.send(f"Module {module} installed on node {node.name}", ephemeral=True)
+        if not await utils.yn_question(interaction,
+                                       f"Shutdown all servers on node {node} for the installation?"):
+            await interaction.followup.send("Aborted.", ephemeral=True)
+            return
+        _node: Optional[Node] = None
+        for server in [x for x in self.bus.servers.values() if x.node.name == node]:
+            _node = server.node
+            if server.status != Status.SHUTDOWN:
+                await server.shutdown(force=True)
+        if not _node:
+            await interaction.followup.send(f"Can't reach node {node}, is there any server active?")
+            return
+        await _node.handle_module('install', module)
+        await interaction.followup.send(f"Module {module} installed on node {node}", ephemeral=True)
 
     @dcs.command(name='uninstall', description='Uninstall modules from your dedicated server')
     @app_commands.guild_only()
@@ -169,127 +208,72 @@ class Admin(Plugin):
     @app_commands.autocomplete(node=utils.nodes_autocomplete)
     @app_commands.autocomplete(module=utils.installed_modules_autocomplete)
     async def _uninstall(self, interaction: discord.Interaction, node: str, module: str):
-        # TODO: remote installs
-        for server in self.bus.servers.values():
-            if server.is_remote:
-                continue
-            elif server.status != Status.SHUTDOWN:
-                if not await utils.yn_question(interaction,
-                                               f"Do you want me to shutdown all servers for the uninstall?"):
-                    await interaction.followup.send("Aborted.", ephemeral=True)
-                    return
-        if not interaction.response.is_done():
-            await interaction.response.defer(ephemeral=True)
-        node = interaction.client.node
-        await node.handle_module('uninstall', module)
-        await interaction.followup.send(f"Module {module} uninstalled on node {node.name}", ephemeral=True)
+        if not await utils.yn_question(interaction,
+                                       f"Shutdown all servers on node {node} for the uninstallation?"):
+            await interaction.followup.send("Aborted.", ephemeral=True)
+            return
+        _node: Optional[Node] = None
+        for server in [x for x in self.bus.servers.values() if x.node.name == node]:
+            _node = server.node
+            if server.status != Status.SHUTDOWN:
+                await server.shutdown(force=True)
+        if not _node:
+            await interaction.followup.send(f"Can't reach node {node}, is there any server active?")
+            return
+        await _node.handle_module('uninstall', module)
+        await interaction.followup.send(f"Module {module} uninstalled on node {node}", ephemeral=True)
 
-    @command(description='Download config files or missions')
+    @command(description='Download files from your server')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
+    @app_commands.autocomplete(what=label_autocomplete)
+    @app_commands.autocomplete(filename=file_autocomplete)
     async def download(self, interaction: discord.Interaction,
-                       server: app_commands.Transform[Server, utils.ServerTransformer]) -> None:
-        view = View()
-        msg = None
-        config = self.get_config(server)
-        choices: list[discord.SelectOption] = [discord.SelectOption(label=x['label']) for x in config['downloads']]
-        select1 = Select(placeholder="What do you want to download?", options=choices)
-
-        def zip_file(filename: str) -> str:
-            with ZipFile(filename + '.zip', 'w') as zipfile:
-                zipfile.write(filename)
-            return zipfile.filename
-
-        async def send_file(interaction: discord.Interaction, filename: str, target: str):
-            zipped = False
-            if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('acmi') and \
-                    os.path.getsize(filename) >= 25 * 1024 * 1024:
-                filename = await asyncio.to_thread(zip_file, filename)
-                zipped = True
-            await interaction.response.defer(thinking=True)
-            if not target:
-                dm_channel = await interaction.user.create_dm()
-                for channel in [dm_channel, interaction.channel]:
-                    try:
-                        await channel.send(file=discord.File(filename))
-                        if channel == dm_channel:
-                            await interaction.followup.send('File sent as a DM.', ephemeral=True)
-                        else:
-                            await interaction.followup.send('Here is your file:', ephemeral=True)
-                        break
-                    except discord.HTTPException:
-                        continue
-                else:
-                    await interaction.followup.send('File too large. You need a higher boost level for your server.',
-                                                    ephemeral=True)
-            elif target.startswith('<'):
-                channel = self.bot.get_channel(int(target[4:-1]))
+                       server: app_commands.Transform[Server, utils.ServerTransformer],
+                       what: str, filename: str) -> None:
+        await interaction.response.defer(thinking=True)
+        config = next(x for x in self.get_config(server)['downloads'] if x['label'] == what)
+        path = os.path.join(config['directory'].format(server=server), filename)
+        file = await server.node.read_file(path)
+        target = config.get('target')
+        if target:
+            target = target.format(server=server)
+        if not filename.endswith('.zip') and not filename.endswith('.miz') and not filename.endswith('acmi') and \
+                len(file) >= 25 * 1024 * 1024:
+            zip_buffer = BytesIO()
+            with ZipFile(zip_buffer, "a", ZIP_DEFLATED, False) as zip_file:
+                zip_file.writestr(filename, file)
+            file = zip_buffer.getvalue()
+        if not target:
+            dm_channel = await interaction.user.create_dm()
+            for channel in [dm_channel, interaction.channel]:
                 try:
-                    await channel.send(file=discord.File(filename))
+                    await channel.send(file=discord.File(filename=filename, fp=BytesIO(file)))
+                    if channel == dm_channel:
+                        await interaction.followup.send('File sent as a DM.', ephemeral=True)
+                    else:
+                        await interaction.followup.send('Here is your file:', ephemeral=True)
+                    break
                 except discord.HTTPException:
-                    await interaction.followup.send('File too large. You need a higher boost level for your server.',
-                                                    ephemeral=True)
-                if channel != interaction.channel:
-                    await interaction.followup.send('File sent to the configured channel.', ephemeral=True)
-                else:
-                    await interaction.followup.send('Here is your file:', ephemeral=True)
+                    continue
             else:
-                path = os.path.expandvars(target)
-                shutil.copy2(filename, path)
-                await interaction.followup.send('File copied to the specified location.', ephemeral=True)
-            if zipped:
-                os.remove(filename)
-
-        async def _choice(interaction: discord.Interaction):
-            for download in config['downloads']:
-                if download['label'] == select1.values[0]:
-                    directory = Path(os.path.expandvars(download['directory'].format(server=server)))
-                    pattern = download['pattern'].format(server=server)
-                    target = download['target'].format(server=server) if 'target' in download else None
-                    break
-
-            options: list[discord.SelectOption] = []
-            files: dict[str, str] = {}
-            for file in sorted(directory.glob(pattern), key=os.path.getmtime, reverse=True):
-                files[file.name] = directory.__str__() + os.path.sep + file.name
-                options.append(discord.SelectOption(label=file.name))
-                if len(options) == 25:
-                    break
-            if not len(options):
-                await interaction.response.send_message("No file found.", ephemeral=True)
-                return
-            if len(options) == 1:
-                await send_file(interaction, files[options[0].value], target)
-                return
-
-            select2 = Select(placeholder="Select a file to download", options=options)
-
-            async def _download(interaction: discord.Interaction):
-                await send_file(interaction, files[select2.values[0]], target)
-                view.stop()
-
-            select2.callback = _download
-            view.clear_items()
-            view.add_item(select2)
-            view.add_item(button)
-            await msg.edit(view=view)
-            await interaction.response.defer()
-
-        async def _cancel(interaction: discord.Interaction):
-            await interaction.response.defer()
-            view.stop()
-
-        select1.callback = _choice
-        button = Button(label='Cancel', style=discord.ButtonStyle.red)
-        button.callback = _cancel
-        view.add_item(select1)
-        view.add_item(button)
-        await interaction.response.send_message(view=view, ephemeral=True)
-        msg = await interaction.original_response()
-        try:
-            await view.wait()
-        finally:
-            await interaction.delete_original_response()
+                await interaction.followup.send('File too large. You need a higher boost level for your server.',
+                                                ephemeral=True)
+        elif target.startswith('<'):
+            channel = self.bot.get_channel(int(target[4:-1]))
+            try:
+                await channel.send(file=discord.File(filename=filename, fp=BytesIO(file)))
+            except discord.HTTPException:
+                await interaction.followup.send('File too large. You need a higher boost level for your server.',
+                                                ephemeral=True)
+            if channel != interaction.channel:
+                await interaction.followup.send('File sent to the configured channel.', ephemeral=True)
+            else:
+                await interaction.followup.send('Here is your file:', ephemeral=True)
+        else:
+            with open(os.path.expandvars(target), 'wb') as outfile:
+                outfile.write(file)
+            await interaction.followup.send('File copied to the specified location.', ephemeral=True)
 
     class CleanupView(View):
         def __init__(self):

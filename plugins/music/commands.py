@@ -37,10 +37,11 @@ class Music(Plugin):
     @music.command(description='Music Player')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
+    @app_commands.rename(_server="server")
     async def player(self, interaction: discord.Interaction,
-                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
-                                                                                            Status.PAUSED])]):
-        sink = await self.service.get_sink(server) or await self.service.start_sink(server)
+                     _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
+                                                                                             Status.PAUSED])]):
+        sink = await self.service.get_sink(_server) or await self.service.start_sink(_server)
         if not sink:
             return
         playlists = get_all_playlists(self.bot)

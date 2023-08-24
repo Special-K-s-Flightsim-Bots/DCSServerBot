@@ -8,7 +8,7 @@ import re
 import zipfile
 
 from contextlib import closing
-from core import ServiceRegistry, Service, Status, Channel, Player, EventListener, utils
+from core import ServiceRegistry, Service, Status, Channel, Player, EventListener, utils, NodeImpl
 from datetime import datetime
 from discord.ext import commands
 from functools import lru_cache
@@ -52,11 +52,11 @@ class BotService(Service):
         await self.install_fonts()
         await super().start()
         # cleanup the intercom channels
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
-                if self.node.master:
-                    conn.execute("DELETE FROM intercom WHERE node = 'Master'")
+#        with self.pool.connection() as conn:
+#            with conn.transaction():
+#                conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
+#                if self.node.master:
+#                    conn.execute("DELETE FROM intercom WHERE node = 'Master'")
         async with self.bot:
             await self.bot.start(self.locals['token'], reconnect=reconnect)
 
@@ -117,7 +117,7 @@ class DCSServerBot(commands.Bot):
         super().__init__(*args, **kwargs)
         self.version: str = kwargs['version']
         self.sub_version: str = kwargs['sub_version']
-        self.node = kwargs['node']
+        self.node: NodeImpl = kwargs['node']
         self.pool = self.node.pool
         self.log = self.node.log
         self.locals = kwargs['locals']
@@ -155,10 +155,7 @@ class DCSServerBot(commands.Bot):
 
     @property
     def filter(self) -> dict:
-        return {
-            "server": "!.*",
-            "mission": "!.*",
-        } | self.locals.get('filter', {})
+        return self.bus.filter
 
     @property
     def servers(self) -> dict[str, Server]:
@@ -483,7 +480,7 @@ class DCSServerBot(commands.Bot):
 
     def match_user(self, data: Union[dict, discord.Member], rematch=False) -> Optional[discord.Member]:
         # try to match a DCS user with a Discord member
-        tag_filter = self.locals.get('filter', {}).get('tag_filter')
+        tag_filter = self.filter.get('tag_filter')
         if isinstance(data, dict):
             if not rematch:
                 member = self.get_member_by_ucid(data['ucid'])

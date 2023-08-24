@@ -34,19 +34,18 @@ class MusicService(Service):
             return
         config = self.get_config(server)['sink']
         if server.is_remote:
-            await server.send_to_dcs_sync({
+            await self.bus.send_to_node_sync({
                 "command": "rpc",
                 "service": "Music",
                 "method": "start_sink",
                 "params": {
                     "server": server.name
                 }
-            })
-            return RemoteSink(node=self.node, server=server, config=config,
-                              music_dir=self.get_config(server)['music_dir'])
+            }, node=server.node.name)
+            return RemoteSink(service=self, server=server, music_dir=self.get_config(server)['music_dir'])
         if not self.sinks.get(server.name):
             sink: Sink = getattr(sys.modules['services.music.sink'], config['type'])(
-                node=self.node, server=server, config=config, music_dir=self.get_config(server)['music_dir'])
+                service=self, server=server, music_dir=self.get_config(server)['music_dir'])
             self.sinks[server.name] = sink
         if server.get_active_players():
             await self.sinks[server.name].start()
@@ -54,14 +53,14 @@ class MusicService(Service):
 
     async def stop_sink(self, server: Server):
         if server.is_remote:
-            await server.send_to_dcs_sync({
+            await self.bus.send_to_node_sync({
                 "command": "rpc",
                 "service": "Music",
                 "method": "stop_sink",
                 "params": {
                     "server": server.name
                 }
-            })
+            }, node=server.node.name)
             return
         if self.sinks.get(server.name):
             await self.sinks[server.name].stop()
