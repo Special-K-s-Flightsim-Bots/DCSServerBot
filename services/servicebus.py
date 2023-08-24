@@ -382,6 +382,14 @@ class ServiceBus(Service):
     async def handle_master(self, data: dict):
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
         if data['command'] == 'rpc':
+            # handle synchronous responses
+            if data['channel'].startswith('sync-'):
+                if data['channel'] in self.listeners:
+                    f = self.listeners[data['channel']]
+                    if not f.done():
+                        self.loop.call_soon_threadsafe(f.set_result, data)
+                    return
+            self.log.info('### HERE ###')
             if data.get('object') == 'Server':
                 obj = self.servers.get(data['server_name'])
             elif data.get('object') == 'Instance':
@@ -400,7 +408,8 @@ class ServiceBus(Service):
                 if isinstance(rc, Enum):
                     rc = rc.value
                 self.send_to_node({
-                    "command": data['method'],
+                    "command": "rpc",
+                    "method": data['method'],
                     "channel": data['channel'],
                     "return": rc
                 }, node=data['node'])
@@ -432,7 +441,8 @@ class ServiceBus(Service):
                 elif isinstance(rc, bool):
                     rc = str(rc)
                 self.send_to_node({
-                    "command": data['method'],
+                    "command": "rpc",
+                    "method": data['method'],
                     "channel": data['channel'],
                     "return": rc
                 })
