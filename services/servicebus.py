@@ -208,7 +208,7 @@ class ServiceBus(Service):
             # only check ports of local servers
             if server.is_remote or server.status == Status.SHUTDOWN:
                 continue
-            dcs_port = server.settings.get('port', 10308)
+            dcs_port = int(server.settings.get('port', 10308))
             if dcs_port in dcs_ports:
                 self.log.error(f'Server "{server.name}" shares its DCS port with server '
                                f'"{dcs_ports[dcs_port]}"! Registration aborted.')

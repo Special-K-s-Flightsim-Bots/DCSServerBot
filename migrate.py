@@ -129,6 +129,8 @@ def migrate():
                     "mission_name": cfg['FILTER']['MISSION_FILTER']
                 }
             }
+            if 'TAG_FILTER' in cfg['FILTER']:
+                main['filter']['tag'] = cfg['FILTER']['TAG_FILTER']
             if 'OPT_PLUGINS' in cfg['BOT']:
                 main["opt_plugins"] = [x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')]
                 if 'backup' in main['opt_plugins']:
@@ -156,8 +158,6 @@ def migrate():
                 bot['greeting_dm'] = cfg['BOT']['GREETING_DM']
             if 'CJK_FONT' in cfg['REPORTS']:
                 bot['reports']['cjk_font'] = cfg['REPORTS']['CJK_FONT']
-            if 'TAG_FILTER' in cfg['FILTER']:
-                bot['filter']['tag'] = cfg['FILTER']['TAG_FILTER']
             if 'DISCORD_STATUS' in cfg['BOT']:
                 bot['discord_status'] = cfg['BOT']['DISCORD_STATUS']
             if 'AUDIT_CHANNEL' in cfg['BOT']:
