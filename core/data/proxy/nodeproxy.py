@@ -115,10 +115,10 @@ class NodeProxy(Node):
         }, timeout=60, node=self.name)
         with self.pool.connection() as conn:
             with conn.transaction():
-                data = conn.execute("SELECT data FROM files WHERE id = %s", (data['return'], ),
+                file = conn.execute("SELECT data FROM files WHERE id = %s", (data['return'], ),
                                     binary=True).fetchone()[0]
                 conn.execute("DELETE FROM files WHERE id = %s", (data['return'], ))
-        return data
+        return file
 
     async def list_directory(self, path: str, pattern: str) -> list[str]:
         data = await self.bus.send_to_node_sync({
