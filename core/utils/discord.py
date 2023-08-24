@@ -468,9 +468,7 @@ def escape_string(msg: str) -> str:
 
 
 def get_interaction_param(interaction: discord.Interaction, name: str):
-    root = interaction.data['options'][0]
-    if root.get('options'):
-        root = root['options']
+    root = interaction.data['options']
     if isinstance(root, dict):
         if root.get('name') == name:
             return root.get('value')
