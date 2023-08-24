@@ -50,13 +50,17 @@ class ServiceRegistry:
     @classmethod
     def can_run(cls, name: str) -> bool:
         # check master only
-        if not cls._node.master and name in cls._master_only:
+        if cls.master_only(name) and not cls._node.master:
             return False
         # check plugin dependencies
         plugin = cls._plugins.get(name)
         if plugin and plugin not in cls._node.plugins:
             return False
         return True
+
+    @classmethod
+    def master_only(cls, name: str) -> bool:
+        return name in cls._master_only
 
     @classmethod
     def services(cls) -> dict[str, Service]:
