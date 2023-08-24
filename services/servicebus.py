@@ -367,7 +367,7 @@ class ServiceBus(Service):
                         conn.execute("INSERT INTO intercom (node, data) VALUES ('Master', %s)", (Json(data),))
                         self.log.debug(f"{self.node.name}->MASTER: {json.dumps(data)}")
 
-    async def send_to_node_sync(self, message: dict, timeout: Optional[int] = 5.0, *,
+    async def send_to_node_sync(self, message: dict, timeout: Optional[int] = 10.0, *,
                                 node: Optional[Union[Node, str]] = None):
         future = self.loop.create_future()
         token = 'sync-' + str(uuid.uuid4())
