@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import platform
+import psycopg
 import shutil
 import ssl
 import subprocess

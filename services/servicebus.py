@@ -389,7 +389,6 @@ class ServiceBus(Service):
                     if not f.done():
                         self.loop.call_soon_threadsafe(f.set_result, data)
                     return
-            self.log.info('### HERE ###')
             if data.get('object') == 'Server':
                 obj = self.servers.get(data['server_name'])
             elif data.get('object') == 'Instance':
