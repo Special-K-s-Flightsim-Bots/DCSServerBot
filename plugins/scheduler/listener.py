@@ -159,6 +159,12 @@ class SchedulerListener(EventListener):
             if ext.is_running():
                 await ext.shutdown(data)
 
+    @event(name="onPlayerDisconnect")
+    async def onPlayerDisconnect(self, server: Server, data: dict) -> None:
+        for ext in server.extensions.values():
+            if ext.is_running():
+                await ext.onPlayerDisconnect(data)
+
     @event(name="onShutdown")
     async def onShutdown(self, server: Server, data: dict) -> None:
         config = self.plugin.get_config(server)

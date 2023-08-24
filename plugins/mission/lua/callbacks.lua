@@ -215,6 +215,15 @@ function mission.onPlayerChangeSlot(id)
     utils.sendBotTable(msg)
 end
 
+function mission.onPlayerDisconnect(id, err_code)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerDisconnect()')
+    local msg = {}
+    msg.command = 'onPlayerDisconnect'
+    msg.id = id
+    msg.err_code = err_code
+    utils.sendBotTable(msg)
+end
+
 function mission.onSimulationStart()
     log.write('DCSServerBot', log.DEBUG, 'Mission: onSimulationStart()')
     local msg = {}
