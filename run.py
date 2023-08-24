@@ -46,7 +46,7 @@ class Main:
                         if self.node.config.get('use_dashboard', True):
                             await dashboard.stop()
                         for name in registry.services().keys():
-                            if registry.master_only(name):
+                            if registry.can_run(name):
                                 try:
                                     asyncio.create_task(registry.new(name).start())
                                 except ServiceInstallationError as ex:
