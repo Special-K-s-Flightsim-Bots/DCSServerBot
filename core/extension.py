@@ -31,6 +31,9 @@ class Extension(ABC):
     async def onMissionLoadEnd(self, data: dict) -> bool:
         return True
 
+    async def onPlayerDisconnect(self, data: dict) -> bool:
+        return True
+
     async def startup(self) -> bool:
         self.log.info(f"  => {self.name} v{self.version} launched for \"{self.server.name}\".")
         return True

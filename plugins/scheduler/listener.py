@@ -138,6 +138,8 @@ class SchedulerListener(EventListener):
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        # invalidate the config cache
+        self.plugin.get_config(server, use_cache=False)
         server.restart_pending = False
         server.on_empty.clear()
         server.on_mission_end.clear()
@@ -156,6 +158,12 @@ class SchedulerListener(EventListener):
         for ext in server.extensions.values():
             if ext.is_running():
                 await ext.shutdown(data)
+
+    @event(name="onPlayerDisconnect")
+    async def onPlayerDisconnect(self, server: Server, data: dict) -> None:
+        for ext in server.extensions.values():
+            if ext.is_running():
+                await ext.onPlayerDisconnect(data)
 
     @event(name="onShutdown")
     async def onShutdown(self, server: Server, data: dict) -> None:

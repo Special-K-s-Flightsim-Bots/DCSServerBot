@@ -45,41 +45,33 @@ class SlotBlocking(Plugin):
                 json.dump(new, file, indent=2)
             self.log.info('  => config/slotblocking.json partly migrated to config/creditsystem.json, please verify!')
 
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    merged = {}
-                    if 'VIP' in specific:
-                        merged['VIP'] = specific['VIP']
-                    elif 'VIP' in default:
-                        merged['VIP'] = default['VIP']
-                    if 'use_reservations' in specific:
-                        merged['use_reservations'] = specific['use_reservations']
-                    elif 'use_reservations' in default:
-                        merged['use_reservations'] = default['use_reservations']
-                    if 'restricted' in default and 'restricted' not in specific:
-                        merged['restricted'] = default['restricted']
-                    elif 'restricted' not in default and 'restricted' in specific:
-                        merged['restricted'] = specific['restricted']
-                    elif 'restricted' in default and 'restricted' in specific:
-                        merged['restricted'] = default['restricted'] + specific['restricted']
-                    self._config[server.name] = merged
+    def get_config(self, server: Server, *, use_cache: Optional[bool] = True) -> Optional[dict]:
+        if server.name not in self._config or not use_cache:
+            default, specific = self.get_base_config(server)
+            if default and not specific:
+                self._config[server.name] = default
+            elif specific and not default:
+                self._config[server.name] = specific
+            elif default and specific:
+                merged = {}
+                if 'VIP' in specific:
+                    merged['VIP'] = specific['VIP']
+                elif 'VIP' in default:
+                    merged['VIP'] = default['VIP']
+                if 'use_reservations' in specific:
+                    merged['use_reservations'] = specific['use_reservations']
+                elif 'use_reservations' in default:
+                    merged['use_reservations'] = default['use_reservations']
+                if 'restricted' in default and 'restricted' not in specific:
+                    merged['restricted'] = default['restricted']
+                elif 'restricted' not in default and 'restricted' in specific:
+                    merged['restricted'] = specific['restricted']
+                elif 'restricted' in default and 'restricted' in specific:
+                    merged['restricted'] = default['restricted'] + specific['restricted']
+                self._config[server.name] = merged
             else:
                 return None
-        return self._config[server.name] if server.name in self._config else None
+        return self._config.get(server.name)
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):

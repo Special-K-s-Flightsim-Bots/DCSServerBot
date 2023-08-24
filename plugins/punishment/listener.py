@@ -12,6 +12,11 @@ class PunishmentEventListener(EventListener):
         super().__init__(plugin)
         self.lock = asyncio.Lock()
 
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        # make sure the config cache is re-read on mission changes
+        self.plugin.get_config(server, use_cache=False)
+
     def _get_flight_hours(self, player: Player) -> int:
         conn = self.pool.getconn()
         try:

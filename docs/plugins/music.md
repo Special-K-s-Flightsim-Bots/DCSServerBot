@@ -11,9 +11,6 @@ Currently it only supports mp3 files and SRS as a music destination ("sink" in m
 The plugin comes with a nice music player that you can run by using .music in your admin channels.
 
 ## Configuration
-Unlike other plugins, the configuration for this plugin is stored in the database. You still have a json file though,
-but it is only used as a default configuration, as long as you haven't changed anything yet. Keep that in mind.
-
 ```json
 {
   "configs": [

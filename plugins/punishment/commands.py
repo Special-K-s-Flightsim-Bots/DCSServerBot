@@ -51,30 +51,22 @@ class PunishmentAgent(Plugin):
             finally:
                 self.pool.putconn(conn)
 
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    merged = default
-                    # specific settings will always overwrite default settings
-                    for key, value in specific.items():
-                        merged[key] = value
-                    self._config[server.name] = merged
+    def get_config(self, server: Server, *, use_cache: Optional[bool] = True) -> Optional[dict]:
+        if server.name not in self._config or not use_cache:
+            default, specific = self.get_base_config(server)
+            if default and not specific:
+                self._config[server.name] = default
+            elif specific and not default:
+                self._config[server.name] = specific
+            elif default and specific:
+                merged = default
+                # specific settings will always overwrite default settings
+                for key, value in specific.items():
+                    merged[key] = value
+                self._config[server.name] = merged
             else:
                 return None
-        return self._config[server.name] if server.name in self._config else None
+        return self._config.get(server.name)
 
     @commands.command(name='punish', description='Adds punishment points to a user', usage='<member|ucid> <points>')
     @utils.has_role('DCS Admin')

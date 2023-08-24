@@ -173,9 +173,7 @@ class Tacview(Extension):
             rcp_ports[rcp_port] = self.server.name
         return True
 
-    async def shutdown(self, data: dict):
-        if 'channel' not in self.config:
-            return
+    async def send_tacview_file(self, data: dict):
         server: Server = self.bot.servers[data['server_name']]
         log = self.locals.get('log',
                               os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Logs/dcs.log')
@@ -200,4 +198,13 @@ class Tacview(Extension):
             self.log.info("Can't find TACVIEW file to be sent. Was the server even running?")
             self.log.debug('First line to check: ' + lines[0])
             self.log.debug('Last line to check: ' + lines[-1])
+
+    async def shutdown(self, data: dict) -> bool:
+        if self.config.get('channel') and self.locals.get('tacviewMultiplayerFlightsAsHost', 2) == 2:
+            await self.send_tacview_file(data)
+        return True
+
+    async def onPlayerDisconnect(self, data: dict) -> bool:
+        if self.config.get('channel') and self.locals.get('tacviewMultiplayerFlightsAsHost', 2) == 3:
+            await self.send_tacview_file(data)
         return True

@@ -1,7 +1,6 @@
 import discord
 import psycopg2
 from contextlib import closing
-from copy import deepcopy
 from core import utils, DCSServerBot, Plugin, PluginRequiredError, Server
 from discord.ext import commands
 from typing import Optional, cast, Union
@@ -11,45 +10,37 @@ from .player import CreditPlayer
 
 class CreditSystemAgent(Plugin):
 
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    merged = {}
-                    if 'initial_points' in specific:
-                        merged['initial_points'] = specific['initial_points']
-                    elif 'initial_points' in default:
-                        merged['initial_points'] = default['initial_points']
-                    if 'max_points' in specific:
-                        merged['max_points'] = specific['max_points']
-                    elif 'max_points' in default:
-                        merged['max_points'] = default['max_points']
-                    if 'points_per_kill' in default and 'points_per_kill' not in specific:
-                        merged['points_per_kill'] = default['points_per_kill']
-                    elif 'points_per_kill' not in default and 'points_per_kill' in specific:
-                        merged['points_per_kill'] = specific['points_per_kill']
-                    elif 'points_per_kill' in default and 'points_per_kill' in specific:
-                        merged['points_per_kill'] = default['points_per_kill'] + specific['points_per_kill']
-                    if 'achievements' in specific:
-                        merged['achievements'] = specific['achievements']
-                    elif 'achievements' in default:
-                        merged['achievements'] = default['achievements']
-                    self._config[server.name] = merged
+    def get_config(self, server: Server, *, use_cache: Optional[bool] = True) -> Optional[dict]:
+        if server.name not in self._config or not use_cache:
+            default, specific = self.get_base_config(server)
+            if default and not specific:
+                self._config[server.name] = default
+            elif specific and not default:
+                self._config[server.name] = specific
+            elif default and specific:
+                merged = {}
+                if 'initial_points' in specific:
+                    merged['initial_points'] = specific['initial_points']
+                elif 'initial_points' in default:
+                    merged['initial_points'] = default['initial_points']
+                if 'max_points' in specific:
+                    merged['max_points'] = specific['max_points']
+                elif 'max_points' in default:
+                    merged['max_points'] = default['max_points']
+                if 'points_per_kill' in default and 'points_per_kill' not in specific:
+                    merged['points_per_kill'] = default['points_per_kill']
+                elif 'points_per_kill' not in default and 'points_per_kill' in specific:
+                    merged['points_per_kill'] = specific['points_per_kill']
+                elif 'points_per_kill' in default and 'points_per_kill' in specific:
+                    merged['points_per_kill'] = default['points_per_kill'] + specific['points_per_kill']
+                if 'achievements' in specific:
+                    merged['achievements'] = specific['achievements']
+                elif 'achievements' in default:
+                    merged['achievements'] = default['achievements']
+                self._config[server.name] = merged
             else:
                 return None
-        return self._config[server.name] if server.name in self._config else None
+        return self._config.get(server.name)
 
 
 class CreditSystemMaster(CreditSystemAgent):

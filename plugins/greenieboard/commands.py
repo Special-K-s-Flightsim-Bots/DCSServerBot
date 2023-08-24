@@ -5,7 +5,6 @@ import psycopg2
 import shutil
 import time
 from contextlib import closing
-from copy import deepcopy
 from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
 from datetime import datetime
 from discord import SelectOption, TextStyle, app_commands
@@ -25,33 +24,25 @@ class GreenieBoardAgent(Plugin):
     async def cog_unload(self):
         self.auto_delete.cancel()
 
-    def get_config(self, server: Server) -> Optional[dict]:
-        if server.name not in self._config:
-            if 'configs' in self.locals:
-                specific = default = None
-                for element in self.locals['configs']:
-                    if 'installation' in element or 'server_name' in element:
-                        if ('installation' in element and server.installation == element['installation']) or \
-                                ('server_name' in element and server.name == element['server_name']):
-                            specific = deepcopy(element)
-                    else:
-                        default = deepcopy(element)
-                # we only specify the persistent channel in the server settings, if it is expicitely defined
-                if 'persistent_channel' in default:
-                    del default['persistent_channel']
-                if default and not specific:
-                    self._config[server.name] = default
-                elif specific and not default:
-                    self._config[server.name] = specific
-                elif default and specific:
-                    merged = default
-                    # specific settings will overwrite default settings
-                    for key, value in specific.items():
-                        merged[key] = value
-                    self._config[server.name] = merged
+    def get_config(self, server: Server, *, use_cache: Optional[bool] = True) -> Optional[dict]:
+        if server.name not in self._config or not use_cache:
+            default, specific = self.get_base_config(server)
+            # we only specify the persistent channel in the server settings, if it is expicitely defined
+            if 'persistent_channel' in default:
+                del default['persistent_channel']
+            if default and not specific:
+                self._config[server.name] = default
+            elif specific and not default:
+                self._config[server.name] = specific
+            elif default and specific:
+                merged = default
+                # specific settings will overwrite default settings
+                for key, value in specific.items():
+                    merged[key] = value
+                self._config[server.name] = merged
             else:
                 return None
-        return self._config[server.name] if server.name in self._config else None
+        return self._config.get(server.name)
 
     def migrate(self, version: str):
         if version != '1.3':

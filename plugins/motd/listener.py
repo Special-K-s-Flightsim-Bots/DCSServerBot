@@ -1,23 +1,48 @@
 from core import EventListener, utils, Server, Report, Player, event
+from typing import Optional
 
 
 class MessageOfTheDayListener(EventListener):
 
-    @staticmethod
-    def on_join(config: dict) -> str:
-        return utils.format_string(config['on_join']['message'])
+    def on_join(self, config: dict, server: Server, player: Player) -> Optional[str]:
+        if 'messages' in config:
+            for cfg in config['messages']:
+                message = self.on_join(cfg, server, player)
+                if message:
+                    return message
+        else:
+            if 'recipients' in config:
+                players = self.plugin.get_recipients(server, config)
+                if player not in players:
+                    return None
+            return utils.format_string(config['message'])
 
-    async def on_birth(self, config: dict, server: Server, player: Player) -> str:
-        message = None
-        if 'message' in config['on_birth']:
-            message = utils.format_string(config['on_birth']['message'], server=server, player=player)
-        elif 'report' in config['on_birth']:
-            report = Report(self.bot, self.plugin_name, config['on_birth']['report'])
-            env = await report.render(server=server, player=player, guild=self.bot.guilds[0])
-            message = utils.embed_to_simpletext(env.embed)
-        if 'sound' in config['on_birth']:
-            player.playSound(config['on_birth']['sound'])
-        return message
+    async def on_birth(self, config: dict, server: Server, player: Player) -> Optional[str]:
+        if 'messages' in config:
+            for cfg in config['messages']:
+                message = await self.on_birth(cfg, server, player)
+                if message:
+                    return message
+        else:
+            message = None
+            if 'recipients' in config:
+                players = self.plugin.get_recipients(server, config)
+                if player not in players:
+                    return None
+            if 'message' in config:
+                message = utils.format_string(config['message'], server=server, player=player)
+            elif 'report' in config:
+                report = Report(self.bot, self.plugin_name, config['report'])
+                env = await report.render(server=server, player=player, guild=self.bot.guilds[0])
+                message = utils.embed_to_simpletext(env.embed)
+            if 'sound' in config:
+                player.playSound(config['on_birth']['sound'])
+            return message
+
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        # make sure the config cache is re-read on mission changes
+        self.plugin.get_config(server, use_cache=False)
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -26,7 +51,7 @@ class MessageOfTheDayListener(EventListener):
         config = self.plugin.get_config(server)
         if config and 'on_join' in config:
             player: Player = server.get_player(id=data['id'])
-            player.sendChatMessage(self.on_join(config))
+            player.sendChatMessage(self.on_join(config['on_join'], server, player))
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
@@ -35,6 +60,6 @@ class MessageOfTheDayListener(EventListener):
             return
         if data['eventName'] == 'S_EVENT_BIRTH' and 'name' in data['initiator'] and 'on_birth' in config:
             player: Player = server.get_player(name=data['initiator']['name'], active=True)
-            message = await self.on_birth(config, server, player)
+            message = await self.on_birth(config['on_birth'], server, player)
             if message:
                 self.plugin.send_message(message, server, config['on_birth'], player)

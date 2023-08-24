@@ -233,7 +233,7 @@ def is_ucid(ucid: str) -> bool:
 
 
 class SettingsDict(dict):
-    def __init__(self, server: Server, path: str, root: str):
+    def __init__(self, server: Server, path: str, root: Optional[str] = None):
         super().__init__()
         self.path = path
         self.root = root

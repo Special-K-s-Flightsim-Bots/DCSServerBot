@@ -8,15 +8,24 @@ from .player import CreditPlayer
 
 class CreditSystemListener(EventListener):
 
-    @event(name="registerDCSServer")
-    async def registerDCSServer(self, server: Server, data: dict) -> None:
-        config = self.plugin.get_config(server)
+    def load_params_into_mission(self, server: Server):
+        config = self.plugin.get_config(server, use_cache=False)
         if config:
             server.sendtoDCS({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,
                 'params': config
             })
+
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
+        # the server is running already
+        if data['channel'].startswith('sync-'):
+            self.load_params_into_mission(server)
+
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+        self.load_params_into_mission(server)
 
     @staticmethod
     def get_points_per_kill(config: dict, data: dict) -> int:
@@ -175,7 +184,11 @@ class CreditSystemListener(EventListener):
             player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}donate player points")
             return
         name = ' '.join(params[:-1])
-        donation = int(params[-1])
+        try:
+            donation = int(params[-1])
+        except ValueError:
+            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}donate player points")
+            return
         if donation > player.points:
             player.sendChatMessage(f"You can't donate {donation} credit points as you only have {player.points}!")
             return
