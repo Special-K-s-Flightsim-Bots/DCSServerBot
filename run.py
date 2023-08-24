@@ -34,6 +34,8 @@ class Main:
                     except ServiceInstallationError as ex:
                         self.log.error(f"  - {ex.__str__()}")
                         self.log.info(f"  => {name} NOT loaded.")
+            if not self.node.master:
+                self.log.info("DCSServerBot AGENT started.")
             try:
                 while True:
                     # wait until the master changes
