@@ -402,8 +402,7 @@ class ServiceBus(Service):
                 self.send_to_node({
                     "command": data['method'],
                     "channel": data['channel'],
-                    "return": rc,
-                    "server_name": data['server_name']
+                    "return": rc
                 }, node=data['node'])
         elif data['server_name'] in self.udp_server.message_queue:
             self.udp_server.message_queue[data['server_name']].put(data)
@@ -435,8 +434,7 @@ class ServiceBus(Service):
                 self.send_to_node({
                     "command": data['method'],
                     "channel": data['channel'],
-                    "return": rc,
-                    "server_name": data['server_name']
+                    "return": rc
                 })
         else:
             server_name = data['server_name']
