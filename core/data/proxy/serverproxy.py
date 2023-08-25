@@ -107,16 +107,18 @@ class ServerProxy(Server):
         }, node=self.node.name, timeout=60)
 
     async def shutdown(self, force: bool = False) -> None:
-        await self.bus.send_to_node_sync({
-            "command": "rpc",
-            "object": "Server",
-            "method": "shutdown",
-            "server_name": self.name,
-            "params": {
-                "force": force
-            },
-        }, node=self.node.name, timeout=180)
-        self.status = Status.SHUTDOWN
+        await super().shutdown(force)
+        if self.status != Status.SHUTDOWN:
+            await self.bus.send_to_node_sync({
+                "command": "rpc",
+                "object": "Server",
+                "method": "shutdown",
+                "server_name": self.name,
+                "params": {
+                    "force": force
+                },
+            }, node=self.node.name, timeout=180)
+            self.status = Status.SHUTDOWN
 
     async def modifyMission(self, preset: Union[list, dict]) -> None:
         await self.bus.send_to_node_sync({
