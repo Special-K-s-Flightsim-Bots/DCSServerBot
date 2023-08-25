@@ -414,14 +414,12 @@ class ServiceBus(Service):
             }, node=data['node'])
 
     async def handle_master(self, data: dict):
-        self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
         if data['server_name'] in self.udp_server.message_queue:
             self.udp_server.message_queue[data['server_name']].put(data)
         else:
             self.log.debug(f"Intercom: message ignored, no server {data['server_name']} registered.")
 
     async def handle_agent(self, data: dict):
-        self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
         server_name = data['server_name']
         if server_name not in self.servers:
             self.log.warning(
@@ -447,6 +445,10 @@ class ServiceBus(Service):
                                 if sys.getsizeof(data) > 8 * 1024:
                                     self.log.error("Packet is larger than 8 KB!")
                                 try:
+                                    if self.master:
+                                        self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
+                                    else:
+                                        self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
                                     if data['command'] == 'rpc':
                                         asyncio.create_task(self.handle_rpc(data))
                                     elif self.master:
