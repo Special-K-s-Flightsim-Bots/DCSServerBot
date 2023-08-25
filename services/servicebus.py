@@ -379,82 +379,56 @@ class ServiceBus(Service):
         finally:
             del self.listeners[token]
 
+    async def handle_rpc(self, data: dict):
+        # handle synchronous responses
+        if data.get('channel', '').startswith('sync-') and 'return' in data:
+            if data['channel'] in self.listeners:
+                f = self.listeners[data['channel']]
+                if not f.done():
+                    self.loop.call_soon_threadsafe(f.set_result, data)
+            return
+        if data.get('object') == 'Server':
+            obj = self.servers.get(data['server_name'])
+        elif data.get('object') == 'Instance':
+            server = self.servers.get(data['server_name'])
+            if server:
+                obj = server.instance
+        elif data.get('object') == 'Node':
+            obj = self.node
+        else:
+            obj = ServiceRegistry.get(data['service'])
+        if not obj:
+            self.log.warning('RPC command received for unknown object/service.')
+            return
+        rc = await self.rpc(obj, data)
+        if data.get('channel', '').startswith('sync-'):
+            if isinstance(rc, Enum):
+                rc = rc.value
+            elif isinstance(rc, bool):
+                rc = str(rc)
+            self.send_to_node({
+                "command": "rpc",
+                "method": data['method'],
+                "channel": data['channel'],
+                "return": rc or ''
+            }, node=data['node'])
+
     async def handle_master(self, data: dict):
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
-        if data['command'] == 'rpc':
-            # handle synchronous responses
-            if data.get('channel', '').startswith('sync-') and 'return' in data:
-                if data['channel'] in self.listeners:
-                    f = self.listeners[data['channel']]
-                    if not f.done():
-                        self.loop.call_soon_threadsafe(f.set_result, data)
-                return
-            if data.get('object') == 'Server':
-                obj = self.servers.get(data['server_name'])
-            elif data.get('object') == 'Instance':
-                server = self.servers.get(data['server_name'])
-                if server:
-                    obj = server.instance
-            elif data.get('object') == 'Node':
-                obj = self.node
-            else:
-                obj = ServiceRegistry.get(data['service'])
-            if not obj:
-                self.log.warning('RPC command received for unknown object/service.')
-                return
-            rc = await self.rpc(obj, data)
-            if data.get('channel', '').startswith('sync-'):
-                if isinstance(rc, Enum):
-                    rc = rc.value
-                elif isinstance(rc, bool):
-                    rc = str(rc)
-                self.send_to_node({
-                    "command": "rpc",
-                    "method": data['method'],
-                    "channel": data['channel'],
-                    "return": rc or ''
-                }, node=data['node'])
-        elif data['server_name'] in self.udp_server.message_queue:
+        if data['server_name'] in self.udp_server.message_queue:
             self.udp_server.message_queue[data['server_name']].put(data)
         else:
             self.log.debug(f"Intercom: message ignored, no server {data['server_name']} registered.")
 
     async def handle_agent(self, data: dict):
         self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
-        if data['command'] == 'rpc':
-            if data.get('object') == 'Server':
-                obj = self.servers.get(data['server_name'])
-            elif data.get('object') == 'Instance':
-                server = self.servers.get(data['server_name'])
-                if server:
-                    obj = server.instance
-            elif data.get('object') == 'Node':
-                obj = self.node
-            else:
-                obj = ServiceRegistry.get(data['service'])
-            if not obj:
-                self.log.warning('RPC command received for unknown object/service.')
-                return
-            rc = await self.rpc(obj, data)
-            if data.get('channel', '').startswith('sync-'):
-                if isinstance(rc, Enum):
-                    rc = rc.value
-                elif isinstance(rc, bool):
-                    rc = str(rc)
-                self.send_to_node({
-                    "command": "rpc",
-                    "method": data['method'],
-                    "channel": data['channel'],
-                    "return": rc or ''
-                })
+        server_name = data['server_name']
+        if server_name not in self.servers:
+            self.log.warning(
+                f"Command {data['command']} for unknown server {server_name} received, ignoring")
         else:
-            server_name = data['server_name']
-            if server_name not in self.servers:
-                self.log.warning(
-                    f"Command {data['command']} for unknown server {server_name} received, ignoring")
-            else:
-                server: Server = self.servers[server_name]
-                server.send_to_dcs(data)
+            server: Server = self.servers[server_name]
+            server.send_to_dcs(data)
 
     @tasks.loop(seconds=1)
     async def intercom(self):
@@ -473,10 +447,12 @@ class ServiceBus(Service):
                                 if sys.getsizeof(data) > 8 * 1024:
                                     self.log.error("Packet is larger than 8 KB!")
                                 try:
+                                    if 'rcp' in data:
+                                        self.loop.call_soon(self.handle_rpc, data)
                                     if self.master:
-                                        await self.handle_master(data)
+                                        self.loop.call_soon(self.handle_master, data)
                                     else:
-                                        await self.handle_agent(data)
+                                        self.loop.call_soon(self.handle_agent, data)
                                 except Exception as ex:
                                     self.log.exception(ex)
                                 cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
