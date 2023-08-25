@@ -448,11 +448,11 @@ class ServiceBus(Service):
                                     self.log.error("Packet is larger than 8 KB!")
                                 try:
                                     if 'rcp' in data:
-                                        self.loop.call_soon(self.handle_rpc, data)
+                                        asyncio.create_task(self.handle_rpc(data))
                                     if self.master:
-                                        self.loop.call_soon(self.handle_master, data)
+                                        asyncio.create_task(self.handle_master(data))
                                     else:
-                                        self.loop.call_soon(self.handle_agent, data)
+                                        asyncio.create_task(self.handle_agent(data))
                                 except Exception as ex:
                                     self.log.exception(ex)
                                 cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
