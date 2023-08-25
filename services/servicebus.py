@@ -403,16 +403,17 @@ class ServiceBus(Service):
                 self.log.warning('RPC command received for unknown object/service.')
                 return
             rc = await self.rpc(obj, data)
-            if isinstance(rc, Enum):
-                rc = rc.value
-            elif isinstance(rc, bool):
-                rc = str(rc)
-            self.send_to_node({
-                "command": "rpc",
-                "method": data['method'],
-                "channel": data['channel'],
-                "return": rc or ''
-            }, node=data['node'])
+            if data.get('channel', '').startswith('sync-'):
+                if isinstance(rc, Enum):
+                    rc = rc.value
+                elif isinstance(rc, bool):
+                    rc = str(rc)
+                self.send_to_node({
+                    "command": "rpc",
+                    "method": data['method'],
+                    "channel": data['channel'],
+                    "return": rc or ''
+                }, node=data['node'])
         elif data['server_name'] in self.udp_server.message_queue:
             self.udp_server.message_queue[data['server_name']].put(data)
         else:
@@ -435,16 +436,17 @@ class ServiceBus(Service):
                 self.log.warning('RPC command received for unknown object/service.')
                 return
             rc = await self.rpc(obj, data)
-            if isinstance(rc, Enum):
-                rc = rc.value
-            elif isinstance(rc, bool):
-                rc = str(rc)
-            self.send_to_node({
-                "command": "rpc",
-                "method": data['method'],
-                "channel": data['channel'],
-                "return": rc or ''
-            })
+            if data.get('channel', '').startswith('sync-'):
+                if isinstance(rc, Enum):
+                    rc = rc.value
+                elif isinstance(rc, bool):
+                    rc = str(rc)
+                self.send_to_node({
+                    "command": "rpc",
+                    "method": data['method'],
+                    "channel": data['channel'],
+                    "return": rc or ''
+                })
         else:
             server_name = data['server_name']
             if server_name not in self.servers:
