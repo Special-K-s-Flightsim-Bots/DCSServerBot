@@ -447,7 +447,7 @@ class ServiceBus(Service):
                                 if sys.getsizeof(data) > 8 * 1024:
                                     self.log.error("Packet is larger than 8 KB!")
                                 try:
-                                    if 'rcp' in data:
+                                    if data['command'] == 'rpc':
                                         asyncio.create_task(self.handle_rpc(data))
                                     if self.master:
                                         asyncio.create_task(self.handle_master(data))
