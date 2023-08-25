@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-import subprocess
-
 import aiohttp
-import asyncio
 import json
 import os
 import platform
 import shutil
 import socket
+import subprocess
 import traceback
 
 from contextlib import suppress
-
-from win32con import DETACHED_PROCESS
-
 from core import utils, Server, UploadStatus
 from dataclasses import dataclass, field
 from datetime import datetime

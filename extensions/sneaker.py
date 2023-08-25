@@ -1,13 +1,13 @@
 from __future__ import annotations
-import asyncio
 import json
 import os
+import subprocess
 
 from typing import Optional, cast
 from core import Extension, report, Status, ServiceRegistry, Server
 from services import ServiceBus
 
-process: Optional[asyncio.subprocess.Process] = None
+process: Optional[subprocess.Popen] = None
 servers: set[str] = set()
 
 
@@ -60,23 +60,20 @@ class Sneaker(Extension):
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(
                 f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config\\sneaker.json")
-            process = await asyncio.create_subprocess_exec(
-                os.path.expandvars(self.config['cmd']),
-                "--bind", self.config['bind'],
-                "--config", 'config\\sneaker.json',
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL)
+            process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
+                                       executable=os.path.expandvars(self.config['cmd']),
+                                       stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL)
         else:
             if not process:
                 cmd = os.path.basename(self.config['cmd'])
                 self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                                f"--config {self.config['config']}")
-                process = await asyncio.create_subprocess_exec(
-                    os.path.expandvars(self.config['cmd']),
-                    "--bind", self.config['bind'],
-                    "--config", os.path.expandvars(self.config['config']),
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL)
+                process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config",
+                                            os.path.expandvars(self.config['config'])],
+                                           executable=os.path.expandvars(self.config['cmd']),
+                                           stdout=subprocess.DEVNULL,
+                                           stderr=subprocess.DEVNULL)
         servers.add(self.server.name)
         return self.is_running()
 
@@ -84,7 +81,7 @@ class Sneaker(Extension):
         global process, servers
 
         servers.remove(self.server.name)
-        if not servers and process is not None and process.returncode is None:
+        if not servers and process is not None:
             process.kill()
             process = None
             return await super().shutdown()
@@ -95,18 +92,16 @@ class Sneaker(Extension):
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
                            f"--config config\\sneaker.json")
-            process = await asyncio.create_subprocess_exec(
-                os.path.expandvars(self.config['cmd']),
-                "--bind", self.config['bind'],
-                "--config", 'config\\sneaker.json',
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL)
+            process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
+                                       executable=os.path.expandvars(self.config['cmd']),
+                                       stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL)
         return True
 
     def is_running(self) -> bool:
         global process, servers
 
-        if process is not None and process.returncode is None:
+        if process is not None and process.poll() is None:
             return self.server.name in servers
         else:
             return False

@@ -1,5 +1,6 @@
 import asyncio
 import os
+import subprocess
 import traceback
 
 from core import Extension, report, Server
@@ -8,7 +9,7 @@ from extensions import TACVIEW_DEFAULT_DIR
 from typing import Optional
 
 # Globals
-process: Optional[asyncio.subprocess.Process] = None
+process: Optional[subprocess.Popen] = None
 servers: set[str] = set()
 imports: set[str] = set()
 
@@ -29,13 +30,10 @@ class Lardoon(Extension):
         if not process or process.returncode is not None:
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Lardoon server with {cmd} serve --bind {self.config['bind']}")
-            process = await asyncio.create_subprocess_exec(
-                os.path.expandvars(self.config['cmd']),
-                "serve",
-                "--bind", self.config['bind'],
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
-            )
+            process = subprocess.Popen([cmd, "serve", "--bind", self.config['bind']],
+                                       executable=os.path.expandvars(self.config['cmd']),
+                                       stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL)
             servers.add(self.server.name)
         return self.is_running()
 
@@ -53,7 +51,7 @@ class Lardoon(Extension):
     def is_running(self) -> bool:
         global process, servers
 
-        if process is not None and process.returncode is None:
+        if process is not None and process.poll() is None:
             return self.server.name in servers
         else:
             return False
