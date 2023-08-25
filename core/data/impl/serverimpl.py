@@ -10,6 +10,9 @@ import socket
 import traceback
 
 from contextlib import suppress
+
+from win32con import DETACHED_PROCESS
+
 from core import utils, Server, UploadStatus
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -246,7 +249,7 @@ class ServerImpl(Server):
             self.log.warning('Removed non-existent missions from serverSettings.lua')
         self.log.debug(r'Launching DCS server with: "{}" --server --norender -w {}'.format(path, self.instance.name))
         p = await asyncio.create_subprocess_exec(path, '--server', '--norender', '-w', self.instance.name,
-                                                 start_new_session=True)
+                                                 creationflags=DETACHED_PROCESS, start_new_session=True)
         with suppress(Exception):
             self.process = Process(p.pid)
 
