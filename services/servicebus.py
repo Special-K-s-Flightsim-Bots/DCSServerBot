@@ -417,7 +417,7 @@ class ServiceBus(Service):
         elif data['server_name'] in self.udp_server.message_queue:
             self.udp_server.message_queue[data['server_name']].put(data)
         else:
-            self.log.warning(f"Intercom: message ignored, no server {data['server_name']} registered.")
+            self.log.debug(f"Intercom: message ignored, no server {data['server_name']} registered.")
 
     async def handle_agent(self, data: dict):
         self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
@@ -460,10 +460,10 @@ class ServiceBus(Service):
     async def intercom(self):
         with self.pool.connection() as conn:
             with conn.pipeline():
-                with conn.transaction():
-                    with closing(conn.cursor()) as cursor:
-                        # we read until there is no new data, then we wait for the next call (after 1 s)
-                        while True:
+                while True:
+                    with conn.transaction():
+                        with closing(conn.cursor()) as cursor:
+                            # we read until there is no new data, then we wait for the next call (after 1 s)
                             rows = cursor.execute("SELECT id, data FROM intercom WHERE node = %s",
                                                   ("Master" if self.master else platform.node(), )).fetchall()
                             if not len(rows):
