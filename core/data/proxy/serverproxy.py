@@ -99,12 +99,12 @@ class ServerProxy(Server):
         }, timeout=300 if self.node.locals.get('slow_system', False) else 180, node=self.node.name)
 
     async def startup_extensions(self) -> None:
-        self.bus.send_to_node({
+        await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "startup_extensions",
             "server_name": self.name
-        }, node=self.node.name)
+        }, node=self.node.name, timeout=60)
 
     async def shutdown(self, force: bool = False) -> None:
         await super().shutdown(force)
@@ -117,7 +117,7 @@ class ServerProxy(Server):
                 "params": {
                     "force": force
                 },
-            }, node=self.node.name)
+            }, node=self.node.name, timeout=180)
         self.status = Status.SHUTDOWN
 
     async def modifyMission(self, preset: Union[list, dict]) -> None:
@@ -129,7 +129,7 @@ class ServerProxy(Server):
             "params": {
                 "preset": preset
             }
-        }, node=self.node.name)
+        }, node=self.node.name, timeout=60)
 
     async def init_extensions(self):
         await self.bus.send_to_node_sync({
@@ -137,7 +137,7 @@ class ServerProxy(Server):
             "object": "Server",
             "method": "init_extensions",
             "server_name": self.name
-        }, node=self.node.name)
+        }, node=self.node.name, timeout=60)
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         data = await self.bus.send_to_node_sync({
