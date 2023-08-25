@@ -403,15 +403,16 @@ class ServiceBus(Service):
                 self.log.warning('RPC command received for unknown object/service.')
                 return
             rc = await self.rpc(obj, data)
-            if rc is not None:
-                if isinstance(rc, Enum):
-                    rc = rc.value
-                self.send_to_node({
-                    "command": "rpc",
-                    "method": data['method'],
-                    "channel": data['channel'],
-                    "return": rc
-                }, node=data['node'])
+            if isinstance(rc, Enum):
+                rc = rc.value
+            elif isinstance(rc, bool):
+                rc = str(rc)
+            self.send_to_node({
+                "command": "rpc",
+                "method": data['method'],
+                "channel": data['channel'],
+                "return": rc or ''
+            }, node=data['node'])
         elif data['server_name'] in self.udp_server.message_queue:
             self.udp_server.message_queue[data['server_name']].put(data)
         else:
@@ -434,17 +435,16 @@ class ServiceBus(Service):
                 self.log.warning('RPC command received for unknown object/service.')
                 return
             rc = await self.rpc(obj, data)
-            if rc is not None:
-                if isinstance(rc, Enum):
-                    rc = rc.value
-                elif isinstance(rc, bool):
-                    rc = str(rc)
-                self.send_to_node({
-                    "command": "rpc",
-                    "method": data['method'],
-                    "channel": data['channel'],
-                    "return": rc
-                })
+            if isinstance(rc, Enum):
+                rc = rc.value
+            elif isinstance(rc, bool):
+                rc = str(rc)
+            self.send_to_node({
+                "command": "rpc",
+                "method": data['method'],
+                "channel": data['channel'],
+                "return": rc or ''
+            })
         else:
             server_name = data['server_name']
             if server_name not in self.servers:
@@ -460,19 +460,24 @@ class ServiceBus(Service):
             with conn.pipeline():
                 with conn.transaction():
                     with closing(conn.cursor()) as cursor:
-                        for row in cursor.execute("SELECT id, data FROM intercom WHERE node = %s",
-                                                  ("Master" if self.master else platform.node(), )).fetchall():
-                            data = row[1]
-                            if sys.getsizeof(data) > 8 * 1024:
-                                self.log.error("Packet is larger than 8 KB!")
-                            try:
-                                if self.master:
-                                    await self.handle_master(data)
-                                else:
-                                    await self.handle_agent(data)
-                            except Exception as ex:
-                                self.log.exception(ex)
-                            cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
+                        # we read until there is no new data, then we wait for the next call (after 1 s)
+                        while True:
+                            rows = cursor.execute("SELECT id, data FROM intercom WHERE node = %s",
+                                                  ("Master" if self.master else platform.node(), )).fetchall()
+                            if not len(rows):
+                                return
+                            for row in rows:
+                                data = row[1]
+                                if sys.getsizeof(data) > 8 * 1024:
+                                    self.log.error("Packet is larger than 8 KB!")
+                                try:
+                                    if self.master:
+                                        await self.handle_master(data)
+                                    else:
+                                        await self.handle_agent(data)
+                                except Exception as ex:
+                                    self.log.exception(ex)
+                                cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
         try:
