@@ -383,12 +383,12 @@ class ServiceBus(Service):
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
         if data['command'] == 'rpc':
             # handle synchronous responses
-            if data.get('channel', '').startswith('sync-'):
+            if data.get('channel', '').startswith('sync-') and 'return' in data:
                 if data['channel'] in self.listeners:
                     f = self.listeners[data['channel']]
                     if not f.done():
                         self.loop.call_soon_threadsafe(f.set_result, data)
-                    return
+                return
             if data.get('object') == 'Server':
                 obj = self.servers.get(data['server_name'])
             elif data.get('object') == 'Instance':
