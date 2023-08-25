@@ -449,7 +449,7 @@ class ServiceBus(Service):
                                 try:
                                     if data['command'] == 'rpc':
                                         asyncio.create_task(self.handle_rpc(data))
-                                    if self.master:
+                                    elif self.master:
                                         asyncio.create_task(self.handle_master(data))
                                     else:
                                         asyncio.create_task(self.handle_agent(data))
