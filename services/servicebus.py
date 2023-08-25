@@ -411,7 +411,7 @@ class ServiceBus(Service):
                 "method": data['method'],
                 "channel": data['channel'],
                 "return": rc or ''
-            }, node=data['node'])
+            }, node=data.get('node'))
 
     async def handle_master(self, data: dict):
         if data['server_name'] in self.udp_server.message_queue:
