@@ -5,7 +5,6 @@ import json
 import platform
 import psycopg
 import sys
-import traceback
 import uuid
 
 from _operator import attrgetter
@@ -423,6 +422,7 @@ class ServiceBus(Service):
                     rc = str(rc)
                 self.send_to_node({
                     "command": "rpc",
+                    "method": "method",
                     "channel": data['channel'],
                     "return": rc or ''
                 }, node=data.get('node'))
@@ -430,6 +430,7 @@ class ServiceBus(Service):
             if data.get('channel', '').startswith('sync-'):
                 self.send_to_node({
                     "command": "rpc",
+                    "method": "method",
                     "channel": data['channel'],
                     "return": '',
                     "exception": {
