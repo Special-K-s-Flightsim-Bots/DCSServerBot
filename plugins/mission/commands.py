@@ -337,10 +337,7 @@ class Mission(Plugin):
                              ])
         msg = await ctx.send(embed=embed, view=view)
         try:
-            if await view.wait():
-                return
-            elif not view.result:
-                await ctx.send('Aborted.')
+            if await view.wait() or not view.result:
                 return
             msg = await msg.edit(suppress=True)
             name = view.result
@@ -368,11 +365,12 @@ class Mission(Plugin):
                             await tmp.delete()
                             await ctx.send(f'Mission {name} loaded.')
                         break
-                await msg.delete()
         except asyncio.TimeoutError:
             await ctx.send(f"Timeout while trying to start mission, check the dcs.log")
             return
         finally:
+            if msg:
+                await msg.delete()
             await ctx.message.delete()
 
     @commands.command(description='Adds a mission to the list', usage='[path]')
