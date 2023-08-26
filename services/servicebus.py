@@ -148,10 +148,8 @@ class ServiceBus(Service):
         num = 0
         for i, server in enumerate(local_servers):
             if isinstance(ret[i], asyncio.TimeoutError):
-                server.status = Status.SHUTDOWN
                 self.log.debug(f'  => Timeout while trying to contact DCS server "{server.name}".')
-                if not self.master:
-                    await self.send_init(server)
+                server.status = Status.SHUTDOWN
             elif isinstance(ret[i], Exception):
                 self.log.exception(ret[i])
             else:
@@ -422,7 +420,7 @@ class ServiceBus(Service):
                     rc = str(rc)
                 self.send_to_node({
                     "command": "rpc",
-                    "method": "method",
+                    "method": data['method'],
                     "channel": data['channel'],
                     "return": rc or ''
                 }, node=data.get('node'))
@@ -430,7 +428,7 @@ class ServiceBus(Service):
             if data.get('channel', '').startswith('sync-'):
                 self.send_to_node({
                     "command": "rpc",
-                    "method": "method",
+                    "method": data['method'],
                     "channel": data['channel'],
                     "return": '',
                     "exception": {
