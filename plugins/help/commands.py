@@ -1,35 +1,10 @@
 import discord
 import os
 from core import DCSServerBot, Plugin, Report, ReportEnv
-from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button
 from typing import cast, Optional
 from .listener import HelpListener
-
-
-async def command_picker(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    try:
-        ctx = await commands.Context.from_interaction(interaction)
-        ret = list()
-        for command in interaction.client.commands:
-            if not command.enabled or command.hidden or (current and current.casefold() not in command.name):
-                continue
-            if not isinstance(command, discord.ext.commands.core.Command):
-                continue
-            if await command.can_run(ctx):
-                ret.append(app_commands.Choice(name=command.name, value=command.name))
-        for command in interaction.client.tree.get_commands():
-            if current and current.casefold() not in command.name:
-                continue
-            if not isinstance(command, discord.ext.commands.hybrid.HybridAppCommand) and \
-                    not isinstance(command, discord.app_commands.commands.Command):
-                continue
-            if await command._check_can_run(interaction):
-                ret.append(app_commands.Choice(name=command.name, value=command.name))
-        return sorted(ret, key=lambda x: x.name)[:25]
-    except Exception as ex:
-        print(ex)
 
 
 class HelpAgent(Plugin):
@@ -182,8 +157,9 @@ class HelpMaster(HelpAgent):
     @commands.guild_only()
     async def help(self, ctx, command: Optional[str]):
         options = [
-            discord.SelectOption(label=x.title(),
-                                 value=f'plugins.{x}.commands') for x in sorted(self.bot.plugins) if x != 'help'
+            discord.SelectOption(label=x.title(), value=f'plugins.{x}.commands')
+            for x in sorted(self.bot.plugins)
+            if x != 'help'
         ]
         options.insert(0, discord.SelectOption(label='Core', value='__main__'))
         view = self.HelpView(self.bot, ctx, options)
