@@ -1,4 +1,5 @@
 from __future__ import annotations
+import builtins
 import importlib
 import json
 import luadata
@@ -37,10 +38,15 @@ def is_match_daystate(time: datetime, daystate: str) -> bool:
     return state.upper() == 'Y'
 
 
-def str_to_class(name):
+def str_to_class(name: str):
     try:
-        module_name, class_name = name.rsplit('.', 1)
-        return getattr(importlib.import_module(module_name), class_name)
+        if '.' in name:
+            module_name, class_name = name.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+        else:
+            class_name = name
+            module = builtins
+        return getattr(module, class_name)
     except AttributeError:
         return None
 

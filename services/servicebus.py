@@ -53,6 +53,7 @@ class ServiceBus(Service):
         with self.pool.connection() as conn:
             with conn.transaction():
                 # conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
+                conn.execute("DELETE FROM files WHERE created < NOW() - interval '300 seconds'")
                 conn.execute("DELETE FROM intercom WHERE time < NOW() - interval '300 seconds'")
                 conn.execute("UPDATE intercom SET node = 'Master' WHERE node = %s", (self.node.name, ))
         self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
@@ -377,18 +378,27 @@ class ServiceBus(Service):
         self.listeners[token] = future
         try:
             self.send_to_node(message, node=node)
-            return await asyncio.wait_for(future, timeout)
+            data = await asyncio.wait_for(future, timeout)
         finally:
             del self.listeners[token]
 
     async def handle_rpc(self, data: dict):
+        self.log.debug(f"RPC: {json.dumps(data)}")
         # handle synchronous responses
         if data.get('channel', '').startswith('sync-') and 'return' in data:
             if data['channel'] in self.listeners:
                 f = self.listeners[data['channel']]
                 if not f.done():
-                    self.loop.call_soon_threadsafe(f.set_result, data)
+                    if 'exception' in data:
+                        self.loop.call_soon_threadsafe(
+                            f.set_exception,
+                            utils.str_to_class(data['exception']['class'])(data['exception']['message'])
+                        )
+                    else:
+                        # TODO: change to data['return']
+                        self.loop.call_soon_threadsafe(f.set_result, data)
             return
+        obj = None
         if data.get('object') == 'Server':
             obj = self.servers.get(data.get('server_name', data.get('server')))
         elif data.get('object') == 'Instance':
@@ -402,26 +412,41 @@ class ServiceBus(Service):
         if not obj:
             self.log.warning('RPC command received for unknown object/service.')
             return
-        rc = await self.rpc(obj, data)
+        try:
+            rc = await self.rpc(obj, data)
+            if data.get('channel', '').startswith('sync-'):
+                if isinstance(rc, Enum):
+                    rc = rc.value
+                elif isinstance(rc, bool):
+                    rc = str(rc)
+                self.send_to_node({
+                    "command": "rpc",
+                    "channel": data['channel'],
+                    "return": rc or ''
+                }, node=data.get('node'))
+        except Exception as ex:
+            if data.get('channel', '').startswith('sync-'):
+                self.send_to_node({
+                    "command": "rpc",
+                    "channel": data['channel'],
+                    "return": '',
+                    "exception": {
+                        "class": ex.__class__.__name__,
+                        "message": ex.__repr__()
+                    }
+                }, node=data.get('node'))
         if data.get('channel', '').startswith('sync-'):
-            if isinstance(rc, Enum):
-                rc = rc.value
-            elif isinstance(rc, bool):
-                rc = str(rc)
-            self.send_to_node({
-                "command": "rpc",
-                "method": data['method'],
-                "channel": data['channel'],
-                "return": rc or ''
-            }, node=data.get('node'))
+            self.send_to_node(data, node=data.get('node'))
 
     async def handle_master(self, data: dict):
+        self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
         if data['server_name'] in self.udp_server.message_queue:
             self.udp_server.message_queue[data['server_name']].put(data)
         else:
             self.log.debug(f"Intercom: message ignored, no server {data['server_name']} registered.")
 
     async def handle_agent(self, data: dict):
+        self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
         server_name = data['server_name']
         if server_name not in self.servers:
             self.log.warning(
@@ -447,10 +472,6 @@ class ServiceBus(Service):
                                 if sys.getsizeof(data) > 8 * 1024:
                                     self.log.error("Packet is larger than 8 KB!")
                                 try:
-                                    if self.master:
-                                        self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
-                                    else:
-                                        self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
                                     if data['command'] == 'rpc':
                                         asyncio.create_task(self.handle_rpc(data))
                                     elif self.master:
@@ -462,31 +483,28 @@ class ServiceBus(Service):
                                 cursor.execute("DELETE FROM intercom WHERE id = %s", (row[0], ))
 
     async def rpc(self, obj: object, data: dict) -> Optional[dict]:
-        try:
-            if 'method' in data:
-                func = attrgetter(data.get('method'))(obj)
-                if not func:
-                    return
-                kwargs = data.get('params', {})
-                # servers will be passed by name
-                if kwargs.get('server'):
-                    kwargs['server'] = self.servers[kwargs['server']]
-                if self.master:
-                    if kwargs.get('member'):
-                        kwargs['member'] = self.bot.guilds[0].get_member(int(kwargs['member'][2:-1]))
-                    if kwargs.get('user'):
-                        if kwargs['user'].startswith('<@'):
-                            kwargs['user'] = self.bot.guilds[0].get_member(int(kwargs['user'][2:-1]))
-                if asyncio.iscoroutinefunction(func):
-                    rc = await func(**kwargs) if kwargs else await func()
-                else:
-                    rc = func(**kwargs) if kwargs else func()
-                return rc
-            elif 'params' in data:
-                for key, value in data['params'].items():
-                    setattr(obj, key, value)
-        except Exception:
-            traceback.print_exc()
+        if 'method' in data:
+            func = attrgetter(data.get('method'))(obj)
+            if not func:
+                return
+            kwargs = deepcopy(data.get('params', {}))
+            # servers will be passed by name
+            if kwargs.get('server'):
+                kwargs['server'] = self.servers[kwargs['server']]
+            if self.master:
+                if kwargs.get('member'):
+                    kwargs['member'] = self.bot.guilds[0].get_member(int(kwargs['member'][2:-1]))
+                if kwargs.get('user'):
+                    if kwargs['user'].startswith('<@'):
+                        kwargs['user'] = self.bot.guilds[0].get_member(int(kwargs['user'][2:-1]))
+            if asyncio.iscoroutinefunction(func):
+                rc = await func(**kwargs) if kwargs else await func()
+            else:
+                rc = func(**kwargs) if kwargs else func()
+            return rc
+        elif 'params' in data:
+            for key, value in data['params'].items():
+                setattr(obj, key, value)
 
     async def start_udp_listener(self):
         class RequestHandler(BaseRequestHandler):

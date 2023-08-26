@@ -116,10 +116,12 @@ class Command(app_commands.Command):
             server = await interaction.client.get_server(interaction)
             if not server:
                 if len(interaction.client.servers) > 0:
-                    await interaction.response.send_message('This command needs to be run in an admin channel.')
+                    await interaction.response.send_message(
+                        'No server registered for this channel. '
+                        'If the channel is correct, please wait until the server registers.', ephemeral=True)
                     return
                 else:
-                    await interaction.response.send_message('No servers registered yet. Is the bot still starting?')
+                    await interaction.response.send_message('No servers registered yet.', ephemeral=True)
                     return
             params['server'] = server
         return await super()._do_call(interaction=interaction, params=params)

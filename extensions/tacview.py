@@ -1,4 +1,5 @@
 import asyncio
+import discord
 import os
 import re
 import time
@@ -203,17 +204,26 @@ class Tacview(Extension):
         # wait 60s for the file to appear
         for i in range(0, 60):
             if os.path.exists(filename):
-                self.bus.send_to_node({
-                    "command": "rpc",
-                    "service": "Bot",
-                    "method": "send_message",
-                    "params": {
-                        "channel": self.config.get('channel'),
-                        "server": self.server.name,
-                        "content": f"Tacview file for server {self.server.name}",
-                        "filename": filename
-                    }
-                })
+                if os.path.getsize(filename) > 25 * 1024 * 1024:
+                    self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
+                    return
+                try:
+                    await self.bus.send_to_node_sync({
+                        "command": "rpc",
+                        "service": "Bot",
+                        "method": "send_message",
+                        "params": {
+                            "channel": self.config.get('channel'),
+                            "content": f"Tacview file for server {self.server.name}",
+                            "server": self.server.name,
+                            "filename": filename
+                        }
+                    })
+                except AttributeError:
+                    self.log.warning(f"Can't upload TACVIEW file {filename}, "
+                                     f"channel {self.config.get('channel')} incorrect!")
+                except Exception as ex:
+                    self.log.warning(f"Can't upload, TACVIEW file {filename}: {ex}!")
                 return
             await asyncio.sleep(1)
         else:

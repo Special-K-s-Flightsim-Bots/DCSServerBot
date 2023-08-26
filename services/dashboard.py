@@ -33,7 +33,7 @@ class Header:
         grid.add_column(justify="center", ratio=1)
         grid.add_column(justify="right")
         grid.add_row(
-            f"[b]DCSServerBot Version {self.node.bot_version}.{self.node.sub_version}[/b]",
+            f"[b]DCSServerBot {'Master' if self.node.master else 'Agent'} Version {self.node.bot_version}.{self.node.sub_version}[/b]",
             datetime.now().ctime().replace(":", "[blink]:[/]"),
         )
         return Panel(grid, style="white on blue")

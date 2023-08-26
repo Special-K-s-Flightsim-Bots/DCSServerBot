@@ -120,7 +120,7 @@ class BotService(Service):
                     font_manager.fontManager.addfont(f)
                 self.log.debug('- CJK fonts loaded.')
 
-    async def send_message(self, server: Server, channel: int, content: Optional[str] = None,
+    async def send_message(self, channel: int, content: Optional[str] = None, server: Optional[Server] = None,
                            filename: Optional[str] = None, embed: Optional[dict] = None):
         _channel = self.bot.get_channel(channel)
         if embed:
@@ -133,6 +133,14 @@ class BotService(Service):
         else:
             file = MISSING
         await _channel.send(content=content, file=file, embed=_embed)
+
+    async def send_dm(self, member: Optional[discord.Member] = None, content: Optional[str] = None,
+                      server: Optional[Server] = None, filename: Optional[str] = None, embed: Optional[dict] = None):
+        if member:
+            channel = member.dm_channel.id
+        else:
+            channel = self.bot.guilds[0].get_member(self.bot.owner_id).dm_channel.id
+        await self.send_message(channel, content=content, server=server, filename=filename, embed=embed)
 
     async def audit(self, message, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional[Server] = None):
