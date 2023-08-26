@@ -397,6 +397,8 @@ class ServiceBus(Service):
                     else:
                         # TODO: change to data['return']
                         self.loop.call_soon_threadsafe(f.set_result, data)
+            else:
+                self.log.warning(f"This message should not have been sent to node {self.node.name}!")
             return
         obj = None
         if data.get('object') == 'Server':
@@ -435,8 +437,6 @@ class ServiceBus(Service):
                         "message": ex.__repr__()
                     }
                 }, node=data.get('node'))
-        if data.get('channel', '').startswith('sync-'):
-            self.send_to_node(data, node=data.get('node'))
 
     async def handle_master(self, data: dict):
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
