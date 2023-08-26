@@ -194,6 +194,7 @@ class Tacview(Extension):
                     await asyncio.sleep(1)
                 else:
                     self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
+                return
         else:
             self.log.info("Can't find TACVIEW file to be sent. Was the server even running?")
             self.log.debug('First line to check: ' + lines[0])
