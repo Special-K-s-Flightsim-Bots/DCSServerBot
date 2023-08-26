@@ -378,7 +378,7 @@ class ServiceBus(Service):
         self.listeners[token] = future
         try:
             self.send_to_node(message, node=node)
-            data = await asyncio.wait_for(future, timeout)
+            return await asyncio.wait_for(future, timeout)
         finally:
             del self.listeners[token]
 
