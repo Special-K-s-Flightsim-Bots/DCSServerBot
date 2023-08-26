@@ -357,8 +357,10 @@ class ServiceBus(Service):
                 with self.pool.connection() as conn:
                     with conn.transaction():
                         conn.execute("INSERT INTO intercom (node, data) VALUES (%s, %s)", (node, Json(data)))
-            else:
+            elif data['command'] != 'rpc':
                 self.udp_server.message_queue[data['server_name']].put(data)
+            else:
+                asyncio.create_task(self.handle_rpc(data))
         else:
             data['node'] = self.node.name
             with self.pool.connection() as conn:
@@ -388,9 +390,9 @@ class ServiceBus(Service):
                     self.loop.call_soon_threadsafe(f.set_result, data)
             return
         if data.get('object') == 'Server':
-            obj = self.servers.get(data['server_name'])
+            obj = self.servers.get(data.get('server_name', data.get('server')))
         elif data.get('object') == 'Instance':
-            server = self.servers.get(data['server_name'])
+            server = self.servers.get(data.get('server_name', data.get('server')))
             if server:
                 obj = server.instance
         elif data.get('object') == 'Node':
@@ -467,8 +469,14 @@ class ServiceBus(Service):
                     return
                 kwargs = data.get('params', {})
                 # servers will be passed by name
-                if 'server' in kwargs:
+                if kwargs.get('server'):
                     kwargs['server'] = self.servers[kwargs['server']]
+                if self.master:
+                    if kwargs.get('member'):
+                        kwargs['member'] = self.bot.guilds[0].get_member(int(kwargs['member'][2:-1]))
+                    if kwargs.get('user'):
+                        if kwargs['user'].startswith('<@'):
+                            kwargs['user'] = self.bot.guilds[0].get_member(int(kwargs['user'][2:-1]))
                 if asyncio.iscoroutinefunction(func):
                     rc = await func(**kwargs) if kwargs else await func()
                 else:

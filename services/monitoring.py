@@ -9,14 +9,14 @@ import win32process
 from datetime import datetime, timezone
 from discord.ext import tasks
 from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from core import Status, utils, Server, Channel, ServerImpl, Autoexec
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
-    from services import ServiceBus, DCSServerBot
+    from services import ServiceBus
 
 
 @ServiceRegistry.register("Monitoring")
@@ -24,7 +24,6 @@ class MonitoringService(Service):
     def __init__(self, node, name: str):
         super().__init__(node, name)
         self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
-        self.bot: Optional[DCSServerBot] = None
         self.hung = dict[str, int]()
         self.io_counters = {}
         self.net_io_counters = None
@@ -32,9 +31,6 @@ class MonitoringService(Service):
     async def start(self):
         await super().start()
         self.check_autoexec()
-        if self.bus.master:
-            self.bot = ServiceRegistry.get("Bot").bot
-            await self.bot.wait_until_ready()
         self.monitoring.start()
 
     async def stop(self):
@@ -82,17 +78,14 @@ class MonitoringService(Service):
         if server.locals.get('ping_admin_on_crash', True):
             message += f"\nLatest dcs-<timestamp>.log can be pulled with /download\n" \
                        f"If the scheduler is configured for this server, it will relaunch it automatically."
-            if self.bus.master:
-                await ServiceRegistry.get("Bot").alert(message, server.channels[Channel.ADMIN])
-            else:
-                self.bus.send_to_node({
-                    "command": "rpc",
-                    "service": "Bot",
-                    "method": "alert",
-                    "params": {
-                        "message": message, "channel": server.channels[Channel.ADMIN]
-                    }
-                })
+            self.bus.send_to_node({
+                "command": "rpc",
+                "service": "Bot",
+                "method": "alert",
+                "params": {
+                    "message": message, "channel": server.channels[Channel.ADMIN]
+                }
+            })
 
     async def check_popups(self):
         # check for blocked processes due to window popups
@@ -105,7 +98,8 @@ class MonitoringService(Service):
                         if server.is_remote:
                             continue
                         await server.shutdown(force=True)
-                        await self.bot.audit(f'Server killed due to a popup with title "{title}".', server=server)
+                        await self.node.audit(f'Server killed due to a popup with title "{title}".',
+                                              server=server)
 
     async def heartbeat(self):
         for server in self.bus.servers.values():  # type: ServerImpl
@@ -149,7 +143,7 @@ class MonitoringService(Service):
                             else:
                                 await server.shutdown(True)
                             server.process = None
-                            await self.bot.audit("Server killed due to a hung state.", server=server)
+                            await self.node.audit("Server killed due to a hung state.", server=server)
                             del self.hung[server.name]
                             server.status = Status.SHUTDOWN
                             await self.warn_admins(server, message)

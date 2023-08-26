@@ -231,7 +231,7 @@ class Admin(Plugin):
     async def download(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer],
                        what: str, filename: str) -> None:
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer(thinking=True, ephemeral=True)
         config = next(x for x in self.get_config(server)['downloads'] if x['label'] == what)
         path = os.path.join(config['directory'].format(server=server), filename)
         file = await server.node.read_file(path)

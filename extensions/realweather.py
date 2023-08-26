@@ -58,3 +58,6 @@ class RealWeather(Extension):
 
     async def shutdown(self) -> bool:
         return True
+
+    def is_running(self) -> bool:
+        return True

@@ -1,7 +1,5 @@
-local base		= _G
-local config	= require('DCSServerBotConfig')
-
-dcsbot 			= base.dcsbot
+local base	= _G
+dcsbot 		= base.dcsbot
 
 local GROUP_CATEGORY = {
 	[Group.Category.AIRPLANE] = 'Airplanes',

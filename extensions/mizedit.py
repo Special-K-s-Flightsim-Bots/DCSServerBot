@@ -54,3 +54,6 @@ class MizEdit(Extension):
 
     def is_installed(self) -> bool:
         return True
+
+    def is_running(self) -> bool:
+        return True

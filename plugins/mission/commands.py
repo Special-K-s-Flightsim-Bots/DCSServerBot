@@ -49,11 +49,11 @@ class Mission(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def info(self, interaction: Interaction, server: app_commands.Transform[Server, utils.ServerTransformer]):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'serverStatus.json')
         env: ReportEnv = await report.render(server=server)
         file = discord.File(env.filename) if env.filename else discord.utils.MISSING
-        await interaction.followup.send(embed=env.embed, file=file)
+        await interaction.followup.send(embed=env.embed, file=file, ephemeral=True)
         if env.filename and os.path.exists(env.filename):
             await asyncio.to_thread(os.remove, env.filename)
 

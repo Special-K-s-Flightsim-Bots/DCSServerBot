@@ -1,5 +1,5 @@
 from core import EventListener, utils, Server, Report, Player, event
-from typing import Optional
+from typing import Optional, Tuple
 
 
 class MessageOfTheDayListener(EventListener):
@@ -17,18 +17,18 @@ class MessageOfTheDayListener(EventListener):
                     return None
             return utils.format_string(config['message'])
 
-    async def on_birth(self, config: dict, server: Server, player: Player) -> Optional[str]:
+    async def on_birth(self, config: dict, server: Server, player: Player) -> Tuple[Optional[str], Optional[dict]]:
         if 'messages' in config:
             for cfg in config['messages']:
-                message = await self.on_birth(cfg, server, player)
+                message, _ = await self.on_birth(cfg, server, player)
                 if message:
-                    return message
+                    return message, cfg
         else:
             message = None
             if 'recipients' in config:
                 players = self.plugin.get_recipients(server, config)
                 if player not in players:
-                    return None
+                    return None, None
             if 'message' in config:
                 message = utils.format_string(config['message'], server=server, player=player)
             elif 'report' in config:
@@ -37,7 +37,7 @@ class MessageOfTheDayListener(EventListener):
                 message = utils.embed_to_simpletext(env.embed)
             if 'sound' in config:
                 player.playSound(config['on_birth']['sound'])
-            return message
+            return message, config
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
@@ -60,6 +60,6 @@ class MessageOfTheDayListener(EventListener):
             return
         if data['eventName'] == 'S_EVENT_BIRTH' and 'name' in data['initiator'] and 'on_birth' in config:
             player: Player = server.get_player(name=data['initiator']['name'], active=True)
-            message = await self.on_birth(config['on_birth'], server, player)
+            message, cfg = await self.on_birth(config['on_birth'], server, player)
             if message:
-                self.plugin.send_message(message, server, config['on_birth'], player)
+                self.plugin.send_message(message, server, cfg, player)

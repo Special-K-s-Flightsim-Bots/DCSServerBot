@@ -130,8 +130,8 @@ class NodeImpl(Node):
                 "method": "audit",
                 "params": {
                     "message": message,
-                    "user": user,
-                    "server_name": server.name if server else ""
+                    "user": f"<@{user.id}>" if isinstance(user, discord.Member) else user,
+                    "server": server.name if server else ""
                 }
             })
 

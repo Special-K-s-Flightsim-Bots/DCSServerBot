@@ -115,8 +115,12 @@ class Command(app_commands.Command):
         if 'server' in inspect.signature(self._callback).parameters and 'server' not in params:
             server = await interaction.client.get_server(interaction)
             if not server:
-                await interaction.response.send_message('This command needs to be run in an admin channel.')
-                return
+                if len(interaction.client.servers) > 0:
+                    await interaction.response.send_message('This command needs to be run in an admin channel.')
+                    return
+                else:
+                    await interaction.response.send_message('No servers registered yet. Is the bot still starting?')
+                    return
             params['server'] = server
         return await super()._do_call(interaction=interaction, params=params)
 

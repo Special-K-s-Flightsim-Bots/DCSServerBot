@@ -1,15 +1,14 @@
 import asyncio
-import discord
 import os
 import re
 import time
+import traceback
 import win32api
 
-from collections import deque
-from core import Extension, report, utils, ServiceRegistry
+from core import Extension, report, utils, ServiceRegistry, Server
 from discord.ext import tasks
-from typing import Optional
-
+from services import ServiceBus
+from typing import Optional, cast
 
 TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(r"%USERPROFILE%\Documents\Tacview"))
 rtt_ports: dict[int, str] = dict()
@@ -17,6 +16,23 @@ rcp_ports: dict[int, str] = dict()
 
 
 class Tacview(Extension):
+
+    def __init__(self, server: Server, config: dict):
+        super().__init__(server, config)
+        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get('ServiceBus'))
+        self.log_pos = 0
+        self.exp = re.compile(r'TACVIEW.DLL \(Main\): Successfully saved (?P<filename>.*)')
+
+    async def startup(self) -> bool:
+        await super().startup()
+        if self.config.get('channel'):
+            self.check_log.start()
+        return True
+
+    async def shutdown(self) -> bool:
+        if self.locals.get('channel'):
+            self.check_log.cancel()
+        return await super().shutdown()
 
     def load_config(self) -> Optional[dict]:
         if self.server.options['plugins']:
@@ -116,7 +132,7 @@ class Tacview(Extension):
 
     @tasks.loop(hours=24.0)
     async def schedule(self):
-        # check if autodelete is configured
+        # check if delete_after is configured
         if 'delete_after' not in self.config:
             return
         now = time.time()
@@ -166,34 +182,40 @@ class Tacview(Extension):
             rcp_ports[rcp_port] = self.server.name
         return True
 
-    async def shutdown(self):
-        if 'channel' not in self.config:
-            return
-        # TODO: This will not work on remote servers! Maybe using a webhook here instead
-        bot = ServiceRegistry.get("Bot").bot
-        log = self.locals.get('log', os.path.join(self.server.instance.home, 'Logs/dcs.log'))
-        exp = re.compile(r'TACVIEW.DLL (.*): Successfully saved \[(?P<filename>.*)\]')
-        filename = None
-        lines = deque(open(log, encoding='utf-8'), 50)
-        for line in lines:
-            match = exp.search(line)
-            if match:
-                filename = match.group('filename')
-                break
+    @tasks.loop(seconds=1)
+    async def check_log(self):
+        try:
+            logfile = os.path.join(self.server.instance.home, 'Logs', 'dcs.log')
+            if not os.path.exists(logfile):
+                self.log_pos = 0
+                return
+            with open(logfile, encoding='utf-8') as file:
+                file.seek(self.log_pos)
+                for line in file.readlines():
+                    match = self.exp.search(line)
+                    if match:
+                        await self.send_tacview_file(match.group('filename')[1:-1])
+                self.log_pos = file.tell()
+        except Exception:
+            traceback.print_exc()
+
+    async def send_tacview_file(self, filename: str):
+        # wait 60s for the file to appear
+        for i in range(0, 60):
+            if os.path.exists(filename):
+                self.bus.send_to_node({
+                    "command": "rpc",
+                    "service": "Bot",
+                    "method": "send_message",
+                    "params": {
+                        "channel": self.config.get('channel'),
+                        "server": self.server.name,
+                        "content": f"Tacview file for server {self.server.name}",
+                        "filename": filename
+                    }
+                })
+                return
+            await asyncio.sleep(1)
         else:
-            self.log.info("Can't find TACVIEW file to be sent. Was the server even running?")
-            self.log.debug('First line to check: ' + lines[0])
-            self.log.debug('Last line to check: ' + lines[-1])
-        if filename:
-            for i in range(0, 60):
-                if os.path.exists(filename):
-                    channel = bot.get_channel(self.config['channel'])
-                    try:
-                        await channel.send(file=discord.File(filename))
-                    except discord.HTTPException:
-                        self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
-                    break
-                await asyncio.sleep(1)
-            else:
-                self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
-        return True
+            self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
+            return

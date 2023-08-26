@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import aiofiles
 import aiohttp
 import asyncio
@@ -12,7 +13,9 @@ from contextlib import closing
 from core import ServiceRegistry, Service, Status, Channel, Player, EventListener, utils, NodeImpl
 from datetime import datetime
 from discord.ext import commands
+from discord.utils import MISSING
 from functools import lru_cache
+from io import BytesIO
 from matplotlib import font_manager
 from typing import Optional, Tuple, Union, TYPE_CHECKING
 
@@ -116,6 +119,24 @@ class BotService(Service):
                 for f in font_manager.findSystemFonts('fonts'):
                     font_manager.fontManager.addfont(f)
                 self.log.debug('- CJK fonts loaded.')
+
+    async def send_message(self, server: Server, channel: int, content: Optional[str] = None,
+                           filename: Optional[str] = None, embed: Optional[dict] = None):
+        _channel = self.bot.get_channel(channel)
+        if embed:
+            _embed = discord.Embed.from_dict(embed)
+        else:
+            _embed = MISSING
+        if filename:
+            data = await server.node.read_file(filename)
+            file = discord.File(BytesIO(data), filename=os.path.basename(filename))
+        else:
+            file = MISSING
+        await _channel.send(content=content, file=file, embed=_embed)
+
+    async def audit(self, message, user: Optional[Union[discord.Member, str]] = None,
+                    server: Optional[Server] = None):
+        await self.bot.audit(message, user=user, server=server)
 
 
 class DCSServerBot(commands.Bot):
@@ -322,7 +343,7 @@ class DCSServerBot(commands.Bot):
         if isinstance(error, discord.app_commands.CommandNotFound):
             pass
         if not interaction.response.is_done():
-            await interaction.response.defer()
+            await interaction.response.defer(ephemeral=True)
         if isinstance(error, discord.app_commands.NoPrivateMessage):
             await interaction.followup.send(f"{interaction.command.name} can't be used in a DM.")
         elif isinstance(error, discord.app_commands.CheckFailure):
@@ -353,7 +374,7 @@ class DCSServerBot(commands.Bot):
                 self.audit_channel = self.get_channel(int(self.locals['audit_channel']))
         if self.audit_channel:
             if isinstance(user, str):
-                member = self.get_member_by_ucid(user)
+                member = self.get_member_by_ucid(user) if utils.is_ucid(user) else None
             else:
                 member = user
             embed = discord.Embed(color=discord.Color.blue())
