@@ -48,21 +48,24 @@ class ServiceBus(Service):
 
     async def start(self):
         await super().start()
-        # cleanup the intercom channels
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                # conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
-                conn.execute("DELETE FROM files WHERE created < NOW() - interval '300 seconds'")
-                conn.execute("DELETE FROM intercom WHERE time < NOW() - interval '300 seconds'")
-                conn.execute("UPDATE intercom SET node = 'Master' WHERE node = %s", (self.node.name, ))
-        self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
-        await self.start_udp_listener()
-        await self.init_servers()
-        self.intercom.start()
-        if self.master:
-            self.bot = ServiceRegistry.get("Bot").bot
-            await self.bot.wait_until_ready()
-        await self.register_local_servers()
+        try:
+            # cleanup the intercom channels
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    # conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
+                    conn.execute("DELETE FROM files WHERE created < NOW() - interval '300 seconds'")
+                    conn.execute("DELETE FROM intercom WHERE time < NOW() - interval '300 seconds'")
+                    conn.execute("UPDATE intercom SET node = 'Master' WHERE node = %s", (self.node.name, ))
+            self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus', max_workers=20)
+            await self.start_udp_listener()
+            await self.init_servers()
+            self.intercom.start()
+            if self.master:
+                self.bot = ServiceRegistry.get("Bot").bot
+                await self.bot.wait_until_ready()
+            await self.register_local_servers()
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def stop(self):
         if self.udp_server:
