@@ -190,6 +190,8 @@ class Tacview(Extension):
                             await channel.send(file=discord.File(filename))
                         except discord.HTTPException:
                             self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
+                            await channel.send(f"File {filename} could not be uploaded because it is too large!")
+                            return
                         break
                     await asyncio.sleep(1)
                 else:
