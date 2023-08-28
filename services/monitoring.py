@@ -89,7 +89,13 @@ class MonitoringService(Service):
 
     async def check_popups(self):
         # check for blocked processes due to window popups
-        for title in ["Can't run", "Login Failed", "DCS Login"]:
+        for title in [
+            "Can't run",
+            "Login Failed",
+            "DCS Login",
+            "Authorization failed",
+            "Login session has expired"
+        ]:
             handle = win32gui.FindWindowEx(None, None, None, title)
             if handle:
                 _, pid = win32process.GetWindowThreadProcessId(handle)
