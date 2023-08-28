@@ -540,7 +540,13 @@ class Mission(Plugin):
 
         # check for blocked processes due to window popups
         while True:
-            for title in ["Can't run", "Login Failed", "DCS Login", "Authorization failed"]:
+            for title in [
+                "Can't run",
+                "Login Failed",
+                "DCS Login",
+                "Authorization failed",
+                "Login session has expired"
+            ]:
                 handle = win32gui.FindWindowEx(None, None, None, title)
                 if handle:
                     _, pid = win32process.GetWindowThreadProcessId(handle)
