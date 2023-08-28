@@ -1,5 +1,4 @@
 import asyncio
-import discord
 import os
 import re
 import time
@@ -21,7 +20,7 @@ class Tacview(Extension):
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
         self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get('ServiceBus'))
-        self.log_pos = 0
+        self.log_pos = -1
         self.exp = re.compile(r'TACVIEW.DLL \(Main\): Successfully saved (?P<filename>.*)')
 
     async def startup(self) -> bool:
@@ -191,7 +190,11 @@ class Tacview(Extension):
                 self.log_pos = 0
                 return
             with open(logfile, encoding='utf-8') as file:
-                file.seek(self.log_pos)
+                # if we were started with an existing logfile, seek to the file end, else seek to the last position
+                if self.log_pos == -1:
+                    file.seek(0, 2)
+                else:
+                    file.seek(self.log_pos, 0)
                 for line in file.readlines():
                     match = self.exp.search(line)
                     if match:
