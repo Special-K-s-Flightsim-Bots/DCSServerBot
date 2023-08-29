@@ -78,7 +78,7 @@ class NodeWidget:
 
     def __rich__(self) -> Panel:
         table = Table(expand=True, show_edge=False)
-        table.add_column("Node (red: Master)", justify="left")
+        table.add_column("Node ([green]Master[/])", justify="left")
         table.add_column("Servers", justify="left")
         nodes: dict[str, Node] = dict()
         servers: dict[str, int] = dict()
