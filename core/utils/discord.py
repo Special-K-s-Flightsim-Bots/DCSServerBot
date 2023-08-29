@@ -590,31 +590,37 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    server: Server = await interaction.client.get_server(interaction)
-    if not server:
-        return []
-    node = server.node
-    userid = node.locals['DCS'].get('dcs_user')
-    password = node.locals['DCS'].get('dcs_password')
-    available_modules = await node.get_available_modules(userid, password) - await node.get_installed_modules()
-    return [
-        app_commands.Choice(name=x, value=x)
-        for x in available_modules
-        if not current or current.casefold() in x.casefold()
-    ]
+    try:
+        server: Server = await interaction.client.get_server(interaction)
+        if not server:
+            return []
+        node = server.node
+        userid = node.locals['DCS'].get('dcs_user')
+        password = node.locals['DCS'].get('dcs_password')
+        available_modules = await node.get_available_modules(userid, password) - await node.get_installed_modules()
+        return [
+            app_commands.Choice(name=x, value=x)
+            for x in available_modules
+            if not current or current.casefold() in x.casefold()
+        ]
+    except Exception:
+        traceback.print_exc()
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    server: Server = await interaction.client.get_server(interaction)
-    if not server:
-        return []
-    node = server.node
-    available_modules = await node.get_installed_modules()
-    return [
-        app_commands.Choice(name=x, value=x)
-        for x in available_modules
-        if not current or current.casefold() in x.casefold()
-    ]
+    try:
+        server: Server = await interaction.client.get_server(interaction)
+        if not server:
+            return []
+        node = server.node
+        available_modules = await node.get_installed_modules()
+        return [
+            app_commands.Choice(name=x, value=x)
+            for x in available_modules
+            if not current or current.casefold() in x.casefold()
+        ]
+    except Exception:
+        traceback.print_exc()
 
 
 async def player_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:

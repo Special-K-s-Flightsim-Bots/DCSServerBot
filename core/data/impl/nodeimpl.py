@@ -313,7 +313,7 @@ class NodeImpl(Node):
         # wait for DCS servers to shut down
         if tasks:
             await asyncio.gather(*tasks)
-        self.log.info(f"Updating {self.locals['DCS']['installation']} ...")
+        self.log.info(f"Updating {self.installation} ...")
         # call before update hooks
         for callback in self.before_update.values():
             await callback()
@@ -323,7 +323,7 @@ class NodeImpl(Node):
         startupinfo.wShowWindow = subprocess.SW_HIDE
         try:
             process = await asyncio.create_subprocess_exec(
-                os.path.join(os.path.expandvars(self.locals['DCS']['installation']), 'bin', 'dcs_updater.exe'),
+                os.path.join(self.installation, 'bin', 'dcs_updater.exe'),
                 '--quiet', 'update', startupinfo=startupinfo
             )
             await process.communicate()
@@ -337,7 +337,7 @@ class NodeImpl(Node):
         # call after update hooks
         for callback in self.after_update.values():
             await callback()
-        self.log.info(f"{self.locals['DCS']['installation']} updated to the latest version. "
+        self.log.info(f"{self.installation} updated to the latest version. "
                       f"Starting up DCS servers again ...")
         for server in [x for x in bus.servers.values() if not x.is_remote]:
             if server not in servers:
@@ -358,12 +358,12 @@ class NodeImpl(Node):
         startupinfo.dwFlags |= (subprocess.STARTF_USESTDHANDLES | subprocess.STARTF_USESHOWWINDOW)
         startupinfo.wShowWindow = subprocess.SW_HIDE
         proc = await asyncio.create_subprocess_exec(
-            os.path.join(os.path.expandvars(self.locals['DCS']['installation']), 'bin', 'dcs_updater.exe'),
+            os.path.join(self.installation, 'bin', 'dcs_updater.exe'),
             '--quiet', what, module, startupinfo=startupinfo)
         await proc.communicate()
 
     async def get_installed_modules(self) -> set[str]:
-        with open(os.path.join(self.locals['DCS']['installation'], 'autoupdate.cfg'), encoding='utf8') as cfg:
+        with open(os.path.join(self.installation, 'autoupdate.cfg'), encoding='utf8') as cfg:
             data = json.load(cfg)
         return set(data['modules'])
 

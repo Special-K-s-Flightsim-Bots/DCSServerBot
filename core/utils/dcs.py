@@ -54,7 +54,7 @@ async def getLatestVersion(branch: str, *, userid: Optional[str] = None,
 def desanitize(self, _filename: str = None) -> None:
     # Sanitizing MissionScripting.lua
     if not _filename:
-        filename = os.path.expandvars(self.node.locals['DCS']['installation']) + r'\Scripts\MissionScripting.lua'
+        filename = os.path.join(self.node.installation, 'Scripts', 'MissionScripting.lua')
     else:
         filename = _filename
     backup = filename.replace('.lua', '.bak')
@@ -91,7 +91,7 @@ def desanitize(self, _filename: str = None) -> None:
             with open(filename, 'w') as outfile:
                 outfile.writelines(output)
     except (OSError, IOError) as e:
-        self.log.error(f"Can't access {filename}. Make sure, {self.node.locals['DCS']['installation']} is writable.")
+        self.log.error(f"Can't access {filename}. Make sure, {self.node.installation} is writable.")
         raise e
 
 
