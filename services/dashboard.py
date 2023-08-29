@@ -90,7 +90,7 @@ class NodeWidget:
                 servers[server.node.name] += 1
         for node in nodes.values():  # type: Node
             if node.master:
-                table.add_row(f"[red]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
+                table.add_row(f"[green]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
             else:
                 table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
         return Panel(table, title="Nodes", padding=1)
