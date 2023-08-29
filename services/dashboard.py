@@ -4,7 +4,10 @@ import logging
 import logging.handlers
 import psycopg
 import re
-from core import Service, ServiceRegistry
+
+from rich.tree import Tree
+
+from core import Service, ServiceRegistry, Status
 from datetime import datetime
 from discord.ext import tasks
 from logging.handlers import QueueHandler, RotatingFileHandler
@@ -25,6 +28,7 @@ if TYPE_CHECKING:
 class HeaderWidget:
     """Display header with clock."""
     def __init__(self, service: Service):
+        self.service = service
         self.node = service.node
         self.log = service.log
 
@@ -33,7 +37,7 @@ class HeaderWidget:
         grid.add_column(justify="center", ratio=1)
         grid.add_column(justify="right")
         grid.add_row(
-            f"[b]DCSServerBot {'Master' if self.node.master else 'Agent'} Version {self.node.bot_version}.{self.node.sub_version}[/b]",
+            f"[b]DCSServerBot {'Master' if self.node.master else 'Agent'} Version {self.node.bot_version}.{self.node.sub_version} | DCS Version {self.service.dcs_version}[/]",
             datetime.now().ctime().replace(":", "[blink]:[/]"),
         )
         return Panel(grid, style="white on blue")
@@ -48,11 +52,11 @@ class ServersWidget:
     def __rich__(self) -> Panel:
         table = Table(expand=True, show_edge=False)
         table.add_column("Status", justify="center", min_width=8)
-        if self.service.node.master:
-            table.add_column("Node", justify="left", min_width=8)
         table.add_column("Server Name", justify="left", no_wrap=True)
         table.add_column("Mission Name", justify="left", no_wrap=True)
         table.add_column("Players", justify="center", min_width=4)
+        if self.service.node.master:
+            table.add_column("Node", justify="left", min_width=8)
         for server_name, server in self.bus.servers.items():
             name = re.sub(self.bus.filter['server_name'], '', server.name).strip()
             mission_name = re.sub(self.bus.filter['mission_name'], '',
@@ -60,7 +64,7 @@ class ServersWidget:
             num_players = f"{len(server.get_active_players()) + 1}/{server.settings['maxPlayers']}" \
                 if server.current_mission else "n/a"
             if self.service.node.master:
-                table.add_row(server.status.name.title(), server.node.name, name, mission_name, num_players)
+                table.add_row(server.status.name.title(), name, mission_name, num_players, server.node.name)
             else:
                 table.add_row(server.status.name.title(), name, mission_name, num_players)
         return Panel(table, title="Servers", padding=1)
@@ -75,25 +79,20 @@ class NodeWidget:
         self.log = service.log
 
     def __rich__(self) -> Panel:
-        msg = f"Node:\t\t{self.service.node.name}\n"
-        msg += f"DCS-Version:\t{self.service.dcs_version}\n"
-
-        if self.service.node.master:
-            table = Table(expand=True, show_edge=False)
-            table.add_column("Node", justify="left")
-            table.add_column("Servers", justify="left")
-            nodes: dict[str, Node] = dict()
-            servers: dict[str, int] = dict()
-            for server in self.bus.servers.values():
-                nodes[server.node.name] = server.node
-                if server.node.name not in servers:
-                    servers[server.node.name] = 0
+        table = Table(expand=True, show_edge=False)
+        table.add_column("Node", justify="left")
+        table.add_column("Servers", justify="left")
+        nodes: dict[str, Node] = dict()
+        servers: dict[str, int] = dict()
+        for server in self.bus.servers.values():
+            nodes[server.node.name] = server.node
+            if server.node.name not in servers:
+                servers[server.node.name] = 0
+            if server.status not in [Status.SHUTDOWN, Status.UNREGISTERED]:
                 servers[server.node.name] += 1
-            for node in nodes.values():  # type: Node
-                table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
-            return Panel(Group(Panel(msg), Panel(table)), title="Nodes")
-        else:
-            return Panel(msg)
+        for node in nodes.values():  # type: Node
+            table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
+        return Panel(table, title="Nodes")
 
 
 class LogWidget:
@@ -150,7 +149,8 @@ class Dashboard(Service):
             Layout(name="main"),
             Layout(name="log", ratio=2, minimum_size=5),
         )
-        layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="nodes"))
+        if self.node.master:
+            layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="nodes"))
         return layout
 
     def hook_logging(self):
@@ -194,8 +194,11 @@ class Dashboard(Service):
 
         def do_update():
             self.layout['header'].update(header)
-            self.layout['servers'].update(servers)
-            self.layout['nodes'].update(nodes)
+            if self.node.master:
+                self.layout['servers'].update(servers)
+                self.layout['nodes'].update(nodes)
+            else:
+                self.layout['main'].update(servers)
             self.layout['log'].update(log)
 
         try:
