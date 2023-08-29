@@ -529,7 +529,7 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
 
 
 async def airbase_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+    server: Server = await interaction.client.get_server(interaction)
     if not server:
         return []
     choices: list[app_commands.Choice[int]] = [
@@ -542,7 +542,7 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
 
 async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     try:
-        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+        server: Server = await interaction.client.get_server(interaction)
         if not server:
             return []
         choices: list[app_commands.Choice[int]] = [
@@ -557,7 +557,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
-        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+        server: Server = await interaction.client.get_server(interaction)
         if not server:
             return []
         installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
@@ -590,7 +590,7 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
 
 
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+    server: Server = await interaction.client.get_server(interaction)
     if not server:
         return []
     node = server.node
@@ -605,7 +605,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction, curre
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+    server: Server = await interaction.client.get_server(interaction)
     if not server:
         return []
     node = server.node
@@ -686,14 +686,13 @@ class PlayerTransformer(app_commands.Transformer):
         self.active = active
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Player:
-        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, "server"))
+        server: Server = await interaction.client.get_server(interaction)
         return server.get_player(ucid=value, active=self.active)
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
         try:
             if self.active:
-                server: Server = await ServerTransformer().transform(interaction,
-                                                                     get_interaction_param(interaction, "server"))
+                server: Server = await interaction.client.get_server(interaction)
                 choices: list[app_commands.Choice[str]] = [
                     app_commands.Choice(name=x.name, value=x.ucid)
                     for x in server.get_active_players()
