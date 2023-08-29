@@ -5,14 +5,12 @@ import logging.handlers
 import psycopg
 import re
 
-from rich.tree import Tree
-
 from core import Service, ServiceRegistry, Status
 from datetime import datetime
 from discord.ext import tasks
 from logging.handlers import QueueHandler, RotatingFileHandler
 from queue import Queue
-from rich.console import Console, ConsoleOptions, RenderResult, Group
+from rich.console import Console, ConsoleOptions, RenderResult
 from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
@@ -80,7 +78,7 @@ class NodeWidget:
 
     def __rich__(self) -> Panel:
         table = Table(expand=True, show_edge=False)
-        table.add_column("Node", justify="left")
+        table.add_column("Node (red: Master)", justify="left")
         table.add_column("Servers", justify="left")
         nodes: dict[str, Node] = dict()
         servers: dict[str, int] = dict()
@@ -92,7 +90,7 @@ class NodeWidget:
                 servers[server.node.name] += 1
         for node in nodes.values():  # type: Node
             if node.master:
-                table.add_row(f"[b]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
+                table.add_row(f"[red]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
             else:
                 table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
         return Panel(table, title="Nodes", padding=1)
