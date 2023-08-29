@@ -150,8 +150,7 @@ class Dashboard(Service):
             Layout(name="main"),
             Layout(name="log", ratio=2, minimum_size=5),
         )
-        if self.node.master:
-            layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="nodes"))
+        layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="nodes"))
         return layout
 
     def hook_logging(self):
@@ -190,17 +189,13 @@ class Dashboard(Service):
     async def update(self):
         header = HeaderWidget(self)
         servers = ServersWidget(self)
-        if self.node.master:
-            nodes = NodeWidget(self)
+        nodes = NodeWidget(self)
         log = LogWidget(self.queue)
 
         def do_update():
             self.layout['header'].update(header)
-            if self.node.master:
-                self.layout['servers'].update(servers)
-                self.layout['nodes'].update(nodes)
-            else:
-                self.layout['main'].update(servers)
+            self.layout['servers'].update(servers)
+            self.layout['nodes'].update(nodes)
             self.layout['log'].update(log)
 
         try:
