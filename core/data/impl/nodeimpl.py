@@ -362,18 +362,27 @@ class NodeImpl(Node):
             '--quiet', what, module, startupinfo=startupinfo)
         await proc.communicate()
 
-    async def get_installed_modules(self) -> set[str]:
+    async def get_installed_modules(self) -> list[str]:
         with open(os.path.join(self.installation, 'autoupdate.cfg'), encoding='utf8') as cfg:
             data = json.load(cfg)
-        return set(data['modules'])
+        return data['modules']
 
-    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> set[str]:
-        licenses = {"CAUCASUS_terrain", "NEVADA_terrain", "NORMANDY_terrain", "PERSIANGULF_terrain",
-                    "THECHANNEL_terrain",
-                    "SYRIA_terrain", "MARIANAISLANDS_terrain", "FALKLANDS_terrain", "SINAIMAP_terrain", "WWII-ARMOUR",
-                    "SUPERCARRIER"}
+    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> list[str]:
+        licenses = {
+            "CAUCASUS_terrain",
+            "NEVADA_terrain",
+            "NORMANDY_terrain",
+            "PERSIANGULF_terrain",
+            "THECHANNEL_terrain",
+            "SYRIA_terrain",
+            "MARIANAISLANDS_terrain",
+            "FALKLANDS_terrain",
+            "SINAIMAP_terrain",
+            "WWII-ARMOUR",
+            "SUPERCARRIER"
+        }
         if not userid:
-            return licenses
+            return list(licenses)
         else:
             auth = aiohttp.BasicAuth(login=userid, password=password)
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
@@ -384,7 +393,7 @@ class NodeImpl(Node):
                         for l in all_licenses:
                             if l.endswith('_terrain'):
                                 licenses.add(l)
-            return licenses
+            return list(licenses)
 
     async def register(self):
         self._public_ip = self.locals.get('public_ip')

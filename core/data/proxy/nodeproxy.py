@@ -88,7 +88,7 @@ class NodeProxy(Node):
             "method": "handle_module"
         }, node=self.name)
 
-    async def get_installed_modules(self) -> set[str]:
+    async def get_installed_modules(self) -> list[str]:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
@@ -96,13 +96,13 @@ class NodeProxy(Node):
         }, node=self.name)
         return data['return']
 
-    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> set[str]:
+    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> list[str]:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "get_available_modules"
         }, timeout=60, node=self.name)
-        return set(data['return'])
+        return data['return']
 
     async def read_file(self, path: str) -> Union[bytes, int]:
         data = await self.bus.send_to_node_sync({

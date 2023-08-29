@@ -73,10 +73,10 @@ class Node:
     async def handle_module(self, what: str, module: str) -> None:
         raise NotImplemented()
 
-    async def get_installed_modules(self) -> set[str]:
+    async def get_installed_modules(self) -> list[str]:
         raise NotImplemented()
 
-    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> set[str]:
+    async def get_available_modules(self, userid: Optional[str] = None, password: Optional[str] = None) -> list[str]:
         raise NotImplemented()
 
     async def read_file(self, path: str) -> Union[bytes, int]:

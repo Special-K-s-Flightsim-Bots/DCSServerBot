@@ -597,7 +597,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction, curre
         node = server.node
         userid = node.locals['DCS'].get('dcs_user')
         password = node.locals['DCS'].get('dcs_password')
-        available_modules = await node.get_available_modules(userid, password) - await node.get_installed_modules()
+        available_modules = set(await node.get_available_modules(userid, password)) - set(await node.get_installed_modules())
         return [
             app_commands.Choice(name=x, value=x)
             for x in available_modules
