@@ -91,7 +91,10 @@ class NodeWidget:
             if server.status not in [Status.SHUTDOWN, Status.UNREGISTERED]:
                 servers[server.node.name] += 1
         for node in nodes.values():  # type: Node
-            table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
+            if node.master:
+                table.add_row(f"[b]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
+            else:
+                table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
         return Panel(table, title="Nodes", padding=1)
 
 
