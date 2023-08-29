@@ -14,12 +14,9 @@ from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
-from typing import cast
+from typing import cast, TYPE_CHECKING
 
 from .servicebus import ServiceBus
-from .bot import DCSServerBot, BotService
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Node
@@ -46,7 +43,7 @@ class ServersWidget:
     """Displaying List of Servers"""
     def __init__(self, service: Service):
         self.service = service
-        self.bot = service.bot
+        self.bus = service.bus
 
     def __rich__(self) -> Panel:
         table = Table(expand=True, show_edge=False)
@@ -56,9 +53,9 @@ class ServersWidget:
         table.add_column("Server Name", justify="left", no_wrap=True)
         table.add_column("Mission Name", justify="left", no_wrap=True)
         table.add_column("Players", justify="center", min_width=4)
-        for server_name, server in self.bot.servers.items():
-            name = re.sub(self.bot.filter['server_name'], '', server.name).strip()
-            mission_name = re.sub(self.bot.filter['mission_name'], '',
+        for server_name, server in self.bus.servers.items():
+            name = re.sub(self.bus.filter['server_name'], '', server.name).strip()
+            mission_name = re.sub(self.bus.filter['mission_name'], '',
                                   server.current_mission.name).strip() if server.current_mission else "n/a"
             num_players = f"{len(server.get_active_players()) + 1}/{server.settings['maxPlayers']}" \
                 if server.current_mission else "n/a"
@@ -92,7 +89,7 @@ class NodeWidget:
                 if server.node.name not in servers:
                     servers[server.node.name] = 0
                 servers[server.node.name] += 1
-            for node in nodes:  # type: Node
+            for node in nodes.values():  # type: Node
                 table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
             return Panel(Group(Panel(msg), Panel(table)), title="Nodes")
         else:
@@ -213,5 +210,5 @@ class Dashboard(Service):
                     do_update()
                     await asyncio.sleep(1)
         except Exception as ex:
-            await self.stop()
             self.log.exception(ex)
+            await self.stop()
