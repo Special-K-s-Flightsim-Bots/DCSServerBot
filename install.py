@@ -74,15 +74,20 @@ class Install:
     @staticmethod
     def get_database_url() -> Optional[str]:
         port = 5432
+        dbhost = 127.0.0.1
         if not utils.is_open('127.0.0.1', port):
             print('No PostgreSQL installation found.')
             port = input('Enter the port to your PostgreSQL database or ENTER if you need to install it: ')
             if not port.isnumeric():
                 print('Aborting.')
                 exit(-1)
+            dbhost = input('Enter the hostname to your PostgreSQL database or ENTER if you need to install it: ')
+            if not dbhost.isalnum():
+                print('Aborting.')
+                exit(-1)
         while True:
             passwd = getpass('Please enter your PostgreSQL master password: ')
-            url = f'postgres://postgres:{quote(passwd)}@localhost:{port}/postgres'
+            url = f'postgres://postgres:{quote(passwd)}@{dbhost}:{port}/postgres'
             conn = None
             try:
                 conn = psycopg2.connect(url)
