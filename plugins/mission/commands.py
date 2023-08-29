@@ -589,16 +589,17 @@ class Mission(Plugin):
         ctx = await self.bot.get_context(message)
         if not server:
             # check if there is a central admin channel configured
-            if self.bot.locals.get('admin_channel') and int(self.bot.locals['admin_channel']) != message.channel.id:
-                return
-            try:
-                server = await utils.server_selection(self.bus, ctx,
-                                                      title="Where do you want to upload this mission to?")
-                if not server:
-                    await ctx.send('Aborted.')
+            if self.bot.locals.get('admin_channel', 0) == message.channel.id:
+                try:
+                    server = await utils.server_selection(self.bus, ctx,
+                                                          title="Where do you want to upload this mission to?")
+                    if not server:
+                        await ctx.send('Aborted.')
+                        return
+                except Exception:
+                    traceback.print_exc()
                     return
-            except Exception:
-                traceback.print_exc()
+            else:
                 return
         att = message.attachments[0]
         try:
