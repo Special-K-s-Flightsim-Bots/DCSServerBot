@@ -20,7 +20,7 @@ class NodeProxy(Node):
 
     @property
     def master(self) -> bool:
-        return self.local_node.master
+        return False
 
     @master.setter
     def master(self, value: bool):
