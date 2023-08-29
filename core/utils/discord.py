@@ -8,19 +8,18 @@ import re
 from core import Status
 from dataclasses import dataclass
 from datetime import datetime
-from discord import Interaction, app_commands, SelectOption
+from discord import app_commands, Interaction, SelectOption
 from discord.app_commands import Choice, TransformerError
 from discord.ext import commands
 from discord.ui import Button, View, Select
 from enum import Enum, auto
 from functools import lru_cache
-from pathlib import Path, PurePath
-from typing import Optional, cast, Union, TYPE_CHECKING, Iterable
+from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 
 from .helper import get_all_players, is_ucid
 
 if TYPE_CHECKING:
-    from core import Server, DCSServerBot, Player, ServiceBus
+    from core import Server, DCSServerBot, Player, ServiceBus, Node
 
 
 class PlayerType(Enum):
@@ -467,16 +466,20 @@ def escape_string(msg: str) -> str:
     return re.sub(r"([\*\_~])", r"\\\1", msg)
 
 
-def get_interaction_param(interaction: discord.Interaction, name: str):
-    root = interaction.data['options']
-    if isinstance(root, dict):
-        if root.get('name') == name:
-            return root.get('value')
-    elif isinstance(root, list):
-        for param in root:
-            if param['name'] == name:
-                return param['value']
-    return None
+def get_interaction_param(interaction: discord.Interaction, name: str) -> Optional[Any]:
+    def inner(root: Union[dict, list]) -> Optional[Any]:
+        if isinstance(root, dict):
+            if root.get('name') == name:
+                return root.get('value')
+        elif isinstance(root, list):
+            for param in root:
+                if 'options' in param:
+                    return inner(param['options'])
+                if param['name'] == name:
+                    return param['value']
+        return None
+
+    return inner(interaction.data['options'])
 
 
 def get_all_linked_members(bot: DCSServerBot) -> list[discord.Member]:
@@ -504,7 +507,7 @@ class ServerTransformer(app_commands.Transformer):
             server = list(interaction.client.servers.values())[0]
         return server
 
-    async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
+    async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
         try:
             server: Server = await interaction.client.get_server(interaction)
             if server and (not self.status or server.status in self.status):
@@ -517,6 +520,21 @@ class ServerTransformer(app_commands.Transformer):
             return choices[:25]
         except Exception:
             traceback.print_exc()
+
+
+class NodeTransformer(app_commands.Transformer):
+
+    async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Node:
+        return next(x.node for x in interaction.client.servers.values() if x.node.name == value)
+
+    async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+        all_nodes = [interaction.client.node.name]
+        all_nodes.extend(interaction.client.node.get_active_nodes())
+        return [
+            app_commands.Choice(name=x, value=x)
+            for x in all_nodes
+            if not current or current.casefold() in x.casefold()
+        ]
 
 
 async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -571,16 +589,6 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
         traceback.print_exc()
 
 
-async def nodes_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
-    all_nodes = [interaction.client.node.name]
-    all_nodes.extend(interaction.client.node.get_active_nodes())
-    return [
-        app_commands.Choice(name=x, value=x)
-        for x in all_nodes
-        if not current or current.casefold() in x.casefold()
-    ]
-
-
 async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     return [
         app_commands.Choice(name=x, value=x.lower())
@@ -591,10 +599,7 @@ async def plugins_autocomplete(interaction: discord.Interaction, current: str) -
 
 async def available_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     try:
-        server: Server = await interaction.client.get_server(interaction)
-        if not server:
-            return []
-        node = server.node
+        node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, "node"))
         userid = node.locals['DCS'].get('dcs_user')
         password = node.locals['DCS'].get('dcs_password')
         available_modules = set(await node.get_available_modules(userid, password)) - set(await node.get_installed_modules())
@@ -609,10 +614,7 @@ async def available_modules_autocomplete(interaction: discord.Interaction, curre
 
 async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     try:
-        server: Server = await interaction.client.get_server(interaction)
-        if not server:
-            return []
-        node = server.node
+        node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, "node"))
         available_modules = await node.get_installed_modules()
         return [
             app_commands.Choice(name=x, value=x)

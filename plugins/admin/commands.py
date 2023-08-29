@@ -145,17 +145,14 @@ class Admin(Plugin):
     @dcs.command(description='Update your DCS installations')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(node=utils.nodes_autocomplete)
     @app_commands.describe(warn_time="Time in seconds to warn users before shutdown")
-    async def update(self, interaction: discord.Interaction, node: Optional[str] = None, warn_time: Range[int, 0] = 60):
-        _node: Node = next(x.node for x in self.bus.servers.values() if x.node.name == node)
-        if not _node:
-            await interaction.response.send_message(f"Can't reach node {node}, is it even active?")
-            return
+    async def update(self, interaction: discord.Interaction,
+                     node: app_commands.Transform[Node, utils.NodeTransformer], warn_time: Range[int, 0] = 60):
         await interaction.response.defer(thinking=True, ephemeral=True)
-        branch, old_version = await _node.get_dcs_branch_and_version()
-        new_version = await utils.getLatestVersion(branch, userid=_node.locals['DCS'].get('dcs_user'),
-                                                   password=_node.locals['DCS'].get('dcs_password'))
+        branch, old_version = await node.get_dcs_branch_and_version()
+        new_version = await utils.getLatestVersion(branch,
+                                                   userid=node.locals['DCS'].get('dcs_user'),
+                                                   password=node.locals['DCS'].get('dcs_password'))
         if old_version == new_version:
             await interaction.followup.send(
                 f'Your installed version {old_version} is the latest on branch {branch}.', ephemeral=True)
@@ -167,10 +164,10 @@ class Admin(Plugin):
                                      user=interaction.user)
                 msg = await interaction.followup.send(f"Updating DCS to version {new_version}, please wait ...",
                                                       ephemeral=True)
-                rc = await _node.update(warn_times=[warn_time] or [120, 60])
+                rc = await node.update(warn_times=[warn_time] or [120, 60])
                 if rc == 0:
-                    await msg.edit(content=f"DCS updated to version {new_version} on node {node}.")
-                    await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node}.",
+                    await msg.edit(content=f"DCS updated to version {new_version} on node {node.name}.")
+                    await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                          user=interaction.user)
                 else:
                     await msg.edit(content=f"Error while updating DCS, code={rc}")
@@ -182,44 +179,28 @@ class Admin(Plugin):
     @dcs.command(name='install', description='Install available modules in your dedicated server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.autocomplete(node=utils.nodes_autocomplete)
     @app_commands.autocomplete(module=utils.available_modules_autocomplete)
-    async def _install(self, interaction: discord.Interaction, node: str, module: str):
+    async def _install(self, interaction: discord.Interaction,
+                       node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         if not await utils.yn_question(interaction,
-                                       f"Shutdown all servers on node {node} for the installation?"):
+                                       f"Shutdown all servers on node {node.name} for the installation?"):
             await interaction.followup.send("Aborted.", ephemeral=True)
             return
-        _node: Optional[Node] = None
-        for server in [x for x in self.bus.servers.values() if x.node.name == node]:
-            _node = server.node
-            if server.status != Status.SHUTDOWN:
-                await server.shutdown(force=True)
-        if not _node:
-            await interaction.followup.send(f"Can't reach node {node}, is there any server active?")
-            return
-        await _node.handle_module('install', module)
-        await interaction.followup.send(f"Module {module} installed on node {node}", ephemeral=True)
+        await node.handle_module('install', module)
+        await interaction.followup.send(f"Module {module} installed on node {node.name}", ephemeral=True)
 
     @dcs.command(name='uninstall', description='Uninstall modules from your dedicated server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.autocomplete(node=utils.nodes_autocomplete)
     @app_commands.autocomplete(module=utils.installed_modules_autocomplete)
-    async def _uninstall(self, interaction: discord.Interaction, node: str, module: str):
+    async def _uninstall(self, interaction: discord.Interaction,
+                         node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
         if not await utils.yn_question(interaction,
-                                       f"Shutdown all servers on node {node} for the uninstallation?"):
+                                       f"Shutdown all servers on node {node.name} for the uninstallation?"):
             await interaction.followup.send("Aborted.", ephemeral=True)
             return
-        _node: Optional[Node] = None
-        for server in [x for x in self.bus.servers.values() if x.node.name == node]:
-            _node = server.node
-            if server.status != Status.SHUTDOWN:
-                await server.shutdown(force=True)
-        if not _node:
-            await interaction.followup.send(f"Can't reach node {node}, is there any server active?")
-            return
-        await _node.handle_module('uninstall', module)
-        await interaction.followup.send(f"Module {module} uninstalled on node {node}", ephemeral=True)
+        await node.handle_module('uninstall', module)
+        await interaction.followup.send(f"Module {module} uninstalled on node {node.name}", ephemeral=True)
 
     @command(description='Download files from your server')
     @app_commands.guild_only()
@@ -394,39 +375,42 @@ class Admin(Plugin):
             embed.add_field(name="Status", value='\n'.join(status))
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[str] = None):
+    async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None):
         if not node:
             msg = f"Do you want to {method} all nodes?\n"
         else:
-            msg = f"Do you want to {method} node {node}?\n"
+            msg = f"Do you want to {method} node {node.name}?\n"
         if not await utils.yn_question(interaction,
                                        msg + "It should autostart again, if being launched with run.cmd."):
             await interaction.followup.send('Aborted.', ephemeral=True)
             return
         for n in self.bot.node.get_active_nodes():
-            if not node or node == n:
+            if not node or n == node.name:
                 self.bus.send_to_node({
                     "command": "rpc",
                     "object": "Node",
                     "method": method
                 }, node=n)
-            await interaction.followup.send(f'Node {node} - {method} sent.', ephemeral=True)
-        if not node or node == platform.node():
+            await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=True)
+        if not node or node.name == platform.node():
             await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=True)
-            self.bot.node.shutdown()
+            if method == 'shutdown':
+                self.bot.node.shutdown()
+            else:
+                await self.bot.node.upgrade()
 
     @node.command(description='Stop a specific node')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.autocomplete(node=utils.nodes_autocomplete)
-    async def exit(self, interaction: discord.Interaction, node: Optional[str] = None):
+    async def exit(self, interaction: discord.Interaction,
+                   node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "shutdown", node)
 
     @node.command(description='Upgrade a node')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.autocomplete(node=utils.nodes_autocomplete)
-    async def upgrade(self, interaction: discord.Interaction, node: Optional[str] = None):
+    async def upgrade(self, interaction: discord.Interaction,
+                      node: Optional[app_commands.Transform[Node, utils.NodeTransformer]] = None):
         await self.run_on_nodes(interaction, "upgrade", node)
 
     @command(description='Reloads a plugin')
