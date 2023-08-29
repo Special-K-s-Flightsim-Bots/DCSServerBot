@@ -79,12 +79,10 @@ if __name__ == "__main__":
     elif int(platform.python_version_tuple()[1]) == 9:
         print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
     try:
-        asyncio.set_event_loop_policy(
-            asyncio.WindowsProactorEventLoopPolicy()
-        )
-        asyncio.run(Main(NodeImpl()).run())
+        # work around possible bug with several Python versions / asyncio
+        asyncio.get_event_loop().run_until_complete(Main(NodeImpl()).run())
     except (KeyboardInterrupt, asyncio.CancelledError):
         exit(-1)
-    except Exception as ex:
+    except:
         traceback.print_exc()
         exit(-1)

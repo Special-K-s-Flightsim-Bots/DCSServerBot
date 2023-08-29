@@ -1,11 +1,9 @@
+from __future__ import annotations
 import asyncio
 import logging
 import logging.handlers
-import math
-import platform
 import psycopg
 import re
-from contextlib import closing
 from core import Service, ServiceRegistry
 from datetime import datetime
 from discord.ext import tasks
@@ -21,8 +19,13 @@ from typing import cast
 from .servicebus import ServiceBus
 from .bot import DCSServerBot, BotService
 
+from typing import TYPE_CHECKING
 
-class Header:
+if TYPE_CHECKING:
+    from core import Node
+
+
+class HeaderWidget:
     """Display header with clock."""
     def __init__(self, service: Service):
         self.node = service.node
@@ -39,14 +42,17 @@ class Header:
         return Panel(grid, style="white on blue")
 
 
-class Servers:
+class ServersWidget:
     """Displaying List of Servers"""
     def __init__(self, service: Service):
+        self.service = service
         self.bot = service.bot
 
     def __rich__(self) -> Panel:
         table = Table(expand=True, show_edge=False)
         table.add_column("Status", justify="center", min_width=8)
+        if self.service.node.master:
+            table.add_column("Node", justify="left", min_width=8)
         table.add_column("Server Name", justify="left", no_wrap=True)
         table.add_column("Mission Name", justify="left", no_wrap=True)
         table.add_column("Players", justify="center", min_width=4)
@@ -54,48 +60,46 @@ class Servers:
             name = re.sub(self.bot.filter['server_name'], '', server.name).strip()
             mission_name = re.sub(self.bot.filter['mission_name'], '',
                                   server.current_mission.name).strip() if server.current_mission else "n/a"
-            num_players = f"{len(server.get_active_players()) + 1}/{server.settings['maxPlayers']}"
-            table.add_row(server.status.name.title(), name, mission_name, num_players)
+            num_players = f"{len(server.get_active_players()) + 1}/{server.settings['maxPlayers']}" \
+                if server.current_mission else "n/a"
+            if self.service.node.master:
+                table.add_row(server.status.name.title(), server.node.name, name, mission_name, num_players)
+            else:
+                table.add_row(server.status.name.title(), name, mission_name, num_players)
         return Panel(table, title="Servers", padding=1)
 
 
-class Bot:
+class NodeWidget:
     """Displaying Bot Info"""
     def __init__(self, service: Service):
         self.service = service
-        self.bot = service.bot
+        self.bus = service.bus
         self.pool = service.pool
         self.log = service.log
 
     def __rich__(self) -> Panel:
-        msg = f"Node:\t\t{self.bot.node.name}\n"
+        msg = f"Node:\t\t{self.service.node.name}\n"
         msg += f"DCS-Version:\t{self.service.dcs_version}\n"
-        if math.isinf(self.bot.latency) or math.isnan(self.bot.latency):
-            msg += "Heartbeat:\t[bold red]Disconnected![/]"
+
+        if self.service.node.master:
+            table = Table(expand=True, show_edge=False)
+            table.add_column("Node", justify="left")
+            table.add_column("Servers", justify="left")
+            nodes: dict[str, Node] = dict()
+            servers: dict[str, int] = dict()
+            for server in self.bus.servers.values():
+                nodes[server.node.name] = server.node
+                if server.node.name not in servers:
+                    servers[server.node.name] = 0
+                servers[server.node.name] += 1
+            for node in nodes:  # type: Node
+                table.add_row(node.name, f"{servers[node.name]}/{len(node.instances)}")
+            return Panel(Group(Panel(msg), Panel(table)), title="Nodes")
         else:
-            msg += f"Heartbeat:\t{int(self.bot.latency * 1000)} ms"
-        if self.bot.is_ws_ratelimited():
-            msg += "\t[bold red]Rate limited![/]"
-
-        table = Table(expand=True, show_edge=False)
-        table.add_column("Node", justify="left")
-        table.add_column("# Servers", justify="center")
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                for row in cursor.execute("""
-                    SELECT s1.node, COUNT(s1.server_name), COUNT(s2.server_name) FROM (
-                        SELECT node, server_name FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')
-                    ) s1 LEFT OUTER JOIN (
-                        SELECT node, server_name FROM servers WHERE last_seen > (NOW() - interval '1 minute')
-                    ) s2 ON (s1.node = s2.node AND s1.server_name = s2.server_name) 
-                    WHERE s1.node <> %s 
-                    GROUP BY 1
-                """, (platform.node(), )).fetchall():
-                    table.add_row(row[0], f"{row[2]}/{row[1]}")
-        return Panel(Group(Panel(msg), Panel(table)), title="Bot")
+            return Panel(msg)
 
 
-class Log:
+class LogWidget:
     """Display log messages"""
     def __init__(self, queue: Queue):
         self.queue = queue
@@ -135,7 +139,7 @@ class Dashboard(Service):
         super().__init__(node, name)
         self.console = Console()
         self.layout = None
-        self.bot = None
+        self.bus = None
         self.queue = None
         self.log_handler = None
         self.old_handler = None
@@ -150,7 +154,7 @@ class Dashboard(Service):
             Layout(name="log", ratio=2, minimum_size=5),
         )
         if self.node.master:
-            layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="bot"))
+            layout['main'].split_row(Layout(name="servers", ratio=2), Layout(name="nodes"))
         return layout
 
     def hook_logging(self):
@@ -173,11 +177,8 @@ class Dashboard(Service):
     async def start(self):
         await super().start()
         self.layout = self.create_layout()
-        if self.node.master:
-            self.bot: DCSServerBot = cast(BotService, ServiceRegistry.get("Bot")).bot
-        else:
-            self.bot = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
-        self.dcs_branch, self.dcs_version = await self.bot.node.get_dcs_branch_and_version()
+        self.bus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
+        self.dcs_branch, self.dcs_version = await self.node.get_dcs_branch_and_version()
         self.hook_logging()
         self.update.add_exception_type(psycopg.DatabaseError)
         self.update.start()
@@ -190,17 +191,17 @@ class Dashboard(Service):
 
     @tasks.loop(reconnect=True)
     async def update(self):
-        header = Header(self)
-        servers = Servers(self)
+        header = HeaderWidget(self)
+        servers = ServersWidget(self)
         if self.node.master:
-            bot = Bot(self)
-        log = Log(self.queue)
+            nodes = NodeWidget(self)
+        log = LogWidget(self.queue)
 
         def do_update():
             self.layout['header'].update(header)
             if self.node.master:
                 self.layout['servers'].update(servers)
-                self.layout['bot'].update(bot)
+                self.layout['nodes'].update(nodes)
             else:
                 self.layout['main'].update(servers)
             self.layout['log'].update(log)
@@ -212,5 +213,5 @@ class Dashboard(Service):
                     do_update()
                     await asyncio.sleep(1)
         except Exception as ex:
-            await self.cog_unload()
+            await self.stop()
             self.log.exception(ex)

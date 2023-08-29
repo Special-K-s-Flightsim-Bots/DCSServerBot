@@ -187,9 +187,8 @@ class Scheduler(Plugin):
             await self.warn_users(server, config, method, max_warn_time)
             # in the unlikely event that we did restart already in the meantime while warning users or
             # if the restart has been cancelled due to maintenance mode
-            if not server.restart_pending or not server.is_populated():
-                self.log.debug(f"Scheduler: After warning users: restart_pending={server.restart_pending}, "
-                               f"is_populated={server.is_populated()}.")
+            if not server.restart_pending:
+                self.log.debug(f"Scheduler: After warning users: restart_pending={server.restart_pending}")
                 return
             else:
                 server.on_empty.clear()
