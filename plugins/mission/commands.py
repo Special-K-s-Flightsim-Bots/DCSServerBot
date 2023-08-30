@@ -220,10 +220,14 @@ class Mission(Plugin):
             else:
                 tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...',
                                                       ephemeral=True)
-                await server.loadMission(mission_id + 1)
-                await self.bot.audit("loaded mission", server=server, user=interaction.user)
-                await tmp.delete()
-                await interaction.followup.send(f'Mission {name} loaded.', ephemeral=True)
+                try:
+                    await server.loadMission(mission_id + 1)
+                    await self.bot.audit("loaded mission", server=server, user=interaction.user)
+                    await interaction.followup.send(f'Mission {name} loaded.', ephemeral=True)
+                except asyncio.TimeoutError:
+                    await interaction.followup.send(f'Timeout while loading mission {name}.', ephemeral=True)
+                finally:
+                    await tmp.delete()
 
     @mission.command(description='Adds a mission to the list')
     @app_commands.guild_only()

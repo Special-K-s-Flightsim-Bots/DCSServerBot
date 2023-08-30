@@ -78,7 +78,11 @@ class Scheduler(Plugin):
                               f'{member.display_name}.')
                 await self.bot.audit(f"started DCS server", user=member, server=server)
         except asyncio.TimeoutError:
-            self.log.warning(f'  => DCS server "{server.name}" timeout while launching.')
+            if server.status == Status.SHUTDOWN:
+                self.log.warning(f'  => DCS server "{server.name}" crashed while launching!')
+            else:
+                self.log.warning(f'  => DCS server "{server.name}" timeout while launching.')
+            raise
 
     @staticmethod
     def get_warn_times(config: dict) -> list[int]:
@@ -345,9 +349,13 @@ class Scheduler(Plugin):
                     f"DCS server \"{server.display_name}\" started.\nServer is in maintenance mode now! "
                     f"Use /scheduler clear to reset maintenance mode.", ephemeral=True)
             except asyncio.TimeoutError:
-                await interaction.followup.send(f'Timeout while launching DCS server "{server.display_name}".\n'
-                                                f'The server might be running anyway, check with /server list.',
-                                                ephemeral=True)
+                if server.status == Status.SHUTDOWN:
+                    await interaction.followup.send(f'Server {server.display_name} crashed while starting up!',
+                                                    ephemeral=True)
+                else:
+                    await interaction.followup.send(f'Timeout while launching DCS server "{server.display_name}".\n'
+                                                    f'The server might be running anyway, check with /server list.',
+                                                    ephemeral=True)
             finally:
                 await msg.delete()
 
@@ -371,6 +379,7 @@ class Scheduler(Plugin):
                 f"DCS server \"{server.display_name}\" shut down.\n"f"Server in maintenance mode now! "
                 f"Use /scheduler clear to reset maintenance mode.", ephemeral=True)
 
+        await interaction.response.defer(ephemeral=True)
         if server.status in [Status.UNREGISTERED, Status.LOADING]:
             if force or await utils.yn_question(interaction, f"Server is in state {server.status.name}.\n"
                                                              f"Do you want to force a shutdown?"):

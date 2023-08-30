@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import platform
@@ -274,7 +275,13 @@ class ServerImpl(Server):
         await self.do_startup()
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
-        await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
+        try:
+            await self.wait_for_status_change([Status.STOPPED, Status.PAUSED, Status.RUNNING], timeout)
+        except asyncio.TimeoutError:
+            # server crashed during launch
+            if not self.is_running():
+                self.status = Status.SHUTDOWN
+            raise
 
     async def startup_extensions(self) -> None:
         for ext in [x for x in self.extensions.values() if not x.is_running()]:
@@ -284,18 +291,22 @@ class ServerImpl(Server):
                 self.log.exception(ex)
 
     async def shutdown(self, force: bool = False) -> None:
-        if not force:
-            await super().shutdown(False)
-        self.terminate()
-        for ext in [x for x in self.extensions.values() if x.is_running()]:
-            try:
-                await ext.shutdown()
-            except Exception as ex:
-                self.log.exception(ex)
+        if self.is_running():
+            if not force:
+                await super().shutdown(False)
+            self.terminate()
+            for ext in [x for x in self.extensions.values() if x.is_running()]:
+                try:
+                    await ext.shutdown()
+                except Exception as ex:
+                    self.log.exception(ex)
         self.status = Status.SHUTDOWN
 
+    def is_running(self) -> bool:
+        return self.process and self.process.is_running()
+
     def terminate(self) -> None:
-        if self.process and self.process.is_running():
+        if self.is_running():
             self.process.kill()
         self.process = None
 

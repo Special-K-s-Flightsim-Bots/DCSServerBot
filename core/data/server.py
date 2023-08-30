@@ -272,11 +272,7 @@ class Server(DataObject):
         else:
             self.send_to_dcs({"command": "start_server"})
         # wait until we are running again
-        try:
-            await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
-        except asyncio.TimeoutError:
-            self.log.debug(f'Trying to force start server "{self.name}" due to DCS bug.')
-            await self.start()
+        await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
 
     def addMission(self, path: str) -> None:
         path = os.path.normpath(path)
