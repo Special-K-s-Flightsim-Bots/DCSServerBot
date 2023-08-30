@@ -1,6 +1,8 @@
 import os
 import re
-import win32api
+import sys
+if sys.platform == 'win32':
+    import win32api
 
 from core import Extension, report
 from typing import Any, Optional, TextIO
@@ -49,7 +51,7 @@ class LotAtc(Extension):
     @property
     def version(self) -> str:
         path = os.path.join(self.server.instance.home, r'Mods\services\LotAtc\bin\lotatc.dll')
-        if os.path.exists(path):
+        if sys.platform == 'win32' and os.path.exists(path):
             info = win32api.GetFileVersionInfo(path, '\\')
             version = "%d.%d.%d" % (info['FileVersionMS'] / 65536,
                                     info['FileVersionMS'] % 65536,

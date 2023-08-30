@@ -1,8 +1,10 @@
 import os
 import shutil
 import subprocess
-import win32api
-import win32con
+import sys
+if sys.platform == 'win32':
+    import win32api
+    import win32con
 
 from configparser import RawConfigParser
 from core import Extension, utils, report, Server
@@ -76,7 +78,7 @@ class SRS(Extension):
         if self.config.get('autostart', True):
             self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
                 os.path.expandvars(self.config['installation']), os.path.expandvars(self.config['config'])))
-            if self.config.get('minimized', False):
+            if sys.platform == 'win32' and self.config.get('minimized', False):
                 info = subprocess.STARTUPINFO()
                 info.dwFlags = subprocess.STARTF_USESHOWWINDOW
                 info.wShowWindow = win32con.SW_MINIMIZE
@@ -103,12 +105,15 @@ class SRS(Extension):
 
     @property
     def version(self) -> str:
-        info = win32api.GetFileVersionInfo(
-            os.path.join(os.path.expandvars(self.config['installation']), r'SR-Server.exe'), '\\')
-        version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                   info['FileVersionMS'] % 65536,
-                                   info['FileVersionLS'] / 65536,
-                                   info['FileVersionLS'] % 65536)
+        if sys.platform == 'win32':
+            info = win32api.GetFileVersionInfo(
+                os.path.join(os.path.expandvars(self.config['installation']), r'SR-Server.exe'), '\\')
+            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
+                                       info['FileVersionMS'] % 65536,
+                                       info['FileVersionLS'] / 65536,
+                                       info['FileVersionLS'] % 65536)
+        else:
+            version = 'n/a'
         return version
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):

@@ -2,9 +2,11 @@ from __future__ import annotations
 import asyncio
 import os
 import psutil
+import sys
 import traceback
-import win32gui
-import win32process
+if sys.platform == 'win32':
+    import win32gui
+    import win32process
 
 from datetime import datetime, timezone
 from discord.ext import tasks
@@ -193,7 +195,7 @@ class MonitoringService(Service):
                 self.bus.send_to_node({
                     "command": "serverLoad",
                     "cpu": cpu,
-                    "mem_total": memory.private,
+                    "mem_total": memory.vms,
                     "mem_ram": memory.rss,
                     "read_bytes": read_bytes,
                     "write_bytes": write_bytes,
@@ -210,7 +212,8 @@ class MonitoringService(Service):
         try:
             if self.node.master:
                 await self.check_nodes()
-            await self.check_popups()
+            if sys.platform == 'win32':
+                await self.check_popups()
             await self.heartbeat()
             if 'serverstats' in self.node.config.get('opt_plugins', []):
                 await self.serverload()

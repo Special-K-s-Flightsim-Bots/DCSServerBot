@@ -61,6 +61,7 @@ class NodeImpl(Node):
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
         self.all_nodes: Optional[dict] = None
+        self.instances: list[InstanceImpl] = list()
         self.update_pending = False
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = dict()
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = dict()

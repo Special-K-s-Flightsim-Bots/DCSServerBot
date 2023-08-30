@@ -1,9 +1,11 @@
 import asyncio
 import os
 import re
+import sys
 import time
 import traceback
-import win32api
+if sys.platform == 'win32':
+    import win32api
 
 from core import Extension, report, utils, ServiceRegistry, Server
 from discord.ext import tasks
@@ -97,7 +99,7 @@ class Tacview(Extension):
     @property
     def version(self) -> str:
         path = os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll')
-        if os.path.exists(path):
+        if sys.platform == 'win32' and os.path.exists(path):
             info = win32api.GetFileVersionInfo(path, '\\')
             version = "%d.%d.%d" % (info['FileVersionMS'] / 65536,
                                     info['FileVersionMS'] % 65536,
@@ -151,8 +153,8 @@ class Tacview(Extension):
 
         base_dir = self.server.instance.home
         dll_installed = os.path.exists(os.path.join(base_dir, r'Mods\tech\Tacview\bin\tacview.dll'))
-        exports_installed = os.path.exists(os.path.join(base_dir, r'Scripts\TacviewGameExport.lua')) & \
-                            os.path.exists(os.path.join(base_dir, r'Scripts\Export.lua'))
+        exports_installed = (os.path.exists(os.path.join(base_dir, r'Scripts\TacviewGameExport.lua')) &
+                             os.path.exists(os.path.join(base_dir, r'Scripts\Export.lua')))
         if exports_installed:
             with open(os.path.join(base_dir, r'Scripts\Export.lua'), 'r') as file:
                 for line in file.readlines():
