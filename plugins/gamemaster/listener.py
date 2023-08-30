@@ -165,7 +165,9 @@ class GameMasterEventListener(EventListener):
         _, name = utils.get_running_campaign(server)
         if name:
             self.campaign('delete', name=name)
-        self.campaign('start', servers=[server.name])
+        else:
+            name = '_internal_'
+        self.campaign('start', servers=[server.name], name=name)
 
     async def _join(self, server: Server, player: Player, params: list[str]):
         coalition = params[0] if params else ''
@@ -249,7 +251,8 @@ class GameMasterEventListener(EventListener):
                 for row in cursor.fetchall():
                     if discord_roles and row[1] != -1:
                         member = self.bot.guilds[0].get_member(row[1])
-                        await member.remove_roles(roles[row[2]])
+                        if member:
+                            await member.remove_roles(roles[row[2]])
                     cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
                                    (server.name, row[0]))
                 server.sendtoDCS({"command": "resetUserCoalitions"})
