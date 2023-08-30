@@ -36,7 +36,7 @@ def migrate():
         if yn.lower() != 'y':
             exit(-2)
     single_admin = Prompt.ask(f"Do you want a central admin channel for your servers (Y) or keep separate ones (N)?",
-                              choices=['y', 'n'], default='n')
+                              choices=['y', 'n'], default='n') == 'y'
     print("Now, lean back and enjoy the migration...\n")
 
     try:
