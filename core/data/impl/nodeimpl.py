@@ -28,7 +28,7 @@ from typing import Optional, Union, TYPE_CHECKING, Awaitable, Callable, Any, Tup
 from version import __version__
 
 from core.data.dataobject import DataObjectFactory
-from core.data.node import Node
+from core.data.node import Node, UploadStatus
 from core.data.instance import Instance
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
@@ -483,6 +483,23 @@ class NodeImpl(Node):
                         conn.execute("INSERT INTO files (name, data) VALUES (%s, %s)",
                                      (path, psycopg.Binary(file.read())))
                     return conn.execute("SELECT currval('files_id_seq')").fetchone()[0]
+
+    async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
+        if os.path.exists(filename) and not overwrite:
+            return UploadStatus.FILE_EXISTS
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    try:
+                        with open(filename, 'wb') as outfile:
+                            outfile.write(await response.read())
+                    except OSError as ex:
+                        self.log.exception(ex)
+                        return UploadStatus.WRITE_ERROR
+                else:
+                    return UploadStatus.READ_ERROR
+        return UploadStatus.OK
 
     async def list_directory(self, path: str, pattern: str) -> list[str]:
         directory = Path(os.path.expandvars(path))

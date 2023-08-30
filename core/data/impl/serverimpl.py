@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-import aiohttp
 import json
 import os
 import platform
 import shutil
 import socket
 import subprocess
-import traceback
 
 from contextlib import suppress
-from core import utils, Server, UploadStatus
+from core import utils, Server
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -26,7 +24,7 @@ from core.mizfile import MizFile
 from core.services import ServiceRegistry
 
 if TYPE_CHECKING:
-    from core import Plugin, Extension, InstanceImpl
+    from core import Plugin, Extension, InstanceImpl, UploadStatus
     from services import DCSServerBot
 
 
@@ -376,29 +374,20 @@ class ServerImpl(Server):
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         stopped = False
         filename = os.path.join(await self.get_missions_dir(), filename)
-        try:
-            if self.current_mission and os.path.normpath(self.current_mission.filename) == os.path.normpath(filename):
-                if not force:
-                    return UploadStatus.FILE_IN_USE
-                await self.stop()
-                stopped = True
-            elif os.path.exists(filename) and not force:
-                return UploadStatus.FILE_EXISTS
+        if self.current_mission and os.path.normpath(self.current_mission.filename) == os.path.normpath(filename):
+            if not force:
+                return UploadStatus.FILE_IN_USE
+            await self.stop()
+            stopped = True
 
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
-                    if response.status == 200:
-                        with open(filename, 'wb') as outfile:
-                            outfile.write(await response.read())
-                    else:
-                        return UploadStatus.READ_ERROR
-            if not self.locals.get('autoscan', False):
-                self.addMission(filename)
-            if stopped:
-                await self.start()
-            return UploadStatus.OK
-        except Exception:
-            traceback.print_exc()
+        rc = await self.node.write_file(filename, url, force)
+        if rc != UploadStatus.OK:
+            return rc
+        if not self.locals.get('autoscan', False):
+            self.addMission(filename)
+        if stopped:
+            await self.start()
+        return UploadStatus.OK
 
     async def listAvailableMissions(self) -> list[str]:
         return [str(x) for x in sorted(Path(PurePath(self.instance.home, "Missions")).glob("*.miz"))]

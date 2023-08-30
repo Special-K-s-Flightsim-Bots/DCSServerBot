@@ -1,9 +1,18 @@
 import yaml
 
+from enum import Enum, auto
 from pathlib import Path
 from typing import Union, Optional, Tuple
 
 from .instance import Instance
+
+
+class UploadStatus(Enum):
+    OK = auto()
+    FILE_EXISTS = auto()
+    FILE_IN_USE = auto()
+    READ_ERROR = auto()
+    WRITE_ERROR = auto()
 
 
 class Node:
@@ -80,6 +89,9 @@ class Node:
         raise NotImplemented()
 
     async def read_file(self, path: str) -> Union[bytes, int]:
+        raise NotImplemented()
+
+    async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
         raise NotImplemented()
 
     async def list_directory(self, path: str, pattern: str) -> list[str]:

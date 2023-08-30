@@ -5,7 +5,6 @@ import uuid
 import yaml
 
 from contextlib import suppress
-from enum import Enum
 from pathlib import Path
 from core import utils
 from dataclasses import dataclass, field
@@ -19,18 +18,12 @@ from ..const import DEFAULT_TAG
 from ..services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
-    from .player import Player
-    from .mission import Mission
-    from .instance import Instance
     from ..extension import Extension
+    from .instance import Instance
+    from .mission import Mission
+    from .node import UploadStatus
+    from .player import Player
     from services import ServiceBus
-
-
-class UploadStatus(Enum):
-    OK = 0
-    FILE_EXISTS = 1
-    FILE_IN_USE = 2
-    READ_ERROR = 3
 
 
 @dataclass

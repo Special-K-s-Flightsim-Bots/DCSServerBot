@@ -2,7 +2,7 @@ import os
 import yaml
 
 from core import ServiceRegistry
-from core.data.node import Node
+from core.data.node import Node, UploadStatus
 from core.data.proxy.instanceproxy import InstanceProxy
 from pathlib import Path
 from typing import Any, Union, Optional, Tuple
@@ -119,6 +119,19 @@ class NodeProxy(Node):
                                     binary=True).fetchone()[0]
                 conn.execute("DELETE FROM files WHERE id = %s", (data['return'], ))
         return file
+
+    async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "write_file",
+            "params": {
+                "filename": filename,
+                "url": url,
+                "overwrite": overwrite
+            }
+        }, timeout=60, node=self.name)
+        return UploadStatus(data["return"])
 
     async def list_directory(self, path: str, pattern: str) -> list[str]:
         data = await self.bus.send_to_node_sync({

@@ -1,13 +1,11 @@
-import aiohttp
 import discord
 import os
 import platform
 import shutil
 import traceback
-import yaml
 
 from contextlib import closing
-from core import utils, Plugin, Status, Server, command, NodeImpl, ServerTransformer, Node
+from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus
 from discord import app_commands
 from discord.app_commands import Range, Group
 from discord.ext import commands
@@ -432,81 +430,58 @@ class Admin(Plugin):
                 await interaction.followup.send(
                     f'One or more plugins could not be reloaded, check the log for details.')
 
-    # TODO: remote server implementation
-    async def process_message(self, message: discord.Message) -> bool:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(message.attachments[0].url) as response:
-                if response.status == 200:
-                    ctx = await self.bot.get_context(message)
-                    if message.attachments[0].filename.endswith('.yaml'):
-                        data = yaml.safe_load(await response.text(encoding='utf-8', errors='ignore'))
-                        name = message.attachments[0].filename[:-5]
-                        if name in ['main', 'nodes', 'presets', 'servers']:
-                            targetpath = 'config'
-                            plugin = False
-                        elif name in ['backup', 'bot']:
-                            targetpath = os.path.join('config', 'services')
-                            plugin = False
-                        elif name in self.bot.node.plugins:
-                            targetpath = os.path.join('config', 'plugins')
-                            plugin = True
-                        else:
-                            return False
-                        targetfile = os.path.join(targetpath, name + '.yaml')
-                        if os.path.exists(targetfile) and not \
-                                await utils.yn_question(ctx, f'Do you want to overwrite {targetfile} on '
-                                                             f'node {platform.node()}?'):
-                            await message.channel.send('Aborted.')
-                            return True
-                        with open(targetfile, 'w', encoding="utf-8") as outfile:
-                            yaml.safe_dump(data, outfile)
-                        if plugin:
-                            await self.bot.reload(name)
-                            await message.channel.send(f"Plugin {name.title()} re-loaded.")
-                        elif await utils.yn_question(ctx, 'Do you want to exit (restart) the bot?'):
-                            await message.channel.send('Bot restart initiated.')
-                            exit(-1)
-                        return True
-
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore bot messages or messages that does not contain json attachments
-        if message.author.bot or not message.attachments or \
-                not (
-                    message.attachments[0].filename.endswith('.yaml') or
-                    message.attachments[0].filename.endswith('.json')
-                ):
+        # ignore bot messages or messages that do not contain yaml attachments
+        if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.yaml'):
             return
-        # only Admin role is allowed to upload config files in channels
+        # only Admin role is allowed to upload config files
         if not utils.check_roles(self.bot.roles['Admin'], message.author):
             return
-        if await self.bot.get_server(message) and await self.process_message(message):
-            await message.delete()
-            return
-        if not message.attachments[0].filename.endswith('.json'):
-            return
-        async with aiohttp.ClientSession() as session:
-            async with session.get(message.attachments[0].url) as response:
-                if response.status == 200:
-                    data = await response.json(encoding="utf-8")
-                    if 'configs' not in data:
-                        embed = utils.format_embed(data)
-                        msg = None
-                        if 'message_id' in data:
-                            try:
-                                msg = await message.channel.fetch_message(int(data['message_id']))
-                                await msg.edit(embed=embed)
-                            except discord.errors.NotFound:
-                                msg = None
-                            except discord.errors.DiscordException as ex:
-                                self.log.exception(ex)
-                                await message.channel.send(f'Error while updating embed!')
-                                return
-                        if not msg:
-                            await message.channel.send(embed=embed)
-                        await message.delete()
-                else:
-                    await message.channel.send(f'Error {response.status} while reading JSON file!')
+        # check if the upload happens in the servers admin channel (if provided)
+        server: Server = await self.bot.get_server(message)
+        ctx = await self.bot.get_context(message)
+        if not server:
+            # check if there is a central admin channel configured
+            if self.bot.locals.get('admin_channel', 0) == message.channel.id:
+                try:
+                    server = await utils.server_selection(
+                        self.bus, ctx, title="To which server do you want to upload this configuration to?")
+                    if not server:
+                        await ctx.send('Aborted.')
+                        return
+                except Exception as ex:
+                    self.log.exception(ex)
+                    return
+            else:
+                return
+        att = message.attachments[0]
+        name = att.filename[:-5]
+        if name in ['main', 'nodes', 'presets', 'servers']:
+            target_path = 'config'
+            plugin = False
+        elif name in ['backup', 'bot']:
+            target_path = os.path.join('config', 'services')
+            plugin = False
+        elif name in self.bot.node.plugins:
+            target_path = os.path.join('config', 'plugins')
+            plugin = True
+        else:
+            return False
+        target_file = os.path.join(target_path, att.filename)
+        rc = await server.node.write_file(target_file, att.url, True)
+        if rc != UploadStatus.OK:
+            if rc == UploadStatus.WRITE_ERROR:
+                await ctx.send(f'Error while uploading file to node {server.node.name}.')
+                return
+            elif rc == UploadStatus.READ_ERROR:
+                await ctx.send('Error while reading file from discord.')
+        if plugin:
+            await self.bot.reload(name)
+            await message.channel.send(f"Plugin {name.title()} re-loaded.")
+        elif await utils.yn_question(ctx, 'Do you want to exit (restart) the bot?'):
+            await message.channel.send('Bot restart initiated.')
+            exit(-1)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):

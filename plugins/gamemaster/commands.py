@@ -1,9 +1,10 @@
+import aiohttp
 import asyncio
 import discord
 import os
 import platform
 import psycopg
-from contextlib import closing
+
 from core import Plugin, utils, Report, Status, Server, Coalition, Channel, command, Group, Player
 from discord import app_commands, TextStyle
 from discord.app_commands import Range
@@ -308,6 +309,36 @@ class GameMaster(Plugin):
                 player: Player = server.get_player(discord_id=after.id)
                 if player:
                     player.member = after
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        # ignore bot messages or messages that do not contain yaml attachments
+        if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.json'):
+            return
+        # only Admin role is allowed to upload config files
+        if not utils.check_roles(self.bot.roles['Admin'], message.author):
+            return
+        async with aiohttp.ClientSession() as session:
+            async with session.get(message.attachments[0].url) as response:
+                if response.status == 200:
+                    data = await response.json(encoding="utf-8")
+                    embed = utils.format_embed(data)
+                    msg = None
+                    if 'message_id' in data:
+                        try:
+                            msg = await message.channel.fetch_message(int(data['message_id']))
+                            await msg.edit(embed=embed)
+                        except discord.errors.NotFound:
+                            msg = None
+                        except discord.errors.DiscordException as ex:
+                            self.log.exception(ex)
+                            await message.channel.send(f'Error while updating embed!')
+                            return
+                    if not msg:
+                        await message.channel.send(embed=embed)
+                    await message.delete()
+                else:
+                    await message.channel.send(f'Error {response.status} while reading JSON file!')
 
 
 async def setup(bot: DCSServerBot):
