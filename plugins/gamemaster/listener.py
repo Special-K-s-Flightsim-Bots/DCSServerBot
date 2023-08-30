@@ -142,13 +142,17 @@ class GameMasterEventListener(EventListener):
     @event(name="stopCampaign")
     async def stopCampaign(self, server: Server, data: dict) -> None:
         _, name = utils.get_running_campaign(self.bot, server)
-        self.campaign('delete', name=name)
+        if name:
+            self.campaign('delete', name=name)
 
     @event(name="resetCampaign")
     async def resetCampaign(self, server: Server, data: dict) -> None:
         _, name = utils.get_running_campaign(self.bot, server)
-        self.campaign('delete', name=name)
-        self.campaign('start', servers=[server])
+        if name:
+            self.campaign('delete', name=name)
+        else:
+            name = '_internal_'
+        self.campaign('start', servers=[server], name=name)
 
     async def _join(self, server: Server, player: Player, params: list[str]):
         if not server.locals.get('coalitions'):
@@ -234,12 +238,13 @@ class GameMasterEventListener(EventListener):
                     """, (server.name,)).fetchall():
                         if discord_roles and row[1] != -1:
                             member = guild.get_member(row[1])
-                            try:
-                                await member.remove_roles(roles[row[2]])
-                            except discord.Forbidden:
-                                await self.bot.audit(f'permission "Manage Roles" missing.',
-                                                     user=self.bot.member)
-                                raise
+                            if member:
+                                try:
+                                    await member.remove_roles(roles[row[2]])
+                                except discord.Forbidden:
+                                    await self.bot.audit(f'permission "Manage Roles" missing.',
+                                                         user=self.bot.member)
+                                    raise
                         cursor.execute('DELETE FROM coalitions WHERE server_name = %s AND player_ucid = %s',
                                        (server.name, row[0]))
                     server.send_to_dcs({"command": "resetUserCoalitions"})
