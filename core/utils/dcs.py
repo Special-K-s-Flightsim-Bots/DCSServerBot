@@ -20,7 +20,7 @@ def findDCSInstances(server_name: Optional[str] = None) -> list[Tuple[str, str]]
     instances = []
     for dirname in os.listdir(SAVED_GAMES):
         if os.path.isdir(os.path.join(SAVED_GAMES, dirname)):
-            path = os.path.join(SAVED_GAMES, dirname, 'Config\\serverSettings.lua')
+            path = os.path.join(SAVED_GAMES, dirname, 'Config', 'serverSettings.lua')
             if os.path.exists(path):
                 try:
                     settings = luadata.read(path, encoding='utf-8')

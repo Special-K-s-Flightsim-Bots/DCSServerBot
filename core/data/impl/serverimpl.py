@@ -98,14 +98,14 @@ class ServerImpl(Server):
     @property
     def settings(self) -> dict:
         if not self._settings:
-            path = os.path.join(self.instance.home, r'Config\serverSettings.lua')
+            path = os.path.join(self.instance.home, 'Config', 'serverSettings.lua')
             self._settings = utils.SettingsDict(self, path, 'cfg')
         return self._settings
 
     @property
     def options(self) -> dict:
         if not self._options:
-            path = os.path.join(self.instance.home, r'Config\options.lua')
+            path = os.path.join(self.instance.home, 'Config', 'options.lua')
             self._options = utils.SettingsDict(self, path, 'options')
         return self._options
 
@@ -124,16 +124,16 @@ class ServerImpl(Server):
         if not os.path.exists(dcs_path):
             os.mkdir(dcs_path)
         ignore = None
-        bot_home = os.path.join(dcs_path, r'net\DCSServerBot')
+        bot_home = os.path.join(dcs_path, 'net', 'DCSServerBot')
         if os.path.exists(bot_home):
             self.log.debug('  - Updating Hooks ...')
             shutil.rmtree(bot_home)
             ignore = shutil.ignore_patterns('DCSServerBotConfig.lua.tmpl')
         else:
             self.log.debug('  - Installing Hooks ...')
-        shutil.copytree('./Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
+        shutil.copytree('Scripts', dcs_path, dirs_exist_ok=True, ignore=ignore)
         try:
-            with open(r'Scripts/net/DCSServerBot/DCSServerBotConfig.lua.tmpl', 'r') as template:
+            with open(os.path.join('Scripts', 'net', 'DCSServerBot', 'DCSServerBotConfig.lua.tmpl'), 'r') as template:
                 with open(os.path.join(bot_home, 'DCSServerBotConfig.lua'), 'w') as outfile:
                     for line in template.readlines():
                         line = utils.format_string(line, node=self.node, instance=self.instance, server=self)

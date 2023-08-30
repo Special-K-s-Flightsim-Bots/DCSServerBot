@@ -52,12 +52,13 @@ class SRS(Extension):
                 self.cfg.write(ini)
             self.locals = self.load_config()
         # Change DCS-SRS-AutoConnectGameGUI.lua if necessary
-        autoconnect = os.path.join(self.server.instance.home, "Scripts\\Hooks\\DCS-SRS-AutoConnectGameGUI.lua")
+        autoconnect = os.path.join(self.server.instance.home,
+                                   os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
         host = self.config.get('host', self.node.public_ip)
         port = self.config.get('port', self.locals['Server Settings']['SERVER_PORT'])
         if os.path.exists(autoconnect):
             shutil.copy2(autoconnect, autoconnect + '.bak')
-            with open('extensions\\lua\\DCS-SRS-AutoConnectGameGUI.lua') as infile:
+            with open(os.path.join('extensions', 'lua', 'DCS-SRS-AutoConnectGameGUI.lua')) as infile:
                 with open(autoconnect, 'w') as outfile:
                     for line in infile.readlines():
                         if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
@@ -86,7 +87,9 @@ class SRS(Extension):
                 info = None
             self.process = subprocess.Popen(
                 ['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.config['config']))],
-                executable=os.path.expandvars(self.config['installation']) + r'\SR-Server.exe', startupinfo=info)
+                executable=os.path.join(os.path.expandvars(self.config['installation']), 'SR-Server.exe'),
+                startupinfo=info
+            )
         return self.is_running()
 
     async def shutdown(self):
@@ -107,7 +110,7 @@ class SRS(Extension):
     def version(self) -> str:
         if sys.platform == 'win32':
             info = win32api.GetFileVersionInfo(
-                os.path.join(os.path.expandvars(self.config['installation']), r'SR-Server.exe'), '\\')
+                os.path.join(os.path.expandvars(self.config['installation']), 'SR-Server.exe'), '\\')
             version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
                                        info['FileVersionMS'] % 65536,
                                        info['FileVersionLS'] / 65536,
@@ -134,7 +137,8 @@ class SRS(Extension):
 
         # check if SRS is installed
         exe_path = os.path.join(
-            os.path.expandvars(self.config.get('installation', r"%ProgramFiles%\DCS-SimpleRadio-Standalone")),
+            os.path.expandvars(self.config.get('installation',
+                                               os.path.join('%ProgramFiles%', 'DCS-SimpleRadio-Standalone'))),
             'SR-Server.exe'
         )
         if not os.path.exists(exe_path):
@@ -148,7 +152,7 @@ class SRS(Extension):
                 return False
             if self.server.instance.name not in cfg_path:
                 self.log.warning(f"  => Please move your SRS configuration from {cfg_path} to "
-                                 f"{self.server.instance.home}\\Config\\SRS.cfg")
+                                 f"{os.path.join(self.server.instance.home, 'Config', 'SRS.cfg')}")
         except KeyError:
             self.log.error(f"  => SRS config not set for server {self.server.name}")
             return False

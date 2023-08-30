@@ -12,7 +12,7 @@ from discord.ext import tasks
 from services import ServiceBus
 from typing import Optional, cast
 
-TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(r"%USERPROFILE%\Documents\Tacview"))
+TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
 rtt_ports: dict[int, str] = dict()
 rcp_ports: dict[int, str] = dict()
 

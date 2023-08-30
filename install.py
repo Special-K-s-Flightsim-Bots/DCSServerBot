@@ -2,14 +2,13 @@ import os
 import platform
 import psycopg
 import secrets
-import socket
-import winreg
+import sys
+if sys.platform == 'win32':
+    import winreg
 import yaml
 
-from configparser import ConfigParser
 from contextlib import closing, suppress
 from core import utils, SAVED_GAMES
-from os import path
 from pathlib import Path
 from rich import print
 from rich.prompt import IntPrompt, Prompt
@@ -40,9 +39,18 @@ class MissingParameter(Exception):
 class Install:
 
     @staticmethod
-    def get_dcs_installation() -> Optional[str]:
-        print("\nSearching for DCS installations ...")
+    def get_dcs_installation_linux() -> Optional[str]:
         dcs_installation = None
+        while dcs_installation is None:
+            dcs_installation = Prompt.ask(prompt="Please enter the path to your DCS World installation")
+            if not os.path.exists(dcs_installation):
+                print("Directory not found. Please try again.")
+                dcs_installation = None
+        return dcs_installation
+
+    @staticmethod
+    def get_dcs_installation_win32() -> Optional[str]:
+        print("\nSearching for DCS installations ...")
         key = skey = None
         try:
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Eagle Dynamics", 0)
@@ -70,17 +78,12 @@ class Install:
                                     show_choices=True)
                 return installs[num-1][1]
         except (FileNotFoundError, OSError):
-            while dcs_installation is None:
-                dcs_installation = Prompt.ask(prompt="Please enter the path to your DCS World installation")
-                if not os.path.exists(dcs_installation):
-                    print("Directory not found. Please try again.")
-                    dcs_installation = None
+            return Install.get_dcs_installation_linux()
         finally:
             if key:
                 key.Close()
             if skey:
                 skey.Close()
-        return dcs_installation
 
     @staticmethod
     def get_database_url() -> Optional[str]:
@@ -216,7 +219,10 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
             master = False
 
         print(f"\n3. Node Setup")
-        dcs_installation = Install.get_dcs_installation() or '<see documentation>'
+        if sys.platform == 'win32':
+            dcs_installation = Install.get_dcs_installation_win32() or '<see documentation>'
+        else:
+            dcs_installation = Install.get_dcs_installation_linux()
         node = nodes[platform.node()] = {
             "DCS": {
                 "installation": dcs_installation

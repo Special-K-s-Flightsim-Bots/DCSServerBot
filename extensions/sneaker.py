@@ -43,7 +43,7 @@ class Sneaker(Extension):
                 if y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]
             ]
         ]
-        with open('config\\sneaker.json', 'w') as file:
+        with open(os.path.join('config', 'sneaker.json'), 'w') as file:
             json.dump(cfg, file, indent=2)
 
     async def startup(self) -> bool:
@@ -59,11 +59,11 @@ class Sneaker(Extension):
             self.create_config()
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(
-                f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config\\sneaker.json")
-            process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
-                                       executable=os.path.expandvars(self.config['cmd']),
-                                       stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL)
+                f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config/sneaker.json")
+            process = subprocess.Popen([
+                cmd, "--bind", self.config['bind'],
+                "--config", os.path.join('config', 'sneaker.json')
+            ], executable=os.path.expandvars(self.config['cmd']), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
             if not process:
                 cmd = os.path.basename(self.config['cmd'])
@@ -91,11 +91,12 @@ class Sneaker(Extension):
             self.create_config()
             cmd = os.path.basename(self.config['cmd'])
             self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
-                           f"--config config\\sneaker.json")
-            process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
-                                       executable=os.path.expandvars(self.config['cmd']),
-                                       stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL)
+                           f"--config config/sneaker.json")
+            process = subprocess.Popen([
+                cmd,
+                "--bind", self.config['bind'],
+                "--config", os.path.join('config', '\sneaker.json')
+            ], executable=os.path.expandvars(self.config['cmd']), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
 
     def is_running(self) -> bool:

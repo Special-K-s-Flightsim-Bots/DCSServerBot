@@ -30,7 +30,7 @@ class MusicService(Service):
     async def start_sink(self, server: Server) -> Optional[Sink]:
         if not self.get_config(server):
             self.log.debug(
-                f"No config\\services\\music.yaml found or no entry for server {server.name} configured.")
+                f"No config/services/music.yaml found or no entry for server {server.name} configured.")
             return
         config = self.get_config(server)['sink']
         if server.is_remote:

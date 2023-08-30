@@ -12,7 +12,7 @@ class Autoexec:
     values: dict = field(init=False, default_factory=dict)
 
     def __post_init__(self):
-        file = path.join(self.instance.home , r'Config\autoexec.cfg')
+        file = path.join(self.instance.home , 'Config', 'autoexec.cfg')
         if not path.exists(file):
             return
         exp = re.compile('(?P<key>.*)=(?P<value>.*)')
@@ -84,7 +84,7 @@ class Autoexec:
             return value
 
     def update(self):
-        outfile = path.join(self.instance.home, r'Config\autoexec.cfg')
+        outfile = path.join(self.instance.home, 'Config', 'autoexec.cfg')
         if path.exists(outfile):
             shutil.copy(outfile, outfile + '.bak')
         with open(outfile, 'w') as outcfg:

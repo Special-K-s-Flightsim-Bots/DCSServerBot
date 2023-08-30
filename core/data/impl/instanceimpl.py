@@ -1,10 +1,9 @@
 import os
 
 from core import Instance, InstanceBusyError, Status, utils, ServerImpl, DataObjectFactory
+from core.const import SAVED_GAMES
 from dataclasses import field, dataclass
 from typing import Optional
-
-from core.const import SAVED_GAMES
 
 
 @dataclass
@@ -41,8 +40,8 @@ class InstanceImpl(Instance):
         if self.node.locals['DCS'].get('desanitize', True):
             # check for SLmod and desanitize its MissionScripting.lua
             for version in range(5, 7):
-                filename = os.path.join(self.instance.home,
-                                        f'Scripts\\net\\Slmodv7_{version}\\SlmodMissionScripting.lua')
+                filename = os.path.join(self.home,'Scripts', 'net', f'Slmodv7_{version}',
+                                        'SlmodMissionScripting.lua')
                 if os.path.exists(filename):
                     utils.desanitize(self, filename)
                     break

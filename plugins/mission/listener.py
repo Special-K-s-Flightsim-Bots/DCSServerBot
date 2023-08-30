@@ -1,7 +1,9 @@
 from __future__ import annotations
 import asyncio
 import discord
+import os
 import shlex
+
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
     Channel, DataObjectFactory, event, chat_command
 from datetime import datetime
@@ -428,7 +430,7 @@ class MissionEventListener(EventListener):
         message = 'The following missions are available:\n'
         for i in range(0, len(missions)):
             mission = missions[i]
-            mission = mission[(mission.rfind('\\') + 1):-4]
+            mission = mission[(mission.rfind(os.path.sep) + 1):-4]
             message += f"{i + 1} {mission}\n"
         message += f"\nUse {self.prefix}load <number> to load that mission"
         player.sendUserMessage(message, 30)
