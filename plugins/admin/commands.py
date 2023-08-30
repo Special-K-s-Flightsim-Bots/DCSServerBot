@@ -5,9 +5,9 @@ import shutil
 import traceback
 
 from contextlib import closing
-from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus
+from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group
 from discord import app_commands
-from discord.app_commands import Range, Group
+from discord.app_commands import Range
 from discord.ext import commands
 from discord.ui import Select, View, Button, TextInput, Modal
 from io import BytesIO

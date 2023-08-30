@@ -525,7 +525,10 @@ class ServerTransformer(app_commands.Transformer):
 class NodeTransformer(app_commands.Transformer):
 
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Node:
-        return next(x.node for x in interaction.client.servers.values() if x.node.name == value)
+        if value:
+            return next(x.node for x in interaction.client.servers.values() if x.node.name == value)
+        else:
+            return interaction.client.node
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
         all_nodes = [interaction.client.node.name]

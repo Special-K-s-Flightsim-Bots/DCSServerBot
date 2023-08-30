@@ -106,12 +106,18 @@ class Command(app_commands.Command):
         super().__init__(name=name, description=description, callback=callback, nsfw=nsfw, parent=parent,
                          guild_ids=guild_ids, auto_locale_strings=auto_locale_strings, extras=extras)
         bot: DCSServerBot = ServiceRegistry.get("Bot").bot
-        num_servers = len(bot.servers)
+        # remove node parameter from slash commands if only one node is there
         nodes = len(bot.node.all_nodes)
+        if 'node' in self._params and nodes == 1:
+            del self._params['node']
+        # remove server parameter from slash commands if only one server is there
+        num_servers = len(bot.servers)
         if 'server' in self._params and ((num_servers == 1 and nodes == 1) or not bot.locals.get('admin_channel')):
             del self._params['server']
 
     async def _do_call(self, interaction: Interaction, params: Dict[str, Any]) -> T:
+        if 'node' in inspect.signature(self._callback).parameters and 'node' not in params:
+            params['node'] = interaction.client.node
         if 'server' in inspect.signature(self._callback).parameters and 'server' not in params:
             server = await interaction.client.get_server(interaction)
             if not server:
