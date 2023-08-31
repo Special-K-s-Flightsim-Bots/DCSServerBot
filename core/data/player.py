@@ -26,6 +26,7 @@ class Player(DataObject):
     sub_slot: int = field(compare=False, default=0)
     unit_callsign: str = field(compare=False, default='')
     unit_name: str = field(compare=False, default='')
+    unit_display_name: str = field(compare=False, default='')
     unit_type: str = field(compare=False, default='')
     group_id: int = field(compare=False, default=0)
     group_name: str = field(compare=False, default='')
@@ -180,6 +181,8 @@ class Player(DataObject):
                     self.group_name = data['group_name']
                 if 'group_id' in data:
                     self.group_id = data['group_id']
+                if 'unit_display_name' in data:
+                    self.unit_display_name = data['unit_display_name']
                 cursor.execute('UPDATE players SET last_seen = NOW() WHERE ucid = %s', (self.ucid, ))
                 conn.commit()
         except (Exception, psycopg2.DatabaseError) as error:

@@ -215,8 +215,9 @@ class MissionEventListener(EventListener):
                                                      name=p['name'], active=p['active'], side=Side(p['side']),
                                                      ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
                                                      unit_callsign=p['unit_callsign'], unit_name=p['unit_name'],
-                                                     unit_type=p['unit_type'], group_id=p['group_id'],
-                                                     group_name=p['group_name'], banned=False)
+                                                     unit_type=p['unit_type'],
+                                                     unit_display_name=p.get('unit_display_name', p['unit_type']),
+                                                     group_id=p['group_id'], group_name=p['group_name'], banned=False)
             server.add_player(player)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now()
