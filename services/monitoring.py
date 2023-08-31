@@ -7,10 +7,10 @@ import traceback
 if sys.platform == 'win32':
     import win32gui
     import win32process
+    from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
 
 from datetime import datetime, timezone
 from discord.ext import tasks
-from minidump.utils.createminidump import create_dump, MINIDUMP_TYPE
 from typing import TYPE_CHECKING
 
 from core import Status, utils, Server, Channel, ServerImpl, Autoexec
@@ -145,8 +145,9 @@ class MonitoringService(Service):
                                 now = datetime.now(timezone.utc)
                                 filename = os.path.join(server.instance.home, 'Logs',
                                                         f"{now.strftime('dcs-%Y%m%d-%H%M%S')}.dmp")
-                                await asyncio.to_thread(create_dump, server.process.pid, filename,
-                                                        MINIDUMP_TYPE.MiniDumpNormal, True)
+                                if sys.platform == 'win32':
+                                    await asyncio.to_thread(create_dump, server.process.pid, filename,
+                                                            MINIDUMP_TYPE.MiniDumpNormal, True)
                                 server.process.kill()
                             else:
                                 await server.shutdown(True)
