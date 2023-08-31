@@ -36,7 +36,7 @@ class MessageOfTheDayListener(EventListener):
                 env = await report.render(server=server, player=player, guild=self.bot.guilds[0])
                 message = utils.embed_to_simpletext(env.embed)
             if 'sound' in config:
-                player.playSound(config['on_birth']['sound'])
+                player.playSound(config['sound'])
             return message, config
 
     @event(name="onMissionLoadEnd")
