@@ -211,6 +211,7 @@ function mission.onPlayerChangeSlot(id)
     msg.group_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUPNAME)
     msg.group_id = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUP_MISSION_ID)
     msg.unit_callsign = DCS.getUnitProperty(msg.slot, DCS.UNIT_CALLSIGN)
+    msg.unit_display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.slot), "DisplayName")
     msg.active = true
     utils.sendBotTable(msg)
 end
