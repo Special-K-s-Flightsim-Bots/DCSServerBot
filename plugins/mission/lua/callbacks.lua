@@ -79,6 +79,7 @@ function mission.onMissionLoadEnd()
         num_slots_red = num_slots_red + 1
     end
 
+    num_slots_blue = 0
     dcsbot.blue_slots = {}
     for k,v in pairs(DCS.getAvailableSlots("blue")) do
         dcsbot.blue_slots[v.unitId] = v
@@ -239,6 +240,7 @@ function mission.onPlayerChangeSlot(id)
     msg.group_name = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUPNAME)
     msg.group_id = DCS.getUnitProperty(msg.slot, DCS.UNIT_GROUP_MISSION_ID)
     msg.unit_callsign = DCS.getUnitProperty(msg.slot, DCS.UNIT_CALLSIGN)
+    msg.unit_display_name = DCS.getUnitTypeAttribute(DCS.getUnitType(msg.slot), "DisplayName")
     msg.active = true
     utils.sendBotTable(msg)
 end

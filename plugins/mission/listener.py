@@ -107,8 +107,8 @@ class MissionEventListener(EventListener):
                 try:
                     server = self.bot.servers[server_name]
                     if not server.locals.get('coalitions'):
-                        report = PersistentReport(self.bot, self.plugin_name, 'players.json', embed_name='players_embed',
-                                                  server=server)
+                        report = PersistentReport(self.bot, self.plugin_name, 'players.json',
+                                                  embed_name='players_embed', server=server)
                         await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
                 except Exception as ex:
                     self.log.exception(ex)
@@ -123,8 +123,8 @@ class MissionEventListener(EventListener):
                     server = self.bot.servers[server_name]
                     if not server.settings:
                         return
-                    report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', embed_name='mission_embed',
-                                              server=server)
+                    report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json',
+                                              embed_name='mission_embed', server=server)
                     await report.render(server=server)
                 except Exception as ex:
                     self.log.exception(ex)
@@ -216,7 +216,8 @@ class MissionEventListener(EventListener):
                 Player.__name__, node=server.node, server=server, id=p['id'], name=p['name'], active=p['active'],
                 side=Side(p['side']), ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
                 unit_callsign=p['unit_callsign'], unit_name=p['unit_name'], unit_type=p['unit_type'],
-                group_id=p['group_id'], group_name=p['group_name'])
+                unit_display_name=p.get('unit_display_name', p['unit_type']), group_id=p['group_id'],
+                group_name=p['group_name'])
             server.add_player(player)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now()
