@@ -156,7 +156,7 @@ class NodeImpl(Node):
 
     @staticmethod
     def shutdown():
-        exit(-1)
+        raise KeyboardInterrupt()
 
     def read_locals(self) -> dict:
         _locals = dict()
@@ -270,7 +270,7 @@ class NodeImpl(Node):
                                     sys.executable, '-m', 'pip', '-q','install', '-r', 'requirements.txt')
                                 await proc.communicate()
                             self.log.warning('- Restart needed => exiting.')
-                            exit(-1)
+                            raise KeyboardInterrupt()
                         except git.exc.GitCommandError:
                             self.log.error('  => Autoupdate failed!')
                             self.log.error('     Please revert back the changes in these files:')
