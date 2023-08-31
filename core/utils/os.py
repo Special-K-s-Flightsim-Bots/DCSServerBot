@@ -1,3 +1,6 @@
+import os.path
+import shlex
+
 import aiohttp
 import asyncio
 import ipaddress
@@ -26,9 +29,9 @@ async def get_public_ip():
 
 
 def find_process(proc, instance: str):
-    for p in psutil.process_iter(['name', 'cmdline']):
-        if p.info['name'] == proc:
-            with suppress(Exception):
+    for p in psutil.process_iter(['cmdline']):
+        with suppress(Exception):
+            if os.path.basename(p.info['cmdline'][0]) == proc:
                 for c in p.info['cmdline']:
                     if instance in c.replace('\\', '/').split('/'):
                         return p
