@@ -521,9 +521,8 @@ class MissionEventListener(EventListener):
                   help="load a specific weather preset")
     async def preset(self, server: Server, player: Player, params: list[str]):
         async def change_preset(preset: str):
-            await server.stop()
             await server.modifyMission([preset])
-            await server.start()
+            await server.restart(smooth=True)
             await self.bot.audit(f"changed preset to {preset}", server=server, user=player.ucid)
 
         config = self.plugin.get_config(server)

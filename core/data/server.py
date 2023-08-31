@@ -259,9 +259,12 @@ class Server(DataObject):
             self.send_to_dcs({"command": "start_server"})
             await self.wait_for_status_change([Status.PAUSED, Status.RUNNING], timeout)
 
-    async def restart(self) -> None:
-        await self.stop()
-        await self.start()
+    async def restart(self, smooth: bool = False) -> None:
+        if smooth:
+            await self.loadMission(int(self.settings['listStartIndex']))
+        else:
+            await self.stop()
+            await self.start()
 
     async def _load(self, message):
         stopped = self.status == Status.STOPPED

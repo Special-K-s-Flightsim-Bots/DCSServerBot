@@ -1,8 +1,8 @@
 import asyncio
 import discord
 import yaml
-from core import Plugin, PluginRequiredError, utils, Status, Extension, Server, Coalition, Channel, \
-    TEventListener, Group
+
+from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group
 from datetime import datetime, timedelta
 from discord import app_commands
 from discord.ext import tasks
@@ -151,16 +151,6 @@ class Scheduler(Plugin):
             await self.teardown_dcs(server)
             server.restart_pending = False
 
-    @staticmethod
-    def is_mission_change(server: Server, config: dict) -> bool:
-        if 'settings' in config:
-            return True
-        # check if someone overloaded beforeMissionLoad, which means the mission is likely to be changed
-        for ext in server.extensions.values():
-            if ext.__class__.beforeMissionLoad != Extension.beforeMissionLoad:
-                return True
-        return False
-
     async def restart_mission(self, server: Server, config: dict, rconf: dict, max_warn_time: int):
         # a restart is already pending, nothing more to do
         if server.restart_pending:
@@ -210,27 +200,19 @@ class Scheduler(Plugin):
                 await self.bot.audit(f"{self.plugin_name.title()}: Timeout while starting server",
                                      server=server)
         elif method == 'restart':
-            if self.is_mission_change(server, config):
-                self.log.debug(f"Scheduler: Restart with mission update")
-                await server.stop()
-                for ext in server.extensions.values():
-                    await ext.beforeMissionLoad()
-                await server.start()
-            else:
-                self.log.debug(f"Scheduler: Restart without mission update")
-                await server.current_mission.restart()
+            self.log.debug(f"Scheduler: Restarting mission on server {server.name}")
+            for ext in server.extensions.values():
+                await ext.beforeMissionLoad()
+            await server.restart(smooth=True)
             await self.bot.audit(f"{self.plugin_name.title()} restarted mission "
                                  f"{server.current_mission.display_name}", server=server)
         elif method == 'rotate':
+            self.log.debug(f"Scheduler: Rotating mission on server {server.name}")
+            # TODO: change this
             await server.loadNextMission()
-            if self.is_mission_change(server, config):
-                self.log.debug(f"Scheduler: Rotate with mission update")
-                await server.stop()
-                for ext in server.extensions.values():
-                    await ext.beforeMissionLoad()
-                await server.start()
-            else:
-                self.log.debug(f"Scheduler: Rotate without mission update")
+            for ext in server.extensions.values():
+                await ext.beforeMissionLoad()
+            await server.restart(smooth=True)
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
 

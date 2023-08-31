@@ -328,7 +328,7 @@ class Mission(Plugin):
             self.log.warning("You have more than 25 presets created, you can only choose from 25!")
 
         if server.status in [Status.PAUSED, Status.RUNNING]:
-            question = 'Do you want to stop the server to change the mission preset?'
+            question = 'Do you want to restart the server for a preset change?'
             if server.is_populated():
                 result = await utils.populated_question(interaction, question)
             else:
@@ -357,14 +357,10 @@ class Mission(Plugin):
             await interaction.followup.send(f'Preset will be changed when server is empty.', ephemeral=True)
         else:
             msg = await interaction.followup.send('Changing presets...', ephemeral=True)
-            stopped = False
-            if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                stopped = True
-                await server.stop()
             await server.modifyMission([value for name, value in presets.items() if name in view.result])
             message = 'Preset changed to: {}.'.format(','.join(view.result))
-            if stopped:
-                await server.start()
+            if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+                await server.restart(smooth=True)
                 message += '\nServer restarted.'
             await self.bot.audit("changed preset", server=server, user=interaction.user)
             await msg.delete()

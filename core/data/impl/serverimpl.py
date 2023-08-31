@@ -352,20 +352,39 @@ class ServerImpl(Server):
             if 'files' in value:
                 miz.files = value['files']
 
-        if self.status in [Status.STOPPED, Status.SHUTDOWN]:
-            filename = await self.get_current_mission_file()
-            if not filename:
-                return
-            try:
-                miz = MizFile(self, filename)
-                if isinstance(preset, list):
-                    for p in preset:
-                        apply_preset(p)
-                else:
-                    apply_preset(preset)
+        filename = await self.get_current_mission_file()
+        if not filename:
+            return
+        # check, if we can write that file
+        try:
+            with open(filename, 'a'):
+                new_filename = filename
+        except PermissionError:
+            if '.dcssb' in filename:
+                new_filename = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
+                                            os.path.basename(filename))
+            else:
+                dirname = os.path.join(os.path.dirname(filename), '.dcssb')
+                os.makedirs(dirname, exist_ok=True)
+                new_filename = os.path.join(dirname, os.path.basename(filename))
+        try:
+            miz = MizFile(self, filename)
+            if isinstance(preset, list):
+                for p in preset:
+                    apply_preset(p)
+            else:
+                apply_preset(preset)
+            if new_filename != filename:
+                miz.save(new_filename)
+                missions: list = self.settings['missionList']
+                missions.remove(filename)
+                missions.append(new_filename)
+                self.settings['missionList'] = missions
+                self.settings['listStartIndex'] = missions.index(new_filename) + 1
+            else:
                 miz.save()
-            except Exception as ex:
-                self.log.exception("Exception while parsing mission: ", exc_info=ex)
+        except Exception as ex:
+            self.log.exception("Exception while parsing mission: ", exc_info=ex)
 
     async def keep_alive(self):
         # we set a longer timeout in here because, we don't want to risk false restarts

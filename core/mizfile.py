@@ -5,7 +5,7 @@ import os
 import tempfile
 import zipfile
 from datetime import datetime
-from typing import Union, Any
+from typing import Union, Any, Optional
 
 
 class MizFile:
@@ -28,7 +28,7 @@ class MizFile:
             except FileNotFoundError:
                 pass
 
-    def save(self):
+    def save(self, new_filename: Optional[str] = None):
         tmpfd, tmpname = tempfile.mkstemp(dir=os.path.dirname(self.filename))
         os.close(tmpfd)
         with zipfile.ZipFile(self.filename, 'r') as zin:
@@ -46,10 +46,14 @@ class MizFile:
                 for file in self._files:
                     zout.write(file, f'l10n/DEFAULT/{os.path.basename(file)}')
         try:
-            os.remove(self.filename)
-            os.rename(tmpname, self.filename)
-        except PermissionError:
-            self.log.error(f"Can't change mission, please check permissions on {self.filename}!")
+            if new_filename:
+                os.remove(new_filename)
+                os.rename(tmpname, new_filename)
+            else:
+                os.remove(self.filename)
+                os.rename(tmpname, self.filename)
+        except PermissionError as ex:
+            self.log.error(f"Can't write new mission file: {ex}")
 
     @property
     def start_time(self) -> int:

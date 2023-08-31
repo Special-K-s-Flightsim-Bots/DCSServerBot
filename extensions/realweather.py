@@ -22,20 +22,42 @@ class RealWeather(Extension):
                 if not filename:
                     self.log.warning("No mission configured, can't apply real weather.")
                     return False
+                # check, if we can write that file
+                try:
+                    with open(filename, 'a'):
+                        new_filename = filename
+                except PermissionError:
+                    if '.dcssb' in filename:
+                        new_filename = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
+                                                    os.path.basename(filename))
+                    else:
+                        dirname = os.path.join(os.path.dirname(filename), '.dcssb')
+                        os.makedirs(dirname, exist_ok=True)
+                        new_filename = os.path.join(dirname, os.path.basename(filename))
+
                 if not os.path.exists(filename + '.orig'):
                     shutil.copy2(filename, filename + '.orig')
-                cfg['input-mission-file'] = filename + '.orig'
-                cfg['output-mission-file'] = filename
-                for key in list(cfg.keys()):
-                    if key in self.config:
-                        cfg[key] = self.config[key]
-                cwd = await self.server.get_missions_dir()
-                with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
-                    json.dump(cfg, outfile, indent=2)
-                proc = await asyncio.create_subprocess_exec(os.path.join(rw_home, 'realweather.exe'), cwd=cwd)
-                await proc.communicate()
-                self.log.info(f"Real weather applied to mission.")
-                return True
+                try:
+                    cfg['input-mission-file'] = filename + '.orig'
+                    cfg['output-mission-file'] = new_filename
+                    for key in list(cfg.keys()):
+                        if key in self.config:
+                            cfg[key] = self.config[key]
+                    cwd = await self.server.get_missions_dir()
+                    with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
+                        json.dump(cfg, outfile, indent=2)
+                    proc = await asyncio.create_subprocess_exec(os.path.join(rw_home, 'realweather.exe'), cwd=cwd)
+                    await proc.communicate()
+                    if new_filename != filename:
+                        missions: list = self.server.settings['missionList']
+                        missions.remove(filename)
+                        missions.append(new_filename)
+                        self.server.settings['missionList'] = missions
+                        self.server.settings['listStartIndex'] = missions.index(new_filename) + 1
+                    self.log.info(f"Real weather applied to mission.")
+                    return True
+                finally:
+                    os.remove(filename + '.orig')
         except Exception as ex:
             self.log.exception(ex)
             shutil.copy2(filename + '.orig', filename)

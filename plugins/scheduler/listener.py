@@ -51,33 +51,26 @@ class SchedulerListener(EventListener):
             if server.status == Status.SHUTDOWN:
                 await self.plugin.launch_dcs(server, config)
             elif server.status == Status.STOPPED:
-                if self.plugin.is_mission_change(server, config):
-                    for ext in server.extensions.values():
-                        await ext.beforeMissionLoad()
-                    await server.start()
+                for ext in server.extensions.values():
+                    await ext.beforeMissionLoad()
+                await server.start()
                 message = 'started DCS server'
                 if 'user' not in what:
                     message = self.plugin_name.title() + ' ' + message
                 await self.bot.audit(message, server=server, user=what.get('user'))
             elif server.status in [Status.RUNNING, Status.PAUSED]:
-                if self.plugin.is_mission_change(server, config):
-                    await server.stop()
-                    for ext in server.extensions.values():
-                        await ext.beforeMissionLoad()
-                    await server.start()
-                else:
-                    await server.current_mission.restart()
+                for ext in server.extensions.values():
+                    await ext.beforeMissionLoad()
+                await server.restart(smooth=True)
                 message = f'restarted mission {server.current_mission.display_name}'
                 if 'user' not in what:
                     message = self.plugin_name.title() + ' ' + message
                 await self.bot.audit(message, server=server, user=what.get('user'))
         elif what['command'] == 'rotate':
             await server.loadNextMission()
-            if self.plugin.is_mission_change(server, config):
-                await server.stop()
-                for ext in server.extensions.values():
-                    await ext.beforeMissionLoad()
-                await server.start()
+            for ext in server.extensions.values():
+                await ext.beforeMissionLoad()
+            await server.restart(smooth=True)
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
         elif what['command'] == 'load':
