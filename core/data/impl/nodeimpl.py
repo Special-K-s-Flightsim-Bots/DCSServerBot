@@ -162,7 +162,10 @@ class NodeImpl(Node):
         _locals = dict()
         if os.path.exists('config/nodes.yaml'):
             self.all_nodes: dict = yaml.safe_load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
-            node: dict = self.all_nodes[self.name]
+            node: dict = self.all_nodes.get(self.name)
+            if not node:
+                self.log.error(f'No configuration found for node {self.name} in nodes.yaml! Hostname changed?')
+                raise KeyboardInterrupt()
             for name, element in node.items():
                 if name == 'instances':
                     for _name, _element in node['instances'].items():
