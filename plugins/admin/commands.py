@@ -174,7 +174,7 @@ class Admin(Plugin):
                 f"Can't update branch {branch}. You might need to provide proper DCS credentials to do so.",
                 ephemeral=True)
 
-    @dcs.command(name='install', description='Install available modules in your dedicated server')
+    @dcs.command(name='install', description='Install available modules in your dcs server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=utils.available_modules_autocomplete)
@@ -187,7 +187,7 @@ class Admin(Plugin):
         await node.handle_module('install', module)
         await interaction.followup.send(f"Module {module} installed on node {node.name}", ephemeral=True)
 
-    @dcs.command(name='uninstall', description='Uninstall modules from your dedicated server')
+    @dcs.command(name='uninstall', description='Uninstall modules from your dcs server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=utils.installed_modules_autocomplete)

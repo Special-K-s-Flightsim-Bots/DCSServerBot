@@ -300,7 +300,7 @@ class Scheduler(Plugin):
             embed.add_field(name='Players', value='\n'.join(players))
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @group.command(description='Starts a DCS/DCS-SRS server')
+    @group.command(description='Launches a DCS server')
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     async def startup(self, interaction: discord.Interaction,
@@ -341,7 +341,7 @@ class Scheduler(Plugin):
             finally:
                 await msg.delete()
 
-    @group.command(description='Shutdown a DCS/DCS-SRS server')
+    @group.command(description='Shuts a DCS server down')
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     async def shutdown(self, interaction: discord.Interaction,

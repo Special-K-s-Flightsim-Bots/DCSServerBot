@@ -13,7 +13,6 @@ from discord.app_commands import Choice, TransformerError
 from discord.ext import commands
 from discord.ui import Button, View, Select
 from enum import Enum, auto
-from functools import lru_cache
 from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 
 from .helper import get_all_players, is_ucid
@@ -630,7 +629,6 @@ async def installed_modules_autocomplete(interaction: discord.Interaction, curre
 
 async def player_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
 
-    @lru_cache
     def get_modules(ucid: str) -> list[str]:
         with interaction.client.pool.connection() as conn:
             return [row[0] for row in conn.execute("""

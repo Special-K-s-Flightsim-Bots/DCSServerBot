@@ -27,7 +27,7 @@ class OvGME(Plugin):
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    @command(description='Display installed packages')
+    @command(description='Install / uninstall / update packages')
     @app_commands.guild_only()
     @utils.app_has_roles(['Admin'])
     async def packages(self, interaction: discord.Interaction,

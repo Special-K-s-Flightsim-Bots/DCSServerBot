@@ -410,7 +410,7 @@ class Mission(Plugin):
     # New command group "/player"
     player = Group(name="player", description="Commands to manage DCS players")
 
-    @player.command(name='list', description='Lists the current players on this server')
+    @player.command(name='list', description='Lists the current players')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def _list(self, interaction: discord.Interaction,
@@ -511,7 +511,7 @@ class Mission(Plugin):
         else:
             await interaction.response.send_message(f"No player is AFK for more than {minutes} minutes.", ephemeral=True)
 
-    @player.command(description='Sends a popup to a player')
+    @player.command(description='Sends a popup to a player\n')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def popup(self, interaction: discord.Interaction,
