@@ -121,7 +121,7 @@ async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, da
             embed = embed_formatter(data[j * num:j * num + max_i],
                                     (marker - j * num) if marker in range(j * num, j * num + max_i + 1) else 0,
                                     marker_emoji)
-            message = await interaction.response.send_message(embed=embed)
+            message = await interaction.followup.send(embed=embed, ephemeral=True)
             if j > 0:
                 await message.add_reaction('◀️')
             for i in range(1, max_i + 1):

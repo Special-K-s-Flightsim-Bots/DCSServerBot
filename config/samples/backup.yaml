@@ -1,22 +1,31 @@
+#############################################################
+# Configuration for the Backup-service.                     #
+#############################################################
+# It defines what should be backup-ed and when that backup  #
+# should take place. There is no incremental backup support #
+# by now, please keep that in mind.                         #
+#############################################################
 backups:
-  bot:
+  delete_after: 7             # keep your backups for 7 days.
+  target: G:\My Drive\Backup  # The target directory of your backups. Should be on a cloud / external drive.
+  bot:  # the bot configuration and customizations like reports
     directories:
     - config
     - reports
     schedule:
-      days: YYYYYYY
+      days: YYYYYYY           # Mo Di Mi Do Fr Sa So
       times:
-      - 00:00
+      - '00:00'               # You can create multiple times per day, but not a different time on multiple days.
       - '12:00'
-  database:
-    password: secret
-    path: C:\Program Files\PostgreSQL\14\bin
+  database: # the DCSSB database
+    password: secret          # This is the password of the "postgres" user of you database
+    path: C:\Program Files\PostgreSQL\14\bin  # The path to your postgres binaries. You need at least a client installation for DCSServerBot to work.
     schedule:
       days: NNNNNNY
       times:
-      - 03:00
-  servers:
-    directories:
+      - '03:00'
+  servers:  # all your DCS servers
+    directories:              # Specify which directories you want to backup. They will be zipped.
     - Config
     - Missions
     - Scripts
@@ -24,6 +33,4 @@ backups:
     schedule:
       days: YNYNYNN
       times:
-      - 02:00
-delete_after: '7'
-target: G:\My Drive\Backup
+      - '02:00'

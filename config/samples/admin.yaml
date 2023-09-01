@@ -1,26 +1,42 @@
-DEFAULT:
+###############################################################
+# Configuration for the Admin plugin.                         #
+###############################################################
+# At the moment, this only holds the downloads configuration. #
+###############################################################
+DEFAULT:  # The DEFAULT section is valid for all your servers
+  # we only have a download section atm
   downloads:
+  # that's for your DCS logs. It should work for all your servers.
   - label: DCS Logs
     directory: '%USERPROFILE%\Saved Games\{server.instance.name}\logs'
     pattern: 'dcs*.log'
+  # That is for the DCSSB logs. Should work for all your servers.
   - label: DCSServerBot Logs
     directory: logs
     pattern: 'dcssb-*.log*'
+  # This is for your missions. If you use a central mission directory, you might want to amend that.
   - label: Missions
     directory: '%USERPROFILE%\Saved Games\{server.instance.name}\Missions'
     pattern: '*.miz'
+  # This is for Tacview. If you use an instance-specific tacview directory, this needs to be changed.
+  # Player-specific files aren't supported yet for download. See auto-upload to channels in the Tacview-extension.
   - label: Tacview
     directory: '%USERPROFILE%\Documents\Tacview'
     pattern: 'Tacview-*.acmi'
+  # If you decided to use dedicated chat logs per server (default), this is where you can find them.
   - label: Chat Logs
     directory: logs
-    pattern: '*-chat.*log*'
+    pattern: '{server.instance.name}-chat.*log*'
+  # The main configuration files of DCSSB. You can upload changed configurations again to your admin channels.
   - label: Main Config Files
     directory: .\config
     pattern: '*.yaml'
+  # All configuration files of your plugins. You can upload changed configurations again to your admin channels.
   - label: Plugin Config Files
     directory: .\config\plugins
     pattern: '*.yaml'
+  # The service configuration files of DCSSB. You can upload changed configurations again to your admin channels.
+  # Be aware, the bot.yaml contains your Discord TOKEN in a readable format.
   - label: Service Config Files
     directory: .\config\services
     pattern: '*.yaml'
