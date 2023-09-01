@@ -460,8 +460,8 @@ class DCSServerBot(commands.Bot):
                 if member.bot:
                     continue
                 name = re.sub(tag_filter, '', member.name).strip() if tag_filter else member.name
-                if member.nick:
-                    nickname = re.sub(tag_filter, '', member.nick).strip() if tag_filter else member.nick
+                if member.display_name:
+                    nickname = re.sub(tag_filter, '', member.display_name).strip() if tag_filter else member.display_name
                     weight = max(self.match(dcs_name, nickname), self.match(dcs_name, name))
                 else:
                     weight = self.match(dcs_name, name)
@@ -500,8 +500,8 @@ class DCSServerBot(commands.Bot):
                     cursor.execute(sql)
                     for row in cursor.fetchall():
                         name = re.sub(tag_filter, '', data.name).strip() if tag_filter else data.name
-                        if data.nick:
-                            nickname = re.sub(tag_filter, '', data.nick).strip() if tag_filter else data.nick
+                        if data.display_name:
+                            nickname = re.sub(tag_filter, '', data.display_name).strip() if tag_filter else data.display_name
                             weight = max(self.match(nickname, row['name']), self.match(name, row['name']))
                         else:
                             weight = self.match(name, row[1])
