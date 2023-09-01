@@ -525,7 +525,16 @@ class DCSServerBot(commands.Bot):
             # we could not find the user, so try to match them
             dcs_name = re.sub(tag_filter, '', data['name']).strip() if tag_filter else data['name']
             # we do not match the default names
-            if dcs_name in ['Player', 'Spieler', 'Jugador', 'Joueur', 'Игрок']:
+            if dcs_name in [
+                'Player',
+                'Joueur',
+                'Spieler',
+                'Игрок',
+                'Jugador',
+                '玩家',
+                'Hráč',
+                '플레이어'
+            ]:
                 return None
             # a minimum of 3 characters have to match
             max_weight = 3
@@ -535,8 +544,8 @@ class DCSServerBot(commands.Bot):
                 if member.bot:
                     continue
                 name = re.sub(tag_filter, '', member.name).strip() if tag_filter else member.name
-                if member.nick:
-                    nickname = re.sub(tag_filter, '', member.nick).strip() if tag_filter else member.nick
+                if member.display_name:
+                    nickname = re.sub(tag_filter, '', member.display_name).strip() if tag_filter else member.display_name
                     weight = max(self.match(dcs_name, nickname), self.match(dcs_name, name))
                 else:
                     weight = self.match(dcs_name, name)
@@ -572,8 +581,8 @@ class DCSServerBot(commands.Bot):
                     sql += ' WHERE discord_id = -1 AND name IS NOT NULL'
                 for row in conn.execute(sql).fetchall():
                     name = re.sub(tag_filter, '', data.name).strip() if tag_filter else data.name
-                    if data.nick:
-                        nickname = re.sub(tag_filter, '', data.nick).strip() if tag_filter else data.nick
+                    if data.display_name:
+                        nickname = re.sub(tag_filter, '', data.display_name).strip() if tag_filter else data.display_name
                         weight = max(self.match(nickname, row['name']), self.match(name, row['name']))
                     else:
                         weight = self.match(name, row[1])

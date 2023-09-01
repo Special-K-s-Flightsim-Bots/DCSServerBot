@@ -30,7 +30,7 @@ class PlayerType(Enum):
 async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Interaction,
                                    message: discord.Message) -> discord.Reaction:
     def check_press(react: discord.Reaction, user: discord.Member):
-        return (react.message.channel == message.channel) & (user == member) & (react.message.id == message.id)
+        return (react.message.channel == interaction.channel) & (user == member) & (react.message.id == message.id)
 
     tasks = [
         asyncio.create_task(bot.wait_for('reaction_add', check=check_press)),
@@ -72,44 +72,6 @@ async def input_value(bot: DCSServerBot, interaction: discord.Interaction, messa
                 await response.delete()
 
 
-async def pagination(bot: DCSServerBot, interaction: discord.Interaction, data: list, embed_formatter, num: int = 10):
-    if not interaction.response.is_done():
-        await interaction.response.defer()
-    message = None
-    try:
-        j = 0
-        while len(data) > 0:
-            max_i = (len(data) % num) if (len(data) - j * num) < num else num
-            embed = embed_formatter(data[j * num:j * num + max_i])
-            message = await interaction.followup.send(embed=embed)
-            wait = False
-            if j > 0:
-                await message.add_reaction('◀️')
-                wait = True
-            if j > 0 or ((j + 1) * num) < len(data):
-                await message.add_reaction('⏹️')
-            if ((j + 1) * num) < len(data):
-                await message.add_reaction('▶️')
-                wait = True
-            if wait:
-                react = await wait_for_single_reaction(bot, interaction, message)
-                await message.delete()
-                if react.emoji == '◀️':
-                    j -= 1
-                    message = None
-                elif react.emoji == '▶️':
-                    j += 1
-                    message = None
-                elif react.emoji == '⏹️':
-                    return -1
-            else:
-                return
-    except asyncio.TimeoutError:
-        if message:
-            await message.delete()
-            return -1
-
-
 async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, data: list, embed_formatter, num: int = 5,
                          marker: int = -1, marker_emoji='🔄'):
     message = None
@@ -120,7 +82,7 @@ async def selection_list(bot: DCSServerBot, interaction: discord.Interaction, da
             embed = embed_formatter(data[j * num:j * num + max_i],
                                     (marker - j * num) if marker in range(j * num, j * num + max_i + 1) else 0,
                                     marker_emoji)
-            message = await interaction.followup.send(embed=embed, ephemeral=True)
+            message = await interaction.followup.send(embed=embed)
             if j > 0:
                 await message.add_reaction('◀️')
             for i in range(1, max_i + 1):

@@ -238,7 +238,7 @@ class UserStatistics(Plugin):
 
         view = InfoView(member=member or ucid, bot=self.bot, player=player, server=server)
         embed = await view.render()
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         try:
             await view.wait()
         finally:
@@ -263,7 +263,8 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def linkcheck(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        # await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(thinking=True)
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 # check all unmatched players
@@ -312,7 +313,7 @@ class UserStatistics(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def mislinks(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(thinking=True)
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 # check all matched members
