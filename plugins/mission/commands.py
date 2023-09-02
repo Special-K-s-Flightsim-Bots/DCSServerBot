@@ -619,7 +619,9 @@ class Mission(Plugin):
 
             filename = os.path.join(await server.get_missions_dir(), att.filename)
             name = os.path.basename(att.filename)[:-4]
-            await message.channel.send(f'Mission "{name}" uploaded to server {server.name}.')
+            if not server.locals.get('autoscan', False):
+                server.addMission(filename)
+            await message.channel.send(f'Mission "{name}" uploaded to server {server.name} and added.')
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
 
             if server.status != Status.SHUTDOWN and server.current_mission.filename != filename and \
