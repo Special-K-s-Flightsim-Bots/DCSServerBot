@@ -7,9 +7,11 @@ import platform
 import shutil
 import socket
 import subprocess
+import yaml
 
 from contextlib import suppress
-from core import utils, Server
+from copy import deepcopy
+from core import utils, Server, DEFAULT_TAG
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -22,7 +24,6 @@ from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemM
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel
 from core.mizfile import MizFile
-from core.services import ServiceRegistry
 
 if TYPE_CHECKING:
     from core import Plugin, Extension, InstanceImpl, UploadStatus
@@ -201,33 +202,20 @@ class ServerImpl(Server):
         dcs_socket.sendto(msg.encode('utf-8'), ('127.0.0.1', int(self.port)))
         dcs_socket.close()
 
-    def rename(self, new_name: str, update_settings: bool = False) -> None:
-        # rename the entries in the main database tables
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                if self.node.master:
-                    bot: DCSServerBot = ServiceRegistry.get("Bot").bot
-                    # call rename() in all Plugins
-                    for plugin in bot.cogs.values():  # type: Plugin
-                        plugin.rename(conn, self.name, new_name)
-                else:
-                    for n in self.node.get_active_nodes():
-                        self.bus.send_to_node({
-                            "command": "rpc",
-                            "service": "ServiceBus",
-                            "method": "rename",
-                            "params": {
-                                "old_name": self.name,
-                                "new_name": new_name
-                            }
-                        }, node=n)
-                conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                             (new_name, self.name))
-                conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                             (new_name, self.name))
+    async def do_rename(self, new_name: str, update_settings: bool = False) -> None:
+        # update servers.yaml
+        filename = 'config/servers.yaml'
+        if os.path.exists(filename):
+            data = yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
+            if self.name in data and new_name not in data:
+                data[new_name] = deepcopy(data[self.name])
+                del data[self.name]
+                with open(filename, 'w', encoding='utf-8') as outfile:
+                    yaml.safe_dump(data, outfile)
+            self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
+        # update serverSettings.lua if requested
         if update_settings:
             self.settings['name'] = new_name
-        self.name = new_name
 
     async def do_startup(self):
         basepath = self.node.installation

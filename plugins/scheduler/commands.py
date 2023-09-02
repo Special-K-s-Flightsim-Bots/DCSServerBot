@@ -501,6 +501,17 @@ class Scheduler(Plugin):
         finally:
             await msg.delete()
 
+    @group.command(name='rename', description='Rename a DCS server')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def _rename(self, interaction: discord.Interaction,
+                      server: app_commands.Transform[Server, utils.ServerTransformer(
+                         status=[Status.STOPPED, Status.SHUTDOWN])], new_name: str):
+        old_name = server.name
+        await server.rename(new_name, True)
+        await interaction.response.send_message(f"Server {old_name} renamed to {new_name}.", ephemeral=True)
+
+    # /scheduler commands
     scheduler = Group(name="scheduler", description="Commands to manage the Scheduler")
 
     @scheduler.command(description='Sets the servers maintenance flag')

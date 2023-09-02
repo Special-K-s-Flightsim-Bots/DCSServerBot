@@ -20,7 +20,7 @@ from matplotlib import font_manager
 from typing import Optional, Tuple, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core import Server
+    from core import Server, Plugin
     from services import ServiceBus
 
 
@@ -145,6 +145,17 @@ class BotService(Service):
     async def audit(self, message, user: Optional[Union[discord.Member, str]] = None,
                     server: Optional[Server] = None):
         await self.bot.audit(message, user=user, server=server)
+
+    def rename(self, server: Server, new_name: str):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                # call rename() in all Plugins
+                for plugin in self.bot.cogs.values():  # type: Plugin
+                    plugin.rename(conn, server.name, new_name)
+                conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
+                             (new_name, server.name))
+                conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
+                             (new_name, server.name))
 
 
 class DCSServerBot(commands.Bot):

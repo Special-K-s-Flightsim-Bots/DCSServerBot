@@ -36,7 +36,7 @@ from core.services.registry import ServiceRegistry
 from core.utils.dcs import LICENSES_URL
 
 if TYPE_CHECKING:
-    from services import ServiceBus
+    from services import ServiceBus, BotService
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,
@@ -510,6 +510,39 @@ class NodeImpl(Node):
         for file in sorted(directory.glob(pattern), key=os.path.getmtime, reverse=True):
             ret.append(os.path.join(directory.__str__(), file.name))
         return ret
+
+    async def rename(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
+        if not self.master:
+            self.log.error(f"Rename request received for server {server.name} that should have gone to the master node!")
+            return
+        bus: ServiceBus = ServiceRegistry.get('ServiceBus')
+        old_name = server.name
+        # we are doing the database changes, as we are the master
+        bot: BotService = ServiceRegistry.get('Bot')
+        bot.rename(server, new_name)
+        # then we tell the real server to update its stuff
+        await bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "server_name": server.name,
+            "method": "do_rename",
+            "params": {
+                "new_name": new_name,
+                "update_settings": update_settings
+            }
+        }, node=server.node)
+        filename = 'config/nodes.yaml'
+        if os.path.exists(filename):
+            data = yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
+            data[server.node.name]['instances'][server.instance.name]['server'] = new_name
+            with open(filename, 'w', encoding='utf-8') as outfile:
+                yaml.safe_dump(data, outfile)
+        # we only need to change the name of the proxy as the server would have been renamed already otherwise
+        if server.is_remote:
+            server.name = new_name
+        # update the local tables
+        bus.servers[server.name] = server
+        del bus.servers[old_name]
 
     @tasks.loop(minutes=5.0)
     async def autoupdate(self):

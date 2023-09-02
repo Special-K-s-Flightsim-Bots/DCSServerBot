@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Union, Optional, Tuple
 
 from .instance import Instance
+from .server import Server
 
 
 class UploadStatus(Enum):
@@ -95,4 +96,7 @@ class Node:
         raise NotImplemented()
 
     async def list_directory(self, path: str, pattern: str) -> list[str]:
+        raise NotImplemented()
+
+    def rename(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
         raise NotImplemented()

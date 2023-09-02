@@ -23,7 +23,7 @@ class ConfigView(View):
             async def on_submit(derived, interaction: discord.Interaction):
                 if derived.name.value != self.server.name:
                     old_name = self.server.name
-                    self.server.rename(new_name=derived.name.value, update_settings=True)
+                    await self.server.rename(new_name=derived.name.value, update_settings=True)
                     interaction.client.servers[derived.name.value] = self.server
                     del interaction.client.servers[old_name]
                 self.server.settings['description'] = derived.description.value

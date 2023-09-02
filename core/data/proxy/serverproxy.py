@@ -79,18 +79,6 @@ class ServerProxy(Server):
         message['server_name'] = self.name
         self.bus.send_to_node(message, node=self.node.name)
 
-    def rename(self, new_name: str, update_settings: bool = False) -> None:
-        self.bus.send_to_node({
-            "command": "rpc",
-            "object": "Server",
-            "method": "rename",
-            "params": {
-                "new_name": new_name,
-                "update_settings": update_settings
-            },
-            "server_name": self.name
-        }, node=self.node.name)
-
     async def startup(self) -> None:
         await self.bus.send_to_node_sync({
             "command": "rpc",
