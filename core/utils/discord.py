@@ -465,7 +465,7 @@ class ServerTransformer(app_commands.Transformer):
             if not server:
                 raise TransformerError(value, self.type, self)
         else:
-            server = list(interaction.client.servers.values())[0]
+            server = await interaction.client.get_server(interaction)
         return server
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
@@ -511,7 +511,7 @@ async def bans_autocomplete(interaction: discord.Interaction, current: str) -> l
 
 
 async def airbase_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
-    server: Server = await interaction.client.get_server(interaction)
+    server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
     if not server:
         return []
     choices: list[app_commands.Choice[int]] = [
@@ -524,7 +524,7 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
 
 async def mission_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     try:
-        server: Server = await interaction.client.get_server(interaction)
+        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
         if not server:
             return []
         choices: list[app_commands.Choice[int]] = [
@@ -539,7 +539,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
-        server: Server = await interaction.client.get_server(interaction)
+        server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
         if not server:
             return []
         installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
