@@ -18,7 +18,8 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 async def label_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
-        server: Server = await interaction.client.get_server(interaction)
+        server: Server = await utils.ServerTransformer().transform(
+            interaction, utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
         config = interaction.client.cogs['Admin'].get_config(server)
@@ -33,7 +34,8 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
 
 async def file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
-        server: Server = await interaction.client.get_server(interaction)
+        server: Server = await utils.ServerTransformer().transform(
+            interaction, utils.get_interaction_param(interaction, 'server'))
         if not server:
             return []
         label = utils.get_interaction_param(interaction, "what")
