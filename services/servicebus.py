@@ -246,25 +246,13 @@ class ServiceBus(Service):
                     if _server_name != server_name:
                         if utils.findDCSInstances(_server_name) and not self.servers.get(_server_name):
                             self.log.info(f'Auto-renaming server "{_server_name}" to "{server_name}"')
-                            server.rename(server_name)
-                            if _server_name in self.servers:
-                                del self.servers[_server_name]
+                            asyncio.run(server.rename(server_name))
                         else:
                             self.log.warning(f'Registration of server "{server_name}" aborted due to conflict.')
                             del self.servers[server_name]
                             return False
         self.log.info(f'  => Local DCS-Server "{server_name}" registered.')
         return True
-
-    def rename(self, old_name: str, new_name: str):
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                # call rename() in all Plugins
-                for plugin in self.bot.cogs.values():  # type: Plugin
-                    plugin.rename(conn, old_name, new_name)
-                self.servers[new_name] = self.servers[old_name]
-                self.servers[new_name].rename(new_name, True)
-                del self.servers[old_name]
 
     def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: Optional[int] = None):
         if days:

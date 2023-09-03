@@ -236,7 +236,7 @@ class Mission(Plugin):
     async def add(self, interaction: discord.Interaction,
                   server: app_commands.Transform[Server, utils.ServerTransformer], path: str):
         if not os.path.exists(path):
-            interaction.response.send_message(f"File {path} could not be found.", ephemeral=True)
+            await interaction.response.send_message(f"File {path} could not be found.", ephemeral=True)
             return
 
         server.addMission(path)

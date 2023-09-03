@@ -24,9 +24,10 @@ from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemM
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel
 from core.mizfile import MizFile
+from core.data.node import UploadStatus
 
 if TYPE_CHECKING:
-    from core import Plugin, Extension, InstanceImpl, UploadStatus
+    from core import Extension, InstanceImpl
     from services import DCSServerBot
 
 
