@@ -10,7 +10,7 @@ from typing import Optional
 class RealWeather(Extension):
     @property
     def version(self) -> str:
-        return "1.5.0"
+        return "n/a"
 
     async def beforeMissionLoad(self) -> bool:
         filename = None

@@ -381,20 +381,11 @@ class ServerImpl(Server):
     async def keep_alive(self):
         # we set a longer timeout in here because, we don't want to risk false restarts
         timeout = 20 if self.node.locals.get('slow_system', False) else 10
-        data = await self.send_to_dcs_sync({"command": "getMissionUpdate"}, timeout)
+        await self.send_to_dcs_sync({"command": "getMissionUpdate"}, timeout)
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE servers SET last_seen = NOW() WHERE node = %s AND server_name = %s',
                              (platform.node(), self.name))
-        if not self.current_mission:
-            self.status = Status.STOPPED
-            return
-        elif data['pause'] and self.status == Status.RUNNING:
-            self.status = Status.PAUSED
-        elif not data['pause'] and self.status != Status.RUNNING:
-            self.status = Status.RUNNING
-        self.current_mission.mission_time = data['mission_time']
-        self.current_mission.real_time = data['real_time']
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         stopped = False

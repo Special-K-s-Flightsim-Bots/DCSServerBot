@@ -243,6 +243,19 @@ class MissionEventListener(EventListener):
         server.status = Status.PAUSED
         self.display_mission_embed(server)
 
+    @event(name="getMissionUpdate")
+    async def getMissionUpdate(self, server: Server, data: dict) -> None:
+        if not server.current_mission:
+            server.status = Status.STOPPED
+            return
+        elif data['pause'] and server.status == Status.RUNNING:
+            server.status = Status.PAUSED
+        elif not data['pause'] and server.status != Status.RUNNING:
+            server.status = Status.RUNNING
+        server.current_mission.mission_time = data['mission_time']
+        server.current_mission.real_time = data['real_time']
+        self.display_mission_embed(server)
+
     @event(name="onSimulationStop")
     async def onSimulationStop(self, server: Server, data: dict) -> None:
         server.status = Status.STOPPED
@@ -277,7 +290,6 @@ class MissionEventListener(EventListener):
         if data['id'] == 1 or 'ucid' not in data:
             return
         player: Player = server.get_player(id=data['id'])
-        # unlikely, but can happen if the bot was restarted during a mission restart
         if not player:
             player = DataObjectFactory().new(
                 Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'],

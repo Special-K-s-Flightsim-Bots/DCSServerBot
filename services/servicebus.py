@@ -550,7 +550,7 @@ class ServiceBus(Service):
                                 f = server.listeners[data['channel']]
                                 if not f.done():
                                     self.loop.call_soon_threadsafe(f.set_result, data)
-                                if data['command'] != 'registerDCSServer':
+                                if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
                                     continue
                         if self.master:
                             concurrent.futures.wait(
