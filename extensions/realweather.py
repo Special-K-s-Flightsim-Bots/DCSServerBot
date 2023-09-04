@@ -20,12 +20,6 @@ class RealWeather(Extension):
             if not filename:
                 self.log.warning("No mission configured, can't apply DCS Real Weather.")
                 return False
-            # pre-check mission
-            # (as the original auther does not see any reason to do tha on his own)
-            miz: MizFile = MizFile(self, filename)
-            if not miz.clouds.get('preset'):
-                self.log.error(f"No Preset set in mission {filename}, DCS Real Weather can't be applied.")
-                return False
             # check, if we can write that file
             try:
                 with open(filename, 'a'):
