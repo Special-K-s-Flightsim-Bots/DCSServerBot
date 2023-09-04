@@ -472,9 +472,9 @@ class ServerTransformer(app_commands.Transformer):
         try:
             server: Server = await interaction.client.get_server(interaction)
             if server and (not self.status or server.status in self.status):
-                return [app_commands.Choice(name=server.name, value=server.name)]
-            choices: list[app_commands.Choice[str]] = [
-                app_commands.Choice(name=name, value=name)
+                return [Choice(name=server.name, value=server.name)]
+            choices: list[Choice[str]] = [
+                Choice(name=name, value=name)
                 for name, value in interaction.client.servers.items()
                 if (not self.status or value.status in self.status) and current.casefold() in name.casefold()
             ]
@@ -641,7 +641,7 @@ class UserTransformer(app_commands.Transformer):
                 for ucid, name in get_all_players(interaction.client, self.linked)
                 if not current or current.casefold() in name.casefold() or current.casefold() in ucid
             ])
-        if self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:
+        if (self.linked is None or self.linked) and self.sel_type in [PlayerType.ALL, PlayerType.MEMBER]:
             ret.extend([
                 app_commands.Choice(name='@' + member.display_name, value=str(member.id))
                 for member in get_all_linked_members(interaction.client)

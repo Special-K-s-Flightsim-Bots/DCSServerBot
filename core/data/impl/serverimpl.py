@@ -383,7 +383,10 @@ class ServerImpl(Server):
             with conn.transaction():
                 conn.execute('UPDATE servers SET last_seen = NOW() WHERE node = %s AND server_name = %s',
                              (platform.node(), self.name))
-        if data['pause'] and self.status == Status.RUNNING:
+        if not self.current_mission:
+            self.status = Status.STOPPED
+            return
+        elif data['pause'] and self.status == Status.RUNNING:
             self.status = Status.PAUSED
         elif not data['pause'] and self.status != Status.RUNNING:
             self.status = Status.RUNNING
