@@ -3,7 +3,7 @@ import json
 import os
 import shutil
 
-from core import Extension, report
+from core import Extension, report, MizFile
 from typing import Optional
 
 
@@ -20,7 +20,13 @@ class RealWeather(Extension):
                 cfg = json.load(infile)
                 filename = await self.server.get_current_mission_file()
                 if not filename:
-                    self.log.warning("No mission configured, can't apply real weather.")
+                    self.log.warning("No mission configured, can't apply DCS Real Weather.")
+                    return False
+                # pre-check mission
+                # (as the original auther does not see any reason to do tha on his own)
+                miz: MizFile = MizFile(self, filename)
+                if not miz.clouds.get('preset'):
+                    self.log.error(f"No Preset set in mission {filename}, DCS Real Weather can't be applied.")
                     return False
                 # check, if we can write that file
                 try:
@@ -48,13 +54,22 @@ class RealWeather(Extension):
                         json.dump(cfg, outfile, indent=2)
                     proc = await asyncio.create_subprocess_exec(os.path.join(rw_home, 'realweather.exe'), cwd=cwd)
                     await proc.communicate()
+                    # check if DCS Real Weather corrupted the miz file
+                    # (as the original auther does not see any reason to do that on his own)
+                    try:
+                        MizFile(self, new_filename)
+                    except:
+                        self.log.warning(f"DCS Real Weather corrupted the mission, rolling back...")
+                        if new_filename == filename:
+                            shutil.copy2(filename + '.orig', filename)
+                        return False
                     if new_filename != filename:
                         missions: list = self.server.settings['missionList']
                         missions.remove(filename)
                         missions.append(new_filename)
                         self.server.settings['missionList'] = missions
                         self.server.settings['listStartIndex'] = missions.index(new_filename) + 1
-                    self.log.info(f"Real weather applied to mission.")
+                    self.log.info(f"Real weather applied to the mission.")
                     return True
                 finally:
                     os.remove(filename + '.orig')
