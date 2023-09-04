@@ -1,11 +1,13 @@
-import yaml
-
 from enum import Enum, auto
 from pathlib import Path
 from typing import Union, Optional, Tuple
 
 from .instance import Instance
 from .server import Server
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 class UploadStatus(Enum):
@@ -46,7 +48,7 @@ class Node:
 
     @staticmethod
     def read_config():
-        config = yaml.safe_load(Path('config/main.yaml').read_text(encoding='utf-8'))
+        config = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
         # set defaults
         config['logging'] = config.get('logging', {})
         config['logging']['loglevel'] = config['logging'].get('loglevel', 'DEBUG')

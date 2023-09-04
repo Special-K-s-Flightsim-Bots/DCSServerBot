@@ -6,7 +6,7 @@ import platform
 import psycopg
 import shutil
 import sys
-import yaml
+
 from contextlib import closing
 from copy import deepcopy
 from core import utils
@@ -22,6 +22,10 @@ from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, Li
 
 from .const import DEFAULT_TAG
 from .listener import TEventListener
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Server
@@ -320,7 +324,7 @@ class Plugin(commands.Cog):
         with open(old_file, 'r') as infile:
             old = json.load(infile)
         if os.path.exists(new_file):
-            new = yaml.safe_load(Path(new_file).read_text(encoding='utf-8'))
+            new = yaml.load(Path(new_file).read_text(encoding='utf-8'))
             exists = True
         else:
             new = {}
@@ -337,7 +341,7 @@ class Plugin(commands.Cog):
         else:
             new = old
         with open(new_file, 'w') as outfile:
-            yaml.dump(new, outfile, default_flow_style=False)
+            yaml.dump(new, outfile)
         shutil.move(old_file, BACKUP_FOLDER)
 
     def read_locals(self) -> dict:
@@ -354,7 +358,7 @@ class Plugin(commands.Cog):
         else:
             return {}
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
-        return yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
+        return yaml.load(Path(filename).read_text(encoding='utf-8'))
 
     # get default and specific configs to be merged in derived implementations
     def get_base_config(self, server: Server) -> Tuple[Optional[dict], Optional[dict]]:

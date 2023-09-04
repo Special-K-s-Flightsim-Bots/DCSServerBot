@@ -7,7 +7,6 @@ import platform
 import shutil
 import socket
 import subprocess
-import yaml
 
 from contextlib import suppress
 from copy import deepcopy
@@ -25,6 +24,10 @@ from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel
 from core.mizfile import MizFile
 from core.data.node import UploadStatus
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Extension, InstanceImpl
@@ -207,12 +210,12 @@ class ServerImpl(Server):
         # update servers.yaml
         filename = 'config/servers.yaml'
         if os.path.exists(filename):
-            data = yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
+            data = yaml.load(Path(filename).read_text(encoding='utf-8'))
             if self.name in data and new_name not in data:
                 data[new_name] = deepcopy(data[self.name])
                 del data[self.name]
                 with open(filename, 'w', encoding='utf-8') as outfile:
-                    yaml.safe_dump(data, outfile)
+                    yaml.dump(data, outfile)
             self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
         # update serverSettings.lua if requested
         if update_settings:

@@ -1,14 +1,15 @@
 from __future__ import annotations
-import json
 import os
-import shutil
-import yaml
 
 from abc import ABC
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from ..const import DEFAULT_TAG
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 if TYPE_CHECKING:
     from .. import Server
@@ -42,7 +43,7 @@ class Service(ABC):
         if not os.path.exists(filename):
             return {}
         self.log.debug(f'  - Reading service configuration from {filename} ...')
-        return yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
+        return yaml.load(Path(filename).read_text(encoding='utf-8'))
 
     def get_config(self, server: Optional[Server] = None) -> dict:
         if not server:

@@ -1,10 +1,12 @@
+from typing import cast
+
 import discord
 import os
 
-from core import utils
+from core import utils, Server, ServiceRegistry
 from discord import SelectOption
 from discord.ui import View, Select, Button
-from services import DCSServerBot
+from services import DCSServerBot, MusicService
 
 from services.music.sink import Sink, Mode
 from .utils import get_tag
@@ -23,20 +25,24 @@ class PlayerBase(View):
         return [get_tag(os.path.join(self.music_dir, x)).title or x[:-4] for x in songs]
 
 
-class MusicPlayer(PlayerBase):
+class MusicPlayer(View):
 
-    def __init__(self, bot: DCSServerBot, music_dir: str, sink: Sink, playlists: list[str]):
-        super().__init__(bot, music_dir)
-        self.sink = sink
+    def __init__(self, server: Server, playlists: list[str]):
+        super().__init__()
+        self.service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
+        self.server = server
         self.playlists = playlists
-        self.titles = self.get_titles(self.sink.songs)
 
-    def render(self) -> discord.Embed:
-        embed = self.sink.render()
+    async def render(self) -> discord.Embed:
+        config = self.service.get_config(self.server)['sink']
+        embed = discord.Embed(colour=discord.Colour.blue())
+        embed.add_field(name="Frequency", value=config['frequency'] + " " + config['modulation'])
+        embed.add_field(name="Coalition", value="Red" if config['coalition'] == 1 else "Blue")
         embed.title = "Music Player"
-        if self.sink.current:
-            tag = get_tag(self.sink.current)
-            title = utils.escape_string(tag.title[:255] if tag.title else os.path.basename(self.sink.current)[:-4])
+        current = await self.service.get_current_song(self.server)
+        if current:
+            tag = get_tag(current)
+            title = utils.escape_string(tag.title[:255] if tag.title else os.path.basename(current)[:-4])
             artist = utils.escape_string(tag.artist[:255] if tag.artist else 'n/a')
             album = utils.escape_string(tag.album[:255] if tag.album else 'n/a')
             embed.add_field(name='▬' * 13 + " Now Playing " + '▬' * 13, value='_ _', inline=False)
@@ -107,7 +113,7 @@ class MusicPlayer(PlayerBase):
         await self.sink.stop()
         self.sink.idx = int(interaction.data['values'][0])
         await self.sink.start()
-        await interaction.edit_original_response(view=self, embed=self.render())
+        await interaction.edit_original_response(view=self, embed=await self.render())
 
     async def playlist(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -118,7 +124,7 @@ class MusicPlayer(PlayerBase):
         self.titles = self.get_titles(self.sink.songs)
         if running:
             await self.sink.start()
-        await interaction.edit_original_response(view=self, embed=self.render())
+        await interaction.edit_original_response(view=self, embed=await self.render())
 
     async def on_play_stop(self, interaction: discord.Interaction):
         await interaction.response.defer()

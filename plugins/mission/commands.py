@@ -4,7 +4,6 @@ import os
 import psycopg
 import re
 import traceback
-import yaml
 
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
     Group, ReportEnv, UploadStatus
@@ -18,6 +17,10 @@ from typing import Optional
 
 from .listener import MissionEventListener
 from .views import ServerView, PresetView
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 class Mission(Plugin):
@@ -314,7 +317,7 @@ class Mission(Plugin):
                          status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
         try:
             with open('config/presets.yaml', encoding='utf-8') as infile:
-                presets = yaml.safe_load(infile)
+                presets = yaml.load(infile)
         except FileNotFoundError:
             await interaction.response.send_message(
                 f'No presets available, please configure them in config/presets.yaml.', ephemeral=True)
@@ -376,7 +379,7 @@ class Mission(Plugin):
         miz = MizFile(self.bot, server.current_mission.filename)
         if os.path.exists('config/presets.yaml'):
             with open('config/presets.yaml', encoding='utf-8') as infile:
-                presets = yaml.safe_load(infile)
+                presets = yaml.load(infile)
         else:
             presets = dict()
         if name in presets and \
@@ -401,7 +404,7 @@ class Mission(Plugin):
             "difficulty": miz.difficulty
         }
         with open(f'config/presets.yaml', 'w', encoding='utf-8') as outfile:
-            yaml.safe_dump(presets, outfile)
+            yaml.dump(presets, outfile)
         if interaction.response.is_done():
             await interaction.followup.send(f'Preset "{name}" added.')
         else:

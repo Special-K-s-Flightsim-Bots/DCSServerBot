@@ -1,11 +1,14 @@
 import os
-import yaml
 
 from core import ServiceRegistry
 from core.data.node import Node, UploadStatus
 from core.data.proxy.instanceproxy import InstanceProxy
 from pathlib import Path
 from typing import Any, Union, Optional, Tuple
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 class NodeProxy(Node):
@@ -45,7 +48,7 @@ class NodeProxy(Node):
     def read_locals(self) -> dict:
         _locals = dict()
         if os.path.exists('config/nodes.yaml'):
-            node: dict = yaml.safe_load(Path('config/nodes.yaml').read_text(encoding='utf-8'))[self.name]
+            node: dict = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))[self.name]
             for name, element in node.items():
                 if name == 'instances':
                     for _name, _element in node['instances'].items():

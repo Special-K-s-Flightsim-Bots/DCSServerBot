@@ -1,17 +1,19 @@
 import random
-import yaml
 
 from core import Extension, utils, Server
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 class MizEdit(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        self.presets = yaml.safe_load(Path("config/presets.yaml").read_text(encoding='utf-8'))
+        self.presets = yaml.load(Path("config/presets.yaml").read_text(encoding='utf-8'))
 
     @property
     def version(self) -> str:

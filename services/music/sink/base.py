@@ -1,6 +1,5 @@
 import asyncio
 import discord
-import yaml
 import os
 
 from abc import ABC
@@ -13,6 +12,9 @@ from enum import Enum
 from random import randrange
 from typing import Optional
 
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 __all__ = [
     "Mode",
@@ -89,7 +91,7 @@ class Sink(ABC):
             specific['sink'] |= config
             self.service.locals[self.server.instance.name] = specific
         with open(os.path.join('config', 'music.json'), 'w', encoding='utf-8') as outfile:
-            yaml.safe_dump(self.service.locals, outfile)
+            yaml.dump(self.service.locals, outfile)
 
     def is_running(self) -> bool:
         return self.queue_worker.is_running()

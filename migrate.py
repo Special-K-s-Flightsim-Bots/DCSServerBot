@@ -4,7 +4,6 @@ import os
 import platform
 import shutil
 import traceback
-import yaml
 
 from configparser import ConfigParser
 from core import utils, DEFAULT_TAG, BACKUP_FOLDER
@@ -12,6 +11,10 @@ from pathlib import Path
 from typing import Union
 from rich import print
 from rich.prompt import IntPrompt, Prompt
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 def migrate():

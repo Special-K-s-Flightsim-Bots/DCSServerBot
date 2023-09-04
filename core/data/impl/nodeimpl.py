@@ -13,7 +13,6 @@ import subprocess
 import sys
 import time
 import traceback
-import yaml
 
 from contextlib import closing
 from core import utils, Status, Coalition
@@ -34,6 +33,10 @@ from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
 from core.services.registry import ServiceRegistry
 from core.utils.dcs import LICENSES_URL
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 if TYPE_CHECKING:
     from services import ServiceBus, BotService
@@ -161,7 +164,7 @@ class NodeImpl(Node):
     def read_locals(self) -> dict:
         _locals = dict()
         if os.path.exists('config/nodes.yaml'):
-            self.all_nodes: dict = yaml.safe_load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
+            self.all_nodes: dict = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
             node: dict = self.all_nodes.get(self.name)
             if not node:
                 self.log.error(f'No configuration found for node {self.name} in nodes.yaml! Hostname changed?')
@@ -533,10 +536,10 @@ class NodeImpl(Node):
         }, node=server.node)
         filename = 'config/nodes.yaml'
         if os.path.exists(filename):
-            data = yaml.safe_load(Path(filename).read_text(encoding='utf-8'))
+            data = yaml.load(Path(filename).read_text(encoding='utf-8'))
             data[server.node.name]['instances'][server.instance.name]['server'] = new_name
             with open(filename, 'w', encoding='utf-8') as outfile:
-                yaml.safe_dump(data, outfile)
+                yaml.dump(data, outfile)
         # we only need to change the name of the proxy as the server would have been renamed already otherwise
         if server.is_remote:
             server.name = new_name

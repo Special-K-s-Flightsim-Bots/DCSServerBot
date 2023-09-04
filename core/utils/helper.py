@@ -7,9 +7,12 @@ import os
 import re
 import string
 import unicodedata
-import yaml
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Server, ServerProxy
@@ -235,7 +238,7 @@ class SettingsDict(dict):
                     raise ex
         elif self.path.lower().endswith('.yaml'):
             with open(self.path, encoding='utf-8') as file:
-                data = yaml.safe_load(file)
+                data = yaml.load(file)
         if data:
             self.clear()
             self.update(data)
@@ -249,7 +252,7 @@ class SettingsDict(dict):
         elif self.path.lower().endswith('.json'):
             with open(self.path, "w", encoding='utf-8') as outfile:
                 self.mtime = os.path.getmtime(self.path)
-                yaml.safe_dump(self, outfile)
+                yaml.dump(self, outfile)
         self.mtime = os.path.getmtime(self.path)
 
     def __setitem__(self, key, value):

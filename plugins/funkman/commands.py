@@ -1,10 +1,13 @@
 import os
-import yaml
 
 from configparser import ConfigParser
 from core import Plugin, PluginInstallationError, PluginConfigurationError
 from services import DCSServerBot
 from .listener import FunkManEventListener
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 class FunkMan(Plugin):

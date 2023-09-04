@@ -5,7 +5,6 @@ import secrets
 import sys
 if sys.platform == 'win32':
     import winreg
-import yaml
 
 from contextlib import closing, suppress
 from core import utils, SAVED_GAMES
@@ -14,6 +13,10 @@ from rich import print
 from rich.prompt import IntPrompt, Prompt
 from typing import Optional, Tuple
 from urllib.parse import quote
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 # TODO: change that to "dcsserverbot"
 DCSSB_DB_USER = "dcsserverbot3"
@@ -206,9 +209,9 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
             main, nodes, bot = Install.install_master()
             master = True
         else:
-            main = yaml.safe_load(Path('config/main.yaml').read_text(encoding='utf-8'))
-            nodes = yaml.safe_load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
-            bot = yaml.safe_load(Path('config/services/bot.yaml').read_text(encoding='utf-8'))
+            main = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
+            nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
+            bot = yaml.load(Path('config/services/bot.yaml').read_text(encoding='utf-8'))
             if platform.node() in nodes:
                 if Prompt.ask("[red]A configuration for this nodes exists already![/]\n"
                               "Do you want to overwrite it?", choices=['y', 'n'], default='n') == 'n':
@@ -297,23 +300,23 @@ DCSServerBot needs the following permissions on them to work:
         print("\n\nAll set. Writing / updating your config files now...")
         if master:
             with open('config/main.yaml', 'w', encoding='utf-8') as out:
-                yaml.safe_dump(main, out)
+                yaml.dump(main, out)
                 print("- Created config/main.yaml")
             os.makedirs('config/services', exist_ok=True)
             with open('config/services/bot.yaml', 'w', encoding='utf-8') as out:
-                yaml.safe_dump(bot, out)
+                yaml.dump(bot, out)
                 print("- Created config/services/bot.yaml")
         with open('config/nodes.yaml', 'w', encoding='utf-8') as out:
-            yaml.safe_dump(nodes, out)
+            yaml.dump(nodes, out)
             print("- Created config/nodes.yaml")
         with open('config/servers.yaml', 'w', encoding='utf-8') as out:
-            yaml.safe_dump(servers, out)
+            yaml.dump(servers, out)
             print("- Created config/servers.yaml")
         # write plugin configuration
         if scheduler:
             os.makedirs('config/plugins', exist_ok=True)
             with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
-                yaml.safe_dump(scheduler, out)
+                yaml.dump(scheduler, out)
                 print("- Created config/plugins/scheduler.yaml")
         print("""
 [green]Your basic DCSServerBot configuration is finished.[/]

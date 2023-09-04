@@ -1,6 +1,5 @@
 import asyncio
 import discord
-import yaml
 
 from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group
 from datetime import datetime, timedelta
@@ -13,6 +12,10 @@ from typing import Type, Optional, Literal
 
 from .listener import SchedulerListener
 from .views import ConfigView
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 
 class Scheduler(Plugin):
@@ -32,11 +35,11 @@ class Scheduler(Plugin):
             for instance in self.bus.node.instances:
                 config[instance.name] = {}
             with open("config/plugins/scheduler.yaml", 'w') as outfile:
-                yaml.dump(config, outfile, default_flow_style=False)
+                yaml.dump(config, outfile)
         else:
             for cfg in config.values():
                 if 'presets' in cfg and isinstance(cfg['presets'], str):
-                    cfg['presets'] = yaml.safe_load(Path(cfg['presets']).read_text(encoding='utf-8'))
+                    cfg['presets'] = yaml.load(Path(cfg['presets']).read_text(encoding='utf-8'))
         return config
 
     @staticmethod

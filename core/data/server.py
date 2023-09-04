@@ -2,7 +2,6 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
-import yaml
 
 from contextlib import suppress
 from pathlib import Path
@@ -16,6 +15,10 @@ from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
 from ..const import DEFAULT_TAG
 from ..services.registry import ServiceRegistry
+
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
 
 if TYPE_CHECKING:
     from ..extension import Extension
@@ -55,9 +58,9 @@ class Server(DataObject):
         self.bus = ServiceRegistry.get("ServiceBus")
         self.status_change = asyncio.Event()
         if os.path.exists('config/servers.yaml'):
-            data = yaml.safe_load(Path('config/servers.yaml').read_text(encoding='utf-8'))
+            data = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
             if not data.get(self.name):
-                self.log.warning(f'No configuration found for server {self.name} in server.yaml!')
+                self.log.warning(f'No configuration found for server "{self.name}" in server.yaml!')
             self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
 
     @property
