@@ -1,7 +1,7 @@
-import asyncio
 import json
 import os
 import shutil
+import subprocess
 
 from core import Extension, report, MizFile
 from typing import Optional
@@ -52,13 +52,13 @@ class RealWeather(Extension):
                     cwd = await self.server.get_missions_dir()
                     with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
                         json.dump(cfg, outfile, indent=2)
-                    proc = await asyncio.create_subprocess_exec(os.path.join(rw_home, 'realweather.exe'), cwd=cwd)
-                    await proc.communicate()
+                    subprocess.run(executable=os.path.join(rw_home, 'realweather.exe'), args=[], cwd=cwd, shell=True)
                     # check if DCS Real Weather corrupted the miz file
                     # (as the original auther does not see any reason to do that on his own)
                     try:
                         MizFile(self, new_filename)
-                    except:
+                    except Exception as ex:
+                        self.log.exception(ex)
                         self.log.warning(f"DCS Real Weather corrupted the mission, rolling back...")
                         if new_filename == filename:
                             shutil.copy2(filename + '.orig', filename)

@@ -187,7 +187,8 @@ class MissionEventListener(EventListener):
             data['command'] = data['subcommand']
             server.send_to_dcs(data)
 
-    def init_mission(self, server: Server, data: dict) -> None:
+    @staticmethod
+    def _update_mission(server: Server, data: dict) -> None:
         if not server.current_mission:
             server.current_mission = DataObjectFactory().new(
                 Mission.__name__, node=server.node, server=server, map=data['current_map'],
@@ -197,13 +198,14 @@ class MissionEventListener(EventListener):
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # the server is starting up
-        if not data['channel'].startswith('sync-'):
-            return
+        # if not data['channel'].startswith('sync-'):
+        #    return
         if 'current_mission' not in data:
             server.status = Status.STOPPED
             return
-        self.init_mission(server, data)
+        self._update_mission(server, data)
         if 'players' not in data:
+            server.players = dict[int, Player]()
             data['players'] = []
             server.status = Status.STOPPED
         else:
@@ -227,15 +229,14 @@ class MissionEventListener(EventListener):
     @event(name="onMissionLoadBegin")
     async def onMissionLoadBegin(self, server: Server, data: dict) -> None:
         server.status = Status.LOADING
-        self.init_mission(server, data)
-        server.players = dict[int, Player]()
+        self._update_mission(server, data)
         if server.settings:
             self.display_mission_embed(server)
         self.display_player_embed(server)
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        self.init_mission(server, data)
+        self._update_mission(server, data)
         self.display_mission_embed(server)
 
     @event(name="onSimulationStart")
