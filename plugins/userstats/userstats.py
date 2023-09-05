@@ -312,7 +312,7 @@ class KDRatio(report.MultiGraphElement):
                         ax.axis('off')
                         ax.set_xlim(- 2.5 * width, 2.5 * width)
                         ax.legend(labels, fontsize=15, loc=3, ncol=6, mode='expand',
-                                    bbox_to_anchor=(-2.4, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
+                                  bbox_to_anchor=(-2.4, -0.2, 2.8, 0.4), columnspacing=1, frameon=False)
                         # Chart was drawn, return True
                         retval = True
         return retval

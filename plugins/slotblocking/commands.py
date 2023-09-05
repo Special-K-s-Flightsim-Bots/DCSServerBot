@@ -1,6 +1,5 @@
 import discord
-from copy import deepcopy
-from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError, DEFAULT_TAG
+from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError
 from discord.ext import commands
 from services import DCSServerBot
 from typing import Optional, Type

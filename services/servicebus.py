@@ -25,7 +25,6 @@ from socketserver import BaseRequestHandler, ThreadingUDPServer
 from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from core import Plugin
     from services import DCSServerBot
 
 

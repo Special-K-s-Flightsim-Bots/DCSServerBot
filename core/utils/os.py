@@ -1,6 +1,4 @@
-import os.path
-import shlex
-
+import os
 import aiohttp
 import asyncio
 import ipaddress

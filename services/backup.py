@@ -96,7 +96,7 @@ class BackupService(Service):
             os.environ['PGPASSWORD'] = config['password']
             self.log.info("Backing up database...")
             process = await asyncio.create_subprocess_exec(cmd, *args, stdin=asyncio.subprocess.DEVNULL,
-                                                                      stdout=asyncio.subprocess.DEVNULL)
+                                                           stdout=asyncio.subprocess.DEVNULL)
             await process.communicate()
             self.log.info("Backup of database complete.")
         except Exception as ex:

@@ -5,7 +5,6 @@ import discord
 import os
 import re
 import shlex
-import subprocess
 
 from core import Plugin, TEventListener, utils, Server, Status, Report, DEFAULT_TAG
 from discord.ext import commands
@@ -156,7 +155,7 @@ class Commands(Plugin):
 #                    checks.append(utils.app_has_roles(cmd['roles']).predicate)
                 hidden = cmd['hidden'] if 'hidden' in cmd else False
                 c = Command(self.exec_command, name=cmd['name'], checks=checks, hidden=hidden,
-                                  description=cmd.get('description', ''))
+                            description=cmd.get('description', ''))
                 params: dict[str, commands.Parameter] = dict()
                 if 'params' in cmd:
                     for name in cmd['params']:

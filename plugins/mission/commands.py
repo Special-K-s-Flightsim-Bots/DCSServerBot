@@ -421,7 +421,7 @@ class Mission(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def _list(self, interaction: discord.Interaction,
-                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
+                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
         timeout = self.bot.locals.get('message_autodelete', 300)
         report = Report(self.bot, self.plugin_name, 'players.json')
         env = await report.render(server=server, sides=utils.get_sides(interaction, server))
@@ -648,8 +648,8 @@ class Mission(Plugin):
         self.bot.log.debug(f"Member {member.display_name} has been banned.")
         ucid = self.bot.get_ucid_by_member(member)
         if ucid:
-            for server in self.bot.servers.values():
-                server.ban(ucid, self.bot.locals.get('message_ban', 'User has been banned on Discord.'), 9999*86400)
+            self.bus.ban(ucid, 'Discord',
+                         self.bot.locals.get('message_ban', 'User has been banned on Discord.'))
 
 
 async def setup(bot: DCSServerBot):

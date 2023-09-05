@@ -80,7 +80,7 @@ if __name__ == "__main__":
         print("Python 3.9 is outdated, you should consider upgrading it to 3.10 or higher.")
     try:
         # work around possible bug with several Python versions / asyncio
-        #asyncio.get_event_loop().run_until_complete()
+        # asyncio.get_event_loop().run_until_complete()
         asyncio.run(Main(NodeImpl()).run())
     except (KeyboardInterrupt, asyncio.CancelledError):
         exit(-1)

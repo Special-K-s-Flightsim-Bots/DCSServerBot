@@ -237,8 +237,7 @@ class UserStatisticsEventListener(EventListener):
                     return
                 with self.pool.connection() as conn:
                     with conn.transaction():
-                        conn.execute(self.SQL_MISSION_HANDLING['stop_player'],
-                                   (server.mission_id, player.ucid))
+                        conn.execute(self.SQL_MISSION_HANDLING['stop_player'], (server.mission_id, player.ucid))
         elif data['eventName'] == 'kill':
             with self.pool.connection() as conn:
                 with conn.transaction():

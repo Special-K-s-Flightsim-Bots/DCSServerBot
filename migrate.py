@@ -66,38 +66,38 @@ def migrate():
                     shutil.move(f'config/plugins/{plugin_name}.yaml', f'config/services/{plugin_name}.yaml')
                     print(f"- Migrated config/{plugin_name}.json to config/services/{plugin_name}.yaml")
                 elif plugin_name == 'commands':
-                    data = yaml.safe_load(Path('config/plugins/commands.yaml').read_text(encoding='utf-8'))
+                    data = yaml.load(Path('config/plugins/commands.yaml').read_text(encoding='utf-8'))
                     data[DEFAULT_TAG] = {
                         "command_prefix": cfg['BOT']['COMMAND_PREFIX']
                     }
                     with open('config/plugins/commands.yaml', 'w', encoding='utf-8') as out:
-                        yaml.safe_dump(data, out)
+                        yaml.dump(data, out)
                     print(f"- Migrated config/commands.json to config/plugins/commands.yaml")
                 else:
                     print(f"- Migrated config/{plugin_name}.json to config/plugins/{plugin_name}.yaml")
 
         if os.path.exists('config/plugins/scheduler.yaml'):
-            scheduler = yaml.safe_load(Path('config/plugins/scheduler.yaml').read_text(encoding='utf-8'))
+            scheduler = yaml.load(Path('config/plugins/scheduler.yaml').read_text(encoding='utf-8'))
         else:
             scheduler = {}
         if os.path.exists('config/presets.yaml'):
-            presets = yaml.safe_load(Path('config/presets.yaml').read_text(encoding='utf-8'))
+            presets = yaml.load(Path('config/presets.yaml').read_text(encoding='utf-8'))
         else:
             presets = {}
         if os.path.exists('config/plugins/userstats.yaml'):
-            userstats = yaml.safe_load(Path('config/plugins/userstats.yaml').read_text(encoding='utf-8'))
+            userstats = yaml.load(Path('config/plugins/userstats.yaml').read_text(encoding='utf-8'))
         else:
             userstats = {}
         # If we are not the first node to be migrated
         if os.path.exists('config/nodes.yaml'):
-            nodes = yaml.safe_load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
+            nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
         else:
             nodes = {}
         nodes[platform.node()] = {
             "autoupdate": cfg['BOT'].getboolean('AUTOUPDATE')
         }
         if os.path.exists('config/servers.yaml'):
-            servers = yaml.safe_load(Path('config/servers.yaml').read_text(encoding='utf-8'))
+            servers = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
         else:
             servers = {
                 DEFAULT_TAG: {
@@ -170,7 +170,7 @@ def migrate():
                 bot['roles'][role] = [x.strip() for x in cfg['ROLES'][role].split(',')]
             os.makedirs('config/services', exist_ok=True)
             with open('config/services/bot.yaml', 'w', encoding='utf-8') as out:
-                yaml.safe_dump(bot, out)
+                yaml.dump(bot, out)
                 print("- Created config/services/bot.yaml")
 
         if 'PUBLIC_IP' in cfg['BOT']:
@@ -288,26 +288,26 @@ def migrate():
         # write main configuration
         if master:
             with open('config/main.yaml', 'w', encoding='utf-8') as out:
-                yaml.safe_dump(main, out)
+                yaml.dump(main, out)
                 print("- Created config/main.yaml")
         with open('config/nodes.yaml', 'w', encoding='utf-8') as out:
-            yaml.safe_dump(nodes, out)
+            yaml.dump(nodes, out)
             print("- Created config/nodes.yaml")
         with open('config/servers.yaml', 'w', encoding='utf-8') as out:
-            yaml.safe_dump(servers, out)
+            yaml.dump(servers, out)
             print("- Created config/servers.yaml")
         # write plugin configuration
         if scheduler:
             with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
-                yaml.safe_dump(scheduler, out)
+                yaml.dump(scheduler, out)
                 print("- Created config/plugins/scheduler.yaml")
             if presets:
                 with open('config/presets.yaml', 'w', encoding='utf-8') as out:
-                    yaml.safe_dump(presets, out)
+                    yaml.dump(presets, out)
                 print("- Created config/presets.yaml")
         if missionstats:
             with open('config/plugins/missionstats.yaml', 'w', encoding='utf-8') as out:
-                yaml.safe_dump(missionstats, out)
+                yaml.dump(missionstats, out)
             print("- Created config/plugins/missionstats.yaml")
         shutil.move('config/default.ini', BACKUP_FOLDER)
         shutil.move('config/dcsserverbot.ini', BACKUP_FOLDER)

@@ -40,7 +40,7 @@ class InstanceImpl(Instance):
         if self.node.locals['DCS'].get('desanitize', True):
             # check for SLmod and desanitize its MissionScripting.lua
             for version in range(5, 7):
-                filename = os.path.join(self.home,'Scripts', 'net', f'Slmodv7_{version}',
+                filename = os.path.join(self.home, 'Scripts', 'net', f'Slmodv7_{version}',
                                         'SlmodMissionScripting.lua')
                 if os.path.exists(filename):
                     utils.desanitize(self, filename)

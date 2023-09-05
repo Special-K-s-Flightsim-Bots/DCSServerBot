@@ -270,7 +270,7 @@ class NodeImpl(Node):
                             if modules:
                                 self.log.warning('  => requirements.txt has changed. Installing missing modules...')
                                 proc = await asyncio.create_subprocess_exec(
-                                    sys.executable, '-m', 'pip', '-q','install', '-r', 'requirements.txt')
+                                    sys.executable, '-m', 'pip', '-q', 'install', '-r', 'requirements.txt')
                                 await proc.communicate()
                             self.log.warning('- Restart needed => exiting.')
                             raise KeyboardInterrupt()
@@ -397,9 +397,9 @@ class NodeImpl(Node):
                 async with session.get(LICENSES_URL) as response:
                     if response.status == 200:
                         all_licenses = (await response.text(encoding='utf8')).split('<br>')[1:]
-                        for l in all_licenses:
-                            if l.endswith('_terrain'):
-                                licenses.add(l)
+                        for lic in all_licenses:
+                            if lic.endswith('_terrain'):
+                                licenses.add(lic)
             return list(licenses)
 
     async def register(self):

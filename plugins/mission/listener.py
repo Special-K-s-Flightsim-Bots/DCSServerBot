@@ -469,7 +469,7 @@ class MissionEventListener(EventListener):
         if not delinquent:
             player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
             return
-        server.ban(delinquent.ucid, reason)
+        ServiceRegistry.get('ServiceBus').ban(delinquent.ucid, player.member.display_name, reason, 30)
         player.sendChatMessage(f"User {name} banned for 30 days.")
         await self.bot.audit(f'Player {delinquent.display_name} banned for 30 days' +
                              (f' with reason "{reason}".' if reason != 'n/a' else '.'),

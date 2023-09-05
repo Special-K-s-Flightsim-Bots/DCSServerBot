@@ -39,6 +39,7 @@ class SlotBlockingListener(EventListener):
                                 'roles': [x.name for x in member.roles]
                             })
                             break
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # the server is running already

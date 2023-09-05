@@ -12,7 +12,7 @@ class Autoexec:
     values: dict = field(init=False, default_factory=dict)
 
     def __post_init__(self):
-        file = path.join(self.instance.home , 'Config', 'autoexec.cfg')
+        file = path.join(self.instance.home, 'Config', 'autoexec.cfg')
         if not path.exists(file):
             return
         exp = re.compile('(?P<key>.*)=(?P<value>.*)')

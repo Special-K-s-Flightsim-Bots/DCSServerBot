@@ -51,11 +51,13 @@ class MissionStatistics(Plugin):
         if isinstance(user, str):
             ucid = user
             user = self.bot.get_member_or_name_by_ucid(ucid)
-        if isinstance(user, discord.Member):
+            if isinstance(user, discord.Member):
+                name = user.display_name
+            else:
+                name = user
+        else:
             ucid = self.bot.get_ucid_by_member(user)
             name = user.display_name
-        else:
-            name = user
         report = Report(self.bot, self.plugin_name, 'sorties.json')
         env = await report.render(ucid=ucid, member_name=name, period=period, flt=flt)
         await interaction.response.send_message(embed=env.embed, ephemeral=True)
@@ -92,11 +94,13 @@ class MissionStatistics(Plugin):
         if isinstance(user, str):
             ucid = user
             user = self.bot.get_member_or_name_by_ucid(ucid)
-        if isinstance(user, discord.Member):
+            if isinstance(user, discord.Member):
+                name = user.display_name
+            else:
+                name = user
+        else:
             ucid = self.bot.get_ucid_by_member(user)
             name = user.display_name
-        else:
-            name = user
         report = Report(self.bot, self.plugin_name, 'modulestats.json')
         env = await report.render(member_name=name, ucid=ucid, period=period, module=module, flt=flt)
         await interaction.response.send_message(embed=env.embed, ephemeral=True)
@@ -116,11 +120,13 @@ class MissionStatistics(Plugin):
         if isinstance(user, str):
             ucid = user
             user = self.bot.get_member_or_name_by_ucid(ucid)
-        if isinstance(user, discord.Member):
+            if isinstance(user, discord.Member):
+                name = user.display_name
+            else:
+                name = user
+        else:
             ucid = self.bot.get_ucid_by_member(user)
             name = user.display_name
-        else:
-            name = user
         report = Report(self.bot, self.plugin_name, 'refuelings.json')
         env = await report.render(ucid=ucid, member_name=name, period=period, flt=flt)
         await interaction.response.send_message(embed=env.embed, ephemeral=True)
