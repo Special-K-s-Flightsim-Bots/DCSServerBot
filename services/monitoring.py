@@ -111,9 +111,9 @@ class MonitoringService(Service):
 
     async def heartbeat(self):
         for server in self.bus.servers.values():  # type: ServerImpl
-            if server.is_remote or server.maintenance or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
+            if server.is_remote or server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
                 continue
-            if server.process is not None and not server.process.is_running():
+            if not server.maintenance and server.process is not None and not server.process.is_running():
                 server.process = None
                 message = f"Server \"{server.name}\" died. Setting state to SHUTDOWN."
                 self.log.warning(message)

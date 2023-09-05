@@ -68,10 +68,8 @@ class RealWeather(Extension):
                 return False
             if new_filename != filename:
                 missions: list = self.server.settings['missionList']
-                missions.remove(filename)
-                missions.append(new_filename)
-                self.server.settings['missionList'] = missions
-                self.server.settings['listStartIndex'] = missions.index(new_filename) + 1
+                self.server.deleteMission(missions.index(filename) + 1)
+                self.server.addMission(new_filename, autostart=True)
             self.log.info(f"Real weather applied to the mission.")
             return True
 

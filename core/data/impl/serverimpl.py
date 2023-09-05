@@ -369,10 +369,8 @@ class ServerImpl(Server):
             if new_filename != filename:
                 miz.save(new_filename)
                 missions: list = self.settings['missionList']
-                missions.remove(filename)
-                missions.append(new_filename)
-                self.settings['missionList'] = missions
-                self.settings['listStartIndex'] = missions.index(new_filename) + 1
+                self.deleteMission(missions.index(filename) + 1)
+                self.addMission(new_filename, autostart=True)
             else:
                 miz.save()
         except Exception as ex:

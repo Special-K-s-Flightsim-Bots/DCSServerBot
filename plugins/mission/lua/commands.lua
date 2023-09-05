@@ -252,7 +252,15 @@ function dcsbot.addMission(json)
 	end
 	net.missionlist_append(path)
 	local current_missions = net.missionlist_get()
-	result = utils.saveSettings({missionList = current_missions["missionList"]})
+    if json.autostart == true then
+        listStartIndex = #current_missions
+    else
+        listStartIndex = current_missions["listStartIndex"]
+    end
+	utils.saveSettings({
+        missionList = current_missions["missionList"],
+		listStartIndex = listStartIndex
+    })
 	dcsbot.listMissions(json)
 end
 
@@ -262,8 +270,8 @@ function dcsbot.deleteMission(json)
 	local current_missions = net.missionlist_get()
 	--result = utils.saveSettings({missionList = current_missions["missionList"]})
 	utils.saveSettings({
-		missionList=current_missions["missionList"],
-		listStartIndex=current_missions["listStartIndex"]
+		missionList = current_missions["missionList"],
+		listStartIndex = current_missions["listStartIndex"]
 	})
 	dcsbot.listMissions(json)
 end

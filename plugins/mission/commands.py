@@ -237,26 +237,23 @@ class Mission(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(path=utils.mizfile_autocomplete)
     async def add(self, interaction: discord.Interaction,
-                  server: app_commands.Transform[Server, utils.ServerTransformer], path: str):
+                  server: app_commands.Transform[Server, utils.ServerTransformer], path: str,
+                  autostart: Optional[bool] = False):
         if not os.path.exists(path):
             await interaction.response.send_message(f"File {path} could not be found.", ephemeral=True)
             return
 
-        server.addMission(path)
+        server.addMission(path, autostart=autostart)
         name = os.path.basename(path)[:-4]
         await interaction.response.send_message(f'Mission "{utils.escape_string(name)}" added.', ephemeral=True)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED] or \
                 not await utils.yn_question(interaction, 'Do you want to load this mission?'):
             return
-        for idx, mission in enumerate(server.settings['missionList']):
-            if mission == path:
-                tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...',
-                                                      ephemeral=True)
-                await server.loadMission(idx + 1)
-                await self.bot.audit("loaded mission", server=server, user=interaction.user)
-                await tmp.delete()
-                await interaction.followup.send(f'Mission {utils.escape_string(name)} loaded.', ephemeral=True)
-                break
+        tmp = await interaction.followup.send(f'Loading mission {utils.escape_string(name)} ...', ephemeral=True)
+        await server.loadMission(server.settings['missionList'].index(path) + 1)
+        await self.bot.audit("loaded mission", server=server, user=interaction.user)
+        await tmp.delete()
+        await interaction.followup.send(f'Mission {utils.escape_string(name)} loaded.', ephemeral=True)
 
     @mission.command(description='Deletes a mission from the list')
     @app_commands.guild_only()
@@ -364,7 +361,7 @@ class Mission(Plugin):
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 await server.restart(smooth=True)
-                message += '\nServer restarted.'
+                message += '\nMission reloaded.'
             await self.bot.audit("changed preset", server=server, user=interaction.user)
             await msg.delete()
             await interaction.followup.send(message, ephemeral=True)
@@ -629,16 +626,11 @@ class Mission(Plugin):
 
             if server.status != Status.SHUTDOWN and server.current_mission.filename != filename and \
                     await utils.yn_question(ctx, 'Do you want to load this mission?'):
-                data = await server.send_to_dcs_sync({"command": "listMissions"})
-                missions = data['missionList']
-                for idx, mission in enumerate(missions):
-                    if os.path.normpath(mission) == os.path.normpath(filename):
-                        tmp = await message.channel.send('Loading mission {} ...'.format(utils.escape_string(name)))
-                        await server.loadMission(idx + 1)
-                        await self.bot.audit("loaded mission", server=server, user=message.author)
-                        await tmp.delete()
-                        await message.channel.send(f'Mission {name} loaded.')
-                        break
+                tmp = await message.channel.send(f'Loading mission {utils.escape_string(name)} ...')
+                await server.loadMission(server.settings['missionList'].index(filename) + 1)
+                await self.bot.audit("loaded mission", server=server, user=message.author)
+                await tmp.delete()
+                await message.channel.send(f'Mission {name} loaded.')
         except Exception:
             traceback.print_exc()
         finally:
