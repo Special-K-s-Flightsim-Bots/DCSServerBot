@@ -72,12 +72,14 @@ class GreenieBoard(Plugin):
 
         if isinstance(user, str):
             ucid = user
-            user = self.bot.get_member_or_name_by_ucid(user)
-        if isinstance(user, discord.Member):
+            user = self.bot.get_member_or_name_by_ucid(ucid)
+            if isinstance(user, discord.Member):
+                name = user.display_name
+            else:
+                name = user
+        else:
             ucid = self.bot.get_ucid_by_member(user)
             name = user.display_name
-        else:
-            name = user
         num_landings = max(self.get_config().get('num_landings', 25), 25)
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:

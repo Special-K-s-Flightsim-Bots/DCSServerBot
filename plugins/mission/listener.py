@@ -534,7 +534,11 @@ class MissionEventListener(EventListener):
                   help="load a specific weather preset")
     async def preset(self, server: Server, player: Player, params: list[str]):
         async def change_preset(preset: str):
-            await server.modifyMission([preset])
+            filename = await server.get_current_mission_file()
+            new_filename = await server.modifyMission(filename, [preset])
+            missions = server.settings['missionList']
+            server.deleteMission(missions.index(filename) + 1)
+            server.addMission(new_filename, autostart=True)
             await server.restart(smooth=True)
             await self.bot.audit(f"changed preset to {preset}", server=server, user=player.ucid)
 
