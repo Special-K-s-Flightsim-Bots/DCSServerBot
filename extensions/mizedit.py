@@ -1,4 +1,5 @@
 import random
+from typing import Tuple
 
 from core import Extension, utils, Server
 from datetime import datetime
@@ -15,7 +16,7 @@ class MizEdit(Extension):
         super().__init__(server, config)
         self.presets = yaml.load(Path("config/presets.yaml").read_text(encoding='utf-8'))
 
-    async def beforeMissionLoad(self) -> bool:
+    def get_presets(self):
         presets = []
         now = datetime.now()
         if isinstance(self.config['settings'], dict):
@@ -43,9 +44,10 @@ class MizEdit(Extension):
                     modifications.append(inner_value)
             elif isinstance(value, dict):
                 modifications.append(value)
-            self.log.info(f"  - Preset {preset} applied.")
-        await self.server.modifyMission(modifications)
-        return True
+        return modifications
+
+    async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
+        return await self.server.modifyMission(filename, self.get_presets()), True
 
     def is_installed(self) -> bool:
         return True

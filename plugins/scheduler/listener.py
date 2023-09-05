@@ -51,26 +51,21 @@ class SchedulerListener(EventListener):
             if server.status == Status.SHUTDOWN:
                 await self.plugin.launch_dcs(server, config)
             elif server.status == Status.STOPPED:
-                for ext in server.extensions.values():
-                    await ext.beforeMissionLoad()
+                await server.apply_mission_changes()
                 await server.start()
                 message = 'started DCS server'
                 if 'user' not in what:
                     message = self.plugin_name.title() + ' ' + message
                 await self.bot.audit(message, server=server, user=what.get('user'))
             elif server.status in [Status.RUNNING, Status.PAUSED]:
-                for ext in server.extensions.values():
-                    await ext.beforeMissionLoad()
-                await server.restart(smooth=True)
+                await server.restart(smooth=await server.apply_mission_changes())
                 message = f'restarted mission {server.current_mission.display_name}'
                 if 'user' not in what:
                     message = self.plugin_name.title() + ' ' + message
                 await self.bot.audit(message, server=server, user=what.get('user'))
         elif what['command'] == 'rotate':
             await server.loadNextMission()
-            for ext in server.extensions.values():
-                await ext.beforeMissionLoad()
-            await server.restart(smooth=True)
+            await server.restart(smooth=await server.apply_mission_changes())
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
         elif what['command'] == 'load':

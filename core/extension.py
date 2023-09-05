@@ -1,7 +1,7 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
+from abc import ABC
 from core import report
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from core import DCSServerBot, Server
@@ -24,8 +24,8 @@ class Extension(ABC):
     async def prepare(self) -> bool:
         return True
 
-    async def beforeMissionLoad(self) -> bool:
-        return True
+    async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
+        return filename, False
 
     async def startup(self) -> bool:
         schedule = getattr(self, 'schedule', None)

@@ -204,18 +204,15 @@ class Scheduler(Plugin):
                                      server=server)
         elif method == 'restart':
             self.log.debug(f"Scheduler: Restarting mission on server {server.name}")
-            for ext in server.extensions.values():
-                await ext.beforeMissionLoad()
-            await server.restart(smooth=True)
+            await server.restart(smooth=await server.apply_mission_changes())
             await self.bot.audit(f"{self.plugin_name.title()} restarted mission "
                                  f"{server.current_mission.display_name}", server=server)
         elif method == 'rotate':
             self.log.debug(f"Scheduler: Rotating mission on server {server.name}")
             # TODO: change this
             await server.loadNextMission()
-            for ext in server.extensions.values():
-                await ext.beforeMissionLoad()
-            await server.restart(smooth=True)
+            if await server.apply_mission_changes():
+                await server.restart(smooth=True)
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
 

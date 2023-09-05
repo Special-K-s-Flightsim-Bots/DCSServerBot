@@ -357,8 +357,15 @@ class Mission(Plugin):
             await interaction.followup.send(f'Preset will be changed when server is empty.', ephemeral=True)
         else:
             msg = await interaction.followup.send('Changing presets...', ephemeral=True)
-            await server.modifyMission([value for name, value in presets.items() if name in view.result])
+            filename = await server.get_current_mission_file()
+            new_filename = await server.modifyMission(filename, [
+                value for name, value in presets.items() if name in view.result
+            ])
             message = 'Preset changed to: {}.'.format(','.join(view.result))
+            if new_filename != filename:
+                missions = server.settings['missionList']
+                server.deleteMission(missions.index(filename) + 1)
+                server.addMission(new_filename, autostart=True)
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 await server.restart(smooth=True)
                 message += '\nMission reloaded.'

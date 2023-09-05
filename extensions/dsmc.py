@@ -2,7 +2,7 @@ import os.path
 import shutil
 
 from core import Extension, report
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 
 
 class DSMC(Extension):
@@ -55,20 +55,18 @@ class DSMC(Extension):
             self.log.info('  => DSMC configuration changed to be compatible with DCSServerBot.')
         return True
 
-    async def beforeMissionLoad(self) -> bool:
-        filename = await self.server.get_current_mission_file()
-        if not filename or not os.path.basename(filename).startswith('DSMC'):
-            return False
+    async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
+        if not os.path.basename(filename).startswith('DSMC'):
+            return filename, False
         if not filename[-7:-4].isnumeric():
             filename = filename[:-4] + '_000.miz'
         version = int(filename[-7:-4])
         new_filename = filename[:-7] + f'{version+1:03d}.miz'
         # load the new mission instead, if it exists
         if os.path.exists(new_filename):
-            missions = self.server.settings['missionList']
-            missions[int(self.server.settings['listStartIndex']) - 1] = new_filename
-            self.server.settings['missionList'] = missions
-        return True
+            return new_filename, True
+        else:
+            return filename, False
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         embed.add_field(name='DSMC', value='enabled')

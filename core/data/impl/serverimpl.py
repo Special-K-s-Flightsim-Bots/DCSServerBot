@@ -263,7 +263,7 @@ class ServerImpl(Server):
         await self.init_extensions()
         for ext in self.extensions.values():
             await ext.prepare()
-            await ext.beforeMissionLoad()
+        await self.apply_mission_changes()
         await self.do_startup()
         timeout = 300 if self.node.locals.get('slow_system', False) else 180
         self.status = Status.LOADING
@@ -302,7 +302,65 @@ class ServerImpl(Server):
             self.process.kill()
         self.process = None
 
-    async def modifyMission(self, preset: Union[list, dict]) -> None:
+    async def apply_mission_changes(self):
+        filename = await self.get_current_mission_file()
+        new_filename = filename
+        try:
+            # process all mission modifications
+            self.log.info(f'- Applying mission changes to mission {os.path.basename(filename)}')
+            dirty = False
+            for ext in self.extensions.values():
+                new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
+                if _dirty:
+                    self.log.info(f'  => {ext.name} applied on {new_filename}.')
+                dirty |= _dirty
+            # we did not change anything in the mission
+            if not dirty:
+                return
+            # make a backup
+            if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
+                shutil.copy2(filename, filename + '.orig')
+            # check if the original mission can be written
+            if filename != new_filename:
+                missions: list[str] = self.settings['missionList']
+                self.deleteMission(missions.index(filename) + 1)
+                self.addMission(new_filename, autostart=True)
+        except Exception as ex:
+            self.log.exception(ex)
+            if filename != new_filename and os.path.exists(new_filename):
+                os.remove(new_filename)
+
+    async def keep_alive(self):
+        # we set a longer timeout in here because, we don't want to risk false restarts
+        timeout = 20 if self.node.locals.get('slow_system', False) else 10
+        await self.send_to_dcs_sync({"command": "getMissionUpdate"}, timeout)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE servers SET last_seen = NOW() WHERE node = %s AND server_name = %s',
+                             (platform.node(), self.name))
+
+    async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
+        stopped = False
+        filename = os.path.join(await self.get_missions_dir(), filename)
+        if self.current_mission and os.path.normpath(self.current_mission.filename) == os.path.normpath(filename):
+            if not force:
+                return UploadStatus.FILE_IN_USE
+            await self.stop()
+            stopped = True
+
+        rc = await self.node.write_file(filename, url, force)
+        if rc != UploadStatus.OK:
+            return rc
+        if not self.locals.get('autoscan', False):
+            self.addMission(filename)
+        if stopped:
+            await self.start()
+        return UploadStatus.OK
+
+    async def listAvailableMissions(self) -> list[str]:
+        return [str(x) for x in sorted(Path(PurePath(self.instance.home, "Missions")).glob("*.miz"))]
+
+    async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         def apply_preset(value: dict):
             if 'start_time' in value:
                 miz.start_time = value['start_time']
@@ -344,64 +402,13 @@ class ServerImpl(Server):
             if 'files' in value:
                 miz.files = value['files']
 
-        filename = await self.get_current_mission_file()
-        if not filename:
-            return
-        # check, if we can write that file
-        try:
-            with open(filename, 'a'):
-                new_filename = filename
-        except PermissionError:
-            if '.dcssb' in filename:
-                new_filename = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
-                                            os.path.basename(filename))
-            else:
-                dirname = os.path.join(os.path.dirname(filename), '.dcssb')
-                os.makedirs(dirname, exist_ok=True)
-                new_filename = os.path.join(dirname, os.path.basename(filename))
-        try:
-            miz = MizFile(self, filename)
-            if isinstance(preset, list):
-                for p in preset:
-                    apply_preset(p)
-            else:
-                apply_preset(preset)
-            if new_filename != filename:
-                miz.save(new_filename)
-                missions: list = self.settings['missionList']
-                self.deleteMission(missions.index(filename) + 1)
-                self.addMission(new_filename, autostart=True)
-            else:
-                miz.save()
-        except Exception as ex:
-            self.log.exception("Exception while parsing mission: ", exc_info=ex)
-
-    async def keep_alive(self):
-        # we set a longer timeout in here because, we don't want to risk false restarts
-        timeout = 20 if self.node.locals.get('slow_system', False) else 10
-        await self.send_to_dcs_sync({"command": "getMissionUpdate"}, timeout)
-        with self.pool.connection() as conn:
-            with conn.transaction():
-                conn.execute('UPDATE servers SET last_seen = NOW() WHERE node = %s AND server_name = %s',
-                             (platform.node(), self.name))
-
-    async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
-        stopped = False
-        filename = os.path.join(await self.get_missions_dir(), filename)
-        if self.current_mission and os.path.normpath(self.current_mission.filename) == os.path.normpath(filename):
-            if not force:
-                return UploadStatus.FILE_IN_USE
-            await self.stop()
-            stopped = True
-
-        rc = await self.node.write_file(filename, url, force)
-        if rc != UploadStatus.OK:
-            return rc
-        if not self.locals.get('autoscan', False):
-            self.addMission(filename)
-        if stopped:
-            await self.start()
-        return UploadStatus.OK
-
-    async def listAvailableMissions(self) -> list[str]:
-        return [str(x) for x in sorted(Path(PurePath(self.instance.home, "Missions")).glob("*.miz"))]
+        miz = MizFile(self, filename)
+        if isinstance(preset, list):
+            for p in preset:
+                apply_preset(p)
+        else:
+            apply_preset(preset)
+        # write new mission
+        new_filename = utils.create_writable_mission(filename)
+        miz.save(new_filename)
+        return new_filename

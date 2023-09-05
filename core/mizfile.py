@@ -46,7 +46,7 @@ class MizFile:
                 for file in self._files:
                     zout.write(file, f'l10n/DEFAULT/{os.path.basename(file)}')
         try:
-            if new_filename:
+            if new_filename and new_filename != self.filename:
                 if os.path.exists(new_filename):
                     os.remove(new_filename)
                 os.rename(tmpname, new_filename)

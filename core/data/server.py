@@ -323,13 +323,16 @@ class Server(DataObject):
     async def loadNextMission(self) -> None:
         await self._load({"command": "startNextMission"})
 
-    async def modifyMission(self, preset: Union[list, dict]) -> None:
+    async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         raise NotImplemented()
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:
         raise NotImplemented()
 
     async def listAvailableMissions(self) -> list[str]:
+        raise NotImplemented()
+
+    async def apply_mission_changes(self) -> bool:
         raise NotImplemented()
 
     @property

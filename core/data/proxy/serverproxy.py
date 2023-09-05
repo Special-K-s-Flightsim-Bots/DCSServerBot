@@ -109,17 +109,6 @@ class ServerProxy(Server):
             }, node=self.node.name, timeout=180)
             self.status = Status.SHUTDOWN
 
-    async def modifyMission(self, preset: Union[list, dict]) -> None:
-        await self.bus.send_to_node_sync({
-            "command": "rpc",
-            "object": "Server",
-            "method": "modifyMission",
-            "server_name": self.name,
-            "params": {
-                "preset": preset
-            }
-        }, node=self.node.name, timeout=60)
-
     async def init_extensions(self):
         await self.bus.send_to_node_sync({
             "command": "rpc",
@@ -149,4 +138,26 @@ class ServerProxy(Server):
             "method": "listAvailableMissions",
             "server_name": self.name
         }, timeout=60, node=self.node.name)
+        return data['return']
+
+    async def apply_mission_changes(self) -> bool:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "apply_mission_changes",
+            "server_name": self.name
+        }, timeout=120, node=self.node.name)
+        return data['return']
+
+    async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "modifyMission",
+            "server_name": self.name,
+            "params": {
+                "filename": filename,
+                "preset": preset
+            }
+        }, timeout=120, node=self.node.name)
         return data['return']

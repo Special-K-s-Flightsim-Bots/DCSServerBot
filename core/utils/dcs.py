@@ -113,3 +113,18 @@ def get_active_runways(runways, wind):
     if len(retval) == 0:
         retval = ['n/a']
     return retval
+
+
+def create_writable_mission(filename: str) -> str:
+    try:
+        with open(filename, 'a'):
+            new_filename = filename
+    except PermissionError:
+        if '.dcssb' in filename:
+            new_filename = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
+                                        os.path.basename(filename))
+        else:
+            dirname = os.path.join(os.path.dirname(filename), '.dcssb')
+            os.makedirs(dirname, exist_ok=True)
+            new_filename = os.path.join(dirname, os.path.basename(filename))
+    return new_filename
