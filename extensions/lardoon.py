@@ -1,7 +1,10 @@
 import asyncio
 import os
 import subprocess
+import sys
 import traceback
+if sys.platform == 'win32':
+    import win32api
 
 from core import Extension, report, Server
 from discord.ext import tasks
@@ -57,8 +60,16 @@ class Lardoon(Extension):
             return False
 
     @property
-    def version(self) -> str:
-        return "0.0.11"
+    def version(self) -> Optional[str]:
+        if sys.platform == 'win32':
+            info = win32api.GetFileVersionInfo(os.path.expandvars(self.config['cmd']), '\\')
+            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
+                                       info['FileVersionMS'] % 65536,
+                                       info['FileVersionLS'] / 65536,
+                                       info['FileVersionLS'] % 65536)
+        else:
+            version = None
+        return version
 
     def is_installed(self) -> bool:
         # check if Lardoon is enabled

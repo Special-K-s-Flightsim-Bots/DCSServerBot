@@ -2,6 +2,9 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+if sys.platform == 'win32':
+    import win32api
 
 from core import Extension, report, MizFile
 from typing import Optional
@@ -9,8 +12,17 @@ from typing import Optional
 
 class RealWeather(Extension):
     @property
-    def version(self) -> str:
-        return "n/a"
+    def version(self) -> Optional[str]:
+        if sys.platform == 'win32':
+            info = win32api.GetFileVersionInfo(
+                os.path.join(os.path.expandvars(self.config['installation']), 'realweather.exe'), '\\')
+            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
+                                       info['FileVersionMS'] % 65536,
+                                       info['FileVersionLS'] / 65536,
+                                       info['FileVersionLS'] % 65536)
+        else:
+            version = None
+        return version
 
     async def beforeMissionLoad(self) -> bool:
         rw_home = os.path.expandvars(self.config['installation'])

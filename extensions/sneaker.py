@@ -2,6 +2,9 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
+if sys.platform == 'win32':
+    import win32api
 
 from typing import Optional, cast
 from core import Extension, report, Status, ServiceRegistry, Server
@@ -95,7 +98,7 @@ class Sneaker(Extension):
             process = subprocess.Popen([
                 cmd,
                 "--bind", self.config['bind'],
-                "--config", os.path.join('config', '\sneaker.json')
+                "--config", os.path.join('config', 'sneaker.json')
             ], executable=os.path.expandvars(self.config['cmd']), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
 
@@ -108,8 +111,16 @@ class Sneaker(Extension):
             return False
 
     @property
-    def version(self) -> str:
-        return "0.0.12"
+    def version(self) -> Optional[str]:
+        if sys.platform == 'win32':
+            info = win32api.GetFileVersionInfo(os.path.expandvars(self.config['cmd']), '\\')
+            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
+                                       info['FileVersionMS'] % 65536,
+                                       info['FileVersionLS'] / 65536,
+                                       info['FileVersionLS'] % 65536)
+        else:
+            version = None
+        return version
 
     def is_installed(self) -> bool:
         # check if Sneaker is enabled

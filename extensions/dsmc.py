@@ -6,9 +6,6 @@ from typing import Optional, Union
 
 
 class DSMC(Extension):
-    @property
-    def version(self) -> str:
-        return "1.0.0"
 
     def load_config(self) -> Optional[dict]:
         def parse(_value: str) -> Union[int, str, bool]:

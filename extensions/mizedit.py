@@ -15,10 +15,6 @@ class MizEdit(Extension):
         super().__init__(server, config)
         self.presets = yaml.load(Path("config/presets.yaml").read_text(encoding='utf-8'))
 
-    @property
-    def version(self) -> str:
-        return "1.0.0"
-
     async def beforeMissionLoad(self) -> bool:
         presets = []
         now = datetime.now()

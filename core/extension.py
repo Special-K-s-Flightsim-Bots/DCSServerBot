@@ -32,7 +32,7 @@ class Extension(ABC):
         if schedule and not schedule.is_running():
             schedule.start()
         self.running = True
-        self.log.info(f"  => {self.name} v{self.version} launched for \"{self.server.name}\".")
+        self.log.info(f"  => {self.name} launched for \"{self.server.name}\".")
         return True
 
     async def shutdown(self) -> bool:
@@ -51,9 +51,8 @@ class Extension(ABC):
         return type(self).__name__
 
     @property
-    @abstractmethod
-    def version(self) -> str:
-        raise NotImplementedError()
+    def version(self) -> Optional[str]:
+        return None
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         raise NotImplementedError()

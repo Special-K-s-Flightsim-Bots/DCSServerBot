@@ -107,7 +107,7 @@ class SRS(Extension):
         return utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
 
     @property
-    def version(self) -> str:
+    def version(self) -> Optional[str]:
         if sys.platform == 'win32':
             info = win32api.GetFileVersionInfo(
                 os.path.join(os.path.expandvars(self.config['installation']), 'SR-Server.exe'), '\\')
@@ -116,7 +116,7 @@ class SRS(Extension):
                                        info['FileVersionLS'] / 65536,
                                        info['FileVersionLS'] % 65536)
         else:
-            version = 'n/a'
+            version = None
         return version
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
