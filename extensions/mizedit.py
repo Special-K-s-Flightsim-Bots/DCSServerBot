@@ -19,16 +19,17 @@ class MizEdit(Extension):
     def get_presets(self):
         presets = []
         now = datetime.now()
-        if isinstance(self.config['settings'], dict):
-            for key, value in self.config['settings'].items():
+        _presets = self.config['settings']
+        if isinstance(_presets, dict):
+            for key, value in _presets.items():
                 if utils.is_in_timeframe(now, key):
-                    presets = value
+                    _presets = presets = value
                     break
             if not presets:
                 # no preset found for the current time, so don't change anything
                 return True
-        elif isinstance(self.config['settings'], list):
-            presets = random.choice(self.config['settings'])
+        if isinstance(_presets, list):
+            presets = random.choice(_presets)
         modifications = []
         for preset in [x.strip() for x in presets.split(',')]:
             if preset not in self.presets:

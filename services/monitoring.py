@@ -101,10 +101,8 @@ class MonitoringService(Service):
             handle = win32gui.FindWindowEx(None, None, None, title)
             if handle:
                 _, pid = win32process.GetWindowThreadProcessId(handle)
-                for server in self.bus.servers.values():
+                for server in [x for x in self.bus.servers.values() if not x.is_remote]:
                     if server.process and server.process.pid == pid:
-                        if server.is_remote:
-                            continue
                         await server.shutdown(force=True)
                         await self.node.audit(f'Server killed due to a popup with title "{title}".',
                                               server=server)
