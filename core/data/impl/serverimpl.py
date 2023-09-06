@@ -304,6 +304,9 @@ class ServerImpl(Server):
 
     async def apply_mission_changes(self):
         filename = await self.get_current_mission_file()
+        if not filename:
+            self.log.warning("No mission found. Is your mission list empty?")
+            return
         new_filename = filename
         try:
             # process all mission modifications
