@@ -41,12 +41,7 @@ class RealWeather(Extension):
         subprocess.run(executable=os.path.join(rw_home, 'realweather.exe'), args=[], cwd=cwd, shell=True)
         # check if DCS Real Weather corrupted the miz file
         # (as the original author does not see any reason to do that on his own)
-        try:
-            MizFile(self, tmpname)
-        except Exception as ex:
-            self.log.exception(ex)
-            if os.path.exists(tmpname):
-                os.remove(tmpname)
+        MizFile(self, tmpname)
         # mission is good, take it
         new_filename = utils.create_writable_mission(filename)
         if os.path.exists(new_filename):
