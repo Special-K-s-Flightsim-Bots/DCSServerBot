@@ -8,7 +8,6 @@ import platform
 import psycopg
 import shutil
 import ssl
-import traceback
 
 from contextlib import closing
 from core import Plugin, utils, TEventListener, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError
@@ -265,7 +264,6 @@ class CloudHandler(Plugin):
         except aiohttp.ClientError:
             self.log.debug('Cloud: Bot could not register due to service unavailability. Ignored.')
         except Exception as error:
-            traceback.print_exc()
             self.log.debug("Error while registering: " + str(error))
 
     @register.before_loop

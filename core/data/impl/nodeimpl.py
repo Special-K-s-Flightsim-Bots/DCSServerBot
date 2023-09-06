@@ -12,7 +12,6 @@ import ssl
 import subprocess
 import sys
 import time
-import traceback
 
 from contextlib import closing
 from core import utils, Status, Coalition
@@ -336,8 +335,8 @@ class NodeImpl(Node):
             await process.communicate()
             if process.returncode != 0:
                 return process.returncode
-        except Exception:
-            traceback.print_exc()
+        except Exception as ex:
+            self.log.exception(ex)
             return -1
         if self.locals['DCS'].get('desanitize', True):
             utils.desanitize(self)

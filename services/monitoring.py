@@ -3,7 +3,6 @@ import asyncio
 import os
 import psutil
 import sys
-import traceback
 if sys.platform == 'win32':
     import win32gui
     import win32process
@@ -206,7 +205,7 @@ class MonitoringService(Service):
                 self.log.warning(f"Server {server.name} was not started by the bot, "
                                  f"skipping server load gathering.")
 
-    @tasks.loop(minutes=1.0)
+    @tasks.loop(minutes=1.0, reconnect=True)
     async def monitoring(self):
         try:
             if self.node.master:
@@ -217,4 +216,4 @@ class MonitoringService(Service):
             if 'serverstats' in self.node.config.get('opt_plugins', []):
                 await self.serverload()
         except Exception:
-            traceback.print_exc()
+            self.log.exception(ex)
