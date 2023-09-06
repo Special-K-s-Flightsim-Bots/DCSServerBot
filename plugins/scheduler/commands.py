@@ -190,7 +190,7 @@ class Scheduler(Plugin):
             await server.extensions[ext].prepare()
             await server.extensions[ext].beforeMissionLoad()
         # change the weather in the mission if provided
-        if not server.maintenance and 'settings' in config:
+        if 'settings' in config:
             await self.change_mizfile(server, config)
         self.log.info(f"  => DCS server \"{server.name}\" starting up ...")
         await server.startup()
@@ -317,16 +317,18 @@ class Scheduler(Plugin):
             return
         now = datetime.now()
         if not presets:
-            if isinstance(config['settings'], dict):
-                for key, value in config['settings'].items():
+            _presets = config['settings']
+            if isinstance(_presets, dict):
+                for key, value in _presets.items():
                     if utils.is_in_timeframe(now, key):
-                        presets = value
+                        _presets = presets = value
                         break
                 if not presets:
                     # no preset found for the current time, so don't change anything
                     return
-            elif isinstance(config['settings'], list):
-                presets = random.choice(config['settings'])
+            # we might have had a list in the timed presets, too
+            if isinstance(_presets, list):
+                presets = random.choice(_presets)
         miz = MizFile(server.bot, filename)
         for preset in [x.strip() for x in presets.split(',')]:
             if preset not in config['presets']:
