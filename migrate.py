@@ -202,7 +202,6 @@ def migrate():
                     "home": cfg[instance]['DCS_HOME'],
                     "bot_port": int(cfg[instance]['DCS_PORT']),
                     "server": server_name,
-                    "server_user": cfg['DCS']['SERVER_USER'],
                     "max_hung_minutes": int(cfg['DCS']['MAX_HUNG_MINUTES'])
                 }
                 if 'MISSIONS_DIR' in cfg[instance]:
@@ -236,8 +235,10 @@ def migrate():
                 m['persist_ai_statistics'] = cfg[instance].getboolean('PERSIST_AI_STATISTICS')
                 # create server config
                 servers[server_name] = {
+                    "server_user": cfg['DCS']['SERVER_USER'],
                     "afk_time": int(cfg['DCS']['AFK_TIME']),
                     "ping_admin_on_crash": cfg[instance].getboolean('PING_ADMIN_ON_CRASH'),
+                    "autoscan": cfg[instance].getboolean('AUTOSCAN'),
                     "channels": {
                         "status": int(cfg[instance]['STATUS_CHANNEL']),
                         "chat": int(cfg[instance]['CHAT_CHANNEL'])

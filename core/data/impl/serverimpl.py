@@ -75,17 +75,12 @@ class ServerImpl(Server):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
-                    INSERT INTO servers (server_name, node, port, status_channel, chat_channel) 
-                    VALUES(%s, %s, %s, %s, %s) 
+                    INSERT INTO servers (server_name, node, port) VALUES (%s, %s, %s) 
                     ON CONFLICT (server_name) DO UPDATE 
                     SET node=excluded.node, 
                         port=excluded.port,
-                        status_channel=excluded.status_channel,
-                        chat_channel=excluded.chat_channel, 
                         last_seen=NOW()
-                """, (self.name, self.node.name, self.port,
-                      self.channels[Channel.STATUS],
-                      self.channels[Channel.CHAT]))
+                """, (self.name, self.node.name, self.port))
         # enable autoscan for missions changes
         if self.locals.get('autoscan', False):
             self.event_handler = MissionFileSystemEventHandler(self)
