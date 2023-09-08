@@ -10,17 +10,19 @@
 module('DCSServerBotConfig')
 
 VERSION = '{node.bot_version}'
+
 -- General Values
 BOT_HOST = '127.0.0.1'
 BOT_PORT = {node.listen_port}
 CHAT_COMMAND_PREFIX = '{node.config[chat_command_prefix]}'
-SERVER_USER = '{instance.server_user}'
+MESSAGE_PLAYER_USERNAME = '{node.config[messages][player_username]}'
+MESSAGE_PLAYER_DEFAULT_USERNAME = '{node.config[messages][player_default_username]}'
+
 -- Instance Values
+SERVER_USER = '{server.locals[server_user]}'
 DCS_HOST = '127.0.0.1'
 DCS_PORT = {instance.bot_port}
 COALITIONS = {server.coalitions}                     -- true = enable coalitions
 CHAT_CHANNEL = '{server.locals[channels][chat]}'   -- In-game chat will be replicated here
 STATUS_CHANNEL = '{server.locals[channels][status]}' -- a persistent server and players status will be presented here
-MESSAGE_PLAYER_USERNAME = '{node.config[messages][player_username]}'
-MESSAGE_PLAYER_DEFAULT_USERNAME = '{node.config[messages][player_default_username]}'
 MESSAGE_SERVER_FULL = '{server.locals[message_server_full]}'
