@@ -72,7 +72,10 @@ class Autoexec:
         elif value == 'false':
             return False
         else:
-            return eval(value)
+            try:
+                return eval(value)
+            except:
+                return value
 
     @staticmethod
     def unparse(value: Any) -> str:
