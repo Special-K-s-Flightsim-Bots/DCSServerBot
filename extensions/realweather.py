@@ -35,11 +35,13 @@ class RealWeather(Extension):
                     return False
                 if not os.path.exists(filename + '.orig'):
                     shutil.copy2(filename, filename + '.orig')
-                cfg['input-mission'] = filename + '.orig'
-                cfg['output-mission'] = filename
-                for key in list(cfg.keys()):
-                    if key in self.config:
-                        cfg[key] = self.config[key]
+                # create proper configuration
+                for name, element in cfg.keys():
+                    if name == 'files':
+                        element['input-mission'] = filename + '.orig'
+                        element['output-mission'] = filename
+                    elif name in self.config:
+                        element |= self.config[name]
                 cwd = os.path.join(dcs_home, 'Missions')
                 with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
                     json.dump(cfg, outfile, indent=2)
