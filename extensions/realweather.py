@@ -30,11 +30,13 @@ class RealWeather(Extension):
         os.close(tmpfd)
         with open(os.path.join(rw_home, 'config.json')) as infile:
             cfg = json.load(infile)
-        cfg['input-mission'] = filename
-        cfg['output-mission'] = tmpname
-        for key in list(cfg.keys()):
-            if key in self.config:
-                cfg[key] = self.config[key]
+        # create proper configuration
+        for name, element in cfg.keys():
+            if name == 'files':
+                element['input-mission'] = filename + '.orig'
+                element['output-mission'] = filename
+            elif name in self.config:
+                element |= self.config[name]
         cwd = await self.server.get_missions_dir()
         with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
             json.dump(cfg, outfile, indent=2)
