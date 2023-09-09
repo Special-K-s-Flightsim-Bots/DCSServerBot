@@ -36,7 +36,7 @@ class RealWeather(Extension):
                 if not os.path.exists(filename + '.orig'):
                     shutil.copy2(filename, filename + '.orig')
                 # create proper configuration
-                for name, element in cfg.keys():
+                for name, element in cfg.items():
                     if name == 'files':
                         element['input-mission'] = filename + '.orig'
                         element['output-mission'] = filename
