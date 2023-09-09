@@ -31,7 +31,7 @@ class RealWeather(Extension):
         with open(os.path.join(rw_home, 'config.json')) as infile:
             cfg = json.load(infile)
         # create proper configuration
-        for name, element in cfg.keys():
+        for name, element in cfg.items():
             if name == 'files':
                 element['input-mission'] = filename + '.orig'
                 element['output-mission'] = filename
