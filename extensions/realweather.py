@@ -30,8 +30,8 @@ class RealWeather(Extension):
         os.close(tmpfd)
         with open(os.path.join(rw_home, 'config.json')) as infile:
             cfg = json.load(infile)
-        cfg['input-mission-file'] = filename
-        cfg['output-mission-file'] = tmpname
+        cfg['input-mission'] = filename
+        cfg['output-mission'] = tmpname
         for key in list(cfg.keys()):
             if key in self.config:
                 cfg[key] = self.config[key]
@@ -54,11 +54,19 @@ class RealWeather(Extension):
         embed.add_field(name='RealWeather', value='enabled')
 
     def is_installed(self) -> bool:
-        if 'enabled' not in self.config or not self.config['enabled']:
+        if not self.config.get('enabled', True):
             return False
         rw_home = os.path.expandvars(self.config['installation'])
         if not os.path.exists(os.path.join(rw_home, 'realweather.exe')):
             self.log.error(f'No realweather.exe found in {rw_home}')
+            return False
+        if self.version:
+            ver = [int(x) for x in self.version.split('.')]
+            if ver[0] == 1 and ver[1] < 9:
+                self.log.error("DCS Realweather < 1.9.x not supported, please upgrade!")
+                return False
+        else:
+            self.log.error("DCS Realweather < 1.9.x not supported, please upgrade!")
             return False
         if not os.path.exists(os.path.join(rw_home, 'config.json')):
             self.log.error(f'No config.json found in {rw_home}')
