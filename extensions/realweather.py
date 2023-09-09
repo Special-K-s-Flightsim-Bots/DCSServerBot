@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+import win32api
 
 from core import Extension, report
 from typing import Optional
@@ -10,14 +11,23 @@ from typing import Optional
 class RealWeather(Extension):
     @property
     def version(self) -> str:
-        return "1.5.0"
+        try:
+            info = win32api.GetFileVersionInfo(
+                os.path.join(os.path.expandvars(self.config['installation']), 'realweather.exe'), '\\')
+            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
+                                       info['FileVersionMS'] % 65536,
+                                       info['FileVersionLS'] / 65536,
+                                       info['FileVersionLS'] % 65536)
+        except Exception:
+            version = "1.5.0"
+        return version
 
     async def beforeMissionLoad(self) -> bool:
         filename = None
         rw_home = os.path.expandvars(self.config['installation'])
         dcs_home = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME'])
         try:
-            with open(os.path.expandvars(rw_home + '\\config.json')) as infile:
+            with open(os.path.join(rw_home, 'config.json')) as infile:
                 cfg = json.load(infile)
                 filename = self.server.get_current_mission_file()
                 if not filename:
@@ -25,15 +35,15 @@ class RealWeather(Extension):
                     return False
                 if not os.path.exists(filename + '.orig'):
                     shutil.copy2(filename, filename + '.orig')
-                cfg['input-mission-file'] = filename + '.orig'
-                cfg['output-mission-file'] = filename
+                cfg['input-mission'] = filename + '.orig'
+                cfg['output-mission'] = filename
                 for key in list(cfg.keys()):
                     if key in self.config:
                         cfg[key] = self.config[key]
-                cwd = dcs_home + '\\Missions'
-                with open(os.path.expandvars(cwd + '\\config.json'), 'w') as outfile:
+                cwd = os.path.join(dcs_home, 'Missions')
+                with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
                     json.dump(cfg, outfile, indent=2)
-                subprocess.run(executable=os.path.expandvars(rw_home + '\\realweather.exe'), args=[], cwd=cwd, shell=True)
+                subprocess.run(executable=os.path.join(rw_home, 'realweather.exe'), args=[], cwd=cwd, shell=True)
                 self.log.info(f"Real weather applied to mission.")
                 return True
         except Exception as ex:
@@ -45,13 +55,17 @@ class RealWeather(Extension):
         embed.add_field(name='RealWeather', value='enabled')
 
     def is_installed(self) -> bool:
-        if 'enabled' not in self.config or not self.config['enabled']:
+        if not self.config.get('enabled', True):
             return False
         rw_home = os.path.expandvars(self.config['installation'])
-        if not os.path.exists(rw_home + '\\realweather.exe'):
+        if not os.path.exists(os.path.join(rw_home, 'realweather.exe')):
             self.log.error(f'No realweather.exe found in {rw_home}')
             return False
-        if not os.path.exists(rw_home + '\\config.json'):
+        ver = [int(x) for x in self.version.split('.')]
+        if ver[0] == 1 and ver[1] < 9:
+            self.log.error("DCS Realweather < 1.9.x not supported, please upgrade!")
+            return False
+        if not os.path.exists(os.path.join(rw_home, 'config.json')):
             self.log.error(f'No config.json found in {rw_home}')
             return False
         return True
