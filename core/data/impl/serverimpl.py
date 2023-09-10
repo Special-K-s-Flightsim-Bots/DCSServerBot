@@ -242,15 +242,17 @@ class ServerImpl(Server):
             ext: Extension = self.extensions.get(extension)
             if not ext:
                 if '.' not in extension:
-                    ext = utils.str_to_class('extensions.' + extension)(
-                        self,
-                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
-                    )
+                    _extension = 'extensions.' + extension
                 else:
-                    ext = utils.str_to_class(extension)(
-                        self,
-                        self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
-                    )
+                    _extension = extension
+                _ext = utils.str_to_class(_extension)
+                if not _ext:
+                    self.log.error(f"Extension {extension} could not be found!")
+                    return
+                ext = _ext(
+                    self,
+                    self.locals['extensions'][extension] | self.node.locals.get('extensions', {}).get(extension, {})
+                )
                 if ext.is_installed():
                     self.extensions[extension] = ext
 

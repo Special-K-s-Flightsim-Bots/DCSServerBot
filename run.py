@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import traceback
+
 from migrate import migrate
 from services import *
 
