@@ -34,7 +34,7 @@ class RealWeather(Extension):
         for name, element in cfg.items():
             if name == 'files':
                 element['input-mission'] = filename + '.orig'
-                element['output-mission'] = filename
+                element['output-mission'] = tmpname
             elif name in self.config:
                 element |= self.config[name]
         cwd = await self.server.get_missions_dir()
