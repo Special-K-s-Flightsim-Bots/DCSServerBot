@@ -45,10 +45,9 @@ class RealWeather(Extension):
         # (as the original author does not see any reason to do that on his own)
         MizFile(self, tmpname)
         # mission is good, take it
-        new_filename = utils.create_writable_mission(filename)
-        if os.path.exists(new_filename):
-            os.remove(new_filename)
-        os.rename(tmpname, new_filename)
+        if os.path.exists(filename):
+            os.remove(filename)
+        os.rename(tmpname, filename)
         self.log.info(f"Real weather applied to the mission.")
         return filename, True
 
