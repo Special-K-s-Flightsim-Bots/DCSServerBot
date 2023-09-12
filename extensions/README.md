@@ -198,7 +198,7 @@ You need to let the sneaker cmd point to wherever you've installed the sneaker.e
 there is a version number attached to it). DCSServerBot will auto-create the config json for sneaker 
 (config/sneaker.json) and start / stop / monitor the sneaker process.
 
-### DCS-real-weather
+### DCS Real Weather Updater
 If you want to use real-time weather in your missions, you can do that by using [DCS-real-weather](https://github.com/evogelsa/DCS-real-weather).
 Download the release zip and unzip it to a directory of your choice on your system running your DCS servers and the 
 DCSServerBot. You can then add another extension into your scheduler.json:
@@ -220,16 +220,34 @@ DCSServerBot. You can then add another extension into your scheduler.json:
       "extensions": {
         "RealWeather": {
           "enabled": true,
-          "icao": "SFAL",
-          "update-time": true,
-          "update-weather": true
+          "metar": {
+            "icao": "KLSV",
+            "remarks": "Test 1.9.0"
+            },
+          "options": {
+            "update-time": false,
+            "update-weather": true,
+            "time-offset": "0",
+            "wind": {
+                "minimum": 2,
+                "maximum": 16,
+                "stability": 0.143
+            },
+            "clouds": {
+                "disallowed-presets": []
+            },
+            "fog-allowed": true,
+            "dust-allowed": true,
+            "logfile": "rwlogfile.log"
+          }
         }
       }
     }
   ]
 }
 ```
-You can find a list of supported parameters in the config.json provided by DCS-real-weather.
+You can find a list of supported parameters in the config.json provided by DCS-real-weather.<br>
+**DCSServerBot only supports DCS Real Weather Updater versions from 1.9.0 upwards.**
 
 ### Lardoon
 [Lardoon](https://github.com/b1naryth1ef/lardoon) is another web-server-based application that provides a nice search 

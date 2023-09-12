@@ -177,10 +177,14 @@ class Scheduler(Plugin):
             ext: Extension = server.extensions.get(extension)
             if not ext:
                 if '.' not in extension:
-                    ext = utils.str_to_class('extensions.' + extension)(self.bot, server,
-                                                                        config['extensions'][extension])
+                    _extension = 'extensions.' + extension
                 else:
-                    ext = utils.str_to_class(extension)(self.bot, server, config['extensions'][extension])
+                    _extension = extension
+                _ext = utils.str_to_class(_extension)
+                if not _ext:
+                    self.log.error(f"Extension {extension} not found!")
+                    return
+                ext = _ext(self.bot, server, config['extensions'][extension])
                 if ext.is_installed():
                     server.extensions[extension] = ext
 

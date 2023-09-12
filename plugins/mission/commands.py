@@ -671,7 +671,9 @@ class Mission(Plugin):
             return
         server: Server = await self.bot.get_server(message)
         # only DCS Admin role is allowed to upload missions in the servers admin channel
-        if not server or not utils.check_roles([x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')], message.author):
+        if not server or not utils.check_roles([
+            x.strip() for x in self.bot.config['ROLES']['DCS Admin'].split(',')
+        ], message.author) or server.get_channel(Channel.ADMIN) != message.channel:
             return
         att = message.attachments[0]
         filename = server.missions_dir + os.path.sep + att.filename
