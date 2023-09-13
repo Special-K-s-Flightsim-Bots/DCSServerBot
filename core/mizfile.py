@@ -4,8 +4,10 @@ import luadata
 import os
 import tempfile
 import zipfile
+
+from core import utils
 from datetime import datetime
-from typing import Union, TYPE_CHECKING
+from typing import Union, TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from core import DCSServerBot
@@ -244,3 +246,29 @@ class MizFile:
     @files.setter
     def files(self, files: list[str]):
         self._files = files
+
+    def modify(self, config: Union[list, dict]) -> None:
+        def process_element(reference: dict, where: Optional[dict] = None):
+            if 'select' in config:
+                element = next(utils.for_each(reference, config['select'].split('/')))
+            else:
+                element = reference
+            for _what, _with in config['replace'].items():
+                if isinstance(_with, dict):
+                    for key, value in _with.items():
+                        if utils.evaluate(key, **element, reference=reference, where=where):
+                            element[_what] = utils.evaluate(value, **element, reference=reference, where=where)
+                            break
+                else:
+                    element[_what] = utils.evaluate(_with, **element, reference=reference, where=where)
+
+        if isinstance(config, list):
+            for cfg in config:
+                self.modify(cfg)
+            return
+        for reference in utils.for_each(self.mission, config['for-each'].split('/')):
+            if 'where' in config:
+                for where in utils.for_each(reference, config['where'].split('/')):
+                    process_element(reference, where)
+            else:
+                process_element(reference)
