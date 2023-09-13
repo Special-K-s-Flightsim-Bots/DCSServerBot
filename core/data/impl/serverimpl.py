@@ -21,7 +21,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent, FileSystemMovedEvent
 
 from core.data.dataobject import DataObjectFactory
-from core.data.const import Status, Channel
+from core.data.const import Status
 from core.mizfile import MizFile
 from core.data.node import UploadStatus
 
@@ -401,6 +401,8 @@ class ServerImpl(Server):
                 miz.difficulty = value['difficulty']
             if 'files' in value:
                 miz.files = value['files']
+            if 'modify' in value:
+                miz.modify(value['modify'])
 
         miz = MizFile(self, filename)
         if isinstance(preset, list):

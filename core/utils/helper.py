@@ -8,7 +8,7 @@ import re
 import string
 import unicodedata
 from datetime import datetime, timedelta
-from typing import Optional, Union, TYPE_CHECKING, Tuple
+from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -291,3 +291,33 @@ class RemoteSettingsDict(dict):
             }
         }
         self.server.send_to_dcs(msg)
+
+
+def evaluate(value: Union[str, int, bool], **kwargs) -> Union[str, int, bool]:
+    if isinstance(value, int) or isinstance(value, bool) or not value.startswith('$'):
+        return value
+    return eval(format_string(value[1:], **kwargs))
+
+
+# Helper function to find a specific node inside a dictionary with a format like
+# /node1/node2/*/node4/$... python evaluation code .../*
+# * is a wildcard to describe any item in a specific list
+# (...) is python code that will be evaluated to find a specific item inside a list
+def for_each(data: dict, search: list[str], depth: Optional[int] = 0) -> Generator[dict]:
+    if len(search) == depth:
+        yield data
+    else:
+        _next = search[depth]
+        if _next == '*':
+            for value in data:
+                yield from for_each(value, search, depth+1)
+        elif _next.startswith('$'):
+            if isinstance(data, list):
+                for value in data:
+                    if evaluate(_next, **value):
+                        yield from for_each(value, search, depth+1)
+            else:
+                if evaluate(_next, **data):
+                    yield from for_each(data, search, depth+1)
+        elif _next in data:
+            yield from for_each(data.get(_next), search, depth+1)
