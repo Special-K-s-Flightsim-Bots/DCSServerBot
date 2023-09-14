@@ -1,6 +1,7 @@
 from __future__ import annotations
 import io
 import luadata
+import math
 import os
 import tempfile
 import random
