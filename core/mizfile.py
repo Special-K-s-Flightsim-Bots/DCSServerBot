@@ -1,8 +1,10 @@
 from __future__ import annotations
 import io
 import luadata
+import math
 import os
 import tempfile
+import random
 import zipfile
 from datetime import datetime
 from typing import Union, Any, Optional
@@ -251,7 +253,12 @@ class MizFile:
     def modify(self, config: Union[list, dict]) -> None:
         def process_element(reference: dict, where: Optional[dict] = None):
             if 'select' in config:
-                element = next(utils.for_each(reference, config['select'].split('/')))
+                if debug:
+                    print("Processing SELECT ...")
+                if config['select'].startswith('/'):
+                    element = next(utils.for_each(self.mission, config['select'][1:].split('/'), debug=debug))
+                else:
+                    element = next(utils.for_each(reference, config['select'].split('/'), debug=debug))
             else:
                 element = reference
             for _what, _with in config['replace'].items():
@@ -267,9 +274,12 @@ class MizFile:
             for cfg in config:
                 self.modify(cfg)
             return
-        for reference in utils.for_each(self.mission, config['for-each'].split('/')):
+        debug = config.get('debug', False)
+        for reference in utils.for_each(self.mission, config['for-each'].split('/'), debug=debug):
             if 'where' in config:
-                for where in utils.for_each(reference, config['where'].split('/')):
+                if debug:
+                    print("Processing WHERE ...")
+                for where in utils.for_each(reference, config['where'].split('/'), debug=debug):
                     process_element(reference, where)
             else:
                 process_element(reference)
