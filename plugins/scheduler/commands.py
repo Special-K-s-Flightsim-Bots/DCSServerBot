@@ -315,6 +315,8 @@ class Scheduler(Plugin):
                 miz.difficulty = value['difficulty']
             if 'files' in value:
                 miz.files = value['files']
+            if 'modify' in value:
+                miz.modify(value['modify'])
 
         filename = server.get_current_mission_file()
         if not filename:
