@@ -4,10 +4,12 @@ import discord
 import os
 import shlex
 
+from contextlib import closing
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
     Channel, DataObjectFactory, event, chat_command
-from datetime import datetime
+from datetime import datetime, timezone
 from discord.ext import tasks
+from psycopg.rows import dict_row
 from queue import Queue
 from typing import TYPE_CHECKING
 
@@ -195,11 +197,27 @@ class MissionEventListener(EventListener):
                 name=data['current_mission'])
         server.current_mission.update(data)
 
+    def _update_bans(self, server: Server):
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                for ban in cursor.execute('SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()'):
+                    if ban['banned_until'].year == 9999:
+                        until = 'never'
+                    else:
+                        until = ban['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+                    server.send_to_dcs({
+                        "command": "ban",
+                        "ucid": ban['ucid'],
+                        "reason": ban['reason'],
+                        "banned_until": until
+                    })
+
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # the server is starting up
         # if not data['channel'].startswith('sync-'):
         #    return
+        self._update_bans(server)
         if 'current_mission' not in data:
             server.status = Status.STOPPED
             return
