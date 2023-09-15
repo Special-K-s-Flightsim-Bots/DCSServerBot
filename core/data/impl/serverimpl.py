@@ -312,7 +312,7 @@ class ServerImpl(Server):
             for ext in self.extensions.values():
                 new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
                 if _dirty:
-                    self.log.info(f'  => {ext.name} applied on {new_filename}.')
+                    self.log.info(f'  => {ext.name} applied on {os.path.basename(new_filename)}.')
                 dirty |= _dirty
             # we did not change anything in the mission
             if not dirty:

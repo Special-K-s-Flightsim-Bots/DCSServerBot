@@ -36,7 +36,10 @@ class RealWeather(Extension):
                 element['input-mission'] = filename
                 element['output-mission'] = tmpname
             elif name in self.config:
-                element |= self.config[name]
+                if isinstance(self.config[name], dict):
+                    element |= self.config[name]
+                else:
+                    element = self.config[name]
         cwd = await self.server.get_missions_dir()
         with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
             json.dump(cfg, outfile, indent=2)
