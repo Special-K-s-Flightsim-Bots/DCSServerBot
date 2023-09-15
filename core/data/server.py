@@ -294,20 +294,19 @@ class Server(DataObject):
         # wait until we are running again
         await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
 
-    def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
+    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         path = os.path.normpath(path)
-        if path in self.settings['missionList']:
-            return
-        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            self.send_to_dcs({"command": "addMission", "path": path, "autostart": autostart})
-        else:
-            missions = self.settings['missionList']
-            missions.append(path)
-            self.settings['missionList'] = missions
-            if autostart:
-                self.settings['listStartIndex'] = missions.index(path) + 1
+        missions = self.settings['missionList']
+        if path not in missions:
+            if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+                await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
+            else:
+                missions.append(path)
+                self.settings['missionList'] = missions
+        elif autostart:
+            self.settings['listStartIndex'] = missions.index(path) + 1
 
-    def deleteMission(self, mission_id: int) -> None:
+    async def deleteMission(self, mission_id: int) -> None:
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
             raise AttributeError("Can't delete the running mission!")
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:

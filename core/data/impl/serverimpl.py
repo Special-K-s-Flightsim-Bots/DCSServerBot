@@ -42,7 +42,11 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
     def on_created(self, event: FileSystemEvent):
         path: str = os.path.normpath(event.src_path)
         if path.endswith('.miz'):
-            self.server.addMission(path)
+            if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+                self.server.send_to_dcs({"command": "addMission", "path": path})
+            else:
+                missions = self.server.settings['missionList']
+                missions.append(path)
             self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
 
     def on_moved(self, event: FileSystemMovedEvent):
@@ -53,15 +57,18 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         path: str = os.path.normpath(event.src_path)
         if not path.endswith('.miz'):
             return
-        for idx, mission in enumerate(self.server.settings['missionList']):
-            if mission != path:
-                continue
-            if (idx + 1) == self.server.mission_id:
-                self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
+        missions = self.server.settings['missionList']
+        if path in missions:
+            if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+                if missions.index(path) + 1 == self.server.mission_id:
+                    self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
+                    return
+                else:
+                    self.server.send_to_dcs({"command": "deleteMission", "id": missions.index(path) + 1})
             else:
-                self.server.deleteMission(idx + 1)
-                self.log.info(f"=> Mission {os.path.basename(mission)[:-4]} deleted from server {self.server.name}.")
-            break
+                missions.remove(path)
+                self.server.settings['missionList'] = missions
+            self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
 
 
 @dataclass
@@ -184,7 +191,9 @@ class ServerImpl(Server):
 
     def serialize(self, message: dict):
         for key, value in message.items():
-            if isinstance(value, int):
+            if isinstance(value, bool):
+                message[key] = value
+            elif isinstance(value, int):
                 message[key] = str(value)
             elif isinstance(value, Enum):
                 message[key] = value.value
@@ -323,8 +332,8 @@ class ServerImpl(Server):
             # check if the original mission can be written
             if filename != new_filename:
                 missions: list[str] = self.settings['missionList']
-                self.deleteMission(missions.index(filename) + 1)
-                self.addMission(new_filename, autostart=True)
+                await self.deleteMission(missions.index(filename) + 1)
+                await self.addMission(new_filename, autostart=True)
         except Exception as ex:
             self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):
@@ -352,7 +361,7 @@ class ServerImpl(Server):
         if rc != UploadStatus.OK:
             return rc
         if not self.locals.get('autoscan', False):
-            self.addMission(filename)
+            await self.addMission(filename)
         if stopped:
             await self.start()
         return UploadStatus.OK

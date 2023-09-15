@@ -253,7 +253,7 @@ function dcsbot.addMission(json)
 	net.missionlist_append(path)
 	local current_missions = net.missionlist_get()
     if json.autostart == true then
-        listStartIndex = #current_missions
+        listStartIndex = #current_missions['missionList']
     else
         listStartIndex = current_missions["listStartIndex"]
     end

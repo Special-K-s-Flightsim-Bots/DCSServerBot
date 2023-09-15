@@ -214,7 +214,7 @@ class Mission(Plugin):
                                                 ephemeral=True)
         else:
             mission = server.settings['missionList'][mission_id]
-            name = mission[:-4]
+            name = os.path.basename(mission[:-4])
             if result == 'later':
                 server.on_empty = {"command": "load", "id": mission_id + 1, "user": interaction.user}
                 server.restart_pending = True
@@ -243,7 +243,7 @@ class Mission(Plugin):
             await interaction.response.send_message(f"File {path} could not be found.", ephemeral=True)
             return
 
-        server.addMission(path, autostart=autostart)
+        await server.addMission(path, autostart=autostart)
         name = os.path.basename(path)[:-4]
         await interaction.response.send_message(f'Mission "{utils.escape_string(name)}" added.', ephemeral=True)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED] or \
@@ -271,7 +271,7 @@ class Mission(Plugin):
         name = filename[:-4]
 
         if await utils.yn_question(interaction, f'Delete mission "{name}" from the mission list?'):
-            server.deleteMission(mission_id + 1)
+            await server.deleteMission(mission_id + 1)
             await interaction.followup.send(f'Mission "{name}" removed from list.', ephemeral=True)
             if await utils.yn_question(interaction, f'Delete mission "{name}" also from disk?'):
                 try:
@@ -364,8 +364,9 @@ class Mission(Plugin):
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if new_filename != filename:
                 missions = server.settings['missionList']
-                server.deleteMission(missions.index(filename) + 1)
-                server.addMission(new_filename, autostart=True)
+                if filename in missions:
+                    await server.deleteMission(missions.index(filename) + 1)
+                await server.addMission(new_filename, autostart=True)
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
                 await server.restart(smooth=True)
                 message += '\nMission reloaded.'
@@ -627,7 +628,7 @@ class Mission(Plugin):
             filename = os.path.join(await server.get_missions_dir(), att.filename)
             name = os.path.basename(att.filename)[:-4]
             if not server.locals.get('autoscan', False):
-                server.addMission(filename)
+                await server.addMission(filename)
             await message.channel.send(f'Mission "{name}" uploaded to server {server.name} and added.')
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
 
