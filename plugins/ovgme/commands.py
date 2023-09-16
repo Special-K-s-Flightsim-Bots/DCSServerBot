@@ -98,15 +98,21 @@ class OvGME(Plugin):
                 derived.clear_items()
                 if derived.available and server.status == Status.SHUTDOWN:
                     select = Select(placeholder="Select a package to install / update",
-                                    options=[SelectOption(label=x[1] + '_' + x[2], value=str(idx))
-                                             for idx, x in enumerate(derived.available)],
+                                    options=[
+                                        SelectOption(label=x[1] + '_' + x[2], value=str(idx))
+                                        for idx, x in enumerate(derived.available)
+                                        if idx < 25
+                                    ],
                                     row=0)
                     select.callback = derived.install
                     derived.add_item(select)
                 if derived.installed and server.status == Status.SHUTDOWN:
                     select = Select(placeholder="Select a package to uninstall",
-                                    options=[SelectOption(label=x[1] + '_' + x[2], value=str(idx))
-                                             for idx, x in enumerate(derived.installed)],
+                                    options=[
+                                        SelectOption(label=x[1] + '_' + x[2], value=str(idx))
+                                        for idx, x in enumerate(derived.installed)
+                                        if idx < 25
+                                    ],
                                     disabled=not derived.installed or server.status != Status.SHUTDOWN,
                                     row=1)
                     select.callback = derived.uninstall
