@@ -1,7 +1,13 @@
+import aiohttp
+import certifi
 import os
 import shutil
 import subprocess
+import ssl
 import sys
+
+from discord.ext import tasks
+
 if sys.platform == 'win32':
     import win32api
     import win32con
@@ -164,3 +170,22 @@ class SRS(Extension):
         else:
             ports[port] = self.server.name
         return True
+
+    @tasks.loop(minutes=5)
+    async def schedule(self):
+        if not self.config.get('autoupdate', False):
+            return
+        try:
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+                async with session.get("https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/latest") as response:
+                    if response.status in [200, 302]:
+                        version = response.url.raw_parts[-1]
+                        if version != self.version:
+                            self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
+                            cwd = os.path.expandvars(self.config['installation'])
+                            subprocess.run(executable=os.path.join(cwd, 'SRS-AutoUpdater.exe'),
+                                           args=['-server', '-autoupdate', f'-path=\"{cwd}\"'], cwd=cwd, shell=True)
+        except OSError as ex:
+            if ex.winerror == 740:
+                self.log.error("You need to run DCSServerBot as Administrator to use the DCS-SRS AutoUpdater.")
