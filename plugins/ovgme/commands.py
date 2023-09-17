@@ -3,7 +3,7 @@ import discord
 import os
 import psycopg
 
-from core import Status, Plugin, utils, Server, command, ServiceRegistry, PluginInstallationError
+from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallationError, Group
 from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 
@@ -14,6 +14,65 @@ from urllib.parse import urlparse, unquote
 from services.ovgme import OvGMEService
 
 OVGME_FOLDERS = ['RootFolder', 'SavedGames']
+
+
+def get_installed(service: OvGMEService, server: Server) -> list[Tuple[str, str, str]]:
+    installed = []
+    for folder in OVGME_FOLDERS:
+        _mods = [(folder, x, y) for x, y in service.get_installed_packages(server, folder)]
+        if _mods:
+            installed.extend(_mods)
+    return installed
+
+
+async def installed_mods(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+    try:
+        server: Server = await utils.ServerTransformer().transform(interaction,
+                                                                   utils.get_interaction_param(interaction, 'server'))
+        if not server:
+            return []
+        return [
+            app_commands.Choice(name=name + f'_v{version}', value=f"{folder}/{name}/{version}")
+            for folder, name, version in sorted(get_installed(service, server))
+            if not current or current.casefold() in name.casefold()
+        ][:25]
+    except Exception as ex:
+        service.log.exception(ex)
+
+
+def get_available(service: OvGMEService, server: Server) -> list[Tuple[str, str, str]]:
+    available = []
+    config = service.get_config(server)
+    for folder in OVGME_FOLDERS:
+        packages = []
+        for x in os.listdir(os.path.expandvars(config[folder])):
+            if x.startswith('.'):
+                continue
+            package, version = service.parse_filename(x)
+            if package:
+                packages.append((folder, package, version))
+            else:
+                service.log.warning(f"{x} could not be parsed!")
+        if packages:
+            available.extend(packages)
+    return list(set(available) - set(get_installed(service, server)))
+
+
+async def available_mods(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    service: OvGMEService = cast(OvGMEService, ServiceRegistry.get("OvGME"))
+    try:
+        server: Server = await utils.ServerTransformer().transform(interaction,
+                                                                   utils.get_interaction_param(interaction, 'server'))
+        if not server:
+            return []
+        return [
+            app_commands.Choice(name=name + f'_v{version}', value=f"{folder}/{name}/{version}")
+            for folder, name, version in sorted(get_available(service, server))
+            if not current or current.casefold() in name.casefold()
+        ][:25]
+    except Exception as ex:
+        service.log.exception(ex)
 
 
 class OvGME(Plugin):
@@ -27,45 +86,23 @@ class OvGME(Plugin):
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         conn.execute('UPDATE ovgme_packages SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    @command(description='Install / uninstall / update packages')
+    # New command group "/mods"
+    mods = Group(name="mods", description="Commands to manage custom mods in your DCS server")
+
+    @mods.command(description='Install / uninstall / update mods')
     @app_commands.guild_only()
     @utils.app_has_roles(['Admin'])
-    async def packages(self, interaction: discord.Interaction,
-                       server: app_commands.Transform[Server, utils.ServerTransformer(
-                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
+    async def manage(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer(
+                         status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.SHUTDOWN])]):
         class PackageView(View):
 
             def __init__(derived, embed: discord.Embed):
                 super().__init__()
-                derived.installed = derived.get_installed()
-                derived.available = derived.get_available()
+                derived.installed = get_installed(self.service, server)
+                derived.available = get_available(self.service, server)
                 derived.embed = embed
                 derived.render()
-
-            def get_installed(derived) -> list[Tuple[str, str, str]]:
-                installed = []
-                for folder in OVGME_FOLDERS:
-                    packages = [(folder, x, y) for x, y in self.service.get_installed_packages(server, folder)]
-                    if packages:
-                        installed.extend(packages)
-                return installed
-
-            def get_available(derived) -> list[Tuple[str, str, str]]:
-                available = []
-                config = self.service.get_config(server)
-                for folder in OVGME_FOLDERS:
-                    packages = []
-                    for x in os.listdir(os.path.expandvars(config[folder])):
-                        if x.startswith('.'):
-                            continue
-                        package, version = self.service.parse_filename(x)
-                        if package:
-                            packages.append((folder, package, version))
-                        else:
-                            self.log.warning(f"{x} could not be parsed!")
-                    if packages:
-                        available.extend(packages)
-                return list(set(available) - set(derived.installed))
 
             async def shutdown(derived, interaction: discord.Interaction):
                 await interaction.response.defer()
@@ -89,7 +126,7 @@ class OvGME(Plugin):
                             update += latest + '\n'
                         else:
                             update += '_ _\n'
-                    derived.embed.add_field(name='Package', value=packages)
+                    derived.embed.add_field(name='Mod', value=packages)
                     derived.embed.add_field(name='Version', value=versions)
                     derived.embed.add_field(name='Update', value=update)
                 else:
@@ -97,7 +134,7 @@ class OvGME(Plugin):
 
                 derived.clear_items()
                 if derived.available and server.status == Status.SHUTDOWN:
-                    select = Select(placeholder="Select a package to install / update",
+                    select = Select(placeholder="Select a mod to install / update",
                                     options=[
                                         SelectOption(label=x[1] + '_' + x[2], value=str(idx))
                                         for idx, x in enumerate(derived.available)
@@ -107,7 +144,7 @@ class OvGME(Plugin):
                     select.callback = derived.install
                     derived.add_item(select)
                 if derived.installed and server.status == Status.SHUTDOWN:
-                    select = Select(placeholder="Select a package to uninstall",
+                    select = Select(placeholder="Select a mod to uninstall",
                                     options=[
                                         SelectOption(label=x[1] + '_' + x[2], value=str(idx))
                                         for idx, x in enumerate(derived.installed)
@@ -139,28 +176,28 @@ class OvGME(Plugin):
                     folder, package, version = derived.available[int(interaction.data['values'][0])]
                     current = self.service.check_package(server, folder, package)
                     if current:
-                        derived.embed.set_footer(text=f"Updating package {package}, please wait ...")
+                        derived.embed.set_footer(text=f"Updating mod {package}, please wait ...")
                         await interaction.edit_original_response(embed=derived.embed)
                         if not await self.service.uninstall_package(server, folder, package, current):
-                            derived.embed.set_footer(text=f"Package {package}_v{version} could not be uninstalled!")
+                            derived.embed.set_footer(text=f"Mod {package}_v{version} could not be uninstalled!")
                             await interaction.edit_original_response(embed=derived.embed)
                         elif not await self.service.install_package(server, folder, package, version):
-                            derived.embed.set_footer(text=f"Package {package}_v{version} could not be installed!")
+                            derived.embed.set_footer(text=f"Mod {package}_v{version} could not be installed!")
                             await interaction.edit_original_response(embed=derived.embed)
                         else:
-                            derived.embed.set_footer(text=f"Package {package} updated.")
-                            derived.installed = derived.get_installed()
-                            derived.available = derived.get_available()
+                            derived.embed.set_footer(text=f"Mod {package} updated.")
+                            derived.installed = get_installed(self.service, server)
+                            derived.available = get_available(self.service, server)
                             derived.render()
                     else:
-                        derived.embed.set_footer(text=f"Installing package {package}, please wait ...")
+                        derived.embed.set_footer(text=f"Installing mod {package}, please wait ...")
                         await interaction.edit_original_response(embed=derived.embed)
                         if not await self.service.install_package(server, folder, package, version):
-                            derived.embed.set_footer(text=f"Installation of package {package} failed.")
+                            derived.embed.set_footer(text=f"Installation of mod {package} failed.")
                         else:
-                            derived.embed.set_footer(text=f"Package {package} installed.")
-                            derived.installed = derived.get_installed()
-                            derived.available = derived.get_available()
+                            derived.embed.set_footer(text=f"Mod {package} installed.")
+                            derived.installed = get_installed(self.service, server)
+                            derived.available = get_available(self.service, server)
                             derived.render()
                     await interaction.edit_original_response(embed=derived.embed, view=derived)
                 except Exception as ex:
@@ -168,15 +205,15 @@ class OvGME(Plugin):
 
             async def uninstall(derived, interaction: discord.Interaction):
                 await interaction.response.defer()
-                folder, package, version = derived.installed[int(interaction.data['values'][0])]
-                derived.embed.set_footer(text=f"Uninstalling package {package}, please wait ...")
+                folder, mod, version = derived.installed[int(interaction.data['values'][0])]
+                derived.embed.set_footer(text=f"Uninstalling mod {mod}, please wait ...")
                 await interaction.edit_original_response(embed=derived.embed)
-                if not await self.service.uninstall_package(server, folder, package, version):
-                    derived.embed.set_footer(text=f"Package {package}_v{version} could not be uninstalled!")
+                if not await self.service.uninstall_package(server, folder, mod, version):
+                    derived.embed.set_footer(text=f"Mod {mod}_v{version} could not be uninstalled!")
                 else:
-                    derived.embed.set_footer(text=f"Package {package} uninstalled.")
-                    derived.installed = derived.get_installed()
-                    derived.available = derived.get_available()
+                    derived.embed.set_footer(text=f"Mod {mod} uninstalled.")
+                    derived.installed = get_installed(self.service, server)
+                    derived.available = get_available(self.service, server)
                     derived.render()
                 await interaction.edit_original_response(embed=derived.embed, view=derived)
 
@@ -218,21 +255,63 @@ class OvGME(Plugin):
                     for child in derived.children:
                         child.disabled = False
                     embed.remove_footer()
-                    derived.available = derived.get_available()
+                    derived.available = get_available(self.service, server)
                     derived.render()
                     await interaction.edit_original_response(embed=derived.embed, view=derived)
 
             async def cancel(derived, interaction: discord.Interaction):
                 derived.stop()
 
-        embed = discord.Embed(title="Package Manager", color=discord.Color.blue())
-        embed.description = f"Install or uninstall mod packages to {server.name}"
+        embed = discord.Embed(title="Mod Manager", color=discord.Color.blue())
+        embed.description = f"Install or uninstall mods to {server.name}"
         view = PackageView(embed)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         try:
             await view.wait()
         finally:
             await interaction.delete_original_response()
+
+    @mods.command(name="install", description='Install mods to your DCS server')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['Admin'])
+    @app_commands.autocomplete(mod=available_mods)
+    async def _install(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
+                       mod: str):
+        folder, package, version = mod.split('/')
+        await interaction.response.defer(ephemeral=True)
+        current = self.service.check_package(server, folder, package)
+        if current:
+            await interaction.followup.send(f"Updating mod {package} from {current} to {version}, please wait ...",
+                                            ephemeral=True)
+            if not await self.service.uninstall_package(server, folder, package, current):
+                await interaction.followup.send(f"Mod {package}_v{version} could not be uninstalled!",
+                                                ephemeral=True)
+            elif not await self.service.install_package(server, folder, package, version):
+                await interaction.followup.send(f"Mod {package}_v{version} could not be installed!", ephemeral=True)
+            else:
+                await interaction.followup.send(f"Mod {package} updated to version {version}.", ephemeral=True)
+        else:
+            await interaction.followup.send(f"Installing mod {package}, please wait ...", ephemeral=True)
+            if not await self.service.install_package(server, folder, package, version):
+                await interaction.followup.send(f"Installation of mod {package} failed.", ephemeral=True)
+            else:
+                await interaction.followup.send(f"Mod {package} installed with version {version}.", ephemeral=True)
+
+    @mods.command(description='Uninstall mods from your DCS server')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['Admin'])
+    @app_commands.autocomplete(mod=installed_mods)
+    async def uninstall(self, interaction: discord.Interaction,
+                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
+                        mod: str):
+        folder, package, version = mod.split('/')
+        await interaction.response.defer(ephemeral=True)
+        await interaction.followup.send(f"Uninstalling mod {package}, please wait ...", ephemeral=True)
+        if not await self.service.uninstall_package(server, folder, package, version):
+            await interaction.followup.send(f"Mod {package}_v{version} could not be uninstalled!", ephemeral=True)
+        else:
+            await interaction.followup.send(f"Mod {package} uninstalled.", ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
