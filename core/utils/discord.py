@@ -1,6 +1,5 @@
 from __future__ import annotations
 import asyncio
-import traceback
 import discord
 import os
 import re
@@ -25,6 +24,7 @@ class PlayerType(Enum):
     ALL = auto()
     PLAYER = auto()
     MEMBER = auto()
+    HISTORY = auto()
 
 
 async def wait_for_single_reaction(bot: DCSServerBot, interaction: discord.Interaction,
@@ -479,8 +479,8 @@ class ServerTransformer(app_commands.Transformer):
                 if (not self.status or value.status in self.status) and current.casefold() in name.casefold()
             ]
             return choices[:25]
-        except Exception:
-            traceback.print_exc()
+        except Exception as ex:
+            interaction.client.log.exception(ex)
 
 
 class NodeTransformer(app_commands.Transformer):
@@ -533,8 +533,8 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
             if not current or current.casefold() in x[:-4].casefold()
         ]
         return choices[:25]
-    except Exception:
-        traceback.print_exc()
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -549,8 +549,8 @@ async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -
             if x not in installed_missions and current.casefold() in os.path.basename(x).casefold()
         ]
         return choices[:25]
-    except Exception:
-        traceback.print_exc()
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def plugins_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -572,8 +572,8 @@ async def available_modules_autocomplete(interaction: discord.Interaction, curre
             for x in available_modules
             if not current or current.casefold() in x.casefold()
         ]
-    except Exception:
-        traceback.print_exc()
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def installed_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -585,8 +585,8 @@ async def installed_modules_autocomplete(interaction: discord.Interaction, curre
             for x in available_modules
             if not current or current.casefold() in x.casefold()
         ]
-    except Exception:
-        traceback.print_exc()
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def player_modules_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -613,8 +613,8 @@ async def player_modules_autocomplete(interaction: discord.Interaction, current:
             for x in get_modules(ucid)
             if not current or current.casefold() in x.casefold()
         ]
-    except Exception:
-        traceback.print_exc()
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 class UserTransformer(app_commands.Transformer):
@@ -676,8 +676,8 @@ class PlayerTransformer(app_commands.Transformer):
                     if not current or current.casefold() in name.casefold() or current.casefold() in ucid
                 ]
             return choices[:25]
-        except Exception:
-            traceback.print_exc()
+        except Exception as ex:
+            interaction.client.log.exception(ex)
 
 
 async def server_selection(bus: ServiceBus,

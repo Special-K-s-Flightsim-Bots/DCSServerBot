@@ -2,7 +2,6 @@ import discord
 import os
 import platform
 import shutil
-import traceback
 
 from contextlib import closing
 from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group
@@ -28,8 +27,8 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
             if not current or current.casefold() in x['label'].casefold()
         ]
         return choices[:25]
-    except Exception:
-        traceback.print_exc()
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def file_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -47,8 +46,8 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
             if not current or current.casefold() in x
         ]
         return choices[:25]
-    except Exception:
-        traceback.print_exc()
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 class Admin(Plugin):

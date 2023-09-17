@@ -1,6 +1,5 @@
 import discord
 import os
-import traceback
 
 from core import Plugin, Report, ReportEnv, command, Command
 from discord import app_commands
@@ -34,8 +33,8 @@ async def commands_autocomplete(interaction: discord.Interaction, current: str) 
             for name, command in sorted((await get_commands(interaction)).items())
             if not current or current.casefold() in name.casefold()
         ][:25]
-    except Exception:
-        traceback.print_exc()
+    except Exception as ex:
+        interaction.client.log.exception(ex)
 
 
 async def command_picker(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:

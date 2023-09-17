@@ -3,7 +3,6 @@ import os
 import re
 import sys
 import time
-import traceback
 if sys.platform == 'win32':
     import win32api
 
@@ -202,8 +201,8 @@ class Tacview(Extension):
                     if match:
                         await self.send_tacview_file(match.group('filename')[1:-1])
                 self.log_pos = file.tell()
-        except Exception:
-            traceback.print_exc()
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def send_tacview_file(self, filename: str):
         # wait 60s for the file to appear

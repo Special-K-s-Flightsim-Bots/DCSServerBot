@@ -2,7 +2,6 @@ import asyncio
 import os
 import subprocess
 import sys
-import traceback
 if sys.platform == 'win32':
     import win32api
 
@@ -104,5 +103,5 @@ class Lardoon(Extension):
             proc = await asyncio.create_subprocess_exec(
                 cmd, "prune",  "--no-dry-run", stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
             await proc.communicate()
-        except Exception:
-            traceback.print_exc()
+        except Exception as ex:
+            self.log.exception(ex)

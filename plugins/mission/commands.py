@@ -3,7 +3,6 @@ import discord
 import os
 import psycopg
 import re
-import traceback
 
 from core import utils, Plugin, Report, Status, Server, Coalition, Channel, Player, PluginRequiredError, MizFile, \
     Group, ReportEnv, UploadStatus
@@ -604,8 +603,8 @@ class Mission(Plugin):
                     if not server:
                         await ctx.send('Aborted.')
                         return
-                except Exception:
-                    traceback.print_exc()
+                except Exception as ex:
+                    self.log.exception(ex)
                     return
             else:
                 return
@@ -639,8 +638,8 @@ class Mission(Plugin):
                 await self.bot.audit("loaded mission", server=server, user=message.author)
                 await tmp.delete()
                 await message.channel.send(f'Mission {name} loaded.')
-        except Exception:
-            traceback.print_exc()
+        except Exception as ex:
+            self.log.exception(ex)
         finally:
             await message.delete()
 
