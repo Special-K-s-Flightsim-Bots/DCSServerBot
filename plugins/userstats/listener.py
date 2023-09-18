@@ -150,7 +150,7 @@ class UserStatisticsEventListener(EventListener):
                                 # only warn for unknown users if it is a non-public server and automatch is on
                                 if not player.member and self.bot.locals.get('automatch', True) and \
                                         len(server.settings['password']) > 0:
-                                    await self.bot.get_channel(server.channels[Channel.ADMIN]).send(
+                                    await self.bot.get_admin_channel(server).send(
                                         f"Player {data['name']} (ucid={data['ucid']}) can't be matched to a "
                                         f"discord user.")
                                 cursor.execute(self.SQL_MISSION_HANDLING['start_player'],
@@ -201,7 +201,7 @@ class UserStatisticsEventListener(EventListener):
                                                                                             player=player))
             # only warn for unknown users if it is a non-public server and automatch is on
             if self.bot.locals.get('automatch', True) and server.settings['password']:
-                await self.bot.get_channel(server.channels[Channel.ADMIN]).send(
+                await self.bot.get_admin_channel(server).send(
                     f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.')
         else:
             player.sendChatMessage(self.get_config(server).get(
@@ -337,7 +337,7 @@ class UserStatisticsEventListener(EventListener):
                     cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
                     if cursor.rowcount == 0:
                         player.sendChatMessage('Invalid token.')
-                        await self.bot.get_channel(server.channels[Channel.ADMIN]).send(
+                        await self.bot.get_admin_channel(server).send(
                             f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
                     else:
                         discord_id = cursor.fetchone()[0]

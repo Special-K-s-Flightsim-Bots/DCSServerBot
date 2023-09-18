@@ -48,7 +48,7 @@ class Punishment(Plugin):
     async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: Optional[float] = None):
         player: Player = server.get_player(ucid=ucid, active=True)
         member = self.bot.get_member_by_ucid(ucid)
-        admin_channel = self.bot.get_channel(server.channels[Channel.ADMIN])
+        admin_channel = self.bot.get_admin_channel(server)
         if punishment['action'] == 'ban':
             self.bus.ban(ucid, self.plugin_name, reason, punishment.get('days', 3))
             if member:

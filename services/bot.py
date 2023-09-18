@@ -69,14 +69,14 @@ class BotService(Service):
             await self.bot.close()
         await super().stop()
 
-    async def alert(self, message: str, channel: int):
+    async def alert(self, server: Server, message: str):
         mentions = ''
         for role_name in self.bot.roles['DCS Admin']:
             role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
             if role:
                 mentions += role.mention
         message = mentions + ' ' + utils.escape_string(message)
-        await self.bot.get_channel(channel).send(message)
+        await self.bot.get_admin_channel(server).send(message)
 
     async def install_fonts(self):
         font = self.locals.get('reports', {}).get('cjk_font')
@@ -415,6 +415,12 @@ class DCSServerBot(commands.Bot):
     @lru_cache
     def get_channel(self, channel_id: int):
         return super().get_channel(channel_id) if channel_id != -1 else None
+
+    def get_admin_channel(self, server: Server):
+        admin_channel = self.locals.get('admin_channel')
+        if not admin_channel:
+            admin_channel = server.channels[Channel.ADMIN]
+        return self.get_channel(admin_channel)
 
     def get_ucid_by_name(self, name: str) -> Tuple[Optional[str], Optional[str]]:
         with self.pool.connection() as conn:

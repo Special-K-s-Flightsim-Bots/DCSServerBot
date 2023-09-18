@@ -409,7 +409,7 @@ class MissionEventListener(EventListener):
             if server.is_public() and player1 and player2 and data['arg1'] != data['arg4'] \
                     and data['arg3'] == data['arg6']:
                 name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
-                await self.bot.get_channel(server.channels[Channel.ADMIN]).send(
+                await self.bot.get_admin_channel(server).send(
                     f'{name} (ucid={player1.ucid}) is killing team members. Please investigate.'
                 )
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
@@ -486,9 +486,9 @@ class MissionEventListener(EventListener):
         if not delinquent:
             player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
             return
-        ServiceRegistry.get('ServiceBus').ban(delinquent.ucid, player.member.display_name, reason, 30)
-        player.sendChatMessage(f"User {name} banned for 30 days.")
-        await self.bot.audit(f'Player {delinquent.display_name} banned for 30 days' +
+        ServiceRegistry.get('ServiceBus').ban(delinquent.ucid, player.member.display_name, reason, 3)
+        player.sendChatMessage(f"User {name} banned for 3 days.")
+        await self.bot.audit(f'Player {delinquent.display_name} banned for 3 days' +
                              (f' with reason "{reason}".' if reason != 'n/a' else '.'),
                              user=player.member)
 
@@ -544,8 +544,13 @@ class MissionEventListener(EventListener):
             if role:
                 mentions += role.mention
         message = ' '.join(params)
-        await self.bot.get_channel(server.channels[Channel.ADMIN]).send(
-            mentions + f" 911 call from player {player.name} (ucid={player.ucid}):```{message}```")
+        embed = discord.Embed(title='MAYDAY // 911 Call', colour=discord.Color.blue())
+        embed.set_image(url="https://media.tenor.com/pDRfpNAXfmcAAAAC/despicable-me-minions.gif")
+        embed.description = message
+        embed.add_field(name="Server", value=server.name, inline=False)
+        embed.add_field(name="Player", value=player.name)
+        embed.add_field(name="UCID", value=player.ucid)
+        await self.bot.get_admin_channel(server).send(mentions, embed=embed)
 
     @chat_command(name="preset", aliases=["presets"], roles=['DCS Admin'], usage="<preset>",
                   help="load a specific weather preset")
