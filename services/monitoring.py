@@ -215,5 +215,5 @@ class MonitoringService(Service):
             await self.heartbeat()
             if 'serverstats' in self.node.config.get('opt_plugins', []):
                 await self.serverload()
-        except Exception:
+        except Exception as ex:
             self.log.exception(ex)
