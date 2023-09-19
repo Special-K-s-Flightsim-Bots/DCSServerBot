@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import core
 import json
 import os
@@ -15,6 +17,55 @@ from rich.prompt import IntPrompt, Prompt
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
+
+
+def post_migrate_admin():
+    with open('config/plugins/admin.yaml') as infile:
+        data = yaml.load(infile)
+    config = False
+    remove = -1
+    for instance in data:
+        for idx, download in enumerate(data[instance]['downloads']):
+            if download['label'] == 'DCSServerBot Logs':
+                download['directory'] = 'logs'
+                download['pattern'] = 'dcssb-*.log*'
+            elif download['label'] == 'Config Files':
+                config = True
+                download['label'] = 'Main Config Files'
+                download['pattern'] = '*.yaml'
+            elif download['label'] == 'dcsserverbot.ini':
+                remove = idx
+            download['directory'] = download['directory'].replace('{server.installation}', '{server.instance.name}')
+        if remove != -1:
+            del data[instance]['downloads'][remove]
+        if config:
+            data[instance]['downloads'].append({
+                "label": "Plugin Config Files",
+                "directory": "./config/plugins",
+                "pattern": "*.yaml"
+            })
+            data[instance]['downloads'].append({
+                "label": "Service Config Files",
+                "directory": "./config/services",
+                "pattern": "*.yaml"
+            })
+    with open('config/plugins/admin.yaml', 'w') as outfile:
+        yaml.dump(data, outfile)
+
+
+def post_migrate_music():
+    with open('config/plugins/music.yaml') as infile:
+        data = yaml.load(infile)
+    for instance in data.values():
+        instance['radios'] = {
+            'Radio 1': deepcopy(instance['sink'])
+        }
+        instance['radios']['Radio 1']['type'] = 'SRSRadio'
+        instance['radios']['Radio 1']['display_name'] = instance['radios']['Radio 1']['name']
+        del instance['radios']['Radio 1']['name']
+        del instance['sink']
+    with open('config/plugins/music.yaml', 'w') as outfile:
+        yaml.dump(data, outfile)
 
 
 def migrate():
@@ -56,12 +107,13 @@ def migrate():
             plugins.extend([x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')])
         for plugin_name in set(plugins):
             if os.path.exists(f'config/{plugin_name}.json'):
-                if plugin_name == 'admin':
-                    shutil.move('config/admin.json', BACKUP_FOLDER)
-                    if master:
-                        print("[yellow]- NOT migrated config/admin.json, falling back to default instead.[/]")
-                    continue
                 core.Plugin.migrate_to_3(plugin_name)
+                if plugin_name == 'admin':
+                    post_migrate_admin()
+                    print(f"- Migrated config/admin.json to config/plugins/admin.yaml")
+                    continue
+                elif plugin_name == 'music':
+                    post_migrate_music()
                 if plugin_name in ['backup', 'ovgme', 'music']:
                     shutil.move(f'config/plugins/{plugin_name}.yaml', f'config/services/{plugin_name}.yaml')
                     print(f"- Migrated config/{plugin_name}.json to config/services/{plugin_name}.yaml")

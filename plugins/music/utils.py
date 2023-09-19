@@ -1,13 +1,20 @@
+from __future__ import annotations
+from typing import cast
+
 import discord
 import eyed3
 import os
 
-from core import utils
+from core import utils, ServiceRegistry, Server
 from discord import app_commands
 from eyed3.id3 import Tag
 from functools import lru_cache
 from pathlib import Path
 from services import DCSServerBot
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services import MusicService
 
 
 @lru_cache(maxsize=None)
@@ -18,9 +25,10 @@ def get_tag(file) -> Tag:
 
 class Playlist:
 
-    def __init__(self, bot: DCSServerBot, playlist: str):
-        self.log = bot.log
-        self.pool = bot.pool
+    def __init__(self, playlist: str):
+        self.service = ServiceRegistry.get("Music")
+        self.log = self.service.log
+        self.pool = self.service.pool
         self.playlist = playlist
         # initialize the playlist if there is one stored in the database
         with self.pool.connection() as conn:
@@ -90,11 +98,10 @@ async def all_songs_autocomplete(
         current: str,
 ) -> list[app_commands.Choice[str]]:
     ret = []
-    music_dir = interaction.client.cogs['Music'].get_music_dir()
+    service: MusicService = ServiceRegistry.get("Music")
+    music_dir = await service.get_music_dir()
     for song in [
-        file.name for file in sorted
-        (Path(interaction.command.binding.get_music_dir()).glob('*.mp3'),
-         key=lambda x: x.stat().st_mtime, reverse=True)]:
+        file.name for file in sorted(Path(music_dir).glob('*.mp3'), key=lambda x: x.stat().st_mtime, reverse=True)]:
         title = get_tag(os.path.join(music_dir, song)).title or song
         if current and current.casefold() not in title.casefold():
             continue
@@ -106,8 +113,9 @@ async def songs_autocomplete(
         interaction: discord.Interaction,
         current: str,
 ) -> list[app_commands.Choice[str]]:
-    music_dir = interaction.client.cogs['Music'].get_music_dir()
-    playlist = Playlist(interaction.client, utils.get_interaction_param(interaction, 'playlist'))
+    service: MusicService = ServiceRegistry.get("Music")
+    music_dir = await service.get_music_dir()
+    playlist = Playlist(utils.get_interaction_param(interaction, 'playlist'))
     ret = []
     for song in playlist.items:
         title = get_tag(os.path.join(music_dir, song)).title or song
@@ -115,3 +123,19 @@ async def songs_autocomplete(
             continue
         ret.append(app_commands.Choice(name=title[:100], value=song))
     return ret[:25]
+
+
+async def radios_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    try:
+        server: Server = await utils.ServerTransformer().transform(
+            interaction, utils.get_interaction_param(interaction, 'server'))
+        if not server:
+            return []
+        service: MusicService = ServiceRegistry.get("Music")
+        choices: list[app_commands.Choice[str]] = [
+            app_commands.Choice(name=x, value=x) for x in service.get_config(server)['radios'].keys()
+            if not current or current.casefold() in x.casefold()
+        ]
+        return choices[:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)

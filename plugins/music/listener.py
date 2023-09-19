@@ -12,22 +12,22 @@ class MusicEventListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        # if we've just started, we need to start the Sinks
-        if not data['channel'].startswith('sync-') and not server.is_remote:
-            await self.service.start_sink(server)
+        # if we've just started, we need to start the radios
+        if data['channel'].startswith('sync-'):
+            await self.service.start_radios(server=server)
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if len(server.get_active_players()) == 1:
-            await self.service.start_sink(server)
+            await self.service.start_radios(server=server)
 
     @event(name="onPlayerStop")
     async def onPlayerStop(self, server: Server, data: dict) -> None:
         if not server.get_active_players():
-            await self.service.stop_sink(server)
+            await self.service.stop_radios(server=server)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
         if data['eventName'] == 'disconnect':
             if not server.get_active_players():
-                await self.service.stop_sink(server)
+                await self.service.stop_radios(server=server)

@@ -1,16 +1,16 @@
 import asyncio
-import discord
 import os
 
 from abc import ABC
 from contextlib import suppress, closing
-from copy import deepcopy
-from core import Server, DEFAULT_TAG, Service
+from core import Server, ServiceRegistry
 from discord.ext import tasks
-from discord.ui import Modal
 from enum import Enum
 from random import randrange
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .. import MusicService
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -18,8 +18,8 @@ yaml = YAML()
 
 __all__ = [
     "Mode",
-    "Sink",
-    "SinkInitError"
+    "Radio",
+    "RadioInitError"
 ]
 
 
@@ -28,14 +28,14 @@ class Mode(Enum):
     SHUFFLE = 2
 
 
-class Sink(ABC):
+class Radio(ABC):
 
-    def __init__(self, service: Service, server: Server, music_dir: str):
-        self.service = service
-        self.log = service.log
-        self.pool = service.pool
+    def __init__(self, name: str, server: Server):
+        self.name = name
+        self.service: MusicService = ServiceRegistry.get("Music")
+        self.log = self.service.log
+        self.pool = self.service.pool
         self.server = server
-        self.music_dir = music_dir
         self._current = None
         self._mode = Mode(int(self.config['mode']))
         self.songs: list[str] = []
@@ -46,8 +46,8 @@ class Sink(ABC):
     def _get_active_playlist(self) -> Optional[str]:
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT playlist_name FROM music_servers WHERE server_name = %s',
-                               (self.server.name,))
+                cursor.execute('SELECT playlist_name FROM music_radios WHERE server_name = %s AND radio_name = %s',
+                               (self.server.name, self.name))
                 return cursor.fetchone()[0] if cursor.rowcount > 0 else None
 
     def _read_playlist(self) -> list[str]:
@@ -68,30 +68,27 @@ class Sink(ABC):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     conn.execute("""
-                        INSERT INTO music_servers (server_name, playlist_name) 
-                        VALUES (%s, %s) ON CONFLICT (server_name) DO UPDATE 
+                        INSERT INTO music_radios (server_name, radio_name, playlist_name) 
+                        VALUES (%s, %s, %s) 
+                        ON CONFLICT (server_name, radio_name) DO UPDATE 
                         SET playlist_name = excluded.playlist_name
-                    """, (self.server.name, playlist))
+                    """, (self.server.name, self.name, playlist))
                 self._playlist = playlist
                 self.songs = self._read_playlist()
 
     @property
     def config(self) -> dict:
-        return self.service.get_config(self.server)['sink']
+        return self.service.get_config(self.server, self.name)
 
     @config.setter
     def config(self, config: dict) -> None:
         configs = self.service.locals
-        default = configs.get(DEFAULT_TAG)
-        specific = configs.get(self.server.instance.name)
-        if specific:
-            specific['sink'] |= config
+        if not configs[self.server.instance.name]['radios'].get(self.name):
+            configs[self.server.instance.name]['radios'][self.name] = config
         else:
-            specific = deepcopy(default)
-            specific['sink'] |= config
-            self.service.locals[self.server.instance.name] = specific
-        with open(os.path.join('config', 'music.json'), 'w', encoding='utf-8') as outfile:
-            yaml.dump(self.service.locals, outfile)
+            configs[self.server.instance.name]['radios'][self.name] |= config
+        with open(os.path.join('config', 'services', 'music.yaml'), 'w', encoding='utf-8') as outfile:
+            yaml.dump(configs, outfile)
 
     def is_running(self) -> bool:
         return self.queue_worker.is_running()
@@ -132,17 +129,11 @@ class Sink(ABC):
         self._mode = mode
         self.config['mode'] = mode.value
 
-    def render(self) -> discord.Embed:
-        ...
-
-    def edit(self) -> Modal:
-        ...
-
     @tasks.loop(reconnect=True)
     async def queue_worker(self):
         while not self.queue_worker.is_being_cancelled():
             with suppress(Exception):
-                await self.play(os.path.join(self.music_dir, self.songs[self.idx]))
+                await self.play(os.path.join(await self.service.get_music_dir(), self.songs[self.idx]))
             self._current = None
             if self._mode == Mode.SHUFFLE:
                 self.idx = randrange(len(self.songs)) if self.songs else 0
@@ -153,5 +144,5 @@ class Sink(ABC):
             await asyncio.sleep(1)
 
 
-class SinkInitError(Exception):
+class RadioInitError(Exception):
     pass

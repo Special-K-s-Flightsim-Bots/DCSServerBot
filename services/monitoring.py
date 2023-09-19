@@ -84,7 +84,8 @@ class MonitoringService(Service):
                 "service": "Bot",
                 "method": "alert",
                 "params": {
-                    "message": message, "channel": server.channels[Channel.ADMIN]
+                    "server": server.name,
+                    "message": message
                 }
             })
 
