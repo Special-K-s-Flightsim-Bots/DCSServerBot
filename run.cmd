@@ -6,4 +6,8 @@ if not exist venv (
 )
 :loop
 venv\Scripts\python run.py
-goto loop
+if %ERRORLEVEL% EQ -2 (
+    exit /B %ERRORLEVEL%
+) else (
+    goto loop
+)

@@ -389,12 +389,10 @@ class Main:
                     current_hash = repo.head.commit.hexsha
                     origin = repo.remotes.origin
                     origin.fetch()
-                    # if we are not on the master branch, we will switch branches!
                     if repo.active_branch.name != 'master':
-                        self.log.info('  => Switching to master branch ...')
-                        new_hash = origin.refs['master'].object.hexsha
-                    else:
-                        new_hash = origin.refs[repo.active_branch.name].object.hexsha
+                        self.log.error("  => Please run update.cmd to switch to the master branch!")
+                        exit(-2)
+                    new_hash = origin.refs[repo.active_branch.name].object.hexsha
                     if new_hash != current_hash:
                         modules = False
                         self.log.info('- Updating myself...')

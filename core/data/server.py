@@ -503,7 +503,7 @@ class Server(DataObject):
                 elif channel == Channel.COALITION_RED_EVENTS:
                     self._channels[channel] = self.get_channel(Channel.COALITION_RED_CHAT)
                 else:
-                    self.log.warn(f"Channel {channel.name} has unknown ID {channel_id}. Please check.")
+                    self.log.warning(f"Channel {channel.name} has unknown ID {channel_id}. Please check.")
                     return None
             elif int(channel_id) != -1:
                 self._channels[channel] = self.bot.get_channel(int(channel_id))
