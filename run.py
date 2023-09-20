@@ -389,10 +389,8 @@ class Main:
                     current_hash = repo.head.commit.hexsha
                     origin = repo.remotes.origin
                     origin.fetch()
-                    if repo.active_branch.name != 'v2':
-                        self.log.error("!!! Please run update.cmd to stay on the v2 branch !!!")
-                        exit(-2)
-                    new_hash = origin.refs[repo.active_branch.name].object.hexsha
+                    # force the branch to v2
+                    new_hash = origin.refs['v2'].object.hexsha
                     if new_hash != current_hash:
                         modules = False
                         self.log.info('- Updating myself...')
