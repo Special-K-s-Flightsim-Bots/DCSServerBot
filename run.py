@@ -391,6 +391,7 @@ class Main:
                     origin.fetch()
                     # force the branch to v2
                     if repo.active_branch.name != 'v2':
+                        self.log.info("- Force migrating to the v2 branch ...")
                         repo.git.checkout('v2')
                     new_hash = origin.refs[repo.active_branch.name].object.hexsha
                     if new_hash != current_hash:
