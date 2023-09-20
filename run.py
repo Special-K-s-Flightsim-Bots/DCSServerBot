@@ -390,7 +390,7 @@ class Main:
                     origin = repo.remotes.origin
                     origin.fetch()
                     if repo.active_branch.name != 'master':
-                        self.log.error("  => Please run update.cmd to switch to the master branch!")
+                        self.log.error("!!! Please run update.cmd to switch to the master branch !!!")
                         exit(-2)
                     new_hash = origin.refs[repo.active_branch.name].object.hexsha
                     if new_hash != current_hash:
