@@ -1,6 +1,6 @@
 @echo off
 echo Updating DCSSererBot to the latest version...
-git checkout master >NUL
+git checkout v2 >NUL
 if %ERRORLEVEL% EQU 9009 (
     echo Git for Windows is not installed.
     echo Please download the latest version of DCSServerBot from
