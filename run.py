@@ -390,7 +390,9 @@ class Main:
                     origin = repo.remotes.origin
                     origin.fetch()
                     # force the branch to v2
-                    new_hash = origin.refs['v2'].object.hexsha
+                    if repo.active_branch.name != 'v2':
+                        repo.git.checkout('v2')
+                    new_hash = origin.refs[repo.active_branch.name].object.hexsha
                     if new_hash != current_hash:
                         modules = False
                         self.log.info('- Updating myself...')
