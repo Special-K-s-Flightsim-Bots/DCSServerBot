@@ -200,7 +200,7 @@ class Mission(Plugin):
             result = "yes"
 
         if not interaction.response.is_done():
-            await interaction.response.defer()
+            await interaction.response.defer(ephemeral=True)
         if server.settings['missionList'][mission_id] == server.current_mission.filename:
             if result == 'later':
                 server.on_empty = {"command": "restart", "user": interaction.user}
@@ -364,12 +364,16 @@ class Mission(Plugin):
             ])
             message = 'Preset changed to: {}.'.format(','.join(view.result))
             if new_filename != filename:
+                self.log.info(f"  => New mission written: {new_filename}")
                 missions = server.settings['missionList']
                 if filename in missions:
                     await server.deleteMission(missions.index(filename) + 1)
-                await server.addMission(new_filename, autostart=True)
+                smooth = await server.addMission(new_filename, autostart=True)
+            else:
+                self.log.info(f"  => Mission {filename} overwritten.")
+                smooth = False
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                await server.restart(smooth=True)
+                await server.restart(smooth=smooth)
                 message += '\nMission reloaded.'
             await self.bot.audit("changed preset", server=server, user=interaction.user)
             await msg.delete()

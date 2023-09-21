@@ -103,6 +103,9 @@ class ServerImpl(Server):
         if not self._settings:
             path = os.path.join(self.instance.home, 'Config', 'serverSettings.lua')
             self._settings = utils.SettingsDict(self, path, 'cfg')
+            # if someone managed to destroy the mission list, fix it...
+            if isinstance(self._settings['missionList'], dict):
+                self._settings['missionList'] = list(self._settings['missionList'].values())
         return self._settings
 
     @property
@@ -137,7 +140,9 @@ class ServerImpl(Server):
                         missions = self.settings['missionList']
                         i: int = 0
                         for file in directory.glob('*.miz'):
-                            if str(file) not in missions:
+                            secondary = os.path.join(os.path.dirname(file).replace('.dcssb', ''),
+                                                     os.path.basename(file))
+                            if str(file) not in missions and secondary not in missions:
                                 missions.append(str(file))
                                 i += 1
                         # make sure the list is written to serverSettings.lua
@@ -338,6 +343,10 @@ class ServerImpl(Server):
         self.process = None
 
     async def apply_mission_changes(self) -> bool:
+        # disable autoscan
+        autoscan = self.locals.get('autoscan', False)
+        if autoscan:
+            self.locals['autoscan'] = False
         filename = await self.get_current_mission_file()
         if not filename:
             self.log.warning("No mission found. Is your mission list empty?")
@@ -368,6 +377,10 @@ class ServerImpl(Server):
             self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):
                 os.remove(new_filename)
+        finally:
+            # enable autoscan
+            if autoscan:
+                self.locals['autoscan'] = True
 
     async def keep_alive(self):
         # we set a longer timeout in here because, we don't want to risk false restarts
