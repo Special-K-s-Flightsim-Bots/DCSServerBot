@@ -25,6 +25,8 @@ def post_migrate_admin():
     config = False
     remove = -1
     for instance in data:
+        if instance == 'commands':
+            continue
         for idx, download in enumerate(data[instance]['downloads']):
             if download['label'] == 'DCSServerBot Logs':
                 download['directory'] = 'logs'
@@ -56,7 +58,9 @@ def post_migrate_admin():
 def post_migrate_music():
     with open('config/plugins/music.yaml') as infile:
         data = yaml.load(infile)
-    for instance in data.values():
+    for name, instance in data.items():
+        if name == 'commands':
+            continue
         instance['radios'] = {
             'Radio 1': deepcopy(instance['sink'])
         }

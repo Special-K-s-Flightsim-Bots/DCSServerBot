@@ -11,7 +11,7 @@ from contextlib import closing
 from copy import deepcopy
 from core import utils
 from core.services.registry import ServiceRegistry
-from discord import app_commands, Interaction
+from discord import app_commands, Interaction, AppCommandType
 from discord.app_commands import locale_str
 from discord.app_commands.commands import CommandCallback, GroupT, P, T
 from discord.ext import commands, tasks
@@ -234,29 +234,26 @@ class Plugin(commands.Cog):
 
     def change_commands(self, cmds: dict, all_cmds: dict, group: app_commands.commands.Group = None) -> None:
         for name, params in cmds.items():
-            cmd = all_cmds.get(name)
-            if not cmd:
-                self.log.warning(f"{self.plugin_name}: {name} is not a command or group!")
-                continue
-            if isinstance(cmd, app_commands.commands.Group):
-                if 'name' in params:
-                    cmd.name = params['name']
-                self.change_commands(params['commands'], {x.name: x for x in cmd.commands}, cmd)
-            elif isinstance(cmd, app_commands.commands.Command):
-                if not params.get('enabled', True):
-                    if group:
-                        group.remove_command(name)
-                    else:
-                        self.__cog_app_commands__.remove(cmd)
-                    continue
-                if 'roles' in params:
-                    for idx, check in enumerate(cmd.checks.copy()):
-                        if 'has_role' in check.__qualname__:
-                            cmd.remove_check(check)
-                    if len(params['roles']):
-                        cmd.add_check(utils.app_has_roles(params['roles'].copy()).predicate)
-                if 'description' in params:
-                    cmd.description = params['description']
+            for cmd_name, cmd in self.__dict__.copy().items():
+                if cmd_name == name and isinstance(cmd, Command):
+                    if not params.get('enabled', True):
+                        if cmd.parent:
+                            idx = self.__cog_app_commands__.index(cmd.parent)
+                            self.__cog_app_commands__[idx].remove_command(cmd.name)
+                        continue
+                    if 'name' in params:
+                        cmd.name = params['name']
+                        if cmd.parent:
+                            cmd.parent.remove_command(cmd.name)
+                            cmd.parent.add_command(cmd)
+                    if 'description' in params:
+                        cmd.description = params['description']
+                    if 'roles' in params:
+                        for idx, check in enumerate(cmd.checks.copy()):
+                            if 'has_role' in check.__qualname__:
+                                cmd.remove_check(check)
+                        if len(params['roles']):
+                            cmd.add_check(utils.app_has_roles(params['roles'].copy()))
 
     async def install(self):
         self.init_db()
@@ -339,6 +336,8 @@ class Plugin(commands.Cog):
                 elif not exists:
                     # we only overwrite the default on the master
                     new[DEFAULT_TAG] = config
+            if 'commands' in old:
+                new['commands'] = old['commands']
         else:
             new = old
         with open(new_file, 'w') as outfile:
