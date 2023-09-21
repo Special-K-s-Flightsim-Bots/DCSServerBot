@@ -232,6 +232,9 @@ class Server(DataObject):
         if not self._settings:
             path = os.path.expandvars(self.bot.config[self.installation]['DCS_HOME']) + r'\Config\serverSettings.lua'
             self._settings = utils.SettingsDict(self, path, 'cfg')
+            # if someone managed to destroy the mission list, fix it...
+            if isinstance(self._settings['missionList'], dict):
+                self._settings['missionList'] = list(self._settings['missionList'].values())
         return self._settings
 
     @property
