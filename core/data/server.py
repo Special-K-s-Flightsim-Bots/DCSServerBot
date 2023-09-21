@@ -93,6 +93,10 @@ class Server(DataObject):
 
     @status.setter
     def status(self, status: Union[Status, str]):
+        self.set_status(status)
+
+    # allow overloading of setter
+    def set_status(self, status: Union[Status, str]):
         propagate: bool = True
         if isinstance(status, str):
             status = Status(status)

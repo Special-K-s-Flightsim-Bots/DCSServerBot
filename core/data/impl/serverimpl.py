@@ -125,6 +125,33 @@ class ServerImpl(Server):
         self.locals |= self.instance.locals
         self.prepare()
 
+    def set_status(self, status: Union[Status, str]):
+        if status != self._status:
+            if self.locals.get('autoscan', False):
+                if (self._status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTDOWN]
+                        and status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]):
+                    if not self.observer.emitters:
+                        self.observer.schedule(self.event_handler, self.instance.missions_dir, recursive=False)
+                        self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder enabled.')
+                elif status == Status.SHUTDOWN:
+                    if self._status == Status.UNREGISTERED:
+                        # make sure all missions in the directory are in the mission list ...
+                        directory = Path(self.instance.missions_dir)
+                        missions = self.settings['missionList']
+                        i: int = 0
+                        for file in directory.glob('*.miz'):
+                            if str(file) not in missions:
+                                missions.append(str(file))
+                                i += 1
+                        # make sure the list is written to serverSettings.lua
+                        self.settings['missionList'] = missions
+                        if i:
+                            self.log.info(f"  => {self.name}: {i} missions auto-added to the mission list")
+                    elif self.observer.emitters:
+                        self.observer.unschedule_all()
+                        self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
+            super().set_status(status)
+
     def _install_luas(self):
         dcs_path = os.path.join(self.instance.home, 'Scripts')
         if not os.path.exists(dcs_path):
