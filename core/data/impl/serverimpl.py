@@ -335,11 +335,11 @@ class ServerImpl(Server):
             self.process.kill()
         self.process = None
 
-    async def apply_mission_changes(self):
+    async def apply_mission_changes(self) -> bool:
         filename = await self.get_current_mission_file()
         if not filename:
             self.log.warning("No mission found. Is your mission list empty?")
-            return
+            return False
         new_filename = filename
         try:
             # process all mission modifications
@@ -352,7 +352,7 @@ class ServerImpl(Server):
                 dirty |= _dirty
             # we did not change anything in the mission
             if not dirty:
-                return
+                return False
             # make a backup
             if '.dcssb' not in filename and not os.path.exists(filename + '.orig'):
                 shutil.copy2(filename, filename + '.orig')
@@ -361,6 +361,7 @@ class ServerImpl(Server):
                 missions: list[str] = self.settings['missionList']
                 await self.deleteMission(missions.index(filename) + 1)
                 await self.addMission(new_filename, autostart=True)
+            return True
         except Exception as ex:
             self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):
@@ -394,7 +395,7 @@ class ServerImpl(Server):
         return UploadStatus.OK
 
     async def listAvailableMissions(self) -> list[str]:
-        return [str(x) for x in sorted(Path(PurePath(self.instance.home, "Missions")).glob("*.miz"))]
+        return [str(x) for x in sorted(Path(PurePath(await self.get_missions_dir())).glob("*.miz"))]
 
     async def modifyMission(self, filename: str, preset: Union[list, dict]) -> str:
         def apply_preset(value: dict):

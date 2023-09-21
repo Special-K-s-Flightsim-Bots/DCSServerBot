@@ -14,12 +14,15 @@ class RealWeather(Extension):
     @property
     def version(self) -> Optional[str]:
         if sys.platform == 'win32':
-            info = win32api.GetFileVersionInfo(
-                os.path.join(os.path.expandvars(self.config['installation']), 'realweather.exe'), '\\')
-            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                       info['FileVersionMS'] % 65536,
-                                       info['FileVersionLS'] / 65536,
-                                       info['FileVersionLS'] % 65536)
+            try:
+                info = win32api.GetFileVersionInfo(
+                    os.path.join(os.path.expandvars(self.config['installation']), 'realweather.exe'), '\\')
+                version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
+                                           info['FileVersionMS'] % 65536,
+                                           info['FileVersionLS'] / 65536,
+                                           info['FileVersionLS'] % 65536)
+            except Exception:
+                version = None
         else:
             version = None
         return version
@@ -52,7 +55,6 @@ class RealWeather(Extension):
         if os.path.exists(new_filename):
             os.remove(new_filename)
         os.rename(tmpname, new_filename)
-        self.log.info(f"Real weather applied to the mission.")
         return new_filename, True
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):

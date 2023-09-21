@@ -537,15 +537,15 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         interaction.client.log.exception(ex)
 
 
-async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+async def mizfile_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
     try:
         server: Server = await ServerTransformer().transform(interaction, get_interaction_param(interaction, 'server'))
         if not server:
             return []
         installed_missions = [os.path.expandvars(x) for x in server.settings['missionList']]
-        choices: list[app_commands.Choice[str]] = [
-            app_commands.Choice(name=os.path.basename(x)[:-4], value=x)
-            for x in await server.listAvailableMissions()
+        choices: list[app_commands.Choice[int]] = [
+            app_commands.Choice(name=os.path.basename(x)[:-4], value=idx)
+            for idx, x in enumerate(await server.listAvailableMissions())
             if x not in installed_missions and current.casefold() in os.path.basename(x).casefold()
         ]
         return choices[:25]

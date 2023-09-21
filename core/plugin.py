@@ -128,7 +128,8 @@ class Command(app_commands.Command):
                 if len(interaction.client.servers) > 0:
                     await interaction.response.send_message(
                         'No server registered for this channel. '
-                        'If the channel is correct, please wait until the server registers.', ephemeral=True)
+                        'If the channel is correct, please try again in a bit, when the server has registered.',
+                        ephemeral=True)
                     return
                 else:
                     await interaction.response.send_message('No servers registered yet.', ephemeral=True)

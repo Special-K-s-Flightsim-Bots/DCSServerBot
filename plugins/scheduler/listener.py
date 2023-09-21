@@ -65,7 +65,8 @@ class SchedulerListener(EventListener):
                 await self.bot.audit(message, server=server, user=what.get('user'))
         elif what['command'] == 'rotate':
             await server.loadNextMission()
-            await server.restart(smooth=await server.apply_mission_changes())
+            if await server.apply_mission_changes():
+                await server.restart(smooth=True)
             await self.bot.audit(f"{self.plugin_name.title()} rotated to mission "
                                  f"{server.current_mission.display_name}", server=server)
         elif what['command'] == 'load':

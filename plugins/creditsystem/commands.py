@@ -69,7 +69,7 @@ class CreditSystem(Plugin):
             member = interaction.user
             ucid = self.bot.get_ucid_by_member(member)
             if not ucid:
-                await interaction.response.send_message(f"Use /linkme to link your account.", ephemeral=True)
+                await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
                 return
         data = self.get_credits(ucid)
         if not data:

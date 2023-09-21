@@ -58,6 +58,7 @@ class DSMC(Extension):
     async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
         if not os.path.basename(filename).startswith('DSMC'):
             return filename, False
+        orig = filename
         if not filename[-7:-4].isnumeric():
             filename = filename[:-4] + '_000.miz'
         version = int(filename[-7:-4])
@@ -66,7 +67,7 @@ class DSMC(Extension):
         if os.path.exists(new_filename):
             return new_filename, True
         else:
-            return filename, False
+            return orig, False
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         embed.add_field(name='DSMC', value='enabled')

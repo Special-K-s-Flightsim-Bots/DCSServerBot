@@ -234,10 +234,12 @@ class Mission(Plugin):
     @mission.command(description='Adds a mission to the list')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(path=utils.mizfile_autocomplete)
+    @app_commands.rename(idx="path")
+    @app_commands.autocomplete(idx=utils.mizfile_autocomplete)
     async def add(self, interaction: discord.Interaction,
-                  server: app_commands.Transform[Server, utils.ServerTransformer], path: str,
+                  server: app_commands.Transform[Server, utils.ServerTransformer], idx: int,
                   autostart: Optional[bool] = False):
+        path = (await server.listAvailableMissions())[idx]
         if not os.path.exists(path):
             await interaction.response.send_message(f"File {path} could not be found.", ephemeral=True)
             return
@@ -301,9 +303,9 @@ class Mission(Plugin):
         elif server.status == Status.RUNNING:
             await interaction.response.send_message(f'Server "{server.display_name}" is already running.',
                                                     ephemeral=True)
-        elif server.status == Status.LOADING:
-            interaction.response.send_message(f'Server "{server.display_name}" is still loading... '
-                                              f'please wait a bit and try again.', ephemeral=True)
+        else:
+            await interaction.response.send_message(f"Server {server.display_name} is {server.status.name}, "
+                                                    f"can't unpause.")
 
     @mission.command(description='Modify mission with a preset')
     @app_commands.guild_only()

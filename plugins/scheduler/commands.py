@@ -329,7 +329,7 @@ class Scheduler(Plugin):
                 await self.launch_dcs(server, config, interaction.user)
                 await interaction.followup.send(
                     f"DCS server \"{server.display_name}\" started.\nServer is in maintenance mode now! "
-                    f"Use /scheduler clear to reset maintenance mode.", ephemeral=True)
+                    f"Use `/scheduler clear` to reset maintenance mode.", ephemeral=True)
             except asyncio.TimeoutError:
                 if server.status == Status.SHUTDOWN:
                     await interaction.followup.send(

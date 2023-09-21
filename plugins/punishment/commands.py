@@ -213,7 +213,7 @@ class Punishment(Plugin):
             user = interaction.user
             ucid = self.bot.get_ucid_by_member(user)
             if not ucid:
-                await interaction.response.send_message(f"Use /linkme to link your account first.", ephemeral=True)
+                await interaction.response.send_message(f"Use `/linkme` to link your account first.", ephemeral=True)
                 return
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
