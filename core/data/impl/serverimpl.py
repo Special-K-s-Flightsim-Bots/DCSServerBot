@@ -76,6 +76,8 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
 class ServerImpl(Server):
     _instance: InstanceImpl = field(default=None)
     bot: Optional[DCSServerBot] = field(compare=False, init=False)
+    event_handler: MissionFileSystemEventHandler = field(compare=False, default=None)
+    observer: Observer = field(compare=False, default=None)
 
     def __post_init__(self):
         super().__post_init__()
@@ -88,11 +90,6 @@ class ServerImpl(Server):
                         port=excluded.port,
                         last_seen=NOW()
                 """, (self.name, self.node.name, self.port))
-        # enable autoscan for missions changes
-        if self.locals.get('autoscan', False):
-            self.event_handler = MissionFileSystemEventHandler(self)
-            self.observer = Observer()
-            self.observer.start()
 
     @property
     def is_remote(self) -> bool:
@@ -196,6 +193,11 @@ class ServerImpl(Server):
                 else:
                     self.settings[key] = value
         self._install_luas()
+        # enable autoscan for missions changes
+        if self.locals.get('autoscan', False):
+            self.event_handler = MissionFileSystemEventHandler(self)
+            self.observer = Observer()
+            self.observer.start()
 
     async def get_current_mission_file(self) -> Optional[str]:
         if not self.current_mission or not self.current_mission.filename:
