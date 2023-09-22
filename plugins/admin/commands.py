@@ -348,7 +348,7 @@ class AdminAgent(Plugin):
                 until = 'never'
                 reason = ' '.join(args)
         else:
-            until = datetime(year=9999, month=12, day=31)
+            until = 'never'
             reason = 'n/a'
         conn = self.pool.getconn()
         try:
