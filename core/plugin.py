@@ -236,16 +236,12 @@ class Plugin(commands.Cog):
         for name, params in cmds.items():
             for cmd_name, cmd in self.__dict__.copy().items():
                 if cmd_name == name and isinstance(cmd, Command):
+                    if cmd.parent:
+                        cmd.parent.remove_command(cmd.name)
                     if not params.get('enabled', True):
-                        if cmd.parent:
-                            idx = self.__cog_app_commands__.index(cmd.parent)
-                            self.__cog_app_commands__[idx].remove_command(cmd.name)
                         continue
                     if 'name' in params:
                         cmd.name = params['name']
-                        if cmd.parent:
-                            cmd.parent.remove_command(cmd.name)
-                            cmd.parent.add_command(cmd)
                     if 'description' in params:
                         cmd.description = params['description']
                     if 'roles' in params:
@@ -254,6 +250,8 @@ class Plugin(commands.Cog):
                                 cmd.remove_check(check)
                         if len(params['roles']):
                             cmd.add_check(utils.app_has_roles(params['roles'].copy()))
+                    if cmd.parent:
+                        cmd.parent.add_command(cmd)
 
     async def install(self):
         self.init_db()
