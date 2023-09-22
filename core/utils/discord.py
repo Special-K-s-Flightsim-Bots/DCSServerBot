@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import functools
 import discord
 import os
 import re
@@ -274,10 +275,26 @@ def app_has_role(role: str):
 
 
 def has_roles(roles: list[str]):
-    def predicate(ctx):
+    def predicate(ctx: commands.Context) -> bool:
         return check_roles(roles, ctx.author)
 
     return commands.check(predicate)
+
+
+def cmd_has_roles(roles: list[str]):
+    def predicate(interaction: Interaction) -> bool:
+        valid_roles = []
+        for role in roles:
+            valid_roles.extend(interaction.client.roles[role])
+        return check_roles(set(valid_roles), interaction.user)
+
+    @functools.wraps(predicate)
+    async def wrapper(interaction: Interaction):
+        return predicate(interaction)
+
+    cmd_has_roles.predicate = wrapper
+
+    return cmd_has_roles
 
 
 def app_has_roles(roles: list[str]):

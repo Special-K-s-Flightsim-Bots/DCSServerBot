@@ -251,7 +251,7 @@ class Plugin(commands.Cog):
                             if 'has_role' in check.__qualname__:
                                 cmd.remove_check(check)
                         if len(params['roles']):
-                            cmd.add_check(utils.app_has_roles(params['roles'].copy()))
+                            cmd.add_check(utils.cmd_has_roles(params['roles'].copy()).predicate)
                     if cmd.parent:
                         cmd.parent.add_command(cmd)
 
