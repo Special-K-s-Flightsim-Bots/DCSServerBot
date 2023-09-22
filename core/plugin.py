@@ -239,6 +239,8 @@ class Plugin(commands.Cog):
                     if cmd.parent:
                         cmd.parent.remove_command(cmd.name)
                     if not params.get('enabled', True):
+                        if not cmd.parent:
+                            self.__cog_app_commands__.remove(cmd)
                         continue
                     if 'name' in params:
                         cmd.name = params['name']
