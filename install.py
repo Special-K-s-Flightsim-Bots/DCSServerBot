@@ -322,13 +322,13 @@ DCSServerBot needs the following permissions on them to work:
                     servers[name]['channels']['admin'] = IntPrompt.ask("Please enter the ID of your admin channel")
                 if Prompt.ask("Do you want DCSServerBot to autostart this server?", choices=['y', 'n'],
                               default='y') == 'y':
-                    scheduler[name] = {
+                    scheduler[instance] = {
                         "schedule": {
                             "00-24": "YYYYYYY"
                         }
                     }
                 else:
-                    scheduler[name] = {}
+                    scheduler[instance] = {}
         print("\n\nAll set. Writing / updating your config files now...")
         if master:
             with open('config/main.yaml', 'w', encoding='utf-8') as out:

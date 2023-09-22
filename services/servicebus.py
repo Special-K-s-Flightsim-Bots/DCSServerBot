@@ -96,8 +96,8 @@ class ServiceBus(Service):
     @property
     def filter(self) -> dict:
         return {
-            "server": "!.*",
-            "mission": "!.*",
+            "server_name": "!.*",
+            "mission_name": "!.*",
         } | self.node.config.get('filter', {})
 
     def register_eventListener(self, listener: EventListener):
