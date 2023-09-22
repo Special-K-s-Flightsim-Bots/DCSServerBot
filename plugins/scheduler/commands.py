@@ -42,6 +42,12 @@ class Scheduler(Plugin):
                     cfg['presets'] = yaml.load(Path(cfg['presets']).read_text(encoding='utf-8'))
         return config
 
+    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
+                   use_cache: Optional[bool] = True) -> dict:
+        if plugin_name:
+            return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
+        return self.locals.get(server.name)
+
     @staticmethod
     async def check_server_state(server: Server, config: dict) -> Status:
         if 'schedule' in config and not server.maintenance:

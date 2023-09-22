@@ -2,6 +2,7 @@ import os
 import platform
 import psycopg
 import secrets
+import shutil
 import sys
 if sys.platform == 'win32':
     import winreg
@@ -180,7 +181,7 @@ You can keep the defaults, if unsure and create the respective roles in your Dis
     def install():
         print("""
 [bright_blue]Hello! Thank you for choosing DCSServerBot.[/]
-DCS ServerBot supports everything from single server installations to huge server farms with multiple servers across 
+DCSServerBot supports everything from single server installations to huge server farms with multiple servers across 
 the planet.
 
 I will now guide you through the installation process.
@@ -231,6 +232,21 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
                 "installation": dcs_installation
             }
         }
+        if Prompt.ask("Do you want your DCS installation being auto-updated by the bot?", choices=['y', 'n'],
+                      default='y') == 'y':
+            node["DCS"]["autoupdate"] = True
+            print("[green]- autoupdate enabled for DCS[/]")
+        # Check for SRS
+        srs_path = os.path.expandvars('%ProgramFiles%\\DCS-SimpleRadio-Standalone')
+        if not os.path.exists(srs_path):
+            srs_path = Prompt.ask("Please enter the path to your DCS-SRS installation.\n"
+                                  "Press ENTER, if there is none.")
+        if srs_path:
+            node['extensions'] = {
+                'SRS': {
+                    'installation': srs_path
+                }
+            }
         # check if we can enable autoupdate
         try:
             import git
@@ -244,6 +260,7 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
         scheduler = {}
         node['instances'] = {}
         bot_port = 6666
+        srs_port = 5002
         for name, instance in utils.findDCSInstances():
             if Prompt.ask(f'\nDCS server "{name}" found.\n'
                           'Would you like to manage this server through DCSServerBot?)',
@@ -253,7 +270,22 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
                     "home": os.path.join(SAVED_GAMES, instance),
                     "server": name
                 }
+                if srs_path:
+                    srs_config = f"%USERPROFILE%\\Saved Games\\{instance}\\Config\\SRS.cfg"
+                    node['instances'][instance]['extensions'] = {
+                        "SRS": {
+                            "config": srs_config,
+                            "port": srs_port
+                        }
+                    }
+                    if not os.path.exists(os.path.expandvars(srs_config)):
+                        if os.path.exists(os.path.join(srs_path, "server.cfg")):
+                            shutil.copy2(os.path.join(srs_path, "server.cfg"), srs_config)
+                        else:
+                            print("[red]SRS configuration could not be created.\n"
+                                  f"Please copy your server.cfg to {srs_config} manually.[/]")
                 bot_port += 1
+                srs_port += 2
                 print("DCSServerBot needs up to 3 channels per supported server:")
                 print({
                     "Status Channel": "To display the mission and player status.",
