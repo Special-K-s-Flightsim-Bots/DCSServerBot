@@ -356,6 +356,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
                 await ctx.invoke(self.bot.get_command('ban'), user=member or ucid)
                 if player:
                     player.banned = True
+            elif react.emoji == '⏏️':
+                server.kick(player)
         except asyncio.TimeoutError:
             pass
         finally:
