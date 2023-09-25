@@ -1,5 +1,5 @@
 from contextlib import suppress
-from core import const, report, Status, Server, utils
+from core import const, report, Status, Server, utils, ServiceRegistry
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -122,6 +122,31 @@ class ExtensionsInfo(report.EmbedElement):
                 if ext.version:
                     footer += ' v' + ext.version
         self.embed.set_footer(text=footer)
+
+
+class ScheduleInfo(report.EmbedElement):
+
+    def render(self, server: Server):
+        bot = ServiceRegistry.get("Bot").bot
+        scheduler = bot.cogs.get('Scheduler')
+        if scheduler:
+            report.Ruler(self.env).render(text="This server runs on the following schedule:")
+            config = scheduler.get_config(server)
+            if 'schedule' in config:
+                self.embed.add_field(name='Time', value='\n'.join(config['schedule'].keys()))
+                value = ''
+                for schedule in config['schedule'].values():
+                    for c in schedule:
+                        if c == 'Y':
+                            value += '✅|'
+                        elif c == 'N':
+                            value += '❌|'
+                        elif c == 'P':
+                            value += '☑️|'
+                    value += '\n'
+                self.embed.add_field(name='🇲|🇹|🇼|🇹|🇫|🇸|🇸', value=value)
+                self.embed.add_field(name='_ _', value='✅ = Server running\n❌ = Server not running\n'
+                                                       '☑️ = Server shuts down with no players')
 
 
 class Footer(report.EmbedElement):

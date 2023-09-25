@@ -353,7 +353,6 @@ class ServerImpl(Server):
         new_filename = filename
         try:
             # process all mission modifications
-            self.log.info(f'- Applying mission changes to source {filename}')
             dirty = False
             for ext in self.extensions.values():
                 new_filename, _dirty = await ext.beforeMissionLoad(new_filename)

@@ -16,6 +16,9 @@
     {
       "class": "plugins.mission.status.ExtensionsInfo"
     },
+    {
+      "class": "plugins.mission.status.ScheduleInfo"
+    },
     "Ruler",
     {
       "class": "plugins.mission.status.Footer"

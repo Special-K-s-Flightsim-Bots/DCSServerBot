@@ -283,6 +283,9 @@ class Scheduler(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def _list(self, interaction: discord.Interaction):
+        if not self.bot.servers:
+            await interaction.response.send_message("No servers registered.", ephemeral=True)
+            return
         embed = discord.Embed(title=f"All Servers", color=discord.Color.blue())
         names = []
         status = []
