@@ -432,15 +432,13 @@ class Admin(Plugin):
                 await interaction.followup.send(
                     f'One or more plugins could not be reloaded, check the log for details.')
 
-    instance = Group(name="instance", description="Commands to manage your instances")
-
-    @instance.command(description="Add an instance to a specific node")
+    @node.command(description="Add an instance to a specific node")
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(name=utils.InstanceTransformer(unused=True).autocomplete)
-    async def add(self, interaction: discord.Interaction,
-                  node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
-                  template: Optional[app_commands.Transform[Instance, utils.InstanceTransformer]] = None):
+    async def add_instance(self, interaction: discord.Interaction,
+                           node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
+                           template: Optional[app_commands.Transform[Instance, utils.InstanceTransformer]] = None):
         instance = await node.add_instance(name, template=template)
         if instance:
             await interaction.response.send_message(
@@ -457,12 +455,12 @@ Please make sure you forward the following ports:
             await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}.",
                                                     ephemeral=True)
 
-    @instance.command(description="Delete an instance from a specific node")
+    @node.command(description="Delete an instance from a specific node")
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    async def delete(self, interaction: discord.Interaction,
-                     node: app_commands.Transform[Node, utils.NodeTransformer],
-                     instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
+    async def delete_instance(self, interaction: discord.Interaction,
+                              node: app_commands.Transform[Node, utils.NodeTransformer],
+                              instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
         if instance.server:
             await interaction.response.send_message(f"The instance is in use by server \"{instance.server.name}\". "
                                                     f"Please migrate this server to another node first.", ephemeral=True)
@@ -476,12 +474,12 @@ Please make sure you forward the following ports:
         await interaction.followup.send(f"Instance {instance.name} removed from node {node.name}.", ephemeral=True)
         await self.bot.audit(f"removed instance {instance.name} from node {node.name}.", user=interaction.user)
 
-    @instance.command(description="Rename an instance on a specific node")
+    @node.command(description="Rename an instance on a specific node")
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    async def rename(self, interaction: discord.Interaction,
-                     node: app_commands.Transform[Node, utils.NodeTransformer],
-                     instance: app_commands.Transform[Instance, utils.InstanceTransformer], new_name: str):
+    async def rename_instance(self, interaction: discord.Interaction,
+                              node: app_commands.Transform[Node, utils.NodeTransformer],
+                              instance: app_commands.Transform[Instance, utils.InstanceTransformer], new_name: str):
         if not await utils.yn_question(interaction, f"Do you really want to rename instance {instance.name}?"):
             await interaction.followup.send('Aborted.', ephemeral=True)
             return
