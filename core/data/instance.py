@@ -23,15 +23,22 @@ class Instance(DataObject):
 
     @property
     def home(self) -> str:
-        return self.locals.get('home', os.path.join(SAVED_GAMES, self.name))
+        return os.path.expandvars(self.locals.get('home', os.path.join(SAVED_GAMES, self.name)))
 
     @property
     def dcs_port(self) -> int:
-        return self.locals.get('dcs_port', 10308)
+        if self.server:
+            return self.server.settings['port']
+        else:
+            return self.locals.get('dcs_port', 10308)
 
     @property
     def webgui_port(self) -> int:
         return self.locals.get('webgui_port', 8088)
+
+    @property
+    def webrtc_port(self) -> int:
+        return self.locals.get('webrtc_port', 10309)
 
     @property
     def bot_port(self) -> int:
@@ -42,8 +49,8 @@ class Instance(DataObject):
         return self.locals.get('extensions', {})
 
     @property
-    def configured_server(self) -> str:
-        return self.locals['server']
+    def configured_server(self) -> Optional[str]:
+        return self.locals.get('server')
 
     @property
     def server_user(self) -> str:

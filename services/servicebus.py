@@ -110,6 +110,8 @@ class ServiceBus(Service):
 
     async def init_servers(self):
         for instance in self.node.instances:
+            if not instance.configured_server:
+                continue
             server: ServerImpl = DataObjectFactory().new(
                 Server.__name__, node=self.node, port=instance.bot_port, name=instance.configured_server)
             instance.server = server

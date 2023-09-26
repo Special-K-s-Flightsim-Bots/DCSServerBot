@@ -4,7 +4,7 @@ import platform
 import shutil
 
 from contextlib import closing
-from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group
+from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group, Instance
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
@@ -351,10 +351,10 @@ class Admin(Plugin):
         instances = []
         status = []
         embed.add_field(name="▬" * 32, value=f"**Master: {master.name}**", inline=False)
-        for server in [server for server in self.bus.servers.values() if server.node == master]:
-            instances.append(server.instance.name)
-            names.append(server.name)
-            status.append(server.status.name)
+        for instance in self.bot.node.instances:
+            instances.append(instance.name)
+            names.append(instance.server.name if instance.server else 'n/a')
+            status.append(instance.server.status.name if instance.server else '\- unused -')
         embed.add_field(name="Instance", value='\n'.join(instances))
         embed.add_field(name="Server", value='\n'.join(names))
         embed.add_field(name="Status", value='\n'.join(status))
@@ -363,6 +363,7 @@ class Admin(Plugin):
         names = []
         instances = []
         status = []
+        # TODO: there should be a list of nodes, with impls / proxies
         for node in master.get_active_nodes():
             embed.add_field(name="▬" * 32, value=f"Agent: {node}", inline=False)
             for server in [server for server in self.bus.servers.values() if server.node.name == node]:
@@ -430,6 +431,64 @@ class Admin(Plugin):
             else:
                 await interaction.followup.send(
                     f'One or more plugins could not be reloaded, check the log for details.')
+
+    instance = Group(name="instance", description="Commands to manage your instances")
+
+    @instance.command(description="Add an instance to a specific node")
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.autocomplete(name=utils.InstanceTransformer(unused=True).autocomplete)
+    async def add(self, interaction: discord.Interaction,
+                  node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
+                  template: Optional[app_commands.Transform[Instance, utils.InstanceTransformer]] = None):
+        instance = await node.add_instance(name, template=template)
+        if instance:
+            await interaction.response.send_message(
+                f"""Instance {name} added to node {node.name}.
+Please make sure you forward the following ports:
+```
+- DCS Port:\t\t\t{instance.dcs_port}
+- WebGUI Port:\t{instance.webgui_port}
+- VOIP Port:\t\t{instance.dcs_port + 1}
+```
+            """, ephemeral=True)
+            await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
+        else:
+            await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}.",
+                                                    ephemeral=True)
+
+    @instance.command(description="Delete an instance from a specific node")
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def delete(self, interaction: discord.Interaction,
+                     node: app_commands.Transform[Node, utils.NodeTransformer],
+                     instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
+        if instance.server:
+            await interaction.response.send_message(f"The instance is in use by server \"{instance.server.name}\". "
+                                                    f"Please migrate this server to another node first.", ephemeral=True)
+            return
+        elif not await utils.yn_question(interaction, f"Do you really want to delete instance {instance.name}?"):
+            await interaction.followup.send('Aborted.', ephemeral=True)
+            return
+        remove_files = await utils.yn_question(interaction,
+                                               f"Do you want to remove the directory {instance.home} from your disk?")
+        await node.delete_instance(instance, remove_files)
+        await interaction.followup.send(f"Instance {instance.name} removed from node {node.name}.", ephemeral=True)
+        await self.bot.audit(f"removed instance {instance.name} from node {node.name}.", user=interaction.user)
+
+    @instance.command(description="Rename an instance on a specific node")
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def rename(self, interaction: discord.Interaction,
+                     node: app_commands.Transform[Node, utils.NodeTransformer],
+                     instance: app_commands.Transform[Instance, utils.InstanceTransformer], new_name: str):
+        if not await utils.yn_question(interaction, f"Do you really want to rename instance {instance.name}?"):
+            await interaction.followup.send('Aborted.', ephemeral=True)
+            return
+        old_name = instance.name
+        await node.rename_instance(instance, new_name)
+        await interaction.followup.send(f"Instance {old_name} renamed to {instance.name}.", ephemeral=True)
+        await self.bot.audit(f"renamed instance {old_name} to {instance.name}.", user=interaction.user)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

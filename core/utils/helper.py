@@ -15,7 +15,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from core import Server, ServerProxy
+    from core import Server, ServerProxy, DataObject
 
 
 def is_in_timeframe(time: datetime, timeframe: str) -> bool:
@@ -216,13 +216,12 @@ def is_ucid(ucid: str) -> bool:
 
 
 class SettingsDict(dict):
-    def __init__(self, server: Server, path: str, root: str):
+    def __init__(self, obj: DataObject, path: str, root: str):
         super().__init__()
         self.path = path
         self.root = root
         self.mtime = 0
-        self.server = server
-        self.log = server.log
+        self.log = obj.log
         self.read_file()
 
     def read_file(self):

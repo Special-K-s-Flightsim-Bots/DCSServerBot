@@ -637,8 +637,9 @@ class Mission(Plugin):
             await message.channel.send(f'Mission "{name}" uploaded to server {server.name} and added.')
             await self.bot.audit(f'uploaded mission "{name}"', server=server, user=message.author)
 
-            if server.status != Status.SHUTDOWN and server.current_mission.filename != filename and \
-                    await utils.yn_question(ctx, 'Do you want to load this mission?'):
+            if (server.status != Status.SHUTDOWN and server.current_mission and
+                    server.current_mission.filename != filename and
+                    await utils.yn_question(ctx, 'Do you want to load this mission?')):
                 tmp = await message.channel.send(f'Loading mission {utils.escape_string(name)} ...')
                 await server.loadMission(server.settings['missionList'].index(filename) + 1)
                 await self.bot.audit("loaded mission", server=server, user=message.author)

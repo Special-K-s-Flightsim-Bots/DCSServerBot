@@ -1,6 +1,6 @@
 import os
 
-from core import ServiceRegistry
+from core import ServiceRegistry, Instance
 from core.data.node import Node, UploadStatus
 from core.data.proxy.instanceproxy import InstanceProxy
 from pathlib import Path
@@ -145,5 +145,47 @@ class NodeProxy(Node):
                 "path": path,
                 "pattern": pattern
             }
+        }, node=self.name)
+        return data['return']
+
+    async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "add_instance",
+            "params": {
+                "name": name,
+                "template": template.name
+            }
+        }, node=self.name)
+        return InstanceProxy(name=data['return'], node=self)
+
+    async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "delete_instance",
+            "params": {
+                "instance": instance.name,
+                "remove_files": remove_files
+            }
+        }, node=self.name)
+
+    async def rename_instance(self, instance: Instance, new_name: str) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "rename_instance",
+            "params": {
+                "instance": instance.name,
+                "new_name": new_name
+            }
+        }, node=self.name)
+
+    async def find_all_instances(self) -> list[Tuple[str, str]]:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "find_all_instances"
         }, node=self.name)
         return data['return']

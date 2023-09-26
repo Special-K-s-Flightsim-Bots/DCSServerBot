@@ -14,7 +14,7 @@ import sys
 import time
 
 from contextlib import closing
-from core import utils, Status, Coalition
+from core import utils, Status, Coalition, SAVED_GAMES
 from datetime import datetime
 from discord.ext import tasks
 from logging.handlers import RotatingFileHandler
@@ -25,6 +25,7 @@ from psycopg_pool import ConnectionPool
 from typing import Optional, Union, TYPE_CHECKING, Awaitable, Callable, Any, Tuple
 from version import __version__
 
+from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
 from core.data.node import Node, UploadStatus
 from core.data.instance import Instance
@@ -32,6 +33,7 @@ from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
 from core.services.registry import ServiceRegistry
 from core.utils.dcs import LICENSES_URL
+from core.utils.helper import SettingsDict
 
 # ruamel YAML support
 from ruamel.yaml import YAML
@@ -138,12 +140,6 @@ class NodeImpl(Node):
                 }
             })
 
-    def add_instance(self, instance: Instance):
-        raise NotImplementedError()
-
-    def del_instance(self, name: str):
-        raise NotImplementedError()
-
     def register_callback(self, what: str, name: str, func: Callable[[], Awaitable[Any]]):
         if what == 'before_dcs_update':
             self.before_update[name] = func
@@ -171,8 +167,8 @@ class NodeImpl(Node):
             for name, element in node.items():
                 if name == 'instances':
                     for _name, _element in node['instances'].items():
-                        instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=_name)
-                        instance.locals = _element
+                        instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=_name,
+                                                                         locals=_element)
                         self.instances.append(instance)
                 else:
                     _locals[name] = element
@@ -563,3 +559,78 @@ class NodeImpl(Node):
                     # TODO audit message
         except Exception as ex:
             self.log.exception(ex)
+
+    async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
+        max_bot_port = -1
+        max_dcs_port = -1
+        max_webgui_port = -1
+        for instance in self.instances:
+            if instance.bot_port > max_bot_port:
+                max_bot_port = instance.bot_port
+            if instance.dcs_port > max_dcs_port:
+                max_dcs_port = instance.dcs_port
+            if instance.webgui_port > max_webgui_port:
+                max_webgui_port = instance.webgui_port
+        os.makedirs(os.path.join(SAVED_GAMES, name), exist_ok=True)
+        instance: InstanceImpl = DataObjectFactory().new(Instance.__name__, node=self, name=name)
+        instance.locals = {
+            "bot_port": max_bot_port + 1,
+            "dcs_port": max_dcs_port + 10,
+            "webgui_port": max_webgui_port + 2
+        }
+        os.makedirs(os.path.join(instance.home, 'Config'), exist_ok=True)
+        # should we copy from a template
+        if template:
+            shutil.copy2(os.path.join(template.home, 'Config', 'autoexec.cfg'),
+                         os.path.join(instance.home, 'Config'))
+            shutil.copy2(os.path.join(template.home, 'Config', 'serverSettings.lua'),
+                         os.path.join(instance.home, 'Config'))
+            shutil.copy2(os.path.join(template.home, 'Config', 'options.lua'),
+                         os.path.join(instance.home, 'Config'))
+            shutil.copy2(os.path.join(template.home, 'Config', 'network.vault'),
+                         os.path.join(instance.home, 'Config'))
+            if template.extensions and template.extensions.get('SRS'):
+                shutil.copy2(os.path.expandvars(template.extensions['SRS']['config']),
+                             os.path.join(instance.home, 'Config', 'SRS.cfg'))
+        autoexec = Autoexec(instance=instance)
+        autoexec.webgui_port = instance.webgui_port
+        autoexec.webrtc_port = instance.dcs_port + 1
+        with open('config/nodes.yaml') as infile:
+            config = yaml.load(infile)
+        config[platform.node()]['instances'][instance.name] = {
+            "home": instance.home,
+            "bot_port": instance.bot_port
+        }
+        with open('config/nodes.yaml', 'w') as outfile:
+            yaml.dump(config, outfile)
+        settings = SettingsDict(self, os.path.join(instance.home, 'Config', 'serverSettings.lua'), root='cfg')
+        settings['port'] = instance.dcs_port
+        settings['name'] = 'n/a'
+        self.instances.append(instance)
+        return instance
+
+    async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
+        with open('config/nodes.yaml') as infile:
+            config = yaml.load(infile)
+        del config[platform.node()]['instances'][instance.name]
+        with open('config/nodes.yaml', 'w') as outfile:
+            yaml.dump(config, outfile)
+        self.instances.remove(instance)
+        if remove_files:
+            shutil.rmtree(instance.home, ignore_errors=True)
+
+    async def rename_instance(self, instance: Instance, new_name: str) -> None:
+        with open('config/nodes.yaml') as infile:
+            config = yaml.load(infile)
+        new_home = os.path.join(os.path.dirname(instance.home), new_name)
+        os.rename(instance.home, new_home)
+        config[platform.node()]['instances'][new_name] = config[platform.node()]['instances'][instance.name].copy()
+        config[platform.node()]['instances'][new_name]['home'] = new_home
+        instance.name = new_name
+        instance.locals['home'] = new_home
+        del config[platform.node()]['instances'][instance.name]
+        with open('config/nodes.yaml', 'w') as outfile:
+            yaml.dump(config, outfile)
+
+    async def find_all_instances(self) -> list[Tuple[str, str]]:
+        return utils.findDCSInstances()

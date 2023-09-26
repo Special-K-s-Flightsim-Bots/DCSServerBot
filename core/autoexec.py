@@ -1,9 +1,13 @@
+from __future__ import annotations
 import re
 import shutil
-from core import InstanceImpl
+
 from dataclasses import dataclass, field
 from os import path
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core import InstanceImpl
 
 
 @dataclass

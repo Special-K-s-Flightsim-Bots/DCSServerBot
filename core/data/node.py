@@ -102,3 +102,15 @@ class Node:
 
     def rename(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
         raise NotImplemented()
+
+    async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
+        raise NotImplemented()
+
+    async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
+        raise NotImplemented()
+
+    async def rename_instance(self, instance: Instance, new_name: str) -> None:
+        raise NotImplemented()
+
+    async def find_all_instances(self) -> list[Tuple[str, str]]:
+        raise NotImplemented()

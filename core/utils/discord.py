@@ -18,7 +18,7 @@ from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 from .helper import get_all_players, is_ucid
 
 if TYPE_CHECKING:
-    from core import Server, DCSServerBot, Player, ServiceBus, Node
+    from core import Server, DCSServerBot, Player, ServiceBus, Node, Instance
 
 
 class PlayerType(Enum):
@@ -514,6 +514,41 @@ class NodeTransformer(app_commands.Transformer):
         return [
             app_commands.Choice(name=x, value=x)
             for x in all_nodes
+            if not current or current.casefold() in x.casefold()
+        ]
+
+
+class InstanceTransformer(app_commands.Transformer):
+
+    def __init__(self, *, unused: bool = False):
+        super().__init__()
+        self.unused = unused
+
+    async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Optional[Instance]:
+        if value:
+            node: Node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, 'node'))
+            if not node:
+                return None
+            return next(x for x in node.instances if x.name == value)
+        elif len(interaction.client.node.instances) == 1:
+            return interaction.client.node.instances[0]
+        else:
+            return None
+
+    async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+        node: Node = await NodeTransformer().transform(interaction, get_interaction_param(interaction, 'node'))
+        if not node:
+            return []
+        if self.unused:
+            all_instances = [instance for server_name, instance in await node.find_all_instances()]
+            for instance in node.instances:
+                all_instances.remove(instance.name)
+            instances = all_instances
+        else:
+            instances = [x.name for x in node.instances]
+        return [
+            app_commands.Choice(name=x, value=x)
+            for x in instances
             if not current or current.casefold() in x.casefold()
         ]
 
