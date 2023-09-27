@@ -662,7 +662,7 @@ class AdminMaster(AdminAgent):
         @discord.ui.select(placeholder="What to be pruned?", options=[
             SelectOption(label='Non-member users (unlinked)', value='non-members', default=True),
             SelectOption(label='Members and non-members', value='users'),
-            SelectOption(label='Data only (all users)', value='data')
+            SelectOption(label='Data only (for all users)', value='data')
         ])
         async def set_what(self, interaction: Interaction, select: Select):
             self.what = select.values[0]
