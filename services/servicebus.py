@@ -482,6 +482,8 @@ class ServiceBus(Service):
             # servers will be passed by name
             if kwargs.get('server'):
                 kwargs['server'] = self.servers[kwargs['server']]
+            if kwargs.get('instance'):
+                kwargs['instance'] = next(x for x in self.node.instances if x.name == kwargs['instance'])
             if self.master:
                 if kwargs.get('member'):
                     kwargs['member'] = self.bot.guilds[0].get_member(int(kwargs['member'][2:-1]))

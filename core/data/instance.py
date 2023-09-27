@@ -61,7 +61,7 @@ class Instance(DataObject):
         raise NotImplemented()
 
     @server.setter
-    def server(self, server: Server):
+    def server(self, server: Optional[Server]):
         raise NotImplemented()
 
     def prepare(self):

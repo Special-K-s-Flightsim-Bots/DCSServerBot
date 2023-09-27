@@ -36,12 +36,12 @@ class Punishment(Plugin):
         conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
         conn.execute('UPDATE pu_events_sdw SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Punishment ...')
         if ucids:
             for ucid in ucids:
                 conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid,))
-        elif days > 0:
+        elif days > -1:
             conn.execute(f"DELETE FROM pu_events WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Punishment pruned.')
 

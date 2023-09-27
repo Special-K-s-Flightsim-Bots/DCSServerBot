@@ -100,7 +100,7 @@ class Node:
     async def list_directory(self, path: str, pattern: str) -> list[str]:
         raise NotImplemented()
 
-    def rename(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
+    async def rename_server(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
         raise NotImplemented()
 
     async def add_instance(self, name: str, *, template: Optional[Instance] = None) -> Instance:
@@ -113,4 +113,10 @@ class Node:
         raise NotImplemented()
 
     async def find_all_instances(self) -> list[Tuple[str, str]]:
+        raise NotImplemented()
+
+    async def migrate_server(self, server: Server, instance: Instance) -> None:
+        raise NotImplemented()
+
+    async def unregister_server(self, server: Server) -> None:
         raise NotImplemented()

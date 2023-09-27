@@ -29,9 +29,9 @@ class GameMaster(Plugin):
                     advanced['allow_players_pool'] = server.locals['coalitions'].get('allow_players_pool', False)
                     server.settings['advanced'] = advanced
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Gamemaster ...')
-        if days > 0:
+        if days > -1:
             conn.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Gamemaster pruned.')
 

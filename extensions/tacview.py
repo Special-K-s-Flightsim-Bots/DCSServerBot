@@ -24,6 +24,9 @@ class Tacview(Extension):
         self.log_pos = -1
         self.exp = re.compile(r'TACVIEW.DLL \(Main\): Successfully saved (?P<filename>.*)')
 
+    def is_running(self) -> bool:
+        return self.check_log.is_running()
+
     async def startup(self) -> bool:
         await super().startup()
         if self.config.get('channel'):

@@ -161,3 +161,11 @@ class ServerProxy(Server):
             }
         }, timeout=120, node=self.node.name)
         return data['return']
+
+    async def persist_settings(self):
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "persist_settings",
+            "server_name": self.name
+        }, node=self.node.name, timeout=60)

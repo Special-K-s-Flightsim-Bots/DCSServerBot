@@ -145,8 +145,9 @@ class ScheduleInfo(report.EmbedElement):
                             value += '☑️|'
                     value += '\n'
                 self.embed.add_field(name='🇲|🇹|🇼|🇹|🇫|🇸|🇸', value=value)
-                self.embed.add_field(name='_ _', value='✅ = Server running\n❌ = Server not running\n'
-                                                       '☑️ = Server shuts down with no players')
+                self.embed.add_field(name='_ _', value='✅ = Server running\n'
+                                                       '❌ = Server not running\n'
+                                                       '☑️ = Server shuts down without players')
 
 
 class Footer(report.EmbedElement):

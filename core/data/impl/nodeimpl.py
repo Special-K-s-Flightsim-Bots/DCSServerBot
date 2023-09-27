@@ -31,6 +31,7 @@ from core.data.node import Node, UploadStatus
 from core.data.instance import Instance
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
+from core.data.impl.serverimpl import ServerImpl
 from core.services.registry import ServiceRegistry
 from core.utils.dcs import LICENSES_URL
 from core.utils.helper import SettingsDict
@@ -509,7 +510,7 @@ class NodeImpl(Node):
             ret.append(os.path.join(directory.__str__(), file.name))
         return ret
 
-    async def rename(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
+    async def rename_server(self, server: Server, new_name: str, update_settings: Optional[bool] = False):
         if not self.master:
             self.log.error(f"Rename request received for server {server.name} that should have gone to the master node!")
             return
@@ -595,6 +596,7 @@ class NodeImpl(Node):
         autoexec = Autoexec(instance=instance)
         autoexec.webgui_port = instance.webgui_port
         autoexec.webrtc_port = instance.dcs_port + 1
+        autoexec.crash_report_mode = "silent"
         with open('config/nodes.yaml') as infile:
             config = yaml.load(infile)
         config[platform.node()]['instances'][instance.name] = {
@@ -603,9 +605,11 @@ class NodeImpl(Node):
         }
         with open('config/nodes.yaml', 'w') as outfile:
             yaml.dump(config, outfile)
-        settings = SettingsDict(self, os.path.join(instance.home, 'Config', 'serverSettings.lua'), root='cfg')
-        settings['port'] = instance.dcs_port
-        settings['name'] = 'n/a'
+        settings_path = os.path.join(instance.home, 'Config', 'serverSettings.lua')
+        if os.path.exists(settings_path):
+            settings = SettingsDict(self, settings_path, root='cfg')
+            settings['port'] = instance.dcs_port
+            settings['name'] = 'n/a'
         self.instances.append(instance)
         return instance
 
@@ -634,3 +638,26 @@ class NodeImpl(Node):
 
     async def find_all_instances(self) -> list[Tuple[str, str]]:
         return utils.findDCSInstances()
+
+    async def migrate_server(self, server: Server, instance: Instance) -> None:
+        await server.node.unregister_server(server)
+        bus = ServiceRegistry.get("ServiceBus")
+        server: ServerImpl = DataObjectFactory().new(
+            Server.__name__, node=self.node, port=instance.bot_port, name=server.name)
+        server.status = Status.SHUTDOWN
+        bus.servers[server.name] = server
+        instance.server = server
+        with open('config/nodes.yaml') as infile:
+            config = yaml.load(infile)
+        config[self.name]['instances'][instance.name]['server'] = server.name
+        with open('config/nodes.yaml', 'w') as outfile:
+            yaml.dump(config, outfile)
+
+    async def unregister_server(self, server: Server) -> None:
+        instance = server.instance
+        instance.server = None
+        with open('config/nodes.yaml') as infile:
+            config = yaml.load(infile)
+        del config[self.name]['instances'][instance.name]['server']
+        with open('config/nodes.yaml', 'w') as outfile:
+            yaml.dump(config, outfile)

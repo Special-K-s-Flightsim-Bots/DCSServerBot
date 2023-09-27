@@ -56,12 +56,12 @@ class UserStatistics(Plugin):
         self.expire_token.cancel()
         await super().cog_unload()
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Userstats ...')
         if ucids:
             for ucid in ucids:
                 conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
-        elif days > 0:
+        elif days > -1:
             conn.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Userstats pruned.')
 

@@ -464,3 +464,22 @@ class ServerImpl(Server):
         new_filename = utils.create_writable_mission(filename)
         miz.save(new_filename)
         return new_filename
+
+    async def persist_settings(self):
+        with open('config/servers.yaml') as infile:
+            config = yaml.load(infile)
+        config[self.name]['serverSettings'] = {
+            "description": self.settings['description'],
+            "advanced": self.settings['advanced'],
+            "mode": self.settings['mode'],
+            "isPublic": self.settings['isPublic'],
+            "name": self.name,
+            "password": self.settings['password'],
+            "require_pure_textures": self.settings['require_pure_textures'],
+            "require_pure_scripts": self.settings['require_pure_scripts'],
+            "require_pure_clients": self.settings['require_pure_clients'],
+            "require_pure_models": self.settings['require_pure_models'],
+            "maxPlayers": self.settings['maxPlayers']
+        }
+        with open('config/servers.yaml', 'w') as outfile:
+            yaml.dump(config, outfile)

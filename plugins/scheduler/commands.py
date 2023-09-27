@@ -1,7 +1,8 @@
 import asyncio
 import discord
 
-from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group
+from core import Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, TEventListener, Group, Node, \
+    Instance
 from datetime import datetime, timedelta
 from discord import app_commands
 from discord.ext import tasks
@@ -513,6 +514,54 @@ class Scheduler(Plugin):
         old_name = server.name
         await server.rename(new_name, True)
         await interaction.response.send_message(f"Server {old_name} renamed to {new_name}.", ephemeral=True)
+
+    @group.command(description="Migrate a server from one instance to another")
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def migrate(self, interaction: discord.Interaction,
+                      server: app_commands.Transform[Server, utils.ServerTransformer],
+                      node: app_commands.Transform[Node, utils.NodeTransformer],
+                      instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
+        if server.instance == instance:
+            await interaction.response.send_message(
+                f'Server "{server.name}" is already bound to instance "{instance.name}".')
+            return
+        if instance.server:
+            if not await utils.yn_question(interaction, f"Instance {instance.name} is not empty.\n"
+                                                        f"Do you want to unlink (and probably shutdown) server "
+                                                        f"{instance.server.name} first?"):
+                await interaction.followup.send("Aborted.", ephemeral=True)
+        maintenance = server.maintenance
+        running = False
+        server.maintenance = True
+        try:
+            if server.status != Status.SHUTDOWN:
+                if not await utils.yn_question(interaction,
+                                               f"Do you want to shut down server {server.name} for migration?"):
+                    await interaction.followup.send("Aborted", ephemeral=True)
+                running = True
+                await server.shutdown()
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
+            # prepare server for migration
+            await server.persist_settings()
+            if instance.server:
+                await instance.server.persist_settings()
+                if instance.server.status != Status.SHUTDOWN:
+                    await instance.server.shutdown()
+            await node.migrate_server(server, instance)
+            await interaction.followup.send(f"DCS server {server.name} migrated to instance {instance.name}.",
+                                                    ephemeral=True)
+            await self.bot.audit(f"migrated DCS server to node {node.name} instance {instance.name}",
+                                 user=interaction.user, server=server)
+            if running:
+                msg: discord.Message = await interaction.followup.send("Starting up ...", ephemeral=True)
+                await server.startup()
+                await msg.edit(content=f'DCS server "{server.display_name}" started.' +
+                                       ('\nServer is in maintenance mode now! Use `/scheduler clear` '
+                                        'to reset maintenance mode.' if maintenance else ''))
+        finally:
+            server.maintenance = maintenance
 
     # /scheduler commands
     scheduler = Group(name="scheduler", description="Commands to manage the Scheduler")

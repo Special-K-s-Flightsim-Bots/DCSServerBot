@@ -208,12 +208,12 @@ class Server(DataObject):
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
         # only the master can take care of a cluster-wide rename
         if self.node.master:
-            await self.node.rename(self, new_name, update_settings)
+            await self.node.rename_server(self, new_name, update_settings)
         else:
             await self.bus.send_to_node_sync({
                 "command": "rpc",
                 "service": "Node",
-                "method": "rename",
+                "method": "rename_server",
                 "params": {
                     "server": self.name,
                     "new_name": new_name,
@@ -314,7 +314,7 @@ class Server(DataObject):
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
             raise AttributeError("Can't delete the running mission!")
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            self.send_to_dcs({"command": "deleteMission", "id": mission_id})
+            await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
         else:
             missions = self.settings['missionList']
             del missions[mission_id - 1]
@@ -368,4 +368,7 @@ class Server(DataObject):
             await self.wait_for_status_change([Status.STOPPED], timeout)
 
     async def init_extensions(self):
+        raise NotImplemented()
+
+    async def persist_settings(self):
         raise NotImplemented()

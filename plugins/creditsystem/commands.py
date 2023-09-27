@@ -13,7 +13,7 @@ from .player import CreditPlayer
 
 class CreditSystem(Plugin):
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Creditsystem ...')
         if ucids:
             for ucid in ucids:

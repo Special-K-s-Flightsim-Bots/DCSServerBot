@@ -38,9 +38,9 @@ class Mission(Plugin):
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         conn.execute('UPDATE missions SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    async def prune(self, conn: psycopg.Connection, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Mission ...')
-        if days > 0:
+        if days > -1:
             conn.execute(f"DELETE FROM missions WHERE mission_end < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Mission pruned.')
 

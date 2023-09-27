@@ -11,12 +11,12 @@ from .listener import MissionStatisticsEventListener
 
 class MissionStatistics(Plugin):
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Missionstats ...')
         if ucids:
             for ucid in ucids:
                 conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid,))
-        elif days > 0:
+        elif days > -1:
             conn.execute(f"DELETE FROM missionstats WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Missionstats pruned.')
 
