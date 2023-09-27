@@ -45,7 +45,7 @@ class CreditSystemAgent(Plugin):
 
 class CreditSystemMaster(CreditSystemAgent):
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Creditsystem ...')
         with closing(conn.cursor()) as cursor:
             if ucids:

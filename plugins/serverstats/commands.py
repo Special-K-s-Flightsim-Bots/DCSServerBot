@@ -39,6 +39,13 @@ class AgentServerStats(Plugin):
         finally:
             self.pool.putconn(conn)
 
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
+        self.log.debug('Pruning Serverstats ...')
+        with closing(conn.cursor()) as cursor:
+            if days > -1:
+                cursor.execute(f"DELETE FROM serverstats WHERE time < (DATE(NOW()) - interval '{days} days')")
+        self.log.debug('Serverstats pruned.')
+
     @staticmethod
     def get_params(*params) -> Tuple[bool, Optional[str]]:
         is_all = False

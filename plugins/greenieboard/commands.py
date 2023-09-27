@@ -61,13 +61,13 @@ class GreenieBoardAgent(Plugin):
                 json.dump(old, outfile, indent=2)
                 self.log.info('  => config/greenieboard.json migrated to new format, please verify!')
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Greenieboard ...')
         with closing(conn.cursor()) as cursor:
             if ucids:
                 for ucid in ucids:
                     cursor.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
-            elif days > 0:
+            elif days > -1:
                 cursor.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Greenieboard pruned.')
 

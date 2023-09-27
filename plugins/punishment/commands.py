@@ -254,13 +254,13 @@ class PunishmentMaster(PunishmentAgent):
         finally:
             self.pool.putconn(conn)
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Punishment ...')
         with closing(conn.cursor()) as cursor:
             if ucids:
                 for ucid in ucids:
                     cursor.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid,))
-            elif days > 0:
+            elif days > -1:
                 cursor.execute(f"DELETE FROM pu_events WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Punishment pruned.')
 

@@ -669,6 +669,7 @@ class AdminMaster(AdminAgent):
             await interaction.response.defer()
 
         @discord.ui.select(placeholder="Which age to be pruned?", options=[
+            SelectOption(label='Everything', value='0'),
             SelectOption(label='Older than 90 days', value='90'),
             SelectOption(label='Older than 180 days', value='180', default=True),
             SelectOption(label='Older than 1 year', value='360 days')

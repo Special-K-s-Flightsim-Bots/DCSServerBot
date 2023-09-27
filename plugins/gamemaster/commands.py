@@ -232,10 +232,10 @@ class GameMasterMaster(GameMasterAgent):
         if version == '1.3':
             self.log.warning('  => Coalition system has been updated. All player coalitions have been reset!')
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Gamemaster ...')
         with closing(conn.cursor()) as cursor:
-            if days > 0:
+            if days > -1:
                 cursor.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Gamemaster pruned.')
 

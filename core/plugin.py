@@ -119,7 +119,7 @@ class Plugin(commands.Cog):
     async def after_dcs_update(self) -> None:
         pass
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None) -> None:
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None) -> None:
         pass
 
     def init_db(self) -> None:
