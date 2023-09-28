@@ -46,11 +46,11 @@ class Header(report.EmbedElement):
             self.add_field(name='Discord ID:', value=member.id)
         else:
             self.embed.description += 'a non-member user:'
-        last_seen = datetime(1970, 1, 1)
+        last_seen = datetime(1970, 1, 1, tzinfo=timezone.utc)
         banned = False
         for row in rows:
-            if row.get('last_seen') and row['last_seen'] > last_seen:
-                last_seen = row['last_seen']
+            if row.get('last_seen') and row['last_seen'].astimezone(timezone.utc) > last_seen:
+                last_seen = row['last_seen'].astimezone(timezone.utc)
             if row['banned'] == 1:
                 banned = True
         if last_seen != datetime(1970, 1, 1):
@@ -89,12 +89,11 @@ class UCIDs(report.EmbedElement):
 
 class History(report.EmbedElement):
     def render(self, member: Union[discord.Member, str]):
-        sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.discord_id = '
-        if isinstance(member, str):
-            sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
-                   f"p.ucid = '{member}' OR LOWER(p.name) ILIKE '{member.casefold()}' "
+        sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.ucid '
+        if isinstance(member, discord.Member):
+            sql += f"IN (SELECT ucid FROM players WHERE discord_id = '{member.id}')"
         else:
-            sql += f"'{member.id}'"
+            sql += f"'= {member}'"
         sql += ' GROUP BY name ORDER BY time DESC LIMIT 10'
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
@@ -103,7 +102,7 @@ class History(report.EmbedElement):
                     return
                 self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
                 self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name'] or 'n/a') for row in rows]))
-                self.add_field(name='Time', value='\n'.join([f"{row['time']:%y-%m-%d %H:%M:%S}" for row in rows]))
+                self.add_field(name='Time', value='\n'.join([f"{row['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S}" for row in rows]))
                 self.add_field(name='_ _', value='_ _')
 
 

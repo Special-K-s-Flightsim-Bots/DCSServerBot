@@ -689,7 +689,7 @@ class UserTransformer(app_commands.Transformer):
         ret = []
         if self.sel_type in [PlayerType.ALL, PlayerType.PLAYER]:
             ret.extend([
-                app_commands.Choice(name='✈ ' + name, value=ucid)
+                app_commands.Choice(name='✈ ' + name + ' (' + ucid + ')', value=ucid)
                 for ucid, name in get_all_players(interaction.client, self.linked)
                 if not current or current.casefold() in name.casefold() or current.casefold() in ucid
             ])
