@@ -55,15 +55,15 @@ class Header(report.EmbedElement):
             self.add_field(name='Discord ID:', value=member.id)
         else:
             self.embed.description += 'a non-member user:'
-        last_seen = datetime(1970, 1, 1)
+        last_seen = datetime(1970, 1, 1, tzinfo=timezone.utc)
         banned = False
         for row in rows:
-            if row.get('last_seen') and row['last_seen'] > last_seen:
-                last_seen = row['last_seen']
+            if row.get('last_seen') and row['last_seen'].astimezone(timezone.utc) > last_seen:
+                last_seen = row['last_seen'].astimezone(timezone.utc)
             if row['banned'] == 1:
                 banned = True
         if last_seen != datetime(1970, 1, 1):
-            self.add_field(name='Last seen:', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
+            self.add_field(name='Last seen (UTC):', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
         if banned:
             if rows[0]['banned_until'].year == 9999:
                 until = 'never'
@@ -105,16 +105,15 @@ class UCIDs(report.EmbedElement):
 
 class History(report.EmbedElement):
     def render(self, member: Union[discord.Member, str]):
+        sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.ucid '
+        if isinstance(member, discord.Member):
+            sql += f"IN (SELECT ucid FROM players WHERE discord_id = '{member.id}')"
+        else:
+            sql += f"'= {member}'"
+        sql += ' GROUP BY name ORDER BY time DESC LIMIT 10'
         conn = self.bot.pool.getconn()
         try:
             with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.discord_id = '
-                if isinstance(member, str):
-                    sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
-                           f"p.ucid = '{member}' OR LOWER(p.name) ILIKE '{member.casefold()}' "
-                else:
-                    sql += f"'{member.id}'"
-                sql += ' GROUP BY name ORDER BY time DESC LIMIT 10'
                 cursor.execute(sql)
                 if not cursor.rowcount:
                     return
