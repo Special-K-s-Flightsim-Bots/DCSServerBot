@@ -120,7 +120,7 @@ class Mission(Plugin):
     async def restart(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                           status=[Status.RUNNING, Status.PAUSED, Status.STOPPED])],
-                      delay: Optional[int] = 120, reason: Optional[str] = None):
+                      delay: Optional[int] = 120, reason: Optional[str] = None, run_extensions: Optional[bool] = False):
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             await interaction.response.send_message(
                 f"Can't restart server {server.name} as it is {server.status.name}!", ephemeral=True)
@@ -161,11 +161,10 @@ class Mission(Plugin):
             await msg.delete()
 
         msg = await interaction.followup.send('Mission will restart now, please wait ...', ephemeral=True)
-        if server.current_mission:
-            await server.current_mission.restart()
+        if run_extensions:
+            await server.restart(smooth=await server.apply_mission_changes())
         else:
-            await server.stop()
-            await server.start()
+            await server.restart()
         await self.bot.audit("restarted mission", server=server, user=interaction.user)
         await msg.delete()
         await interaction.followup.send('Mission restarted.', ephemeral=True)
@@ -178,7 +177,7 @@ class Mission(Plugin):
     async def load(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
-                   mission_id: int):
+                   mission_id: int, run_extensions: Optional[bool] = False):
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             await interaction.response.send_message(
                 f"Can't load mission on server {server.name} as it is {server.status.name}!", ephemeral=True)
@@ -208,7 +207,10 @@ class Mission(Plugin):
                 await interaction.followup.send(f'Mission {server.current_mission.display_name} will be restarted '
                                                 f'when server is empty.', ephemeral=True)
             else:
-                await server.current_mission.restart()
+                if run_extensions:
+                    await server.restart(smooth=await server.apply_mission_changes())
+                else:
+                    await server.restart()
                 await interaction.followup.send(f'Mission {server.current_mission.display_name} restarted.',
                                                 ephemeral=True)
         else:
@@ -224,6 +226,8 @@ class Mission(Plugin):
                                                       ephemeral=True)
                 try:
                     await server.loadMission(mission_id + 1)
+                    if run_extensions:
+                        await server.restart(smooth=await server.apply_mission_changes())
                     await self.bot.audit("loaded mission", server=server, user=interaction.user)
                     await interaction.followup.send(f'Mission {name} loaded.', ephemeral=True)
                 except asyncio.TimeoutError:
@@ -428,10 +432,9 @@ class Mission(Plugin):
     @utils.app_has_role('DCS')
     async def _list(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
-        timeout = self.bot.locals.get('message_autodelete', 300)
         report = Report(self.bot, self.plugin_name, 'players.json')
         env = await report.render(server=server, sides=utils.get_sides(interaction, server))
-        await interaction.response.send_message(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @player.command(description='Kicks a player by name or UCID')
     @app_commands.guild_only()
