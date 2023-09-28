@@ -54,7 +54,7 @@ class Header(report.EmbedElement):
             if row['banned'] == 1:
                 banned = True
         if last_seen != datetime(1970, 1, 1):
-            self.add_field(name='Last seen:', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
+            self.add_field(name='Last seen (UTC):', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
         if banned:
             if rows[0]['banned_until'].year == 9999:
                 until = 'never'
@@ -93,7 +93,7 @@ class History(report.EmbedElement):
         if isinstance(member, discord.Member):
             sql += f"IN (SELECT ucid FROM players WHERE discord_id = '{member.id}')"
         else:
-            sql += f"'= {member}'"
+            sql += f"= {member}"
         sql += ' GROUP BY name ORDER BY time DESC LIMIT 10'
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
@@ -102,7 +102,7 @@ class History(report.EmbedElement):
                     return
                 self.add_field(name='▬' * 13 + ' Change History ' + '▬' * 13, value='_ _', inline=False)
                 self.add_field(name='DCS Name', value='\n'.join([utils.escape_string(row['name'] or 'n/a') for row in rows]))
-                self.add_field(name='Time', value='\n'.join([f"{row['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S}" for row in rows]))
+                self.add_field(name='Time (UTC)', value='\n'.join([f"{row['time'].astimezone(timezone.utc):%y-%m-%d %H:%M:%S}" for row in rows]))
                 self.add_field(name='_ _', value='_ _')
 
 
