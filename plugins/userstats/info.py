@@ -109,7 +109,7 @@ class History(report.EmbedElement):
         if isinstance(member, discord.Member):
             sql += f"IN (SELECT ucid FROM players WHERE discord_id = {member.id})"
         else:
-            sql += "= '{member}' OR LOWER(p.name) ILIKE '{member.casefold()}'"
+            sql += f"= '{member}' OR LOWER(p.name) ILIKE '{member.casefold()}'"
         sql += ' GROUP BY name ORDER BY time DESC LIMIT 10'
         conn = self.bot.pool.getconn()
         try:
