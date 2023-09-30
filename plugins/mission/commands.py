@@ -633,7 +633,7 @@ class Mission(Plugin):
             if rc != UploadStatus.OK:
                 await server.uploadMission(att.filename, att.url, force=True)
 
-            filename = os.path.join(await server.get_missions_dir(), att.filename)
+            filename = os.path.normpath(os.path.join(await server.get_missions_dir(), att.filename))
             name = os.path.basename(att.filename)[:-4]
             if not server.locals.get('autoscan', False):
                 await server.addMission(filename)
