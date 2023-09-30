@@ -303,6 +303,13 @@ class MissionEventListener(EventListener):
             server.add_player(player)
         else:
             player.update(data)
+        if player.member:
+            server.send_to_dcs({
+                'command': 'uploadUserRoles',
+                'id': player.id,
+                'ucid': player.ucid,
+                'roles': [x.name for x in player.member.roles]
+            })
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:

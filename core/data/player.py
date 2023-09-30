@@ -57,7 +57,7 @@ class Player(DataObject):
                     if cursor.rowcount == 1:
                         row = cursor.fetchone()
                         if row[0] != -1:
-                            self.member = self._member = self.bot.guilds[0].get_member(row[0])
+                            self._member = self.bot.guilds[0].get_member(row[0])
                             self._verified = row[2]
                         self.banned = row[1]
                         if row[2]:
@@ -93,14 +93,6 @@ class Player(DataObject):
                     conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
                                  (member.id if member else -1, self.ucid))
             self._member = member
-        if member:
-            roles = [x.name for x in member.roles]
-            self.server.send_to_dcs({
-                'command': 'uploadUserRoles',
-                'id': self.id,
-                'ucid': self.ucid,
-                'roles': roles
-            })
 
     @property
     def verified(self) -> bool:
