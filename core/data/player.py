@@ -93,6 +93,13 @@ class Player(DataObject):
                     conn.execute('UPDATE players SET discord_id = %s WHERE ucid = %s',
                                  (member.id if member else -1, self.ucid))
             self._member = member
+            self.server.send_to_dcs({
+                'command': 'uploadUserRoles',
+                'id': self.id,
+                'ucid': self.ucid,
+                'roles': [x.name for x in self._member.roles]
+            })
+
 
     @property
     def verified(self) -> bool:
