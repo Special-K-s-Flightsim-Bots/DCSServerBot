@@ -621,8 +621,7 @@ class Mission(Plugin):
         try:
             rc = await server.uploadMission(att.filename, att.url)
             if rc == UploadStatus.FILE_IN_USE:
-                if not await utils.yn_question(message.interaction,
-                                               'A mission is currently active.\n'
+                if not await utils.yn_question(ctx, 'A mission is currently active.\n'
                                                'Do you want me to stop the DCS-server to replace it?'):
                     await message.channel.send('Upload aborted.')
                     return
