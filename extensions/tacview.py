@@ -1,4 +1,6 @@
 import asyncio
+import shutil
+
 import discord
 import os
 import re
@@ -48,8 +50,7 @@ class Tacview(Extension):
         options = self.server.options['plugins']
         if 'tacviewExportPath' in self.config:
             path = os.path.normpath(os.path.expandvars(self.config['tacviewExportPath']))
-            if path != TACVIEW_DEFAULT_DIR and ('tacviewExportPath' not in options['Tacview'] or
-                                                os.path.normpath(options['Tacview']['tacviewExportPath']) != path):
+            if options['Tacview'].get('tacviewExportPath', TACVIEW_DEFAULT_DIR) != path:
                 options['Tacview']['tacviewExportPath'] = path
                 dirty = True
                 if not os.path.exists(path):
@@ -185,14 +186,21 @@ class Tacview(Extension):
                 filename = match.group('filename')[1:-1]
                 for i in range(0, 60):
                     if os.path.exists(filename):
-                        channel = self.bot.get_channel(self.config['channel'])
-                        try:
-                            await channel.send(file=discord.File(filename))
-                        except discord.HTTPException:
-                            self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
-                            await channel.send(f"File {filename} could not be uploaded because it is too large!")
-                            return
-                        break
+                        target = self.config['target']
+                        if target.startswith('<'):
+                            channel = self.bot.get_channel(int(target[4:-1]))
+                            try:
+                                await channel.send(file=discord.File(filename))
+                            except discord.HTTPException:
+                                self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
+                                await channel.send(f"File {filename} could not be uploaded because it is too large!")
+                                return
+                            break
+                        else:
+                            try:
+                                shutil.copy2(filename, os.path.expandvars(utils.format_string(target, server=self.server)))
+                            except Exception as ex:
+                                self.log.warning(f"Can't upload TACVIEW file {filename} to {target}: ", exc_info=ex)
                     await asyncio.sleep(1)
                 else:
                     self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
@@ -203,11 +211,11 @@ class Tacview(Extension):
             self.log.debug('Last line to check: ' + lines[-1])
 
     async def shutdown(self, data: dict) -> bool:
-        if self.config.get('channel') and self.locals.get('tacviewMultiplayerFlightsAsHost', 2) == 2:
+        if self.config.get('target') and self.locals.get('tacviewMultiplayerFlightsAsHost', 2) == 2:
             await self.send_tacview_file(data)
         return True
 
     async def onPlayerDisconnect(self, data: dict) -> bool:
-        if self.config.get('channel') and self.locals.get('tacviewMultiplayerFlightsAsHost', 2) == 3:
+        if self.config.get('target') and self.locals.get('tacviewMultiplayerFlightsAsHost', 2) == 3:
             await self.send_tacview_file(data)
         return True

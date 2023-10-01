@@ -115,9 +115,19 @@ class Scheduler(Plugin):
                     config['settings'] = deepcopy(config['restart']['settings'])
                     del config['restart']['settings']
                     dirty = True
+        elif version == '1.4':
+            with open('config/scheduler.json') as file:
+                new: dict = json.load(file)
+            for config in new['configs']:
+                if config.get('extensions', {}).get('Tacview', {}).get('channel'):
+                    config['extensions']['Tacview']['target'] = f"<id:{config['extensions']['Tacview']['channel']}>"
+                    del config['extensions']['Tacview']['channel']
+                    dirty = True
         else:
             return
         if dirty:
+            if os.path.exists('config/scheduler.bak'):
+                os.remove('config/scheduler.bak')
             os.rename('config/scheduler.json', 'config/scheduler.bak')
             with open('config/scheduler.json', 'w') as file:
                 json.dump(new, file, indent=2)
