@@ -6,7 +6,7 @@ import psycopg2.extras
 import sys
 from contextlib import closing
 from copy import deepcopy
-from core import utils
+from core import utils, MizFile
 from discord.ext import commands
 from os import path
 from shutil import copytree
@@ -176,19 +176,44 @@ class Plugin(commands.Cog):
 
     # get default and specific configs to be merged in derived implementations
     def get_base_config(self, server: Server) -> Tuple[Optional[dict], Optional[dict]]:
+        def get_theatre() -> Optional[str]:
+            if server.current_mission:
+                return server.current_mission.map
+            else:
+                file = server.get_current_mission_file()
+                if not file:
+                    return None
+                miz = MizFile(self.bot, file)
+                return miz.theatre
+
+        def get_mission() -> Optional[str]:
+            if server.current_mission:
+                return server.current_mission.name
+            else:
+                file = server.get_current_mission_file()
+                if not file:
+                    return None
+                return os.path.basename(file)[:-4]
+
         def filter_element(element: dict) -> dict:
             full = deepcopy(element)
             if 'terrains' in element:
+                theatre = get_theatre()
+                if not theatre:
+                    return full
                 del full['terrains']
-                for terrain in element['terrains'].keys():
-                    if server.current_mission.map.casefold() == terrain.casefold():
-                        return full | element['terrains'][terrain]
+                for _theatre in element['terrains'].keys():
+                    if theatre.casefold() == _theatre.casefold():
+                        return full | element['terrains'][_theatre]
                 return full
             elif 'missions' in element:
+                mission = get_mission()
+                if not mission:
+                    return full
                 del full['missions']
-                for mission in element['missions'].keys():
-                    if server.current_mission.map.casefold() == mission.casefold():
-                        return full | element['missions'][mission]
+                for _mission in element['missions'].keys():
+                    if mission.casefold() == _mission.casefold():
+                        return full | element['missions'][_mission]
                 return full
             else:
                 return element

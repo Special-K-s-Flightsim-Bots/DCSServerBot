@@ -59,6 +59,10 @@ class MizFile:
             self.log.error(f"Can't change mission, please check permissions on {self.filename}!")
 
     @property
+    def theatre(self) -> str:
+        return self.mission['theatre']
+
+    @property
     def start_time(self) -> int:
         return self.mission['start_time']
 
