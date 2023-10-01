@@ -223,7 +223,7 @@ class MissionEventListener(EventListener):
             return
         self._update_mission(server, data)
         if 'players' not in data:
-            server.players = dict[int, Player]()
+            server.players.clear()
             data['players'] = []
             server.status = Status.STOPPED
         else:
@@ -232,13 +232,17 @@ class MissionEventListener(EventListener):
         for p in data['players']:
             if p['id'] == 1:
                 continue
-            player: Player = DataObjectFactory().new(
-                Player.__name__, node=server.node, server=server, id=p['id'], name=p['name'], active=p['active'],
-                side=Side(p['side']), ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
-                unit_callsign=p['unit_callsign'], unit_name=p['unit_name'], unit_type=p['unit_type'],
-                unit_display_name=p.get('unit_display_name', p['unit_type']), group_id=p['group_id'],
-                group_name=p['group_name'])
-            server.add_player(player)
+            player: Player = server.get_player(ucid=p['ucid'])
+            if not player:
+                player: Player = DataObjectFactory().new(
+                    Player.__name__, node=server.node, server=server, id=p['id'], name=p['name'], active=p['active'],
+                    side=Side(p['side']), ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
+                    unit_callsign=p['unit_callsign'], unit_name=p['unit_name'], unit_type=p['unit_type'],
+                    unit_display_name=p.get('unit_display_name', p['unit_type']), group_id=p['group_id'],
+                    group_name=p['group_name'])
+                server.add_player(player)
+            else:
+                player.update(p)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now()
         self.display_mission_embed(server)
