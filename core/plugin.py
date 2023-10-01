@@ -362,6 +362,7 @@ class Plugin(commands.Cog):
 
     # get default and specific configs to be merged in derived implementations
     def get_base_config(self, server: Server) -> Tuple[Optional[dict], Optional[dict]]:
+        # TODO: what happens if the mission wasn't loaded yet
         def filter_element(element: dict) -> dict:
             full = deepcopy(element)
             if 'terrains' in element:
@@ -373,7 +374,7 @@ class Plugin(commands.Cog):
             elif 'missions' in element:
                 del full['missions']
                 for mission in element['missions'].keys():
-                    if server.current_mission.map.casefold() == mission.casefold():
+                    if server.current_mission.name.casefold() == mission.casefold():
                         return full | element['missions'][mission]
                 return full
             else:
