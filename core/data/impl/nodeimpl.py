@@ -494,6 +494,8 @@ class NodeImpl(Node):
             async with session.get(url) as response:
                 if response.status == 200:
                     try:
+                        # make sure the directory exists
+                        os.makedirs(os.path.dirname(filename), exist_ok=True)
                         with open(filename, 'wb') as outfile:
                             outfile.write(await response.read())
                     except OSError as ex:
