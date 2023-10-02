@@ -104,7 +104,9 @@ class ServerImpl(Server):
             path = os.path.join(self.instance.home, 'Config', 'serverSettings.lua')
             self._settings = utils.SettingsDict(self, path, 'cfg')
             # if someone managed to destroy the mission list, fix it...
-            if isinstance(self._settings['missionList'], dict):
+            if 'missionList' not in self._settings:
+                self._settings['missionList'] = []
+            elif isinstance(self._settings['missionList'], dict):
                 self._settings['missionList'] = list(self._settings['missionList'].values())
         return self._settings
 

@@ -6,7 +6,7 @@ import shlex
 
 from contextlib import closing
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
-    Channel, DataObjectFactory, event, chat_command
+    Channel, DataObjectFactory, event, chat_command, ServiceRegistry
 from datetime import datetime, timezone
 from discord.ext import tasks
 from psycopg.rows import dict_row
@@ -226,7 +226,7 @@ class MissionEventListener(EventListener):
             server.players.clear()
             data['players'] = []
             server.status = Status.STOPPED
-        else:
+        elif data['channel'].startswith('sync-'):
             server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server.afk.clear()
         for p in data['players']:
@@ -479,7 +479,7 @@ class MissionEventListener(EventListener):
 
     @chat_command(name="load", roles=['DCS Admin'], usage="<number>", help="load a specific mission")
     async def load(self, server: Server, player: Player, params: list[str]):
-        self.bot.loop.call_soon(asyncio.create_task, server.loadMission(params[0]))
+        self.bot.loop.call_soon(asyncio.create_task, server.loadMission(int(params[0])))
 
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 30 days")
     async def ban(self, server: Server, player: Player, params: list[str]):
