@@ -30,8 +30,14 @@ class MizEdit(Extension):
                 return True
         if isinstance(_presets, list):
             presets = random.choice(_presets)
+        if isinstance(presets, str):
+            all_presets = [x.strip() for x in presets.split(',')]
+        else:
+            all_presets = presets
         modifications = []
-        for preset in [x.strip() for x in presets.split(',')]:
+        for preset in all_presets:
+            if isinstance(preset, list):
+                preset = random.choice(preset)
             if preset not in self.presets:
                 self.log.error(f'Preset {preset} not found, ignored.')
                 continue
