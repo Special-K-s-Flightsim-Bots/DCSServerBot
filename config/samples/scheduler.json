@@ -77,7 +77,8 @@
       },
       "settings": [
         "Winter,Late Evening,Heavy Storm,Sounds",
-        "Summer,Morning,Slight Breeze,Sounds"
+        "Summer,Morning,Slight Breeze,Sounds",
+        [["Summer", "Winter"], ["Morning", "Evening"], ["Calm","Heavy Storm"], "Sounds"]
       ],
       "extensions": {
         "SRS": {

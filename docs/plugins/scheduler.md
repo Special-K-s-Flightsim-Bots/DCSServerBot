@@ -111,6 +111,7 @@ Examples:
       "settings": [                         -- Weather will change randomly
         "Winter, Morning, Windy, Sounds",
         "Summer, Morning, Calm, Sounds"
+        [["Summer", "Winter"], ["Morning", "Evening"], ["Calm","Heavy Storm"], "Sounds"]  -- complete random choice
       ],
       "onMissionStart": "load:Script/net/f10menu.lua"  -- load some lua in the mission on mission start
     }

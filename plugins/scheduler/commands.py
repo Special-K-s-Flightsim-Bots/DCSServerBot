@@ -346,7 +346,13 @@ class Scheduler(Plugin):
             if isinstance(_presets, list):
                 presets = random.choice(_presets)
         miz = MizFile(server.bot, filename)
-        for preset in [x.strip() for x in presets.split(',')]:
+        if isinstance(presets, str):
+            all_presets = [x.strip() for x in presets.split(',')]
+        else:
+            all_presets = presets
+        for preset in all_presets:
+            if isinstance(preset, list):
+                preset = random.choice(preset)
             if preset not in config['presets']:
                 server.log.error(f'Preset {preset} not found, ignored.')
                 continue
