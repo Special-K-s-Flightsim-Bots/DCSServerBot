@@ -236,6 +236,7 @@ class Tacview(Extension):
                         shutil.copy2(filename, os.path.expandvars(utils.format_string(target, server=self.server)))
                     except Exception as ex:
                         self.log.warning(f"Can't upload TACVIEW file {filename} to {target}: ", exc_info=ex)
+                    return
             await asyncio.sleep(1)
         else:
             self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")

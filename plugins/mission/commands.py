@@ -584,6 +584,9 @@ class Mission(Plugin):
                     continue
                 for ucid, dt in server.afk.items():
                     player = server.get_player(ucid=ucid, active=True)
+                    # don't kick DCS Admin or GameMaster users
+                    if player.has_discord_roles(['DCS Admin', 'GameMaster']):
+                        continue
                     if player and (datetime.now() - dt).total_seconds() > max_time:
                         msg = self.get_config(server).get(
                             'message_afk', '{player.name}, you have been kicked for being AFK for '
