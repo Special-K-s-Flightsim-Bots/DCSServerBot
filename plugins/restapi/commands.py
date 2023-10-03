@@ -52,6 +52,7 @@ class RestAPI(Plugin):
                            CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
+                    AND hop_on > NOW() - interval '1 month' 
                     GROUP BY 1 ORDER BY 2 DESC LIMIT 10
                 """).fetchall()
 
@@ -63,6 +64,7 @@ class RestAPI(Plugin):
                            CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
+                    AND hop_on > NOW() - interval '1 month' 
                     GROUP BY 1 ORDER BY 4 DESC LIMIT 10
                 """).fetchall()
 
@@ -95,8 +97,12 @@ class RestAPI(Plugin):
     def stats(self, nick: str = Form(default=None), date: str = Form(default=None)):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
-                ucid = cursor.execute("SELECT ucid FROM players WHERE name = %s AND last_seen = %s",
-                                      (nick, datetime.fromisoformat(date))).fetchone()['ucid']
+                row = cursor.execute("SELECT ucid FROM players WHERE name = %s AND last_seen = %s",
+                                     (nick, datetime.fromisoformat(date))).fetchone()
+                if row:
+                    ucid = row['ucid']
+                else:
+                    return {}
                 data = cursor.execute("""
                     SELECT overall.deaths, overall.aakills, 
                            ROUND(CASE WHEN overall.deaths = 0 
