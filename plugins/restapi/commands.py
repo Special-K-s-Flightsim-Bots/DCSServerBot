@@ -121,6 +121,8 @@ class RestAPI(Plugin):
             with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
                 cursor.execute("SELECT ucid FROM players WHERE name = %s AND last_seen = %s",
                                (nick, datetime.fromisoformat(date)))
+                if cursor.rowcount == 0:
+                    return {}
                 ucid = cursor.fetchone()['ucid']
                 cursor.execute("""
                     SELECT overall.deaths, overall.aakills, 
