@@ -1,6 +1,6 @@
 # Welcome to DCSServerBot!
 You've found a comprehensive solution that lets you administrate your DCS instances via Discord slash-commands, has 
-built in per-server and per-user statistics, optional cloud-based statistics, [coalitions](./COALITIONS.md) support and much more! 
+built in per-server and per-user statistics, optional cloud-based statistics, [Coalitions](./COALITIONS.md)-support and much more! 
 With its plugin system and reporting framework, DCSServerBot can be enhanced very easily to support whatever might come 
 into your mind. 
 
@@ -19,9 +19,20 @@ The solution itself is made for anything from single-server environments up to l
 high availability requirements. There are nearly no limits.<br>
 If you are interested into some deeper insights to the bots architecture, read [here](https://www.google.de).
 
+### Node
+A node is an installation of DCSServerBot on one PC. The usual user will have one installation, meaning one node.
+You can run multiple instances of DCS with each node (see blow). If you run multiple PCs or (virtual) servers, you 
+need to install multiple DCSServerBot nodes. This results in a DCSServerBot cluster.<br>
+One node is always a master node, which handles all the Discord commands and controls the rest of the cluster. Each
+node can be a master. You can define nodes as preferred master nodes, which you usually want to do with nodes that
+are close to your database server (see below).
+
+### Instance
+Each node can control multiple instances of DCS, meaning `DCS.exe` or `DCS_Server.exe` processes.
+
 ### Services
-A service is a component that needs to run on each cluster node. Services can be combined with plugins, if they provide
-additional Discord commands, like the Music service.
+A service is a component that runs on each node. Services can be combined with plugins, if they provide additional
+Discord commands, like the Music service. You can define that a service only runs on the master node.
 
 | Service    | Scope                                                                   | Plugin | Documentation                             |
 |------------|-------------------------------------------------------------------------|--------|-------------------------------------------|
@@ -34,9 +45,10 @@ additional Discord commands, like the Music service.
 | Music      | Play music over different SRS-radios on your servers.                   | Music  |                                           |
 
 ### Plugins
-A plugin is in general a list of Discord commands, sometimes in-game chat commands and things that should happen, when 
-specific events are being received by DCS. DCSServerBot comes with a rich set of default plugins but can be enhanced 
-either by optional plugins provided by me or some that you or some other community member wrote on their own. 
+A plugin is an expansion of the bot that can be controlled via Discord commands and sometimes in-game chat commands. 
+These commands can be received in DCS or be controlled by events in the game. DCSServerBot comes with a rich set of 
+default plugins, but it can be enhanced with optional plugins. I can write those myself, but you as a community member 
+can also create your own plugins (and maybe share them with others). 
 
 | Plugin       | Scope                                                                       | Optional | Depending on          | Documentation                              |
 |--------------|-----------------------------------------------------------------------------|----------|-----------------------|--------------------------------------------|
@@ -61,17 +73,19 @@ either by optional plugins provided by me or some that you or some other communi
 | Commands     | Create custom discord commands.                                             | yes      |                       | [README](./plugins/commands/README.md)     |
 | RestAPI      | Simple REST-API to query users and statistics (WIP).                        | yes      |                       |                                            |
 
-*) These plugins are loaded by the bot by default, but they are not necessarily needed to operate the bot.<br> 
-&nbsp;&nbsp;&nbsp;&nbsp;If you want to remove them, overwrite "plugins" in your main.yaml.
+*) These plugins are loaded by the bot by default, but they are not mandatory to operate the bot.<br> 
+&nbsp;&nbsp;&nbsp;&nbsp;If you want to change that, define a list of `plugins` in your main.yaml.
 
 #### How to install 3rd-Party Plugins
-Whenever someone else provides a plugin for DCSServerBot, they most likely do that as a zip file. You can just download 
-any plugin zipfile directly into the /plugins directory. They will get unpacked automatically on the next start of 
-DCSServerBot. Some of them might need configurations. Please refer to the plugins documentation for more. 
+If a community member provides a plugin for DCSServerBot, chances are that it is packed into a zip file. You can 
+download this zipfile and place it directly into the /plugins directory. DCSServerBot will automatically unpack the 
+plugin for you, when DCSServerBot restarts. Keep in mind that some of them might need configurations. Please refer to 
+the plugins documentation for more.
 
 #### In case you want to write your own Plugin ...
-There is a sample and a guide in the plugins/samples subdirectory, that will guide you through the steps. 
-If you want your plugin to be added to the distribution, just contact me via the contact details below.
+You can find a sample in the plugins/sample subdirectory and a guide [here](./plugins/README.md). These will guide you 
+through the steps needed to build your own plugin. Do you want your plugin to be added as an optional plugin to the 
+DCSServerBot? Contact me via the contact details listed below.
 
 ### Extensions
 Many DCS admins use extensions or add-ons like DCS-SRS, Tacview, LotAtc, etc.</br>
@@ -131,10 +145,9 @@ your PC that is running the DCS server(s) and give it write permissions, if need
 outside via www etc. as it contains sensitive data.
 
 ### Database
-DCSServerBot uses PostgreSQL to store all information that needs to be persisted, like players, mission information, 
-statistics and whatnot. Therefor, it needs a fast database. Starting with SQLite back in the days, I decided to move
-over to PostgreSQL with version 2.0 already and never regret it. Install the latest available PostgreSQL version from 
-the above-mentioned website. 
+DCSServerBot uses PostgreSQL to store all information that needs to be persistent. This consists of, but is not limited
+to: players, mission information, statistics and whatnot. DCSServerBot needs a fast database to do this. Install the 
+latest available PostgreSQL version from the above-mentioned website.
 
 ### DCSServerBot Installation
 Run the provided `install.cmd` script or just `run.cmd`.<br>
@@ -161,7 +174,7 @@ The following samples will show you what you can configure in DCSServerBot. For 
 values will apply, so you don't need to set them explicitly.
 
 ### config/main.yaml
-This file holds the main information about DCSServerBot. You can configure, which plugins are loaded here for instance.
+This file holds the main information about DCSServerBot. You can configure which plugins are loaded here for instance.
 
 ```yaml
 guild_id: 112233445566  # Your Discord server ID. Right click on your server and select "Copy Server ID".
@@ -210,6 +223,7 @@ NODENAME:                       # this will be your hostname
   listen_port: 10042            # On which port should the bot listen to? Default is 10042
   autoupdate: true              # use the bots autoupdate functionality, default is false
   slow_system: false            # if you are using a slower PC to run your servers, you should set this to true (default: false)
+  preferred_master: true        # this node should be the preferred master node (only needed in a cluster configuration)
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World OpenBeta Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: false           # enable auto-update for your DCS servers. Default is false.
@@ -236,11 +250,10 @@ NODENAME:                       # this will be your hostname
 
 ### config/servers.yaml
 This is your server configuration.<br>
-You might ask, why the configuration is split between nodes.yaml and servers.yaml, especially, if you have a basic setup.
-This, in fact, is to decouple the server configuration from the physical node (aka the "dcs.exe" / "dcs_server.exe" process).
-You will learn to love it, especially when you decide to move a server from one instance to another or even from one node
-to another. This is much easier with a non-coupled approach like that.
-
+You might wonder why the configuration is split between nodes.yaml and servers.yaml? Even if you have a basic setup! 
+This is to decouple the server configuration from the physical node (aka the "DCS.exe" / "DCS_Server.exe" process). You 
+will learn to love it, especially when you decide to move a server from one instance to another or even from one node to 
+another. This is much easier with a non-coupled approach like that.
 ```yaml
 DEFAULT:
   message_afk: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK users
@@ -296,15 +309,14 @@ roles:                                          # Roles mapping. The bot uses in
 
 ```
 #### Auto Matching (default: enabled)
-To use in-game commands, your DCS users need to be matched to Discord users. When using statistics, being mapped to a 
-Discord user allows you to pull the statistics your yourself easier as well. That is why the bot supports a linking 
-system between both accounts.<br>
-The best way of doing so, is to use the /linkme command. This creates a permanent and secured link which can then be
-used for in-game commands. If you want to allow people to see their own stats with their Discord user already and 
-want to keep it simple, you can use the bots own auto-matching functionality. It will then try to match the Discord user
-and DCS user by name. The algorithm works best, if people use the same name on Discord and DCS. It can generate false
-links as well, which is why I prefer the /linkme command over it. People still seem to like the auto-matching, that 
-is why it is in and you can use it (enabled per default).
+To use in-game commands, your DCS players need to be matched to Discord users. Matched players are able to see statistics 
+and you can see a variety of statistics yourself as well. The bot offers a linking system between Discord and DCS accounts 
+to enable this.
+Players can do this with the /linkme command. This creates a permanent and secured link that can then be used for in-game 
+commands. The bot can also auto-match a DCS player to Discord user. This way, players can see their own stats via Discord 
+commands. The bot will try to match the Discord username to DCS player name. This works best when DCS and Discord names 
+match! It can generate false links though, which is why I prefer (or recommend) the /linkme command. People still seem 
+to like the auto-matching, that is why it is in and you can use it (enabled per default).
 
 #### Auto-Banning (default: disabled)
 The bot supports automatically bans / unbans of players from the configured DCS servers, as soon as they leave / join 
@@ -321,10 +333,10 @@ You can map your Discord roles to these internal roles like described in the exa
 |----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
 | Admin          | People with this role are allowed to manage the server, start it up, shut it down, update it, change the password and gather the server statistics. |
 | DCS Admin      | People with this role are allowed to restart missions, managing the mission list, ban and unban people.                                             |
-| GameMaster     | People with this role can see both [coalitions](./COALITIONS.md) and run specific commands that are helpful in missions.                            |
 | DCS            | People with this role are allowed to chat, check their statistics and gather information about running missions and players.                        |
-| Coalition Blue | Optional: People with this role are members of the blue coalition (see [Coalitions](./COALITIONS.md)).                                              |
-| Coalition Red  | Optional: People with this role are members of the red coalition (see [Coalitions](./COALITIONS.md)).                                               |
+| GameMaster     | People with this role can see both [Coalitions](./COALITIONS.md) and run specific commands that are helpful in missions.                            |
+
+See [Coalitions](./COALITIONS.md) for coalition roles.
 
 ### DCS/Hook Configuration
 The DCS World integration is done via Hooks. They are being installed automatically into your configured DCS servers by the bot.
