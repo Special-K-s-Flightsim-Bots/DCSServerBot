@@ -6,6 +6,8 @@ from typing import Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from core import ServerProxy
 
+__all__ = ["InstanceProxy"]
+
 
 @dataclass
 class InstanceProxy(Instance):

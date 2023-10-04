@@ -6,6 +6,13 @@ from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional
 if TYPE_CHECKING:
     from core import DCSServerBot, Plugin, Server, Player
 
+__all__ = [
+    "event",
+    "chat_command",
+    "EventListener",
+    "TEventListener"
+]
+
 
 def event(name: str = MISSING, cls: Type[Event] = MISSING, **attrs) -> Any:
     if cls is MISSING:

@@ -4,7 +4,9 @@ from core import report
 from typing import Optional, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
-    from core import DCSServerBot, Server
+    from core import Server
+
+__all__ = ["Extension"]
 
 
 class Extension(ABC):

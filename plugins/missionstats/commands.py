@@ -33,7 +33,7 @@ class MissionStatistics(Plugin):
         stats = self.bot.mission_stats[server.name]
         report = Report(self.bot, self.plugin_name, 'missionstats.json')
         env = await report.render(stats=stats, mission_id=server.mission_id,
-                                  sides=utils.get_sides(interaction, server))
+                                  sides=utils.get_sides(interaction.client, interaction, server))
         await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @command(description='Display statistics about sorties')

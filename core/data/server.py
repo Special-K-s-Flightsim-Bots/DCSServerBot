@@ -6,6 +6,8 @@ import uuid
 from contextlib import suppress
 from pathlib import Path
 from core import utils
+from core.const import DEFAULT_TAG
+from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
 from datetime import datetime
 from psutil import Process
@@ -13,20 +15,20 @@ from typing import Optional, Union, TYPE_CHECKING
 
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
-from ..const import DEFAULT_TAG
-from ..services.registry import ServiceRegistry
 
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
 
 if TYPE_CHECKING:
-    from ..extension import Extension
+    from core.extension import Extension
     from .instance import Instance
     from .mission import Mission
     from .node import UploadStatus
     from .player import Player
     from services import ServiceBus
+
+__all__ = ["Server"]
 
 
 @dataclass

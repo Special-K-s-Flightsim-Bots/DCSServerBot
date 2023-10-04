@@ -14,7 +14,8 @@ import sys
 import time
 
 from contextlib import closing
-from core import utils, Status, Coalition, SAVED_GAMES
+from core import utils, Status, Coalition
+from core.const import SAVED_GAMES
 from datetime import datetime
 from discord.ext import tasks
 from logging.handlers import RotatingFileHandler
@@ -42,6 +43,10 @@ yaml = YAML()
 
 if TYPE_CHECKING:
     from services import ServiceBus, BotService
+
+__all__ = [
+    "NodeImpl"
+]
 
 LOGLEVEL = {
     'DEBUG': logging.DEBUG,

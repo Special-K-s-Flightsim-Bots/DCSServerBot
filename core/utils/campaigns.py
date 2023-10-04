@@ -9,6 +9,13 @@ if TYPE_CHECKING:
     from core import Server
     from services import DCSServerBot
 
+__all__ = [
+    "get_running_campaign",
+    "get_all_campaigns",
+    "get_campaign",
+    "campaign_autocomplete"
+]
+
 
 def get_running_campaign(bot: DCSServerBot, server: Optional[Server] = None) -> Tuple[Any, Any]:
     with bot.pool.connection() as conn:

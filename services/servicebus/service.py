@@ -11,8 +11,8 @@ from _operator import attrgetter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
-from core import Server, DataObjectFactory, utils, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
-    InstanceProxy, NodeProxy, Mission, Node
+from core import Server, DataObjectFactory, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
+    InstanceProxy, NodeProxy, Mission, Node, utils
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timedelta, timezone
@@ -26,6 +26,10 @@ from typing import Tuple, Callable, Optional, cast, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from services import DCSServerBot
+
+__all__ = [
+    "ServiceBus"
+]
 
 
 @ServiceRegistry.register("ServiceBus")

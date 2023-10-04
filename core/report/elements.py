@@ -9,17 +9,38 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from core import utils
-from core.report.env import ReportEnv
-from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
-from core.report.utils import parse_params
 from datetime import timedelta
 from discord import ButtonStyle, Interaction
 from matplotlib import pyplot as plt
 from psycopg.rows import dict_row
 from typing import Optional, Any, TYPE_CHECKING, Union
 
+from .env import ReportEnv
+from .errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
+from .__utils import parse_params
+
+
 if TYPE_CHECKING:
     from core import DCSServerBot
+
+__all__ = [
+    "ReportElement",
+    "EmbedElement",
+    "Image",
+    "Ruler",
+    "Field",
+    "Table",
+    "Button",
+    "GraphElement",
+    "MultiGraphElement",
+    "Graph",
+    "SQLField",
+    "SQLTable",
+    "BarChart",
+    "SQLBarChart",
+    "PieChart",
+    "SQLPieChart"
+]
 
 
 class ReportElement(ABC):

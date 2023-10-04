@@ -7,6 +7,8 @@ from typing import Optional
 from core.autoexec import Autoexec
 from core.utils.helper import SettingsDict
 
+__all__ = ["InstanceImpl"]
+
 
 @dataclass
 @DataObjectFactory.register("Instance")

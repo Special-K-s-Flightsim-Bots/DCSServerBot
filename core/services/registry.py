@@ -2,6 +2,8 @@ import asyncio
 from core.services.base import Service
 from typing import Callable, Any
 
+__all__ = ["ServiceRegistry"]
+
 
 class ServiceRegistry:
     _instance = None

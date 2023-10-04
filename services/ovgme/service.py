@@ -13,6 +13,10 @@ from typing import Optional, Tuple, TYPE_CHECKING
 if TYPE_CHECKING:
     from services import ServiceBus
 
+__all__ = [
+    "OvGMEService"
+]
+
 
 @ServiceRegistry.register("OvGME", plugin='ovgme')
 class OvGMEService(Service):

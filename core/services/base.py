@@ -15,6 +15,11 @@ if TYPE_CHECKING:
     from .. import Server
     from ..data.impl.nodeimpl import NodeImpl
 
+__all__ = [
+    "Service",
+    "ServiceInstallationError"
+]
+
 
 class Service(ABC):
     def __init__(self, node, name: str):

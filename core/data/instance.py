@@ -10,6 +10,11 @@ from ..const import SAVED_GAMES
 if TYPE_CHECKING:
     from core import Server
 
+__all__ = [
+    "Instance",
+    "InstanceBusyError"
+]
+
 
 class InstanceBusyError(Exception):
     def __init__(self):

@@ -9,6 +9,8 @@ from .. import Status, utils
 if TYPE_CHECKING:
     from .server import Server
 
+__all__ = ["Mission"]
+
 
 @dataclass
 @DataObjectFactory.register("Mission")

@@ -11,7 +11,7 @@ from contextlib import closing
 from copy import deepcopy
 from core import utils
 from core.services.registry import ServiceRegistry
-from discord import app_commands, Interaction, AppCommandType
+from discord import app_commands, Interaction
 from discord.app_commands import locale_str
 from discord.app_commands.commands import CommandCallback, GroupT, P, T
 from discord.ext import commands, tasks
@@ -32,6 +32,19 @@ if TYPE_CHECKING:
     from services import DCSServerBot, ServiceBus
 
 BACKUP_FOLDER = f'config/backup/{platform.node()}'
+
+__all__ = [
+    "BACKUP_FOLDER",
+    "command",
+    "Command",
+    "Group",
+    "Plugin",
+    "PluginError",
+    "PluginConflictError",
+    "PluginRequiredError",
+    "PluginConfigurationError",
+    "PluginInstallationError"
+]
 
 
 def command(

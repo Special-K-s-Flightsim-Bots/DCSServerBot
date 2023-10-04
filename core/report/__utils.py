@@ -5,6 +5,11 @@ from core.report.errors import ValueNotInRange
 from psycopg.rows import dict_row
 from typing import Any, Tuple
 
+__all__ = [
+    "parse_params",
+    "parse_input"
+]
+
 
 def parse_params(kwargs: dict, params: Tuple[dict, list]):
     new_args = kwargs.copy()

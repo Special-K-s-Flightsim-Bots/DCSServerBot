@@ -1,12 +1,15 @@
 from __future__ import annotations
 import discord
 from contextlib import closing
-from core import DataObjectFactory, DataObject, ServiceRegistry
+from core import DataObjectFactory, DataObject
+from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from services import DCSServerBot
+
+__all__ = ["Member"]
 
 
 @dataclass

@@ -12,12 +12,16 @@ from datetime import datetime, timezone
 from discord.ext import tasks
 from typing import TYPE_CHECKING
 
-from core import Status, utils, Server, Channel, ServerImpl, Autoexec
+from core import Status, utils, Server, ServerImpl, Autoexec
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
     from services import ServiceBus
+
+__all__ = [
+    "MonitoringService"
+]
 
 
 @ServiceRegistry.register("Monitoring")

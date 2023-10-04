@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import asyncio
+import os
+import platform
 import traceback
 
+from core import NodeImpl, ServiceRegistry, ServiceInstallationError
 from install import Install
 from migrate import migrate
-from services import *
+
+# Register all services
+import services
 
 
 class Main:

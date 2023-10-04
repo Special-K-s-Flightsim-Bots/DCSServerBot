@@ -38,28 +38,6 @@ class GameMaster(Plugin):
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        # ignore bot messages
-        if message.author.bot:
-            return
-        for server in self.bot.servers.values():
-            if server.status != Status.RUNNING:
-                continue
-            if 'coalitions' in server.locals:
-                sides = utils.get_sides(message, server)
-                if Coalition.BLUE in sides and server.channels[Channel.COALITION_BLUE_CHAT] == message.channel.id:
-                    # TODO: ignore messages for now, as DCS does not understand the coalitions yet
-                    # server.sendChatMessage(Coalition.BLUE, message.content, message.author.display_name)
-                    pass
-                elif Coalition.RED in sides and server.channels[Channel.COALITION_RED_CHAT] == message.channel.id:
-                    # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
-                    # server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
-                    pass
-            if server.channels[Channel.CHAT] and server.channels[Channel.CHAT] == message.channel.id:
-                if message.content.startswith('/') is False:
-                    server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
-
     @command(description='Send a chat message to a running DCS instance')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
@@ -312,33 +290,51 @@ class GameMaster(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore bot messages or messages that do not contain yaml attachments
-        if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.json'):
+        # ignore bot messages
+        if message.author.bot:
             return
-        # only Admin role is allowed to upload config files
-        if not utils.check_roles(self.bot.roles['Admin'], message.author):
-            return
-        async with aiohttp.ClientSession() as session:
-            async with session.get(message.attachments[0].url) as response:
-                if response.status == 200:
-                    data = await response.json(encoding="utf-8")
-                    embed = utils.format_embed(data)
-                    msg = None
-                    if 'message_id' in data:
-                        try:
-                            msg = await message.channel.fetch_message(int(data['message_id']))
-                            await msg.edit(embed=embed)
-                        except discord.errors.NotFound:
-                            msg = None
-                        except discord.errors.DiscordException as ex:
-                            self.log.exception(ex)
-                            await message.channel.send(f'Error while updating embed!')
-                            return
-                    if not msg:
-                        await message.channel.send(embed=embed)
-                    await message.delete()
-                else:
-                    await message.channel.send(f'Error {response.status} while reading JSON file!')
+        if message.attachments and message.attachments[0].filename.endswith('.json'):
+            # only Admin role is allowed to upload config files
+            if not utils.check_roles(self.bot.roles['Admin'], message.author):
+                return
+            async with aiohttp.ClientSession() as session:
+                async with session.get(message.attachments[0].url) as response:
+                    if response.status == 200:
+                        data = await response.json(encoding="utf-8")
+                        embed = utils.format_embed(data)
+                        msg = None
+                        if 'message_id' in data:
+                            try:
+                                msg = await message.channel.fetch_message(int(data['message_id']))
+                                await msg.edit(embed=embed)
+                            except discord.errors.NotFound:
+                                msg = None
+                            except discord.errors.DiscordException as ex:
+                                self.log.exception(ex)
+                                await message.channel.send(f'Error while updating embed!')
+                                return
+                        if not msg:
+                            await message.channel.send(embed=embed)
+                        await message.delete()
+                    else:
+                        await message.channel.send(f'Error {response.status} while reading JSON file!')
+        else:
+            for server in self.bot.servers.values():
+                if server.status != Status.RUNNING:
+                    continue
+                if 'coalitions' in server.locals:
+                    sides = utils.get_sides(self.bot, message, server)
+                    if Coalition.BLUE in sides and server.channels[Channel.COALITION_BLUE_CHAT] == message.channel.id:
+                        # TODO: ignore messages for now, as DCS does not understand the coalitions yet
+                        # server.sendChatMessage(Coalition.BLUE, message.content, message.author.display_name)
+                        pass
+                    elif Coalition.RED in sides and server.channels[Channel.COALITION_RED_CHAT] == message.channel.id:
+                        # TODO:  ignore messages for now, as DCS does not understand the coalitions yet
+                        # server.sendChatMessage(Coalition.RED, message.content, message.author.display_name)
+                        pass
+                if server.channels[Channel.CHAT] and server.channels[Channel.CHAT] == message.channel.id:
+                    if message.content.startswith('/') is False:
+                        server.sendChatMessage(Coalition.ALL, message.content, message.author.display_name)
 
 
 async def setup(bot: DCSServerBot):

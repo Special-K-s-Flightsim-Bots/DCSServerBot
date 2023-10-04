@@ -9,11 +9,20 @@ import shutil
 import ssl
 
 from core.const import SAVED_GAMES
+from core.utils.helper import alternate_parse_settings
 from typing import Optional, Tuple
-from .. import utils
 
 UPDATER_URL = 'https://www.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
 LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
+
+__all__ = [
+    "findDCSInstances",
+    "getLatestVersion",
+    "desanitize",
+    "dd_to_dms",
+    "get_active_runways",
+    "create_writable_mission"
+]
 
 
 def findDCSInstances(server_name: Optional[str] = None) -> list[Tuple[str, str]]:
@@ -26,7 +35,7 @@ def findDCSInstances(server_name: Optional[str] = None) -> list[Tuple[str, str]]
                     settings = luadata.read(path, encoding='utf-8')
                 except Exception:
                     # DSMC workaround
-                    settings = utils.alternate_parse_settings(path)
+                    settings = alternate_parse_settings(path)
                 if 'name' not in settings:
                     settings['name'] = 'DCS Server'
                 if server_name:

@@ -7,11 +7,13 @@ from core.data.const import Side, Coalition
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
-from ..services.registry import ServiceRegistry
+from core.services.registry import ServiceRegistry
 
 if TYPE_CHECKING:
     from .server import Server
     from services import DCSServerBot
+
+__all__ = ["Player"]
 
 
 @dataclass

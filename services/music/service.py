@@ -35,13 +35,11 @@ class MusicService(Service):
             os.makedirs(music_dir)
         return music_dir
 
-    async def start(self):
-        await super().start()
-
     async def stop(self):
         for server_name in self.radios.keys():
             for radio in self.radios[server_name].values():
                 await radio.stop()
+        await super().stop()
 
     async def start_radios(self, server: Server, radio_name: Optional[str] = None) -> None:
         if server.is_remote:

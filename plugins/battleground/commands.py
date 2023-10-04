@@ -29,7 +29,7 @@ class Battleground(Plugin):
             return
         done = False
         for server in self.bot.servers.values():
-            sides = utils.get_sides(interaction, server)
+            sides = utils.get_sides(interaction.client, interaction, server)
             blue_channel = server.channels.get(Channel.COALITION_BLUE_CHAT)
             red_channel = server.channels.get(Channel.COALITION_RED_CHAT)
             if Coalition.BLUE in sides and blue_channel and blue_channel.id == interaction.message.channel.id:

@@ -9,6 +9,11 @@ from .server import Server
 from ruamel.yaml import YAML
 yaml = YAML()
 
+__all__ = [
+    "Node",
+    "UploadStatus"
+]
+
 
 class UploadStatus(Enum):
     OK = auto()
@@ -65,9 +70,6 @@ class Node:
                                                               'of the multiplayer selection list to an individual one!')
         config['messages']['player_banned'] = config['messages'].get('player_banned', 'You are banned from this '
                                                                                       'server. Reason: {}')
-        config['messages']['player_afk'] = config['messages'].get('player_afk',
-                                                                  '{player.name}, you have been kicked for being AFK '
-                                                                  'for more than {time}.')
         return config
 
     def read_locals(self) -> dict:

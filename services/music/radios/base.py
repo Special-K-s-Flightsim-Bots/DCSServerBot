@@ -10,7 +10,7 @@ from random import randrange
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .. import MusicService
+    from ..service import MusicService
 
 # ruamel YAML support
 from ruamel.yaml import YAML

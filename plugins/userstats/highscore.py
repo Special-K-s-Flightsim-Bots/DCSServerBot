@@ -9,7 +9,7 @@ from .filter import StatisticsFilter
 def get_sides(interaction: discord.Interaction, server: Server) -> list[Side]:
     if not interaction:
         return [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
-    tmp = utils.get_sides(interaction, server)
+    tmp = utils.get_sides(interaction.client, interaction, server)
     sides = [0]
     if Coalition.RED in tmp:
         sides.append(Side.RED.value)

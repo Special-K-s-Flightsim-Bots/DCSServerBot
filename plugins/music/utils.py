@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import cast
 
 import discord
 import eyed3
@@ -10,7 +9,6 @@ from discord import app_commands
 from eyed3.id3 import Tag
 from functools import lru_cache
 from pathlib import Path
-from services import DCSServerBot
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -77,8 +75,8 @@ class Playlist:
                 self._items.clear()
 
 
-def get_all_playlists(bot: DCSServerBot) -> list[str]:
-    with bot.pool.connection() as conn:
+def get_all_playlists(interaction: discord.Interaction) -> list[str]:
+    with interaction.client.pool.connection() as conn:
         return [x[0] for x in conn.execute('SELECT DISTINCT name FROM music_playlists ORDER BY 1').fetchall()]
 
 

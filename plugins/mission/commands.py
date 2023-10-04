@@ -433,7 +433,7 @@ class Mission(Plugin):
     async def _list(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
         report = Report(self.bot, self.plugin_name, 'players.json')
-        env = await report.render(server=server, sides=utils.get_sides(interaction, server))
+        env = await report.render(server=server, sides=utils.get_sides(interaction.client, interaction, server))
         await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
     @player.command(description='Kicks a player by name or UCID')

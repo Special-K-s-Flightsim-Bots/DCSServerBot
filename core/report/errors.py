@@ -1,5 +1,16 @@
 from typing import Any
 
+__all__ = [
+    "ReportException",
+    "UnknownReportElement",
+    "UnknownGraphElement",
+    "ClassNotFound",
+    "ValueNotInRange",
+    "TooManyElements",
+    "UnknownValue",
+    "NothingToPlot"
+]
+
 
 class ReportException(BaseException):
     pass

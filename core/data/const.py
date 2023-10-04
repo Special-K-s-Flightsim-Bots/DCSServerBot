@@ -1,5 +1,12 @@
 from enum import Enum
 
+__all__ = [
+    "Side",
+    "Status",
+    "Coalition",
+    "Channel"
+]
+
 
 class Side(Enum):
     UNKNOWN = -1

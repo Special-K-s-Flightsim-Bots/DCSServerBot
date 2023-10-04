@@ -7,6 +7,11 @@ if TYPE_CHECKING:
     from logging import Logger
     from psycopg_pool import ConnectionPool
 
+__all__ = [
+    "DataObject",
+    "DataObjectFactory"
+]
+
 
 @dataclass
 class DataObject:

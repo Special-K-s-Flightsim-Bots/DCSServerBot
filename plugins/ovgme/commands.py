@@ -7,11 +7,9 @@ from core import Status, Plugin, utils, Server, ServiceRegistry, PluginInstallat
 from discord import SelectOption, TextStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 
-from services import DCSServerBot
+from services import DCSServerBot, OvGMEService
 from typing import Tuple, cast
 from urllib.parse import urlparse, unquote
-
-from services.ovgme import OvGMEService
 
 OVGME_FOLDERS = ['RootFolder', 'SavedGames']
 

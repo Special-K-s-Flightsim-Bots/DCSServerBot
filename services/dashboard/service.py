@@ -17,10 +17,13 @@ from rich.panel import Panel
 from rich.table import Table
 from typing import cast, TYPE_CHECKING
 
-from .servicebus import ServiceBus
-
 if TYPE_CHECKING:
     from core import Node
+    from services import ServiceBus
+
+__all__ = [
+    "Dashboard"
+]
 
 
 class HeaderWidget:

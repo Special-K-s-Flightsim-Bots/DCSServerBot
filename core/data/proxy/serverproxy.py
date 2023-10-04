@@ -7,6 +7,8 @@ from typing import Optional, Union, TYPE_CHECKING
 if TYPE_CHECKING:
     from core import InstanceProxy
 
+__all__ = ["ServerProxy"]
+
 
 @dataclass
 class ServerProxy(Server):

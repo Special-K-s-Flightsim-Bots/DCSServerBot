@@ -4,14 +4,17 @@ import platform
 import shlex
 import shutil
 import time
-from typing import cast
+from typing import TYPE_CHECKING
 
 from core import ServiceRegistry, Service, utils
 from datetime import datetime
 from discord.ext import tasks
 from zipfile import ZipFile
 
-from .servicebus import ServiceBus
+if TYPE_CHECKING:
+    from .. import ServiceBus
+
+__all__ = ["BackupService"]
 
 
 @ServiceRegistry.register("Backup")
@@ -21,11 +24,12 @@ class BackupService(Service):
         if not self.locals:
             self.log.debug("  - No backup.yaml configured, skipping backup service.")
             return
-        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
+        self.bus: ServiceBus = ServiceRegistry.get("ServiceBus")
 
     async def start(self):
         if not self.locals:
             return
+        await super().start()
         self.schedule.start()
         if self.locals['delete_after'].lower() != 'never':
             self.delete.start()

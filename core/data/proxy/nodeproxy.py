@@ -1,6 +1,7 @@
 import os
 
-from core import ServiceRegistry, Instance, Server
+from core import Instance, Server
+from core.services.registry import ServiceRegistry
 from core.data.node import Node, UploadStatus
 from core.data.proxy.instanceproxy import InstanceProxy
 from pathlib import Path
@@ -9,6 +10,8 @@ from typing import Any, Union, Optional, Tuple
 # ruamel YAML support
 from ruamel.yaml import YAML
 yaml = YAML()
+
+__all__ = ["NodeProxy"]
 
 
 class NodeProxy(Node):

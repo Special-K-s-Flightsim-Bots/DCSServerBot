@@ -1,13 +1,18 @@
 import aiohttp
 import asyncio
+import discord
+import os
 
-from core import Plugin, TEventListener, PluginInstallationError, Status, Group
+from core import Plugin, TEventListener, PluginInstallationError, Status, Group, utils, Server, ServiceRegistry
+from discord import app_commands
 from discord.ext import commands
-from services import MusicService  # do not remove
-from typing import Type, Optional
+from pathlib import Path
+from services import DCSServerBot, MusicService
+from typing import Type, Optional, cast
 
 from .listener import MusicEventListener
-from .utils import *
+from .utils import radios_autocomplete, get_all_playlists, playlist_autocomplete, songs_autocomplete, get_tag, Playlist, \
+    all_songs_autocomplete
 from .views import MusicPlayer
 
 
@@ -37,7 +42,7 @@ class Music(Plugin):
                      _server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING,
                                                                                              Status.PAUSED])],
                      radio_name: str):
-        playlists = get_all_playlists(self.bot)
+        playlists = get_all_playlists(interaction)
         if not playlists:
             await interaction.response.send_message(
                 f"You don't have any playlists to play. Please create one with /music add", ephemeral=True)

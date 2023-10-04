@@ -3,6 +3,19 @@ import sys
 if sys.platform == 'win32':
     import winreg
 
+__all__ = [
+    "METER_IN_FEET",
+    "METER_PER_SECOND_IN_KNOTS",
+    "MMHG_IN_INHG",
+    "MMHG_IN_HPA",
+    "QFE_TO_QNH_INHG",
+    "QFE_TO_QNH_MB",
+    "WEEKDAYS",
+    "MONTH",
+    "SAVED_GAMES",
+    "DEFAULT_TAG"
+]
+
 METER_IN_FEET = 3.28084
 METER_PER_SECOND_IN_KNOTS = 1.94384
 MMHG_IN_INHG = 0.0393701
