@@ -24,7 +24,8 @@ async def label_autocomplete(interaction: discord.Interaction, current: str) -> 
         config = interaction.client.cogs['Admin'].get_config(server)
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=x['label'], value=x['label']) for x in config['downloads']
-            if not current or current.casefold() in x['label'].casefold()
+            if ((not current or current.casefold() in x['label'].casefold()) and
+                (not x.get('discord') or utils.check_roles(x['discord'], interaction.user)))
         ]
         return choices[:25]
     except Exception as ex:
@@ -237,6 +238,7 @@ class Admin(Plugin):
             else:
                 await interaction.followup.send('File too large. You need a higher boost level for your server.',
                                                 ephemeral=True)
+                return
         elif target.startswith('<'):
             channel = self.bot.get_channel(int(target[4:-1]))
             try:
@@ -252,6 +254,7 @@ class Admin(Plugin):
             with open(os.path.expandvars(target), 'wb') as outfile:
                 outfile.write(file)
             await interaction.followup.send('File copied to the specified location.', ephemeral=True)
+        await self.bot.audit(f"downloaded {filename}", user=interaction.user, server=server)
 
     class CleanupView(View):
         def __init__(self):
