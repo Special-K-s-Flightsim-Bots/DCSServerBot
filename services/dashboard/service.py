@@ -15,11 +15,11 @@ from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
+from services import ServiceBus
 from typing import cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import Node
-    from services import ServiceBus
 
 __all__ = [
     "Dashboard"
