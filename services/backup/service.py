@@ -60,7 +60,7 @@ class BackupService(Service):
         filename = "bot_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".zip"
         zf = ZipFile(os.path.join(target, filename), mode="w")
         try:
-            for directory in config.get('directories'):
+            for directory in config.get('directories', ['config', 'reports']):
                 self.zip_path(zf, "", directory)
             self.log.info("Backup of DCSServerBot complete.")
         finally:
@@ -75,7 +75,7 @@ class BackupService(Service):
             zf = ZipFile(os.path.join(target, filename), mode="w")
             try:
                 root_dir = server.instance.home
-                for directory in config.get('directories'):
+                for directory in config.get('directories', ['Config', 'Missions', 'Scripts']):
                     self.zip_path(zf, root_dir, directory)
             finally:
                 zf.close()
