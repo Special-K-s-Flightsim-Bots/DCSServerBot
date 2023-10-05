@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import closing
+
 import discord
 import os
 import psycopg
@@ -29,8 +31,10 @@ class Mission(Plugin):
         self.update_channel_name.add_exception_type(AttributeError)
         self.update_channel_name.start()
         self.afk_check.start()
+        self.check_for_unban.start()
 
     async def cog_unload(self):
+        self.check_for_unban.cancel()
         self.afk_check.cancel()
         self.update_channel_name.cancel()
         await super().cog_unload()
@@ -469,7 +473,7 @@ class Mission(Plugin):
                     days = int(derived.period.value)
                 else:
                     days = None
-                self.bus.ban(derived.player.ucid, derived.reason.value, interaction.user.display_name, days)
+                self.bus.ban(derived.player.ucid, interaction.user.display_name, derived.reason.value, days)
                 await interaction.response.send_message(f"Player {player.display_name} banned on all servers " +
                                                         (f"for {days} days." if days else ""))
                 await self.bot.audit(f'banned player {player.display_name} with reason "{derived.reason.value}"' +
@@ -545,6 +549,26 @@ class Mission(Plugin):
                    player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)], message: str):
         player.sendChatMessage(message, interaction.user.display_name)
         await interaction.response.send_message('Message sent.')
+
+    @tasks.loop(minutes=1.0)
+    async def check_for_unban(self):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                # migrate active bans from the punishment system and migrate them to the new method (fix days only)
+                for row in conn.execute("""SELECT ucid FROM bans WHERE banned_until < NOW()""").fetchall():
+                    for server in self.bot.servers.values():
+                        if server.status not in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
+                            continue
+                        server.send_to_dcs({
+                            "command": "unban",
+                            "ucid": row[0]
+                        })
+                # delete unbanned accounts from the database
+                conn.execute("DELETE FROM bans WHERE banned_until < (NOW() - interval '1 minutes')")
+
+    @check_for_unban.before_loop
+    async def before_check_unban(self):
+        await self.bot.wait_until_ready()
 
     @tasks.loop(minutes=5.0)
     async def update_channel_name(self):

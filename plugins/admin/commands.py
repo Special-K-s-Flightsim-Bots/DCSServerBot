@@ -97,7 +97,7 @@ class Admin(Plugin):
                 else:
                     ucid, name = self.bot.get_ucid_by_name(derived.user)
 
-                self.bus.ban(ucid, derived.reason.value, interaction.user.display_name, days)
+                self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
                 await interaction.response.send_message(f"Player {name} banned on all servers" +
                                                         (f" for {days} days." if days else ""))
                 await self.bot.audit(f'banned player {name} (ucid={ucid} with reason "{derived.reason.value}"' +

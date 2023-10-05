@@ -32,6 +32,10 @@ local function locate(table, value)
     return false
 end
 
+local function isBanned(ucid)
+	return dcsbot.banList[ucid] ~= nil
+end
+
 function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     log.write('DCSServerBot', log.DEBUG, 'Mission: onPlayerTryConnect()')
 	local msg = {}
@@ -42,6 +46,12 @@ function mission.onPlayerTryConnect(addr, name, ucid, playerID)
     if name ~= name2 then
         return false, config.MESSAGE_PLAYER_USERNAME
     end
+	if isBanned(ucid) then
+        msg.command = 'sendMessage'
+        msg.message = 'Banned user ' .. name .. ' (ucid=' .. ucid .. ') rejected.'
+    	utils.sendBotTable(msg, config.ADMIN_CHANNEL)
+	    return false, string.gsub(config.MESSAGE_BAN, "{}", dcsbot.banList[ucid])
+	end
 end
 
 function mission.onMissionLoadBegin()

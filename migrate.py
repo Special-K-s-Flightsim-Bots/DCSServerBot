@@ -158,6 +158,7 @@ def migrate():
             servers = {
                 DEFAULT_TAG: {
                     "message_afk": cfg['DCS']['MESSAGE_AFK'],
+                    "message_ban": cfg['DCS']['MESSAGE_BAN'],
                     'message_timeout': int(cfg['BOT']['MESSAGE_TIMEOUT']),
                     'message_server_full': cfg['DCS']['MESSAGE_SERVER_FULL']
                 }

@@ -64,6 +64,8 @@ class Server(DataObject):
             if not data.get(self.name):
                 self.log.warning(f'No configuration found for server "{self.name}" in server.yaml!')
             self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
+            if 'message_ban' not in self.locals:
+                self.locals['message_ban'] = 'You are banned from this server. Reason: {}'
 
     @property
     def is_remote(self) -> bool:

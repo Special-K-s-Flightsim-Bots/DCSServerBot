@@ -9,6 +9,7 @@ local utils 	= base.require("DCSServerBotUtils")
 local mod_dictionary= require('dictionary')
 
 dcsbot.registered = false
+dcsbot.banList = dcsbot.banList or {}
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
@@ -410,29 +411,13 @@ function dcsbot.force_player_slot(json)
 end
 
 function dcsbot.ban(json)
-    log.write('DCSServerBot', log.DEBUG, 'Mission: ban()')
-    if json.id then
-        net.banlist_add(json.id, json.period, json.reason)
-        return
-    end
-    plist = net.get_player_list()
-    for i = 2, table.getn(plist) do
-        if ((json.ucid and net.get_player_info(plist[i], 'ucid') == json.ucid) or
-                (json.name and net.get_player_info(plist[i], 'name') == json.name)) then
-            net.banlist_add(plist[i], json.period, json.reason)
-            break
-        end
-    end
-end
-
-function dcsbot.bans(json)
-	local msg = {}
-	msg.command = 'bans'
-    msg.bans = net.banlist_get()
-	utils.sendBotTable(msg, json.channel)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: ban()')
+    banned_until = json.banned_until or 'never'
+    dcsbot.banList[json.ucid] = json.reason .. '.\nExpires ' .. banned_until
+    dcsbot.kick(json)
 end
 
 function dcsbot.unban(json)
-    log.write('DCSServerBot', log.DEBUG, 'Mission: unban()')
-	net.banlist_remove(json.ucid)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: unban()')
+	dcsbot.banList[json.ucid] = nil
 end
