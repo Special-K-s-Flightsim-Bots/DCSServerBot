@@ -39,7 +39,7 @@ Discord commands, like the Music service. You can define that a service only run
 | ServiceBus | Communication hub between every node of the bot cluster and DCS.        |        |                                           |
 | Bot        | The Discord bot handling all discord commands.                          |        |                                           |
 | Monitoring | Availability monitoring of your DCS servers.                            |        | [README](./plugins/gamemaster/README.md)  |
-| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.   |        |                                           |
+| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.   | Backup |                                           |
 | Dashboard  | Nice console graphics display to show the status of your bot / servers. |        |                                           |
 | OvGME      | Manage mods that needs to be installed / updated in your DCS servers.   | OvGME  |                                           |
 | Music      | Play music over different SRS-radios on your servers.                   | Music  |                                           |
@@ -68,6 +68,7 @@ can also create your own plugins (and maybe share them with others).
 | MOTD         | Message for players on join or when they jump in a module.                  | yes      | Mission, Missionstats | [README](./plugins/motd/README.md)         |
 | FunkMan      | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)               | yes      |                       | [README](./plugins/funkman/README.md)      |
 | DBExporter   | Export the DCSServerBot database or singular tables as json.                | yes      |                       | [README](./plugins/dbexporter/README.md)   |
+| Backup       | Create a backup of your database, server or bot configurations.             | yes      |                       |                                            |
 | OvGME        | Install or update mods into your DCS server.                                | yes      |                       | [README](./plugins/ovgme/README.md)        |
 | Music        | Upload and play music over SRS.                                             | yes      |                       | [README](./plugins/music/README.md)        |
 | Commands     | Create custom discord commands.                                             | yes      |                       | [README](./plugins/commands/README.md)     |
