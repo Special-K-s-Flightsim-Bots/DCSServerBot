@@ -100,6 +100,8 @@ class BackupService(Service):
 
     @staticmethod
     def can_run(config: dict):
+        if 'schedule' not in config:
+            return False
         now = datetime.now()
         if utils.is_match_daystate(now, config['schedule']['days']):
             for _time in config['schedule']['times']:
