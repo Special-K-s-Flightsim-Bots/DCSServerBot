@@ -141,7 +141,7 @@ class EventListener(metaclass=EventListenerMeta):
             return
         await command(self, server, player, data.get('params'))
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         pass
 
 

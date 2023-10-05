@@ -3,7 +3,7 @@ import discord
 import psycopg
 
 from contextlib import closing, suppress
-from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, Channel, PluginInstallationError, \
+from core import Plugin, PluginRequiredError, TEventListener, utils, Player, Server, PluginInstallationError, \
     command, DEFAULT_TAG
 from datetime import timezone
 from discord import app_commands

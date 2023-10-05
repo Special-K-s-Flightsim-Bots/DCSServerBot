@@ -22,36 +22,36 @@ README.md               => Each plugin should have a documentation
 ```
 
 ## Configuration
-Each plugin _can_ use a json file to keep its config parameters. There json files are stored in ./config,
+Each plugin _can_ use a yaml file to keep its config parameters. There yaml files are stored in ./config/plugins,
 and it is a good habit to provide a sample for it.
 As each plugin might need a different configuration for each server and maybe some default configuration,
 the layout of the config files is as follows:
-```json
-{
-  "configs": [
-    {
-      "name": "I am the default section"
-    },
-    {
-      "installation": "DCS.openbeta_server",
-      "name": "I am a server specific section"
-    }
-  ]
-}
+```YAML
+DEFAULT:
+  name: I am the default section
+DCS.openbeta_server:
+  name: I am a server specific section
 ```
-To access the configuration, you can use
+To access the configuration, you can use the following patterns in your plugin implementation:
 ```python
+    # Default section
+    config: dict = self.get_config()
+    # Server specific section
     config: dict = self.get_config(server)
+    # Configuration of another plugin (2 ways)
+    config: dict = self.get_config(server, plugin_name="Admin")
+    config: dict = interaction.client.cogs['Admin'].get_config(server)
 ```
-in your Plugin implementation or 
-```
+To access the configuration in your EventListener, you need to prepend self.plugin: 
+```python
     config: dict = self.plugin.get_config(server)
+    # ...
 ```
-in your EventListener implementation.<p>
 **__Attention:__**<br/>
-The default configuration will be merged with the respective server specific configuration, giving the
-server specific configuration the priority over the default. If you don't want it like that, you need to
-overwrite the get_config() method in your own plugin configuration (see [punishment](./punishment/commands.py)).
+If you access the server specific configuration, the default configuration will be merged with the respective server 
+specific configuration, giving the server specific configuration the priority over the default. If you don't want it 
+like that, you need to overwrite the get_config() method in your own plugin implementation 
+(ex: [greenieboard](./greenieboard/commands.py)).
 
 
 ## Classes
@@ -62,15 +62,19 @@ Base class for all plugins. Needs to be implemented inside the commands.py file 
 You have access to the following class variables:
 * self.plugin_name: Plugin name ("sample")
 * self.plugin_version: Plugin version ("1.0")
-* self.bot: Main DCSServerBot instance
+* self.bot: the global DCSServerBot instance
 * self.log: Logging
 * self.pool: Database pool
 * self.loop: asyncio event loop
-* self.locals: dict from config.json
+* self.locals: dict from your plugin.yaml
 * self.eventlistener: the EventListener instance bound to this plugin (optional)
 
 ```python
-from core import Plugin
+import psycopg
+
+from core import Plugin, TEventListener
+from services import DCSServerBot
+from typing import Type
 
 
 class Sample(Plugin):
@@ -78,18 +82,26 @@ class Sample(Plugin):
         super().__init__(bot, eventlistener)
         # do something when the plugin is initialized
     
-    async def cog_unload(self):
-        super.cog_unload()
+    async def cog_load(self) -> None:
+        await super().cog_load()
+        # do something async when the plugin is (re-)loaded
+        
+    async def cog_unload(self) -> None:
+        await super().cog_unload()
         # do something when the plugin is unloaded
+        
+    async def on_ready(self) -> None:
+        await super().on_ready()
+        # do something when the bot starts listening
 
-    def install(self):
-        super.install()
+    async def install(self) -> None:
+        await super().install()
         # do something when the plugin is installed for the first (!) time
 
     def migrate(self, version: str) -> None:
         # do something when the plugin is migrated (see below)
         pass
-
+    
     async def before_dcs_update(self) -> None:
         # do something before a DCS upgrade takes place
         pass
@@ -98,14 +110,13 @@ class Sample(Plugin):
         # do something after a DCS upgrade took place and before the servers are started
         pass
 
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None) -> None:
+    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None) -> None:
         # cleanup (the database) with data older than days and/or for specific users (ucids) 
         pass
 
-    def rename(self, old_name: str, new_name: str) -> None:
+    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str) -> None:
         # called when a server rename took place and to be used to update your database tables accordingly
         pass
-
 ```
 None of these methods needs to be overloaded for a plugin to work.
 
@@ -118,10 +129,10 @@ You have access to the following class variables:
 * self.pool: Database pool
 * self.loop: asyncio event loop
 * self.locals: dict from config.json
-* self.commands: a list of commands implemented by this listener (autofilled) 
+* self.prefix: the in-game chat command prefix 
 
 ```python
-from core import EventListener, Server, Plugin, Player
+from core import EventListener, Server, Plugin, Player, event, chat_command
 
 
 class SampleEventListener(EventListener):
@@ -129,119 +140,114 @@ class SampleEventListener(EventListener):
         super().__init__(plugin)
         # do something when the listener is initialized
         
-    async def registerDCSServer(self, data: dict) -> None:
+    async def shutdown(self) -> None:
+        await super().shutdown()
+        # do something when the plugin/listener is stopped
+        
+    # register a callback event (name is optional, the function name will be used as default)
+    @event(name="registerDCSServer")
+    async def registerDCSServer(self, server: Server, data: dict) -> None:
         # called, when a DCS server is found and initialized
         # dict contains a dictionary with a lot of server information, like name, mission, active players,
         # weather and whatnot.
+        pass
     
     # the following callbacks are derived from the Hooks environment:
-    async def onMissionLoadBegin(self, data: dict) -> None:
+    @event(name="onMissionLoadBegin")
+    async def onMissionLoadBegin(self, server: Server, data: dict) -> None:
         pass
 
-    async def onMissionLoadEnd(self, data: dict) -> None:
+    @event(name="onMissionLoadEnd")
+    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
         pass
     
-    async def onSimulationStart(self, data: dict) -> None:
+    @event(name="onSimulationStart")
+    async def onSimulationStart(self, server: Server, data: dict) -> None:
         pass
     
-    async def onSimulationStop(self, data: dict) -> None:
+    @event(name="onSimulationStop")
+    async def onSimulationStop(self, server: Server, data: dict) -> None:
         pass
     
-    async def onSimulationPause(self, data: dict) -> None:
+    @event(name="onSimulationPause")
+    async def onSimulationPause(self, server: Server, data: dict) -> None:
         pass
     
-    async def onSimulationResume(self, data: dict) -> None:
+    @event(name="onSimulationResume")
+    async def onSimulationResume(self, server: Server, data: dict) -> None:
         pass
     
-    async def onPlayerConnect(self, data: dict) -> None:
+    @event(name="onPlayerConnect")
+    async def onPlayerConnect(self, server: Server, data: dict) -> None:
         pass
     
-    async def onPlayerStart(self, data: dict) -> None:
+    @event(name="onPlayerStart")
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
         pass
     
-    async def onPlayerStop(self, data: dict) -> None:
+    @event(name="onPlayerStop")
+    async def onPlayerStop(self, server: Server, data: dict) -> None:
         pass
     
-    async def onPlayerChangeSlot(self, data: dict) -> None:
+    @event(name="onPlayerChangeSlot")
+    async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         pass
     
-    async def onGameEvent(self, data: dict) -> None:
+    @event(name="onGameEvent")
+    async def onGameEvent(self, server: Server, data: dict) -> None:
         pass
     
-    async def onChatMessage(self, data: dict) -> None:
+    @event(name="onChatMessage")
+    async def onChatMessage(self, server: Server, data: dict) -> None:
         pass
 
-    # onChatCommand is called, whenever a command is fired in the ingame-chat
-    async def onChatCommand(self, data: dict) -> None:
-        server: Server = self.bot.servers[data['server_name']]
-        player: Player = server.get_player(id=data['from_id'])
-        if data['subcommand'] == 'atis':
-            # can be used by everyone ...
-            pass
-        elif data['subcommand'] == 'restart' and player.has_discord_roles(['DCS Admin']):
-            # can only be used by the DCS Admin role ...
-            pass
-
-    async def myCustomCommand(self, data: dict) -> None:
-        # any custom command, which can be sent from the lua environment by using
-        # local msg = {}
-        # msg.command = 'myCustomCommand'
-        # msg.param = { ... } -- all that goes into the dict
-        # dcsbot.sendBotTable(msg)
+    # Register an in-game chat command, that can be called by typing in the in-game chat.
+    # The command will automatically register in the in-game help command. You can specify optional roles that can
+    # fire the command.
+    @chat_command(name="sample", aliases=["simple"], roles=['DCS Admin', 'GameMaster'], help="a sample command")
+    async def sample(self, server: Server, player: Player, params: list[str]):
+        pass
 ```
 
 ## Main Files
 
 ### commands.py
-This is the entry point for any Discord command. As DCSServerBot can be installed in multiple locations 
-serving a bunch of DCS servers, you might end up with more than one active bot in your discord. To separate 
-them, commands are usually called in the admin channels of each server (see examples below).
-Sometimes commands needs to query the whole database or must only be run on exactly one instance, the 
-so-called MASTER instance. For this case, you already need to take care of the MASTER / AGENT split in your
-Discord hook. For how to handle Discord commands, see [discord.py](https://discordpy.readthedocs.io/en/stable/).
+This is the entry point for any Discord command. For how to handle Discord commands, see [discord.py](https://discordpy.readthedocs.io/en/stable/).
 ```python
-import platform
-from core import Plugin, utils, Server, DCSServerBot
-from discord.ext import commands
+import discord
+
+from core import command, Plugin, utils, Server
+from discord import app_commands
+from services import DCSServerBot
+
 from .listener import SampleEventListener
 
 
-class SampleAgent(Plugin):
-    @commands.command(description='Agent-command', usage='<text>')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def sample(self, ctx, text: str):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            await ctx.send(f'Server {server.name} is {server.status.name}!')
-        else:
-            # just for documentation purposes, Agents, only implement server-specific commands!
-            pass
-
+class Sample(Plugin):
+    
+    # This command should only run on servers that are in the state RUNNING, PAUSED or STOPPED.
+    @command(description='This is a sample command.')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def sample(self, interaction: discord.Interaction,
+                     server: app_commands.Transform[Server, utils.ServerTransformer], text: str):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        # do something that takes some time
+        await interaction.followup.send(f"I did something on server {server.name} using text {text}.")
         
-class SampleMaster(SampleAgent):
-    @commands.command(description='Master-only command')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def master(self, ctx):
-        await ctx.send(f'This command is running on node {platform.node()}')
-
-
+        
 async def setup(bot: DCSServerBot):
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(SampleMaster(bot, SampleEventListener))
-    else:
-        await bot.add_cog(SampleAgent(bot, SampleEventListener))
+    await bot.add_cog(Sample(bot, SampleEventListener))
 ```
-You don't necessarily need to implement the MASTER / AGENT construct, if you only have commands that are
-to be run on agents.
 
 ### listener.py
-This is just the implementation of the EventListener class (see above).
+This is just the implementation of the EventListener class (see above). An EventListener is optional, you only need
+it, if you want to listen to DCS events, or if you want to provide in-game chat events.
 
-### callbacks.lua
+### lua/callbacks.lua
 Every plugin can have their own DCS World hook, that will be automatically added to the Scripts\Hooks
 environment. To achieve this, you just need to place a file named callbacks.lua in your lua directory.
+The naming scope is always unique for your callbacks, usually the plugin name.
 ```lua
 local dcsbot	= base.dcsbot
 
@@ -269,11 +275,11 @@ end
 DCS.setUserCallbacks(myplugin)
 ```
 
-### commands.lua
+### lua/commands.lua
 If you want to send a command by the bot into the DCS Hooks environment, you implement the command in here.
 So if you for instance run .pause in Discord, this will result in a JSON message with 
 "command": "pauseMission" to DCS and call a function pauseMission() that is implemented in some commands.lua 
-in one of the bots plugins.
+in one of the bots plugins. The naming scope is always "dcsbot" for commands.
 ```lua
 local base = _G
 local dcsbot = base.dcsbot
@@ -284,11 +290,11 @@ function dcsbot.pauseMission(json)
 end
 ```
 
-### mission.lua
+### lua/mission.lua
 This is a special file and does not necessarily need to be named like this. But I would still recommend
 it, as you then know which of the lua files will be loaded into the mission environment (if you do so
 in your onMissionLoadEnd (see above)).
-The following commands can be used in the mission environment (ME):
+The following DCSServerBot functions can be used in the mission environment (ME):
 ```lua
 function sendBotMessage(msg, channel) end
 function sendBotTable(tbl, channel) end
@@ -300,63 +306,89 @@ function restartMission() end
 function disableUserStats() end
 ```
 
-## Data Classes
+## DCSServerBot Data Classes
 To ease the access to server, player and mission information and to run usual commands, DCSServerBot
-provides classes to do so.
+provides classes to do so. As the bot can be run over multiple locations, it might happen, that the master node
+needs to talk to any of the other nodes. In this case, many of the internal objects have so called Proxy-classes, that
+handle the necessary remote procedure calls. For you as a user, this will be transparent, as long as you don't decide
+to implement your own dataclass. Then you need to tackle the situation, that you might not be on the same PC as your
+dataclass is at the moment. We will go more into deep later in this guide.
 
 ### Server
-See [server.py](../core/data/server.py).<br/>
-You have usually two options to retrieve the running server instance:
+A [server](../core/data/server.py) object is needed to work with anything related to the DCS server. You can retrieve this object on two
+ways, depending on whether you are in a Plugin- or in an EventListener-context.
 
-a) Plugin<br/>
+a) Plugin<p>
 In your plugins, you usually want to run a Discord command that sends information to a specific server.
 To get the respective server, you can take advantage of the channel/server mapping that DCSServerBot 
 implements in its configuration already. That means, that if you for instance run a command in the
 dedicated admin channel of any server, you can access the Server instance, directly through the Discord
-context:
+context. If you have a central admin channel, you automatically get a selection of the server to run the command
+onto. And if you only have one server, you always get that single server already. To do so, you just need to
+use the ServerTransformer in your command declaration. You can even specify, if you only want to get servers in a 
+specific state.<br>
+**Attention**: The state of a server will only be taken into consideration, if you use the server selection.
 ```python
-async def sample(self, ctx, text: str):
-    server: Server = await self.bot.get_server(ctx)
+    @command(description='This is a simple pause command.')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def shutdown(self, interaction: discord.Interaction,
+                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING]))]):
+        await server.pause()
+        await interaction.response.send_message(f"Server {server.name} has been paused.")
 ```
 
-b) EventListener<br/>
-In your EventListener, you receive commands from a DCS server. And sure - that server tells you its name
-with every command it sends to you:
+b) EventListener<p>
+In your EventListener, you receive the server the event came from already in the event call itself:
 ```python
-async def onChatCommand(self, data: dict) -> None:
-    server: Server = self.bot.servers[data['server_name']]
+    @event(name="mySampleEvent")
+    async def mySampleEvent(self, server: Server, data: dict) -> None:
+        await server.restart()
+```
+
+### Instance
+The [instance](../core/data/instance.py) object represents a DCS instance. Usually, every server has its own instance and every
+instance has a server assigned. They can switch though, which is why they are decoupled into these both objects.<br>
+In general, you only need the instances name, to access information in config files or the like.
+```python
+    instance: Instance = server.instance
+    await interaction.response.send_message(f"Server {server.name} runs on instance {instance.name}.")
 ```
 
 ### Mission
-The running [mission](../core/data/mission.py) can be accessed through the Server instance like so:
+The running [mission](../core/data/mission.py) can be accessed through the Server object like so:
 ```python
-mission: Mission = server.current_mission
+    mission: Mission = server.current_mission
+    await interaction.response.send_message(f"Server {server.name} is running {mission.name}.")
 ```
 
 ### Player
 There are several ways to access a [player](../core/data/player.py):
 * by their UCID
-* by their Discord ID (if they are a Discord member and properly mapped)
+* by their Discord ID (if they are a Discord member and properly linked)
 * by their in-game ID (1, 2, 3, ...)
 * by their in-game name (which is fortunately unique per session)
 
 This can be achieved by asking your server about the player and providing the relevant parameter to the
 get_player() method:
 ```python
-async def onChatCommand(self, data: dict) -> None:
-    server: Server = self.bot.servers[data['server_name']]
-    player: Player = server.get_player(id=data['from_id'])
+    player: Player = server.get_player(discord_id=interaction.user.id)
+    if player:
+        await interaction.response.send_message(f"You are currently logged on as user {player.name}!")
+    else:
+        await interaction.response.send_message(f"You are currently not logged into the DCS server or your account 
+                                                is not properly linked.")
 ```
 
 ### discord.Member
-As DCSServerBot stores a link between DCS players and Discord members, you surely can access the discord
-member information, too:
+As DCSServerBot stores a link between DCS players and Discord members, you can access the member information also:
 ```python
-async def onChatCommand(self, data: dict) -> None:
-    server: Server = self.bot.servers[data['server_name']]
-    player: Player = server.get_player(id=data['from_id'])
-    if player.member:
-        self.log.info(f"Player {player.name} is member {player.member.display_name}!")
+    @chat_command(name="linkcheck", help="check if you are linked")
+    async def linkcheck(self, server: Server, player: Player, params: list[str]):
+        if player.member:
+            player.sendChatMessage(f"You are linked to member {player.member.display_name}.")
+        else:
+            player.sendChatMessage(f"You are not linked.")
 ```
 
 ## Reports
@@ -385,17 +417,10 @@ CREATE TABLE IF NOT EXISTS bans (ucid TEXT PRIMARY KEY, banned_by TEXT NOT NULL,
 
 To access the database, you should use the database pool that is available in every common framework class:
 ```python
-conn = self.pool.getconn()
-try:
-    with closing(conn.cursor()) as cursor:
-        cursor.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING',
-                       (player.ucid, self.plugin_name, reason))
-        conn.commit()
-except (Exception, psycopg2.DatabaseError) as error:
-    conn.rollback()
-    self.log.exception(error)
-finally:
-    self.pool.putconn(conn)
+with self.pool.connection() as conn:
+    with conn.transaction():
+        conn.execute('INSERT INTO bans (ucid, banned_by, reason) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING',
+                     (player.ucid, self.plugin_name, reason))
 ```
 
 
@@ -411,7 +436,7 @@ if necessary:
 Just implement a script named "update_vX.Y.sql", where X.Y is there version where you want to migrate **FROM**.
 To migrate the database from plugin version 1.0 to 1.1, you need to implement a script named update_v1.0.sql.
 
-_update_v1.0.sql:_
+Sample `update_v1.0.sql`:
 ```sql
 ALTER TABLE bans ADD COLUMN (test TEXT NOT NULL DEFAULT 'n/a');
 ```
@@ -420,6 +445,8 @@ ALTER TABLE bans ADD COLUMN (test TEXT NOT NULL DEFAULT 'n/a');
 Each Plugin can implement the method 
 ```python
     def migrate(self, version: str) -> None:
-        pass
+        if version == '1.1':
+            # change the config.yaml file to represent the changes introduced in version 1.1
+            pass
 ```
-that will take care of anything that needs to be done when migrating **TO** version _version_. 
+that will take care of anything that needs to be done when migrating **TO** version `version`. 
