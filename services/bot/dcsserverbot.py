@@ -182,10 +182,9 @@ class DCSServerBot(commands.Bot):
                     self.check_channel(self.locals['admin_channel'])
                 for server in self.servers.values():
                     if server.locals.get('coalitions'):
-                        roles = [
-                            [x.strip() for x in server.locals['coalitions']['blue_role'].split(',')],
-                            [x.strip() for x in server.locals['coalitions']['red_role'].split(',')]
-                        ]
+                        roles = []
+                        roles.extend([x.strip() for x in server.locals['coalitions']['blue_role'].split(',')])
+                        roles.extend([x.strip() for x in server.locals['coalitions']['red_role'].split(',')])
                         self.check_roles(roles, server)
                     self.check_channels(server)
                 self.log.info('- Registering Discord Commands (this might take a bit) ...')
