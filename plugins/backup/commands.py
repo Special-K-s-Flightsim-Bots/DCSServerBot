@@ -105,12 +105,12 @@ class BackupMaster(BackupAgent):
             filename = f"db_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".tar"
             path = os.path.join(target, filename)
             database = f"{os.path.basename(self.bot.config['BOT']['DATABASE_URL'])}"
-            exe = f'"{cmd}" -U postgres -F t -f "{path}" -d "{database}"'
-            args = shlex.split(exe)
+            args = shlex.split(f'-U postgres -F t -f "{path}" -d "{database}"')
             os.environ['PGPASSWORD'] = config['password']
-            process = await asyncio.create_subprocess_exec(*args, stdin=asyncio.subprocess.DEVNULL,
+            self.log.info("Backing up database...")
+            process = await asyncio.create_subprocess_exec(cmd, *args, stdin=asyncio.subprocess.DEVNULL,
                                                            stdout=asyncio.subprocess.DEVNULL)
-            await process.wait()
+            await process.communicate()
             self.log.info("Backup of database complete.")
         except Exception as ex:
             self.log.debug(ex)
