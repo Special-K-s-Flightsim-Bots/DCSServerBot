@@ -1,27 +1,27 @@
 DEFAULT:
-  FunkMan:
-    IMAGEPATH: ../FunkMan/funkpics/
-    install: ../FunkMan
-  num_landings: 5
-  num_rows: 10
-  persistent_board: false
-  persistent_channel: '123456789'
-  ratings:
-    (OK): 3
-    --: 2
-    B: 2.5
-    C: 0
+  num_landings: 5           # display the last 5 landings
+  num_rows: 10              # display 10 players
+  persistent_board: false   # if true, a persistent board will be uploaded into persistent_channel
+#  persistent_channel: 123456789
+  ratings:                  # Default ratings
+    _OK_: 5
     OK: 4
+    (OK): 3
+    B: 2.5
+    --: 2
     OWO: 2
     WO: 1
-    _OK_: 5
-DCS.openbeta_server:
+    C: 0
+#  FunkMan:                 # if you want to use the FunkMan integration, uncomment this
+#    IMAGEPATH: ../FunkMan/funkpics/
+#    install: ../FunkMan
+DCS.openbeta_server:        # our server uses Moose.AIRBOSS
   Moose.AIRBOSS:
-    basedir: airboss
-    delete_after: 180
+    basedir: airboss        # Trapsheets will be stored in Saved Games\DCS.openbeta_server\airboss
+    delete_after: 180       # they will be deleted after 180 days
     grades: AIRBOSS-{carrier}_LSOGrades.csv
     trapsheets: '*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv'
-instance2:
-  FunkMan:
-    basedir: trapsheets
-    delete_after: 180
+#instance2:                 # uncomment, if you have more than one istance and name it accordingly
+#  FunkMan:                 # instance2 uses FunkMan
+#    basedir: trapsheets    # DCSServerBot will generate trapsheet images in here
+#    delete_after: 180      # they will be deleted after 180 days

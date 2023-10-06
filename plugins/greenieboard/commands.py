@@ -66,10 +66,12 @@ class GreenieBoard(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def info(self, interaction: discord.Interaction,
-                   user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+                   user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
         def format_landing(landing: dict) -> str:
             return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']}: {landing['grade']}"
 
+        if not user:
+            user = interaction.user
         if isinstance(user, str):
             ucid = user
             user = self.bot.get_member_or_name_by_ucid(ucid)

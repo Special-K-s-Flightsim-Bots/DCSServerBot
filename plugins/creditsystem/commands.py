@@ -104,7 +104,7 @@ class CreditSystem(Plugin):
             embed.set_footer(text='Log will show the last 10 events only.')
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    async def admin_donate(self, interaction: discord.Interaction, to: discord.Member, donation: int):
+    async def _admin_donate(self, interaction: discord.Interaction, to: discord.Member, donation: int):
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:
             await interaction.response.send_message(f'{utils.escape_string(to.display_name)} needs to properly link '
@@ -179,7 +179,7 @@ class CreditSystem(Plugin):
             await interaction.response.send_message("You can't donate to yourself.", ephemeral=True)
             return
         if utils.check_roles(set(self.bot.roles['Admin'] + self.bot.roles['DCS Admin']), interaction.user):
-            await self.admin_donate(interaction, to, donation)
+            await self._admin_donate(interaction, to, donation)
             return
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:

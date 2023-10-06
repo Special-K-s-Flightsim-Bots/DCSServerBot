@@ -76,11 +76,19 @@ of credits.
 | /credits info   |                      | DCS  | Displays the players campaign credits.                |
 | /credits donate | <@member> <donation> | DCS  | Donate any of your campaign points to another member. |
 
+## In-Game Chat Commands
+
+| Command  | Parameter           | Role | Description                       |
+|----------|---------------------|------|-----------------------------------|
+| .credits |                     | all  | Show your players credits.        |
+| .donate  | whom points         | all  | Donate credits to another player. |
+| .tip     | points [gci number] | all  | Tip a GCI role.                   |
+
 ## Usage inside of Missions (Scripting API)
 If you want to change user points based on any mission achievements, you are good to go:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
-  [...]
+  -- [...]
   dcsbot.addUserPoints('Special K', 10) -- add 10 points to users "Special K"'s credits. Points can be negative to take them away.
 ```
 

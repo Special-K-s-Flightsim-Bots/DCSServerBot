@@ -40,7 +40,7 @@ class GameMaster(Plugin):
 
     @command(description='Send a chat message to a running DCS instance')
     @app_commands.guild_only()
-    @utils.app_has_role('DCS')
+    @utils.app_has_roles(['DCS Admin', 'GameMaster'])
     async def chat(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
                    message: str):

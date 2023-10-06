@@ -13,57 +13,39 @@ For samples on how to configure FunkMan support into Moose, see the respective s
 DCSServeBot and Funkman is port 10042. 
 
 ## Configuration
-For a start, you just need to add the path to your FunkMan installation. If you have configured your 
-FunkMan.ini already, DCSServerBot will automatically take over your config parameters.
+For a start, you just need to add the path to your FunkMan installation to your funkman.yaml. If you have configured 
+your FunkMan.ini already, DCSServerBot will automatically take over your config parameters.
 
-```json
-{
-  "configs": [
-    {
-      "install": "../FunkMan"
-    }
-  ]
-}
+```yaml
+DEFAULT:
+  install: ../FunkMan
 ```
 If you have configured your FunkMan.ini already, DCSServerBot will automatically take over your config parameters.        
 
-```json
-{
-  "configs": [
-    {
-      "install": "../FunkMan",
-      "CHANNELID_MAIN": "1011372894162526329",
-      "CHANNELID_RANGE": "1006216842509041786",
-      "CHANNELID_AIRBOSS": "1011372920968323155",
-      "IMAGEPATH": "../FunkMan/funkpics/",
-      "delete_after": 300                     -- delete after 5 mins (default = never)
-    }
-  ]
-}
+```yaml
+DEFAULT:
+  install: ../FunkMan
+  CHANNELID_MAIN: '1122334455667788'
+  CHANNELID_RANGE: '8877665544332211'
+  CHANNELID_AIRBOSS: '1188227733664455'
+  IMAGEPATH: ../FunkMan/funkpics/
 ```
-If you want to use different channels for your different servers, you can add a section for each server by
-using the "installation" tag:
+If you want to use different channels for your different servers, you can add a section for each server:
 
-```json
-{
-  "configs": [
-    {
-      "install": "../FunkMan",
-      "CHANNELID_MAIN": "1011372894162526329",
-      "CHANNELID_RANGE": "1006216842509041786",
-      "CHANNELID_AIRBOSS": "1011372920968323155",
-      "IMAGEPATH": "../FunkMan/funkpics/"
-    },
-    {
-      "installation": "DCS.openbeta",
-      "CHANNELID_MAIN": "12345678901234567890",
-      "CHANNELID_RANGE": "12345678901234567890",
-      "CHANNELID_AIRBOSS": "12345678901234567890"
-    }
-  ]
-}
+```yaml
+DCS.openbeta_server:
+  install: ../FunkMan
+  CHANNELID_MAIN: '1122334455667788'
+  CHANNELID_RANGE: '8877665544332211'
+  CHANNELID_AIRBOSS: '1188227733664455'
+  IMAGEPATH: ../FunkMan/funkpics/
+instance2:
+  CHANNELID_MAIN: '1234567812345678'
+  CHANNELID_RANGE: '8765432187654321'
+  CHANNELID_AIRBOSS: '1112223334445555'
+  IMAGEPATH: ../FunkMan/funkpics/
 ```
 
 ## Credentials
 Thanks to funkyfranky and the Moose team to align the FunkMan protocol with me, which made it very easy
-to add support for it and to provide these awesome functionality to you!
+to add support for it and to provide this awesome functionality to you!

@@ -31,12 +31,19 @@ DEFAULT:  # The DEFAULT section is valid for all your servers
   - label: Main Config Files
     directory: .\config
     pattern: '*.yaml'
+    discord:      # only Admin users can download these config files
+      - Admin
+    audit: true   # each download is audited
   # All configuration files of your plugins. You can upload changed configurations again to your admin channels.
   - label: Plugin Config Files
     directory: .\config\plugins
     pattern: '*.yaml'
+    audit: true   # each download is audited
   # The service configuration files of DCSSB. You can upload changed configurations again to your admin channels.
   # Be aware, the bot.yaml contains your Discord TOKEN in a readable format.
   - label: Service Config Files
     directory: .\config\services
     pattern: '*.yaml'
+    discord:      # only Admin users can download these config files
+      - Admin
+    audit: true   # each download is audited

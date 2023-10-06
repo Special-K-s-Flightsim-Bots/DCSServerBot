@@ -121,7 +121,7 @@ class CloudHandler(Plugin):
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(member="user")
     async def resync(self, interaction: discord.Interaction,
-                     member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
+                     member: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]] = None):
         if 'token' not in self.config:
             await interaction.response.send_message('No cloud sync configured.', ephemeral=True)
             return
