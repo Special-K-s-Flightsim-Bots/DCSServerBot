@@ -23,6 +23,38 @@ other plugins, like Slotblocking or Userstats.
 
 *) DCS 2.7.12 or higher
 
+In addition, you can upload embeds to discord channels, just by using json files like this:
+
+```json
+{
+  "message_id": 967120121632006228,
+  "title": "Special K successfully landed at Senaki!",
+  "description": "Special K did it again and succeeded at his try to land at Senaki.",
+  "img": "https://i.chzbgr.com/full/8459987200/hB315ED4E/damn-instruction-manual",
+  "fields": [
+    {
+      "name": "Pilot",
+      "value": "sexy as hell",
+      "inline": true
+    },
+    {
+      "name": "Speed",
+      "value": "130 kn",
+      "inline": true
+    },
+    {
+      "name": "Wind",
+      "value": "calm",
+      "inline": true
+    }
+  ],
+  "footer": "Just kidding, they forgot to put their gear down!"
+}
+```
+
+Just upload a file with such a content and a .json extension to the channel where you want the information to be 
+displayed (can be done by the Admin-Role only!). If you provide a valid message_id, the message will be updated.
+
 ## Usage inside of Missions (Scripting API)
 You can enable, disable (= delete) and reset (= delete + start) the plugin base slot blocking system (aka campaigns) 
 inside of missions, too. If you want to use the system and for instance reset it on every mission start, you just need 

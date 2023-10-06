@@ -1,5 +1,5 @@
 # Plugin "Cloud"
-With this plugin, the world of DCSServerBot gets even bigger!</br>
+#### _With this plugin, the world of DCSServerBot gets even bigger!_
 When using DCSServerBot in your Discord and with your DCS servers, people gather lots of statistics. As people often 
 not only fly in one community, they might want to see their statistics that they gathered in all communities in a 
 single place.</br>
@@ -26,28 +26,24 @@ and/or Discord users. Both are active as a default.</br>
 If you are a server admin of a large server and not part of DGSA, the "DCS Global Server Admins" yet, send me a DM.
 
 ## Configuration
-```json
-{
-  "configs": [
-    {
-      "protocol": "https",
-      "host": "dcsserverbot-prod.herokuapp.com",
-      "token": "<secret token>",                      -- You need to contact me for a token, if you want to use this service.
-      "port": 443,    
-      "register": true,                               -- Register online to allow general statistics of installations
-      "dcs-ban": false,                               -- Auto-ban globally banned DCS players (default = false).
-      "discord-ban": false                            -- Auto-ban globally banned Discord members (default = false).
-    }
-  ]
-}
+```yaml
+DEFAULT:
+  dcs-ban: true                         # true: subscribe to the global ban service for DCS users (default: false).
+  discord-ban: true                     # true: subscrive to the global ban service for Discord users (default: false).
+  host: dcsserverbot-prod.herokuapp.com # Don't change that until told otherwise.
+  port: 443                             # Don't change that until told otherwise.
+  protocol: https                       # Don't change that until told otherwise.
+  register: true                        # True, send general statistics to my community stats (please do that!)
+#  token: xxxyyyzzz111222333444         # If you got a TOKEN to participate in the cloud statistics, then put it in here.
 ```
 The online registration helps me to better understand which installations are out there. There is no personal
-information sent to the cloud and you can always see what is being sent (dcsserverbot.log) and disable it, if you feel
+information sent to the cloud and you can always see what is being sent (logs/dcssb-*.log) and disable it, if you feel
 uncomfortable with it. I would appreciate, if you send me that little bit of data, as it helps me (and you) in
 maintaining the solutions that are out in the wild.
 
 ## Discord Commands
-| Command               | Parameter        | Role      | Description                                          |
-|-----------------------|------------------|-----------|------------------------------------------------------|
-| .resync               | [@member / ucid] | DCS Admin | Resyncs all players (or this player) with the cloud. |
-| .cloudstats / .cstats | [@member / ucid] | DCS       | Display player cloud statistics (overall, per guild) |
+| Command           | Parameter        | Role      | Description                                          |
+|-------------------|------------------|-----------|------------------------------------------------------|
+| /cloud status     |                  | Admin     | Status of the connection to the cloud service.       |
+| /cloud resync     | [@member / ucid] | DCS Admin | Resyncs all players (or this player) with the cloud. |
+| /cloud statistics | [@member / ucid] | DCS       | Display player cloud statistics (overall, per guild) |

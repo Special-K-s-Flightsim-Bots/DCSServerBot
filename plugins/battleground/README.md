@@ -3,22 +3,19 @@ The Battleground plugin adds commands for the [DCSBattleground](https://github.c
 The plugin use the coalition feature for communication with the database so you need to set the "COALITION_BLUE_CHANNEL" 
 and "COALITION_RED_CHANNEL" for your servers in dcsserverbot.ini
 
-
-## Discord Commands
-
-| Command | Parameter                                  | Channel                 | Role | Description                                                                                                                    |
-|---------|--------------------------------------------|-------------------------|------|--------------------------------------------------------------------------------------------------------------------------------|
-| /recon  | \<name\> \<mgrs\> Attachement: screenshots | coalition chat channels | DCS  | Add recon data with screenshots to DCSBattleground. Coordinates needs to be in MGRS-format and screeshots in JPEG, GIF or PNG. |
-
-
 ## DCSBattlegound's configuration
 DCSBattleground is a sneaker's fork created by Frigondin, you can find all information about it [here](https://github.com/Frigondin/DCSBattleground/).</br>
 You can find a wiki with some examples and an introduction to the tool [here](https://github.com/Frigondin/DCSBattleground/wiki).</br>
 
 An extension for DCSBattleground will be created at a later stage, so it can't be auto-started by DCSServerBot for now.
 
-## Tables
+## Discord Commands
 
+| Command             | Parameter                                  | Channel                 | Role | Description                                                                                                                    |
+|---------------------|--------------------------------------------|-------------------------|------|--------------------------------------------------------------------------------------------------------------------------------|
+| /battleground recon | \<name\> \<mgrs\> Attachment: screenshots  | coalition chat channels | DCS  | Add recon data with screenshots to DCSBattleground. Coordinates needs to be in MGRS-format and screeshots in JPEG, GIF or PNG. |
+
+## Tables
 ### BG_GEOMETRY
 | Column       | Type             | Description                                                                       |
 |--------------|------------------|-----------------------------------------------------------------------------------|
