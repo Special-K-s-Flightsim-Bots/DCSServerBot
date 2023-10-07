@@ -657,10 +657,9 @@ class Mission(Plugin):
                     continue
                 for ucid, dt in server.afk.items():
                     player = server.get_player(ucid=ucid, active=True)
-                    # don't kick DCS Admin or GameMaster users
-                    if player.has_discord_roles(['DCS Admin', 'GameMaster']):
+                    if not player or player.has_discord_roles(['DCS Admin', 'GameMaster']):
                         continue
-                    if player and (datetime.now() - dt).total_seconds() > max_time:
+                    if (datetime.now() - dt).total_seconds() > max_time:
                         msg = self.bot.config['DCS']['MESSAGE_AFK'].format(player=player,
                                                                            time=utils.format_time(max_time))
                         server.kick(player, msg)
