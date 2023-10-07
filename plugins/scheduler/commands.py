@@ -37,10 +37,6 @@ class Scheduler(Plugin):
                 config[instance.name] = {}
             with open("config/plugins/scheduler.yaml", 'w') as outfile:
                 yaml.dump(config, outfile)
-        else:
-            for cfg in config.values():
-                if 'presets' in cfg and isinstance(cfg['presets'], str):
-                    cfg['presets'] = yaml.load(Path(cfg['presets']).read_text(encoding='utf-8'))
         return config
 
     @staticmethod

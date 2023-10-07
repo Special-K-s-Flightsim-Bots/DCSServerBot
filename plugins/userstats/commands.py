@@ -461,7 +461,8 @@ class UserStatistics(Plugin):
             kwargs = highscore.get('params', {})
             period = kwargs.get('period')
             flt = StatisticsFilter.detect(self.bot, period) if period else None
-            file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
+            file = highscore.get('report',
+                                 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json')
             embed_name = 'highscore-' + period
             report = PersistentReport(self.bot, self.plugin_name, file, embed_name=embed_name, server=server,
                                       channel_id=highscore.get('channel', Channel.STATUS))
