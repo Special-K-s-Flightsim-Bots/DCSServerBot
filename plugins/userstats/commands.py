@@ -598,7 +598,8 @@ class UserStatisticsMaster(UserStatisticsAgent):
             kwargs = highscore.get('params', {})
             period = kwargs.get('period')
             flt = StatisticsFilter.detect(self.bot, period) if period else None
-            file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
+            file = highscore.get('report',
+                                 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json')
             embed_name = 'highscore-' + (server_name or 'all') + '-' + period
             sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
             report = PersistentReport(self.bot, self.plugin_name, file, server, embed_name,
