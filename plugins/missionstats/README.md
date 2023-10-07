@@ -4,8 +4,16 @@ detailed statistics from the in-game event system. The global DCSServerBot.lua a
 automatically be loaded into any mission running on that specific server.
 
 ## Configuration
-Mission statistics can be enabled or disabled in the server configuration (see [e) Server Specific Sections](../../README.md)).
-Missionstats needs the Userstats plugin to be loaded first.
+Missionstats needs the Userstats plugin to be loaded first (default).
+
+The configuration is held in config/plugins/missionstats.yaml:
+```yaml
+DCS.openbeta_server:
+  enabled: true                 # false: disable mission statistics gathering (default: true)
+  display: true                 # false: don't show mission statistics in your status channel (default: true)
+  persistence: true             # false: don't persist the mission statistics to database (default: true)
+  persist_ai_statistics: false  # true: persist AI statistics to the database (default: false)
+```
 
 ## How to disable Missionstats inside of missions
 To disable mission statistics for a specific mission, you can use the following piece of code somewhere in your mission 
@@ -15,17 +23,15 @@ To disable mission statistics for a specific mission, you can use the following 
 ```
 
 ## Discord Commands
-**Attention:** These commands need MISSION_STATISTICS=true in the server you want to run the commands on!
 
+| Command       | Parameter                         | Channel                     | Role | Description                                                                                          |
+|---------------|-----------------------------------|-----------------------------|------|------------------------------------------------------------------------------------------------------|
+| /missionstats |                                   | status-/chat-/admin-channel | DCS  | Display the current mission situation for red and blue and the achievements in kills and captures.   |
+| /sorties      | [@member / Player Name] [period*] | all                         | DCS  | Display the number of sorties and real flight time per module / period.                              |
+| /modulestats  | [@member / Player Name] [period*] | all                         | DCS  | Display module and weapon statistics per module.                                                     |
+| /refuelings   | [@member / Player Name] [period*] | all                         | DCS  | Display refuelings per module.                                                                       |
 
-| Command                   | Parameter                        | Channel                     | Role | Description                                                                                          |
-|---------------------------|----------------------------------|-----------------------------|------|------------------------------------------------------------------------------------------------------|
-| .missionstats             |                                  | status-/chat-/admin-channel | DCS  | Display the current mission situation for red and blue and the achievements in kills and captures.   |
-| .sorties                  | [@member / Player Name] [period] | all                         | DCS  | Display the number of sorties and real flight time per module / period.                              |
-| .modulestats / .modstats  | [@member / Player Name] [period] | all                         | DCS  | Display module and weapon statistics per module.                                                     |
-| .refuelings / .refuel     | [@member / Player Name] [period] | all                         | DCS  | Display refuelings per module.                                                                       |
-
-**Attention:** "period" can either be a period [day, week, month, year] or a campaign name!
+*) "period" can either be a period [day, week, month, year] or a [campaign](../gamemaster/README.md) name!
 
 ## Tables
 ### Missionstats

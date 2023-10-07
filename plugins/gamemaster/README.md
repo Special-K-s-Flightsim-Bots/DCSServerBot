@@ -4,6 +4,12 @@ messaging, setting and clearing flags or even running lua scripts directly in yo
 You can enable the campaign system in here, too, that can be used in different other plugins, like CreditSystem, 
 Slotblocking or Userstats.
 
+## Campaigns
+A campaign is a fixed time period, where people on your server can gather specific stats, credits and achievements.
+It is a good way of getting some action on your server to have regular (e. g. quarterly) campaigns and maybe use the
+persistent [highscore](../userstats/README.md) feature to display the top players of this specific campaign somewhere in 
+your Discord server.
+
 ## Discord Commands
 
 | Command              | Parameter                             | Channel       | Roles                 | Description                                                                                      |
@@ -35,6 +41,19 @@ Slotblocking or Userstats.
 | .coalition |               | all                   | Shows your current coalition.  |
 | .password  |               | all                   | Shows your coalition password. |
 | .flag      | flag [value]  | DCS Admin, GameMaster | Reads or sets a flag.          |
+
+## Usage inside of Missions (Scripting API)
+You can enable, disable (= delete) and reset (= delete + start) campaigns inside of missions, too. If you want to use 
+the system and for instance reset it on every mission start, you just need to put in the following lines in one of 
+your triggers that fire after a mission load:
+```lua
+  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
+  -- [...]
+  dcsbot.resetCampaign() -- remove, if you want to keep the points for players
+  -- or -- dcsbot.startCampaign() -- starts a new campaign (if there is not one started already)
+```
+This can for instance be used for some arena based game, which should start all over again after being restarted.
+A campaign name of "_internal_" will be used in that case.
 
 ## Upload of (persistent) Embeds
 
@@ -70,19 +89,6 @@ In addition, you can upload embeds to discord channels, just by using json files
 Just upload a file with such a content and a .json extension to the channel where you want the information to be 
 displayed (can be done by the Admin-Role only!). If you provide a valid message_id (right click, Copy Message ID), 
 this specific message will be updated.
-
-## Usage inside of Missions (Scripting API)
-You can enable, disable (= delete) and reset (= delete + start) campaigns inside of missions, too. If you want to use 
-the system and for instance reset it on every mission start, you just need to put in the following lines in one of 
-your triggers that fire after a mission load:
-```lua
-  dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
-  -- [...]
-  dcsbot.resetCampaign() -- remove, if you want to keep the points for players
-  -- or -- dcsbot.startCampaign() -- starts a new campaign (if there is not one started already)
-```
-This can for instance be used for some arena based game, which should start all over again after being restarted.
-A campaign name of "_internal_" will be used in that case.
 
 ## Tables
 ### CAMPAIGNS

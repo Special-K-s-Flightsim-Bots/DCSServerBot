@@ -416,10 +416,7 @@ class Mission(Plugin):
             "qnh": miz.qnh,
             "enable_fog": miz.enable_fog,
             "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
-            "halo": miz.halo,
-            "forcedOptions": miz.forcedOptions,
-            "miscellaneous": miz.miscellaneous,
-            "difficulty": miz.difficulty
+            "halo": miz.halo
         }
         with open(f'config/presets.yaml', 'w', encoding='utf-8') as outfile:
             yaml.dump(presets, outfile)

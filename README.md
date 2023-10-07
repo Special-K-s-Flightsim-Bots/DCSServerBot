@@ -34,15 +34,15 @@ Each node can control multiple instances of DCS, meaning `DCS.exe` or `DCS_Serve
 A service is a component that runs on each node. Services can be combined with plugins, if they provide additional
 Discord commands, like the Music service. You can define that a service only runs on the master node.
 
-| Service    | Scope                                                                   | Plugin | Documentation                             |
-|------------|-------------------------------------------------------------------------|--------|-------------------------------------------|
-| ServiceBus | Communication hub between every node of the bot cluster and DCS.        |        |                                           |
-| Bot        | The Discord bot handling all discord commands.                          |        |                                           |
-| Monitoring | Availability monitoring of your DCS servers.                            |        | [README](./plugins/gamemaster/README.md)  |
-| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.   | Backup |                                           |
-| Dashboard  | Nice console graphics display to show the status of your bot / servers. |        |                                           |
-| OvGME      | Manage mods that needs to be installed / updated in your DCS servers.   | OvGME  |                                           |
-| Music      | Play music over different SRS-radios on your servers.                   | Music  |                                           |
+| Service    | Scope                                                                   | Plugin | Documentation                            |
+|------------|-------------------------------------------------------------------------|--------|------------------------------------------|
+| ServiceBus | Communication hub between every node of the bot cluster and DCS.        |        |                                          |
+| Bot        | The Discord bot handling all discord commands.                          |        |                                          |
+| Monitoring | Availability monitoring of your DCS servers.                            |        | [README](./plugins/gamemaster/README.md) |
+| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.   | Backup |                                          |
+| Dashboard  | Nice console graphics display to show the status of your bot / servers. |        |                                          |
+| OvGME      | Manage mods that needs to be installed / updated in your DCS servers.   | OvGME  | [README](./services/ovgme/README.md)     |
+| Music      | Play music over different SRS-radios on your servers.                   | Music  |                                          |
 
 ### Plugins
 A plugin is an expansion of the bot that can be controlled via Discord commands and sometimes in-game chat commands. 
