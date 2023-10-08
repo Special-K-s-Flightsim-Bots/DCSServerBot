@@ -68,22 +68,23 @@ class UserStatistics(Plugin):
     @command(description='Deletes the statistics of a server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
+    @app_commands.rename(_server="server")
     async def reset_statistics(self, interaction: discord.Interaction,
-                               server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
-        if not server:
+                               _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
+        if not _server:
             for s in self.bus.servers.values():
                 if s.status in [Status.RUNNING, Status.PAUSED]:
                     await interaction.response.send_message(
                         f'Please stop all servers before deleting the statistics!', ephemeral=True)
                     return
-        elif server.status in [Status.RUNNING, Status.PAUSED]:
+        elif _server.status in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(
-                f'Please stop server "{server.display_name}" before deleting the statistics!', ephemeral=True)
+                f'Please stop server "{_server.display_name}" before deleting the statistics!', ephemeral=True)
             return
 
         message = "I'm going to **DELETE ALL STATISTICS**\n"
-        if server:
-            message += f"of server \"{server.display_name}\"!"
+        if _server:
+            message += f"of server \"{_server.display_name}\"!"
         else:
             message += f"of **ALL** servers!"
         message += "\n\nAre you sure?"
@@ -92,26 +93,28 @@ class UserStatistics(Plugin):
             return
         with self.pool.connection() as conn:
             with conn.transaction():
-                if server:
+                if _server:
                     conn.execute("""
                         DELETE FROM statistics WHERE mission_id in (
                             SELECT id FROM missions WHERE server_name = %s
                         )
-                        """, (server.name, ))
+                        """, (_server.name,))
                     conn.execute("""
                         DELETE FROM missionstats WHERE mission_id in (
                             SELECT id FROM missions WHERE server_name = %s
                         )
-                    """, (server.name, ))
-                    conn.execute('DELETE FROM missions WHERE server_name = %s', (server.name,))
-                    await interaction.followup.send(f'Statistics for server "{server.display_name}" have been wiped.',
+                    """, (_server.name,))
+                    conn.execute('DELETE FROM missions WHERE server_name = %s', (_server.name,))
+                    await interaction.followup.send(f'Statistics for server "{_server.display_name}" have been wiped.',
                                                     ephemeral=True)
-                    await self.bot.audit('reset statistics', user=interaction.user, server=server)
+                    await self.bot.audit('reset statistics', user=interaction.user, server=_server)
                 else:
                     conn.execute("TRUNCATE TABLE statistics")
                     conn.execute("TRUNCATE TABLE missionstats")
                     conn.execute("TRUNCATE TABLE missions")
-                    await interaction.followup.send(f'Statistics for ALL servershave been wiped.', ephemeral=True)
+                    if 'greenieboard' in self.bot.node.plugins:
+                        conn.execute("TRUNCATE TABLE greenieboard")
+                    await interaction.followup.send(f'Statistics for ALL servers have been wiped.', ephemeral=True)
                     await self.bot.audit('reset statistics of ALL servers', user=interaction.user)
 
     @command(description='Shows player statistics')
@@ -413,7 +416,7 @@ class UserStatistics(Plugin):
         env = await report.render(period=f"{number} {period}")
         await interaction.response.send_message(embed=env.embed, ephemeral=True)
 
-    @command(description='Deletes the statistics of a specific user')
+    @command(description='Delete statistics for users')
     @app_commands.guild_only()
     @utils.app_has_roles(['DCS', 'DCS Admin'])
     async def delete_statistics(self, interaction: discord.Interaction, user: Optional[discord.Member]):
@@ -433,6 +436,7 @@ class UserStatistics(Plugin):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     for ucid in member.ucids:
+                        # TODO: change that to prune()-calls
                         conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
                         conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid, ))
                         conn.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))

@@ -72,7 +72,7 @@ class RestAPI(Plugin):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 return cursor.execute("""
-                    SELECT name AS \"nick\", last_seen AS \"date\" FROM players WHERE name ILIKE %s
+                    SELECT name AS \"nick\", last_seen AS \"date\" FROM players WHERE name ILIKE %s ORDER BY 2 DESC
                 """, ('%' + nick + '%', )).fetchall()
 
     def missilepk(self, nick: str = Form(default=None), date: str = Form(default=None)):

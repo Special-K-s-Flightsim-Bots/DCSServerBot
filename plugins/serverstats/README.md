@@ -1,15 +1,16 @@
 # Plugin ServerStats
-If you enable this plugin you will gather statistics for your DCS servers.<br/>
+If you enable this plugin you will gather statistics for your DCS servers.<br>
+This can be helpful to detect issues in your servers and missions or just to see how many people love which of your missions most.
 
 ## Configuration
 n/a
 
 ## Discord Commands
 
-| Command      | Parameter               | Role  | Description                                                                                                                                             |
-|--------------|-------------------------|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| .serverstats | [day/week/month] [-all] | Admin | Displays server statistics, like usual playtime, most frequented servers and missions.<br/>If -all is provided, you can cycle through all your servers. |
-| .serverload  | [hour/day/week] [-all]  | Admin | Displays technical server statistics, like CPU load, memory consumption, etc.<br/>If -all is provided, you can cycle through all your server nodes.     |
+| Command      | Parameter                 | Role  | Description                                                                                                                                                  |
+|--------------|---------------------------|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| /serverstats | [server] [day/week/month] | Admin | Displays server statistics, like usual playtime, most frequented servers and missions.<br/>If no server is provided, you can cycle through all your servers. |
+| /serverload  | [server] [hour/day/week]  | Admin | Displays technical server statistics, like CPU load, memory consumption, etc.<br/>If no server is provided, you can cycle through all your servers.          |
 
 ## Tables
 ### Serverstats

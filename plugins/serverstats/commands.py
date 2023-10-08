@@ -39,11 +39,12 @@ class ServerStats(Plugin):
     @command(description='Displays the load of your DCS servers')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
+    @app_commands.rename(_server="server")
     async def serverload(self, interaction: discord.Interaction,
-                         server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
+                         _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
                          period: Optional[str]):
-        if server:
-            await self.display_report(interaction, 'serverload.json', period, server.name)
+        if _server:
+            await self.display_report(interaction, 'serverload.json', period, _server.name)
         else:
             report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverload.json')
             await report.render(period=period, server_name=None)
@@ -51,11 +52,12 @@ class ServerStats(Plugin):
     @command(description='Shows servers statistics')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
+    @app_commands.rename(_server="server")
     async def serverstats(self, interaction: discord.Interaction,
-                          server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
+                          _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
                           period: Optional[str]):
-        if server:
-            await self.display_report(interaction, 'serverstats.json', period, server.name)
+        if _server:
+            await self.display_report(interaction, 'serverstats.json', period, _server.name)
         else:
             report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverstats.json')
             await report.render(period=period, server_name=None)

@@ -1,49 +1,89 @@
 # Plugin "UserStats"
-DCSServerBot comes with a built-in, database driven statistics system. It allows either users to show their own achievements like k/d-ratio, flighttimes per module, server or map, etc.
-For server owners, it allows you to see which of your servers and missions are being used most, at which time and from which kind of users (Discord members vs. public players).
+DCSServerBot comes with a built-in, database driven statistics system. It allows either users to show their own 
+achievements like k/d-ratio, flighttimes per module, server or map, etc. For server owners, it allows you to see which 
+of your servers and missions are being used most, at which time and from which kind of users (Discord members vs. 
+public players).
 
 ## Configuration
-User statistics can be enabled or disabled in the server configuration (see [e) Server Specific Sections](../../README.md)).
-Userstats needs the Mission plugin to be loaded first.
+The plugin can be configured via yaml in config/plugins/userstats.yaml. If such a file does not exists, create one.
+
+```yaml
+DEFAULT:
+  highscore:  # overall persistent highscore display (optional)
+    channel: 1122334455667788
+    params:
+      period: month   # can be one of day, month, quarter, year, or any campaign name
+      limit: 10       # number of players per entry
+DCS.openbeta_server:
+  highscore:  # server-specific persistent highscore (optional)
+  - channel: 9988776655443322
+    params:
+      period: day     # display a daily highscore in another channel for this server
+      limit: 3        # only 3 players this time ("top 3 of the day")
+  - channel: 1234567812345678
+    params:
+      period: month   # and a monthly statistic in another channel
+      limit: 10       # "top 10 of the month"
+instance2:
+  enabled: false  # we disable statistics gathering on instance2
+```
 
 ## User Linking
 It is recommended that your users link their Discord ID to their UCID (DCS World ID). The bot can try to do that by 
-itself (AUTOMATCH = true), but might fail, especially, when the in-game names and Discord names of users differ a lot.
-If the AUTOMATCH is disabled (default) or was not successful, users can generate a unique TOKEN that is being sent as a 
-DM with ```.linkme```. The TOKEN can then be entered in the in-game chat as a chat-command with ```-linkme TOKEN```.
+itself (bot.yaml: `automatch: true`), but might fail, especially, when the in-game names and Discord names of users differ a lot.
+> Users can generate a unique TOKEN that is being sent as a DM with the ```/linkme``` command.<br>
+> The TOKEN can then be entered in the in-game chat as a chat-command with ```-linkme TOKEN```.
 
 ## Discord Commands
 
-| Command                | Parameter                                 | Channel | Role      | Description                                                                                         |
-|------------------------|-------------------------------------------|---------|-----------|-----------------------------------------------------------------------------------------------------|
-| .statistics/.stats     | [@member / DCS name] [day/week/month/all] | all     | DCS       | Display your own statistics or that of a specific member.                                           |
-| .statsme               | [day/week/month/all]                      | all     | DCS       | Send your own statistics in a DM instead of displaying them in public.                              |
-| .highscore/.hs         | [day/week/month/all]                      | all     | DCS       | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)   |
-| .link                  | @member ucid                              | all     | DCS Admin | Sometimes users can't be linked automatically. That is a manual workaround.                         |
-| .unlink                | @member / ucid                            | all     | DCS Admin | Unlink a member from a ucid / ucid from a user, if the automatic linking didn't work.               |
-| .info                  | @member / ucid / DCS name                 | all     | DCS Admin | Displays information about that user and let you (un)ban, kick or unlink them.                      |  
-| .linkcheck             |                                           | all     | DCS Admin | Checks if a DCS user could be matched to a member.                                                  |
-| .mislinks / .mislinked |                                           | all     | DCS Admin | Checks if a DCS user is possibly mismatched with the wrong member (might still be correct though!). |
-| .reset_statistics      |                                           | all     | Admin     | Resets the statistics for this server.                                                              |
-| .linkme                |                                           | all     | DCS       | Link a discord user to a DCS user (user self-service).                                              |
+| Command             | Parameter         | Channel       | Role           | Description                                                                                         |
+|---------------------|-------------------|---------------|----------------|-----------------------------------------------------------------------------------------------------|
+| /statistics         | [user] [period]   | all           | DCS            | Display your own statistics or that of a specific user. A period can be supplied.                   |
+| /highscore          | [server] [period] | all           | DCS            | Shows the players with the most playtime or most kills in specific areas (CAP/CAS/SEAD/Anti-Ship)   |
+| /link               | @member player    | all           | DCS Admin      | Sometimes users can't be linked automatically. This is the manual workaround.                       |
+| /unlink             | user              | all           | DCS Admin      | Unlink a member from a ucid / ucid from a user, if the automatic linking made a mistake.            |
+| /info               | user              | all           | DCS Admin      | Displays information about that user and let you (un)ban, kick or unlink them.                      |  
+| /linkcheck          |                   | all           | DCS Admin      | Checks if a DCS user could be matched to a member.                                                  |
+| /mislinks           |                   | all           | DCS Admin      | Checks if a DCS user is possibly mismatched with the wrong member (might still be correct though!). |
+| /linkme             |                   | all           | DCS            | Link a discord user to a DCS user (user self-service).                                              |
+| /inactive           | period number     | admin-channel | DCS Admin      | Show users that are inactive for a specific amount of time.                                         |
+| /reset_statistics   | [server]          | admin-channel | Admin          | Deletes the statistics. If a server is provided, only this server is affected.                      |
+| /delete_statistics  | [user]            | all           | DCS, DCS Admin | Lets a user delete their own statistics, or an DCS Admin do it for any user.                        |
 
-**ATTENTION**:<br/>
-If a campaign is active on your server, .stats and .highscore will display the data of that campaign only, unless you use
-the "all" period.
+### Periods
+Periods can be used to specify, if you only want to see statistics for a specific time-period.
+This can be either a fixed period like a day or a year or a campaign.
+
+Supported periods:
+- day
+- week
+- month
+- year
+- today
+- yesterday
+- all
+
+In addition you can provide any campaign name (which have to be different from the periods, so please don't name your
+campaign "day" or "year").
+
+> **ATTENTION**:<br/>
+> If a campaign is active on your server, `/statistics` and `/highscore` will display the data of that campaign only, 
+> unless you use the "all" period.
 
 ## Reports
-This plugin comes with 3 custom reports where 2 of them are available in two different shapes.
+This plugin comes with 4 custom reports where 2 of them are available in two different shapes.
 * userstats.json
 * userstats.campaign.json (for campaign statistics)
 * highscore.json
 * highscore-campaign.json (for campaign statistics)
 * info.json
+* inactive.json
 
 All templates can be amended if copied into /reports/userstats.
 
 ## How to disable Userstats inside of missions
-Sometimes you don't want your mission to generate per-user statistics, but you don't want to configure your server to disable them forever?
-Well, then - just disable them from inside your mission:
+Sometimes you don't want your mission to generate per-user statistics, but you don't want to configure your server to 
+disable them forever. To do so, you can just disable the statistics gathering from inside your mission:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
   dcsbot.disableUserStats()
