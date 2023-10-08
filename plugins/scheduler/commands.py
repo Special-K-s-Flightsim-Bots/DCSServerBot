@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from discord import app_commands
 from discord.ext import tasks
 from discord.ui import Modal, TextInput
-from pathlib import Path
 from services import DCSServerBot
 from typing import Type, Optional, Literal
 

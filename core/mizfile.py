@@ -11,7 +11,10 @@ from typing import Union, Any, Optional
 
 from core import utils
 
-__all__ = ["MizFile"]
+__all__ = [
+    "MizFile",
+    "UnsupportedMizFileException"
+]
 
 
 class MizFile:
@@ -25,14 +28,17 @@ class MizFile:
         self._files: list[str] = list()
 
     def _load(self):
-        with zipfile.ZipFile(self.filename, 'r') as miz:
-            with miz.open('mission') as mission:
-                self.mission = luadata.unserialize(io.TextIOWrapper(mission, encoding='utf-8').read(), 'utf-8')
-            try:
-                with miz.open('options') as options:
-                    self.options = luadata.unserialize(io.TextIOWrapper(options, encoding='utf-8').read(), 'utf-8')
-            except FileNotFoundError:
-                pass
+        try:
+            with zipfile.ZipFile(self.filename, 'r') as miz:
+                with miz.open('mission') as mission:
+                    self.mission = luadata.unserialize(io.TextIOWrapper(mission, encoding='utf-8').read(), 'utf-8')
+                try:
+                    with miz.open('options') as options:
+                        self.options = luadata.unserialize(io.TextIOWrapper(options, encoding='utf-8').read(), 'utf-8')
+                except FileNotFoundError:
+                    pass
+        except Exception:
+            raise UnsupportedMizFileException(self.filename)
 
     def save(self, new_filename: Optional[str] = None):
         tmpfd, tmpname = tempfile.mkstemp(dir=os.path.dirname(self.filename))
@@ -285,3 +291,8 @@ class MizFile:
                     process_element(reference, where)
             else:
                 process_element(reference)
+
+
+class UnsupportedMizFileException(Exception):
+    def __init__(self, mizfile: str):
+        super().__init__(f'The mission {mizfile} is not compatible with MizEdit. Please re-save it in DCS World.')

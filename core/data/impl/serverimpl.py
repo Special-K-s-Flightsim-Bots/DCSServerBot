@@ -14,7 +14,7 @@ from core import utils, Server
 from core.const import DEFAULT_TAG
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status
-from core.mizfile import MizFile
+from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -377,7 +377,10 @@ class ServerImpl(Server):
                 await self.addMission(new_filename, autostart=True)
             return True
         except Exception as ex:
-            self.log.exception(ex)
+            if isinstance(ex, UnsupportedMizFileException):
+                self.log.error(f'The mission {filename} is not compatible with MizEdit. Please re-save it in DCS World.')
+            else:
+                self.log.exception(ex)
             if filename != new_filename and os.path.exists(new_filename):
                 os.remove(new_filename)
         finally:
