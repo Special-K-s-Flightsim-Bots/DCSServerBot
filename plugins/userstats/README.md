@@ -9,6 +9,7 @@ The plugin can be configured via yaml in config/plugins/userstats.yaml. If such 
 
 ```yaml
 DEFAULT:
+  wipe_stats_on_leave: true:  # wipe user statistics if they leave your Discord server (default: true)
   highscore:  # overall persistent highscore display (optional)
     channel: 1122334455667788
     params:
@@ -66,7 +67,7 @@ Supported periods:
 In addition you can provide any campaign name (which have to be different from the periods, so please don't name your
 campaign "day" or "year").
 
-> **ATTENTION**:<br/>
+> ⚠️ **Attention!**<br/>
 > If a campaign is active on your server, `/statistics` and `/highscore` will display the data of that campaign only, 
 > unless you use the "all" period.
 

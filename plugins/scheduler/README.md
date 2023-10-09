@@ -115,7 +115,7 @@ The following environment variables can be used in the "run" command:
 | /server rename      |           | admin-channel | DCS Admin | Rename the respective DCS server. Handle with care!                                                                                        |
 | /server migrate     | instance  | admin-channel | DCS Admin | WIP: Migrate a server to another instance (maybe even node).                                                                               |
 
-> **ATTENTION:**<br>
+> ⚠️ **Attention!**<br>
 > If a server gets started or stopped manually (using `/server startup` or `/server shutdown`), it will be put into 
 > "maintenance" mode. To clear this and give the control back to the scheduler, use `/server clear`.<br>
 > You can put a server into maintenance mode manually, by using `/server maintenance`.

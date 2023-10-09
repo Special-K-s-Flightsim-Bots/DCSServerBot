@@ -34,15 +34,15 @@ Each node can control multiple instances of DCS, meaning `DCS.exe` or `DCS_Serve
 A service is a component that runs on each node. Services can be combined with plugins, if they provide additional
 Discord commands, like the Music service. You can define that a service only runs on the master node.
 
-| Service    | Scope                                                                   | Plugin | Documentation                            |
-|------------|-------------------------------------------------------------------------|--------|------------------------------------------|
-| ServiceBus | Communication hub between every node of the bot cluster and DCS.        |        |                                          |
-| Bot        | The Discord bot handling all discord commands.                          |        |                                          |
-| Monitoring | Availability monitoring of your DCS servers.                            |        | [README](./plugins/gamemaster/README.md) |
-| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.   | Backup |                                          |
-| Dashboard  | Nice console graphics display to show the status of your bot / servers. |        |                                          |
-| OvGME      | Manage mods that needs to be installed / updated in your DCS servers.   | OvGME  | [README](./services/ovgme/README.md)     |
-| Music      | Play music over different SRS-radios on your servers.                   | Music  |                                          |
+| Service    | Scope                                                                   | Plugin | Documentation                             |
+|------------|-------------------------------------------------------------------------|--------|-------------------------------------------|
+| ServiceBus | Communication hub between every node of the bot cluster and DCS.        |        | [README](./services/servicebus/README.md) |
+| Bot        | The Discord bot handling all discord commands.                          |        | [README](./services/bot/README.md)        |
+| Monitoring | Availability monitoring of your DCS servers.                            |        | [README](./services/monitoring/README.md) |
+| Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.   | Backup | [README](./services/bot/README.md)        |
+| Dashboard  | Nice console graphics display to show the status of your bot / servers. |        | [README](./services/dashboard/README.md)  |
+| OvGME      | Manage mods that needs to be installed / updated in your DCS servers.   | OvGME  | [README](./services/ovgme/README.md)      |
+| Music      | Play music over different SRS-radios on your servers.                   | Music  | [README](./services/music/README.md)      |
 
 ### Plugins
 A plugin is an expansion of the bot that can be controlled via Discord commands and sometimes in-game chat commands. 
@@ -95,14 +95,14 @@ DCSServerBot supports some of them already and can add a bit of quality of life.
 
 | Extension        | Scope                                                                                                      | 
 |------------------|------------------------------------------------------------------------------------------------------------|
-| DSMC             | Especially mission management for DSNC missions.                                                           |
-| Lardoon          | Start, stop and manage Lardoon servers.                                                                    |
-| LotAtc           | Simple display only extension.                                                                             |
-| DCS Real Weather | Real weather for your missions.                                                                            |
-| Sneaker          | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option! |
 | DCS-SRS          | Market leader in DCS VOIP integration.                                                                     |
 | Tacview          | Well known flight data capture and analysis tool.                                                          |
+| LotAtc           | Simple display only extension.                                                                             |
 | MizEdit          | My own invention, can be used to modify your missions. Very powerful, read it up!                          |
+| DSMC             | DSMC mission handling, should be activated when dealing with DSMC missions.                                |
+| Lardoon          | Start, stop and manage Lardoon servers.                                                                    |
+| Sneaker          | Moving map interface (see [Battleground](https://github.com/Frigondin/DCSBattleground) for another option! |
+| DCS Real Weather | Real weather for your missions.                                                                            |
 
 
 Check out [Extensions](./extensions/README.md) for more info on how to use them.
@@ -143,8 +143,9 @@ Best is to use ```git clone https://github.com/Special-K-s-Flightsim-Bots/DCSSer
 autoupdate functionality of the bot. Otherwise, download the latest release version as ZIP and extract it somewhere on 
 your PC that is running the DCS server(s) and give it write permissions, if needed. 
 
-**Attention:** Make sure that the bots installation directory can only be seen by yourself and is not exposed to anybody 
-outside via www etc. as it contains sensitive data.
+> ⚠️ **Attention!**<br>
+> Make sure that the bots installation directory can only be seen by yourself and is not exposed to anybody 
+> outside via www etc. as it contains sensitive data.
 
 ### Database
 DCSServerBot uses PostgreSQL to store all information that needs to be persistent. This consists of, but is not limited
@@ -159,8 +160,9 @@ create the database user, password and database and asks whether you want to add
 configuration.<br>
 When finished, the bot should launch successfully and maybe even start your servers already, if configured.
 
-**Attention:** You should shut down your DCS servers during the bots installation, as it places its own LUA hooks inside
-the servers Scripts directories.
+> ⚠️ **Attention!**<br> 
+> You should shut down your DCS servers during the bots installation, as it places its own LUA hooks inside
+> the servers Scripts directories.
 
 ---
 ## Configuration
@@ -169,8 +171,9 @@ If you run the `install.cmd` script for the first time, it will generate basic f
 needs afterwards. Your bot should be ready to run already and you can skip this section for now, if you don't want to
 bother with the bots configuration in first place.
 
-**Attention**: If you run more than one bot node, best is to share the configuration between all nodes. This can be done via a cloud
-drive for instance.
+> ⚠️ **Attention!**<br>
+> If you run more than one bot node, best is to share the configuration between all nodes. This can be done via a cloud
+> drive for instance.
 
 The following samples will show you what you can configure in DCSServerBot. For most of the configuration, default 
 values will apply, so you don't need to set them explicitly.
@@ -441,7 +444,8 @@ After that, you can for instance send chat messages to the bot using
 ```
 inside a trigger or anywhere else where scripting is allowed.
 
-**Attention:** Channel always has to be a string, encapsulated with '', **not** a number because of Integer limitations in LUA.
+> ⚠️ **Attention!**<br>
+> Channel always has to be a string, encapsulated with '', **not** a number because of Integer limitations in LUA.
 
 Embeds can be sent using code similar to this snippet:
 ```lua

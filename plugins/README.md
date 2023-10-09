@@ -47,11 +47,11 @@ To access the configuration in your EventListener, you need to prepend self.plug
     config: dict = self.plugin.get_config(server)
     # ...
 ```
-**__Attention:__**<br/>
-If you access the server specific configuration, the default configuration will be merged with the respective server 
-specific configuration, giving the server specific configuration the priority over the default. If you don't want it 
-like that, you need to overwrite the get_config() method in your own plugin implementation 
-(ex: [greenieboard](./greenieboard/commands.py)).
+> ⚠️ **Attention!**<br/>
+> If you access the server specific configuration, the default configuration will be merged with the respective server 
+> specific configuration, giving the server specific configuration the priority over the default. If you don't want it 
+> like that, you need to overwrite the get_config() method in your own plugin implementation 
+> (ex: [greenieboard](./greenieboard/commands.py)).
 
 
 ## Classes
@@ -327,7 +327,8 @@ context. If you have a central admin channel, you automatically get a selection 
 onto. And if you only have one server, you always get that single server already. To do so, you just need to
 use the ServerTransformer in your command declaration. You can even specify, if you only want to get servers in a 
 specific state.<br>
-**Attention**: The state of a server will only be taken into consideration, if you use the server selection.
+> ⚠️ **Attention!**<br>
+> The state of a server will only be taken into consideration, if you use the server selection.
 ```python
     @command(description='This is a simple pause command.')
     @app_commands.guild_only()

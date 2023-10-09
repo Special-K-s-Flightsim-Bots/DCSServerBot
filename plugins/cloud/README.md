@@ -10,10 +10,10 @@ used to see with .stats.
 In the future it is planned to have "Cloud Campaigns" that span over multiple groups that want to participate and
 compete against each other!
 
-**__ATTENTION__**</br>
-The Cloud statistics are meant for larger servers only. I am happy to provide you access to it, using a token, provided 
-by me. The service comes free of charge but without any liabilities or guarantees, you can use it or leave it and so 
-can I revoke any token at any time.
+> ⚠️ **Attention!**</br>
+> The Cloud statistics are meant for larger servers only. I am happy to provide you access to it, using a token, provided 
+> by me. The service comes free of charge but without any liabilities or guarantees, you can use it or leave it and so 
+> can I revoke any token at any time.
 
 ## Global Ban System
 If you opt in to the cloud plugin and even have not opted in to the cloud statistics, you can still use the global ban

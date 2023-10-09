@@ -22,7 +22,7 @@ A strict version number means that this exact version will be installed. If a **
 manually (e. g. by updating), the bot will **not** replace the newer version with an older one. A warning will be 
 printed instead.
 
-> **ATTENTION:**<br/>
+> ⚠️ **Attention!**<br/>
 > On every DCS update that is performed by the bot, this plugin will automatically __uninstall__ and __reinstall__ all
 > packages configured for the "RootFolder", so that after the update, all packages should be up-to-date and reapplied.
 

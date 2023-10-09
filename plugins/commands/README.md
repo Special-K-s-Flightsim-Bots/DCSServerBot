@@ -29,7 +29,7 @@ commands:
   - Admin
   - DCS Admin
 ```
-**Attention:**</br>
-* DCSServerBot needs to have the permissions to launch the respective executable!
-* Do not run long-running shell scripts!
-+ These commands do NOT start with the prefix / but with another prefix, set in the configuration!
+> ⚠️ **Attention:**</br>
+> * DCSServerBot needs to have the permissions to launch the respective executable!
+> * Do not run long-running shell scripts!
+> + These commands do NOT start with the prefix / but with another prefix, set in the configuration!

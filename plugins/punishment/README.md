@@ -66,7 +66,7 @@ You can add own events that you can use from inside the mission environment (see
 If you use the inline "action"-element, you can already trigger any action like a "move_to_spec" or "credits" when someone
 FFs or kills a team member.
 
->**ATTENTION:**<br> 
+> ⚠️ >**Attention!**<br> 
 > Multiple events, that happen in-between a minute, are calculated as a single event. This is on purpose, to avoid too 
 > many punishments when a user unintentionally dropped a CBU onto something or strafed multiple targets in one run.
 

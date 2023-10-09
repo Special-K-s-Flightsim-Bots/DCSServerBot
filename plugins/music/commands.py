@@ -96,7 +96,10 @@ class Music(Plugin):
         await self.service.stop_radios(server, radio_name)
         await interaction.response.send_message(f"Radio {radio_name} stopped.", ephemeral=True)
 
-    @music.command(description="Add a song to a playlist")
+    # New command group "/playlist"
+    plgroup = Group(name="playlist", description="Commands to manage music playlists")
+
+    @plgroup.command(description="Add a song to a playlist")
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(song=all_songs_autocomplete)
@@ -108,7 +111,7 @@ class Music(Plugin):
         await interaction.response.send_message(
             '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist), ephemeral=True)
 
-    @music.command(description="Add all available songs to a playlist")
+    @plgroup.command(description="Add all available songs to a playlist")
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     async def add_all(self, interaction: discord.Interaction, playlist: str):
@@ -121,7 +124,7 @@ class Music(Plugin):
             await interaction.followup.send(
                 '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist), ephemeral=True)
 
-    @music.command(description="Remove a song from a playlist")
+    @plgroup.command(description="Remove a song from a playlist")
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(song=songs_autocomplete)

@@ -2,7 +2,7 @@
 This plugin allows you to have a (optional: persistent) greenieboard for the top x (default: 10) players and to give 
 players the opportunity to analyse their carrier landings.
 
-**__Attention:__**<br/> 
+> ⚠️ **Attention!**<br/> 
 > The landing quality marks will only be generated for landings\* on the DCS Super Carrier module unless you use MOOSE 
 > AIRBOSS (see below).</br>
 > MISSION_STATISTICS = true has to be enabled for your server.**
@@ -22,7 +22,7 @@ Both are being stored in CSV files, usually somewhere below your Saved Games\<in
 this folder and the format of your files in the greenieboard.json, see the example below. 
 **I would recommend to use separate files per carrier.**<br>
 
-**Attention**: 
+> ⚠️ **Attention!**<br>
 > Moose.AIRBOSS stores a CSV file for every trap in the "basedir" you configured for your servers. 
 > I will add a cleanup to prune in the future, but currently, there is no auto-cleanup.
 
@@ -68,9 +68,10 @@ community collaboration though!</br>
 For enabling the FunkMan functionality, you need to enable that in your Moose lua code (samples yet to come, see Moose
 documentation for now) and you need to link the place where you downloaded FunkMan to your greenieboard.json (see below).
 
-**Attention**: FunkMan stores a PNG file for every trap in the "basedir" you configured for your servers
-(Saved Games\DCS.openbeta_server\trapsheets as default). I will add a cleanup to prune in the future, but currently,
-there is no auto-cleanup.
+> ⚠️ **Attention!**<br>
+> FunkMan stores a PNG file for every trap in the "basedir" you configured for your servers
+> (Saved Games\DCS.openbeta_server\trapsheets as default). I will add a cleanup to prune in the future, but currently,
+> there is no auto-cleanup.
 
 ## Configuration
 Greenieboard comes as many other plugins with a yaml configuration. If you don't generate your own config, DCSServerBot

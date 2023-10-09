@@ -207,8 +207,7 @@ class MonitoringService(Service):
                     "server_name": server.name
                 })
             except PermissionError:
-                self.log.warning(f"Server {server.name} was not started by the bot, "
-                                 f"skipping server load gathering.")
+                self.log.debug(f"Server {server.name} was not started by the bot, skipping server load gathering.")
 
     @tasks.loop(minutes=1.0, reconnect=True)
     async def monitoring(self):

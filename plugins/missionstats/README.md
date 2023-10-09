@@ -34,7 +34,7 @@ To disable mission statistics for a specific mission, you can use the following 
 *) "period" can either be a period [day, week, month, year] or a [campaign](../gamemaster/README.md) name!
 
 ## Tables
-### Missionstats
+### MISSIONSTATS
 | Column      | Type                             | Description                                                                            |
 |-------------|----------------------------------|----------------------------------------------------------------------------------------|
 | #id         | SERIAL                           | Auto-incrementing unique ID of this column.                                            |
