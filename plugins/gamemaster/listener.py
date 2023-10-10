@@ -47,7 +47,9 @@ class GameMasterEventListener(EventListener):
             elif player.coalition == Coalition.RED:
                 chat_channel = server.get_channel(Channel.COALITION_RED_CHAT)
         else:
-            chat_channel = server.get_channel(Channel.CHAT)
+            if (not self.bot.config.getboolean(server.installation, 'NO_COALITION_CHAT', fallback=False) or
+                    data['to'] != -2):
+                chat_channel = server.get_channel(Channel.CHAT)
         if chat_channel:
             if 'from_id' in data and data['from_id'] != 1 and len(data['message']) > 0:
                 await chat_channel.send(f"{data['from_name']}  said: {data['message']}")
