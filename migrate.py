@@ -310,6 +310,8 @@ def migrate():
                         "count": int(cfg[instance]['CHAT_LOGROTATE_COUNT']),
                         "size": int(cfg[instance]['CHAT_LOGROTATE_SIZE'])
                     }
+                if cfg[instance].getboolean('NO_COALITION_CHAT', fallback=False):
+                    servers[server_name]['no_coalition_chat'] = True
                 if cfg[instance].getboolean('COALITIONS'):
                     servers[server_name]['coalitions'] = {
                         "lock_time": cfg[instance]['COALITION_LOCK_TIME'],

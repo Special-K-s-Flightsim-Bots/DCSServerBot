@@ -14,10 +14,10 @@ Now let's see, what DCSServerBot can do for you (installation instructions below
 DCSServerBot has a modular architecture with services, plugins and extensions that provide specific functionalities 
 like monitoring the availability of your servers, a lot of Discord slash-commands and supports common add-ons like SRS, 
 LotAtc and others.
-<p>
+
 The solution itself is made for anything from single-server environments up to large scale, worldwide installations with
-high availability requirements. There are nearly no limits.<br>
-If you are interested into some deeper insights to the bots architecture, read [here](https://www.google.de).
+high availability requirements. There are nearly no limits. If you are interested into some deeper insights to the
+bots architecture, read [here](./ARCHITECTURE.md)
 
 ### Node
 A node is an installation of DCSServerBot on one PC. The usual user will have one installation, meaning one node.
@@ -277,6 +277,7 @@ My Fancy Server:                # Your server name, as displayed in the server l
   chat_log:
     count: 10                   # A log file that holds the in-game chat to check for abuse. Tells how many files will be kept, default is 10.
     size: 1048576               # Max logfile size, default is 1 MB. 
+  no_coalition_chat: true       # Do not replicate red and blue chats to the Discord chat replication (default: false)
 My 2nd Fancy Server:            # You can have an unlimited amount of server configurations.
   ...
 ```
