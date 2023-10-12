@@ -57,7 +57,7 @@ class Admin(Plugin):
         config = super().read_locals()
         if not config:
             self.log.info('  - No admin.yaml found, copying the sample.')
-            shutil.copyfile('config/samples/admin.yaml', 'config/plugins/admin.yaml')
+            shutil.copyfile('config/samples/plugins/admin.yaml', 'config/plugins/admin.yaml')
             config = super().read_locals()
         return config
 

@@ -19,9 +19,8 @@ from urllib.parse import quote
 from ruamel.yaml import YAML
 yaml = YAML()
 
-# TODO: change that to "dcsserverbot"
-DCSSB_DB_USER = "dcsserverbot3"
-DCSSB_DB_NAME = "dcsserverbot3"
+DCSSB_DB_USER = "dcsserverbot"
+DCSSB_DB_NAME = "dcsserverbot"
 
 
 class InvalidParameter(Exception):

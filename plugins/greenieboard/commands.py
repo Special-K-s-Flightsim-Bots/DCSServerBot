@@ -19,18 +19,11 @@ from .views import TrapView
 
 class GreenieBoard(Plugin):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
-        super().__init__(bot, eventlistener)
-        self.auto_delete.start()
-
-    async def cog_unload(self):
-        self.auto_delete.cancel()
-
     def read_locals(self) -> dict:
         config = super().read_locals()
         if not config:
             self.log.info('No greenieboard.yaml found, copying the sample.')
-            shutil.copyfile('config/samples/greenieboard.yaml', 'config/plugins/greenieboard.yaml')
+            shutil.copyfile('config/samples/plugins/greenieboard.yaml', 'config/plugins/greenieboard.yaml')
             config = super().read_locals()
         return config
 
@@ -133,31 +126,6 @@ class GreenieBoard(Plugin):
                 await interaction.followup.send('Aborted.', ephemeral=True)
         finally:
             await interaction.delete_original_response()
-
-    @tasks.loop(hours=24.0)
-    async def auto_delete(self):
-        def do_delete(path: str, days: int):
-            now = time.time()
-            for f in [os.path.join(path, x) for x in os.listdir(path)]:
-                if os.stat(f).st_mtime < (now - days * 86400):
-                    if os.path.isfile(f):
-                        os.remove(f)
-
-        try:
-            for server in self.bot.servers.values():
-                # TODO: support remote servers
-                if server.is_remote:
-                    continue
-                config = self.get_config(server)
-                basedir = server.instance.home
-                if 'Moose.AIRBOSS' in config and 'delete_after' in config['Moose.AIRBOSS']:
-                    basedir += os.path.sep + config['Moose.AIRBOSS']['basedir'] if 'basedir' in config['Moose.AIRBOSS'] else ''
-                    do_delete(basedir, config['Moose.AIRBOSS']['delete_after'])
-                elif 'FunkMan' in config and 'delete_after' in config['FunkMan']:
-                    basedir += os.path.sep + config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else ''
-                    do_delete(basedir, config['FunkMan']['delete_after'])
-        except Exception as ex:
-            self.log.exception(ex)
 
 
 async def setup(bot: DCSServerBot):

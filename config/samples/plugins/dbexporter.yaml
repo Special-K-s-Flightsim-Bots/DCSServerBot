@@ -1,0 +1,5 @@
+DEFAULT:
+  autoexport: true  # if true, the configured tables are exported every hour
+  tablefilter:      # define which tables should be exported
+  - missions
+  - statistics

@@ -563,8 +563,14 @@ class NodeImpl(Node):
                 self.log.info('A new version of DCS World is available. Auto-updating ...')
                 rc = await self.update([300, 120, 60])
                 if rc == 0:
-                    pass
-                    # TODO audit message
+                    ServiceRegistry.get('ServiceBus').send_to_node({
+                        "command": "rpc",
+                        "service": "Bot",
+                        "method": "audit",
+                        "params": {
+                            "message": f"DCS World updated to version {new_version} on node {self.node.name}."
+                        }
+                    })
         except Exception as ex:
             self.log.exception(ex)
 

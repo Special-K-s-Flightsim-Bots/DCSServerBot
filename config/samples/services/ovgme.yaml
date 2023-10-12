@@ -1,13 +1,13 @@
 DEFAULT:
-  RootFolder: '%USERPROFILE%\Documents\OvGME\RootFolder'
   SavedGames: '%USERPROFILE%\Documents\OvGME\SavedGames'
+  RootFolder: '%USERPROFILE%\Documents\OvGME\RootFolder'
 DCS.openbeta_server:
   packages:
   - name: Community_A-4E-C
+    version: latest
     source: SavedGames
-    version: 2.0.1
 instance2:
   packages:
   - name: Community_A-4E-C
+    version: 2.0.1
     source: SavedGames
-    version: latest

@@ -78,7 +78,7 @@ class CloudHandler(Plugin):
         config = super().read_locals()
         if not config:
             self.log.info('No cloud.yaml found, copying the sample.')
-            shutil.copyfile('config/samples/cloud.yaml', 'config/plugins/cloud.yaml')
+            shutil.copyfile('config/samples/plugins/cloud.yaml', 'config/plugins/cloud.yaml')
             config = super().read_locals()
         return config
 
@@ -274,5 +274,5 @@ class CloudHandler(Plugin):
 async def setup(bot: DCSServerBot):
     if not os.path.exists('config/plugins/cloud.yaml'):
         bot.log.info('No cloud.yaml found, copying the sample.')
-        shutil.copyfile('config/samples/cloud.yaml', 'config/plugins/cloud.yaml')
+        shutil.copyfile('config/samples/plugins/cloud.yaml', 'config/plugins/cloud.yaml')
     await bot.add_cog(CloudHandler(bot, CloudListener))

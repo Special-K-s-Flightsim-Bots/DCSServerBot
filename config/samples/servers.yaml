@@ -1,0 +1,20 @@
+DEFAULT:
+  message_afk: '{player.name}, you have been kicked for being AFK for more than {time}.'  # default message for AFK users
+  message_server_full: The server is full, please try again later!                        # default message, if the server is considered full (see SlotBlocking plugin)
+  message_timeout: 10                                                                     # default timeout for DCS popup messages in seconds
+My Fancy Server:                # Your server name, as displayed in the server list and listed in serverSettings.lua
+  server_user: Admin            # Name of the server user #1 (technical user), default is "Admin".
+  afk_time: 300                 # Time in seconds after which a player that is on spectators is considered being AFK. Default: -1, which is disabled
+  ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
+  missions_dir: %USERPROFILE%\Documents\Missions  # Central missions dir, if wanted. Default is the Missions dir below the instance home folder.
+  autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
+  channels:
+    status: 1122334455667788    # The Discord channel to display the server status embed and players embed into. Right click on your channel and select "Copy Channel ID".
+    chat: 8877665544332211      # The Discord channel for the in-game chat replication. You can disable it with setting it to -1.
+    admin: 1188227733664455     # The channel where you can fire admin commands to this server. You can decide if you want to have a central admin channel or server specific ones. See bot.yaml for more.
+  chat_log:
+    count: 10                   # A log file that holds the in-game chat to check for abuse. Tells how many files will be kept, default is 10.
+    size: 1048576               # Max logfile size, default is 1 MB.
+  no_coalition_chat: true       # Do not replicate red and blue chats to the Discord chat replication (default: false)
+# My 2nd Fancy Server:          # You can have an unlimited amount of server configurations.
+#  ...

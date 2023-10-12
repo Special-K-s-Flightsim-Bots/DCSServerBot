@@ -5,8 +5,8 @@ This plugin will dump the whole DCSServerBot database every hour to ./export/_ta
 As usual, you can configure this plugin with a simple yaml file.
 ```yaml
 DEFAULT:
-  autoexport: true
-  tablefilter:
+  autoexport: true  # if true, the configured tables are exported every hour
+  tablefilter:      # define which tables should be exported
   - missions
   - statistics
 ```

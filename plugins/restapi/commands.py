@@ -144,7 +144,7 @@ async def setup(bot: DCSServerBot):
 
     if not os.path.exists('config/plugins/restapi.yaml'):
         bot.log.info('No restapi.yaml found, copying the sample.')
-        shutil.copyfile('config/samples/restapi.yaml', 'config/plugins/restapi.yaml')
+        shutil.copyfile('config/samples/plugins/restapi.yaml', 'config/plugins/restapi.yaml')
     app = FastAPI()
     restapi = RestAPI(bot)
     await bot.add_cog(restapi)

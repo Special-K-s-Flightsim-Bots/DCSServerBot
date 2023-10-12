@@ -1,5 +1,0 @@
-DEFAULT:
-  autoexport: true
-  tablefilter:
-  - missions
-  - statistics

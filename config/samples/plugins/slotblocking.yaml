@@ -1,0 +1,35 @@
+DEFAULT:            # Default section - true for all your servers.
+  VIP:              # define a VIP group
+    audit: true     # you want to be informed, if someone of that group enters your server
+    discord:        # you can define VIPs by a specific discord role
+    - Admin
+    - DCS Admin
+    ucid:           # and a list of UCIDs (can be a single one also)
+      - aabbccddeeffgghh
+      - 11aa22bb33dd44ee
+    slots: 2        # Optional: These number of slots are locked for VIPs only
+  restricted:       # These slots are restricted in any way. Here we restrict CA slots for Donators or members or the Discord.
+  - unit_type: artillery_commander
+    discord: Donators
+    message: This slot is reserved for Donators!
+  - unit_type: forward_observer
+    discord: Donators
+    message: This slot is reserved for Donators!
+  - unit_type: instructor
+    discord: Donators
+    message: This slot is reserved for Donators!
+  - unit_type: observer
+    discord: '@everyone'  # Only the "everyone" role needs the @ at the beginning, all other roles don't.
+    message: This slot is reserved for members of http://invite.link!
+DCS.openbeta_server:
+  restricted:             # in this example we restrict by credit points
+  - group_name: Rookie    # this tag has to be in the group name of the respective units (best is to prepend it)
+    points: 10            # you need at least 10 credit points to join this unit
+    costs: 10             # the unit will cost you 10 points, depending on the reservations (see below)
+  - group_name: Veteran
+    points: 20
+    costs: 10
+  - group_name: Ace
+    points: 50
+    costs: 30
+  use_reservations: true  # If true, you will only lose "costs" credits, if you don't return the plane safely home (landing).

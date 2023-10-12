@@ -39,6 +39,7 @@ Discord commands, like the Music service. You can define that a service only run
 | ServiceBus | Communication hub between every node of the bot cluster and DCS.        |             | [README](./services/servicebus/README.md) |
 | Bot        | The Discord bot handling all discord commands.                          |             | [README](./services/bot/README.md)        |
 | Monitoring | Availability monitoring of your DCS servers.                            | ServerStats | [README](./services/monitoring/README.md) |
+| Cleanup    | Cleanup logfiles, trackfiles, etc. from your disk.                      |             | [README](./services/cleanup/README.md)    |
 | Backup     | Backup your bot- and DCS-configuration, your missions, database, etc.   | Backup      | [README](./services/bot/README.md)        |
 | Dashboard  | Nice console graphics display to show the status of your bot / servers. |             | [README](./services/dashboard/README.md)  |
 | OvGME      | Manage mods that needs to be installed / updated in your DCS servers.   | OvGME       | [README](./services/ovgme/README.md)      |

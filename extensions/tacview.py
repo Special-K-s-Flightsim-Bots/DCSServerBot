@@ -3,7 +3,6 @@ import os
 import re
 import shutil
 import sys
-import time
 if sys.platform == 'win32':
     import win32api
 
@@ -130,22 +129,6 @@ class Tacview(Extension):
             if len(value) == 0:
                 value = 'enabled'
         embed.add_field(name=name, value=value)
-
-    @tasks.loop(hours=24.0)
-    async def schedule(self):
-        # check if delete_after is configured
-        if 'delete_after' not in self.config:
-            return
-        now = time.time()
-        path = self.server.options['plugins']['Tacview'].get('tacviewExportPath')
-        if not path:
-            path = TACVIEW_DEFAULT_DIR
-        if not os.path.exists(path):
-            return
-        for f in [os.path.join(path, x) for x in os.listdir(path)]:
-            if os.stat(f).st_mtime < (now - self.config['delete_after'] * 86400):
-                if os.path.isfile(f):
-                    os.remove(f)
 
     def is_installed(self) -> bool:
         global rtt_ports, rcp_ports

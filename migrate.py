@@ -1,3 +1,4 @@
+from contextlib import suppress
 from copy import deepcopy
 
 import core
@@ -16,6 +17,9 @@ from rich.prompt import IntPrompt, Prompt
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+
+from extensions import TACVIEW_DEFAULT_DIR
+
 yaml = YAML()
 
 
@@ -72,6 +76,44 @@ def post_migrate_music():
         yaml.dump(data, outfile)
 
 
+def post_migrate_greenieboard():
+    with open('config/plugins/greenieboard.yaml') as infile:
+        data = yaml.load(infile)
+    if os.path.exists('config/services/cleanup.yaml'):
+        with open('config/services/cleanup.yaml') as infile:
+            cleanup = yaml.load(infile)
+    else:
+        cleanup = {}
+    for name, instance in data.items():
+        if 'Moose.AIRBOSS' in instance and instance['Moose.AIRBOSS'].get('delete_after'):
+            if name not in cleanup:
+                cleanup[name] = {}
+            cleanup[name] |= {
+                "Moose.AIRBOSS": {
+                    "directory": os.path.join("{instance.home}", instance['Moose.AIRBOSS']['basedir']),
+                    "pattern": "*.csv",
+                    "delete_after": instance['Moose.AIRBOSS']['delete_after']
+                }
+            }
+            del instance['Moose.AIRBOSS']['delete_after']
+        elif 'FunkMan' in instance and instance['FunkMan'].get('delete_after'):
+            if name not in cleanup:
+                cleanup[name] = {}
+            cleanup[name] |= {
+                "FunkMan": {
+                    "directory": os.path.join("{instance.home}", instance['FunkMan']['basedir']),
+                    "pattern": "*.png",
+                    "delete_after": instance['FunkMan']['delete_after']
+                }
+            }
+            del instance['FunkMan']['delete_after']
+    if cleanup:
+        with open('config/services/cleanup.yaml', 'w') as outfile:
+            yaml.dump(cleanup, outfile)
+        with open('config/plugins/greenieboard.yaml', 'w') as outfile:
+            yaml.dump(data, outfile)
+
+
 def migrate():
     cfg = ConfigParser()
     cfg.read('config/default.ini', encoding='utf-8')
@@ -86,13 +128,10 @@ def migrate():
     else:
         guild_id = IntPrompt.ask(
             'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
-    # TODO: only for BETA testing!
-    if 'dcsserverbot3' not in cfg['BOT']['DATABASE_URL']:
-        yn = Prompt.ask(f"[red]ATTENTION:[/] Your DATABASE_URL is {cfg['BOT']['DATABASE_URL']}.\n"
-                        f"This looks like a production migration. Do you want to continue?",
-                        choices=['y', 'n'], default='n')
-        if yn.lower() != 'y':
-            exit(-2)
+    yn = Prompt.ask(f"[red]ATTENTION:[/] Your database will be migrated to version 3.0. Do you want to continue?",
+                    choices=['y', 'n'], default='n')
+    if yn.lower() != 'y':
+        exit(-2)
     single_admin = Prompt.ask(f"Do you want a central admin channel for your servers (Y) or keep separate ones (N)?",
                               choices=['y', 'n'], default='n') == 'y'
     print("Now, lean back and enjoy the migration...\n")
@@ -118,6 +157,8 @@ def migrate():
                     continue
                 elif plugin_name == 'music':
                     post_migrate_music()
+                elif plugin_name == 'greenieboard':
+                    post_migrate_greenieboard()
                 if plugin_name in ['backup', 'ovgme', 'music']:
                     shutil.move(f'config/plugins/{plugin_name}.yaml', f'config/services/{plugin_name}.yaml')
                     print(f"- Migrated config/{plugin_name}.json to config/services/{plugin_name}.yaml")
@@ -345,6 +386,35 @@ def migrate():
                     shutil.move(schedule['presets'], BACKUP_FOLDER)
                 del schedule['presets']
 
+        # Now we need to figure if tacview has a delete_after configured...
+        delete_after = nodes[platform.node()].get('extensions', {}).get('Tacview', {}).get('delete_after', 0)
+        directory = nodes[platform.node()].get('extensions', {}).get('Tacview', {}).get('tacviewExportPath',
+                                                                                        TACVIEW_DEFAULT_DIR)
+        if os.path.exists('config/services/cleanup.yaml'):
+            with open('config/services/cleanup.yaml') as infile:
+                cleanup = yaml.load(infile)
+        else:
+            cleanup = {}
+        for name, instance in nodes[platform.node()].get('instances', {}).items():
+            if instance.get('extensions', {}).get('Tacview'):
+                _delete_after = instance['extensions']['Tacview'].get('delete_after', delete_after)
+                _directory = instance['extensions']['Tacview'].get('tacviewExportPath', directory)
+                if _delete_after:
+                    cleanup[name] |= {
+                        "Tacview": {
+                            "directory": _directory,
+                            "pattern": "*.acmi",
+                            "delete_after": _delete_after
+                        }
+                    }
+                with suppress(KeyError):
+                    del nodes[platform.node()]['instances'][name]['extensions']['Tacview']['delete_after']
+        with suppress(KeyError):
+            del nodes[platform.node()]['extensions']['Tacview']['delete_after']
+        if cleanup:
+            with open('config/services/cleanup.yaml', 'w') as outfile:
+                yaml.dump(cleanup, outfile)
+
         # write main configuration
         if master:
             with open('config/main.yaml', 'w', encoding='utf-8') as out:
@@ -369,7 +439,7 @@ def migrate():
             with open('config/plugins/missionstats.yaml', 'w', encoding='utf-8') as out:
                 yaml.dump(missionstats, out)
             print("- Created config/plugins/missionstats.yaml")
-        shutil.move('config/default.ini', BACKUP_FOLDER)
+        # shutil.move('config/default.ini', BACKUP_FOLDER)
         shutil.move('config/dcsserverbot.ini', BACKUP_FOLDER)
         print("\n[green]Migration to DCSServerBot 3.0 successful, starting up ...[/]\n")
     except Exception:
