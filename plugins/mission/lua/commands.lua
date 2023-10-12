@@ -150,7 +150,7 @@ function dcsbot.registerDCSServer(json)
 				if msg.players[i].sub_slot > 0 and msg.players[i].side == 0 then
 					if dcsbot.blue_slots[msg.players[i].slot] ~= nil then
 						msg.players[i].side = 2
-					else
+					elseif dcsbot.red_slots[msg.players[i].slot] ~= nil then
 						msg.players[i].side = 1
 					end
 				end

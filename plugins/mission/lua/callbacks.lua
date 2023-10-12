@@ -242,7 +242,7 @@ function mission.onPlayerChangeSlot(id)
     if msg.sub_slot > 0 then
         if dcsbot.blue_slots[net.get_player_info(PlayerId, 'slot')] ~= nil then
             msg.side = 2
-        elseif dcsbot.red[net.get_player_info(PlayerId, 'slot')] ~= nil then
+        elseif dcsbot.red_slots[net.get_player_info(PlayerId, 'slot')] ~= nil then
             msg.side = 1
         end
     end
