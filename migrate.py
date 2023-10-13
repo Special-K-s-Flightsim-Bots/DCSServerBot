@@ -299,7 +299,6 @@ def migrate():
                 i = nodes[platform.node()]['instances'][instance] = {
                     "home": cfg[instance]['DCS_HOME'],
                     "bot_port": int(cfg[instance]['DCS_PORT']),
-                    "server": server_name,
                     "max_hung_minutes": int(cfg['DCS']['MAX_HUNG_MINUTES'])
                 }
                 if 'MISSIONS_DIR' in cfg[instance]:

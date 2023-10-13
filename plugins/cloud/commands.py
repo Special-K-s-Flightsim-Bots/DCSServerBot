@@ -233,8 +233,8 @@ class CloudHandler(Plugin):
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.execute("""
-                    SELECT count(distinct node) as num_bots, count(distinct server_name) as num_servers 
-                    FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')
+                    SELECT count(distinct node) as num_bots, count(distinct instance) as num_servers 
+                    FROM instances WHERE last_seen > (DATE(NOW()) - interval '1 week')
                 """)
                 if cursor.rowcount == 0:
                     num_bots = num_servers = 0

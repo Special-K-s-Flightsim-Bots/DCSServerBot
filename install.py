@@ -266,8 +266,7 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
                           choices=['y', 'n'], show_choices=True, default='y') == 'y':
                 node['instances'][instance] = {
                     "bot_port": bot_port,
-                    "home": os.path.join(SAVED_GAMES, instance),
-                    "server": name
+                    "home": os.path.join(SAVED_GAMES, instance)
                 }
                 if srs_path:
                     srs_config = f"%USERPROFILE%\\Saved Games\\{instance}\\Config\\SRS.cfg"

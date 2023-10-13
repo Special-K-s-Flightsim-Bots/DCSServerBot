@@ -1,11 +1,13 @@
 from __future__ import annotations
 from core import Server, Status, utils
 from core.data.node import UploadStatus
+from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
 from typing import Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import InstanceProxy
+    from services import ServiceBus
 
 __all__ = ["ServerProxy"]
 
@@ -97,6 +99,14 @@ class ServerProxy(Server):
             "server_name": self.name
         }, node=self.node.name, timeout=60)
 
+    async def shutdown_extensions(self) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "shutdown_extensions",
+            "server_name": self.name
+        }, node=self.node.name, timeout=60)
+
     async def shutdown(self, force: bool = False) -> None:
         await super().shutdown(force)
         if self.status != Status.SHUTDOWN:
@@ -171,3 +181,16 @@ class ServerProxy(Server):
             "method": "persist_settings",
             "server_name": self.name
         }, node=self.node.name, timeout=60)
+
+    async def rename(self, new_name: str, update_settings: bool = False) -> None:
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "rename",
+            "server_name": self.name,
+            "params": {
+                "new_name": new_name,
+                "update_settings": update_settings
+            }
+        }, node=self.node.name, timeout=60)
+        self.name = new_name

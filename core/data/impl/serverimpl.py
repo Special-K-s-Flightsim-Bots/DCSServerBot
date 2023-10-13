@@ -11,11 +11,11 @@ import subprocess
 from contextlib import suppress
 from copy import deepcopy
 from core import utils, Server
-from core.const import DEFAULT_TAG
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status
 from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
+from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -86,13 +86,7 @@ class ServerImpl(Server):
         super().__post_init__()
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute("""
-                    INSERT INTO servers (server_name, node, port) VALUES (%s, %s, %s) 
-                    ON CONFLICT (server_name) DO UPDATE 
-                    SET node=excluded.node, 
-                        port=excluded.port,
-                        last_seen=NOW()
-                """, (self.name, self.node.name, self.port))
+                conn.execute("INSERT INTO servers (server_name) VALUES (%s) ON CONFLICT DO NOTHING", (self.name, ))
 
     @property
     def is_remote(self) -> bool:
@@ -106,6 +100,9 @@ class ServerImpl(Server):
         if not self._settings:
             path = os.path.join(self.instance.home, 'Config', 'serverSettings.lua')
             self._settings = utils.SettingsDict(self, path, 'cfg')
+            # TODO: can be removed if bug in net.load_next_mission() is fixed
+            if self._settings.get('listLoop', False):
+                self._settings['listLoop'] = True
             # if someone managed to destroy the mission list, fix it...
             if 'missionList' not in self._settings:
                 self._settings['missionList'] = []
@@ -248,7 +245,9 @@ class ServerImpl(Server):
         dcs_socket.sendto(msg.encode('utf-8'), ('127.0.0.1', int(self.port)))
         dcs_socket.close()
 
-    async def do_rename(self, new_name: str, update_settings: bool = False) -> None:
+    async def rename(self, new_name: str, update_settings: bool = False) -> None:
+        # shutdown all extensions
+        await self.shutdown_extensions()
         # update servers.yaml
         filename = 'config/servers.yaml'
         if os.path.exists(filename):
@@ -258,10 +257,35 @@ class ServerImpl(Server):
                 del data[self.name]
                 with open(filename, 'w', encoding='utf-8') as outfile:
                     yaml.dump(data, outfile)
-            self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
         # update serverSettings.lua if requested
         if update_settings:
             self.settings['name'] = new_name
+        # rename the server in the database
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
+                             (new_name, self.name))
+                conn.execute('UPDATE instances SET server_name = %s WHERE server_name = %s',
+                             (new_name, self.name))
+                conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
+                             (new_name, self.name))
+        # only the master can take care of a cluster-wide rename
+        if self.node.master:
+            await self.node.rename_server(self, new_name, update_settings)
+        else:
+            await self.bus.send_to_node_sync({
+                "command": "rpc",
+                "service": "Node",
+                "method": "rename_server",
+                "params": {
+                    "server": self.name,
+                    "new_name": new_name,
+                    "update_settings": update_settings
+                }
+            })
+        self.name = new_name
+        # startup extensions again
+        await self.startup_extensions()
 
     async def do_startup(self):
         basepath = self.node.installation
@@ -323,6 +347,13 @@ class ServerImpl(Server):
         for ext in [x for x in self.extensions.values() if not x.is_running()]:
             try:
                 await ext.startup()
+            except Exception as ex:
+                self.log.exception(ex)
+
+    async def shutdown_extensions(self) -> None:
+        for ext in [x for x in self.extensions.values() if x.is_running()]:
+            try:
+                await ext.shutdown()
             except Exception as ex:
                 self.log.exception(ex)
 
@@ -394,7 +425,7 @@ class ServerImpl(Server):
         await self.send_to_dcs_sync({"command": "getMissionUpdate"}, timeout)
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute('UPDATE servers SET last_seen = NOW() WHERE node = %s AND server_name = %s',
+                conn.execute('UPDATE instances SET last_seen = NOW() WHERE node = %s AND server_name = %s',
                              (platform.node(), self.name))
 
     async def uploadMission(self, filename: str, url: str, force: bool = False) -> UploadStatus:

@@ -210,26 +210,15 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
-        # only the master can take care of a cluster-wide rename
-        if self.node.master:
-            await self.node.rename_server(self, new_name, update_settings)
-        else:
-            await self.bus.send_to_node_sync({
-                "command": "rpc",
-                "service": "Node",
-                "method": "rename_server",
-                "params": {
-                    "server": self.name,
-                    "new_name": new_name,
-                    "update_settings": update_settings
-                }
-            })
-        self.name = new_name
+        raise NotImplemented()
 
     async def startup(self) -> None:
         raise NotImplemented()
 
     async def startup_extensions(self) -> None:
+        raise NotImplemented()
+
+    async def shutdown_extensions(self) -> None:
         raise NotImplemented()
 
     async def send_to_dcs_sync(self, message: dict, timeout: Optional[int] = 5.0):

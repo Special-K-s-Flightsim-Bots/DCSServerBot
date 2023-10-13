@@ -25,10 +25,19 @@ class InstanceImpl(Instance):
         autoexec = Autoexec(instance=self)
         self.locals['webgui_port'] = autoexec.webgui_port or 8088
         self.locals['webrtc_port'] = autoexec.webrtc_port or 10309
+        settings = {}
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
             settings = SettingsDict(self, settings_path, root='cfg')
             self.locals['dcs_port'] = settings['port']
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    INSERT INTO instances (instance, node, port, server_name)
+                    VALUES (%s, %s, %s, %s) 
+                    ON CONFLICT DO NOTHING 
+                """, (self.name, self.node.name, self.locals.get('bot_port', 6666),
+                      settings['name'] if settings else None))
 
     @property
     def server(self) -> Optional[ServerImpl]:
@@ -39,11 +48,13 @@ class InstanceImpl(Instance):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
         self._server = server
-        if server:
-            server.instance = self
-            self.locals['server'] = server.name
-        else:
-            del self.locals['server']
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                            UPDATE instances SET server_name = %s, last_seen = NOW() WHERE instance = %s
+                        """, (server.name if server else None, self.name))
+                if server:
+                    server.instance = self
 
     # TODO: check where to call this best
     def prepare(self):

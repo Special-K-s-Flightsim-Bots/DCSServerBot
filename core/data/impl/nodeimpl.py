@@ -78,9 +78,6 @@ class NodeImpl(Node):
 
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
-        self.db_version = None
-        self.pool = self.init_db()
-        self.locals: dict = self.read_locals()
         self.install_plugins()
         self.plugins: list[str] = ["mission", "scheduler", "help", "admin", "userstats", "missionstats",
                                    "creditsystem", "gamemaster", "cloud"]
@@ -90,6 +87,8 @@ class NodeImpl(Node):
         if 'cloud' in self.plugins:
             self.plugins.remove('cloud')
             self.plugins.append('cloud')
+        self.db_version = None
+        self.pool = self.init_db()
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -109,6 +108,7 @@ class NodeImpl(Node):
             self._master = True
         if self._master:
             self.update_db()
+        self.locals: dict = self.read_locals()
 
     @property
     def master(self) -> bool:
@@ -521,34 +521,17 @@ class NodeImpl(Node):
         if not self.master:
             self.log.error(f"Rename request received for server {server.name} that should have gone to the master node!")
             return
-        bus: ServiceBus = ServiceRegistry.get('ServiceBus')
         old_name = server.name
-        # we are doing the database changes, as we are the master
+        # we are doing the plugin changes, as we are the master
         bot: BotService = ServiceRegistry.get('Bot')
         bot.rename(server, new_name)
-        # then we tell the real server to update its stuff
-        await bus.send_to_node_sync({
-            "command": "rpc",
-            "object": "Server",
-            "server_name": server.name,
-            "method": "do_rename",
-            "params": {
-                "new_name": new_name,
-                "update_settings": update_settings
-            }
-        }, node=server.node)
-        filename = 'config/nodes.yaml'
-        if os.path.exists(filename):
-            data = yaml.load(Path(filename).read_text(encoding='utf-8'))
-            data[server.node.name]['instances'][server.instance.name]['server'] = new_name
-            with open(filename, 'w', encoding='utf-8') as outfile:
-                yaml.dump(data, outfile)
-        # we only need to change the name of the proxy as the server would have been renamed already otherwise
+        # we only need to change the name of the proxy as the real server is renamed already
         if server.is_remote:
             server.name = new_name
         # update the local tables
-        bus.servers[server.name] = server
-        del bus.servers[old_name]
+        ServiceRegistry.get('ServiceBus').servers[new_name] = server
+        # and get rid of the old server
+        del ServiceRegistry.get('ServiceBus').servers[old_name]
 
     @tasks.loop(minutes=5.0)
     async def autoupdate(self):

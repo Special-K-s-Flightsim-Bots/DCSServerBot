@@ -113,16 +113,17 @@ class ServiceBus(Service):
         self.log.debug(f'  - EventListener {type(listener).__name__} unregistered.')
 
     async def init_servers(self):
-        for instance in self.node.instances:
-            if not instance.configured_server:
-                continue
-            server: ServerImpl = DataObjectFactory().new(
-                Server.__name__, node=self.node, port=instance.bot_port, name=instance.configured_server)
-            instance.server = server
-            self.servers[server.name] = server
-            # TODO: can be removed if bug in net.load_next_mission() is fixed
-            if 'listLoop' not in server.settings or not server.settings['listLoop']:
-                server.settings['listLoop'] = True
+        with self.pool.connection() as conn:
+            for instance in self.node.instances:
+                row = conn.execute('SELECT server_name FROM instances WHERE instance=%s', (instance.name,)).fetchone()
+                # was there a server bound to this instance?
+                if row:
+                    server: ServerImpl = DataObjectFactory().new(
+                        Server.__name__, node=self.node, port=instance.bot_port, name=row[0])
+                    instance.server = server
+                    self.servers[server.name] = server
+                else:
+                    self.log.warning(f"There is no server bound to instance {instance.name}!")
 
     async def send_init(self, server: Server):
         self.send_to_node({
@@ -244,7 +245,7 @@ class ServiceBus(Service):
         # update the database and check for server name changes
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT server_name FROM servers WHERE node=%s AND port=%s',
+                cursor.execute('SELECT server_name FROM instances WHERE node=%s AND port=%s AND server_name IS NOT NULL',
                                (platform.node(), data['port']))
                 if cursor.rowcount == 1:
                     _server_name = cursor.fetchone()[0]

@@ -150,7 +150,3 @@ class BotService(Service):
                 # call rename() in all Plugins
                 for plugin in self.bot.cogs.values():  # type: Plugin
                     plugin.rename(conn, server.name, new_name)
-                conn.execute('UPDATE servers SET server_name = %s WHERE server_name = %s',
-                             (new_name, server.name))
-                conn.execute('UPDATE message_persistence SET server_name = %s WHERE server_name = %s',
-                             (new_name, server.name))

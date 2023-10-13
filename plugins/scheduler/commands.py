@@ -506,9 +506,15 @@ class Scheduler(Plugin):
     async def _rename(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(
                          status=[Status.STOPPED, Status.SHUTDOWN])], new_name: str):
+        if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
+            await interaction.response.send_message(f"Server {server.name} has to be stopped before renaming.",
+                                                    ephemeral=True)
+            return
+        await interaction.response.defer(thinking=True, ephemeral=True)
         old_name = server.name
         await server.rename(new_name, True)
-        await interaction.response.send_message(f"Server {old_name} renamed to {new_name}.", ephemeral=True)
+        await self.bot.audit(f"renamed from {old_name}", server=server, user=interaction.user)
+        await interaction.followup.send(f"Server {old_name} renamed to {new_name}.", ephemeral=True)
 
     @group.command(name="migrate", description="Migrate a server from one instance to another")
     @app_commands.guild_only()
