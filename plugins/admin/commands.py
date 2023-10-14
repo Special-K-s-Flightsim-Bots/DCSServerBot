@@ -176,7 +176,7 @@ class Admin(Plugin):
                 f"Can't update branch {branch}. You might need to provide proper DCS credentials to do so.",
                 ephemeral=True)
 
-    @dcs.command(name='install', description='Install available modules in your dcs server')
+    @dcs.command(name='install', description='Install modules in your dcs server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=utils.available_modules_autocomplete)
@@ -189,7 +189,7 @@ class Admin(Plugin):
         await node.handle_module('install', module)
         await interaction.followup.send(f"Module {module} installed on node {node.name}", ephemeral=True)
 
-    @dcs.command(name='uninstall', description='Uninstall modules from your dcs server')
+    @dcs.command(name='uninstall', description='Uninstall modules from your server')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(module=utils.installed_modules_autocomplete)
@@ -436,7 +436,7 @@ class Admin(Plugin):
                 await interaction.followup.send(
                     f'One or more plugins could not be reloaded, check the log for details.')
 
-    @node.command(description="Add an instance to a specific node")
+    @node.command(description="Add/create an instance")
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(name=utils.InstanceTransformer(unused=True).autocomplete)
@@ -459,7 +459,7 @@ Please make sure you forward the following ports:
             await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}.",
                                                     ephemeral=True)
 
-    @node.command(description="Delete an instance from a specific node")
+    @node.command(description="Delete an instance")
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def delete_instance(self, interaction: discord.Interaction,
@@ -478,7 +478,7 @@ Please make sure you forward the following ports:
         await interaction.followup.send(f"Instance {instance.name} removed from node {node.name}.", ephemeral=True)
         await self.bot.audit(f"removed instance {instance.name} from node {node.name}.", user=interaction.user)
 
-    @node.command(description="Rename an instance on a specific node")
+    @node.command(description="Rename an instance\n")
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def rename_instance(self, interaction: discord.Interaction,

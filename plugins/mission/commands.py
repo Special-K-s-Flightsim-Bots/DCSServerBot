@@ -118,7 +118,7 @@ class Mission(Plugin):
         env = await report.render(mission_info=mission_info, server_name=server.name, interaction=interaction)
         await interaction.response.send_message(embed=env.embed, delete_after=timeout if timeout > 0 else None)
 
-    @mission.command(description='Restarts the current active mission')
+    @mission.command(description='Restarts the current active mission\n')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def restart(self, interaction: discord.Interaction,
@@ -173,7 +173,7 @@ class Mission(Plugin):
         await msg.delete()
         await interaction.followup.send('Mission restarted.', ephemeral=True)
 
-    @mission.command(description='(Re-)Loads a mission from the list')
+    @mission.command(description='(Re-)Loads a mission from the list\n')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(mission_id="mission")

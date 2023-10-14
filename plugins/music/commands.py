@@ -33,7 +33,7 @@ class Music(Plugin):
     # New command group "/music"
     music = Group(name="music", description="Commands to manage music in your (DCS) server")
 
-    @music.command(description='Music Player')
+    @music.command(description='Music Player\n')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     @app_commands.rename(_server="server")

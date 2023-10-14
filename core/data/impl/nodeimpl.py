@@ -79,14 +79,15 @@ class NodeImpl(Node):
         self.log.info(f'DCSServerBot v{self.bot_version}.{self.sub_version} starting up ...')
         self.log.info(f'- Python version {platform.python_version()} detected.')
         self.install_plugins()
-        self.plugins: list[str] = ["mission", "scheduler", "help", "admin", "userstats", "missionstats",
-                                   "creditsystem", "gamemaster", "cloud"]
-        if 'opt_plugins' in self.config:
-            self.plugins.extend(self.config['opt_plugins'])
+        self.plugins: list[str] = [
+            "mission", "scheduler", "help", "admin", "userstats", "missionstats", "creditsystem", "gamemaster", "cloud"
+        ]
+        for plugin in self.config.get('opt_plugins', []):
+            if plugin not in self.plugins:
+                self.plugins.append(plugin)
         # make sure, cloud is loaded last
-        if 'cloud' in self.plugins:
-            self.plugins.remove('cloud')
-            self.plugins.append('cloud')
+        self.plugins.remove('cloud')
+        self.plugins.append('cloud')
         self.db_version = None
         self.pool = self.init_db()
         try:
@@ -616,6 +617,9 @@ class NodeImpl(Node):
         with open('config/nodes.yaml', 'w') as outfile:
             yaml.dump(config, outfile)
         self.instances.remove(instance)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("DELETE FROM instances WHERE instance = %s", (instance.name, ))
         if remove_files:
             shutil.rmtree(instance.home, ignore_errors=True)
 
@@ -626,6 +630,9 @@ class NodeImpl(Node):
         os.rename(instance.home, new_home)
         config[platform.node()]['instances'][new_name] = config[platform.node()]['instances'][instance.name].copy()
         config[platform.node()]['instances'][new_name]['home'] = new_home
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("UPDATE instances SET instance = %s WHERE instance = %s", (new_name, instance.name, ))
         instance.name = new_name
         instance.locals['home'] = new_home
         del config[platform.node()]['instances'][instance.name]
