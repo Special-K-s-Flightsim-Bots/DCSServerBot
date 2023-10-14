@@ -395,7 +395,7 @@ def migrate():
         else:
             cleanup = {}
         for name, instance in nodes[platform.node()].get('instances', {}).items():
-            if instance.get('extensions', {}).get('Tacview'):
+            if 'extensions' in instance and 'Tacview' in instance['extensions']:
                 _delete_after = instance['extensions']['Tacview'].get('delete_after', delete_after)
                 _directory = instance['extensions']['Tacview'].get('tacviewExportPath', directory)
                 if _delete_after:
