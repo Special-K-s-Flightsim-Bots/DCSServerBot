@@ -1,6 +1,8 @@
 from __future__ import annotations
 import asyncio
 import concurrent
+import discord
+import inspect
 import json
 import platform
 import psycopg
@@ -12,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from core import Server, DataObjectFactory, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
-    InstanceProxy, NodeProxy, Mission, Node, utils
+    InstanceProxy, NodeProxy, Mission, Node, utils, Instance
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timedelta, timezone
@@ -422,6 +424,7 @@ class ServiceBus(Service):
                     "return": rc or ''
                 }, node=data.get('node'))
         except Exception as ex:
+            self.log.exception(ex)
             if data.get('channel', '').startswith('sync-'):
                 self.send_to_node({
                     "command": "rpc",
@@ -484,17 +487,18 @@ class ServiceBus(Service):
             if not func:
                 return
             kwargs = deepcopy(data.get('params', {}))
+            parameters = inspect.signature(func).parameters
             # servers will be passed by name
-            if kwargs.get('server'):
+            if kwargs.get('server') and isinstance(parameters.get('server'), Server):
                 kwargs['server'] = self.servers[kwargs['server']]
-            if kwargs.get('instance'):
+            if kwargs.get('instance') and isinstance(parameters.get('instance'), Instance):
                 kwargs['instance'] = next(x for x in self.node.instances if x.name == kwargs['instance'])
             if self.master:
-                if kwargs.get('member'):
+                if kwargs.get('member') and isinstance(parameters.get('members'), discord.Member):
                     kwargs['member'] = self.bot.guilds[0].get_member(int(kwargs['member'][2:-1]))
-                if kwargs.get('user'):
-                    if kwargs['user'].startswith('<@'):
-                        kwargs['user'] = self.bot.guilds[0].get_member(int(kwargs['user'][2:-1]))
+                if kwargs.get('user') and kwargs['user'].startswith('<@') and isinstance(parameters.get('user'),
+                                                                                         discord.Member):
+                    kwargs['user'] = self.bot.guilds[0].get_member(int(kwargs['user'][2:-1]))
             if asyncio.iscoroutinefunction(func):
                 rc = await func(**kwargs) if kwargs else await func()
             else:
