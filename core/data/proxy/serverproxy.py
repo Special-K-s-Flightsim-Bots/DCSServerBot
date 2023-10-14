@@ -1,13 +1,11 @@
 from __future__ import annotations
 from core import Server, Status, utils
 from core.data.node import UploadStatus
-from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
 from typing import Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core import InstanceProxy
-    from services import ServiceBus
 
 __all__ = ["ServerProxy"]
 

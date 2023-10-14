@@ -67,7 +67,7 @@ class ServiceBus(Service):
             if self.master:
                 self.bot = ServiceRegistry.get("Bot").bot
                 await self.bot.wait_until_ready()
-            await self.register_local_servers()
+                await self.register_local_servers()
         except Exception as ex:
             self.log.exception(ex)
 
@@ -378,10 +378,10 @@ class ServiceBus(Service):
             del self.listeners[token]
 
     async def handle_rpc(self, data: dict):
-        self.log.debug(f"RPC: {json.dumps(data)}")
         # handle synchronous responses
         if data.get('channel', '').startswith('sync-') and 'return' in data:
             if data['channel'] in self.listeners:
+                self.log.debug(f"{data['node']}->Master: {json.dumps(data)}")
                 f = self.listeners[data['channel']]
                 if not f.done():
                     if 'exception' in data:
@@ -395,6 +395,7 @@ class ServiceBus(Service):
             else:
                 self.log.warning(f"This message should not have been sent to node {self.node.name}!")
             return
+        self.log.debug(f"RPC: {json.dumps(data)}")
         obj = None
         if data.get('object') == 'Server':
             obj = self.servers.get(data.get('server_name', data.get('server')))
@@ -489,7 +490,7 @@ class ServiceBus(Service):
             parameters = inspect.signature(func).parameters
             # servers will be passed by name
             if kwargs.get('server') and parameters.get('server').annotation != 'str':
-                kwargs['server'] = self.servers[kwargs['server']]
+                kwargs['server'] = self.servers.get(kwargs['server'])
             if kwargs.get('instance') and parameters.get('instance').annotation != 'str':
                 kwargs['instance'] = next(x for x in self.node.instances if x.name == kwargs['instance'])
             if self.master:
@@ -517,7 +518,7 @@ class ServiceBus(Service):
                     return
                 server_name = data['server_name']
                 self.log.debug('{}->HOST: {}'.format(server_name, json.dumps(data)))
-                server = self.servers.get(server_name) or None
+                server = self.servers.get(server_name)
                 if not server:
                     self.log.debug(
                         f"Command {data['command']} for unregistered server {server_name} received, ignoring.")

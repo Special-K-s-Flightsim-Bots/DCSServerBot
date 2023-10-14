@@ -107,8 +107,8 @@ class MissionEventListener(EventListener):
         for server_name, update in self.player_embeds.items():
             if update:
                 try:
-                    server = self.bot.servers[server_name]
-                    if not server.locals.get('coalitions'):
+                    server = self.bot.servers.get(server_name)
+                    if server and not server.locals.get('coalitions'):
                         report = PersistentReport(self.bot, self.plugin_name, 'players.json',
                                                   embed_name='players_embed', server=server)
                         await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
@@ -122,9 +122,9 @@ class MissionEventListener(EventListener):
         for server_name, update in self.mission_embeds.items():
             if update:
                 try:
-                    server = self.bot.servers[server_name]
-                    if not server.settings:
-                        return
+                    server = self.bot.servers.get(server_name)
+                    if not server or not server.settings:
+                        continue
                     report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json',
                                               embed_name='mission_embed', server=server)
                     await report.render(server=server)

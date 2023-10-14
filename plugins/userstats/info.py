@@ -127,5 +127,4 @@ class Footer(report.EmbedElement):
         footer += '✅ Unban this user\n' if banned else '⛔ Ban this user (DCS only)\n'
         if player:
             footer += '⏏️ Kick this user from the active server'
-        footer += '⏹️Cancel'
         self.embed.set_footer(text=footer)

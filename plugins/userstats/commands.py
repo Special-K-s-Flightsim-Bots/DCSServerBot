@@ -480,7 +480,7 @@ class UserStatistics(Plugin):
                     server = get_server_by_instance(instance_name)
                     if not server:
                         self.log.debug(
-                            f"Server {instance_name} is not (yet) registered, skipping highscore update.")
+                            f"Instance {instance_name} is not (yet) registered, skipping highscore update.")
                         return
                 else:
                     server = None
