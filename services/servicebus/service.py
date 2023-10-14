@@ -1,7 +1,6 @@
 from __future__ import annotations
 import asyncio
 import concurrent
-import discord
 import inspect
 import json
 import platform
@@ -14,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from core import Server, DataObjectFactory, Status, ServerImpl, Autoexec, ServerProxy, EventListener, \
-    InstanceProxy, NodeProxy, Mission, Node, utils, Instance
+    InstanceProxy, NodeProxy, Mission, Node, utils
 from core.services.base import Service
 from core.services.registry import ServiceRegistry
 from datetime import datetime, timedelta, timezone
@@ -489,15 +488,14 @@ class ServiceBus(Service):
             kwargs = deepcopy(data.get('params', {}))
             parameters = inspect.signature(func).parameters
             # servers will be passed by name
-            if kwargs.get('server') and isinstance(parameters.get('server'), Server):
+            if kwargs.get('server') and parameters.get('server').annotation != 'str':
                 kwargs['server'] = self.servers[kwargs['server']]
-            if kwargs.get('instance') and isinstance(parameters.get('instance'), Instance):
+            if kwargs.get('instance') and parameters.get('instance').annotation != 'str':
                 kwargs['instance'] = next(x for x in self.node.instances if x.name == kwargs['instance'])
             if self.master:
-                if kwargs.get('member') and isinstance(parameters.get('members'), discord.Member):
+                if kwargs.get('member'):
                     kwargs['member'] = self.bot.guilds[0].get_member(int(kwargs['member'][2:-1]))
-                if kwargs.get('user') and kwargs['user'].startswith('<@') and isinstance(parameters.get('user'),
-                                                                                         discord.Member):
+                if kwargs.get('user') and kwargs['user'].startswith('<@'):
                     kwargs['user'] = self.bot.guilds[0].get_member(int(kwargs['user'][2:-1]))
             if asyncio.iscoroutinefunction(func):
                 rc = await func(**kwargs) if kwargs else await func()

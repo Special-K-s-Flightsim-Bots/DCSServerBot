@@ -32,10 +32,10 @@ async def get_public_ip():
             await asyncio.sleep(1)
 
 
-def find_process(proc, instance: str):
+def find_process(proc: str, instance: str):
     for p in psutil.process_iter(['cmdline']):
         with suppress(Exception):
-            if os.path.basename(p.info['cmdline'][0]) == proc:
+            if os.path.basename(p.info['cmdline'][0]).casefold() == proc.casefold():
                 for c in p.info['cmdline']:
                     if instance in c.replace('\\', '/').split('/'):
                         return p
