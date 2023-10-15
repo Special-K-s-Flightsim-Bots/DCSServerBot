@@ -89,6 +89,7 @@ class NodeImpl(Node):
         self.plugins.remove('cloud')
         self.plugins.append('cloud')
         self.db_version = None
+        self.locals: dict = {}
         self.pool = self.init_db()
         try:
             with self.pool.connection() as conn:
@@ -109,7 +110,7 @@ class NodeImpl(Node):
             self._master = True
         if self._master:
             self.update_db()
-        self.locals: dict = self.read_locals()
+        self.locals = self.read_locals()
 
     @property
     def master(self) -> bool:
@@ -453,7 +454,7 @@ class NodeImpl(Node):
                     # split brain detected
                     else:
                         # we are the preferred master,
-                        if self.locals and self.locals.get('preferred_master', False):
+                        if self.locals.get('preferred_master', False):
                             cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node <> %s',
                                            (self.guild_id, self.name))
                         else:
