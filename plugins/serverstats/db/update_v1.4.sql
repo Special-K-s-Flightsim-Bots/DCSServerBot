@@ -1,0 +1,1 @@
+ALTER TABLE serverstats RENAME COLUMN agent_host TO node;

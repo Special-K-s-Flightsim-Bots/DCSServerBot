@@ -4,21 +4,30 @@ import discord
 import inspect
 import json
 import os
-import psycopg2
 import sys
-from abc import ABC, abstractmethod
-from contextlib import closing
-from discord import Interaction, SelectOption
-from discord.ext.commands import Context
-from discord.ui import View, Button, Select, Item
-from os import path
-from typing import List, Tuple, Optional, TYPE_CHECKING, Any, cast, Union
 
-from . import ReportEnv, parse_params, parse_input, utils, UnknownReportElement, ReportElement, ClassNotFound
-from ..data.const import Channel
+from abc import ABC, abstractmethod
+from core import utils, Channel
+from discord import Interaction, SelectOption
+from discord.ui import View, Button, Select, Item
+from discord.utils import MISSING
+from os import path
+from typing import Tuple, Optional, TYPE_CHECKING, Any, cast, Union
+
+from .elements import ReportElement
+from .env import ReportEnv
+from .errors import UnknownReportElement, ClassNotFound
+from .__utils import parse_input, parse_params
 
 if TYPE_CHECKING:
     from core import DCSServerBot, Server
+
+__all__ = [
+    "Report",
+    "Pagination",
+    "PaginationReport",
+    "PersistentReport"
+]
 
 
 class Report:
@@ -118,29 +127,21 @@ class PaginationReport(Report):
     class NoPaginationInformation(Exception):
         pass
 
-    def __init__(self, bot: DCSServerBot, ctx: Union[Context, discord.DMChannel], plugin: str, filename: str,
-                 timeout: Optional[int] = None, pagination: Optional[list] = None, keep_image: bool = False):
+    def __init__(self, bot: DCSServerBot, interaction: discord.Interaction, plugin: str, filename: str,
+                 pagination: Optional[list] = None, keep_image: bool = False):
         super().__init__(bot, plugin, filename)
-        self.ctx = ctx
-        self.timeout = timeout
+        self.interaction = interaction
         self.pagination = pagination
         self.keep_image = keep_image
         if 'pagination' not in self.report_def:
             raise PaginationReport.NoPaginationInformation
 
-    def read_param(self, param: dict, **kwargs) -> Tuple[str, List]:
+    def read_param(self, param: dict, **kwargs) -> Tuple[str, list]:
         name = param['name']
         values = None
         if 'sql' in param:
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(param['sql'], kwargs)
-                    values = list(x[0] for x in cursor.fetchall())
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
+            with self.pool.connection() as conn:
+                values = [x[0] for x in conn.execute(param['sql'], kwargs).fetchall()]
         elif 'values' in param:
             values = param['values']
         elif 'obj' in param:
@@ -250,6 +251,8 @@ class PaginationReport(Report):
             self.stop()
 
     async def render(self, *args, **kwargs) -> ReportEnv:
+        if not self.interaction.response.is_done():
+            await self.interaction.response.defer()
         name, values = self.read_param(self.report_def['pagination']['param'], **kwargs)
         start_index = 0
         if 'start_index' in kwargs:
@@ -268,11 +271,12 @@ class PaginationReport(Report):
         env = await view.render(values[start_index])
         try:
             try:
-                message = await self.ctx.send(
+                message = await self.interaction.followup.send(
                     embed=env.embed,
                     view=view,
                     file=discord.File(env.filename,
-                                      filename=os.path.basename(env.filename)) if env.filename else None)
+                                      filename=os.path.basename(env.filename)) if env.filename else MISSING
+                )
             finally:
                 if not self.keep_image and env.filename and os.path.exists(env.filename):
                     os.remove(env.filename)
@@ -289,8 +293,8 @@ class PaginationReport(Report):
 
 class PersistentReport(Report):
 
-    def __init__(self, bot: DCSServerBot, plugin: str, filename: str, server: Server, embed_name: str,
-                 channel_id: Optional[Union[Channel, int]] = Channel.STATUS):
+    def __init__(self, bot: DCSServerBot, plugin: str, filename: str, *, embed_name: str,
+                 channel_id: Optional[Union[Channel, int]] = Channel.STATUS, server: Optional[Server] = None):
         super().__init__(bot, plugin, filename)
         self.server = server
         self.embed_name = embed_name
@@ -300,8 +304,9 @@ class PersistentReport(Report):
         env = None
         try:
             env = await super().render(*args, **kwargs)
-            file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None
-            await self.server.setEmbed(self.embed_name, env.embed, file, channel_id=self.channel_id)
+            file = discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else MISSING
+            await self.bot.setEmbed(embed_name=self.embed_name, embed=env.embed, channel_id=self.channel_id,
+                                    file=file, server=self.server)
             return env
         except Exception as ex:
             self.log.exception(ex)

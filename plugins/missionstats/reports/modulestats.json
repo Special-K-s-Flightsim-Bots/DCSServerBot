@@ -2,14 +2,6 @@
   "color": "blue",
   "title": "Usage Details for user {member_name}",
   "description": "Module: {module}",
-  "pagination":
-  {
-    "param":
-    {
-      "name": "module",
-      "obj": "modules"
-    }
-  },
   "elements":
   [
     {

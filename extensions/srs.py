@@ -1,20 +1,29 @@
+import aiohttp
+import certifi
 import os
 import shutil
 import subprocess
-import win32api
-import win32con
+import ssl
+import sys
+
+from discord.ext import tasks
+
+if sys.platform == 'win32':
+    import win32api
+    import win32con
+
 from configparser import RawConfigParser
-from core import Extension, DCSServerBot, utils, report, Server, SAVED_GAMES
+from core import Extension, utils, report, Server
 from typing import Optional
 
 ports: dict[int, str] = dict()
 
 
 class SRS(Extension):
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
+    def __init__(self, server: Server, config: dict):
         self.cfg = RawConfigParser()
         self.cfg.optionxform = str
-        super().__init__(bot, server, config)
+        super().__init__(server, config)
         self.process = None
 
     def load_config(self) -> Optional[dict]:
@@ -49,13 +58,13 @@ class SRS(Extension):
                 self.cfg.write(ini)
             self.locals = self.load_config()
         # Change DCS-SRS-AutoConnectGameGUI.lua if necessary
-        autoconnect = os.path.expandvars(os.path.join(SAVED_GAMES, self.server.installation,
-                                                      r'Scripts\Hooks\DCS-SRS-AutoConnectGameGUI.lua'))
-        host = self.config['host'] if 'host' in self.config else self.bot.external_ip
-        port = self.config['port'] if 'port' in self.config else self.locals['Server Settings']['SERVER_PORT']
+        autoconnect = os.path.join(self.server.instance.home,
+                                   os.path.join('Scripts', 'Hooks', 'DCS-SRS-AutoConnectGameGUI.lua'))
+        host = self.config.get('host', self.node.public_ip)
+        port = self.config.get('port', self.locals['Server Settings']['SERVER_PORT'])
         if os.path.exists(autoconnect):
             shutil.copy2(autoconnect, autoconnect + '.bak')
-            with open('extensions\\lua\\DCS-SRS-AutoConnectGameGUI.lua') as infile:
+            with open(os.path.join('extensions', 'lua', 'DCS-SRS-AutoConnectGameGUI.lua')) as infile:
                 with open(autoconnect, 'w') as outfile:
                     for line in infile.readlines():
                         if line.startswith('SRSAuto.SERVER_SRS_HOST_AUTO = '):
@@ -64,7 +73,8 @@ class SRS(Extension):
                         elif line.startswith('SRSAuto.SERVER_SRS_PORT = '):
                             line = f'SRSAuto.SERVER_SRS_PORT = "{port}" --  SRS Server default is 5002 TCP & UDP\n'
                         elif line.startswith('SRSAuto.SERVER_SRS_HOST = '):
-                            line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true -- set to your PUBLIC ipv4 address\n'
+                            line = f'SRSAuto.SERVER_SRS_HOST = "{host}" -- overridden if SRS_HOST_AUTO is true ' \
+                                   f'-- set to your PUBLIC ipv4 address\n'
                         outfile.write(line)
         else:
             self.log.info('- SRS autoconnect is not enabled for this server.')
@@ -72,10 +82,10 @@ class SRS(Extension):
 
     async def startup(self) -> bool:
         await super().startup()
-        if 'autostart' not in self.config or self.config['autostart']:
+        if self.config.get('autostart', True):
             self.log.debug(r'Launching SRS server with: "{}\SR-Server.exe" -cfg="{}"'.format(
                 os.path.expandvars(self.config['installation']), os.path.expandvars(self.config['config'])))
-            if self.bot.config.getboolean(self.server.installation, 'START_MINIMIZED'):
+            if sys.platform == 'win32' and self.config.get('minimized', False):
                 info = subprocess.STARTUPINFO()
                 info.dwFlags = subprocess.STARTF_USESHOWWINDOW
                 info.wShowWindow = win32con.SW_MINIMIZE
@@ -83,66 +93,99 @@ class SRS(Extension):
                 info = None
             self.process = subprocess.Popen(
                 ['SR-Server.exe', '-cfg={}'.format(os.path.expandvars(self.config['config']))],
-                executable=os.path.expandvars(self.config['installation']) + r'\SR-Server.exe', startupinfo=info)
+                executable=os.path.join(os.path.expandvars(self.config['installation']), 'SR-Server.exe'),
+                startupinfo=info
+            )
         return self.is_running()
 
-    async def shutdown(self, data: dict):
-        if 'autostart' not in self.config or self.config['autostart']:
-            p = self.process or utils.find_process('SR-Server.exe', self.server.installation)
+    async def shutdown(self):
+        if self.config.get('autostart', True):
+            p = self.process or utils.find_process('SR-Server.exe', self.server.instance.name)
             if p:
                 p.kill()
                 self.process = None
-        return await super().shutdown(data)
+        return await super().shutdown()
 
     def is_running(self) -> bool:
-        server_ip = self.locals['Server Settings']['SERVER_IP'] if 'SERVER_IP' in self.locals['Server Settings'] else '127.0.0.1'
+        server_ip = self.locals['Server Settings'].get('SERVER_IP', '127.0.0.1')
         if server_ip == '0.0.0.0':
             server_ip = '127.0.0.1'
-        return utils.is_open(server_ip, self.locals['Server Settings']['SERVER_PORT'])
+        return utils.is_open(server_ip, self.locals['Server Settings'].get('SERVER_PORT', 5002))
 
     @property
-    def version(self) -> str:
-        info = win32api.GetFileVersionInfo(
-            os.path.expandvars(self.config['installation']) + r'\SR-Server.exe', '\\')
-        version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
-                                   info['FileVersionMS'] % 65536,
-                                   info['FileVersionLS'] / 65536,
-                                   info['FileVersionLS'] % 65536)
+    def version(self) -> Optional[str]:
+        if sys.platform == 'win32':
+            info = win32api.GetFileVersionInfo(
+                os.path.join(os.path.expandvars(self.config['installation']), 'SR-Server.exe'), '\\')
+            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
+                                       info['FileVersionMS'] % 65536,
+                                       info['FileVersionLS'] / 65536,
+                                       info['FileVersionLS'] % 65536)
+        else:
+            version = None
         return version
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        if not self.locals:
-            return
-        host = self.config['host'] if 'host' in self.config else self.bot.external_ip
-        value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
-        show_passwords = self.config['show_passwords'] if 'show_passwords' in self.config else True
-        if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] == 'true' and \
-                'External AWACS Mode Settings' in self.locals:
-            blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
-            red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
-            if blue or red:
-                value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
-        embed.add_field(name="SRS (online)" if self.is_running() else "SRS (offline)", value=value)
+        if self.locals:
+            host = self.config.get('host', self.node.public_ip)
+            value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
+            show_passwords = self.config.get('show_passwords', True)
+            if show_passwords and self.locals['General Settings']['EXTERNAL_AWACS_MODE'] == 'true' and \
+                    'External AWACS Mode Settings' in self.locals:
+                blue = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_BLUE_PASSWORD']
+                red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
+                if blue or red:
+                    value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
+            embed.add_field(name="SRS (online)" if self.is_running() else "SRS (offline)", value=value)
 
     def is_installed(self) -> bool:
         global ports
 
         # check if SRS is installed
-        if 'installation' not in self.config or \
-                not os.path.exists(os.path.expandvars(self.config['installation']) + r'\SR-Server.exe'):
-            self.log.error("  => SRS executable not found in {}".format(self.config['installation'] + r'\SR-Server.exe'))
+        exe_path = os.path.join(
+            os.path.expandvars(self.config.get('installation',
+                                               os.path.join('%ProgramFiles%', 'DCS-SimpleRadio-Standalone'))),
+            'SR-Server.exe'
+        )
+        if not os.path.exists(exe_path):
+            self.log.error(f"  => SRS executable not found in {exe_path}")
             return False
         # do we have a proper config file?
-        if 'config' not in self.config or not os.path.exists(os.path.expandvars(self.config['config'])):
-            self.log.error(f"  => SRS config not found for server {self.server.name}")
+        try:
+            cfg_path = os.path.expandvars(self.config.get('config'))
+            if not os.path.exists(cfg_path):
+                self.log.error(f"  => SRS config not found for server {self.server.name}")
+                return False
+            if self.server.instance.name not in cfg_path:
+                self.log.warning(f"  => Please move your SRS configuration from {cfg_path} to "
+                                 f"{os.path.join(self.server.instance.home, 'Config', 'SRS.cfg')}")
+        except KeyError:
+            self.log.error(f"  => SRS config not set for server {self.server.name}")
             return False
-        if self.server.installation not in self.config['config']:
-            self.log.warning(f"  => Please move your SRS configuration from {self.config['config']} to "
-                             f"Saved Games\\{self.server.installation}\\Config\\SRS.cfg")
-        port = self.config.get('port', int(self.cfg['Server Settings']['SERVER_PORT']))
+
+        port = self.config.get('port', int(self.cfg['Server Settings'].get('SERVER_PORT', '5002')))
         if port in ports and ports[port] != self.server.name:
             self.log.error(f"  => SRS port {port} already in use by server {ports[port]}!")
             return False
         else:
             ports[port] = self.server.name
         return True
+
+    @tasks.loop(minutes=5)
+    async def schedule(self):
+        if not self.config.get('autoupdate', False):
+            return
+        try:
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+                async with session.get("https://github.com/ciribob/DCS-SimpleRadioStandalone/releases/latest") as response:
+                    if response.status in [200, 302]:
+                        version = response.url.raw_parts[-1]
+                        if version != self.version:
+                            self.log.info(f"A new DCS-SRS update is available. Updating to version {version} ...")
+                            cwd = os.path.expandvars(self.config['installation'])
+                            subprocess.run(executable=os.path.join(cwd, 'SRS-AutoUpdater.exe'),
+                                           args=['-server', '-autoupdate', f'-path=\"{cwd}\"'], cwd=cwd, shell=True)
+        except OSError as ex:
+            if ex.winerror == 740:
+                self.log.error("You need to run DCSServerBot as Administrator to use the DCS-SRS AutoUpdater.")

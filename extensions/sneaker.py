@@ -2,9 +2,13 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from typing import Optional
-from core import Extension, report, DCSServerBot, Server, Status
+import sys
+if sys.platform == 'win32':
+    import win32api
 
+from typing import Optional, cast
+from core import Extension, report, Status, ServiceRegistry, Server
+from services import ServiceBus
 
 process: Optional[subprocess.Popen] = None
 servers: set[str] = set()
@@ -12,17 +16,15 @@ servers: set[str] = set()
 
 class Sneaker(Extension):
 
-    def __init__(self, bot: DCSServerBot, server: Server, config: dict):
-        super().__init__(bot, server, config)
-        self.bot = bot
-        self.log = bot.log
-        self.server = server
-        self.config = config
+    def __init__(self, server: Server, config: dict):
+        super().__init__(server, config)
+        self.bus = cast(ServiceBus, ServiceRegistry.get("ServiceBus"))
 
     def create_config(self):
         cfg = {"servers": []}
-        if os.path.exists('config\\sneaker.json'):
-            with open('config\\sneaker.json') as file:
+        filename = os.path.join('config', 'sneaker.json')
+        if os.path.exists(filename):
+            with open(filename) as file:
                 cfg = json.load(file)
         for s in cfg['servers']:
             if s['name'] == self.server.name:
@@ -31,15 +33,20 @@ class Sneaker(Extension):
         else:
             cfg['servers'].append({
                 "name": self.server.name,
-                "hostname": self.server.host,
+                "hostname": self.node.listen_address,
                 "port": int(self.server.options['plugins']['Tacview']['tacviewRealTimeTelemetryPort']),
                 "radar_refresh_rate": 5,
                 "enable_friendly_ground_units": True,
                 "enable_enemy_ground_units": True
             })
         # filter out servers that are not running
-        cfg['servers'] = [x for x in cfg['servers'] if x['name'] in [y.name for y in self.bot.servers.values() if y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]]]
-        with open('config\\sneaker.json', 'w') as file:
+        cfg['servers'] = [
+            x for x in cfg['servers'] if x['name'] in [
+                y.name for y in self.bus.servers.values()
+                if y.status not in [Status.UNREGISTERED, Status.SHUTDOWN]
+            ]
+        ]
+        with open(os.path.join('config', 'sneaker.json'), 'w') as file:
             json.dump(cfg, file, indent=2)
 
     async def startup(self) -> bool:
@@ -50,19 +57,21 @@ class Sneaker(Extension):
             self.log.warning('Sneaker needs Tacview to be enabled in your server!')
             return False
         if 'config' not in self.config:
-            self.create_config()
-            if process:
+            if process and process.returncode is None:
                 process.kill()
+            self.create_config()
             cmd = os.path.basename(self.config['cmd'])
-            self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config\\sneaker.json")
-            process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
-                                       executable=os.path.expandvars(self.config['cmd']),
-                                       stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL)
+            self.log.debug(
+                f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config config/sneaker.json")
+            process = subprocess.Popen([
+                cmd, "--bind", self.config['bind'],
+                "--config", os.path.join('config', 'sneaker.json')
+            ], executable=os.path.expandvars(self.config['cmd']), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
             if not process:
                 cmd = os.path.basename(self.config['cmd'])
-                self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} --config {self.config['config']}")
+                self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
+                               f"--config {self.config['config']}")
                 process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config",
                                             os.path.expandvars(self.config['config'])],
                                            executable=os.path.expandvars(self.config['cmd']),
@@ -71,34 +80,48 @@ class Sneaker(Extension):
         servers.add(self.server.name)
         return self.is_running()
 
-    async def shutdown(self, data: dict) -> bool:
+    async def shutdown(self) -> bool:
         global process, servers
 
         servers.remove(self.server.name)
-        if process and not servers:
+        if not servers and process is not None:
             process.kill()
             process = None
-            return await super().shutdown(data)
+            return await super().shutdown()
         elif 'config' not in self.config:
+            if process and process.returncode is None:
+                process.kill()
             self.create_config()
-            process.kill()
             cmd = os.path.basename(self.config['cmd'])
-            process = subprocess.Popen([cmd, "--bind", self.config['bind'], "--config", 'config\\sneaker.json'],
-                                       executable=os.path.expandvars(self.config['cmd']))
+            self.log.debug(f"Launching Sneaker server with {cmd} --bind {self.config['bind']} "
+                           f"--config config/sneaker.json")
+            process = subprocess.Popen([
+                cmd,
+                "--bind", self.config['bind'],
+                "--config", os.path.join('config', 'sneaker.json')
+            ], executable=os.path.expandvars(self.config['cmd']), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
 
     def is_running(self) -> bool:
         global process, servers
 
-        if process and process.poll() is None:
+        if process is not None and process.poll() is None:
             return self.server.name in servers
         else:
             process = None
             return False
 
     @property
-    def version(self) -> str:
-        return "0.0.12"
+    def version(self) -> Optional[str]:
+        if sys.platform == 'win32':
+            info = win32api.GetFileVersionInfo(os.path.expandvars(self.config['cmd']), '\\')
+            version = "%d.%d.%d.%d" % (info['FileVersionMS'] / 65536,
+                                       info['FileVersionMS'] % 65536,
+                                       info['FileVersionLS'] / 65536,
+                                       info['FileVersionLS'] % 65536)
+        else:
+            version = None
+        return version
 
     def is_installed(self) -> bool:
         # check if Sneaker is enabled

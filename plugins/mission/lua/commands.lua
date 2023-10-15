@@ -9,6 +9,7 @@ local utils 	= base.require("DCSServerBotUtils")
 local mod_dictionary= require('dictionary')
 
 dcsbot.registered = false
+dcsbot.banList = dcsbot.banList or {}
 dcsbot.userInfo = dcsbot.userInfo or {}
 dcsbot.red_slots = dcsbot.red_slots or {}
 dcsbot.blue_slots = dcsbot.blue_slots or {}
@@ -27,15 +28,6 @@ function dcsbot.registerDCSServer(json)
 	msg.dcs_version = Export.LoGetVersionInfo().ProductVersion[1] .. '.' .. Export.LoGetVersionInfo().ProductVersion[2] .. '.' .. Export.LoGetVersionInfo().ProductVersion[3] .. '.' .. Export.LoGetVersionInfo().ProductVersion[4]
     msg.host = config.DCS_HOST
 	msg.port = config.DCS_PORT
-	msg.chat_channel = config.CHAT_CHANNEL
-	msg.status_channel = config.STATUS_CHANNEL
-	msg.admin_channel = config.ADMIN_CHANNEL
-	-- backwards compatibility
-	if (config.STATISTICS ~= nil) then
-		msg.statistics = config.STATISTICS
-	else
-		msg.statistics = true
-	end
     -- airbases
     msg.airbases = {}
     local airdromes = Terrain.GetTerrainConfig("Airdromes")
@@ -158,11 +150,11 @@ function dcsbot.registerDCSServer(json)
 				if msg.players[i].sub_slot > 0 and msg.players[i].side == 0 then
 					if dcsbot.blue_slots[msg.players[i].slot] ~= nil then
 						msg.players[i].side = 2
-					else
+					elseif dcsbot.red_slots[msg.players[i].slot] ~= nil then
 						msg.players[i].side = 1
 					end
 				end
-				-- server user is never active
+                -- server user is never active
                 if (msg.players[i].id == 1) then
                     msg.players[i].active = false
                 else
@@ -261,7 +253,15 @@ function dcsbot.addMission(json)
 	end
 	net.missionlist_append(path)
 	local current_missions = net.missionlist_get()
-	result = utils.saveSettings({missionList = current_missions["missionList"]})
+    if json.autostart == true then
+        listStartIndex = #current_missions['missionList']
+    else
+        listStartIndex = current_missions["listStartIndex"]
+    end
+	utils.saveSettings({
+        missionList = current_missions["missionList"],
+		listStartIndex = listStartIndex
+    })
 	dcsbot.listMissions(json)
 end
 
@@ -271,8 +271,8 @@ function dcsbot.deleteMission(json)
 	local current_missions = net.missionlist_get()
 	--result = utils.saveSettings({missionList = current_missions["missionList"]})
 	utils.saveSettings({
-		missionList=current_missions["missionList"],
-		listStartIndex=current_missions["listStartIndex"]
+		missionList = current_missions["missionList"],
+		listStartIndex = current_missions["listStartIndex"]
 	})
 	dcsbot.listMissions(json)
 end
@@ -380,8 +380,44 @@ end
 
 function dcsbot.uploadUserRoles(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: uploadUserRoles()')
-	if dcsbot.userInfo[json.ucid] == nil then
-		dcsbot.userInfo[json.ucid] = {}
-	end
-	dcsbot.userInfo[json.ucid].roles = json.roles
+    dcsbot.userInfo[json.ucid] = dcsbot.userInfo[json.ucid] or {}
+    dcsbot.userInfo[json.ucid].roles = json.roles
+end
+
+function dcsbot.kick(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: kick()')
+    if json.id then
+        net.kick(json.id, json.reason)
+        return
+    end
+    plist = net.get_player_list()
+    for i = 2, table.getn(plist) do
+        if ((json.ucid and net.get_player_info(plist[i], 'ucid') == json.ucid) or
+                (json.name and net.get_player_info(plist[i], 'name') == json.name)) then
+            net.kick(plist[i], json.reason)
+            break
+        end
+    end
+end
+
+function dcsbot.force_player_slot(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: force_player_slot()')
+    net.force_player_slot(json.playerID, json.sideID or 0, json.slotID or '')
+    if json.slotID == 0 and json.reason ~= 'n/a' then
+        net.send_chat_to("You have been moved to spectators because of " .. reason, json.playerID)
+    else
+        net.send_chat_to("You have been moved to spectators by an admin", json.playerID)
+    end
+end
+
+function dcsbot.ban(json)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: ban()')
+    banned_until = json.banned_until or 'never'
+    dcsbot.banList[json.ucid] = json.reason .. '.\nExpires ' .. banned_until
+    dcsbot.kick(json)
+end
+
+function dcsbot.unban(json)
+    log.write('DCSServerBot', log.DEBUG, 'Admin: unban()')
+	dcsbot.banList[json.ucid] = nil
 end

@@ -1,68 +1,66 @@
-import psycopg2
-from contextlib import closing
-from core import DCSServerBot, Plugin, utils, Channel, Coalition
-from discord.ext import commands
+import discord
+import psycopg
+from discord import app_commands
+from discord.app_commands import Group
+
+from core import Plugin, utils, Channel, Coalition, Server
+from services import DCSServerBot
 
 
 class Battleground(Plugin):
 
-    def __init__(self, bot: DCSServerBot):
-        super().__init__(bot)
+    def rename(self, conn: psycopg.Connection, old_name: str, new_name: str) -> None:
+        conn.execute("UPDATE bg_geometry SET server = %s WHERE server= %s", (new_name, old_name))
 
-    def rename(self, old_name: str, new_name: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("UPDATE bg_geometry SET server = %s WHERE server= %s", (new_name, old_name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.debug(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+    battleground = Group(name="battleground", description="DCSBattleground commands")
 
-    @commands.command(description='Push MGRS coordinates with screenshots to DCS Battleground')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def recon(self, ctx: commands.Context, name: str, mgrs: str):
-        if not ctx.message.attachments or not ctx.message.attachments[0].filename[-4:] in ['.jpg', '.gif', '.png']:
-            await ctx.send('You need to add one or more screenshots (.jpg/.gif/.png)')
+    @battleground.command(description='Push MGRS coordinates with screenshots to DCS Battleground')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def recon(self, interaction: discord.Interaction, name: str, mgrs: str):
+        if not interaction.message.attachments or \
+                not interaction.message.attachments[0].filename[-4:] in ['.jpg', '.gif', '.png']:
+            await interaction.response.send_message('You need to add one or more screenshots (.jpg/.gif/.png)',
+                                                    ephemeral=True)
             return
         if len(mgrs) != 15 or not mgrs[:2].isnumeric() or not mgrs[5:].isnumeric():
-            await ctx.send('The second parameter need to be a MGRS coordinate (ex: 38TLN0274366889)')
+            await interaction.response.send_message('The second parameter needs to be a MGRS coordinate '
+                                                    '(ex: 38TLN0274366889)', ephemeral=True)
             return
         done = False
         for server in self.bot.servers.values():
-            sides = utils.get_sides(ctx.message, server)
-            blue_channel = server.get_channel(Channel.COALITION_BLUE_CHAT)
-            red_channel = server.get_channel(Channel.COALITION_RED_CHAT)
-            if Coalition.BLUE in sides and blue_channel and blue_channel.id == ctx.message.channel.id:
+            sides = utils.get_sides(interaction.client, interaction, server)
+            blue_channel = server.channels.get(Channel.COALITION_BLUE_CHAT)
+            red_channel = server.channels.get(Channel.COALITION_RED_CHAT)
+            if Coalition.BLUE in sides and blue_channel and blue_channel.id == interaction.message.channel.id:
                 side = "blue"
-            elif Coalition.RED in sides and red_channel and red_channel.id == ctx.message.channel.id:
+            elif Coalition.RED in sides and red_channel and red_channel.id == interaction.message.channel.id:
                 side = "red"
             else:
                 continue
-
             done = True
-            screenshots = [att.url for att in ctx.message.attachments]
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute("""
+            screenshots = [att.url for att in interaction.message.attachments]
+            with self.pool.connection() as conn:
+                with conn.transation():
+                    conn.execute("""
                         INSERT INTO bg_geometry(id, type, name, posmgrs, screenshot, discordname, avatar, side, server) 
                         VALUES (nextval('bg_geometry_id_seq'), 'recon', %s, %s, %s, %s, %s, %s, %s)
-                    """, (name, mgrs, screenshots, ctx.message.author.name, ctx.message.author.display_avatar.url,
+                    """, (name, mgrs, screenshots, interaction.user.name, interaction.user.display_avatar.url,
                           side, server.name))
-                conn.commit()
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-                conn.rollback()
-            finally:
-                self.pool.putconn(conn)
-            await ctx.send("Recon data added - " + side + " side - " + server.name)
+            await interaction.response.send_message(f"Recon data added - {side} side - {server.name}", ephemeral=True)
         if not done:
-            await ctx.send('Coalitions have to be enabled and you need to use this command in one of your '
-                           'coalition channels.')
+            await interaction.response.send_message('Coalitions have to be enabled and you need to use this command '
+                                                    'in one of your coalition channels.', ephemeral=True)
+
+    @battleground.command(description='Delete recon data on a specified server')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def reset(self, interaction: discord.Interaction,
+                    server: app_commands.Transform[Server, utils.ServerTransformer]):
+        with self.pool.connection() as conn:
+            with conn.transation():
+                conn.execute("DELETE FROM bg_geometry WHERE server = %s", (server.name, ))
+        await interaction.response.send_message(f"Recon data deleted for server {server.name}", ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

@@ -88,8 +88,8 @@ Examples:
         "12:00-19:59": "Summer, Noon, Calm, Sounds",
         "20:00-23:59": "Summer, Night, Storm, Sounds",
       }
-      "onMissionEnd": "load:Scripts/net/persist.lua", -- load a specific lua on restart 
-      "onShutdown": "run:shutdown /s"                 -- shutdown the PC when DCS is shut down
+     "onMissionEnd": "load:Scripts/net/persist.lua", -- load a specific lua on restart 
+     "onShutdown": "run:shutdown /s"                 -- shutdown the PC when DCS is shut down
     },
     {
       "installation": "instance3",
@@ -241,14 +241,14 @@ The following environment variables can be used in the "run" command:
 If a server gets started or stopped manually (using `.startup` / `.shutdown`), it will be put in "maintenance" mode.
 To clear this and give the control back to the scheduler, use the following command.
 
-| Command      | Parameter | Channel       | Role      | Description                                                                                                                                     |
-|--------------|-----------|---------------|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------|
-| .startup     |           | admin-channel | DCS Admin | Starts a dedicated DCS server process.                                                                                                          |
-| .shutdown    | [-force]  | admin-channel | DCS Admin | Shuts the dedicated DCS server process down.<br/>If `-force` is used, no player check will be executed and no onShutdown command will be run.   |
-| .start       |           | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                                                    |
-| .stop        |           | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                             |
-| .status      |           | all           | DCS       | Shows the status of all configured DCS servers.                                                                                                 |
-| .maintenance |           | admin-channel | DCS Admin | Sets the servers maintenance mode.                                                                                                              |
-| .clear       |           | admin-channel | DCS Admin | Clears the maintenance state of a server.                                                                                                       |
-| .preset      |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. Multiple selections will apply all presets at once.                                        |
-| .reset       |           | admin-channel | DCS Admin | Calls a configurable reset command.                                                                                                             |
+| Command      | Parameter | Channel       | Role      | Description                                                                                                                                    |
+|--------------|-----------|---------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| .startup     |           | admin-channel | DCS Admin | Starts a dedicated DCS server process.                                                                                                         |
+| .shutdown    | [-force]  | admin-channel | DCS Admin | Shuts the dedicated DCS server process down.<br/>If `-force` is used, no player check will be executed and no onShutdown command will be run.  |
+| .start       |           | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                                                   |
+| .stop        |           | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                            |
+| .status      |           | all           | DCS       | Shows the status of all configured DCS servers.                                                                                                |
+| .maintenance |           | admin-channel | DCS Admin | Sets the servers maintenance mode.                                                                                                             |
+| .clear       |           | admin-channel | DCS Admin | Clears the maintenance state of a server.                                                                                                      |
+| .preset      |           | admin-channel | DCS Admin | Changes the preset (date/time/weather) of a mission. Multiple selections will apply all presets at once.                                       |
+| .reset       |           | admin-channel | DCS Admin | Calls a configurable reset command.                                                                                                            |

@@ -1,14 +1,11 @@
 import discord
-import json
-from core import DCSServerBot, Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
-    PluginInstallationError
-from discord.ext import tasks, commands
-from os import path
-from typing import Optional, TYPE_CHECKING, Type
+from core import Plugin, PluginRequiredError, utils, Server, Player, TEventListener, Status, Coalition, \
+    PluginInstallationError, command
+from discord import app_commands
+from discord.ext import tasks
+from services import DCSServerBot
+from typing import Optional, Type, Literal
 from .listener import MessageOfTheDayListener
-
-if TYPE_CHECKING:
-    from core import DCSServerBot
 
 
 class MessageOfTheDay(Plugin):
@@ -16,41 +13,13 @@ class MessageOfTheDay(Plugin):
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
         if not self.locals:
-            raise PluginInstallationError(reason=f"No {self.plugin_name}.json file found!", plugin=self.plugin_name)
+            raise PluginInstallationError(reason=f"No {self.plugin_name}.yaml file found!", plugin=self.plugin_name)
         self.last_nudge = dict[str, int]()
         self.nudge.start()
 
     async def cog_unload(self):
         self.nudge.cancel()
         await super().cog_unload()
-
-    def migrate(self, version: str):
-        if version != '1.1' or not path.exists('config/motd.json'):
-            return
-        with open('config/motd.json') as file:
-            old = json.load(file)
-            if 'on_event' not in old['configs'][0]:
-                return
-        new = {
-            "configs": []
-        }
-        for oldc in old['configs']:
-            newc = dict()
-            if 'installation' in oldc:
-                newc['installation'] = oldc['installation']
-            if 'on_event' in oldc:
-                event = 'on_' + oldc['on_event']
-                newc[event] = dict()
-                if 'message' in oldc:
-                    newc[event]['message'] = oldc['message']
-                if 'display_type' in oldc:
-                    newc[event]['display_type'] = oldc['display_type']
-                if 'display_time' in oldc:
-                    newc[event]['display_time'] = oldc['display_time']
-            new['configs'].append(newc)
-        with open('config/motd.json', 'w') as file:
-            json.dump(new, file, indent=2)
-            self.log.info('  => config/motd.json migrated to new format.')
 
     def send_message(self, message: str, server: Server, config: dict, player: Optional[Player] = None):
         if config['display_type'].lower() == 'chat':
@@ -59,7 +28,7 @@ class MessageOfTheDay(Plugin):
             else:
                 server.sendChatMessage(Coalition.ALL, message)
         elif config['display_type'].lower() == 'popup':
-            timeout = config['display_time'] if 'display_time' in config else self.bot.config['BOT']['MESSAGE_TIMEOUT']
+            timeout = config.get('display_time', server.locals.get('message_timeout', 10))
             if player:
                 player.sendPopupMessage(message, timeout)
                 if 'sound' in config:
@@ -90,35 +59,31 @@ class MessageOfTheDay(Plugin):
             recp.append(player)
         return recp
 
-    @commands.command(description='Test MOTD', usage='[-join | -birth | -nudge]', hidden=True)
-    @utils.has_roles(['DCS Admin'])
-    @commands.guild_only()
-    async def motd(self, ctx, option: str, member: Optional[discord.Member] = None):
-        server: Server = await self.bot.get_server(ctx)
+    @command(description='Test MOTD')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS Admin'])
+    async def motd(self, interaction: discord.Interaction,
+                   server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])],
+                   player: app_commands.Transform[Player, utils.PlayerTransformer(active=True)],
+                   option: Literal['join', 'birth', 'nudge']):
         config = self.get_config(server)
         if not config:
-            await ctx.send('No configuration for MOTD found.')
+            await interaction.response.send_message('No configuration for MOTD found.', ephemeral=True)
             return
-        if server and server.status in [Status.RUNNING, Status.PAUSED]:
-            message = None
-            if 'join' in option:
-                message = self.eventlistener.on_join(config)
-            elif 'birth' in option:
-                if not member:
-                    await ctx.send(f'Usage: {ctx.prefix}{option} @member')
-                    return
-                player: Player = server.get_player(discord_id=member.id)
-                if not player:
-                    await ctx.send("Player {} is currently not logged in.".format(utils.escape_string(member.display_name)))
-                    return
-                message = await self.eventlistener.on_birth(config, server, player)
-            elif 'nudge' in option:
-                # TODO
-                pass
-            if message:
-                await ctx.send(f"```{message}```")
-        else:
-            await ctx.send(f"Mission is {server.status.name.lower()}, can't test MOTD.")
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(f"Mission is {server.status.name.lower()}, can't test MOTD.",
+                                                    ephemeral=True)
+            return
+        message = None
+        if 'join' in option:
+            message = self.eventlistener.on_join(config)
+        elif 'birth' in option:
+            message = await self.eventlistener.on_birth(config, server, player)
+        elif 'nudge' in option:
+            # TODO
+            pass
+        if message:
+            await interaction.response.send_message(f"```{message}```")
 
     @tasks.loop(minutes=1.0)
     async def nudge(self):

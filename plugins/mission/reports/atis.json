@@ -1,6 +1,6 @@
 {
   "color": "blue",
-  "title": "{server_name}\nReport for \"{airbase[name]}\"",
+  "title": "ATIS-Report for \"{airbase[name]}\"",
   "elements":
   [
     {

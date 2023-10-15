@@ -1,4 +1,3 @@
-import discord
 import matplotlib.pyplot as plt
 import numpy as np
 from core import report, utils, Pagination

@@ -1,43 +1,45 @@
+from typing import cast
+
 import discord
 import os
-import psycopg2
-from contextlib import closing
-from core import utils, DCSServerBot
+
+from core import utils, Server, ServiceRegistry
 from discord import SelectOption, TextStyle
-from discord.ui import View, Select, Button, TextInput, Modal
-from typing import Optional
+from discord.ui import View, Select, Button, Modal, TextInput
+from services import MusicService
 
-from .sink import Sink, Mode
-from .utils import get_tag, Playlist
+from services.music.radios import Mode
+from .utils import get_tag
 
 
-class PlayerBase(View):
+class MusicPlayer(View):
 
-    def __init__(self, bot: DCSServerBot, music_dir: str):
+    def __init__(self, server: Server, radio_name: str, playlists: list[str]):
         super().__init__()
-        self.bot = bot
-        self.log = bot.log
-        self.pool = bot.pool
-        self.music_dir = music_dir
-
-    def get_titles(self, songs: list[str]) -> list[str]:
-        return [get_tag(os.path.join(self.music_dir, x)).title or x[:-4] for x in songs]
-
-
-class MusicPlayer(PlayerBase):
-
-    def __init__(self, bot: DCSServerBot, music_dir: str, sink: Sink, playlists: list[str]):
-        super().__init__(bot, music_dir)
-        self.sink = sink
+        self.radio_name = radio_name
+        self.service: MusicService = cast(MusicService, ServiceRegistry.get("Music"))
+        self.log = self.service.log
+        self.server = server
         self.playlists = playlists
-        self.titles = self.get_titles(self.sink.songs)
+        self.songs = self.titles = None
+        self.config = None
 
-    def render(self) -> discord.Embed:
-        embed = self.sink.render()
+    async def get_titles(self, songs: list[str]) -> list[str]:
+        return [get_tag(os.path.join(await self.service.get_music_dir(), x)).title or x[:-4] for x in songs]
+
+    async def render(self) -> discord.Embed:
+        if not self.titles:
+            self.songs = await self.service.get_songs(self.server, self.radio_name)
+            self.titles = await self.get_titles(self.songs)
+        self.config = self.service.get_config(self.server, self.radio_name)
+        embed = discord.Embed(colour=discord.Colour.blue())
+        embed.add_field(name="Frequency", value=self.config['frequency'] + " " + self.config['modulation'])
+        embed.add_field(name="Coalition", value="Red" if self.config['coalition'] == 1 else "Blue")
         embed.title = "Music Player"
-        if self.sink.current:
-            tag = get_tag(self.sink.current)
-            title = utils.escape_string(tag.title[:255] if tag.title else os.path.basename(self.sink.current)[:-4])
+        current = await self.service.get_current_song(self.server, self.radio_name)
+        if current:
+            tag = get_tag(current)
+            title = utils.escape_string(tag.title[:255] if tag.title else os.path.basename(current)[:-4])
             artist = utils.escape_string(tag.artist[:255] if tag.artist else 'n/a')
             album = utils.escape_string(tag.album[:255] if tag.album else 'n/a')
             embed.add_field(name='▬' * 13 + " Now Playing " + '▬' * 13, value='_ _', inline=False)
@@ -63,6 +65,8 @@ class MusicPlayer(PlayerBase):
             ]
             select.callback = self.play
             self.add_item(select)
+            if len(self.titles) > 25:
+                footer += "Use /music play to access all songs in the list.\n"
         # Select Playlists
         if self.playlists:
             select = Select(placeholder="Pick a playlist to play")
@@ -70,7 +74,8 @@ class MusicPlayer(PlayerBase):
             select.callback = self.playlist
             self.add_item(select)
         # Play/Stop Button
-        button = Button(style=discord.ButtonStyle.primary, emoji="⏹️" if self.sink.queue_worker.is_running() else "▶️")
+        button = Button(style=discord.ButtonStyle.primary,
+                        emoji="⏹️" if await self.service.get_current_song(self.server, self.radio_name) else "▶️")
         button.callback = self.on_play_stop
         self.add_item(button)
         # Skip Button
@@ -78,8 +83,9 @@ class MusicPlayer(PlayerBase):
         button.callback = self.on_skip
         self.add_item(button)
         # Repeat Button
-        button = Button(style=discord.ButtonStyle.primary, emoji="🔁" if self.sink.mode == Mode.REPEAT else "🔂")
-        button.callback = self.on_skip
+        button = Button(style=discord.ButtonStyle.primary,
+                        emoji="🔁" if await self.service.get_mode(self.server, self.radio_name) == Mode.REPEAT else "🔂")
+        button.callback = self.on_repeat
         self.add_item(button)
         # Edit Button
         button = Button(label="Edit", style=discord.ButtonStyle.secondary)
@@ -89,205 +95,110 @@ class MusicPlayer(PlayerBase):
         button = Button(label="Quit", style=discord.ButtonStyle.red)
         button.callback = self.on_cancel
         self.add_item(button)
-        if self.sink.queue_worker.is_running():
+        if await self.service.get_current_song(self.server, self.radio_name):
             footer += "⏹️ Stop"
         else:
             footer += "▶️ Play"
         footer += " | ⏩ Skip | "
-        if self.sink.mode == Mode.SHUFFLE:
+        if await self.service.get_mode(self.server, self.radio_name) == Mode.SHUFFLE:
             footer += "🔁 Repeat"
         else:
             footer += "🔂 Shuffle"
         embed.set_footer(text=footer)
         return embed
 
+    def edit(self) -> Modal:
+        class EditModal(Modal, title=f"Change Settings for {self.radio_name}"):
+            frequency = TextInput(label='Frequency (xxx.xx)', style=TextStyle.short, required=True,
+                                  default=self.config['frequency'], min_length=4, max_length=6)
+            modulation = TextInput(label='Modulation (AM | FM)', style=TextStyle.short, required=True,
+                                   default=self.config['modulation'], min_length=2, max_length=2)
+            volume = TextInput(label='Volume', style=TextStyle.short, required=True,
+                               default=self.config['volume'], min_length=1, max_length=3)
+            coalition = TextInput(label='Coalition (1=red | 2=blue)', style=TextStyle.short, required=True,
+                                  default=self.config['coalition'], min_length=1, max_length=2)
+            display_name = TextInput(label='Display Name', style=TextStyle.short, required=True,
+                                     default=self.config['display_name'], min_length=3, max_length=30)
+
+            async def on_submit(derived, interaction: discord.Interaction):
+                await interaction.response.defer()
+                self.config['frequency'] = derived.frequency.value
+                if derived.modulation.value.upper() in ['AM', 'FM']:
+                    self.config['modulation'] = derived.modulation.value.upper()
+                else:
+                    raise ValueError("Modulation must be one of AM | FM!")
+                self.config['volume'] = derived.volume.value
+                if derived.coalition.value.isnumeric() and int(derived.coalition.value) in range(1, 3):
+                    self.config['coalition'] = derived.coalition.value
+                else:
+                    raise ValueError("Coalition must be 1 or 2!")
+                self.config['display_name'] = derived.display_name.value
+                # write the config
+                await self.service.set_config(self.server, self.radio_name, self.config)
+                await self.service.stop_radios(self.server, self.radio_name)
+                await self.service.start_radios(self.server, self.radio_name)
+
+            async def on_error(self, interaction: discord.Interaction, error: Exception, /) -> None:
+                await interaction.followup.send(error.__str__(), ephemeral=True)
+
+        return EditModal()
+
     async def play(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await self.sink.stop()
-        self.sink.idx = int(interaction.data['values'][0])
-        await self.sink.start()
-        await interaction.edit_original_response(view=self, embed=self.render())
+        await self.service.stop_radios(self.server, self.radio_name)
+        await self.service.play_song(self.server, self.radio_name,
+                                     os.path.join(await self.service.get_music_dir(),
+                                                  self.songs[int(interaction.data['values'][0])]))
+        await self.service.start_radios(self.server, self.radio_name)
+        await interaction.edit_original_response(view=self, embed=await self.render())
 
     async def playlist(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        running = self.sink.is_running()
+        running = self.service.get_current_song(self.server, self.radio_name)
         if running:
-            await self.sink.stop()
-        self.sink.playlist = interaction.data['values'][0]
-        self.titles = self.get_titles(self.sink.songs)
+            await self.service.stop_radios(self.server, self.radio_name)
+        await self.service.set_playlist(self.server, self.radio_name, interaction.data['values'][0])
+        self.titles = None
         if running:
-            await self.sink.start()
-        await interaction.edit_original_response(view=self, embed=self.render())
+            await self.service.start_radios(self.server, self.radio_name)
+        await interaction.edit_original_response(view=self, embed=await self.render())
 
     async def on_play_stop(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        if self.sink.queue_worker.is_running():
-            await self.sink.stop()
+        if await self.service.get_current_song(self.server, self.radio_name):
+            await self.service.stop_radios(self.server, self.radio_name)
         else:
-            await self.sink.start()
-        embed = self.render()
+            await self.service.start_radios(self.server, self.radio_name)
+        embed = await self.render()
         await interaction.edit_original_response(embed=embed, view=self)
 
     async def on_skip(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await self.sink.skip()
-        embed = self.render()
+        await self.service.skip_song(self.server, self.radio_name)
+        embed = await self.render()
         await interaction.edit_original_response(embed=embed, view=self)
 
     async def on_repeat(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await self.sink.stop()
-        if self.sink.mode == Mode.SHUFFLE:
-            self.sink.mode = Mode.REPEAT
+        await self.service.stop_radios(self.server, self.radio_name)
+        if await self.service.get_mode(self.server, self.radio_name) == Mode.SHUFFLE:
+            await self.service.set_mode(self.server, self.radio_name, Mode.REPEAT)
         else:
-            self.sink.mode = Mode.SHUFFLE
-        await self.sink.start()
-        embed = self.render()
+            await self.service.set_mode(self.server, self.radio_name, Mode.SHUFFLE)
+        await self.service.start_radios(self.server, self.radio_name)
+        embed = await self.render()
         await interaction.edit_original_response(embed=embed, view=self)
 
     async def on_edit(self, interaction: discord.Interaction):
-        modal = self.sink.edit()
-        await interaction.response.send_modal(modal)
-        if not await modal.wait():
-            embed = self.render()
-            await interaction.edit_original_response(embed=embed, view=self)
+        try:
+            modal = self.edit()
+            await interaction.response.send_modal(modal)
+            if not await modal.wait():
+                embed = await self.render()
+                await interaction.edit_original_response(embed=embed, view=self)
+        except Exception as ex:
+            self.log.exception(ex)
 
     async def on_cancel(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        self.stop()
-
-
-class PlaylistEditor(PlayerBase):
-
-    def __init__(self, bot: DCSServerBot, music_dir: str, songs: list[str], playlist: Optional[str] = None):
-        super().__init__(bot, music_dir)
-        self.playlist = Playlist(bot, playlist) if playlist else None
-        self.all_songs = songs
-        self.all_titles = self.get_titles(self.all_songs)
-
-    def get_all_playlists(self) -> list[str]:
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT DISTINCT name FROM music_playlists ORDER BY 1')
-                return [row[0] for row in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
-
-    def render(self) -> discord.Embed:
-        embed = discord.Embed(title="Playlist Editor", colour=discord.Colour.blue())
-        self.clear_items()
-        row = 0
-        if self.playlist:
-            embed.description = f'Playlist "{self.playlist.name}"'
-            playlist = []
-            options = []
-            for idx, song in enumerate(self.playlist.items):
-                if idx == 25:
-                    break
-                try:
-                    title = self.all_titles[self.all_songs.index(song)] or song
-                    playlist.append(
-                        f"{idx + 1}. - {utils.escape_string(title)}")
-                    options.append(SelectOption(label=title[:25], value=str(idx)))
-                except ValueError as ex:
-                    self.log.error(str(ex) + ", removing from playlist.")
-                    self.playlist.remove(song)
-            if playlist:
-                embed.add_field(name='_ _', value='\n'.join(playlist))
-                select = Select(placeholder="Remove a song from the playlist", options=options, row=row)
-                select.callback = self.remove
-                self.add_item(select)
-                row += 1
-            else:
-                embed.add_field(name='_ _', value='- empty -')
-            select = Select(placeholder="Add a song to the playlist",
-                            options=[SelectOption(label=x,
-                                                  value=str(idx)) for idx, x in enumerate(self.all_titles) if idx < 25],
-                            row=row)
-            select.callback = self.add
-            self.add_item(select)
-            row += 1
-            button = Button(label="Delete", style=discord.ButtonStyle.secondary, row=row)
-            button.callback = self.del_playlist
-            self.add_item(button)
-        else:
-            all_playlists = self.get_all_playlists()
-            if all_playlists:
-                select = Select(placeholder="Select a playlist to edit",
-                                options=[SelectOption(label=x) for x in all_playlists], row=row)
-                select.callback = self.load_playlist
-                self.add_item(select)
-                row += 1
-            if len(all_playlists) < 25:
-                button = Button(label="Add", style=discord.ButtonStyle.secondary, row=row)
-                button.callback = self.add_playlist
-                self.add_item(button)
-        button = Button(label="Quit", style=discord.ButtonStyle.red, row=row)
-        button.callback = self.cancel
-        self.add_item(button)
-        return embed
-
-    async def add(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        self.playlist.add(self.all_songs[int(interaction.data['values'][0])])
-        embed = self.render()
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def remove(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        self.playlist.remove(self.playlist.items[int(interaction.data['values'][0])])
-        embed = self.render()
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def load_playlist(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        self.playlist = Playlist(self.bot, interaction.data['values'][0])
-        embed = self.render()
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def add_playlist(self, interaction: discord.Interaction):
-        class AddPlaylistModal(Modal, title="Enter a name for the playlist"):
-            name = TextInput(label="Playlist", style=TextStyle.short, required=True, min_length=3, max_length=25)
-
-            async def on_submit(_, interaction: discord.Interaction) -> None:
-                await interaction.response.defer()
-
-        modal = AddPlaylistModal()
-        await interaction.response.send_modal(modal)
-        if not await modal.wait():
-            self.playlist = Playlist(self.bot, modal.name.value)
-        embed = self.render()
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def del_playlist(self, interaction: discord.Interaction):
-        class DelPlaylistModal(Modal, title="Are you sure?"):
-            name = TextInput(label="Enter YES, if you want to delete the playlist",
-                             style=TextStyle.short, required=True, min_length=3, max_length=3)
-
-            async def on_submit(_, interaction: discord.Interaction) -> None:
-                await interaction.response.defer()
-
-        modal = DelPlaylistModal()
-        await interaction.response.send_modal(modal)
-        if not await modal.wait():
-            if str(modal.name.value).casefold() == 'yes':
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute('DELETE FROM music_playlists WHERE name = %s', (self.playlist.name, ))
-                        cursor.execute('DELETE FROM music_servers WHERE playlist_name = %s', (self.playlist.name,))
-                    conn.commit()
-                    self.playlist = None
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
-        embed = self.render()
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    async def cancel(self, interaction: discord.Interaction):
         self.stop()

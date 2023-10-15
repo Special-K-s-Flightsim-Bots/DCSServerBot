@@ -1,32 +1,38 @@
 from __future__ import annotations
+from configparser import ConfigParser
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
-    import psycopg2.pool
-    from core import DCSServerBot
     from logging import Logger
+    from psycopg_pool import ConnectionPool
+
+__all__ = [
+    "DataObject",
+    "DataObjectFactory"
+]
 
 
 @dataclass
 class DataObject:
-    bot: DCSServerBot = field(compare=False, repr=False)
-    pool: psycopg2.pool.ThreadedConnectionPool = field(compare=False, repr=False, init=False)
+    node: Any = field(compare=False, repr=False)
+    pool: ConnectionPool = field(compare=False, repr=False, init=False)
     log: Logger = field(compare=False, repr=False, init=False)
+    config: ConfigParser = field(compare=False, repr=False, init=False)
 
     def __post_init__(self):
-        self.pool = self.bot.pool
-        self.log = self.bot.log
+        self.pool = self.node.pool
+        self.log = self.node.log
+        self.config = self.node.config
 
 
 class DataObjectFactory:
     _instance = None
-    _registry = dict[str, Any]()
+    _registry = dict[str, DataObject]()
 
     def __new__(cls) -> DataObjectFactory:
         if cls._instance is None:
             cls._instance = super(DataObjectFactory, cls).__new__(cls)
-            cls._methods = dict[str, DataObject]()
         return cls._instance
 
     @classmethod

@@ -1,286 +1,134 @@
 import discord
-import json
 import os
-import psycopg2
 import shutil
 import time
+
 from contextlib import closing
-from core import Plugin, DCSServerBot, PluginRequiredError, utils, PaginationReport, Report, Server, TEventListener
-from datetime import datetime
-from discord import SelectOption, TextStyle, app_commands
-from discord.ext import commands, tasks
-from discord.ui import View, Select, Modal, TextInput, Item
-from os import path
-from typing import Optional, Union, List, Type, Any
+from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, TEventListener, Group, Server, \
+    DEFAULT_TAG
+from discord import SelectOption, app_commands
+from discord.app_commands import Range
+from discord.ext import tasks
+from psycopg.rows import dict_row
+from services import DCSServerBot
+from typing import Optional, Union, Type
+
 from .listener import GreenieBoardEventListener
+from .views import TrapView
 
 
-class GreenieBoardAgent(Plugin):
+class GreenieBoard(Plugin):
 
-    def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
-        super().__init__(bot, eventlistener)
-        self.auto_delete.start()
+    def read_locals(self) -> dict:
+        config = super().read_locals()
+        if not config:
+            self.log.info('No greenieboard.yaml found, copying the sample.')
+            shutil.copyfile('config/samples/plugins/greenieboard.yaml', 'config/plugins/greenieboard.yaml')
+            config = super().read_locals()
+        return config
 
-    async def cog_unload(self):
-        self.auto_delete.cancel()
-
-    def get_config(self, server: Server, *, use_cache: Optional[bool] = True) -> Optional[dict]:
-        if server.name not in self._config or not use_cache:
+    def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
+                   use_cache: Optional[bool] = True) -> dict:
+        # retrieve the config from another plugin
+        if plugin_name:
+            return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
+        if not server:
+            return self.locals.get(DEFAULT_TAG, {})
+        if server.instance.name not in self._config:
             default, specific = self.get_base_config(server)
-            # we only specify the persistent channel in the server settings, if it is expicitely defined
+            if 'persistent_board' in default:
+                del default['persistent_board']
             if 'persistent_channel' in default:
                 del default['persistent_channel']
-            if default and not specific:
-                self._config[server.name] = default
-            elif specific and not default:
-                self._config[server.name] = specific
-            elif default and specific:
-                merged = default
-                # specific settings will overwrite default settings
-                for key, value in specific.items():
-                    merged[key] = value
-                self._config[server.name] = merged
-            else:
-                return None
-        return self._config.get(server.name)
+            self._config[server.instance.name] = default | specific
+        return self._config[server.instance.name]
 
-    def migrate(self, version: str):
-        if version != '1.3':
-            return
-        os.rename('config/greenieboard.json', 'config/greenieboard.bak')
-        with open('config/greenieboard.bak') as infile:
-            old: dict = json.load(infile)
-        dirty = False
-        for config in old['configs']:
-            if 'ratings' in config and '---' in config['ratings']:
-                config['ratings']['--'] = config['ratings']['---']
-                del config['ratings']['---']
-                dirty = True
-        if dirty:
-            with open('config/greenieboard.json', 'w') as outfile:
-                json.dump(old, outfile, indent=2)
-                self.log.info('  => config/greenieboard.json migrated to new format, please verify!')
-
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Greenieboard ...')
-        with closing(conn.cursor()) as cursor:
-            if ucids:
-                for ucid in ucids:
-                    cursor.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
-            elif days > 0:
-                cursor.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
+        if ucids:
+            for ucid in ucids:
+                conn.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
+        elif days > -1:
+            conn.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Greenieboard pruned.')
 
-    def rename(self, old_name: str, new_name: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE message_persistence SET embed_name = %s '
-                               'WHERE embed_name = %s AND server_name IN (%s, %s)',
-                               (f'greenieboard-{new_name}', f'greenieboard-{old_name}', old_name, new_name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+    # New command group "/trape"
+    traps = Group(name="traps", description="Commands to display and manage carrier traps")
 
-    @tasks.loop(hours=24.0)
-    async def auto_delete(self):
-        def do_delete(path: str, days: int):
-            now = time.time()
-            for f in [os.path.join(path, x) for x in os.listdir(path)]:
-                if os.stat(f).st_mtime < (now - days * 86400):
-                    if os.path.isfile(f):
-                        os.remove(f)
-
-        try:
-            for server in self.bot.servers.values():
-                config = self.get_config(server)
-                basedir = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'])
-                if 'Moose.AIRBOSS' in config and 'delete_after' in config['Moose.AIRBOSS']:
-                    basedir += os.path.sep + config['Moose.AIRBOSS']['basedir'] if 'basedir' in config['Moose.AIRBOSS'] else ''
-                    do_delete(basedir, config['Moose.AIRBOSS']['delete_after'])
-                elif 'FunkMan' in config and 'delete_after' in config['FunkMan']:
-                    basedir += os.path.sep + config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else ''
-                    do_delete(basedir, config['FunkMan']['delete_after'])
-        except Exception as ex:
-            self.log.exception(ex)
-
-
-class GreenieBoardMaster(GreenieBoardAgent):
-
-    @commands.command(description='Show carrier landing qualifications', usage='[member|name]', aliases=['traps'])
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def carrier(self, ctx, member: Optional[Union[discord.Member, str]], *params):
+    @traps.command(description='Show carrier landing qualifications')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def info(self, interaction: discord.Interaction,
+                   user: Optional[app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]]):
         def format_landing(landing: dict) -> str:
             return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']}: {landing['grade']}"
 
-        if not member:
-            member = ctx.message.author
-        if isinstance(member, discord.Member):
-            ucid = self.bot.get_ucid_by_member(member)
-            name = member.display_name
+        if not user:
+            user = interaction.user
+        if isinstance(user, str):
+            ucid = user
+            user = self.bot.get_member_or_name_by_ucid(ucid)
+            if isinstance(user, discord.Member):
+                name = user.display_name
+            else:
+                name = user
         else:
-            name = member
-            if len(params) > 0:
-                name += ' ' + ' '.join(params)
-            ucid, name = self.bot.get_ucid_by_name(name)
-        landings = List[dict]
-        num_landings = max(self.locals['configs'][0]['num_landings'], 25)
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+            ucid = self.bot.get_ucid_by_member(user)
+            name = user.display_name
+        num_landings = max(self.get_config().get('num_landings', 25), 25)
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute("SELECT id, p.name, g.grade, g.unit_type, g.comment, g.place, g.trapcase, g.wire, "
                                "g.time, g.points, g.trapsheet FROM greenieboard g, players p WHERE p.ucid = %s "
                                "AND g.player_ucid = p.ucid ORDER BY ID DESC LIMIT %s", (ucid, num_landings))
                 if cursor.rowcount == 0:
-                    await ctx.send('No carrier landings recorded for this user.',
-                                   delete_after=timeout if timeout > 0 else None)
+                    await interaction.response.send_message('No carrier landings recorded for this user.',
+                                                            ephemeral=True)
                     return
                 landings = [dict(row) for row in cursor.fetchall()]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
         report = Report(self.bot, self.plugin_name, 'traps.json')
         env = await report.render(ucid=ucid, name=utils.escape_string(name))
-        n = await utils.selection(ctx, embed=env.embed, placeholder="Select a trap for details",
+        n = await utils.selection(interaction, embed=env.embed, placeholder="Select a trap for details",
                                   options=[
                                       SelectOption(label=format_landing(x), value=str(idx))
                                       for idx, x in enumerate(landings)
                                   ])
         if n:
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'lsoRating.json',
-                                      timeout if timeout > 0 else None, keep_image=True)
+            report = PaginationReport(self.bot, interaction, self.plugin_name, 'lsoRating.json', keep_image=True)
             await report.render(landings=landings, start_index=int(n), formatter=format_landing)
-        await ctx.message.delete()
 
-    @commands.command(description='Display the current greenieboard', usage='[num rows]', aliases=['greenie'])
-    @utils.has_role('DCS')
-    @commands.guild_only()
+    @traps.command(description='Display the current greenieboard')
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
     @app_commands.rename(num_rows='rows')
-    async def greenieboard(self, ctx, num_rows: Optional[int] = 10):
-        try:
-            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-            report = PaginationReport(self.bot, ctx, self.plugin_name, 'greenieboard.json',
-                                      timeout if timeout > 0 else None)
-            await report.render(server_name=None, num_rows=num_rows)
-        finally:
-            if not ctx.interaction:
-                await ctx.message.delete()
+    async def board(self, interaction: discord.Interaction, num_rows: Optional[Range[int, 5, 20]] = 10):
+        report = PaginationReport(self.bot, interaction, self.plugin_name, 'greenieboard.json')
+        await report.render(server_name=None, num_rows=num_rows)
 
-    @commands.command(description='Adds a trap to the Greenieboard', usage='<@member|ucid>')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def add_trap(self, ctx: commands.Context, user: Union[discord.Member, str]):
-        if isinstance(user, discord.Member):
-            ucid = self.bot.get_ucid_by_member(user)
-            if not ucid:
-                await ctx.send(f'Member {user.display_name} is not linked.')
-                return
-        elif not utils.is_ucid(user):
-            await ctx.send(f'Usage: {ctx.prefix}add_trap <@member|ucid>')
-            return
-        else:
-            ucid = user
-
-        config = self.locals['configs'][0]
+    @traps.command(description='Adds a trap to the Greenieboard')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def add(self, interaction: discord.Interaction,
+                  user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+        config = self.get_config()
         if 'ratings' not in config:
-            await ctx.send('You need to specify ratings in your greenieboard.json to use add_trap!')
+            await interaction.response.send_message(
+                'You need to specify ratings in your greenieboard.json to use add_trap!', ephemeral=True)
             return
-        planes = ['AV8BNA', 'F-14A-135-GR', 'F-14B', 'FA-18C_hornet', 'Su-33']
 
-        class TrapModal(Modal):
-            time = TextInput(label='Time (HH24:MI)', style=TextStyle.short, required=True, min_length=5, max_length=5)
-            case = TextInput(label='Case', style=TextStyle.short, required=True, min_length=1, max_length=1)
-            grade = TextInput(label='Grade', style=TextStyle.short, required=True, min_length=1, max_length=4)
-            comment = TextInput(label='LSO Comment', style=TextStyle.long, required=False)
-            wire = TextInput(label='Wire', style=TextStyle.short, required=False, min_length=1, max_length=1)
-
-            def __init__(self, bot: DCSServerBot, *, unit_type: str):
-                super().__init__(title="Enter the trap details")
-                self.bot = bot
-                self.log = bot.log
-                self.pool = bot.pool
-                self.unit_type = unit_type
-                self.success = False
-
-            async def on_submit(self, interaction: discord.Interaction, /) -> None:
-                await interaction.response.defer()
-                time = datetime.strptime(self.time.value, '%H:%M').time()
-                night = time.hour >= 20 or time.hour <= 6
-                if self.case.value not in ['1', '2', '3']:
-                    raise TypeError('Case needs to be one of 1, 2 or 3.')
-                grade = self.grade.value.upper()
-                if grade not in config['ratings'].keys():
-                    raise ValueError("Grade has to be one of " + ', '.join([utils.escape_string(x) for x in config['ratings'].keys()]))
-                if self.wire.value and self.wire.value not in ['1', '2', '3', '4']:
-                    raise TypeError('Wire needs to be one of 1 to 4.')
-
-                conn = self.pool.getconn()
-                try:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute('INSERT INTO greenieboard (player_ucid, unit_type, grade, comment, place, '
-                                       'night, points, wire, trapcase) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                                       (ucid, self.unit_type, self.grade.value, self.comment.value, 'n/a', night,
-                                        config['ratings'][grade], self.wire.value, self.case.value))
-                    conn.commit()
-                    self.success = True
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                    raise
-                finally:
-                    self.pool.putconn(conn)
-
-            async def on_error(self, interaction: discord.Interaction, error: Exception, /) -> None:
-                await interaction.followup.send(error)
-                self.stop()
-
-        class TrapView(View):
-
-            def __init__(self, bot: DCSServerBot):
-                super().__init__()
-                self.bot = bot
-                self.log = bot.log
-                self.success = False
-
-            @discord.ui.select(placeholder='Select the plane for the trap',
-                               options=[SelectOption(label=x) for x in planes])
-            async def callback(self, interaction: discord.Interaction, select: Select):
-                modal = TrapModal(self.bot, unit_type=select.values[0])
-                await interaction.response.send_modal(modal)
-                await modal.wait()
-                self.success = modal.success
-                self.stop()
-
-            async def on_error(self, interaction: discord.Interaction, error: Exception, item: Item[Any], /) -> None:
-                await interaction.followup.send(error)
-                self.stop()
-
-        view = TrapView(self.bot)
-        msg = await ctx.send(view=view)
+        view = TrapView(self.bot, config, user)
+        await interaction.response.send_message(view=view)
         try:
             await view.wait()
             if view.success:
-                await ctx.send('Trap added.')
+                await interaction.followup.send('Trap added.', ephemeral=True)
             else:
-                await ctx.send('Aborted.')
+                await interaction.followup.send('Aborted.', ephemeral=True)
         finally:
-            await msg.delete()
+            await interaction.delete_original_response()
 
 
 async def setup(bot: DCSServerBot):
     if 'missionstats' not in bot.plugins:
         raise PluginRequiredError('missionstats')
-    # make sure that we have a proper configuration, take the default one if none is there
-    if not path.exists('config/greenieboard.json'):
-        bot.log.info('No greenieboard.json found, copying the sample.')
-        shutil.copyfile('config/samples/greenieboard.json', 'config/greenieboard.json')
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(GreenieBoardMaster(bot, GreenieBoardEventListener))
-    else:
-        await bot.add_cog(GreenieBoardAgent(bot, GreenieBoardEventListener))
+    await bot.add_cog(GreenieBoard(bot, GreenieBoardEventListener))

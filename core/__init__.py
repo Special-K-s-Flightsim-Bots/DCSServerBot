@@ -3,10 +3,17 @@ from .data.dataobject import *
 from .data.mission import *
 from .data.player import *
 from .data.server import *
+from .data.impl.serverimpl import *
+from .data.proxy.serverproxy import *
+from .data.instance import *
+from .data.impl.instanceimpl import *
+from .data.proxy.instanceproxy import *
 from .data.member import *
+from .data.node import *
+from .data.impl.nodeimpl import *
+from .data.proxy.nodeproxy import *
 
 from .autoexec import *
-from .bot import *
 from .const import *
 from .extension import *
 from .listener import *
@@ -14,4 +21,4 @@ from .mizfile import *
 from .plugin import *
 from .utils import *
 from .report import *
-from .pool import *
+from .services import *

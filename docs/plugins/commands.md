@@ -31,7 +31,7 @@ get the idea) and dir as a shell command.
     {
       "name": "dcs",                  -- new Discord command .dcs
       "description": "Launch DCS",    -- Description for help command
-      "roles": ["DCS Admin"],         -- who can use this command,
+      "roles": ["DCS Admin"],         -- who can use this command
       "params": [ "instance" ],       -- supported parameters (string only)
       "execute": {
         "cwd": "C:\\Program Files\\Eagle Dynamics\\DCS World OpenBeta Server\\bin",
@@ -88,3 +88,4 @@ When the command is being run in a server channel, you have access to _server_ a
 ```
 for instance. To force that, set "server_only" to true.
 If you want to run the command on one specific server only, you can add the server instance with "server".
+

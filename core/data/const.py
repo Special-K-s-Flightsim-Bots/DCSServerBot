@@ -1,5 +1,12 @@
 from enum import Enum
 
+__all__ = [
+    "Side",
+    "Status",
+    "Coalition",
+    "Channel"
+]
+
 
 class Side(Enum):
     UNKNOWN = -1
@@ -26,11 +33,11 @@ class Coalition(Enum):
 
 
 class Channel(Enum):
-    STATUS = 'STATUS_CHANNEL'
-    ADMIN = 'ADMIN_CHANNEL'
-    CHAT = 'CHAT_CHANNEL'
-    EVENTS = 'EVENTS_CHANNEL'
-    COALITION_BLUE_CHAT = 'COALITION_BLUE_CHANNEL'
-    COALITION_RED_CHAT = 'COALITION_RED_CHANNEL'
-    COALITION_BLUE_EVENTS = 'COALITION_BLUE_EVENTS'
-    COALITION_RED_EVENTS = 'COALITION_RED_EVENTS'
+    STATUS = 'status'
+    ADMIN = 'admin'
+    CHAT = 'chat'
+    EVENTS = 'events'
+    COALITION_BLUE_CHAT = 'blue'
+    COALITION_BLUE_EVENTS = 'blue_events'
+    COALITION_RED_CHAT = 'red'
+    COALITION_RED_EVENTS = 'red_events'

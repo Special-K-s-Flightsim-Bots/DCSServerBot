@@ -64,7 +64,6 @@ The following parameters can be used to configure the bot:
 | AGENT_POOL_MIN      | Minimum number of database connections in the pool (on AGENT).   |
 | AGENT_POOL_MAX      | Maximum number of database connections in the pool (on AGENT).   |
 
-
 # Section \[ROLES\]
 
 | Parameter      | Description                                                                                                                   |

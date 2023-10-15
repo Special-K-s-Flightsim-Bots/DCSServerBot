@@ -1,16 +1,20 @@
 import numpy as np
 import pandas as pd
-import psycopg2
+import warnings
 from contextlib import closing
 from core import const, report
 from matplotlib.ticker import FuncFormatter
+from psycopg.rows import dict_row
 from typing import Optional
+
+# ignore pandas warnings (log scale et al)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 
 class ServerUsage(report.EmbedElement):
 
     def render(self, server_name: Optional[str], period: Optional[str]):
-        sql = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', 'g')) " \
+        sql = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) " \
               f"AS server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, " \
               f"COUNT(DISTINCT s.player_ucid) AS players, COUNT(DISTINCT p.discord_id) AS members FROM missions m, " \
               f"statistics s, players p WHERE m.id = s.mission_id AND s.player_ucid = p.ucid AND s.hop_off IS NOT NULL"
@@ -20,12 +24,14 @@ class ServerUsage(report.EmbedElement):
             sql += f" AND DATE(s.hop_on) > (DATE(NOW()) - interval '1 {period}')"
         sql += ' GROUP BY 1 ORDER BY 2 DESC'
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 servers = playtimes = players = members = ''
-                cursor.execute(sql, (server_name, ))
-                for row in cursor.fetchall():
+                if server_name:
+                    rows = cursor.execute(sql, (server_name, )).fetchall()
+                else:
+                    rows = cursor.execute(sql).fetchall()
+                for row in rows:
                     servers += row['server_name'] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
                     players += '{:.0f}\n'.format(row['players'])
@@ -37,10 +43,6 @@ class ServerUsage(report.EmbedElement):
                     self.add_field(name='Unique Players', value=players)
                     if server_name:
                         self.add_field(name='Discord Members', value=members)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class TopMissionPerServer(report.EmbedElement):
@@ -48,10 +50,10 @@ class TopMissionPerServer(report.EmbedElement):
     def render(self, server_name: Optional[str], period: Optional[str], limit: int):
         sql_left = 'SELECT server_name, mission_name, playtime FROM (SELECT server_name, ' \
                                       'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
-                                      'playtime DESC) AS rn FROM ( '
-        sql_inner = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.config['FILTER']['SERVER_FILTER']}', '', " \
+                                      'playtime DESC) AS rn FROM ('
+        sql_inner = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', " \
                     f"'g')) AS server_name, trim(regexp_replace(m.mission_name, " \
-                    f"'{self.bot.config['FILTER']['MISSION_FILTER']}', ' ', 'g')) AS mission_name, " \
+                    f"'{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, " \
                     f"ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime FROM missions m, " \
                     f"statistics s WHERE m.id = s.mission_id AND s.hop_off IS NOT NULL"
         sql_right = ') AS x) AS y WHERE rn {} ORDER BY 3 DESC'
@@ -61,13 +63,16 @@ class TopMissionPerServer(report.EmbedElement):
             sql_inner += f" AND DATE(s.hop_on) > (DATE(NOW()) - interval '1 {period}')"
         sql_inner += ' GROUP BY 1, 2'
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 servers = missions = playtimes = ''
-                cursor.execute(sql_left + sql_inner + sql_right.format(
-                    '= 1' if not server_name else f'<= {limit}'), (server_name, ))
-                for row in cursor.fetchall():
+                if server_name:
+                    rows = cursor.execute(sql_left + sql_inner + sql_right.format(
+                        '= 1' if not server_name else f'<= {limit}'), (server_name, )).fetchall()
+                else:
+                    rows = cursor.execute(sql_left + sql_inner + sql_right.format(
+                        '= 1' if not server_name else f'<= {limit}')).fetchall()
+                for row in rows:
                     servers += row['server_name'] + '\n'
                     missions += row['mission_name'][:20] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
@@ -78,10 +83,6 @@ class TopMissionPerServer(report.EmbedElement):
                     self.add_field(name='Playtime (h)', value=playtimes)
                     if server_name:
                         self.add_field(name='_ _', value='_ _')
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class TopModulesPerServer(report.EmbedElement):
@@ -96,12 +97,14 @@ class TopModulesPerServer(report.EmbedElement):
             sql += f" AND DATE(s.hop_on) > (DATE(NOW()) - interval '1 {period}')"
         sql += f" GROUP BY s.slot ORDER BY 3 DESC LIMIT {limit}"
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 modules = playtimes = players = ''
-                cursor.execute(sql, (server_name, ))
-                for row in cursor.fetchall():
+                if server_name:
+                    rows = cursor.execute(sql, (server_name, )).fetchall()
+                else:
+                    rows = cursor.execute(sql).fetchall()
+                for row in rows:
                     modules += row['slot'] + '\n'
                     playtimes += '{:.0f}\n'.format(row['playtime'])
                     players += '{:.0f} ({:.0f})\n'.format(row['players'], row['num_usage'])
@@ -109,10 +112,6 @@ class TopModulesPerServer(report.EmbedElement):
                     self.add_field(name=f"TOP {limit} Modules", value=modules)
                     self.add_field(name='Playtime (h)', value=playtimes)
                     self.add_field(name='Players (# uses)', value=players)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class UniquePast14(report.GraphElement):
@@ -127,11 +126,13 @@ class UniquePast14(report.GraphElement):
 
         labels = []
         values = []
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql, (server_name, ))
-                for row in cursor.fetchall():
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                if server_name:
+                    rows = cursor.execute(sql, (server_name, )).fetchall()
+                else:
+                    rows = cursor.execute(sql).fetchall()
+                for row in rows:
                     labels.append(row['date'].strftime('%a %m/%d'))
                     values.append(row['players'])
                 self.axes.bar(labels, values, width=0.5, color='dodgerblue')
@@ -146,10 +147,6 @@ class UniquePast14(report.GraphElement):
                 if len(values) == 0:
                     self.axes.set_xticks([])
                     self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class UsersPerDayTime(report.GraphElement):
@@ -165,25 +162,23 @@ class UsersPerDayTime(report.GraphElement):
             sql += f" AND DATE(s.hop_on) > (DATE(NOW()) - interval '1 {period}')"
         sql += ' GROUP BY 1, 2'
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 values = np.zeros((24, 7))
-                cursor.execute(sql, (server_name, ))
-                for row in cursor.fetchall():
+                if server_name:
+                    rows = cursor.execute(sql, (server_name, )).fetchall()
+                else:
+                    rows = cursor.execute(sql).fetchall()
+                for row in rows:
                     values[int(row['hour'])][int(row['weekday']) - 1] = row['players']
                 self.axes.imshow(values, cmap='cividis', aspect='auto')
                 self.axes.set_title('Users per Day/Time (UTC)', color='white', fontsize=25)
                 self.axes.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: const.WEEKDAYS[int(np.clip(x, 0, 6))]))
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class ServerLoad(report.MultiGraphElement):
 
-    def render(self, server_name: Optional[str], period: str, agent_host: Optional[str]):
+    def render(self, server_name: Optional[str], period: str, node: Optional[str]):
         sql = f"SELECT date_trunc('minute', time) AS time, AVG(users) AS \"Users\", AVG(cpu) AS \"CPU\", AVG(CASE " \
               f"WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS \"Memory (paged)\", " \
               f"AVG(mem_ram)/(1024*1024) AS \"Memory (RAM)\", SUM(read_bytes)/1024 AS \"Read\", SUM(write_bytes)/1024 " \
@@ -192,15 +187,21 @@ class ServerLoad(report.MultiGraphElement):
               f"WHERE time > (CURRENT_TIMESTAMP - interval '1 {period}')"
         if server_name:
             sql += f" AND server_name = %s"
-        if agent_host:
-            sql += f" AND agent_host = '{agent_host}'"
+        if node:
+            sql += f" AND node = '{node}'"
         sql += " GROUP BY 1"
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
-                cursor.execute(sql, (server_name, ))
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                if server_name:
+                    cursor.execute(sql, (server_name, ))
+                else:
+                    cursor.execute(sql)
                 if cursor.rowcount > 0:
                     series = pd.DataFrame.from_dict(cursor.fetchall())
+                    for column in [
+                        'CPU', 'FPS', 'Ping', 'Read', 'Recv', 'Sent', 'Users', 'Write', 'Memory (RAM)', 'Memory (paged)'
+                    ]:
+                        series[column] = series[column].astype(float)
                     series.plot(ax=self.axes[0], x='time', y=['CPU'], title='CPU / User', xticks=[], xlabel='')
                     self.axes[0].legend(loc='upper left')
                     ax2 = self.axes[0].twinx()
@@ -226,7 +227,3 @@ class ServerLoad(report.MultiGraphElement):
                         self.axes[i].set_xticks([])
                         self.axes[i].set_yticks([])
                         self.axes[i].text(0, 0, 'No data available.', ha='center', va='center', size=20)
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)

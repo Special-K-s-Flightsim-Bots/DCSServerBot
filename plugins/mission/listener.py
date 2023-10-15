@@ -1,10 +1,15 @@
 from __future__ import annotations
 import asyncio
 import discord
+import os
+import shlex
+
+from contextlib import closing
 from core import utils, EventListener, PersistentReport, Plugin, Report, Status, Side, Mission, Player, Coalition, \
-    Channel, DataObjectFactory, event, chat_command
-from datetime import datetime
+    Channel, DataObjectFactory, event, chat_command, ServiceRegistry
+from datetime import datetime, timezone
 from discord.ext import tasks
+from psycopg.rows import dict_row
 from queue import Queue
 from typing import TYPE_CHECKING
 
@@ -106,9 +111,10 @@ class MissionEventListener(EventListener):
         for server_name, update in self.player_embeds.items():
             if update:
                 try:
-                    server = self.bot.servers[server_name]
-                    if not self.bot.config.getboolean(server.installation, 'COALITIONS'):
-                        report = PersistentReport(self.bot, self.plugin_name, 'players.json', server, 'players_embed')
+                    server = self.bot.servers.get(server_name)
+                    if server and not server.locals.get('coalitions'):
+                        report = PersistentReport(self.bot, self.plugin_name, 'players.json',
+                                                  embed_name='players_embed', server=server)
                         await report.render(server=server, sides=[Coalition.BLUE, Coalition.RED])
                 except Exception as ex:
                     self.log.exception(ex)
@@ -120,26 +126,29 @@ class MissionEventListener(EventListener):
         for server_name, update in self.mission_embeds.items():
             if update:
                 try:
-                    server = self.bot.servers[server_name]
-                    if not server.settings:
-                        return
-                    players = server.get_active_players()
-                    num_players = len(players) + 1
-                    report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json', server, 'mission_embed')
-                    await report.render(server=server, num_players=num_players)
+                    server = self.bot.servers.get(server_name)
+                    if not server or not server.settings:
+                        continue
+                    report = PersistentReport(self.bot, self.plugin_name, 'serverStatus.json',
+                                              embed_name='mission_embed', server=server)
+                    await report.render(server=server)
                 except Exception as ex:
                     self.log.exception(ex)
                 finally:
                     self.mission_embeds[server_name] = False
 
+    @print_queue.before_loop
+    async def before_check(self):
+        await self.bot.wait_until_ready()
+
     @event(name="sendMessage")
     async def sendMessage(self, server: Server, data: dict) -> None:
-        if int(data['channel']) == -1:
-            channel = server.get_channel(Channel.EVENTS)
-        else:
-            channel = self.bot.get_channel(int(data['channel']))
+        channel_id = int(data['channel'])
+        if channel_id == -1:
+            channel_id = server.channels[Channel.EVENTS]
+        channel = self.bot.get_channel(channel_id)
         if channel:
-            await channel.send(data['message'])
+            await channel.send("```" + data['message'] + "```")
 
     @event(name="sendEmbed")
     async def sendEmbed(self, server: Server, data: dict) -> None:
@@ -148,29 +157,28 @@ class MissionEventListener(EventListener):
             channel = int(data['channel'])
             if channel == -1:
                 channel = Channel.STATUS
-            await server.setEmbed(data['id'], embed, channel_id=channel)
-            return
+            await self.bot.setEmbed(embed_name=data['id'], embed=embed, channel_id=channel, server=server)
         else:
-            if int(data['channel']) == -1:
-                channel = server.get_channel(Channel.EVENTS)
-            else:
-                channel = self.bot.get_channel(int(data['channel']))
+            channel_id = int(data['channel'])
+            if channel_id == -1:
+                channel_id = server.channels[Channel.EVENTS]
+            channel = self.bot.get_channel(channel_id)
             if channel:
                 await channel.send(embed=embed)
 
     def send_dcs_event(self, server: Server, side: Side, message: str) -> None:
         events_channel = None
-        if self.bot.config.getboolean(server.installation, 'COALITIONS'):
+        if server.locals.get('coalitions'):
             if side == Side.RED:
-                events_channel = server.get_channel(Channel.COALITION_RED_EVENTS)
+                events_channel = server.channels[Channel.COALITION_RED_EVENTS]
             elif side == Side.BLUE:
-                events_channel = server.get_channel(Channel.COALITION_BLUE_EVENTS)
+                events_channel = server.channels[Channel.COALITION_BLUE_EVENTS]
         if not events_channel:
-            events_channel = server.get_channel(Channel.EVENTS)
+            events_channel = server.channels[Channel.EVENTS]
         if events_channel:
             if events_channel not in self.queue:
-                self.queue[events_channel] = Queue()
-            self.queue[events_channel].put(message)
+                self.queue[self.bot.get_channel(events_channel)] = Queue()
+            self.queue[self.bot.get_channel(events_channel)].put(message)
 
     def display_mission_embed(self, server: Server):
         self.mission_embeds[server.name] = True
@@ -183,7 +191,30 @@ class MissionEventListener(EventListener):
     async def callback(self, server: Server, data: dict):
         if data['subcommand'] in ['startMission', 'restartMission', 'pause', 'shutdown']:
             data['command'] = data['subcommand']
-            server.sendtoDCS(data)
+            server.send_to_dcs(data)
+
+    @staticmethod
+    def _update_mission(server: Server, data: dict) -> None:
+        if not server.current_mission:
+            server.current_mission = DataObjectFactory().new(
+                Mission.__name__, node=server.node, server=server, map=data['current_map'],
+                name=data['current_mission'])
+        server.current_mission.update(data)
+
+    def _update_bans(self, server: Server):
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                for ban in cursor.execute('SELECT ucid, reason, banned_until FROM bans WHERE banned_until >= NOW()'):
+                    if ban['banned_until'].year == 9999:
+                        until = 'never'
+                    else:
+                        until = ban['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+                    server.send_to_dcs({
+                        "command": "ban",
+                        "ucid": ban['ucid'],
+                        "reason": ban['reason'],
+                        "banned_until": until
+                    })
 
     def init_mission(self, server: Server, data: dict) -> None:
         if not server.current_mission:
@@ -194,31 +225,34 @@ class MissionEventListener(EventListener):
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
         # the server is starting up
-        if not data['channel'].startswith('sync-'):
-            return
-        # no mission is registered with the server, set the state to STOPPED
+        # if not data['channel'].startswith('sync-'):
+        #    return
+        self._update_bans(server)
         if 'current_mission' not in data:
             server.status = Status.STOPPED
             return
-        # the server was started already, but the bot wasn't
-        self.init_mission(server, data)
+        self._update_mission(server, data)
         if 'players' not in data:
+            server.players.clear()
             data['players'] = []
             server.status = Status.STOPPED
-        else:
+        elif data['channel'].startswith('sync-'):
             server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server.afk.clear()
         for p in data['players']:
             if p['id'] == 1:
                 continue
-            player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=p['id'],
-                                                     name=p['name'], active=p['active'], side=Side(p['side']),
-                                                     ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
-                                                     unit_callsign=p['unit_callsign'], unit_name=p['unit_name'],
-                                                     unit_type=p['unit_type'],
-                                                     unit_display_name=p.get('unit_display_name', p['unit_type']),
-                                                     group_id=p['group_id'], group_name=p['group_name'], banned=False)
-            server.add_player(player)
+            player: Player = server.get_player(ucid=p['ucid'])
+            if not player:
+                player: Player = DataObjectFactory().new(
+                    Player.__name__, node=server.node, server=server, id=p['id'], name=p['name'], active=p['active'],
+                    side=Side(p['side']), ucid=p['ucid'], slot=int(p['slot']), sub_slot=p['sub_slot'],
+                    unit_callsign=p['unit_callsign'], unit_name=p['unit_name'], unit_type=p['unit_type'],
+                    unit_display_name=p.get('unit_display_name', p['unit_type']), group_id=p['group_id'],
+                    group_name=p['group_name'])
+                server.add_player(player)
+            else:
+                player.update(p)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now()
         self.display_mission_embed(server)
@@ -227,23 +261,32 @@ class MissionEventListener(EventListener):
     @event(name="onMissionLoadBegin")
     async def onMissionLoadBegin(self, server: Server, data: dict) -> None:
         server.status = Status.LOADING
-        if not server.current_mission:
-            server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
-                                                             map=data['current_map'], name=data['current_mission'])
-        server.current_mission.update(data)
-        server.players = dict[int, Player]()
+        self._update_mission(server, data)
         if server.settings:
             self.display_mission_embed(server)
         self.display_player_embed(server)
 
     @event(name="onMissionLoadEnd")
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
-        self.init_mission(server, data)
+        self._update_mission(server, data)
         self.display_mission_embed(server)
 
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, data: dict) -> None:
         server.status = Status.PAUSED
+        self.display_mission_embed(server)
+
+    @event(name="getMissionUpdate")
+    async def getMissionUpdate(self, server: Server, data: dict) -> None:
+        if not server.current_mission:
+            server.status = Status.STOPPED
+            return
+        elif data['pause'] and server.status == Status.RUNNING:
+            server.status = Status.PAUSED
+        elif not data['pause'] and server.status != Status.RUNNING:
+            server.status = Status.RUNNING
+        server.current_mission.mission_time = data['mission_time']
+        server.current_mission.real_time = data['real_time']
         self.display_mission_embed(server)
 
     @event(name="onSimulationStop")
@@ -268,35 +311,32 @@ class MissionEventListener(EventListener):
         self.send_dcs_event(server, Side.SPECTATOR, self.EVENT_TEXTS[Side.SPECTATOR]['connect'].format(data['name']))
         player: Player = server.get_player(ucid=data['ucid'])
         if not player or player.id == 1:
-            player: Player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=data['id'],
-                                                     name=data['name'], active=data['active'], side=Side(data['side']),
-                                                     ucid=data['ucid'], banned=False)
+            player: Player = DataObjectFactory().new(
+                Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'],
+                active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
             player.update(data)
+        if player.member:
+            server.send_to_dcs({
+                'command': 'uploadUserRoles',
+                'id': player.id,
+                'ucid': player.ucid,
+                'roles': [x.name for x in player.member.roles]
+            })
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1 or 'ucid' not in data:
             return
         player: Player = server.get_player(id=data['id'])
-        # unlikely, but can happen if the bot was restarted during a mission restart
         if not player:
-            player = DataObjectFactory().new(Player.__name__, bot=self.bot, server=server, id=data['id'],
-                                             name=data['name'], active=data['active'], side=Side(data['side']),
-                                             ucid=data['ucid'], banned=False)
+            player = DataObjectFactory().new(
+                Player.__name__, node=server.node, server=server, id=data['id'], name=data['name'],
+                active=data['active'], side=Side(data['side']), ucid=data['ucid'])
             server.add_player(player)
         else:
             player.update(data)
-        if not player.member:
-            player.sendChatMessage(self.bot.config['DCS']['GREETING_MESSAGE_UNMATCHED'].format(
-                name=player.name, prefix=self.bot.config['BOT']['COMMAND_PREFIX']))
-            # only warn for unknown users if it is a non-public server and automatch is on
-            if self.bot.config.getboolean('BOT', 'AUTOMATCH') and len(server.settings['password']) > 0:
-                await server.get_channel(Channel.ADMIN).send(
-                    f'Player {player.display_name} (ucid={player.ucid}) can\'t be matched to a discord user.')
-        else:
-            player.sendChatMessage(self.bot.config['DCS']['GREETING_MESSAGE_MEMBERS'].format(player.name, server.name))
         # add the player to the afk list
         server.afk[player.ucid] = datetime.now()
         self.display_mission_embed(server)
@@ -333,7 +373,7 @@ class MissionEventListener(EventListener):
                 server.afk[player.ucid] = datetime.now()
                 self.send_dcs_event(server, Side.SPECTATOR,
                                     self.EVENT_TEXTS[Side.SPECTATOR]['spectators'].format(player.side.name,
-                                                                                             data['name']))
+                                                                                          data['name']))
         finally:
             if player:
                 player.update(data)
@@ -390,7 +430,7 @@ class MissionEventListener(EventListener):
             if server.is_public() and player1 and player2 and data['arg1'] != data['arg4'] \
                     and data['arg3'] == data['arg6']:
                 name = ('Member ' + player1.member.display_name) if player1.member else ('Player ' + player1.display_name)
-                await server.get_channel(Channel.ADMIN).send(
+                await self.bot.get_admin_channel(server).send(
                     f'{name} (ucid={player1.ucid}) is killing team members. Please investigate.'
                 )
         elif data['eventName'] in ['takeoff', 'landing', 'crash', 'eject', 'pilot_death']:
@@ -413,7 +453,7 @@ class MissionEventListener(EventListener):
         name = ' '.join(params)
         for airbase in server.current_mission.airbases:
             if (name.casefold() in airbase['name'].casefold()) or (name.upper() == airbase['code']):
-                response = await server.sendtoDCSSync({
+                response = await server.send_to_dcs_sync({
                     "command": "getWeatherInfo",
                     "x": airbase['position']['x'],
                     "y": airbase['position']['y'],
@@ -437,17 +477,128 @@ class MissionEventListener(EventListener):
         self.bot.loop.call_soon(asyncio.create_task, server.current_mission.restart())
 
     @chat_command(name="list", roles=['DCS Admin'], help="lists available missions")
-    async def list(self, server: Server, player: Player, params: list[str]):
-        response = await server.sendtoDCSSync({"command": "listMissions"})
-        missions = response['missionList']
+    async def _list(self, server: Server, player: Player, params: list[str]):
+        missions = server.settings['missionList']
         message = 'The following missions are available:\n'
         for i in range(0, len(missions)):
             mission = missions[i]
-            mission = mission[(mission.rfind('\\') + 1):-4]
+            mission = mission[(mission.rfind(os.path.sep) + 1):-4]
             message += f"{i + 1} {mission}\n"
-        message += f"\nUse {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}load <number> to load that mission"
+        message += f"\nUse {self.prefix}load <number> to load that mission"
         player.sendUserMessage(message, 30)
 
     @chat_command(name="load", roles=['DCS Admin'], usage="<number>", help="load a specific mission")
     async def load(self, server: Server, player: Player, params: list[str]):
-        self.bot.loop.call_soon(asyncio.create_task, server.loadMission(params[0]))
+        self.bot.loop.call_soon(asyncio.create_task, server.loadMission(int(params[0])))
+
+    @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 30 days")
+    async def ban(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(
+                f"Usage: {self.prefix}kick <name> [reason]")
+            return
+        params = shlex.split(' '.join(params))
+        name = params[0]
+        if len(params) > 1:
+            reason = ' '.join(params[1:])
+        else:
+            reason = 'n/a'
+        delinquent: Player = server.get_player(name=name, active=True)
+        if not delinquent:
+            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
+            return
+        ServiceRegistry.get('ServiceBus').ban(delinquent.ucid, player.member.display_name, reason, 3)
+        player.sendChatMessage(f"User {name} banned for 3 days.")
+        await self.bot.audit(f'Player {delinquent.display_name} banned for 3 days' +
+                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                             user=player.member)
+
+    @chat_command(name="kick", roles=['DCS Admin'], usage="<name> [reason]", help="kick a user")
+    async def kick(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(
+                f"Usage: {self.prefix}kick <name> [reason]")
+            return
+        params = shlex.split(' '.join(params))
+        name = params[0]
+        if len(params) > 1:
+            reason = ' '.join(params[1:])
+        else:
+            reason = 'n/a'
+        delinquent: Player = server.get_player(name=name, active=True)
+        if not delinquent:
+            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
+            return
+        server.kick(delinquent, reason)
+        player.sendChatMessage(f"User {name} kicked.")
+        await self.bot.audit(f'Player {delinquent.display_name} kicked' +
+                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                             user=player.member)
+
+    @chat_command(name="spec", roles=['DCS Admin'], usage="<name> [reason]", help="moves a user to spectators")
+    async def spec(self, server: Server, player: Player, params: list[str]):
+        if not params:
+            player.sendChatMessage(
+                f"Usage: {self.prefix}spec <name> [reason]")
+            return
+        params = shlex.split(' '.join(params))
+        name = params[0]
+        if len(params) > 1:
+            reason = ' '.join(params[1:])
+        else:
+            reason = 'n/a'
+        delinquent: Player = server.get_player(name=name, active=True)
+        if not delinquent:
+            player.sendChatMessage(f"Player {name} not found. Use \"\" around names with blanks.")
+            return
+        server.move_to_spectators(delinquent, reason)
+        player.sendChatMessage(f"User {name} moved to spectators.")
+        await self.bot.audit(f'Player {delinquent.display_name} moved to spectators' +
+                             (f' with reason "{reason}".' if reason != 'n/a' else '.'),
+                             user=player.member)
+
+    @chat_command(name="911", usage="<message>", help="send an alert to admins (misuse will be punished!)")
+    async def call911(self, server: Server, player: Player, params: list[str]):
+        mentions = ''
+        for role_name in self.bot.roles['DCS Admin']:
+            role: discord.Role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
+            if role:
+                mentions += role.mention
+        message = ' '.join(params)
+        embed = discord.Embed(title='MAYDAY // 911 Call', colour=discord.Color.blue())
+        embed.set_image(url="https://media.tenor.com/pDRfpNAXfmcAAAAC/despicable-me-minions.gif")
+        embed.description = message
+        embed.add_field(name="Server", value=server.name, inline=False)
+        embed.add_field(name="Player", value=player.name)
+        embed.add_field(name="UCID", value=player.ucid)
+        await self.bot.get_admin_channel(server).send(mentions, embed=embed)
+
+    @chat_command(name="preset", aliases=["presets"], roles=['DCS Admin'], usage="<preset>",
+                  help="load a specific weather preset")
+    async def preset(self, server: Server, player: Player, params: list[str]):
+        async def change_preset(preset: str):
+            filename = await server.get_current_mission_file()
+            new_filename = await server.modifyMission(filename, [preset])
+            missions = server.settings['missionList']
+            if filename in missions:
+                await server.deleteMission(missions.index(filename) + 1)
+            await server.addMission(new_filename, autostart=True)
+            await server.restart(smooth=True)
+            await self.bot.audit(f"changed preset to {preset}", server=server, user=player.ucid)
+
+        config = self.plugin.get_config(server)
+        if config and 'presets' in config:
+            presets = list(config['presets'].keys())
+            if not params:
+                message = 'The following presets are available:\n'
+                for i in range(0, len(presets)):
+                    preset = presets[i]
+                    message += f"{i + 1} {preset}\n"
+                message += f"\nUse {self.prefix}preset <number> to load that preset " \
+                           f"(mission will be restarted!)"
+                player.sendUserMessage(message, 30)
+            else:
+                n = int(params[0]) - 1
+                self.bot.loop.call_soon(asyncio.create_task, change_preset, presets[n])
+        else:
+            player.sendChatMessage(f"There are no presets available to select.")

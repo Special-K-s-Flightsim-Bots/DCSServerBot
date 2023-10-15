@@ -1,0 +1,19 @@
+DEFAULT:
+  music_dir: G:\My Drive\Music    # Directory where your music is (or where it is uploaded). For clusters, it should be a cloud drive like here.
+  radios:
+    Radio 1:                      # Name of the radio, can be anything
+      type: SRSRadio              # we currently only support SRS, so this has to be in
+      mode: 1                     # mode 1 = repeat (at the end of the list), mode 2 = shuffle
+      frequency: '30.0'           # channel where the music should be played
+      modulation: FM              # modulation, AM or FM
+      coalition: 1                # coalition 1 = red, 2 = blue
+      volume: '0.5'               # 50% volume
+      display_name: Jungle Beats  # Name of the radio as displayed in SRS
+    Radio 2:
+      type: SRSRadio
+      mode: 1
+      frequency: '32.0'
+      modulation: FM
+      coalition: 2
+      volume: '0.5'
+      display_name: Rock & Pop

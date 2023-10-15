@@ -17,9 +17,9 @@ def read(path, encoding="utf-8", multival=False):
         if text[0:6] == "return":
             ch = text[6:7]
             if not (
-                (ch >= "a" and ch <= "z")
-                or (ch >= "A" and ch <= "Z")
-                or (ch >= "0" and ch <= "9")
+                ("a" <= ch <= "z")
+                or ("A" <= ch <= "Z")
+                or ("0" <= ch <= "9")
                 or ch == "_"
             ):
                 text = text[6:]

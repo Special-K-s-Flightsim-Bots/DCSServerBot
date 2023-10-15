@@ -1,0 +1,87 @@
+Spring:
+  date: '2016-04-21'
+  temperature: 8
+Summer:
+  date: '2016-07-21'
+  temperature: 23
+Autumn:
+  date: '2016-10-21'
+  temperature: 10
+Winter:
+  date: '2016-12-21'
+  temperature: -10
+Nighttime:
+  start_time: 03:00
+Morning:
+  start_time: 08:00
+Noon:
+  start_time: 12:00
+Evening:
+  start_time: 18:00
+Late Evening:
+  start_time: 22:00
+Slight Breeze:
+  clouds: Preset1
+  wind:
+    at8000:
+      speed: 0
+      dir: 105
+    at2000:
+      speed: 0
+      dir: 130
+    atGround:
+      speed: 0
+      dir: 20
+Rainy:
+  clouds: RainyPreset1
+  wind:
+    at8000:
+      speed: 10
+      dir: 105
+    at2000:
+      speed: 5
+      dir: 130
+    atGround:
+      speed: 1
+      dir: 20
+Heavy Storm:
+  clouds: RainyPreset3
+  wind:
+    at8000:
+      speed: 25
+      dir: 305
+    at2000:
+      speed: 5
+      dir: 280
+    atGround:
+      speed: 3
+      dir: 290
+Halo:
+  halo:
+    preset: auto
+Sounds:
+  files:
+  - sounds/alarm.ogg
+  - sounds/beep.ogg
+  - sounds/chirp.ogg
+  - sounds/morse.ogg
+  - sounds/notify.ogg
+  - sounds/page.ogg
+  - sounds/warning.ogg
+My Preset:
+- Winter
+- Nighttime
+- Rainy
+- Sounds
+Modify Test:
+  modify:
+  - for-each: coalition/blue/country/*/ship/group/*
+    where: units/$'{type}' in ['CVN_71','CVN_72','CVN_73','CVN_74','CVN_75']
+    select: route/points/*/task/params/tasks/$'{id}' == 'WrappedAction'/params/action/$'{id}'
+      == 'ActivateBeacon'/params
+    replace:
+      modeChannel: X
+      channel: $'{where[type]}'[-2:]
+      frequency:
+        $'{where[type]}'[-2:] == '72': 1158000000
+        $'{where[type]}'[-2:] == '73': 1160000000

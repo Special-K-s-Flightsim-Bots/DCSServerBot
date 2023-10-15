@@ -26,7 +26,8 @@ package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
 local socket = require("socket")
 UDPSendSocket = socket.udp()
 
-local server_name
+-- this is the DCS server name
+server_name = nil
 
 function sendBotTable(tbl, channel)
 	if server_name == nil then

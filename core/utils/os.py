@@ -1,3 +1,4 @@
+import os
 import aiohttp
 import asyncio
 import ipaddress
@@ -5,8 +6,14 @@ import psutil
 import socket
 from contextlib import closing, suppress
 
-API_URL = 'https://api4.ipify.org/'
-# API_URL = 'https://api4.my-ip.io/ip'
+# API_URL = 'https://api4.ipify.org/'
+API_URL = 'https://api4.my-ip.io/ip'
+
+__all__ = [
+    "is_open",
+    "get_public_ip",
+    "find_process"
+]
 
 
 def is_open(ip, port):
@@ -15,7 +22,7 @@ def is_open(ip, port):
         return s.connect_ex((ip, int(port))) == 0
 
 
-async def get_external_ip():
+async def get_public_ip():
     for i in range(0, 2):
         try:
             async with aiohttp.ClientSession() as session:
@@ -25,11 +32,11 @@ async def get_external_ip():
             await asyncio.sleep(1)
 
 
-def find_process(proc, installation):
-    for p in psutil.process_iter(['name', 'cmdline']):
-        if p.info['name'] == proc:
-            with suppress(Exception):
+def find_process(proc: str, instance: str):
+    for p in psutil.process_iter(['cmdline']):
+        with suppress(Exception):
+            if os.path.basename(p.info['cmdline'][0]).casefold() == proc.casefold():
                 for c in p.info['cmdline']:
-                    if installation in c.replace('\\', '/').split('/'):
+                    if instance in c.replace('\\', '/').split('/'):
                         return p
     return None

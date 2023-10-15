@@ -2,27 +2,24 @@ import os.path
 import shutil
 
 from core import Extension, report
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 
 
 class DSMC(Extension):
-    @property
-    def version(self) -> str:
-        return "1.0.0"
 
     def load_config(self) -> Optional[dict]:
-        def parse(value: str) -> Union[int, str, bool]:
-            if value.startswith('"'):
-                return value[1:-1]
-            elif value == 'true':
+        def parse(_value: str) -> Union[int, str, bool]:
+            if _value.startswith('"'):
+                return _value[1:-1]
+            elif _value == 'true':
                 return True
-            elif value == 'false':
+            elif _value == 'false':
                 return False
             else:
-                return eval(value)
+                return eval(_value)
 
         cfg = dict()
-        dcs_home = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME'])
+        dcs_home = self.server.instance.home
         with open(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua') as infile:
             for line in infile.readlines():
                 line = line.strip()
@@ -42,9 +39,9 @@ class DSMC(Extension):
                            'Check your config and / or update DSMC!')
             return False
         if self.locals.get('DSMC_updateMissionList', True) or self.locals.get('DSMC_AutosaveExit_time', 0):
-            dcs_home = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME'])
-            shutil.copy2(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua',
-                         dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua.bak')
+            dcs_home = self.server.instance.home
+            shutil.copy2(os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua'),
+                         os.path.join(dcs_home, 'DSMC_Dedicated_Server_options.lua.bak'))
             with open(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua.bak') as infile:
                 with open(dcs_home + os.path.sep + 'DSMC_Dedicated_Server_options.lua', 'w') as outfile:
                     for line in infile.readlines():
@@ -58,20 +55,19 @@ class DSMC(Extension):
             self.log.info('  => DSMC configuration changed to be compatible with DCSServerBot.')
         return True
 
-    async def beforeMissionLoad(self) -> bool:
-        filename = self.server.get_current_mission_file()
-        if not filename or not os.path.basename(filename).startswith('DSMC'):
-            return False
+    async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
+        if not os.path.basename(filename).startswith('DSMC'):
+            return filename, False
+        orig = filename
         if not filename[-7:-4].isnumeric():
             filename = filename[:-4] + '_000.miz'
         version = int(filename[-7:-4])
         new_filename = filename[:-7] + f'{version+1:03d}.miz'
         # load the new mission instead, if it exists
         if os.path.exists(new_filename):
-            missions = self.server.settings['missionList']
-            missions[int(self.server.settings['listStartIndex']) - 1] = new_filename
-            self.server.settings['missionList'] = missions
-        return True
+            return new_filename, True
+        else:
+            return orig, False
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
         embed.add_field(name='DSMC', value='enabled')
@@ -79,12 +75,15 @@ class DSMC(Extension):
     def is_installed(self) -> bool:
         if 'enabled' not in self.config or not self.config['enabled']:
             return False
-        dcs_home = os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME'])
-        if not os.path.exists(dcs_home + os.path.sep + 'DSMC') or \
-                not os.path.exists(dcs_home + '/Scripts/Hooks/DSMC_hooks.lua'):
+        dcs_home = self.server.instance.home
+        if not os.path.exists(os.path.join(dcs_home, 'DSMC')) or \
+                not os.path.exists(os.path.join(dcs_home, 'Scripts/Hooks/DSMC_hooks.lua')):
             self.log.error(f'DSMC not installed in this server.')
             return False
         return True
 
-    async def shutdown(self, data: dict) -> bool:
+    async def shutdown(self) -> bool:
+        return True
+
+    def is_running(self) -> bool:
         return True

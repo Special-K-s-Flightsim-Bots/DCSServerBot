@@ -1,7 +1,7 @@
-import psycopg2
 from abc import ABC, abstractmethod
 from contextlib import closing
-from core import DCSServerBot, utils, Pagination, ReportEnv, const
+from core import utils, Pagination, ReportEnv, const
+from services import DCSServerBot
 from typing import Any, Optional
 
 
@@ -104,7 +104,7 @@ class MixedFilter(StatisticsFilter):
             server = bot.servers[server_name]
         else:
             return PeriodFilter.filter(bot, period)
-        _, name = utils.get_running_campaign(server)
+        _, name = utils.get_running_campaign(bot, server)
         if name:
             return CampaignFilter.filter(bot, name, server_name)
         else:
@@ -118,7 +118,7 @@ class MixedFilter(StatisticsFilter):
             server = bot.servers[server_name]
         else:
             return PeriodFilter.format(bot, period)
-        _, name = utils.get_running_campaign(server)
+        _, name = utils.get_running_campaign(bot, server)
         if name:
             return CampaignFilter.format(bot, name, server_name)
         else:
@@ -192,8 +192,7 @@ class StatsPagination(Pagination):
         self.log = env.bot.log
 
     def values(self, period: str, **kwargs) -> list[str]:
-        conn = self.pool.getconn()
-        try:
+        with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
                 if period in [None, 'all', 'day', 'week', 'month', 'year', 'today', 'yesterday']:
                     cursor.execute('SELECT DISTINCT server_name FROM missions')
@@ -201,7 +200,3 @@ class StatsPagination(Pagination):
                     cursor.execute('SELECT DISTINCT s.server_name FROM campaigns c, campaigns_servers s WHERE '
                                    'c.id = s.campaign_id AND c.name ILIKE %s', (period,))
                 return [x[0] for x in cursor.fetchall()]
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)

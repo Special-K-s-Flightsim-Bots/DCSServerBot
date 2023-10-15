@@ -1,24 +1,74 @@
 import discord
 import os
-from core import DCSServerBot, Plugin, Report, ReportEnv
+
+from core import Plugin, Report, ReportEnv, command, Command
+from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button
+from functools import cache
+from services import DCSServerBot
 from typing import cast, Optional
+
 from .listener import HelpListener
 
 
-class HelpAgent(Plugin):
-    pass
+@cache
+async def get_commands(interaction: discord.Interaction) -> dict[str, app_commands.Command]:
+    commands: dict[str, app_commands.Command] = dict()
+    for command in interaction.client.tree.get_commands(guild=interaction.guild):
+        if isinstance(command, app_commands.Group):
+            basename = command.name
+            for inner in command.commands:
+                if await inner._check_can_run(interaction):
+                    commands['/' + basename + ' ' + inner.name] = inner
+        elif await command._check_can_run(interaction):
+            commands['/' + command.name] = command
+    return commands
 
 
-class HelpMaster(HelpAgent):
+async def commands_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    try:
+        return [
+            app_commands.Choice(name=name, value=name)
+            for name, command in sorted((await get_commands(interaction)).items())
+            if not current or current.casefold() in name.casefold()
+        ][:25]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+
+
+async def command_picker(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    try:
+        ctx = await commands.Context.from_interaction(interaction)
+        ret = list()
+        for command in interaction.client.commands:
+            if not command.enabled or command.hidden or (current and current.casefold() not in command.name):
+                continue
+            if not isinstance(command, discord.ext.commands.core.Command):
+                continue
+            if await command.can_run(ctx):
+                ret.append(app_commands.Choice(name=command.name, value=command.name))
+        for command in interaction.client.tree.get_commands():
+            if current and current.casefold() not in command.name:
+                continue
+            if not isinstance(command, discord.ext.commands.hybrid.HybridAppCommand) and \
+                    not isinstance(command, Command):
+                continue
+            if await command._check_can_run(interaction):
+                ret.append(app_commands.Choice(name=command.name, value=command.name))
+        return sorted(ret, key=lambda x: x.name)[:25]
+    except Exception as ex:
+        print(ex)
+
+
+class Help(Plugin):
 
     class HelpView(View):
-        def __init__(self, bot: DCSServerBot, ctx: commands.Context, options: list[discord.SelectOption]):
+        def __init__(self, bot: DCSServerBot, interaction: discord.Interaction, options: list[discord.SelectOption]):
             super().__init__()
             self.bot = bot
-            self.ctx = ctx
-            self.prefix = self.bot.config['BOT']['COMMAND_PREFIX']
+            self.interaction = interaction
+            self.prefix = self.bot.node.config.get('chat_command_prefix', '-')
             self.options = options
             select: Select = cast(Select, self.children[0])
             select.options = options
@@ -31,74 +81,67 @@ class HelpMaster(HelpAgent):
                 self.children[3].disabled = True
                 self.children[4].disabled = True
 
-        async def print_command(self, ctx: commands.Context, *, command: str) -> Optional[discord.Embed]:
-            command = command.lstrip(self.ctx.prefix)
-            cmd = self.bot.all_commands.get(command) or self.bot.tree.get_command(command)
-            if not cmd:
-                return
+        @staticmethod
+        def get_usage(command: discord.app_commands.Command) -> str:
+            return ' '.join([
+                f"<{param.name}>" if param.required else f"[{param.name}]"
+                for param in command.parameters
+            ])
+
+        async def print_command(self, interaction: discord.Interaction, *, name: str) -> Optional[discord.Embed]:
+            _name = name.lstrip('/')
+            parts = _name.split()
+            if len(parts) == 2:
+                group = parts[0]
+                _name = parts[1]
+            else:
+                group = None
+
+            for command in interaction.client.tree.get_commands(guild=interaction.guild):
+                if group and isinstance(command, app_commands.Group) and command.name == group:
+                    for inner in command.commands:
+                        if inner.name == _name:
+                            command = inner
+                            break
+                    else:
+                        return None
+                    break
+                elif not group and isinstance(command, app_commands.Command) and command.name == _name:
+                    break
+            else:
+                return None
+            if not await command._check_can_run(interaction):
+                raise PermissionError()
             help_embed = discord.Embed(color=discord.Color.blue())
-            help_embed.title = f"Command: {cmd.name}"
-            help_embed.description = cmd.description
-            if isinstance(cmd, discord.ext.commands.core.Command):
-                if not cmd.enabled:
-                    return None
-                if not await cmd.can_run(ctx):
-                    raise PermissionError()
-                help_embed.add_field(name='Usage', value=f"{self.prefix}{cmd.name} {cmd.signature}", inline=False)
-                if cmd.usage:
-                    help_embed.set_footer(text='<> mandatory, [] non-mandatory')
-                if cmd.aliases:
-                    help_embed.add_field(name='Aliases', value=','.join([f'{self.prefix}{x}' for x in cmd.aliases]),
-                                         inline=False)
-            elif isinstance(cmd, discord.ext.commands.hybrid.HybridAppCommand) or \
-                    isinstance(cmd, discord.app_commands.commands.Command):
-                if not ctx.interaction:
-                    help_embed.set_footer(text="Can't check permissions, you might not be able to run this command.")
-                    return help_embed
-                if not await cmd._check_can_run(ctx.interaction):
-                    raise PermissionError()
-                usage = ' '.join([f"<{param.name}>" if param.required else f"[{param.name}]" for param in cmd.parameters])
-                help_embed.add_field(name='Usage', value=f"/{cmd.name} {usage}", inline=False)
-                if usage:
-                    help_embed.set_footer(text='<> mandatory, [] non-mandatory')
+            help_embed.title = f"Command: {name}"
+            help_embed.description = command.description
+            usage = self.get_usage(command)
+            help_embed.add_field(name='Usage', value=f"{name} {usage}", inline=False)
+            if usage:
+                help_embed.set_footer(text='<> mandatory, [] non-mandatory')
             return help_embed
 
-        async def print_commands(self, *, plugin: str) -> discord.Embed:
-            commands = [x for x in self.bot.commands if x.module == plugin and x.enabled]
+        async def print_commands(self, interaction: discord.Interaction, *, plugin: str) -> discord.Embed:
             title = f'{self.bot.user.display_name} Help'
             help_embed = discord.Embed(title=title, color=discord.Color.blue())
-            if plugin != '__main__':
-                help_embed.description = '**Plugin: ' + plugin.split('.')[1].title() + '**\n'
-            else:
-                help_embed.description = '**Core Commands**\n'
+            help_embed.description = '**Plugin: ' + plugin.split('.')[1].title() + '**\n'
             cmds = []
             descriptions = []
-            for command in commands:
-                if command.hidden:
-                    continue
-                predicates = command.checks
-                if not predicates:
-                    check = True
-                else:
-                    check = await discord.utils.async_all(predicate(self.ctx) for predicate in predicates)
-                if not check:
-                    continue
-                cmd = f"{self.prefix}{command.name}"
-                if command.usage is not None:
-                    cmd += ' ' + command.usage
-                cmds.append(cmd)
-                descriptions.append(f'{command.brief if command.brief else command.description}')
+            for name, command in (await get_commands(interaction)).items():
+                if command.module == plugin:
+                    cmds.append(name + ' ' + self.get_usage(command))
+                    descriptions.append(command.description)
             if cmds:
                 help_embed.add_field(name='Command', value='\n'.join(cmds))
                 help_embed.add_field(name='Description', value='\n'.join(descriptions))
                 help_embed.add_field(name='_ _', value='_ _')
             else:
                 help_embed.add_field(name='There are no commands for your role in this plugin.', value='_ _')
-            help_embed.set_footer(text='Use .help [command] if you want help for a specific command.')
+            help_embed.set_footer(text='Use /help [command] if you want help for a specific command.')
             return help_embed
 
         async def paginate(self, plugin: str, interaction: discord.Interaction):
-            embed = await self.print_commands(plugin=plugin)
+            embed = await self.print_commands(interaction, plugin=plugin)
             if self.index == 0:
                 self.children[1].disabled = True
                 self.children[2].disabled = True
@@ -146,33 +189,26 @@ class HelpMaster(HelpAgent):
             await interaction.response.defer()
             self.stop()
 
-        async def interaction_check(self, interaction: discord.Interaction, /) -> bool:
-            if interaction.user != self.ctx.author:
-                await interaction.response.send_message('This is not your command, mate!', ephemeral=True)
-                return False
-            else:
-                return True
-
-    @commands.command(name='help', description='The help command')
-    @commands.guild_only()
-    async def help(self, ctx, command: Optional[str]):
+    @command(description='The help command')
+    @app_commands.guild_only()
+    @app_commands.autocomplete(command=commands_autocomplete)
+    async def help(self, interaction: discord.Interaction, command: Optional[str]):
         options = [
             discord.SelectOption(label=x.title(), value=f'plugins.{x}.commands')
             for x in sorted(self.bot.plugins)
             if x != 'help'
         ]
-        options.insert(0, discord.SelectOption(label='Core', value='__main__'))
-        view = self.HelpView(self.bot, ctx, options)
-        msg = None
+        view = self.HelpView(self.bot, interaction, options)
         if command:
             try:
-                embed = await view.print_command(ctx, command=command)
+                embed = await view.print_command(interaction, name=command)
                 if embed:
-                    await ctx.send(embed=embed)
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
                 else:
-                    await ctx.send(f'Command {command} not found.')
+                    await interaction.response.send_message(f'Command {command} not found.', ephemeral=True)
             except PermissionError:
-                await ctx.send("You don't have the permission to use this command.")
+                await interaction.response.send_message("You don't have the permission to use this command.",
+                                                        ephemeral=True)
         else:
             try:
                 # shall we display a custom report as greeting page?
@@ -189,26 +225,23 @@ class HelpMaster(HelpAgent):
                                                          ])
                     embed = env.embed
                     if env.filename:
-                        msg = await ctx.send(embed=embed, view=view,
-                                             file=discord.File(env.filename, filename=os.path.basename(env.filename)) if env.filename else None)
+                        await interaction.response.send_message(
+                            embed=embed, view=view,
+                            file=discord.File(env.filename,
+                                              filename=os.path.basename(env.filename)) if env.filename else None,
+                            ephemeral=True)
                     else:
-                        msg = await ctx.send(embed=embed, view=view)
+                        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                 else:
-                    embed = await view.print_commands(plugin='__main__')
-                    msg = await ctx.send(embed=embed, view=view)
+                    embed = await view.print_commands(interaction, plugin='plugins.help.commands')
+                    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                 if await view.wait() or not view.result:
                     return
             except Exception as ex:
                 self.log.exception(ex)
             finally:
-                await ctx.message.delete()
-                if msg:
-                    await msg.delete()
+                await interaction.delete_original_response()
 
 
 async def setup(bot: DCSServerBot):
-    # help is only available on the master
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(HelpMaster(bot, HelpListener))
-    else:
-        await bot.add_cog(HelpAgent(bot, HelpListener))
+    await bot.add_cog(Help(bot, HelpListener))

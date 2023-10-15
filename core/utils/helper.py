@@ -1,4 +1,5 @@
 from __future__ import annotations
+import builtins
 import importlib
 import json
 import luadata
@@ -7,12 +8,34 @@ import psycopg2
 import re
 import string
 import unicodedata
-from contextlib import closing
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
 
+# ruamel YAML support
+from ruamel.yaml import YAML
+yaml = YAML()
+
 if TYPE_CHECKING:
-    from core import Server
+    from core import ServerProxy, DataObject
+
+__all__ = [
+    "is_in_timeframe",
+    "is_match_daystate",
+    "str_to_class",
+    "format_string",
+    "convert_time",
+    "format_time",
+    "format_period",
+    "slugify",
+    "alternate_parse_settings",
+    "get_all_servers",
+    "get_all_players",
+    "is_ucid",
+    "SettingsDict",
+    "RemoteSettingsDict",
+    "evaluate",
+    "for_each"
+]
 
 
 def is_in_timeframe(time: datetime, timeframe: str) -> bool:
@@ -38,10 +61,15 @@ def is_match_daystate(time: datetime, daystate: str) -> bool:
     return state.upper() == 'Y'
 
 
-def str_to_class(name):
+def str_to_class(name: str):
     try:
-        module_name, class_name = name.rsplit('.', 1)
-        return getattr(importlib.import_module(module_name), class_name)
+        if '.' in name:
+            module_name, class_name = name.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+        else:
+            class_name = name
+            module = builtins
+        return getattr(module, class_name)
     except AttributeError:
         return None
 
@@ -59,6 +87,8 @@ def format_string(string_: str, default_: Optional[str] = None, **kwargs) -> str
                 value = '\n'.join(value)
             elif isinstance(value, dict):
                 value = json.dumps(value)
+            elif isinstance(value, bool):
+                value = str(value).lower()
             return super().format_field(value, spec)
     try:
         string_ = NoneFormatter().format(string_, **kwargs)
@@ -182,50 +212,23 @@ def alternate_parse_settings(path: str):
 
 
 def get_all_servers(self) -> list[str]:
-    conn = self.pool.getconn()
-    try:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute(f"SELECT server_name FROM servers WHERE last_seen > (DATE(NOW()) - interval '1 week')")
-            return [row[0] for row in cursor.fetchall()]
-    except (Exception, psycopg2.DatabaseError) as error:
-        self.log.exception(error)
-    finally:
-        self.pool.putconn(conn)
+    with self.pool.connection() as conn:
+        return [
+            row[0] for row in conn.execute(
+                "SELECT server_name FROM instances WHERE last_seen > (DATE(NOW()) - interval '1 week')"
+            ).fetchall()
+        ]
 
 
-def get_all_players(self, **kwargs) -> list[Tuple[str, str]]:
-    name = kwargs.get('name')
-    ucid = kwargs.get('ucid')
-    sql = "SELECT ucid, name FROM players"
-    if name:
-        sql += ' WHERE name ILIKE %s'
-        name = f'%{name}%'
-    elif ucid:
-        sql += ' WHERE ucid ILIKE %s'
-        ucid = f'%{ucid}%'
-    sql += ' ORDER BY 2 LIMIT 25'
-
-    conn = self.pool.getconn()
-    try:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute(sql, (name or ucid, ))
-            return [(row[0], row[1]) for row in cursor.fetchall()]
-    except (Exception, psycopg2.DatabaseError) as error:
-        self.log.exception(error)
-    finally:
-        self.pool.putconn(conn)
-
-
-def is_banned(self, ucid: str):
-    conn = self.pool.getconn()
-    try:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute(f"SELECT COUNT(*) FROM bans WHERE ucid = %s AND banned_until >= NOW()", (ucid,))
-            return cursor.fetchone()[0] > 0
-    except (Exception, psycopg2.DatabaseError) as error:
-        self.log.exception(error)
-    finally:
-        self.pool.putconn(conn)
+def get_all_players(self, linked: Optional[bool] = None) -> list[Tuple[str, str]]:
+    sql = "SELECT ucid, name FROM players WHERE length(ucid) = 32"
+    if linked is not None:
+        if linked:
+            sql += ' AND discord_id != -1'
+        else:
+            sql += ' AND discord_id = -1'
+    with self.pool.connection() as conn:
+        return [(row[0], row[1]) for row in conn.execute(sql).fetchall()]
 
 
 def is_ucid(ucid: str) -> bool:
@@ -233,14 +236,12 @@ def is_ucid(ucid: str) -> bool:
 
 
 class SettingsDict(dict):
-    def __init__(self, server: Server, path: str, root: Optional[str] = None):
+    def __init__(self, obj: DataObject, path: str, root: str):
         super().__init__()
         self.path = path
         self.root = root
         self.mtime = 0
-        self.server = server
-        self.bot = server.bot
-        self.log = server.log
+        self.log = obj.log
         self.read_file()
 
     def read_file(self):
@@ -254,9 +255,9 @@ class SettingsDict(dict):
                 if not data:
                     self.log.error("- Error while parsing {}!".format(os.path.basename(self.path)))
                     raise ex
-        elif self.path.lower().endswith('.json'):
+        elif self.path.lower().endswith('.yaml'):
             with open(self.path, encoding='utf-8') as file:
-                data = json.load(file)
+                data = yaml.load(file)
         if data:
             self.clear()
             self.update(data)
@@ -265,10 +266,13 @@ class SettingsDict(dict):
         if self.path.lower().endswith('.lua'):
             with open(self.path, 'wb') as outfile:
                 self.mtime = os.path.getmtime(self.path)
-                outfile.write((f"{self.root} = " + luadata.serialize(self, indent='\t', indent_level=0)).encode('utf-8'))
+                outfile.write((f"{self.root} = " + luadata.serialize(self, indent='\t',
+                                                                     indent_level=0)).encode('utf-8'))
         elif self.path.lower().endswith('.json'):
             with open(self.path, "w", encoding='utf-8') as outfile:
-                json.dump(self, outfile)
+                self.mtime = os.path.getmtime(self.path)
+                yaml.dump(self, outfile)
+        self.mtime = os.path.getmtime(self.path)
 
     def __setitem__(self, key, value):
         if self.mtime < os.path.getmtime(self.path):
@@ -285,6 +289,27 @@ class SettingsDict(dict):
             self.log.debug(f'{self.path} changed, re-reading from disk.')
             self.read_file()
         return super().__getitem__(item)
+
+
+class RemoteSettingsDict(dict):
+    def __init__(self, server: ServerProxy, obj: str, data: Optional[dict] = None):
+        self.server = server
+        self.obj = obj
+        if data:
+            super().__init__(data)
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        msg = {
+            "command": "rpc",
+            "object": "Server",
+            "method": "_settings.__setitem__",
+            "params": {
+                "key": key,
+                "value": value
+            }
+        }
+        self.server.send_to_dcs(msg)
 
 
 def evaluate(value: Union[str, int, bool], **kwargs) -> Union[str, int, bool]:

@@ -1,6 +1,4 @@
 import discord
-import psycopg2
-from contextlib import closing
 from core import EventListener, Server, Status, utils, event, chat_command, Player
 from typing import cast
 from .player import CreditPlayer
@@ -11,7 +9,7 @@ class CreditSystemListener(EventListener):
     def load_params_into_mission(self, server: Server):
         config = self.plugin.get_config(server, use_cache=False)
         if config:
-            server.sendtoDCS({
+            server.send_to_dcs({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,
                 'params': config
@@ -70,7 +68,7 @@ class CreditSystemListener(EventListener):
             player.points = self.get_initial_points(player, config)
             player.audit('init', player.points, 'Initial points received')
         else:
-            server.sendtoDCS({
+            server.send_to_dcs({
                 'command': 'updateUserPoints',
                 'ucid': player.ucid,
                 'points': player.points
@@ -88,19 +86,14 @@ class CreditSystemListener(EventListener):
                 player.audit('mission', old_points, 'Unknown mission achievement')
 
     def get_flighttime(self, ucid: str, campaign_id: int) -> int:
-        sql = 'SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime ' \
-              'FROM statistics s, missions m, campaigns c, campaigns_servers cs ' \
-              'WHERE s.player_ucid = %s AND c.id = %s AND s.mission_id = m.id AND cs.campaign_id = c.id ' \
-              'AND m.server_name = cs.server_name AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)'
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
-                cursor.execute(sql, (ucid, campaign_id))
-                return cursor.fetchone()[0]
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            return int(conn.execute("""
+                SELECT COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))), 0) AS playtime 
+                FROM statistics s, missions m, campaigns c, campaigns_servers cs 
+                WHERE s.player_ucid = %s AND c.id = %s AND s.mission_id = m.id AND cs.campaign_id = c.id 
+                AND m.server_name = cs.server_name 
+                AND tsrange(s.hop_on, s.hop_off) && tsrange(c.start, c.stop)
+            """, (ucid, campaign_id)).fetchone()[0])
 
     async def process_achievements(self, server: Server, player: CreditPlayer):
         # only members can achieve roles
@@ -111,7 +104,7 @@ class CreditSystemListener(EventListener):
         if 'achievements' not in config:
             return
 
-        campaign_id, _ = utils.get_running_campaign(server)
+        campaign_id, _ = utils.get_running_campaign(self.bot, server)
         playtime = self.get_flighttime(player.ucid, campaign_id) / 3600.0
         sorted_achievements = sorted(config['achievements'], key=lambda x: x['credits'], reverse=True)
         role = None
@@ -181,7 +174,7 @@ class CreditSystemListener(EventListener):
     @chat_command(name="donate", help="donate points to another player")
     async def donate(self, server: Server, player: Player, params: list[str]):
         if len(params) < 2:
-            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}donate player points")
+            player.sendChatMessage(f"Usage: {self.prefix}donate player points")
             return
         name = ' '.join(params[:-1])
         try:
@@ -218,7 +211,7 @@ class CreditSystemListener(EventListener):
         player: CreditPlayer = cast(CreditPlayer, player)
 
         if not params:
-            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points [gci_number]")
+            player.sendChatMessage(f"Usage: {self.prefix}tip points [gci_number]")
             return
 
         donation = int(params[0])
@@ -239,7 +232,7 @@ class CreditSystemListener(EventListener):
 
         if gci_index not in range(0, len(active_gci)):
             player.sendChatMessage(
-                f"Multiple GCIs found, use \"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}tip points GCI-number\".")
+                f"Multiple GCIs found, use \"{self.prefix}tip points GCI-number\".")
             for i, gci in enumerate(active_gci):
                 player.sendChatMessage(f"{i + 1}) {gci.name}")
             return

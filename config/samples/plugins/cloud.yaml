@@ -1,0 +1,15 @@
+###############################################################
+# Configuration for the Cloud-plugin.                         #
+###############################################################
+# You configure the connection to the DGSA global ban service #
+# in here and your TOKEN to participate with the cloud        #
+# statistics system.                                          #
+################################################################
+DEFAULT:
+  dcs-ban: false                        # true: subscribe to the global ban service for DCS users.
+  discord-ban: false                    # true: subscrive to the global ban service for Discord users.
+  host: dcsserverbot-prod.herokuapp.com # Don't change that until told otherwise.
+  port: 443                             # Don't change that until told otherwise.
+  protocol: https                       # Don't change that until told otherwise.
+  register: true                        # True, participate with Special K's server statistics (please do that!)
+#  token: xxxyyyzzz111222333444         # If you got a TOKEN to participate in the cloud statistics, then put it in here.

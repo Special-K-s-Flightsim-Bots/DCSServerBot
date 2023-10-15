@@ -1,5 +1,20 @@
 import os
-import winreg
+import sys
+if sys.platform == 'win32':
+    import winreg
+
+__all__ = [
+    "METER_IN_FEET",
+    "METER_PER_SECOND_IN_KNOTS",
+    "MMHG_IN_INHG",
+    "MMHG_IN_HPA",
+    "QFE_TO_QNH_INHG",
+    "QFE_TO_QNH_MB",
+    "WEEKDAYS",
+    "MONTH",
+    "SAVED_GAMES",
+    "DEFAULT_TAG"
+]
 
 METER_IN_FEET = 3.28084
 METER_PER_SECOND_IN_KNOTS = 1.94384
@@ -34,10 +49,12 @@ MONTH = {
     12: 'December'
 }
 
-SAVED_GAMES = os.path.expandvars('%USERPROFILE%\\Saved Games')
-if not os.path.exists(SAVED_GAMES):
+SAVED_GAMES = os.path.expandvars(os.path.join('%USERPROFILE%', 'Saved Games'))
+if not os.path.exists(SAVED_GAMES) and sys.platform == 'win32':
     SAVED_GAMES = winreg.QueryValueEx(
         winreg.OpenKey(winreg.HKEY_CURRENT_USER,
                        r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders", 0),
         '{4C5C32FF-BB9D-43b0-B5B4-2D72E54EAAA4}'
     )[0]
+
+DEFAULT_TAG = 'DEFAULT'

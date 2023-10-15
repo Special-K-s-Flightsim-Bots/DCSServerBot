@@ -1,8 +1,5 @@
 import re
-from contextlib import closing
-
 import discord
-import psycopg2
 
 from core import EventListener, Plugin, Server, Side, Status, utils, event
 from typing import Union, cast
@@ -16,7 +13,7 @@ class SlotBlockingListener(EventListener):
     def load_params_into_mission(self, server: Server):
         config: dict = self.plugin.get_config(server, use_cache=False)
         if config:
-            server.sendtoDCS({
+            server.send_to_dcs({
                 'command': 'loadParams',
                 'plugin': self.plugin_name,
                 'params': config
@@ -29,26 +26,19 @@ class SlotBlockingListener(EventListener):
             if not roles:
                 return
             # get all linked members
-            conn = self.pool.getconn()
-            try:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT ucid, discord_id FROM players WHERE discord_id != -1')
-                    for row in cursor.fetchall():
-                        member = guild.get_member(row[1])
-                        if not member:
-                            continue
-                        for role in member.roles:
-                            if role in roles:
-                                server.sendtoDCS({
-                                    'command': 'uploadUserRoles',
-                                    'ucid': row[0],
-                                    'roles': [x.name for x in member.roles]
-                                })
-                                break
-            except (Exception, psycopg2.DatabaseError) as error:
-                self.log.exception(error)
-            finally:
-                self.pool.putconn(conn)
+            with self.pool.connection() as conn:
+                for row in conn.execute('SELECT ucid, discord_id FROM players WHERE discord_id != -1').fetchall():
+                    member = guild.get_member(row[1])
+                    if not member:
+                        continue
+                    for role in member.roles:
+                        if role in roles:
+                            server.send_to_dcs({
+                                'command': 'uploadUserRoles',
+                                'ucid': row[0],
+                                'roles': [x.name for x in member.roles]
+                            })
+                            break
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
@@ -125,7 +115,7 @@ class SlotBlockingListener(EventListener):
                 player.audit('buy', old_points, 'Points taken for using a reserved module')
                 player.deposit = 0
             # if mission statistics are enabled, use BIRTH events instead
-            if player and not self.bot.config.getboolean(server.installation, 'MISSION_STATISTICS') and \
+            if player and not self.get_config(server, plugin_name='missionstats').get('enabled', True) and \
                     Side(data['side']) != Side.SPECTATOR:
                 # only pilots have to "pay" for their plane
                 if int(data['sub_slot']) == 0:

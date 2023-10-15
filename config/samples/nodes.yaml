@@ -1,0 +1,28 @@
+NODENAME:                       # this will be your hostname
+  listen_address: 0.0.0.0       # On which interface should the bot listen to? Default is 0.0.0.0
+  listen_port: 10042            # On which port should the bot listen to? Default is 10042
+  autoupdate: true              # use the bots autoupdate functionality, default is false
+  slow_system: false            # if you are using a slower PC to run your servers, you should set this to true (default: false)
+  preferred_master: true        # this node should be the preferred master node (only needed in a cluster configuration)
+  DCS:
+    installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World OpenBeta Server'  # This is your DCS installation. Usually autodetected by the bot.
+    autoupdate: false           # enable auto-update for your DCS servers. Default is false.
+    desanitize: true            # Desanitize your MissionScripting.lua after each update. Default is true.
+  instances:
+    DCS.openbeta_server:        # The name of your instance. You can have multiple instances that have to have unique names.
+      home: '%USERPROFILE%\\Saved Games\\DCS.openbeta_server' # The path to your saved games directory.
+      bot_port: 6666            # The port DCSServerBot uses to communicate with your DCS server. Each instance has to have a unique port. This is NOT your DCS port (10308)!!!
+      max_hung_minutes: 3       # Let DCSServerBot kill your server if it is unresponsive for more than x minutes. Default is 3. Disable it with 0.
+      server: My Fancy Server   # The server (name) that is associated to this instance. See servers.yaml
+      affinity: 2,3             # Optional: set the CPU-affinity for this instance.
+      extensions:               # See the extension documentation for more detailed information on what to set here.
+        SRS:
+          config: '%USERPROFILE%\Saved Games\DCS.openbeta_server\Config\SRS.cfg'  # it is recommended to copy your SRS "server.cfg" below your instances home directory.
+          host: 127.0.0.1       # SRS servers local IP (default is 127.0.0.1)
+          port: 5002            # SRS servers local port (default is 5002). The bot will change this in your SRS configuration, if set here!
+          autostart: true       # this will autostart your DCS server with the DCS server start (default: true)
+          autoupdate: true      # This will auto-update your SRS servers. Default is false, you need to run the bot as Administrator to make it work!
+        Tacview:
+          show_passwords: false # If you don't want to show the Tacview passwords (default: true)
+#    instance2:                 # you can have an unlimited amount of instance configurations, but each instance has to have a physical representation on your disk.
+#      ...

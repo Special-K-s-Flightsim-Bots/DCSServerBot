@@ -1,10 +1,8 @@
 import os
-import psycopg2
 import re
 import string
 import sys
 import uuid
-from contextlib import closing
 from core import EventListener, Server, Player, Channel, Side, Plugin, PersistentReport, event
 from matplotlib import pyplot as plt
 from pathlib import Path
@@ -30,34 +28,32 @@ class GreenieBoardEventListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        config = self.locals['configs'][0]
+        config = self.get_config()
         if 'FunkMan' in config:
             sys.path.append(config['FunkMan']['install'])
             from funkman.funkplot.funkplot import FunkPlot
             self.funkplot = FunkPlot(ImagePath=config['FunkMan']['IMAGEPATH'])
 
     async def update_greenieboard(self, server: Server):
-        # shall we render the server specific board?
+        # update the server specific board
         config = self.plugin.get_config(server)
         if 'persistent_channel' in config and config.get('persistent_board', True):
             channel_id = int(config['persistent_channel'])
-            num_rows = config['num_rows'] if 'num_rows' in config else 10
+            num_rows = config.get('num_rows', 10)
             report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
-                                      server, f'greenieboard-{server.name}', channel_id=channel_id)
+                                      embed_name='greenieboard', server=server, channel_id=channel_id)
             await report.render(server_name=server.name, num_rows=num_rows)
-        # shall we render the global board?
-        config = self.locals['configs'][0]
+        # update the global board
+        config = self.get_config()
         if 'persistent_channel' in config and config.get('persistent_board', True):
-            server = list(self.bot.servers.values())[0]
-            channel_id = int(config['persistent_channel'])
-            num_rows = config['num_rows'] if 'num_rows' in config else 10
-            report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json',
-                                      server, f'greenieboard', channel_id=channel_id)
+            num_rows = config.get('num_rows', 10)
+            report = PersistentReport(self.bot, self.plugin_name, 'greenieboard.json', embed_name='greenieboard',
+                                      channel_id=int(config['persistent_channel']))
             await report.render(server_name=None, num_rows=num_rows)
 
     async def send_chat_message(self, player: Player, data: dict):
         server: Server = self.bot.servers[data['server_name']]
-        events_channel = server.get_channel(Channel.EVENTS)
+        events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
         if events_channel is not None:
             carrier = data['place']['name']
             if 'WO' in data['grade']:
@@ -86,27 +82,22 @@ class GreenieBoardEventListener(EventListener):
     def process_lso_event(self, config: dict, server: Server, player: Player, data: dict):
         time = (int(server.current_mission.start_time) + int(data['time'])) % 86400
         night = time > 20 * 3600 or time < 6 * 3600
-        points = data['points'] if 'points' in data else config['ratings'][data['grade']]
-        if 'credits' in config and config['credits']:
+        points = data.get('points', config['ratings'][data['grade']])
+        if config.get('credits', False):
             cp: CreditPlayer = cast(CreditPlayer, player)
             cp.audit('Landing', cp.points, f"Landing on {data['place']} with grade {data['grade']}.")
             cp.points += points
-        case = data['case'] if 'case' in data else 1 if not night else 3
-        wire = data['wire'] if 'wire' in data else None
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, "
-                               "trapcase, wire, night, points, trapsheet) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                               (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(),
-                                data['details'], data['place']['name'], case, wire, night, points,
-                                data['trapsheet'] if 'trapsheet' in data else None))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            conn.rollback()
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
+        case = data.get('case', 1 if not night else 3)
+        wire = data.get('wire')
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    INSERT INTO greenieboard (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, 
+                                              wire, night, points, trapsheet) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(), data['details'],
+                      data['place']['name'], case, wire, night, points,
+                      data.get('trapsheet')))
 
     @staticmethod
     def normalize_airboss_lso_rating(grade: str) -> Optional[str]:
@@ -119,8 +110,7 @@ class GreenieBoardEventListener(EventListener):
         return grade
 
     def get_trapsheet(self, config: dict, server: Server, player: Player, data: dict) -> Optional[str]:
-        dirname = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME'] + os.path.sep +
-                                     config['Moose.AIRBOSS']['basedir'])
+        dirname = os.path.join(server.instance.home, config['Moose.AIRBOSS']['basedir'])
         carrier = data['place']['name'].split()[0]
         if 'trapsheet' not in data:
             name = re.sub(f"[{string.punctuation}]", "", player.name).strip()
@@ -138,7 +128,8 @@ class GreenieBoardEventListener(EventListener):
 
     def process_airboss_event(self, config: dict, server: Server, player: Player, data: dict):
         data['grade'] = self.normalize_airboss_lso_rating(data['grade'])
-        data['trapsheet'] = self.get_trapsheet(config, server, player, data)
+        if not data['grade'].startswith("WO"):
+            data['trapsheet'] = self.get_trapsheet(config, server, player, data)
         self.process_lso_event(config, server, player, data)
 
     def process_sc_event(self, config: dict, server: Server, player: Player, data: dict):
@@ -148,9 +139,12 @@ class GreenieBoardEventListener(EventListener):
         self.process_lso_event(config, server, player, data)
 
     def process_funkman_event(self, config: dict, server: Server, player: Player, data: dict):
+        if 'FunkMan' not in config:
+            self.log.warning("Can't process FunkMan event as FunkMan is not configured in your greenieboard.json!")
+            return
         if data['grade'] != 'WO':
-            filepath = os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + \
-                       os.path.sep + (config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')
+            filepath = os.path.join(server.instance.home,
+                                    config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')
             if not os.path.exists(filepath):
                 os.mkdir(filepath)
             try:
@@ -182,6 +176,10 @@ class GreenieBoardEventListener(EventListener):
         if player:
             update = False
             if 'Moose.AIRBOSS' in config:
+                if server.is_remote:
+                    self.log.warning('Moose.AIRBOSS is not supported on remote servers. '
+                                     'Please use the Funkman protocol instead.')
+                    return
                 if data['eventName'] == 'S_EVENT_AIRBOSS':
                     self.process_airboss_event(config, server, player, data)
                     update = True

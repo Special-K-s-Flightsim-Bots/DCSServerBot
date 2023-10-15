@@ -8,25 +8,46 @@ Existing missions will be replaced (with security question) and if the server is
 restarted (another security question will apply). Newly added missions will be auto-added to the mission list.
 
 ## Auto-Scanning
-If you set _AUTOSCAN = true_ n your BOT section of dcsserverbot.ini, all miz files that were added into the Missions
-folder of your DCS-server (for instance via a Google Drive) will be auto-added to your mission list.
+If you set `autoscan: true` in your server configuration of your servers.yaml, all miz files that were added into the 
+Missions folder of your DCS-server (for instance via a Google Drive) will be auto-added to your mission list.
 
 ## Discord Commands
 
-| Command          | Parameter                | Channel                     | Role                  | Description                                                                                                              |
-|------------------|--------------------------|-----------------------------|-----------------------|--------------------------------------------------------------------------------------------------------------------------|
-| .servers         |                          | all                         | DCS                   | Lists all registered DCS servers and their status (same as .mission but for all). Servers will auto-register on startup. |
-| .mission         |                          | status-/admin-channel       | DCS Admin             | Information about the active mission. Persistent display in status-channel.                                              |
-| .players         |                          | status-/chat-/admin-channel | DCS                   | Lists the players currently active on the server. Persistent display in status-channel.                                  |
-| .afk             | [minutes]                | all                         | DCS Admin             | Lists players that sit on Spectators since more than [minutes] (default 10 mins).                                        |
-| .list / .load    |                          | admin-channel               | DCS Admin             | Select a mission to start / restart.                                                                                     |
-| .add             | [miz-file]               | admin-channel               | DCS Admin             | Select a mission from the file system to be added to the mission list.                                                   |
-| .delete / .del   |                          | admin-channel               | DCS Admin             | Delete a mission from the mission list and optional from the file system.                                                |
-| .restart         | [time in secs] [message] | admin-channel               | DCS Admin             | Restarts the current mission after [time] seconds. A message will be sent as a popup to that server.                     |
-| .pause           |                          | admin-channel               | DCS Admin, GameMaster | Pauses the current running mission.                                                                                      |
-| .unpause         |                          | admin-channel               | DCS Admin, GameMaster | Resumes the current running mission.                                                                                     |
-| .briefing/.brief |                          | all                         | DCS                   | Shows the description / briefing of the running mission.                                                                 |
-| .atis / .weather | Airport Name             | all                         | DCS                   | Information about a specific airport in this mission (incl. weather).                                                    |
+| Command              | Parameter           | Channel               | Role                  | Description                                                                                                                          |
+|----------------------|---------------------|-----------------------|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| /mission info        |                     | status-/admin-channel | DCS                   | Information about the active mission. Persistent display in status-channel.                                                          |
+| /mission manage      |                     | admin-channel         | DCS Admin             | Start/stop/load mission in a nice Discord view.                                                                                      |
+| /mission load        |                     | admin-channel         | DCS Admin             | Select a mission to start / restart.                                                                                                 |
+| /mission add         | mission [autostart] | admin-channel         | DCS Admin             | Select a mission from the file system to be added to the mission list. Autostart puts it on the loadindex position (default: false). |
+| /mission delete      | mission             | admin-channel         | DCS Admin             | Delete a mission from the mission list and optional from the file system.                                                            |
+| /mission restart     | [delay] [reason]    | admin-channel         | DCS Admin             | Restarts the current mission after [delay] seconds (default: 120). A message will be sent as a popup to that server.                 |
+| /mission pause       |                     | admin-channel         | DCS Admin, GameMaster | Pauses the current running mission.                                                                                                  |
+| /mission unpause     |                     | admin-channel         | DCS Admin, GameMaster | Resumes the current running mission.                                                                                                 |
+| /mission briefing    |                     | all                   | DCS                   | Shows the description / briefing of the running mission.                                                                             |
+| /mission atis        | airport             | all                   | DCS                   | Information about a specific airport in this mission (incl. weather).                                                                |
+| /mission modify      |                     | admin-channel         | DCS Admin             | Modify the mission with a specific [preset](../../extensions/MizEdit.md).                                                            |
+| /mission save_preset | name                | admin-channel         | DCS Admin             | Save the current missions weather as a new preset.                                                                                   |
+| /player list         |                     | all                   | DCS                   | Lists the players currently active on the server. Persistent display in status-channel.                                              |
+| /player spec         | player [reason]     | admin-channel         | DCS Admin             | Moves the respective player to a spectator slot.                                                                                     |
+| /player kick         | player [reason]     | admin-channel         | DCS Admin             | Kicks the respective player from the DCS server.                                                                                     |
+| /player ban          | player              | admin-channel         | DCS Admin             | (Optional: temporarily) bans the respective player from all DCS servers.                                                             |
+| /player afk          | [minutes]           | all                   | DCS Admin             | Lists players that sit on Spectators since more than [minutes] (default 10 mins).                                                    |
+| /player chat         | player message      | admin-channel         | DCS Admin, GameMaster | Sends a in-game chat message to the respective player.                                                                               |
+| /player popup        | player message      | admin-channel         | DCS Admin, GameMaster | Sends a popup message to the respective player.                                                                                      |
+
+## In-Game Chat Commands
+
+| Command  | Parameter     | Role      | Description                                                      |
+|----------|---------------|-----------|------------------------------------------------------------------|
+| .911     | message       | all       | Send a message to the DCS Admin role.                            |
+| .atis    | airport       | all       | Shows the respective airports ATIS information.                  |
+| .restart | time          | DCS Admin | Restarts the current mission after [time] seconds.               |
+| .list    |               | DCS Admin | Lists missions available to .load                                |
+| .load    | num           | DCS Admin | Loads the mission number `num` from the mission `.list`          |
+| .ban     | name [reason] | DCS Admin | Ban player `name` with reason [reason] from **all** DCS servers. |
+| .kick    | name [reason] | DCS Admin | Kicks player `name` with reason [reason].                        |
+| .spec    | name [reason] | DCS Admin | Moves player `name` back to spectators.                          |
+| .preset  | [preset id]   | DCS Admin | List or loads the respective preset.                             |
 
 ## Tables
 ### Players

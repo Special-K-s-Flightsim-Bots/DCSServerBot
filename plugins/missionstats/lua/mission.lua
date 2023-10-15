@@ -1,5 +1,5 @@
-local base		= _G
-dcsbot 			= base.dcsbot
+local base	= _G
+dcsbot 		= base.dcsbot
 
 local GROUP_CATEGORY = {
 	[Group.Category.AIRPLANE] = 'Airplanes',
@@ -158,16 +158,25 @@ function onEvent(event)
 			if category == Object.Category.UNIT then
 				msg.target.type = 'UNIT'
 				msg.target.unit = event.target
-				if msg.target.unit then
+				msg.target.unit_name = msg.target.unit:getName()
+				msg.target.group = msg.target.unit:getGroup()
+				if msg.target.group and msg.target.group:isExist() then
+					msg.target.group_name = msg.target.group:getName()
+				end
+				msg.target.name = msg.target.unit:getPlayerName()
+				msg.target.coalition = msg.target.unit:getCoalition()
+				msg.target.unit_type = msg.target.unit:getTypeName()
+				msg.target.category = msg.target.unit:getDesc().category
+			elseif category == Object.Category.STATIC then
+				msg.target.type = 'STATIC'
+				msg.target.unit = event.target
+				if msg.target.unit:isExist() then
 					msg.target.unit_name = msg.target.unit:getName()
-					msg.target.group = msg.target.unit:getGroup()
-					if msg.target.group and msg.target.group:isExist() then
-						msg.target.group_name = msg.target.group:getName()
+					if msg.target.unit_name ~= nil and msg.target.unit_name ~= '' then
+						msg.target.coalition = msg.target.unit:getCoalition()
+						msg.target.unit_type = msg.target.unit:getTypeName()
+						msg.target.category = msg.target.unit:getDesc().category
 					end
-					msg.target.name = msg.target.unit:getPlayerName()
-					msg.target.coalition = msg.target.unit:getCoalition()
-					msg.target.unit_type = msg.target.unit:getTypeName()
-					msg.target.category = msg.target.unit:getDesc().category
 				end
 			elseif category == Object.Category.STATIC then
 				msg.target.type = 'STATIC'

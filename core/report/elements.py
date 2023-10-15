@@ -1,31 +1,53 @@
 from __future__ import annotations
-import concurrent
 import discord
 import inspect
 import numpy as np
 import os
-import psycopg2
 import sys
 import uuid
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from core import utils
-from core.report.env import ReportEnv
-from core.report.errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
-from core.report.utils import parse_params
 from datetime import timedelta
 from discord import ButtonStyle, Interaction
 from matplotlib import pyplot as plt
-from typing import Optional, List, Any, TYPE_CHECKING, Union
+from psycopg.rows import dict_row
+from typing import Optional, Any, TYPE_CHECKING, Union
+
+from .env import ReportEnv
+from .errors import UnknownGraphElement, ClassNotFound, TooManyElements, UnknownValue, NothingToPlot
+from .__utils import parse_params
+
 
 if TYPE_CHECKING:
     from core import DCSServerBot
+
+__all__ = [
+    "ReportElement",
+    "EmbedElement",
+    "Image",
+    "Ruler",
+    "Field",
+    "Table",
+    "Button",
+    "GraphElement",
+    "MultiGraphElement",
+    "Graph",
+    "SQLField",
+    "SQLTable",
+    "BarChart",
+    "SQLBarChart",
+    "PieChart",
+    "SQLPieChart"
+]
 
 
 class ReportElement(ABC):
     def __init__(self, env: ReportEnv):
         self.env = env
         self.bot: DCSServerBot = env.bot
+        self.node = self.bot.node
         self.log = env.bot.log
         self.pool = env.bot.pool
 
@@ -58,13 +80,13 @@ class Image(EmbedElement):
 
 
 class Ruler(EmbedElement):
-    def render(self, header: Optional[str] = '', ruler_length: Optional[int] = 34):
+    def render(self, header: Optional[str] = '', ruler_length: Optional[int] = 34, *, text: Optional[str] = None):
         if header:
             header = ' ' + header + ' '
         filler = int((ruler_length - len(header) / 2.5) / 2)
         if filler <= 0:
             filler = 1
-        self.add_field(name='▬' * filler + header + '▬' * filler, value='_ _', inline=False)
+        self.add_field(name='▬' * filler + header + '▬' * filler, value=text or '_ _', inline=False)
 
 
 class Field(EmbedElement):
@@ -125,7 +147,7 @@ class GraphElement(ReportElement):
 
 
 class MultiGraphElement(ReportElement):
-    def __init__(self, env: ReportEnv, rows: int, cols: int, params: List[dict]):
+    def __init__(self, env: ReportEnv, rows: int, cols: int, params: list[dict]):
         super().__init__(env)
         self.axes = []
         for i in range(0, len(params)):
@@ -146,17 +168,18 @@ class Graph(ReportElement):
         super().__init__(env)
         plt.switch_backend('agg')
 
-    def render(self, width: int, height: int, cols: int, rows: int, elements: List[dict], facecolor: Optional[str] = None):
+    def render(self, width: int, height: int, cols: int, rows: int, elements: list[dict],
+               facecolor: Optional[str] = None):
         plt.style.use('dark_background')
         plt.rcParams['axes.facecolor'] = '2C2F33'
-        if 'CJK_FONT' in self.bot.config['REPORTS']:
-            plt.rcParams['font.family'] = [f"Noto Sans {self.bot.config['REPORTS']['CJK_FONT']}", 'sans-serif']
+        if 'cjk_font' in self.bot.locals.get('reports', {}):
+            plt.rcParams['font.family'] = [f"Noto Sans {self.bot.locals['reports']['cjk_font']}", 'sans-serif']
         self.env.figure = plt.figure(figsize=(width, height))
         if facecolor:
             self.env.figure.set_facecolor(facecolor)
         futures = []
-        with concurrent.futures.ThreadPoolExecutor(
-                max_workers=int(self.env.bot.config['REPORTS']['NUM_WORKERS'])) as executor:
+        with ThreadPoolExecutor(
+                max_workers=int(self.env.bot.locals.get('reports', {}).get('num_workers', 4))) as executor:
             for element in elements:
                 if 'params' in element:
                     element_args = parse_params(self.env.params, element['params'])
@@ -203,26 +226,20 @@ class Graph(ReportElement):
 
 class SQLField(EmbedElement):
     def render(self, sql: str, inline: Optional[bool] = True):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount > 0:
                     row = cursor.fetchone()
                     name = list(row.keys())[0]
-                    value = row[0]
+                    value = row[name]
                     self.add_field(name=name, value=value, inline=inline)
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class SQLTable(EmbedElement):
     def render(self, sql: str, inline: Optional[bool] = True):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 header = None
                 cols = []
@@ -231,20 +248,17 @@ class SQLTable(EmbedElement):
                     elements = len(row)
                     if not header:
                         header = list(row.keys())
+                    values = list(row.values())
                     for i in range(0, elements):
                         if len(cols) <= i:
-                            cols.append(str(row[i]) + '\n')
+                            cols.append(str(values[i]) + '\n')
                         else:
-                            cols[i] += str(row[i]) + '\n'
+                            cols[i] += str(values[i]) + '\n'
                 for i in range(0, elements):
                     self.add_field(name=header[i], value=cols[i], inline=inline)
                 if elements % 3 and inline:
                     for i in range(0, 3 - elements % 3):
                         self.add_field(name='_ _', value='_ _')
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class BarChart(GraphElement):
@@ -290,9 +304,8 @@ class BarChart(GraphElement):
 
 class SQLBarChart(BarChart):
     def render(self, sql: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 1:
                     super().render(cursor.fetchone())
@@ -304,15 +317,11 @@ class SQLBarChart(BarChart):
                     super().render(values)
                 else:
                     super().render({})
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)
 
 
 class PieChart(GraphElement):
     def __init__(self, env: ReportEnv, rows: int, cols: int, row: int, col: int, colspan: Optional[int] = 1,
-                 rowspan: Optional[int] = 1, title: Optional[str] = '', colors: Optional[List[str]] = None,
+                 rowspan: Optional[int] = 1, title: Optional[str] = '', colors: Optional[list[str]] = None,
                  is_time: Optional[bool] = False, show_no_data: Optional[bool] = True):
         super().__init__(env, rows, cols, row, col, colspan, rowspan)
         self.title = title
@@ -346,9 +355,8 @@ class PieChart(GraphElement):
 
 class SQLPieChart(PieChart):
     def render(self, sql: str):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)) as cursor:
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 1:
                     super().render(cursor.fetchone())
@@ -360,7 +368,3 @@ class SQLPieChart(PieChart):
                     super().render(values)
                 else:
                     super().render({})
-        except psycopg2.DatabaseError as error:
-            self.log.exception(error)
-        finally:
-            self.pool.putconn(conn)

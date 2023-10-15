@@ -1,0 +1,53 @@
+DEFAULT:
+  penalties:                # These are the penalty points to use.
+  - event: kill             # If you kill a human player, you get 30 points, 18 in case of an AI.
+    human: 30
+    AI: 18
+    action: move_to_spec
+    reason: Killing a team member
+  - event: collision_kill   # If you collide and kill another player, you get 20 points, if it was an AI, you get 12.
+    human: 20
+    AI: 12
+    reason: Killing a team member during a collision
+  - event: friendly_fire    # If you fire on a friendly player, you get 12 penalty points, 8 for an AI.
+    human: 12
+    AI: 8
+    reason: Friendly fire on a team member
+  - event: collision_hit    # if you hit another team member, you get 5 points, 1 if it was an AI.
+    human: 5
+    AI: 1
+    reason: Colliding with a team member
+  forgive: 30               # People can forgive others in-between of 30 seconds (default) with the .forgive in-game chat command.
+  punishments:              # list of punishments, based on the users penalty points
+  - points: 100             # we temp-ban the player when they reached 100 points.
+    action: ban
+    days: 3                 # ban-time in days. default: 3
+  - points: 60              # we kick them from the server, when their points reached 60
+    action: kick
+  - points: 40              # we move them to spectators, when they have 40 points
+    action: move_to_spec
+  - penalty: 10             # we take away credits from them, if they have 10 points
+    action: credits
+    points: 12              # amount of credits to take
+  - points: 1               # we warn them with each penalty point they got
+    action: warn
+  flightHoursWeight:        # If you want to treat people that are frequent flyers on your server differently you can do this here
+  - time: 0                 # New joiners will get 1.4x the penalty points as described below
+    weight: 1.4
+  - time: 3                 # people that were flying for at least 3 hours on your servers, get the described penalty points 1:1
+    weight: 1
+  - time: 10                # people that flew longer than 10 hours get only 0.7x the penalty points (70%)
+    weight: 0.7
+  decay:                    # This describes how points should vanish over time
+  - days: 0                 # on the initial day, we do not do anything
+    weight: 1
+  - days: 3                 # after 3 day, 75% of the points will still be there (25% will be wiped)
+    weight: 0.75
+  - days: 30                # after 30 days, an additional 75% of the points will be wiped (25% will still be there)
+    weight: 0.25
+  - days: 60                # after 60 days, the penalty points get wiped completely
+    weight: 0
+DCS.openbeta_server:
+  exemptions:
+  - discord: '@everyone'    # Do not punish members of your Discord (that are linked) on this server
+  - discord: 'Moderators'   # Do not punish your own moderators (Discord role, not bot role!) on this server

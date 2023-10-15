@@ -1,1 +1,1 @@
-DELETE FROM music_config;
+DROP TABLE music_config;

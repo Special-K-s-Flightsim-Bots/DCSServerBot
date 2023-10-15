@@ -1,10 +1,13 @@
 .env
 __pycache__/
 *.db
-*.log*
 config/dcsserverbot.ini
 config/*.json
+config/*.yaml
 config/*.lua
+config/plugins/*.yaml
+config/services/*.yaml
+config/backup/*
 Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 *.csv
 /venv/
@@ -16,3 +19,4 @@ Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 /build/
 /fonts/
 /Music/
+/logs/

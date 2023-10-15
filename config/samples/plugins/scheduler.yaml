@@ -1,0 +1,35 @@
+DEFAULT:
+  warn:                                           # warn times before a restart / shutdown
+    text: '!!! {item} will {what} in {when} !!!'  # Message to be displayed as a popup in DCS. These variables can be used in your own message.
+    times:                                        # List of times when a message will be displayed
+    - 600
+    - 300
+    - 60
+    - 10
+DCS.openbeta_server:
+  schedule:                                       # Server "DCS.openbeta_server" will run 24x7
+    00-24: YYYYYYY
+instance2:
+  schedule:                                       # Server "instance2" will run every day from 0h-12h local time (LT)
+    00-12: YYYYYYY
+    12-24: NNNNNNN
+  restart:                                        # at 04:00 and 08:00 LT ..
+    local_times:
+    - 04:00
+    - 08:00
+    method: rotate                                # .. it will rotate ..
+    populated: true                               # .. independently if players are flying or not.
+  onMissionStart: load:Scripts/net/start.lua      # We will run a specific lua script on mission start
+  onMissionEnd: load:Scripts/net/end.lua          # We will run a specific lua script on mission end
+  onShutdown: run:shutdown /r                     # if the DCS server is shut down, the real PC will restart
+instance3:
+  schedule:                                       # server "instance3" will run every day from noon to midnight
+    00-12: NNNNNNN
+    12-24: YYYYYYY
+  restart:                                        # It will restart with a DCS server shutdown after 480 mins of mission time ..
+    method: restart_with_shutdown
+    mission_time: 480
+    populated: false                              # .. only, if nobody is on the server (or as soon as that happens afterwards)
+mission:
+  schedule:
+    18-00: NNNNNNY                                # our mission server will only run on Sundays from 18h - midnight LT

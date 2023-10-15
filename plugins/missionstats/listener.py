@@ -1,6 +1,4 @@
 import asyncio
-import psycopg2
-from contextlib import closing
 from core import EventListener, Plugin, PersistentReport, Status, Server, Coalition, Channel, event
 from discord.ext import tasks
 
@@ -39,10 +37,6 @@ class MissionStatisticsEventListener(EventListener):
         super().__init__(plugin)
         if not self.bot.mission_stats:
             self.bot.mission_stats = dict()
-        if 'EVENT_FILTER' in self.bot.config['FILTER']:
-            self.filter = [x.strip() for x in self.bot.config['FILTER']['EVENT_FILTER'].split(',')]
-        else:
-            self.filter = []
         self.update: dict[str, bool] = dict()
         self.do_update.start()
 
@@ -54,11 +48,11 @@ class MissionStatisticsEventListener(EventListener):
         self.bot.mission_stats[server.name] = data
 
     def _toggle_mission_stats(self, server: Server):
-        if self.bot.config.getboolean(server.installation, 'MISSION_STATISTICS'):
-            server.sendtoDCS({"command": "enableMissionStats"})
-            server.sendtoDCS({"command": "getMissionSituation", "channel": server.get_channel(Channel.STATUS).id})
+        if self.plugin.get_config(server).get('enabled', True):
+            server.send_to_dcs({"command": "enableMissionStats"})
+            server.send_to_dcs({"command": "getMissionSituation", "channel": server.channels[Channel.STATUS]})
         else:
-            server.sendtoDCS({"command": "disableMissionStats"})
+            server.send_to_dcs({"command": "disableMissionStats"})
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
@@ -69,57 +63,53 @@ class MissionStatisticsEventListener(EventListener):
     async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
         self._toggle_mission_stats(server)
 
-    def _update_database(self, data):
-        if data['eventName'] in self.filter:
-            return
-        conn = self.pool.getconn()
-        try:
-            server: Server = self.bot.servers[data['server_name']]
-            with closing(conn.cursor()) as cursor:
-                def get_value(values: dict, index1, index2):
-                    if index1 not in values:
-                        return None
-                    if index2 not in values[index1]:
-                        return None
-                    return values[index1][index2]
+    def _update_database(self, server: Server, config: dict, data: dict):
+        def get_value(values: dict, index1, index2):
+            if index1 not in values:
+                return None
+            if index2 not in values[index1]:
+                return None
+            return values[index1][index2]
 
-                player = get_value(data, 'initiator', 'name')
-                init_player = server.get_player(name=player) if player else None
-                player = get_value(data, 'target', 'name')
-                target_player = server.get_player(name=player) if player else None
-                if self.bot.config.getboolean(server.installation, 'PERSIST_AI_STATISTICS') or init_player or \
-                        target_player:
-                    dataset = {
-                        'mission_id': server.mission_id,
-                        'event': data['eventName'],
-                        'init_id': init_player.ucid if init_player else -1,
-                        'init_side': get_value(data, 'initiator', 'coalition'),
-                        'init_type': get_value(data, 'initiator', 'unit_type'),
-                        'init_cat': self.UNIT_CATEGORY[get_value(data, 'initiator', 'category')],
-                        'target_id': target_player.ucid if target_player else -1,
-                        'target_side': get_value(data, 'target', 'coalition'),
-                        'target_type': get_value(data, 'target', 'unit_type'),
-                        'target_cat': self.UNIT_CATEGORY[get_value(data, 'target', 'category')],
-                        'weapon': get_value(data, 'weapon', 'name'),
-                        'place': get_value(data, 'place', 'name'),
-                        'comment': data['comment'] if 'comment' in data else ''
-                    }
-                    cursor.execute('INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, '
-                                   'init_cat, target_id, target_side, target_type, target_cat, weapon, '
-                                   'place, comment) VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, '
-                                   '%(init_type)s, %(init_cat)s, %(target_id)s, %(target_side)s, %(target_type)s, '
-                                   '%(target_cat)s, %(weapon)s, %(place)s, %(comment)s)', dataset)
-                    conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        if not config.get('persistence', True) or data['eventName'] in config.get('event_filter', []):
+            return
+        player = get_value(data, 'initiator', 'name')
+        init_player = server.get_player(name=player) if player else None
+        player = get_value(data, 'target', 'name')
+        target_player = server.get_player(name=player) if player else None
+        if config.get('persist_ai_statistics', False) or init_player or target_player:
+            dataset = {
+                'mission_id': server.mission_id,
+                'event': data['eventName'],
+                'init_id': init_player.ucid if init_player else -1,
+                'init_side': get_value(data, 'initiator', 'coalition'),
+                'init_type': get_value(data, 'initiator', 'unit_type'),
+                'init_cat': self.UNIT_CATEGORY[get_value(data, 'initiator', 'category')],
+                'target_id': target_player.ucid if target_player else -1,
+                'target_side': get_value(data, 'target', 'coalition'),
+                'target_type': get_value(data, 'target', 'unit_type'),
+                'target_cat': self.UNIT_CATEGORY[get_value(data, 'target', 'category')],
+                'weapon': get_value(data, 'weapon', 'name'),
+                'place': get_value(data, 'place', 'name'),
+                'comment': data['comment'] if 'comment' in data else ''
+            }
+            with self.pool.connection() as conn:
+                with conn.pipeline():
+                    with conn.transaction():
+                        conn.execute("""
+                            INSERT INTO missionstats (mission_id, event, init_id, init_side, init_type, init_cat, 
+                                                      target_id, target_side, target_type, target_cat, weapon, place, 
+                                                      comment) 
+                            VALUES (%(mission_id)s, %(event)s, %(init_id)s, %(init_side)s, %(init_type)s, %(init_cat)s, 
+                                    %(target_id)s, %(target_side)s, %(target_type)s, %(target_cat)s, %(weapon)s, 
+                                    %(place)s, %(comment)s)
+                        """, dataset)
 
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
-        if self.bot.config.getboolean(server.installation, 'PERSIST_MISSION_STATISTICS'):
-            await asyncio.to_thread(self._update_database, data)
+        config = self.plugin.get_config(server)
+        if config.get('persistence', True):
+            await asyncio.to_thread(self._update_database, server, config, data)
         if data['server_name'] in self.bot.mission_stats:
             stats = self.bot.mission_stats[data['server_name']]
             update = False
@@ -206,7 +196,7 @@ class MissionStatisticsEventListener(EventListener):
                     else:
                         message = self.EVENT_TEXTS[win_coalition]['capture'].format(name)
                     update = True
-                    events_channel = server.get_channel(Channel.EVENTS)
+                    events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
                     if events_channel:
                         await events_channel.send(message)
             if update:
@@ -218,12 +208,12 @@ class MissionStatisticsEventListener(EventListener):
             if update:
                 server: Server = self.bot.servers[server_name]
                 # Hide the mission statistics embed, if coalitions are enabled
-                if self.bot.config.getboolean(server.installation, 'DISPLAY_MISSION_STATISTICS') and \
-                        not self.bot.config.getboolean(server.installation, 'COALITIONS'):
+                if self.plugin.get_config(server).get('display', True) and \
+                        not server.locals.get('coalitions'):
                     stats = self.bot.mission_stats[server_name]
                     if 'coalitions' in stats:
-                        report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json', server,
-                                                  'stats_embed')
+                        report = PersistentReport(self.bot, self.plugin_name, 'missionstats.json',
+                                                  embed_name='stats_embed', server=server)
                         await report.render(stats=stats, mission_id=server.mission_id,
                                             sides=[Coalition.BLUE, Coalition.RED])
             self.update[server_name] = False

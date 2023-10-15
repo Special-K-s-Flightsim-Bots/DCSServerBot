@@ -1,18 +1,26 @@
 import asyncio
 import discord
 import os
-import psycopg2
+import psycopg
 import random
 from contextlib import closing
-from core import utils, DCSServerBot, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
-    DataObjectFactory, Member, Coalition, Side, PersistentReport, Channel
+
+from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
+    DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, PlayerType
+from discord import app_commands
+from discord.app_commands import Range
 from discord.ext import commands, tasks
-from typing import Union, Optional, Tuple
+from psycopg.rows import dict_row
+from services import DCSServerBot
+from typing import Union, Optional, Tuple, Literal
+
 from .filter import StatisticsFilter
 from .listener import UserStatisticsEventListener
+from .views import InfoView
 
 
-def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *params) -> Tuple[Union[discord.Member, str], str]:
+def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *params) \
+        -> Tuple[Union[discord.Member, str], str]:
     num = len(params)
     if not member:
         member = ctx.message.author
@@ -33,66 +41,178 @@ def parse_params(self, ctx, member: Optional[Union[discord.Member, str]], *param
     return member, period
 
 
-class UserStatisticsAgent(Plugin):
+class UserStatistics(Plugin):
 
-    @commands.command(description='Deletes the statistics of a server')
-    @utils.has_role('Admin')
-    @commands.guild_only()
-    async def reset_statistics(self, ctx):
-        server: Server = await self.bot.get_server(ctx)
-        if server:
-            if server.status not in [Status.RUNNING, Status.PAUSED]:
-                conn = self.pool.getconn()
-                try:
-                    if await utils.yn_question(ctx, f'I\'m going to **DELETE ALL STATISTICS**\n'
-                                                    f'of server "{server.display_name}".\n\nAre you sure?'):
-                        with closing(conn.cursor()) as cursor:
-                            cursor.execute(
-                                'DELETE FROM statistics WHERE mission_id in (SELECT id FROM missions WHERE '
-                                'server_name = %s)', (server.name, ))
-                            cursor.execute(
-                                'DELETE FROM missionstats WHERE mission_id in (SELECT id FROM missions WHERE '
-                                'server_name = %s)', (server.name, ))
-                            cursor.execute('DELETE FROM missions WHERE server_name = %s', (server.name, ))
-                            conn.commit()
-                        await ctx.send(f'Statistics for server "{server.display_name}" have been wiped.')
-                        await self.bot.audit('reset statistics', user=ctx.message.author, server=server)
-                except (Exception, psycopg2.DatabaseError) as error:
-                    self.log.exception(error)
-                    conn.rollback()
-                finally:
-                    self.pool.putconn(conn)
-            else:
-                await ctx.send(f'Please stop server "{server.display_name}" before deleting the statistics!')
+    def __init__(self, bot, listener):
+        super().__init__(bot, listener)
+        self.expire_token.add_exception_type(psycopg.DatabaseError)
+        self.expire_token.start()
+        if self.locals:
+            self.persistent_highscore.start()
 
-    # To allow super()._link() calls
-    async def _link(self, ctx, member: discord.Member, ucid: str):
-        # change the link status of that member if they are an active player
+    async def cog_unload(self):
+        if self.locals:
+            self.persistent_highscore.cancel()
+        self.expire_token.cancel()
+        await super().cog_unload()
+
+    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
+        self.log.debug('Pruning Userstats ...')
+        if ucids:
+            for ucid in ucids:
+                conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
+        elif days > -1:
+            conn.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
+        self.log.debug('Userstats pruned.')
+
+    @command(description='Deletes the statistics of a server')
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.rename(_server="server")
+    async def reset_statistics(self, interaction: discord.Interaction,
+                               _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None):
+        if not _server:
+            for s in self.bus.servers.values():
+                if s.status in [Status.RUNNING, Status.PAUSED]:
+                    await interaction.response.send_message(
+                        f'Please stop all servers before deleting the statistics!', ephemeral=True)
+                    return
+        elif _server.status in [Status.RUNNING, Status.PAUSED]:
+            await interaction.response.send_message(
+                f'Please stop server "{_server.display_name}" before deleting the statistics!', ephemeral=True)
+            return
+
+        message = "I'm going to **DELETE ALL STATISTICS**\n"
+        if _server:
+            message += f"of server \"{_server.display_name}\"!"
+        else:
+            message += f"of **ALL** servers!"
+        message += "\n\nAre you sure?"
+        if not await utils.yn_question(interaction, message):
+            await interaction.followup.send('Aborted.', ephemeral=True)
+            return
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                if _server:
+                    conn.execute("""
+                        DELETE FROM statistics WHERE mission_id in (
+                            SELECT id FROM missions WHERE server_name = %s
+                        )
+                        """, (_server.name,))
+                    conn.execute("""
+                        DELETE FROM missionstats WHERE mission_id in (
+                            SELECT id FROM missions WHERE server_name = %s
+                        )
+                    """, (_server.name,))
+                    conn.execute('DELETE FROM missions WHERE server_name = %s', (_server.name,))
+                    await interaction.followup.send(f'Statistics for server "{_server.display_name}" have been wiped.',
+                                                    ephemeral=True)
+                    await self.bot.audit('reset statistics', user=interaction.user, server=_server)
+                else:
+                    conn.execute("TRUNCATE TABLE statistics")
+                    conn.execute("TRUNCATE TABLE missionstats")
+                    conn.execute("TRUNCATE TABLE missions")
+                    if 'greenieboard' in self.bot.node.plugins:
+                        conn.execute("TRUNCATE TABLE greenieboard")
+                    await interaction.followup.send(f'Statistics for ALL servers have been wiped.', ephemeral=True)
+                    await self.bot.audit('reset statistics of ALL servers', user=interaction.user)
+
+    @command(description='Shows player statistics')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    @app_commands.describe(user='Name of player, member or UCID')
+    @app_commands.describe(period='day, month, year, month:may, campaign:name, mission:name')
+    async def statistics(self, interaction: discord.Interaction,
+                         user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]],
+                         period: Optional[str]):
+        flt = StatisticsFilter.detect(self.bot, period)
+        if period and not flt:
+            await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
+            return
+        if not user:
+            user = interaction.user
+        if isinstance(user, discord.Member):
+            member = user
+            name = member.display_name
+            ucid = self.bot.get_ucid_by_member(member)
+        else:
+            ucid = user
+            member, name = self.bot.get_member_or_name_by_ucid(ucid)
+        file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
+        report = PaginationReport(self.bot, interaction, self.plugin_name, file)
+        await report.render(member=member or ucid, member_name=name, period=period, server_name=None, flt=flt)
+
+    @command(description='Displays the top players of your server(s)')
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    @app_commands.rename(_server="server")
+    async def highscore(self, interaction: discord.Interaction,
+                        _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None,
+                        period: Optional[str] = None):
+        flt = StatisticsFilter.detect(self.bot, period)
+        if period and not flt:
+            await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
+            return
+        file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
+        if not _server:
+            report = PaginationReport(self.bot, interaction, self.plugin_name, file)
+            await report.render(interaction=interaction, period=period, server_name=None, flt=flt)
+        else:
+            await interaction.response.defer()
+            report = Report(self.bot, self.plugin_name, file)
+            env = await report.render(interaction=interaction, period=period, server_name=_server.name, flt=flt)
+            file = discord.File(env.filename)
+            await interaction.followup.send(embed=env.embed, file=file)
+            if env.filename and os.path.exists(env.filename):
+                await asyncio.to_thread(os.remove, env.filename)
+
+    @command(description="Links a member to a DCS user")
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.rename(ucid="user")
+    async def link(self, interaction: discord.Interaction, member: discord.Member,
+                   ucid: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
+                       sel_type=PlayerType.PLAYER, linked=False)]
+                   ):
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
+                # delete a token, if one existed
+                conn.execute('DELETE FROM players WHERE discord_id = %s AND LENGTH(ucid) = 4', (member.id, ))
+        await interaction.response.send_message(
+            f'Member {utils.escape_string(member.display_name)} linked to ucid {ucid}', ephemeral=True)
+        await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',
+                             user=interaction.user)
+        # check if they are an active player on any of our servers
         for server_name, server in self.bot.servers.items():
             player = server.get_player(ucid=ucid)
             if player:
                 player.member = member
                 player.verified = True
-                return
+                break
 
-    @commands.command(brief='Links a member to a DCS user',
-                      description="Used to link a Discord member to a DCS user by linking the Discord ID to the "
-                                  "respective UCID of that user.\nThe bot needs this information to be able to "
-                                  "display the statistics and other information for the user.\nIf a user is manually "
-                                  "linked, their link is approved, which means that they can use specific commands "
-                                  "in the in-game chat, if they belong to an elevated Discord role.",
-                      usage='<member> <ucid>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def link(self, ctx, member: discord.Member, ucid: str):
-        await self._link(ctx, member, ucid)
-
-    # To allow super()._unlink() calls
-    async def _unlink(self, ctx, member: Union[discord.Member, str]):
-        if isinstance(member, discord.Member):
+    @command(description='Unlinks a member or ucid')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    @app_commands.describe(user='Name of player, member or UCID')
+    async def unlink(self, interaction: discord.Interaction,
+                     user: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(linked=True)]):
+        if isinstance(user, discord.Member):
+            member = user
             ucid = self.bot.get_ucid_by_member(member)
         else:
-            ucid = member
+            ucid = user
+            member = self.bot.get_member_by_ucid(ucid)
+        if not ucid or not member:
+            await interaction.response.send_message('Member not linked!')
+            return
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
+        await interaction.response.send_message(
+            f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.', ephemeral=True)
+        await self.bot.audit(f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
+                             user=interaction.user)
         # change the link status of that member if they are an active player
         for server_name, server in self.bot.servers.items():
             player = server.get_player(ucid=ucid)
@@ -100,266 +220,32 @@ class UserStatisticsAgent(Plugin):
                 player.member = None
                 player.verified = False
 
-    @commands.command(brief='Unlinks a member',
-                      description="Removes any link between this Discord member and a DCS users. Might be used, if a "
-                                  "mislink happend, either manually or due to the bots auto-link functionality not "
-                                  "having linked correctly.\n\nStatistics will not be deleted for this UCID, so "
-                                  "if you link the UCID to the correct member, they still see all their valuable data.",
-                      usage='<member|ucid>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def unlink(self, ctx, member: Union[discord.Member, str]):
-        await self._unlink(ctx, member)
-
-
-class UserStatisticsMaster(UserStatisticsAgent):
-
-    def __init__(self, bot, listener):
-        super().__init__(bot, listener)
-        self.expire_token.start()
-        if 'configs' in self.locals:
-            self.persistent_highscore.start()
-
-    async def cog_unload(self):
-        if 'configs' in self.locals:
-            self.persistent_highscore.cancel()
-        self.expire_token.cancel()
-        await super().cog_unload()
-
-    async def prune(self, conn, *, days: int = 0, ucids: list[str] = None):
-        self.log.debug('Pruning Userstats ...')
-        with closing(conn.cursor()) as cursor:
-            if ucids:
-                for ucid in ucids:
-                    cursor.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
-            elif days > 0:
-                cursor.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
-        self.log.debug('Userstats pruned.')
-
-    @commands.command(brief='Shows player statistics',
-                      description='Displays the users statistics, either for a specific period or for a running '
-                                  'campaign.\nPeriod might be one of _day, yesterday, month, week_ or _year_. Campaign '
-                                  'has to be one of your configured campaigns.\nIf no period is given, default is '
-                                  'everything, unless a campaign is configured. Then it\'s the running campaign.',
-                      usage='[member] [period]', aliases=['stats'])
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def statistics(self, ctx, member: Optional[Union[discord.Member, str]], *params):
-        try:
-            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-            member, period = parse_params(self, ctx, member, *params)
-            if not member:
-                await ctx.send('No player found with that nickname.', delete_after=timeout if timeout > 0 else None)
-                return
-            flt = StatisticsFilter.detect(self.bot, period)
-            if period and not flt:
-                await ctx.send('Please provide a valid period or campaign name.')
-                return
-            if isinstance(member, str):
-                if utils.is_ucid(member):
-                    ucid = member
-                    member = self.bot.get_member_or_name_by_ucid(ucid)
-                else:
-                    ucid, member = self.bot.get_ucid_by_name(member)
-            else:
-                ucid = self.bot.get_ucid_by_member(member)
-            file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
-            report = PaginationReport(self.bot, ctx, self.plugin_name, file, timeout if timeout > 0 else None)
-            await report.render(member=member if isinstance(member, discord.Member) else ucid,
-                                member_name=utils.escape_string(member.display_name) if isinstance(member, discord.Member) else member,
-                                period=period, server_name=None, flt=flt)
-        finally:
-            await ctx.message.delete()
-
-    @commands.command(brief='Sends player statistics as DM',
-                      description='Sends the users statistics, either for a specific period or for a running '
-                                  'campaign in a DM.\nPeriod might be one of _day, yesterday, month, week_ or _year_. '
-                                  'Campaign has to be one of your configured campaigns.\nIf no period is given, '
-                                  'default is everything, unless a campaign is configured. Then it\'s the running '
-                                  'campaign.', usage='[member] [period]')
-    @utils.has_role('DCS')
-    async def statsme(self, ctx, period: Optional[str]):
-        try:
-            member = ctx.message.author
-            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-            flt = StatisticsFilter.detect(self.bot, period)
-            if period and not flt:
-                await ctx.send('Please provide a valid period or campaign name.')
-                return
-            await ctx.send('Your statistics will be sent in a DM.', delete_after=30)
-            file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
-            report = PaginationReport(self.bot, await ctx.message.author.create_dm(), self.plugin_name,
-                                      file, timeout if timeout > 0 else None)
-            await report.render(member=member, member_name=utils.escape_string(member.display_name), period=period,
-                                server_name=None, flt=flt)
-        finally:
-            await ctx.message.delete()
-
-    @commands.command(brief='Shows actual highscores',
-                      description='Displays the highscore, either for a specific period, a set of missions matching a '
-                                  'pattern or for a running campaign:\n\n'
-                                  '```.hs period:day      - day, yesterday, month, week or year\n'
-                                  '.hs campaign:name   - configured campaign name\n'
-                                  '.hs mission:pattern - missions matching this pattern\n'
-                                  '.hs month:pattern   - month matching this pattern```\n\n'
-                                  'If no period is given, default is to display everything, unless a campaign is '
-                                  'configured. Then it\'s the running campaign.',
-                      usage='[period]', aliases=['hs'])
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def highscore(self, ctx, period: Optional[str]):
-        try:
-            timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-            server: Server = await self.bot.get_server(ctx)
-            flt = StatisticsFilter.detect(self.bot, period)
-            if period and not flt:
-                await ctx.send('Please provide a valid period or campaign name.')
-                return
-            file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
-            if not server:
-                report = PaginationReport(self.bot, ctx, self.plugin_name, file, timeout if timeout > 0 else None)
-                await report.render(period=period, sides=[Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value],
-                                    flt=flt, server_name=None)
-            else:
-                tmp = utils.get_sides(ctx.message, server)
-                sides = [0]
-                if Coalition.RED in tmp:
-                    sides.append(Side.RED.value)
-                if Coalition.BLUE in tmp:
-                    sides.append(Side.BLUE.value)
-                # in this specific case, we want to display all data, if in public channels
-                if len(sides) == 0:
-                    sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
-                report = Report(self.bot, self.plugin_name, file)
-                env = await report.render(period=period, server_name=server.name, sides=sides, flt=flt)
-                file = discord.File(env.filename)
-                await ctx.send(embed=env.embed, file=file, delete_after=timeout if timeout > 0 else None)
-                if env.filename and os.path.exists(env.filename):
-                    os.remove(env.filename)
-        finally:
-            await ctx.message.delete()
-
-    @commands.command(description="Links a member to a DCS user", usage='<member> <ucid>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def link(self, ctx, member: discord.Member, ucid: str):
-        await super()._link(ctx, member, ucid)
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-            await ctx.message.delete()
-        await ctx.send('Member {} linked to ucid {}'.format(utils.escape_string(member.display_name), ucid))
-        await self.bot.audit('linked member {} to ucid {}.'.format(utils.escape_string(member.display_name), ucid),
-                             user=ctx.message.author)
-
-    @commands.command(description='Unlinks a member', usage='<member|ucid>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def unlink(self, ctx, member: Union[discord.Member, str]):
-        if isinstance(member, discord.Member):
-            ucid = self.bot.get_ucid_by_member(member)
-        else:
-            ucid = member
-        if not ucid:
-            await ctx.send('UCID/Member not linked.')
-            return
-        await super()._unlink(ctx, member)
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-            await ctx.message.delete()
-        if isinstance(member, discord.Member):
-            await ctx.send('Member {} unlinked.'.format(utils.escape_string(member.display_name)))
-            await self.bot.audit('unlinked member {}.'.format(utils.escape_string(member.display_name)),
-                                 user=ctx.message.author)
-        else:
-            await ctx.send(f'ucid {ucid} unlinked.')
-            await self.bot.audit(f'unlinked ucid {member}.', user=ctx.message.author)
-
-    @commands.command(description='Shows player information', usage='<@member / ucid>')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def info(self, ctx, member: Union[discord.Member, str], *params):
-        if isinstance(member, discord.Member):
-            ucid = self.bot.get_ucid_by_member(member)
-            if not ucid:
-                member = member.name
+    @command(description='Shows player information')
+    @utils.app_has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def info(self, interaction: discord.Interaction,
+                   member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]):
         if isinstance(member, str):
-            name = member
-            if len(params):
-                name += ' ' + ' '.join(params)
-            if utils.is_ucid(name):
-                ucid = member
-            else:
-                ucid, name = self.bot.get_ucid_by_name(name)
-            if ucid:
-                member = self.bot.get_member_by_ucid(ucid)
-            else:
-                await ctx.send('Player not found.')
-                return
-
+            ucid = member
+            member = self.bot.get_member_by_ucid(ucid)
         player: Optional[Player] = None
         for server in self.bot.servers.values():
             if isinstance(member, discord.Member):
                 player = server.get_player(discord_id=member.id, active=True)
-            elif ucid:
-                player = server.get_player(ucid=ucid, active=True)
             else:
-                player = server.get_player(name=member, active=True)
+                player = server.get_player(ucid=ucid, active=True)
             if player:
                 break
+        else:
+            server = None
 
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
-        report = Report(self.bot, self.plugin_name, 'info.json')
-        env = await report.render(member=member or ucid, player=player)
-        message = await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        view = InfoView(member=member or ucid, bot=self.bot, player=player, server=server)
+        embed = await view.render()
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         try:
-            _member: Optional[Member] = None
-            if isinstance(member, discord.Member):
-                _member = DataObjectFactory().new('Member', bot=self.bot, member=member)
-                if len(_member.ucids):
-                    await message.add_reaction('🔀')
-                    if not _member.verified:
-                        await message.add_reaction('💯')
-                    await message.add_reaction('✅' if _member.banned else '⛔')
-            elif ucid:
-                await message.add_reaction('✅' if utils.is_banned(self, ucid) else '⛔')
-            if player:
-                await message.add_reaction('⏏️')
-            await message.add_reaction('⏹️')
-            react = await utils.wait_for_single_reaction(self.bot, ctx, message)
-            if react.emoji == '🔀':
-                await self.unlink(ctx, member)
-            elif react.emoji == '💯':
-                _member.verified = True
-                if player:
-                    player.verified = True
-            elif react.emoji == '✅':
-                await ctx.invoke(self.bot.get_command('unban'), user=member or ucid)
-                if player:
-                    player.banned = False
-            elif react.emoji == '⛔':
-                await ctx.invoke(self.bot.get_command('ban'), user=member or ucid)
-                if player:
-                    player.banned = True
-        except asyncio.TimeoutError:
-            pass
+            await view.wait()
         finally:
-            await message.delete()
+            await interaction.delete_original_response()
 
     @staticmethod
     def format_unmatched(data, marker, marker_emoji):
@@ -376,38 +262,40 @@ class UserStatisticsMaster(UserStatisticsAgent):
         embed.set_footer(text='Press a number to link this specific user.')
         return embed
 
-    @commands.command(description='Show players that could be linked')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def linkcheck(self, ctx):
-        message = await ctx.send('Please wait, this might take a bit ...')
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+    @command(description='Show players that could be linked')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def linkcheck(self, interaction: discord.Interaction):
+        # await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(thinking=True)
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 # check all unmatched players
                 unmatched = []
-                cursor.execute('SELECT ucid, name FROM players WHERE discord_id = -1 AND name IS NOT NULL ORDER BY last_seen DESC')
-                for row in cursor.fetchall():
+                for row in cursor.execute("""
+                    SELECT ucid, name FROM players 
+                    WHERE discord_id = -1 AND name IS NOT NULL 
+                    ORDER BY last_seen DESC
+                """).fetchall():
                     matched_member = self.bot.match_user(dict(row), True)
                     if matched_member:
                         unmatched.append({"name": row['name'], "ucid": row['ucid'], "match": matched_member})
-                await message.delete()
-                if len(unmatched) == 0:
-                    await ctx.send('No unmatched member could be matched.')
-                    return
-                n = await utils.selection_list(self.bot, ctx, unmatched, self.format_unmatched)
-                if n != -1:
-                    cursor.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (unmatched[n]['match'].id, unmatched[n]['ucid']))
-                    await self.bot.audit(f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
-                                         user=ctx.message.author)
-                    await ctx.send("DCS player {} linked to member {}.".format(utils.escape_string(unmatched[n]['name']),
-                                                                               unmatched[n]['match'].display_name))
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
+            if len(unmatched) == 0:
+                await interaction.followup.send('No unmatched member could be matched.', ephemeral=True)
+                return
+        n = await utils.selection_list(self.bot, interaction, unmatched, self.format_unmatched)
+        if n != -1:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s',
+                                 (unmatched[n]['match'].id, unmatched[n]['ucid']))
+                    await self.bot.audit(
+                        f"linked ucid {unmatched[n]['ucid']} to user {unmatched[n]['match'].display_name}.",
+                        user=interaction.user)
+                    await interaction.followup.send(
+                        "DCS player {} linked to member {}.".format(utils.escape_string(unmatched[n]['name']),
+                                                                    unmatched[n]['match'].display_name),
+                        ephemeral=True)
 
     @staticmethod
     def format_suspicious(data, marker, marker_emoji):
@@ -424,119 +312,139 @@ class UserStatisticsMaster(UserStatisticsAgent):
         embed.set_footer(text='Press a number to unlink this specific user.')
         return embed
 
-    @commands.command(description='Show possibly mislinked players', aliases=['mislinked'])
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def mislinks(self, ctx):
-        await ctx.send('Please wait, this might take a bit ...')
-        conn = self.bot.pool.getconn()
-        try:
-            with closing(conn.cursor(cursor_factory=psycopg2.extras.DictCursor)) as cursor:
+    @command(description='Show possibly mislinked players')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def mislinks(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True)
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 # check all matched members
                 suspicious = []
                 for member in self.bot.get_all_members():
                     # ignore bots
                     if member.bot:
                         continue
-                    cursor.execute('SELECT ucid, name FROM players WHERE discord_id = %s AND name IS NOT NULL AND '
-                                   'manual = FALSE ORDER BY last_seen DESC', (member.id, ))
-                    for row in cursor.fetchall():
+                    for row in cursor.execute("""
+                        SELECT ucid, name FROM players 
+                        WHERE discord_id = %s AND name IS NOT NULL AND manual = FALSE 
+                        ORDER BY last_seen DESC
+                    """, (member.id, )).fetchall():
                         matched_member = self.bot.match_user(dict(row), True)
                         if not matched_member:
                             suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member})
                         elif matched_member.id != member.id:
-                            suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member, "match": matched_member})
+                            suspicious.append({"name": row['name'], "ucid": row['ucid'], "mismatch": member,
+                                               "match": matched_member})
                 if len(suspicious) == 0:
-                    await ctx.send('No mislinked players found.')
+                    await interaction.followup.send('No mislinked players found.', ephemeral=True)
                     return
-                n = await utils.selection_list(self.bot, ctx, suspicious, self.format_suspicious)
-                if n != -1:
-                    cursor.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
-                                   (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
-                                    'match' in suspicious[n],
-                                    suspicious[n]['ucid']))
-                    await self.bot.audit(f"unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.",
-                                         user=ctx.message.author)
+        n = await utils.selection_list(self.bot, interaction, suspicious, self.format_suspicious)
+        if n != -1:
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
+                                 (suspicious[n]['match'].id if 'match' in suspicious[n] else -1,
+                                  'match' in suspicious[n], suspicious[n]['ucid']))
+                    await self.bot.audit(
+                        f"unlinked ucid {suspicious[n]['ucid']} from user {suspicious[n]['mismatch'].display_name}.",
+                        user=interaction.user)
                     if 'match' in suspicious[n]:
-                        await self.bot.audit(f"linked ucid {suspicious[n]['ucid']} to user {suspicious[n]['match'].display_name}.",
-                                             user=ctx.message.author)
-                        await ctx.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked and re-linked to member {suspicious[n]['match'].display_name}.")
+                        await self.bot.audit(
+                            f"linked ucid {suspicious[n]['ucid']} to user {suspicious[n]['match'].display_name}.",
+                            user=interaction.user)
+                        await interaction.followup.send(
+                            f"Member {suspicious[n]['mismatch'].display_name} unlinked and re-linked to member "
+                            f"{suspicious[n]['match'].display_name}.", ephemeral=True)
                     else:
-                        await ctx.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked.")
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.bot.log.exception(error)
-            conn.rollback()
-        finally:
-            self.bot.pool.putconn(conn)
+                        await interaction.followup.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked.",
+                                                        ephemeral=True)
 
-    @commands.command(description='Link your DCS and Discord user')
-    @utils.has_role('DCS')
-    @commands.guild_only()
-    async def linkme(self, ctx):
-        async def send_token(ctx, token: str):
-            try:
-                channel = await ctx.message.author.create_dm()
-                await channel.send(f"**Your secure TOKEN is: {token}**\nTo link your user, log into any of the DCS "
-                                   f"servers and type the following into the in-game chat window:"
-                                   f"```{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}linkme {token}```\n"
-                                   f"**The TOKEN will expire in 2 days.**")
-            except discord.Forbidden:
-                await ctx.send("I do not have permission to send you a DM!\n"
-                               "Please change your privacy settings to allow this!")
+    @command(description='Link your DCS and Discord user')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS')
+    async def linkme(self, interaction: discord.Interaction):
+        async def send_token(token: str):
+            await interaction.followup.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
+                                            f"following into the DCS chat of one of our servers:"
+                                            f"```{self.bot.node.config['chat_command_prefix']}linkme {token}```\n"
+                                            f"**The TOKEN will expire in 2 days.**", ephemeral=True)
 
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s ORDER BY manual',
-                               (ctx.message.author.id, ))
-                for row in cursor.fetchall():
-                    if len(row[0]) == 4:
-                        await send_token(ctx, row[0])
-                        return
-                    elif row[1] is False:
-                        if not await utils.yn_question(ctx, 'Automatic user mapping found.\n'
-                                                            'Do you want to re-link your user?'):
+        await interaction.response.defer(ephemeral=True)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                with closing(conn.cursor()) as cursor:
+                    for row in cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s ORDER BY manual',
+                                              (interaction.user.id, )).fetchall():
+                        if len(row[0]) == 4:
+                            await send_token(row[0])
                             return
-                        else:
-                            for server in self.bot.servers.values():
-                                player = server.get_player(ucid=row[0])
-                                if player:
-                                    player.member = None
-                                    continue
-                            cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
+                        elif row[1] is False:
+                            if not await utils.yn_question(interaction, 'Automatic user mapping found.\n'
+                                                                        'Do you want to re-link your user?'):
+                                return
+                            else:
+                                for server in self.bot.servers.values():
+                                    player = server.get_player(ucid=row[0])
+                                    if player:
+                                        player.member = None
+                                        continue
+                                cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
+                                break
+                        elif not await utils.yn_question(interaction,
+                                                         "You already have a linked DCS account!\n"
+                                                         "Are you sure you want to link a second account? "
+                                                         "(Ex: Switched from Steam to Standalone)"):
+                            return
+                    # in the very unlikely event that we have generated the very same random number twice
+                    while True:
+                        try:
+                            token = str(random.randrange(1000, 9999))
+                            cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
+                                           (token, interaction.user.id))
                             break
-                    elif not await utils.yn_question(ctx, 'You already have a linked DCS account!\n'
-                                                          'Are you sure you want to link a second account? '
-                                                          '(Ex: Switched from Steam to Standalone)'):
-                        return
-                # in the very unlikely event that we have generated the very same random number twice
-                while True:
-                    try:
-                        token = str(random.randrange(1000, 9999))
-                        cursor.execute('INSERT INTO players (ucid, discord_id, last_seen) VALUES (%s, %s, NOW())',
-                                       (token, ctx.message.author.id))
-                        break
-                    except psycopg2.DatabaseError:
-                        pass
-                await send_token(ctx, token)
-                conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-            await ctx.message.delete()
+                        except psycopg.DatabaseError:
+                            pass
+            await send_token(token)
 
-    @commands.command(description='Show inactive users')
-    @utils.has_role('DCS Admin')
-    @commands.guild_only()
-    async def inactive(self, ctx: commands.Context, *param) -> None:
-        period = ' '.join(param) if len(param) else None
-        timeout = int(self.bot.config['BOT']['MESSAGE_AUTODELETE'])
+    @command(description='Shows inactive users')
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def inactive(self, interaction: discord.Interaction, period: Literal['days', 'weeks', 'months', 'years'],
+                       number: Range[int, 1]):
         report = Report(self.bot, self.plugin_name, 'inactive.json')
-        env = await report.render(period=period)
-        await ctx.send(embed=env.embed, delete_after=timeout if timeout > 0 else None)
+        env = await report.render(period=f"{number} {period}")
+        await interaction.response.send_message(embed=env.embed, ephemeral=True)
+
+    @command(description='Delete statistics for users')
+    @app_commands.guild_only()
+    @utils.app_has_roles(['DCS', 'DCS Admin'])
+    async def delete_statistics(self, interaction: discord.Interaction, user: Optional[discord.Member]):
+        if not user:
+            user = interaction.user
+        elif user != interaction.user and not utils.check_roles(['DCS Admin'], interaction.user):
+            await interaction.response.send_message(
+                f'You are not allowed to delete statistics of user {user.display_name}!', ephemeral=True)
+            return
+        member = DataObjectFactory().new('Member', bot=self.bot, member=user)
+        if not member.verified:
+            await interaction.response.send_message(
+                f'User {user.display_name} has non-verified links. Statistics can not be deleted.', ephemeral=True)
+            return
+        if await utils.yn_question(interaction, f'I\'m going to **DELETE ALL STATISTICS** of user '
+                                                f'"{user.display_name}".\n\nAre you sure?'):
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    for ucid in member.ucids:
+                        # TODO: change that to prune()-calls
+                        conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
+                        conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid, ))
+                        conn.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))
+                        if 'greenieboard' in self.bot.node.plugins:
+                            conn.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
+                    conn.commit()
+                await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.', 
+                                                ephemeral=True)
 
     @commands.command(description='Deletes the statistics of a specific user')
     @utils.has_roles(['DCS', 'DCS Admin'])
@@ -572,64 +480,68 @@ class UserStatisticsMaster(UserStatisticsAgent):
 
     @tasks.loop(hours=1)
     async def expire_token(self):
-        conn = self.pool.getconn()
-        try:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute("DELETE FROM players WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(NOW()) - interval '2 "
-                               "days')")
-            conn.commit()
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute(
+                    "DELETE FROM players WHERE LENGTH(ucid) = 4 AND last_seen < (DATE(NOW()) - interval '2 days')")
 
     @tasks.loop(hours=1)
     async def persistent_highscore(self):
-        def get_server_by_installation(installation: str) -> Optional[Server]:
+        def get_server_by_instance(instance: str) -> Optional[Server]:
             for server in self.bot.servers.values():
-                if server.installation == installation:
+                if server.instance.name == instance:
                     return server
             return None
 
-        async def render_highscore(highscore: dict):
+        async def render_highscore(highscore: dict, server: Optional[Server] = None):
             kwargs = highscore.get('params', {})
             period = kwargs.get('period')
             flt = StatisticsFilter.detect(self.bot, period) if period else None
-            file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
-            embed_name = 'highscore-' + (server_name or 'all') + '-' + period
-            sides = [Side.SPECTATOR.value, Side.BLUE.value, Side.RED.value]
-            report = PersistentReport(self.bot, self.plugin_name, file, server, embed_name,
+            file = highscore.get('report',
+                                 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json')
+            embed_name = 'highscore-' + period
+            report = PersistentReport(self.bot, self.plugin_name, file, embed_name=embed_name, server=server,
                                       channel_id=highscore.get('channel', Channel.STATUS))
-            await report.render(server_name=server_name, flt=flt, sides=sides, **kwargs)
+            await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
 
         try:
-            for config in self.locals['configs']:
+            for instance_name, config in self.locals.items():
                 if 'highscore' not in config:
                     continue
-                if "installation" in config:
-                    server: Server = get_server_by_installation(config['installation'])
+                if instance_name != DEFAULT_TAG:
+                    server = get_server_by_instance(instance_name)
                     if not server:
-                        self.log.error(f"Server {config['installation']} is not registered.")
+                        self.log.debug(
+                            f"Instance {instance_name} is not (yet) registered, skipping highscore update.")
                         return
-                    server_name = server.name
                 else:
-                    server: Server = list(self.bot.servers.values())[0]
-                    server_name = None
+                    server = None
                 if isinstance(config['highscore'], list):
                     for highscore in config['highscore']:
-                        await render_highscore(highscore)
+                        await render_highscore(highscore, server)
                 else:
-                    await render_highscore(config['highscore'])
+                    await render_highscore(config['highscore'], server)
 
         except Exception as ex:
             self.log.exception(ex)
+
+    @persistent_highscore.before_loop
+    async def before_persistent_highscore(self):
+        await self.bot.wait_until_ready()
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        if self.get_config().get('wipe_stats_on_leave', True):
+            with self.pool.connection() as conn:
+                with conn.transaction():
+                    self.bot.log.debug(f'- Deleting their statistics due to WIPE_STATS_ON_LEAVE')
+                    ucids = [row[0] for row in conn.execute(
+                        'SELECT ucid FROM players WHERE discord_id = %s', (member.id, )).fetchall()]
+                    for plugin in self.bot.cogs.values():  # type: Plugin
+                        await plugin.prune(conn, ucids=ucids)
 
 
 async def setup(bot: DCSServerBot):
     if 'mission' not in bot.plugins:
         raise PluginRequiredError('mission')
-    if bot.config.getboolean('BOT', 'MASTER') is True:
-        await bot.add_cog(UserStatisticsMaster(bot, UserStatisticsEventListener))
-    else:
-        await bot.add_cog(UserStatisticsAgent(bot, UserStatisticsEventListener))
+    await bot.add_cog(UserStatistics(bot, UserStatisticsEventListener))

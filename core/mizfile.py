@@ -1,24 +1,28 @@
 from __future__ import annotations
 import io
 import luadata
-import math
+import math  # do not remove
 import os
 import tempfile
-import random
+import random  # do not remove
 import zipfile
 
 from core import utils
 from datetime import datetime
-from typing import Union, TYPE_CHECKING, Optional
+from typing import Union, Any, Optional
 
-if TYPE_CHECKING:
-    from core import DCSServerBot
+from core import utils
+
+__all__ = [
+    "MizFile",
+    "UnsupportedMizFileException"
+]
 
 
 class MizFile:
 
-    def __init__(self, bot: DCSServerBot, filename: str):
-        self.log = bot.log
+    def __init__(self, root: Any, filename: str):
+        self.log = root.log
         self.filename = filename
         self.mission = dict()
         self.options = dict()
@@ -26,16 +30,19 @@ class MizFile:
         self._files: list[str] = list()
 
     def _load(self):
-        with zipfile.ZipFile(self.filename, 'r') as miz:
-            with miz.open('mission') as mission:
-                self.mission = luadata.unserialize(io.TextIOWrapper(mission, encoding='utf-8').read(), 'utf-8')
-            try:
-                with miz.open('options') as options:
-                    self.options = luadata.unserialize(io.TextIOWrapper(options, encoding='utf-8').read(), 'utf-8')
-            except FileNotFoundError:
-                pass
+        try:
+            with zipfile.ZipFile(self.filename, 'r') as miz:
+                with miz.open('mission') as mission:
+                    self.mission = luadata.unserialize(io.TextIOWrapper(mission, encoding='utf-8').read(), 'utf-8')
+                try:
+                    with miz.open('options') as options:
+                        self.options = luadata.unserialize(io.TextIOWrapper(options, encoding='utf-8').read(), 'utf-8')
+                except FileNotFoundError:
+                    pass
+        except Exception:
+            raise UnsupportedMizFileException(self.filename)
 
-    def save(self):
+    def save(self, new_filename: Optional[str] = None):
         tmpfd, tmpname = tempfile.mkstemp(dir=os.path.dirname(self.filename))
         os.close(tmpfd)
         with zipfile.ZipFile(self.filename, 'r') as zin:
@@ -53,10 +60,19 @@ class MizFile:
                 for file in self._files:
                     zout.write(file, f'l10n/DEFAULT/{os.path.basename(file)}')
         try:
-            os.remove(self.filename)
-            os.rename(tmpname, self.filename)
-        except PermissionError:
-            self.log.error(f"Can't change mission, please check permissions on {self.filename}!")
+            if new_filename and new_filename != self.filename:
+                if os.path.exists(new_filename):
+                    os.remove(new_filename)
+                os.rename(tmpname, new_filename)
+            else:
+                os.remove(self.filename)
+                os.rename(tmpname, self.filename)
+        except PermissionError as ex:
+            self.log.error(f"Can't write new mission file: {ex}")
+
+    @property
+    def theatre(self) -> str:
+        return self.mission['theatre']
 
     @property
     def start_time(self) -> int:
@@ -281,3 +297,8 @@ class MizFile:
                     process_element(reference, where)
             else:
                 process_element(reference)
+
+
+class UnsupportedMizFileException(Exception):
+    def __init__(self, mizfile: str):
+        super().__init__(f'The mission {mizfile} is not compatible with MizEdit. Please re-save it in DCS World.')

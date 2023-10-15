@@ -1,46 +1,50 @@
 # Plugin "CreditSystem"
-This plugin adds credits to the bot. People can gain credits atm by killing stuff. It is planned to enhance this 
-further, by gaining credits by flighttimes, etc.<br/>
+This plugin adds credits to the bot. People can gain credits atm by killing stuff. 
+
 Other plugins make use of credits. Currently, [SlotBlocking](../slotblocking/README.md) can block slots by credits and
 take credits away, if people waste airplanes. Furthermore, [Punishment](../punishment/README.md) can take credit points
 away due to punishment points a player gets due to teamkills or the like.
 
 ## Configuration
-The Creditsystem is configured with a file named config\creditsystem.json. You'll find a sample file in that directory:
-```json
-{
-  "configs": [
-    {
-      "initial_points": 1,      -- You can give people points from the beginning. Default is 0.
-      "max_points": 100,        -- People can not gather more than max_points (optional).
-      "points_per_kill": [      -- How many points do we get per kill? If not set, default will be 1 point per kill
-        { "default": 1 },
-        { "category": "Ships", "points": 2 },
-        { "category": "Air Defence", "points": 3 },
-        { "category": "Planes", "unit_type": "F-14B", "type": "Player", "points": 5 },
-        { "category": "Planes", "type": "AI", "points": 3 },
-        { "category": "Planes", "type": "Player", "points": 4 },
-        { "category": "Helicopters", "points": 3 }
-      ],
-      "achievements": [         -- Achievements that will be given to the player after a specific playtime or points
-        { "role": "Rookie", "playtime": 0, "credits": 0 },
-        { "role": "Veteran",  "playtime": 25, "credits": 50, "combined": true },  -- combined=true means they have to reach both goals to get that role
-        { "role": "Ace", "playtime": 50, "credits": 100, "combined": true }
-      ]
-    },{
-      "installation": "instance2",
-      "initial_points": [
-        {
-          "discord": "Donator",
-          "points": 10
-        },
-        {
-          "default": 1
-        }
-      ]
-    }
-  ]
-}
+The Creditsystem is configured with a file named config\plugins\creditsystem.yaml. You'll find a sample file in that directory:
+```yaml
+DEFAULT:              # valid for all servers
+  initial_points: 10  # The initial points a player gets (default = 0).
+  max_points: 100     # The maximum points a player can get (default = unlimited).
+  points_per_kill:    # How many points do players get when they kill another unit?
+  - default: 1        # You get at least one point (default = 0).
+  - category: Ships   # If you kill a ship. you get 2 points
+    points: 2
+  - category: Air Defence
+    points: 3
+  - category: Planes
+    type: AI          # for planes and helicopters you can decide whether you killed an AI or a human player
+    points: 3
+  - category: Planes
+    type: Player
+    points: 4
+  - category: Planes
+    type: Player
+    unit_type: F-14B  # you can specify the unit_type, unit_name, group_name as another differentiation
+    points: 5
+  - category: Helicopters
+    points: 3
+  achievements:       # OPTIONAL: you can give players Discord roles according to their achievements
+  - credits: 0
+    playtime: 0       # Playtime is in hours
+    role: Rookie      # Initially, with 0 credits and 0 playtime, you get the role "Rookie" (has to be in Discord)
+  - credits: 50
+    playtime: 25
+    role: Veteran
+  - credits: 100
+    playtime: 50
+    combined: true    # you need to have 100 credit points AND a playtime of more than 50 hrs to get the "Ace" role
+    role: Ace
+instance2:            # valid for a specific server
+  initial_points:     # different initial points can be specified for different Discord roles
+  - discord: Donator
+    points: 15
+  - default: 10
 ```
 In general, you get points per category. This can be specified in more detail by adding unit types or even "Player" or
 "AI" as a type to give people different points for killing human players. A "default" will be used for any other kill.
@@ -63,18 +67,28 @@ If you want to specify points for ground targets, you need to select the correct
 * Carriage
 * MissilesSS
 
+Achiements are possible role changes, that happen when a player either reached a specific flighttime or s specific number
+of credits.
 
 ## Discord Commands
-| Command  | Parameter          | Role | Description                                           |
-|----------|--------------------|------|-------------------------------------------------------|
-| .credits |                    | DCS  | Displays the players campaign credits.                |
-| .donate  | <@member> <points> | DCS  | Donate any of your campaign points to another member. |
+| Command         | Parameter            | Role | Description                                           |
+|-----------------|----------------------|------|-------------------------------------------------------|
+| /credits info   |                      | DCS  | Displays the players campaign credits.                |
+| /credits donate | <@member> <donation> | DCS  | Donate any of your campaign points to another member. |
+
+## In-Game Chat Commands
+
+| Command  | Parameter           | Role | Description                       |
+|----------|---------------------|------|-----------------------------------|
+| .credits |                     | all  | Show your players credits.        |
+| .donate  | whom points         | all  | Donate credits to another player. |
+| .tip     | points [gci number] | all  | Tip a GCI role.                   |
 
 ## Usage inside of Missions (Scripting API)
 If you want to change user points based on any mission achievements, you are good to go:
 ```lua
   dofile(lfs.writedir() .. 'Scripts/net/DCSServerBot/DCSServerBot.lua')
-  [...]
+  -- [...]
   dcsbot.addUserPoints('Special K', 10) -- add 10 points to users "Special K"'s credits. Points can be negative to take them away.
 ```
 

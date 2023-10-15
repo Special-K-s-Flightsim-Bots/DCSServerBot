@@ -1,21 +1,39 @@
 import asyncio
-import discord
 import os
 import re
-import time
-import win32api
-from collections import deque
-from core import Extension, report, Server, utils
-from datetime import datetime, timedelta
-from typing import Optional
+import shutil
+import sys
+if sys.platform == 'win32':
+    import win32api
 
+from core import Extension, report, utils, ServiceRegistry, Server
+from discord.ext import tasks
+from services import ServiceBus
+from typing import Optional, cast
 
-TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(r"%USERPROFILE%\Documents\Tacview"))
+TACVIEW_DEFAULT_DIR = os.path.normpath(os.path.expandvars(os.path.join('%USERPROFILE%', 'Documents', 'Tacview')))
 rtt_ports: dict[int, str] = dict()
 rcp_ports: dict[int, str] = dict()
 
 
 class Tacview(Extension):
+
+    def __init__(self, server: Server, config: dict):
+        super().__init__(server, config)
+        self.bus: ServiceBus = cast(ServiceBus, ServiceRegistry.get('ServiceBus'))
+        self.log_pos = -1
+        self.exp = re.compile(r'TACVIEW.DLL \(Main\): Successfully saved (?P<filename>.*)')
+
+    async def startup(self) -> bool:
+        await super().startup()
+        if self.config.get('target'):
+            self.check_log.start()
+        return True
+
+    async def shutdown(self) -> bool:
+        if self.locals.get('target'):
+            self.check_log.cancel()
+        return await super().shutdown()
 
     def load_config(self) -> Optional[dict]:
         if self.server.options['plugins']:
@@ -48,8 +66,7 @@ class Tacview(Extension):
         options = self.server.options['plugins']
         if 'tacviewExportPath' in self.config:
             path = os.path.normpath(os.path.expandvars(self.config['tacviewExportPath']))
-            if path != TACVIEW_DEFAULT_DIR and ('tacviewExportPath' not in options['Tacview'] or
-                                                os.path.normpath(options['Tacview']['tacviewExportPath']) != path):
+            if options['Tacview'].get('tacviewExportPath', TACVIEW_DEFAULT_DIR) != path:
                 options['Tacview']['tacviewExportPath'] = path
                 dirty = True
                 if not os.path.exists(path):
@@ -79,9 +96,8 @@ class Tacview(Extension):
 
     @property
     def version(self) -> str:
-        installation = self.server.installation
-        path = os.path.expandvars(self.bot.config[installation]['DCS_HOME']) + r'\Mods\tech\Tacview\bin\tacview.dll'
-        if os.path.exists(path):
+        path = os.path.join(self.server.instance.home, r'Mods\tech\Tacview\bin\tacview.dll')
+        if sys.platform == 'win32' and os.path.exists(path):
             info = win32api.GetFileVersionInfo(path, '\\')
             version = "%d.%d.%d" % (info['FileVersionMS'] / 65536,
                                     info['FileVersionMS'] % 65536,
@@ -98,7 +114,7 @@ class Tacview(Extension):
             value = 'disabled'
         else:
             show_passwords = self.config.get('show_passwords', True)
-            host = self.config.get('host', self.bot.external_ip)
+            host = self.config.get('host', self.node.public_ip)
             value = ''
             if self.locals.get('tacviewRealTimeTelemetryEnabled', True):
                 value += f"{host}:{self.locals.get('tacviewRealTimeTelemetryPort', 42674)}\n"
@@ -114,38 +130,15 @@ class Tacview(Extension):
                 value = 'enabled'
         embed.add_field(name=name, value=value)
 
-    async def schedule(self):
-        # check if autodelete is configured
-        if 'delete_after' not in self.config:
-            return
-        # only run once a day
-        if self.lastrun > (datetime.now() - timedelta(days=1)):
-            return
-        now = time.time()
-        path = self.server.options['plugins']['Tacview'].get('tacviewExportPath')
-        if not path:
-            path = TACVIEW_DEFAULT_DIR
-        if not os.path.exists(path):
-            return
-        for f in [os.path.join(path, x) for x in os.listdir(path)]:
-            if os.stat(f).st_mtime < (now - self.config['delete_after'] * 86400):
-                if os.path.isfile(f):
-                    os.remove(f)
-        self.lastrun = datetime.now()
-
     def is_installed(self) -> bool:
         global rtt_ports, rcp_ports
 
-        dll_installed = os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
-                                       r'\Mods\tech\Tacview\bin\tacview.dll')
-        exports_installed = os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
-                                           r'\Scripts\TacviewGameExport.lua') & \
-                            os.path.exists(os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) +
-                                           r'\Scripts\Export.lua')
+        base_dir = self.server.instance.home
+        dll_installed = os.path.exists(os.path.join(base_dir, r'Mods\tech\Tacview\bin\tacview.dll'))
+        exports_installed = (os.path.exists(os.path.join(base_dir, r'Scripts\TacviewGameExport.lua')) &
+                             os.path.exists(os.path.join(base_dir, r'Scripts\Export.lua')))
         if exports_installed:
-            with open(
-                    os.path.expandvars(self.bot.config[self.server.installation]['DCS_HOME']) + r'\Scripts\Export.lua',
-                    'r') as file:
+            with open(os.path.join(base_dir, r'Scripts\Export.lua'), 'r') as file:
                 for line in file.readlines():
                     # best case we find the default line Tacview put in the Export.lua
                     if line.strip() == "local Tacviewlfs=require('lfs');dofile(Tacviewlfs.writedir().." \
@@ -173,41 +166,61 @@ class Tacview(Extension):
             rcp_ports[rcp_port] = self.server.name
         return True
 
-    async def send_tacview_file(self, data: dict):
-        server: Server = self.bot.servers[data['server_name']]
-        log = self.locals.get('log',
-                              os.path.expandvars(self.bot.config[server.installation]['DCS_HOME']) + '/Logs/dcs.log')
-        exp = re.compile(r'TACVIEW.DLL \(Main\): Successfully saved (?P<filename>.*)')
-        lines = deque(open(log, encoding='utf-8'), 50)
-        for line in lines:
-            match = exp.search(line)
-            if match:
-                filename = match.group('filename')[1:-1]
-                for i in range(0, 60):
-                    if os.path.exists(filename):
-                        channel = self.bot.get_channel(self.config['channel'])
-                        try:
-                            await channel.send(file=discord.File(filename))
-                        except discord.HTTPException:
-                            self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
-                            await channel.send(f"File {filename} could not be uploaded because it is too large!")
-                            return
-                        break
-                    await asyncio.sleep(1)
-                else:
-                    self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
+    @tasks.loop(seconds=1)
+    async def check_log(self):
+        try:
+            logfile = os.path.join(self.server.instance.home, 'Logs', 'dcs.log')
+            if not os.path.exists(logfile):
+                self.log_pos = 0
                 return
+            with open(logfile, encoding='utf-8') as file:
+                # if we were started with an existing logfile, seek to the file end, else seek to the last position
+                if self.log_pos == -1:
+                    file.seek(0, 2)
+                else:
+                    file.seek(self.log_pos, 0)
+                for line in file.readlines():
+                    match = self.exp.search(line)
+                    if match:
+                        await self.send_tacview_file(match.group('filename')[1:-1])
+                self.log_pos = file.tell()
+        except Exception as ex:
+            self.log.exception(ex)
+
+    async def send_tacview_file(self, filename: str):
+        # wait 60s for the file to appear
+        for i in range(0, 60):
+            if os.path.exists(filename):
+                target = self.config['target']
+                if target.startswith('<'):
+                    if os.path.getsize(filename) > 25 * 1024 * 1024:
+                        self.log.warning(f"Can't upload, TACVIEW file {filename} too large!")
+                        return
+                    try:
+                        await self.bus.send_to_node_sync({
+                            "command": "rpc",
+                            "service": "Bot",
+                            "method": "send_message",
+                            "params": {
+                                "channel": int(target[4:-1]),
+                                "content": f"Tacview file for server {self.server.name}",
+                                "server": self.server.name,
+                                "filename": filename
+                            }
+                        })
+                    except AttributeError:
+                        self.log.warning(f"Can't upload TACVIEW file {filename}, "
+                                         f"channel {target[4:-1]} incorrect!")
+                    except Exception as ex:
+                        self.log.warning(f"Can't upload, TACVIEW file {filename}: {ex}!")
+                    return
+                else:
+                    try:
+                        shutil.copy2(filename, os.path.expandvars(utils.format_string(target, server=self.server)))
+                    except Exception as ex:
+                        self.log.warning(f"Can't upload TACVIEW file {filename} to {target}: ", exc_info=ex)
+                    return
+            await asyncio.sleep(1)
         else:
-            self.log.info("Can't find TACVIEW file to be sent. Was the server even running?")
-            self.log.debug('First line to check: ' + lines[0])
-            self.log.debug('Last line to check: ' + lines[-1])
-
-    async def shutdown(self, data: dict) -> bool:
-        if self.config.get('channel') and self.locals.get('tacviewMultiplayerFlightsAsHost', 2) == 2:
-            await self.send_tacview_file(data)
-        return True
-
-    async def onPlayerDisconnect(self, data: dict) -> bool:
-        if self.config.get('channel') and self.locals.get('tacviewMultiplayerFlightsAsHost', 2) == 3:
-            await self.send_tacview_file(data)
-        return True
+            self.log.warning(f"Can't find TACVIEW file {filename} after 1 min of waiting.")
+            return
