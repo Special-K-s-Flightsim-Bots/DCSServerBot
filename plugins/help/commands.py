@@ -194,8 +194,9 @@ class Help(Plugin):
     @app_commands.autocomplete(command=commands_autocomplete)
     async def help(self, interaction: discord.Interaction, command: Optional[str]):
         options = [
-            discord.SelectOption(label=x.title(),
-                                 value=f'plugins.{x}.commands') for x in sorted(self.bot.plugins) if x != 'help'
+            discord.SelectOption(label=x.title(), value=f'plugins.{x}.commands')
+            for x in sorted(self.bot.plugins)
+            if x != 'help'
         ]
         view = self.HelpView(self.bot, interaction, options)
         if command:
