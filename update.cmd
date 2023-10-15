@@ -13,7 +13,7 @@ if %ERRORLEVEL% EQU 9009 (
 )
 SET VENV=%TEMP%\DCSServerBot
 if not exist %VENV% (
-    echo Creating the Python Virtual Environment (venv) ...
+    echo Creating the Python Virtual Environment (venv)
     python -m venv %VENV%
 )
 echo Installing Python Libraries ...
