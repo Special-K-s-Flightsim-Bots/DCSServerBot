@@ -108,6 +108,7 @@ def post_migrate_greenieboard():
             }
             del instance['FunkMan']['delete_after']
     if cleanup:
+
         with open('config/services/cleanup.yaml', 'w') as outfile:
             yaml.dump(cleanup, outfile)
         with open('config/plugins/greenieboard.yaml', 'w') as outfile:
@@ -145,6 +146,7 @@ def migrate():
         os.makedirs(BACKUP_FOLDER, exist_ok=True)
         # Migrate all plugins
         os.makedirs('config/plugins', exist_ok=True)
+        os.makedirs('config/services', exist_ok=True)
         plugins = [x.strip() for x in cfg['BOT']['PLUGINS'].split(',')]
         if 'OPT_PLUGINS' in cfg['BOT']:
             plugins.extend([x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')])
@@ -266,7 +268,6 @@ def migrate():
             bot['roles'] = {}
             for role in ['Admin', 'DCS Admin', 'DCS', 'GameMaster']:
                 bot['roles'][role] = [x.strip() for x in cfg['ROLES'][role].split(',')]
-            os.makedirs('config/services', exist_ok=True)
             with open('config/services/bot.yaml', 'w', encoding='utf-8') as out:
                 yaml.dump(bot, out)
                 print("- Created config/services/bot.yaml")
@@ -399,6 +400,8 @@ def migrate():
                 _delete_after = instance['extensions']['Tacview'].get('delete_after', delete_after)
                 _directory = instance['extensions']['Tacview'].get('tacviewExportPath', directory)
                 if _delete_after:
+                    if not name in cleanup:
+                        cleanup[name] = {}
                     cleanup[name] |= {
                         "Tacview": {
                             "directory": _directory,
