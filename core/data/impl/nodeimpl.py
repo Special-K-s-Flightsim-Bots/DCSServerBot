@@ -65,8 +65,6 @@ class NodeImpl(Node):
         self.node = self  # to be able to address self.node
         self.guild_id: int = int(self.config['guild_id'])
         self._public_ip: Optional[str] = None
-        self.listen_address = self.config.get('listen_address', '0.0.0.0')
-        self.listen_port = self.config.get('listen_port', 10042)
         self.log = self.init_logger()
         self.bot_version = __version__[:__version__.rfind('.')]
         self.sub_version = int(__version__[__version__.rfind('.') + 1:])
@@ -111,6 +109,8 @@ class NodeImpl(Node):
         if self._master:
             self.update_db()
         self.locals = self.read_locals()
+        self.listen_address = self.locals.get('listen_address', '0.0.0.0')
+        self.listen_port = self.locals.get('listen_port', 10042)
 
     @property
     def master(self) -> bool:
