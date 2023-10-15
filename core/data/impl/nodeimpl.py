@@ -453,7 +453,7 @@ class NodeImpl(Node):
                     # split brain detected
                     else:
                         # we are the preferred master,
-                        if self.locals.get('preferred_master', False):
+                        if self.locals and self.locals.get('preferred_master', False):
                             cursor.execute('UPDATE nodes SET master = False WHERE guild_id = %s and node <> %s',
                                            (self.guild_id, self.name))
                         else:

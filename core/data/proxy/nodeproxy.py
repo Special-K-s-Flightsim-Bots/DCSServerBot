@@ -110,6 +110,16 @@ class NodeProxy(Node):
         }, timeout=60, node=self.name)
         return data['return']
 
+    async def shell_command(self, cmd: str):
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "shell_command",
+            "params": {
+                "cmd": cmd
+            }
+        }, timeout=60, node=self.name)
+
     async def read_file(self, path: str) -> Union[bytes, int]:
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
