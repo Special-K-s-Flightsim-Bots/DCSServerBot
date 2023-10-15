@@ -21,18 +21,18 @@ These commands can be used to administrate the bot itself.
 
 ## Plugin Admin
 
-| Command   | Parameter             | Channel       | Role      | Description                                                                                                             |
-|-----------|-----------------------|---------------|-----------|-------------------------------------------------------------------------------------------------------------------------|
-| .update   | [-force]              | admin-channel | DCS Admin | Updates DCS World to the latest available version. -force can be used, if no update could be detected automatically.    |
-| .config   |                       | admin-channel | DCS Admin | Configure name, description, password and num max players for your server.                                              |
-| .password | [coalition]*          | admin-channel | DCS Admin | Changes the password of a DCS server or a specific coalition* on this server.                                           |
-| .kick     | name [reason]         | admin-channel | DCS Admin | Kicks the user with the in-game name "name" from the DCS server. The "reason" will be provided to the user.             |
-| .spec     | name [reason]         | admin-channel | DCS Admin | Moves the user with the in-game name "name" to spectators. The "reason" will be provided to the user as a chat message. |
-| .ban      | @member/ucid [reason] | all           | DCS Admin | Bans a specific player either by their Discord ID or UCID.                                                              |
-| .unban    | @member/ucid          | all           | DCS Admin | Unbans a specific player either by their Discord ID or UCID.                                                            |
-| .bans     |                       | all           | DCS Admin | Lists the current active bans.                                                                                          |
-| .download |                       | admin-channel | DCS Admin | Download a dcs.log, dcsserverbot.log, bot config file or a mission into a DM, path or configured channel.               |
-| .shell    |                       | admin-channel | Admin     | Runs a shell command on a specific node.                                                                                |
+| Command   | Parameter                     | Channel       | Role      | Description                                                                                                             |
+|-----------|-------------------------------|---------------|-----------|-------------------------------------------------------------------------------------------------------------------------|
+| .update   | [-force]                      | admin-channel | DCS Admin | Updates DCS World to the latest available version. -force can be used, if no update could be detected automatically.    |
+| .config   |                               | admin-channel | DCS Admin | Configure name, description, password and num max players for your server.                                              |
+| .password | [coalition]*                  | admin-channel | DCS Admin | Changes the password of a DCS server or a specific coalition* on this server.                                           |
+| .kick     | name [reason]                 | admin-channel | DCS Admin | Kicks the user with the in-game name "name" from the DCS server. The "reason" will be provided to the user.             |
+| .spec     | name [reason]                 | admin-channel | DCS Admin | Moves the user with the in-game name "name" to spectators. The "reason" will be provided to the user as a chat message. |
+| .ban      | @member/ucid [days] [reason]  | all           | DCS Admin | Bans a specific player either by their Discord ID or UCID for the given amount of days (optional).                      |
+| .unban    | @member/ucid                  | all           | DCS Admin | Unbans a specific player either by their Discord ID or UCID.                                                            |
+| .bans     |                               | all           | DCS Admin | Lists the current active bans.                                                                                          |
+| .download |                               | admin-channel | DCS Admin | Download a dcs.log, dcsserverbot.log, bot config file or a mission into a DM, path or configured channel.               |
+| .shell    |                               | admin-channel | Admin     | Runs a shell command on a specific node.                                                                                |
 
 ## Plugin Cloud
 
@@ -56,20 +56,20 @@ These commands can be used to administrate the bot itself.
 
 ## Plugin GameMaster
 
-| Command           | Parameter                             | Channel             | Roles                 | Description                                                                                                       |
-|-------------------|---------------------------------------|---------------------|-----------------------|-------------------------------------------------------------------------------------------------------------------|
-| .chat             | message                               | chat-/admin-channel | DCS                   | Send a message to the DCS in-game-chat.                                                                           |
-| .popup            | red/blue/all/player [timeout] message | admin-channel       | DCS Admin, GameMaster | Send a popup to the dedicated coalition or player* in game with an optional timeout.                              |
-| .flag             | name [value]                          | admin-channel       | DCS Admin, GameMaster | Sets (or clears) a flag inside the running mission or returns the current value.                                  |
-| .variable         | name [value]                          | admin-channel       | DCS Admin, GameMaster | Sets (or gets) a mission variable.                                                                                |
-| .do_script        | lua code                              | admin-channel       | DCS Admin, GameMaster | Run specific lua code inside the running mission.                                                                 |
-| .do_script_file   | file                                  | admin-channel       | DCS Admin, GameMaster | Load a script (relative to Saved Games\DCS...) into the running mission.                                          |
-| .reset_coalitions |                                       | all                 | DCS Admin             | Resets all user-coalition-bindings on all servers.                                                                |
-| .campaign         | add <name> [start] [stop]             | admin-channel       | DCS Admin, GameMaster | Creates a new campaign "name", starting at "start" and ending at "stop".                                          |
-| .campaign         | start <name>                          | admin-channel       | DCS Admin, GameMaster | Starts a new campaign with the provided name, if none is running.                                                 |
-| .campaign         | stop                                  | admin-channel       | DCS Admin, GameMaster | Stops the current campaign.                                                                                       |
-| .campaign         | delete [name]                         | admin-channel       | DCS Admin, GameMaster | Deletes a campaign out of the list. If no name is provided the current campaign will be deleted.                  |
-| .campaign         | list [-all]                           | admin-channel       | DCS Admin, GameMaster | Lists all available campaigns. If "-all" is not provided (default), only campaigns from now on will be displayed. |
+| Command           | Parameter                             | Channel             | Roles                 | Description                                                                                                                      |
+|-------------------|---------------------------------------|---------------------|-----------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| .chat             | message                               | chat-/admin-channel | DCS                   | Send a message to the DCS in-game-chat.                                                                                          |
+| .popup            | red/blue/all/player [timeout] message | admin-channel       | DCS Admin, GameMaster | Send a popup to the dedicated coalition or player* in game with an optional timeout.                                             |
+| .flag             | name [value]                          | admin-channel       | DCS Admin, GameMaster | Sets (or clears) a flag inside the running mission or returns the current value.                                                 |
+| .variable         | name [value]                          | admin-channel       | DCS Admin, GameMaster | Sets (or gets) a mission variable.                                                                                               |
+| .do_script        | lua code                              | admin-channel       | DCS Admin, GameMaster | Run specific lua code inside the running mission.                                                                                |
+| .do_script_file   | file                                  | admin-channel       | DCS Admin, GameMaster | Load a script (relative to Saved Games\DCS...) into the running mission.                                                         |
+| .reset_coalitions |                                       | all                 | DCS Admin             | Resets all user-coalition-bindings on all servers.                                                                               |
+| .campaign         | add <name> [start] [stop]             | admin-channel       | DCS Admin, GameMaster | Creates a new campaign "name", starting at "start" and ending at "stop". start / stop should be in format YYYYMMDD or DDMMYYYY.  |
+| .campaign         | start <name>                          | admin-channel       | DCS Admin, GameMaster | Starts a new campaign with the provided name, if none is running.                                                                |
+| .campaign         | stop                                  | admin-channel       | DCS Admin, GameMaster | Stops the current campaign.                                                                                                      |
+| .campaign         | delete [name]                         | admin-channel       | DCS Admin, GameMaster | Deletes a campaign out of the list. If no name is provided the current campaign will be deleted.                                 |
+| .campaign         | list [-all]                           | admin-channel       | DCS Admin, GameMaster | Lists all available campaigns. If "-all" is not provided (default), only campaigns from now on will be displayed.                |
 
 ## Plugin Greenieboard
 

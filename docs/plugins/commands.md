@@ -6,10 +6,14 @@ nav_order: 0
 
 # Plugin "Commands"
 
-This plugin is a very low level plugin that lets you start commands on the server PC and map them to discord commands. 
-It can be used to start specific tasks like backups or other game servers with DCSServerBot.
+With this plugin you can create your own Discord commands, that either run a command on your PC, send events to one
+or more DCS servers and - if required - parse the result and display it in Discord as a message or embed.  It can be 
+used to start specific tasks like backups or other game servers or to read some lua table from a running mission
+and display the result with DCSServerBot.
+
 
 {: .warning }
+> This is a very powerful plugin, but it can do much harm if not handled with care!
 > DCSServerBot needs to have the permissions to launch the respective executable!
 
 {: .important }
