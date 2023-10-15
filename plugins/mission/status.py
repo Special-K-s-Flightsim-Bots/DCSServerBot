@@ -130,9 +130,9 @@ class ScheduleInfo(report.EmbedElement):
         bot = ServiceRegistry.get("Bot").bot
         scheduler = bot.cogs.get('Scheduler')
         if scheduler:
-            report.Ruler(self.env).render(text="This server runs on the following schedule:")
             config = scheduler.get_config(server)
             if 'schedule' in config:
+                report.Ruler(self.env).render(text="This server runs on the following schedule:")
                 self.embed.add_field(name='Time', value='\n'.join(config['schedule'].keys()))
                 value = ''
                 for schedule in config['schedule'].values():

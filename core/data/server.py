@@ -206,6 +206,9 @@ class Server(DataObject):
     async def get_current_mission_file(self) -> Optional[str]:
         raise NotImplemented()
 
+    async def get_current_mission_theatre(self) -> Optional[str]:
+        raise NotImplemented()
+
     def send_to_dcs(self, message: dict):
         raise NotImplemented()
 

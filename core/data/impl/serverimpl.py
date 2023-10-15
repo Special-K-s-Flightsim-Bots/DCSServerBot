@@ -223,6 +223,12 @@ class ServerImpl(Server):
             filename = self.current_mission.filename
         return filename
 
+    async def get_current_mission_theatre(self) -> Optional[str]:
+        filename = await self.get_current_mission_file()
+        if filename:
+            miz = MizFile(self.bot, filename)
+            return miz.theatre
+
     def serialize(self, message: dict):
         for key, value in message.items():
             if isinstance(value, bool):

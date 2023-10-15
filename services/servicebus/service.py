@@ -68,6 +68,15 @@ class ServiceBus(Service):
                 self.bot = ServiceRegistry.get("Bot").bot
                 await self.bot.wait_until_ready()
                 await self.register_local_servers()
+            else:
+                self.send_to_node({
+                    "command": "rpc",
+                    "service": "ServiceBus",
+                    "method": "register_remote_node",
+                    "params": {
+                        "node": self.node.name
+                    }
+                })
         except Exception as ex:
             self.log.exception(ex)
 
@@ -165,7 +174,9 @@ class ServiceBus(Service):
             else:
                 num += 1
         if num == 0:
-            self.log.debug('- No running local servers found.')
+            self.log.info('- No running local servers found.')
+        else:
+            self.log.info(f'- {num} running local servers found.')
 
     async def register_remote_node(self, node: str):
         self.log.info(f"- Registering remote node {node}.")

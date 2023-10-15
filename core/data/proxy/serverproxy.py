@@ -77,6 +77,15 @@ class ServerProxy(Server):
         }, node=self.node.name)
         return data["return"]
 
+    async def get_current_mission_theatre(self) -> Optional[str]:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "get_current_mission_theatre",
+            "server_name": self.name
+        }, node=self.node.name)
+        return data["return"]
+
     def send_to_dcs(self, message: dict):
         message['server_name'] = self.name
         self.bus.send_to_node(message, node=self.node.name)

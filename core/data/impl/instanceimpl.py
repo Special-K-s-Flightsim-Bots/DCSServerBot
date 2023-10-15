@@ -48,6 +48,7 @@ class InstanceImpl(Instance):
         if self._server and self._server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
             raise InstanceBusyError()
         self._server = server
+        self.prepare()
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
@@ -56,7 +57,6 @@ class InstanceImpl(Instance):
                 if server:
                     server.instance = self
 
-    # TODO: check where to call this best
     def prepare(self):
         if self.node.locals['DCS'].get('desanitize', True):
             # check for SLmod and desanitize its MissionScripting.lua

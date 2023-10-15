@@ -69,6 +69,10 @@ class MizFile:
             self.log.error(f"Can't write new mission file: {ex}")
 
     @property
+    def theatre(self) -> str:
+        return self.mission['theatre']
+
+    @property
     def start_time(self) -> int:
         return self.mission['start_time']
 

@@ -21,7 +21,8 @@ __all__ = [
     "desanitize",
     "dd_to_dms",
     "get_active_runways",
-    "create_writable_mission"
+    "create_writable_mission",
+    "LICENSES_URL"
 ]
 
 
