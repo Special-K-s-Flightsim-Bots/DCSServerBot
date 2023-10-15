@@ -1,21 +1,19 @@
 @echo off
 echo Updating DCSSererBot to the latest version...
-git checkout v2 >NUL
+git pull 2>/NUL
 if %ERRORLEVEL% EQU 9009 (
     echo Git for Windows is not installed.
     echo Please download the latest version of DCSServerBot from
     echo https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/releases/latest
     echo and update manually.
     exit /B %ERRORLEVEL%
-)
-git pull >NUL
-if %ERRORLEVEL% NEQ 0 (
+) else if %ERRORLEVEL% NEQ 0 (
     echo Error while updating DCSServerBot. Please check the messages above.
     exit /B %ERRORLEVEL%
 )
 SET VENV=%TEMP%\DCSServerBot
 if not exist %VENV% (
-    echo Creating the Python Virtual Environment (venv) ...
+    echo Creating the Python Virtual Environment (venv)
     python -m venv %VENV%
 )
 echo Installing Python Libraries ...

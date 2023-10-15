@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import closing
-from core import EventListener, Plugin, Server, Player, Status, event, chat_command, Channel
+from core import EventListener, Plugin, Server, Player, Status, event, chat_command
 
 
 class PunishmentEventListener(EventListener):
@@ -67,8 +67,9 @@ class PunishmentEventListener(EventListener):
                     target = server.get_player(name=data['target'])
                     if 'forgive' in config:
                         target.sendChatMessage(f"{target.name}, you are a victim of a {data['eventName']} event by "
-                                               f"player {data['initiator']}.\nIf you send -forgive in this chat within "
-                                               f"the next {config['forgive']} seconds, you can pardon the other player.")
+                                               f"player {data['initiator']}.\nIf you send {self.prefix}forgive in this "
+                                               f"chat within the next {config['forgive']} seconds, you can pardon the "
+                                               f"other player.")
                 else:
                     target = None
                 # add the event to the database
@@ -110,30 +111,6 @@ class PunishmentEventListener(EventListener):
                         data['eventName'] = 'collision_kill'
                     await self._punish(data)
 
-    @event(name="onPlayerConnect")
-    async def onPlayerConnect(self, server: Server, data: dict) -> None:
-        if data['id'] == 1:
-            return
-        # check if someone was banned on server A and tries to sneak into server B on another node
-        with self.pool.connection() as conn:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute('SELECT reason, banned_until FROM bans WHERE ucid = %s AND banned_until >= NOW()',
-                               (data['ucid'], ))
-                if cursor.rowcount > 0:
-                    row = cursor.fetchone()
-                    if row[1].year == 9999:
-                        until = 'never'
-                    else:
-                        until = row[1].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') + ' (UTC)'
-                    # ban them on all servers on this node as it wasn't populated yet
-                    for s in self.bot.servers.values():
-                        s.send_to_dcs({
-                            "command": "ban",
-                            "ucid": data['ucid'],
-                            "reason": row[0],
-                            "banned_until": until
-                        })
-
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
         if data['id'] == 1:
@@ -147,8 +124,7 @@ class PunishmentEventListener(EventListener):
     async def forgive(self, server: Server, target: Player, params: list[str]):
         config = self.plugin.get_config(server)
         if 'forgive' not in config:
-            target.sendChatMessage(
-                f"{self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}forgive is not enabled on this server.")
+            target.sendChatMessage(f'{self.prefix}forgive is not enabled on this server.')
             return
 
         async with self.lock:

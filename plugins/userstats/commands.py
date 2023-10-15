@@ -446,38 +446,6 @@ class UserStatistics(Plugin):
                 await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.', 
                                                 ephemeral=True)
 
-    @commands.command(description='Deletes the statistics of a specific user')
-    @utils.has_roles(['DCS', 'DCS Admin'])
-    @commands.guild_only()
-    async def delete_statistics(self, ctx: commands.Context, user: Optional[discord.Member]):
-        if not user:
-            user = ctx.message.author
-        elif user != ctx.message.author and not utils.check_roles(['DCS Admin'], ctx.message.author):
-            await ctx.send(f'You are not allowed to delete statistics of user {user.display_name}!')
-            return
-        member = DataObjectFactory().new('Member', bot=self.bot, member=user)
-        if not member.verified:
-            await ctx.send(f'User {user.display_name} has non-verified links. Statistics can not be deleted.')
-            return
-        conn = self.pool.getconn()
-        try:
-            if await utils.yn_question(ctx, f'I\'m going to **DELETE ALL STATISTICS** of user '
-                                            f'"{user.display_name}".\n\nAre you sure?'):
-                with closing(conn.cursor()) as cursor:
-                    for ucid in member.ucids:
-                        cursor.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
-                        cursor.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid, ))
-                        cursor.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))
-                        if self.bot.cogs.get('GreenieBoardMaster'):
-                            cursor.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
-                    conn.commit()
-                await ctx.send(f'Statistics for user "{user.display_name}" have been wiped.')
-        except (Exception, psycopg2.DatabaseError) as error:
-            self.log.exception(error)
-            conn.rollback()
-        finally:
-            self.pool.putconn(conn)
-
     @tasks.loop(hours=1)
     async def expire_token(self):
         with self.pool.connection() as conn:

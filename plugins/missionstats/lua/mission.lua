@@ -178,17 +178,6 @@ function onEvent(event)
 						msg.target.category = msg.target.unit:getDesc().category
 					end
 				end
-			elseif category == Object.Category.STATIC then
-				msg.target.type = 'STATIC'
-				msg.target.unit = event.target
-				if msg.target.unit and msg.target.unit:isExist() then
-					msg.target.unit_name = msg.target.unit:getName()
-					if msg.target.unit_name ~= nil and msg.target.unit_name ~= '' then
-						msg.target.coalition = msg.target.unit:getCoalition()
-						msg.target.unit_type = msg.target.unit:getTypeName()
-						msg.target.category = msg.target.unit:getDesc().category
-					end
-				end
 			elseif category == Object.Category.SCENERY then
 				msg.target.type = 'SCENERY'
 				msg.target.unit = event.target

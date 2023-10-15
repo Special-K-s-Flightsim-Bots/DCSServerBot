@@ -102,10 +102,6 @@ class MissionEventListener(EventListener):
         except Exception as ex:
             self.log.debug("Exception in print_queue(): " + str(ex))
 
-    @print_queue.before_loop
-    async def before_check(self):
-        await self.bot.wait_until_ready()
-
     @tasks.loop(seconds=5)
     async def update_player_embed(self):
         for server_name, update in self.player_embeds.items():
@@ -215,12 +211,6 @@ class MissionEventListener(EventListener):
                         "reason": ban['reason'],
                         "banned_until": until
                     })
-
-    def init_mission(self, server: Server, data: dict) -> None:
-        if not server.current_mission:
-            server.current_mission = DataObjectFactory().new(Mission.__name__, bot=self.bot, server=server,
-                                                             map=data['current_map'], name=data['current_mission'])
-        server.current_mission.update(data)
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:

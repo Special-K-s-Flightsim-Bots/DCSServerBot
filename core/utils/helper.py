@@ -4,7 +4,6 @@ import importlib
 import json
 import luadata
 import os
-import psycopg2
 import re
 import string
 import unicodedata

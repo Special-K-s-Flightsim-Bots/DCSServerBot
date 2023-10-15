@@ -208,10 +208,3 @@ class Player(DataObject):
             "to": self.unit_name,
             "sound": sound
         })
-
-    def playSound(self, sound: str):
-        self.server.sendtoDCS({
-            "command": "playSound",
-            "to": self.unit_name,
-            "sound": sound
-        })

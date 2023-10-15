@@ -95,7 +95,7 @@ class GameMasterEventListener(EventListener):
             if self.get_coalition_password(server, player.coalition):
                 await self._password(server, player)
 
-    def campaign(self, command: str, *, servers: Optional[list[str]] = None, name: Optional[str] = None,
+    def campaign(self, command: str, *, servers: Optional[list[Server]] = None, name: Optional[str] = None,
                  description: Optional[str] = None, start: Optional[datetime] = None, end: Optional[datetime] = None):
         with self.pool.connection() as conn:
             with conn.transaction():

@@ -16,7 +16,7 @@ from .utils import radios_autocomplete, get_all_playlists, playlist_autocomplete
 from .views import MusicPlayer
 
 
-class MusicAgent(Plugin):
+class Music(Plugin):
 
     def __init__(self, bot: DCSServerBot, eventlistener: Type[TEventListener] = None):
         super().__init__(bot, eventlistener)
@@ -180,10 +180,4 @@ class MusicAgent(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    if bot.config.getboolean('BOT', 'MASTER'):
-        if bot.config.getboolean('BOT', 'MASTER_ONLY'):
-            await bot.add_cog(MusicMasterOnly(bot, MusicEventListener))
-        else:
-            await bot.add_cog(MusicMaster(bot, MusicEventListener))
-    else:
-        await bot.add_cog(MusicAgent(bot, MusicEventListener))
+    await bot.add_cog(Music(bot, MusicEventListener))

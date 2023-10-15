@@ -208,10 +208,6 @@ class UserStatisticsEventListener(EventListener):
                 'greeting_message_members', '{player.name}, welcome back at {server.name}!').format(player=player,
                                                                                                     server=server))
 
-    @event(name="onSimulationStop")
-    async def onSimulationStop(self, server: Server, data: dict) -> None:
-        self.close_mission_stats(server)
-
     @event(name="onPlayerChangeSlot")
     async def onPlayerChangeSlot(self, server: Server, data: dict) -> None:
         if 'side' not in data:

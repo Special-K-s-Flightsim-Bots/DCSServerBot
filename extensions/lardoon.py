@@ -10,8 +10,6 @@ from discord.ext import tasks
 from extensions import TACVIEW_DEFAULT_DIR
 from typing import Optional
 
-from .tacview import TACVIEW_DEFAULT_DIR
-
 # Globals
 process: Optional[subprocess.Popen] = None
 servers: set[str] = set()

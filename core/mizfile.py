@@ -6,8 +6,6 @@ import os
 import tempfile
 import random  # do not remove
 import zipfile
-
-from core import utils
 from datetime import datetime
 from typing import Union, Any, Optional
 

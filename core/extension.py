@@ -29,9 +29,6 @@ class Extension(ABC):
     async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
         return filename, False
 
-    async def onPlayerDisconnect(self, data: dict) -> bool:
-        return True
-
     async def startup(self) -> bool:
         schedule = getattr(self, 'schedule', None)
         if schedule and not schedule.is_running():

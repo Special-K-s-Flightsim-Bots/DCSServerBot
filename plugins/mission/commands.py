@@ -2,7 +2,6 @@ import asyncio
 from contextlib import closing
 
 import discord
-import logging
 import os
 import psycopg
 import re
