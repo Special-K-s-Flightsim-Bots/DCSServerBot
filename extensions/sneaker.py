@@ -108,6 +108,7 @@ class Sneaker(Extension):
         if process is not None and process.poll() is None:
             return self.server.name in servers
         else:
+            process = None
             return False
 
     @property

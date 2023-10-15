@@ -182,7 +182,7 @@ You need to let the sneaker cmd point to wherever you've installed the sneaker.e
 there is a version number attached to it). DCSServerBot will auto-create the config.json for sneaker 
 (config/sneaker.json) and start / stop / monitor the sneaker process.
 
-### DCS-real-weather
+### DCS Real Weather Updater
 If you want to use real-time weather in your missions, you can do that by using [DCS-real-weather](https://github.com/evogelsa/DCS-real-weather).
 Download the release zip and unzip it to a directory of your choice on your system running your DCS servers and the 
 DCSServerBot. You can then add another extension into your nodes.yaml:
@@ -218,7 +218,8 @@ MyNode:
             fog-allowed: true
             dust-allowed: true
 ```
-You can find a list of supported parameters in the config.json provided by DCS-real-weather.
+You can find a list of supported parameters in the config.json provided by DCS-real-weather.<br>
+**DCSServerBot only supports DCS Real Weather Updater versions from 1.9.0 upwards.**
 
 ### Lardoon
 [Lardoon](https://github.com/b1naryth1ef/lardoon) is another web-server-based application that provides a nice search 

@@ -177,7 +177,11 @@ class CreditSystemListener(EventListener):
             player.sendChatMessage(f"Usage: {self.prefix}donate player points")
             return
         name = ' '.join(params[:-1])
-        donation = int(params[-1])
+        try:
+            donation = int(params[-1])
+        except ValueError:
+            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}donate player points")
+            return
         if donation > player.points:
             player.sendChatMessage(f"You can't donate {donation} credit points as you only have {player.points}!")
             return
