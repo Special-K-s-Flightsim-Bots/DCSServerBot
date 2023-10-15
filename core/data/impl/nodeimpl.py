@@ -90,7 +90,6 @@ class NodeImpl(Node):
         self.plugins.append('cloud')
         self.db_version = None
         self.pool = self.init_db()
-        self.locals: dict = self.read_locals()
         try:
             with self.pool.connection() as conn:
                 with conn.transaction():
@@ -110,6 +109,7 @@ class NodeImpl(Node):
             self._master = True
         if self._master:
             self.update_db()
+        self.locals: dict = self.read_locals()
 
     @property
     def master(self) -> bool:

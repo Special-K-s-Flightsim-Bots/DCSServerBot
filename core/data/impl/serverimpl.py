@@ -15,7 +15,6 @@ from core.data.dataobject import DataObjectFactory
 from core.data.const import Status
 from core.mizfile import MizFile, UnsupportedMizFileException
 from core.data.node import UploadStatus
-from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum

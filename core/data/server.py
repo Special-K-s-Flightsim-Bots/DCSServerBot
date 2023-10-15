@@ -106,7 +106,7 @@ class Server(DataObject):
             status = Status(status)
             propagate = False
         if status != self._status:
-            self.log.info(f"{self.name}: {self._status.name} => {status.name}")
+            # self.log.info(f"{self.name}: {self._status.name} => {status.name}")
             self._status = status
             self.status_change.set()
             self.status_change.clear()

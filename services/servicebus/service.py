@@ -337,7 +337,7 @@ class ServiceBus(Service):
             # add eventlistener queue
             if server.name not in self.udp_server.message_queue:
                 self.udp_server.message_queue[server.name] = Queue()
-                self.executor.submit(self.udp_server.process, server)
+                self.executor.submit(self.udp_server.process, server.name)
             self.log.info(f"  => DCS-Server \"{server.name}\" from Node {server.node.name} registered.")
         else:
             # IP might have changed, so update it
@@ -533,7 +533,7 @@ class ServiceBus(Service):
                 udp_server: MyThreadingUDPServer = cast(MyThreadingUDPServer, derived.server)
                 if server.name not in udp_server.message_queue:
                     udp_server.message_queue[server.name] = Queue()
-                    self.executor.submit(udp_server.process, server)
+                    self.executor.submit(udp_server.process, server.name)
                 udp_server.message_queue[server.name].put(data)
 
         class MyThreadingUDPServer(ThreadingUDPServer):
@@ -547,9 +547,12 @@ class ServiceBus(Service):
                 except Exception as ex:
                     self.log.exception(ex)
 
-            def process(derived, server: Server):
-                data: dict = derived.message_queue[server.name].get()
+            def process(derived, server_name: str):
+                data: dict = derived.message_queue[server_name].get()
                 while data:
+                    server: Server = self.servers.get(server_name)
+                    if not server:
+                        continue
                     try:
                         command = data['command']
                         if command == 'registerDCSServer':
