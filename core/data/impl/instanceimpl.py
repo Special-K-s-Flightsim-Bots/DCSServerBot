@@ -30,14 +30,17 @@ class InstanceImpl(Instance):
         if os.path.exists(settings_path):
             settings = SettingsDict(self, settings_path, root='cfg')
             self.locals['dcs_port'] = settings['port']
+        server_name = settings['name'] if settings else None
+        if server_name and server_name == 'n/a':
+            server_name = None
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
                     INSERT INTO instances (instance, node, port, server_name)
                     VALUES (%s, %s, %s, %s) 
-                    ON CONFLICT DO NOTHING 
-                """, (self.name, self.node.name, self.locals.get('bot_port', 6666),
-                      settings['name'] if settings else None))
+                    ON CONFLICT (instance) DO UPDATE 
+                    SET port=excluded.port, server_name=excluded.server_name 
+                """, (self.name, self.node.name, self.locals.get('bot_port', 6666), server_name))
 
     @property
     def server(self) -> Optional[ServerImpl]:

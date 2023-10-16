@@ -125,7 +125,8 @@ class ServiceBus(Service):
     async def init_servers(self):
         with self.pool.connection() as conn:
             for instance in self.node.instances:
-                row = conn.execute('SELECT server_name FROM instances WHERE instance=%s', (instance.name,)).fetchone()
+                row = conn.execute('SELECT server_name FROM instances WHERE instance=%s AND server_name IS NOT NULL',
+                                   (instance.name,)).fetchone()
                 # was there a server bound to this instance?
                 if row:
                     server: ServerImpl = DataObjectFactory().new(
