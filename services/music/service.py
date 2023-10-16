@@ -41,12 +41,12 @@ class MusicService(Service):
                 await radio.stop()
         await super().stop()
 
-    async def start_radios(self, server: Server, radio_name: Optional[str] = None) -> None:
+    async def init_radios(self, server: Server, radio_name: Optional[str] = None) -> None:
         if server.is_remote:
             await self.bus.send_to_node_sync({
                 "command": "rpc",
                 "service": "Music",
-                "method": "start_radios",
+                "method": "init_radios",
                 "params": {
                     "server": server.name,
                     "radio_name": radio_name or ""
@@ -65,8 +65,24 @@ class MusicService(Service):
             if not self.radios[server.name].get(name):
                 radio: Radio = getattr(sys.modules['services.music.radios'], config['type'])(name=name, server=server)
                 self.radios[server.name][name] = radio
-            if server.get_active_players():
-                await self.radios[server.name][name].start()
+
+    async def start_radios(self, server: Server, radio_name: Optional[str] = None) -> None:
+        if server.is_remote:
+            await self.bus.send_to_node_sync({
+                "command": "rpc",
+                "service": "Music",
+                "method": "start_radios",
+                "params": {
+                    "server": server.name,
+                    "radio_name": radio_name or ""
+                }
+            }, node=server.node.name)
+            return
+        if server.name in self.radios:
+            for name, radio in self.radios[server.name].items():
+                if radio_name and name != radio_name:
+                    continue
+                await radio.start()
 
     async def stop_radios(self, server: Server, radio_name: Optional[str] = None) -> None:
         if server.is_remote:
@@ -164,8 +180,7 @@ class MusicService(Service):
             }, node=server.node.name)
             return data["return"]
         radio = self.radios.get(server.name, {}).get(radio_name)
-        if radio:
-            return radio.songs
+        return radio.songs if radio else []
 
     async def get_mode(self, server: Server, radio_name: str) -> Mode:
         if server.is_remote:

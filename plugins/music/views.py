@@ -25,7 +25,13 @@ class MusicPlayer(View):
         self.config = None
 
     async def get_titles(self, songs: list[str]) -> list[str]:
-        return [get_tag(os.path.join(await self.service.get_music_dir(), x)).title or x[:-4] for x in songs]
+        titles = []
+        for x in songs:
+            try:
+                titles.append(get_tag(os.path.join(await self.service.get_music_dir(), x)).title or x[:-4])
+            except OSError:
+                self.log.warning(f"Song {x} not found, removed from playlist")
+        return titles
 
     async def render(self) -> discord.Embed:
         if not self.titles:
