@@ -29,7 +29,7 @@ class InstanceImpl(Instance):
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):
             settings = SettingsDict(self, settings_path, root='cfg')
-            self.locals['dcs_port'] = settings['port']
+            self.locals['dcs_port'] = settings.get('port', 10308)
         server_name = settings['name'] if settings else None
         if server_name and server_name == 'n/a':
             server_name = None
