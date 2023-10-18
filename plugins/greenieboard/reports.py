@@ -140,9 +140,9 @@ class HighscoreTraps(report.GraphElement):
             if server_name in self.bot.servers:
                 sql += ' AND s.side in (' + ','.join([str(x) for x in get_sides(interaction, self.bot.servers[server_name])]) + ')'
         if not include_bolters:
-            sql += ' AND g.grade <> \'B\''
+            sql += " AND g.grade <> 'B'"
         if not include_waveoffs:
-            sql += ' AND g.grade NOT LIKE \'WO%\''
+            sql += " AND g.grade NOT LIKE 'WO%%'"
         self.env.embed.title = flt.format(self.env.bot, period, server_name) + ' ' + self.env.embed.title
         sql += ' AND ' + flt.filter(self.env.bot, period, server_name)
         sql += f' GROUP BY 1, 2 ORDER BY 3 DESC LIMIT {limit}'
