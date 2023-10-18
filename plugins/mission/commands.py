@@ -295,8 +295,9 @@ class Mission(Plugin):
     async def pause(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.RUNNING])]):
         if server.status == Status.RUNNING:
+            await interaction.response.defer(thinking=True, ephemeral=True)
             await server.current_mission.pause()
-            await interaction.response.send_message(f'Server "{server.display_name}" paused.', ephemeral=True)
+            await interaction.followup.send(f'Server "{server.display_name}" paused.', ephemeral=True)
         else:
             await interaction.response.send_message(f'Server "{server.display_name}" is not running.', ephemeral=True)
 
@@ -306,8 +307,9 @@ class Mission(Plugin):
     async def unpause(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.PAUSED])]):
         if server.status == Status.PAUSED:
+            await interaction.response.defer(thinking=True, ephemeral=True)
             await server.current_mission.unpause()
-            await interaction.response.send_message(f'Server "{server.display_name}" unpaused.', ephemeral=True)
+            await interaction.followup.send(f'Server "{server.display_name}" unpaused.', ephemeral=True)
         elif server.status == Status.RUNNING:
             await interaction.response.send_message(f'Server "{server.display_name}" is already running.',
                                                     ephemeral=True)

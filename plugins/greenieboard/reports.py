@@ -1,12 +1,16 @@
+import discord
 import os
 import re
+
 from contextlib import closing
-from core import report, Side, utils, EmbedElement, NothingToPlot
+from core import report, utils, EmbedElement, NothingToPlot
 from datetime import datetime
 from plugins.userstats.filter import StatisticsFilter
 from psycopg.rows import dict_row
+
 from . import ERRORS, DISTANCE_MARKS, GRADES, const
 from .trapsheet import plot_trapsheet, read_trapsheet, parse_filename
+from ..userstats.highscore import get_sides
 
 
 class LSORating(report.EmbedElement):
@@ -123,16 +127,18 @@ class TrapSheet(report.MultiGraphElement):
 
 
 class HighscoreTraps(report.GraphElement):
-    def render(self, server_name: str, period: str, limit: int, sides: list[Side], flt: StatisticsFilter,
+
+    def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int, flt: StatisticsFilter,
                include_bolters: bool = False, include_waveoffs: bool = False):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, COUNT(g.*) AS value " \
               "FROM greenieboard g, missions m, statistics s, players p " \
               "WHERE g.mission_id = m.id AND s.mission_id = m.id AND g.player_ucid = s.player_ucid " \
               "AND g.player_ucid = p.ucid AND g.unit_type = s.slot AND g.time BETWEEN s.hop_on AND s.hop_off "
         if server_name:
-            sql += "AND m.server_name = '{}'".format(server_name.replace('\'', '\'\''))
+            sql += "AND m.server_name = %s"
+            self.env.embed.description = utils.escape_string(server_name)
             if server_name in self.bot.servers:
-                sql += ' AND s.side in (' + ','.join([str(x) for x in sides]) + ')'
+                sql += ' AND s.side in (' + ','.join([str(x) for x in get_sides(interaction, self.bot.servers[server_name])]) + ')'
         if not include_bolters:
             sql += ' AND g.grade <> \'B\''
         if not include_waveoffs:
