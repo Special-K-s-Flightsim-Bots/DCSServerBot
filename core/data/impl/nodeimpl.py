@@ -343,13 +343,14 @@ class NodeImpl(Node):
             self.log.exception(ex)
             return -1
         if self.locals['DCS'].get('desanitize', True):
-            utils.desanitize(self)
+            if self.locals['DCS'].get('cloud', False) or self.master:
+                utils.desanitize(self)
         # call after update hooks
         for callback in self.after_update.values():
             await callback()
         self.log.info(f"{self.installation} updated to the latest version. "
                       f"Starting up DCS servers again ...")
-        for server in [x for x in bus.servers.values() if not x.is_remote]:
+        for server in [x for x in bus.servers.values() if self.locals['DCS'].get('cloud', False) or not x.is_remote]:
             if server not in servers:
                 # let the scheduler do its job
                 server.maintenance = False
@@ -410,14 +411,16 @@ class NodeImpl(Node):
         if not self._public_ip:
             self._public_ip = await utils.get_public_ip()
         if self.locals['DCS'].get('autoupdate', False):
-            self.autoupdate.start()
+            if not self.locals['DCS'].get('cloud', False) or self.master:
+                self.autoupdate.start()
 
     async def unregister(self):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("DELETE FROM nodes WHERE guild_id = %s AND node = %s", (self.guild_id, self.name))
         if self.locals['DCS'].get('autoupdate', False):
-            self.autoupdate.cancel()
+            if not self.locals['DCS'].get('cloud', False) or self.master:
+                self.autoupdate.cancel()
 
     def check_master(self) -> bool:
         with self.pool.connection() as conn:

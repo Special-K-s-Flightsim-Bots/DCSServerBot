@@ -46,7 +46,8 @@ class ServiceBus(Service):
         self.udp_server = None
         self.executor = None
         if self.node.locals['DCS'].get('desanitize', True):
-            utils.desanitize(self)
+            if self.locals['DCS'].get('cloud', False) or self.master:
+                utils.desanitize(self)
         self.loop = asyncio.get_event_loop()
         self.intercom.add_exception_type(psycopg.DatabaseError)
 
