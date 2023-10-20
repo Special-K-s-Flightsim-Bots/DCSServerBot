@@ -17,7 +17,7 @@ class Battleground(Plugin):
     @battleground.command(description='Push MGRS coordinates with screenshots to DCS Battleground')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
-    async def recon(self, interaction: discord.Interaction, name: str, mgrs: str, attachment: discord.Attachment):
+    async def recon(self, interaction: discord.Interaction, name: str, mgrs: str, screenshot: discord.Attachment):
         if len(mgrs) != 15 or not mgrs[:2].isnumeric() or not mgrs[5:].isnumeric():
             await interaction.response.send_message('The second parameter needs to be a MGRS coordinate '
                                                     '(ex: 38TLN0274366889)', ephemeral=True)
@@ -34,7 +34,7 @@ class Battleground(Plugin):
             else:
                 continue
             done = True
-            screenshots = [att.url for att in [attachment]] # TODO: add multiple ones
+            screenshots = [att.url for att in [screenshot]]  # TODO: add multiple ones
             with self.pool.connection() as conn:
                 with conn.transation():
                     conn.execute("""
