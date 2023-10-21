@@ -16,6 +16,19 @@ you like. The common usecase for people is to use it to change the weather on a 
 
 As MizEdit is a very powerful solution, I decided to donate it a separate doc page, which you can reach [here](./MizEdit.md).
 
+### DCS Voice Chat
+If you want to use the built-in Voice Chat system of DCS, you can use the VoiceChat extension.
+```yaml
+MyNode:
+  # [...]
+  instances:
+    DCS.openbeta_server:
+      # [...]
+      extensions:
+        VoiceChat:
+          enabled: true
+```
+
 ### SRS
 [SimpleRadioStandalone](http://dcssimpleradio.com/) (DCS-SRS) is an awesome tool built by CiriBob, who dedicates a lot of work and this 
 simulated real life radio experience to DCS. Many if not every server runs an SRS server too, to let their players have 
@@ -115,11 +128,6 @@ MyNode:
         LotAtc:
           show_passwords: false     # show passwords in the server status embed (default = true)
           host: "myfancyhost.com"   # Show a different hostname instead of your servers external IP
-        }
-      }
-    }
-  ]
-}
 ```
 There is no default section for LotAtc, so if added to an instance like described above, it is enabled, if not, then not.
 
@@ -139,11 +147,6 @@ MyNode:
       extensions:
         DSMC:
           enabled: true
-        }
-      }
-    }
-  ]
-}
 ```
 DCSServerBot will detect if DSMC is enabled and - if yes - change the settings in your DSMC_Dedicated_Server_options.lua
 to fit to its needs. DSMC will write out a new miz-file with a new extension (001, 002, ...) after each run. The bot
