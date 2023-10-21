@@ -409,8 +409,8 @@ class ServerImpl(Server):
             # check if the original mission can be written
             if filename != new_filename:
                 missions: list[str] = self.settings['missionList']
-                await self.deleteMission(missions.index(filename) + 1)
-                await self.addMission(new_filename, autostart=True)
+                index = missions.index(filename) + 1
+                await self.replaceMission(index, new_filename)
             return True
         except Exception as ex:
             if isinstance(ex, UnsupportedMizFileException):

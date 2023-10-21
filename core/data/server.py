@@ -290,7 +290,7 @@ class Server(DataObject):
         # wait until we are running again
         await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
 
-    async def addMission(self, path: str, *, index: Optional[int] = None, autostart: Optional[bool] = False) -> None:
+    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
         path = os.path.normpath(path)
         missions = self.settings['missionList']
         if path not in missions:
@@ -312,8 +312,18 @@ class Server(DataObject):
             del missions[mission_id - 1]
             self.settings['missionList'] = missions
 
-    async def loadMission(self, mission_id: int) -> None:
-        await self._load({"command": "startMission", "id": mission_id})
+    async def replaceMission(self, index: int, path: str) -> None:
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            await self.send_to_dcs_sync({"command": "replaceMission", "index": index, "path": path})
+        else:
+            missions: list[str] = self.settings['missionList']
+            missions[index - 1] = path
+
+    async def loadMission(self, mission: Union[int, str]) -> None:
+        if isinstance(mission, int):
+            await self._load({"command": "startMission", "id": mission})
+        else:
+            await self._load({"command": "startMission", "filename": mission})
 
     async def loadNextMission(self) -> None:
         await self._load({"command": "startNextMission"})

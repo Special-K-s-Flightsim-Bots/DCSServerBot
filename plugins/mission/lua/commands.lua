@@ -206,12 +206,14 @@ end
 
 function dcsbot.startMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: startMission()')
-	net.missionlist_run(json.id)
-	local mission_list = net.missionlist_get()
-	utils.saveSettings({
-		missionList=mission_list["missionList"],
-		listStartIndex=json.id
-	})
+    if json.id ~= nil then
+        net.missionlist_run(json.id)
+        utils.saveSettings({
+            listStartIndex=json.id
+        })
+    else
+    	net.load_mission(json.filename)
+    end
 end
 
 function dcsbot.startNextMission(json)
@@ -221,9 +223,7 @@ function dcsbot.startNextMission(json)
 		result = net.missionlist_run(1)
 	end
 	if (result == true) then
-		local mission_list = net.missionlist_get()
 		utils.saveSettings({
-			missionList=mission_list["missionList"],
 			listStartIndex=mission_list["listStartIndex"]
 		})
 	end
@@ -269,11 +269,20 @@ function dcsbot.deleteMission(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: deleteMission()')
 	net.missionlist_delete(json.id)
 	local current_missions = net.missionlist_get()
-	--result = utils.saveSettings({missionList = current_missions["missionList"]})
 	utils.saveSettings({
 		missionList = current_missions["missionList"],
 		listStartIndex = current_missions["listStartIndex"]
 	})
+	dcsbot.listMissions(json)
+end
+
+function dcsbot.replaceMission(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: replaceMission()')
+	local current_missions = net.missionlist_get()
+    current_missions["missionList"][tonumber(json.index)] = json.path
+	utils.saveSettings({
+        missionList = current_missions["missionList"]
+    })
 	dcsbot.listMissions(json)
 end
 
