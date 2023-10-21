@@ -279,10 +279,10 @@ class Mission(Plugin):
             return
         name = filename[:-4]
 
-        if await utils.yn_question(interaction, f'Delete mission "{name}" from the mission list?'):
+        if await utils.yn_question(interaction, f'Delete mission "{os.path.basename(name)}" from the mission list?'):
             await server.deleteMission(mission_id + 1)
-            await interaction.followup.send(f'Mission "{name}" removed from list.', ephemeral=True)
-            if await utils.yn_question(interaction, f'Delete mission "{name}" also from disk?'):
+            await interaction.followup.send(f'Mission "{os.path.basename(name)}" removed from list.', ephemeral=True)
+            if await utils.yn_question(interaction, f'Delete "{name}" also from disk?'):
                 try:
                     os.remove(filename)
                     await interaction.followup.send(f'Mission "{name}" deleted.', ephemeral=True)
@@ -376,14 +376,11 @@ class Mission(Plugin):
             if new_filename != filename:
                 self.log.info(f"  => New mission written: {new_filename}")
                 missions = server.settings['missionList']
-                if filename in missions:
-                    await server.deleteMission(missions.index(filename) + 1)
-                smooth = await server.addMission(new_filename, autostart=True)
+                await server.replaceMission(missions.index(filename) + 1, new_filename)
             else:
                 self.log.info(f"  => Mission {filename} overwritten.")
-                smooth = False
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                await server.restart(smooth=smooth)
+                await server.loadMission(new_filename)
                 message += '\nMission reloaded.'
             await self.bot.audit("changed preset", server=server, user=interaction.user)
             await msg.delete()
