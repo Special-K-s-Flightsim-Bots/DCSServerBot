@@ -150,11 +150,7 @@ class Server(DataObject):
         return None
 
     def get_active_players(self) -> list[Player]:
-        retval = []
-        for player in self.players.values():
-            if player.active:
-                retval.append(player)
-        return retval
+        return [x for x in self.players.values() if x.active]
 
     def get_crew_members(self, pilot: Player):
         members = []
@@ -294,7 +290,7 @@ class Server(DataObject):
         # wait until we are running again
         await self.wait_for_status_change([Status.RUNNING, Status.PAUSED], timeout=300)
 
-    async def addMission(self, path: str, *, autostart: Optional[bool] = False) -> None:
+    async def addMission(self, path: str, *, index: Optional[int] = None, autostart: Optional[bool] = False) -> None:
         path = os.path.normpath(path)
         missions = self.settings['missionList']
         if path not in missions:
@@ -337,6 +333,9 @@ class Server(DataObject):
     @property
     def channels(self) -> dict:
         if not self._channels:
+            if 'channels' not in self.locals:
+                self.log.error(f"No channels defined in servers.yaml for server {self.name}!")
+                return {}
             self._channels = {}
             for key, value in self.locals['channels'].items():
                 self._channels[Channel(key)] = value
