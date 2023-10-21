@@ -229,6 +229,9 @@ class MissionEventListener(EventListener):
         elif data['channel'].startswith('sync-'):
             server.status = Status.PAUSED if data['pause'] is True else Status.RUNNING
         server.afk.clear()
+        # all players are inactive for now
+        for p in server.players.values():
+            p.active = False
         for p in data['players']:
             if p['id'] == 1:
                 continue
@@ -245,6 +248,10 @@ class MissionEventListener(EventListener):
                 player.update(p)
             if Side(p['side']) == Side.SPECTATOR:
                 server.afk[player.ucid] = datetime.now()
+        # cleanup inactive players
+        for p in server.players.copy().values():
+            if not p.active and not p.id == 1:
+                del server.players[p.id]
         self.display_mission_embed(server)
         self.display_player_embed(server)
 
@@ -282,7 +289,10 @@ class MissionEventListener(EventListener):
     @event(name="onSimulationStop")
     async def onSimulationStop(self, server: Server, data: dict) -> None:
         server.status = Status.STOPPED
+        for p in server.get_active_players():
+            p.side = Side.SPECTATOR
         self.display_mission_embed(server)
+        self.display_player_embed(server)
 
     @event(name="onSimulationPause")
     async def onSimulationPause(self, server: Server, data: dict) -> None:
