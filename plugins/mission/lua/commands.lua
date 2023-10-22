@@ -223,6 +223,7 @@ function dcsbot.startNextMission(json)
 		result = net.missionlist_run(1)
 	end
 	if (result == true) then
+        local mission_list = net.missionlist_get()
 		utils.saveSettings({
 			listStartIndex=mission_list["listStartIndex"]
 		})
