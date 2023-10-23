@@ -380,7 +380,7 @@ class Mission(Plugin):
             else:
                 self.log.info(f"  => Mission {filename} overwritten.")
             if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-                await server.loadMission(new_filename)
+                await server.restart(smooth=True)
                 message += '\nMission reloaded.'
             await self.bot.audit("changed preset", server=server, user=interaction.user)
             await msg.delete()

@@ -274,7 +274,10 @@ class Server(DataObject):
 
     async def restart(self, smooth: bool = False) -> None:
         if smooth:
-            await self.loadMission(int(self.settings['listStartIndex']))
+            # counter the problem that DCS might overwrite the list again, if the name of the mission changed
+            await self.loadMission(self.settings['missionList'][int(self.settings['listStartIndex']) - 1])
+        elif self.current_mission:
+            await self.current_mission.restart()
         else:
             await self.stop()
             await self.start()
