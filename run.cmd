@@ -1,5 +1,5 @@
 @echo off
-SET VENV=%TEMP%\DCSServerBot
+SET VENV=%LOCALAPPDATA%\DCSServerBot
 if not exist %VENV% (
     echo Creating the Python Virtual Environment
     python -m venv %VENV%
