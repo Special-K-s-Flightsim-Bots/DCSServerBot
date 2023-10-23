@@ -11,7 +11,7 @@ if %ERRORLEVEL% EQU 9009 (
     echo Error while updating DCSServerBot. Please check the messages above.
     exit /B %ERRORLEVEL%
 )
-SET VENV=%LOCALAPPDATA%\DCSServerBot
+SET VENV=%USERPROFILE%\.dcssb
 if not exist %VENV% (
     echo Creating the Python Virtual Environment
     python -m venv %VENV%
