@@ -273,8 +273,12 @@ class MizFile:
                     element = next(utils.for_each(reference, config['select'].split('/'), debug=debug))
             else:
                 element = reference
+            if not element:
+                return
             for _what, _with in config['replace'].items():
-                if isinstance(_with, dict):
+                if isinstance(_what, int) and isinstance(element, list):
+                    element[_what - 1] = utils.evaluate(_with, reference=reference, where=where)
+                elif isinstance(_with, dict):
                     for key, value in _with.items():
                         if utils.evaluate(key, **element, reference=reference, where=where):
                             element[_what] = utils.evaluate(value, **element, reference=reference, where=where)
