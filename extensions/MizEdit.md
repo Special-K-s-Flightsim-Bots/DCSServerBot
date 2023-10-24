@@ -99,6 +99,7 @@ You can use these special characters:
 | /node     | Select this element from the datastructure at this point.               |
 | *         | Walk over all elements in a list.                                       |
 | $         | Whatever comes after this is evaluated as Python code.                  |
+| \[x\]     | Select the n-th element from a list (starts with 1).                    |
 | '{xx}'    | Replace with the variable value of xx ('...' needed, if xx is a string. |
 
 #### Example 1: Search all CVN carriers in your mission:
@@ -157,6 +158,15 @@ MyFancyPreset:
         $'{where[type]}'[-2:] == '73': 1160000000
 ```
 
+#### Example 4: Select the 1st radio-channel of all blue F-14Bs to 243
+```yaml
+ChangeRadios:
+  modify:
+  - for-each: coalition/blue/country/*/plane/group/*/units/$'{type}' in ['F-14B']
+    select: Radio/[1]/channels
+    replace:
+      1: 243
+```
 
 ## Usage
 MizEdit is used like any other extension. It is added to your nodes.yaml and configured through it.

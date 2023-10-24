@@ -334,6 +334,11 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
                 print("  " * depth + f"|_ Iterating over {len(data)} {search[depth-1]} elements")
             for value in data:
                 yield from for_each(value, search, depth+1, debug=debug)
+        elif _next.startswith('['):
+            index = int(_next[1:-1])
+            if debug:
+                print("  " * depth + f"|_ Selecting {index}. element")
+            yield from for_each(data[index - 1], search, depth+1, debug=debug)
         elif _next.startswith('$'):
             if isinstance(data, list):
                 if debug:
@@ -354,3 +359,7 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
             if debug:
                 print("  " * depth + f"|_ {_next} found.")
             yield from for_each(data.get(_next), search, depth+1, debug=debug)
+        else:
+            if debug:
+                print("  " * depth + f"|_ {_next} not found.")
+            yield None
