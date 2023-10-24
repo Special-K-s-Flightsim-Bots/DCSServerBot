@@ -233,7 +233,7 @@ class Scheduler(Plugin):
                 item = 'server'
             else:
                 item = 'mission'
-            while restart_in > 0 and not server.maintenance:
+            while restart_in > 0 and not server.maintenance and server.restart_pending:
                 for warn_time in warn_times:
                     if warn_time == restart_in:
                         if server.status == Status.RUNNING:
