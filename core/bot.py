@@ -650,7 +650,11 @@ class DCSServerBot(commands.Bot):
                 if int(self.config[server.installation][Channel.COALITION_RED_CHAT.value]) != -1:
                     channels.append(Channel.COALITION_RED_CHAT)
                 for channel in channels:
-                    if server.get_channel(channel).id == ctx.channel.id:
+                    real_chan = server.get_channel(channel)
+                    if not real_chan:
+                        self.log.warning(f"No {channel.name} configured for server {server.name}")
+                        continue
+                    if real_chan.id == ctx.channel.id:
                         return server
             else:
                 if server_name == ctx:
