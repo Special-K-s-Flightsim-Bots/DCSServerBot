@@ -233,14 +233,15 @@ class Scheduler(Plugin):
                 item = 'server'
             else:
                 item = 'mission'
-            while restart_in > 0 and server.status == Status.RUNNING and not server.maintenance:
+            while restart_in > 0 and not server.maintenance:
                 for warn_time in warn_times:
                     if warn_time == restart_in:
-                        server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
-                                                                                when=utils.format_time(warn_time)),
-                                                self.bot.config['BOT']['MESSAGE_TIMEOUT'])
-                        if 'sound' in config['warn']:
-                            server.playSound(Coalition.ALL, config['warn']['sound'])
+                        if server.status == Status.RUNNING:
+                            server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
+                                                                                    when=utils.format_time(warn_time)),
+                                                    self.bot.config['BOT']['MESSAGE_TIMEOUT'])
+                            if 'sound' in config['warn']:
+                                server.playSound(Coalition.ALL, config['warn']['sound'])
                         events_channel = server.get_channel(Channel.EVENTS)
                         if events_channel:
                             await events_channel.send(warn_text.format(item=item, what=what,
@@ -403,7 +404,7 @@ class Scheduler(Plugin):
             await self.warn_users(server, config, method, max_warn_time)
             # in the unlikely event that we did restart already in the meantime while warning users or
             # if the restart has been cancelled due to maintenance mode
-            if not server.restart_pending or not server.is_populated():
+            if not server.restart_pending:
                 return
             else:
                 server.on_empty.clear()
