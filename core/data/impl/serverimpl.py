@@ -501,9 +501,14 @@ class ServerImpl(Server):
         miz = MizFile(self, filename)
         if isinstance(preset, list):
             for p in preset:
+                if not isinstance(p, dict):
+                    self.log.error(f"{p} is not a dictionary!")
+                    continue
                 apply_preset(p)
-        else:
+        elif isinstance(preset, dict):
             apply_preset(preset)
+        else:
+            self.log.error(f"{preset} is not a dictionary!")
         # write new mission
         new_filename = utils.create_writable_mission(filename)
         miz.save(new_filename)
