@@ -99,19 +99,20 @@ class Scheduler(Plugin):
                 item = 'server'
             else:
                 item = 'mission'
-            while restart_in > 0 and server.status == Status.RUNNING and not server.maintenance:
+            while restart_in > 0 and not server.maintenance and server.restart_pending:
                 for warn_time in warn_times:
                     if warn_time == restart_in:
-                        server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
-                                                                                when=utils.format_time(warn_time)),
-                                                server.locals.get('message_timeout', 10))
-                        if 'sound' in config['warn']:
-                            server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
-                                                                                time=warn_time))
-                        events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
-                        if events_channel:
-                            await events_channel.send(warn_text.format(item=item, what=what,
-                                                                       when=utils.format_time(warn_time)))
+                        if server.status == Status.RUNNING:
+                            server.sendPopupMessage(Coalition.ALL, warn_text.format(item=item, what=what,
+                                                                                    when=utils.format_time(warn_time)),
+                                                    server.locals.get('message_timeout', 10))
+                            if 'sound' in config['warn']:
+                                server.playSound(Coalition.ALL, utils.format_string(config['warn']['sound'],
+                                                                                    time=warn_time))
+                            events_channel = self.bot.get_channel(server.channels[Channel.EVENTS])
+                            if events_channel:
+                                await events_channel.send(warn_text.format(item=item, what=what,
+                                                                           when=utils.format_time(warn_time)))
                 await asyncio.sleep(1)
                 restart_in -= 1
 
