@@ -274,17 +274,21 @@ class MizFile:
             else:
                 element = reference
             if not element:
-                return
-            for _what, _with in config['replace'].items():
-                if isinstance(_what, int) and isinstance(element, list):
-                    element[_what - 1] = utils.evaluate(_with, reference=reference, where=where)
-                elif isinstance(_with, dict):
-                    for key, value in _with.items():
-                        if utils.evaluate(key, **element, reference=reference, where=where):
-                            element[_what] = utils.evaluate(value, **element, reference=reference, where=where)
-                            break
-                else:
-                    element[_what] = utils.evaluate(_with, **element, reference=reference, where=where)
+                if 'insert' in config:
+                    if debug:
+                        print(f"Inserting new value: {config['insert']}")
+                    reference |= config['insert']
+            elif 'replace' in config:
+                for _what, _with in config['replace'].items():
+                    if isinstance(_what, int) and isinstance(element, list):
+                        element[_what - 1] = utils.evaluate(_with, reference=reference, where=where)
+                    elif isinstance(_with, dict):
+                        for key, value in _with.items():
+                            if utils.evaluate(key, **element, reference=reference, where=where):
+                                element[_what] = utils.evaluate(value, **element, reference=reference, where=where)
+                                break
+                    else:
+                        element[_what] = utils.evaluate(_with, **element, reference=reference, where=where)
 
         if isinstance(config, list):
             for cfg in config:

@@ -336,6 +336,10 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
                 yield from for_each(value, search, depth+1, debug=debug)
         elif _next.startswith('['):
             index = int(_next[1:-1])
+            if len(data) < index:
+                if debug:
+                    print("  " * depth + f"|_ {index}. element not found")
+                yield None
             if debug:
                 print("  " * depth + f"|_ Selecting {index}. element")
             yield from for_each(data[index - 1], search, depth+1, debug=debug)

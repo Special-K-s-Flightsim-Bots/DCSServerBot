@@ -158,7 +158,7 @@ MyFancyPreset:
         $'{where[type]}'[-2:] == '73': 1160000000
 ```
 
-#### Example 4: Select the 1st radio-channel of all blue F-14Bs to 243
+#### Example 4: Set the 1st radio-preset of all blue F-14Bs to 243
 ```yaml
 ChangeRadios:
   modify:
@@ -166,6 +166,10 @@ ChangeRadios:
     select: Radio/[1]/channels
     replace:
       1: 243
+    insert:
+      Radio:
+        - channels:
+            - 243
 ```
 
 ## Usage
