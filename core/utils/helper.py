@@ -323,7 +323,7 @@ def evaluate(value: Union[str, int, bool], **kwargs) -> Union[str, int, bool]:
 # (...) is python code that will be evaluated to find a specific item inside a list
 def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
              debug: Optional[bool] = False) -> Generator[dict]:
-    if len(search) == depth:
+    if not data or len(search) == depth:
         if debug:
             print("  " * depth + ("|_ RESULT found => Processing ..." if data else "|_ NO result found, skipping."))
         yield data
