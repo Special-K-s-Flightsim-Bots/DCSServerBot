@@ -274,7 +274,7 @@ class MizFile:
             else:
                 element = reference
             if not element:
-                if 'insert' in config:
+                if reference and 'insert' in config:
                     if debug:
                         print(f"Inserting new value: {config['insert']}")
                     reference |= config['insert']
