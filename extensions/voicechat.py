@@ -15,3 +15,9 @@ class VoiceChat(Extension):
 
     def is_installed(self) -> bool:
         return True
+
+    async def shutdown(self) -> bool:
+        return True
+
+    def is_running(self) -> bool:
+        return True
