@@ -36,11 +36,11 @@ class InstanceImpl(Instance):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
-                    INSERT INTO instances (instance, node, port, server_name)
+                    INSERT INTO instances (node, instance, port, server_name)
                     VALUES (%s, %s, %s, %s) 
-                    ON CONFLICT (instance) DO UPDATE 
+                    ON CONFLICT (node, instance) DO UPDATE 
                     SET port=excluded.port, server_name=excluded.server_name 
-                """, (self.name, self.node.name, self.locals.get('bot_port', 6666), server_name))
+                """, (self.node.name, self.name, self.locals.get('bot_port', 6666), server_name))
 
     @property
     def server(self) -> Optional[ServerImpl]:
