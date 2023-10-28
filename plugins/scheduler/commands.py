@@ -311,13 +311,10 @@ class Scheduler(Plugin):
                                                     f"Please use /server start instead.", ephemeral=True)
             return
         if server.status == Status.LOADING:
-            if not server.process.is_running():
-                server.status = Status.SHUTDOWN
-            else:
-                await interaction.response.send_message(f"DCS server \"{server.display_name}\" is loading.\n"
-                                                        f"Please wait or use /server shutdown force instead.",
-                                                        ephemeral=True)
-                return
+            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is loading.\n"
+                                                    f"Please wait or use /server shutdown force instead.",
+                                                    ephemeral=True)
+            return
         if server.status == Status.SHUTDOWN:
             if not interaction.response.is_done():
                 await interaction.response.defer(ephemeral=True)
