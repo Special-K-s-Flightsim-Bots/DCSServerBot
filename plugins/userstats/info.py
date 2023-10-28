@@ -9,7 +9,7 @@ from psycopg.rows import dict_row
 class Header(report.EmbedElement):
     def render(self, member: Union[discord.Member, str]):
         sql = """
-            SELECT p.last_seen, 
+            SELECT p.first_seen, p.last_seen, 
                    CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned, b.reason, b.banned_by, b.banned_until
             FROM players p 
             LEFT OUTER JOIN bans b ON (b.ucid = p.ucid) 
@@ -46,13 +46,18 @@ class Header(report.EmbedElement):
             self.add_field(name='Discord ID:', value=member.id)
         else:
             self.embed.description += 'a non-member user:'
+        first_seen = datetime(2999, 12, 31, tzinfo=timezone.utc)
         last_seen = datetime(1970, 1, 1, tzinfo=timezone.utc)
         banned = False
         for row in rows:
+            if row.get('first_seen') and row['first_seen'].astimezone(timezone.utc) < first_seen:
+                first_seen = row['first_seen'].astimezone(timezone.utc)
             if row.get('last_seen') and row['last_seen'].astimezone(timezone.utc) > last_seen:
                 last_seen = row['last_seen'].astimezone(timezone.utc)
             if row['banned'] == 1:
                 banned = True
+        if first_seen != datetime(1970, 1, 1):
+            self.add_field(name='First seen (UTC):', value=first_seen.strftime("%m/%d/%Y, %H:%M:%S"))
         if last_seen != datetime(1970, 1, 1):
             self.add_field(name='Last seen (UTC):', value=last_seen.strftime("%m/%d/%Y, %H:%M:%S"))
         if banned:
@@ -60,7 +65,7 @@ class Header(report.EmbedElement):
                 until = 'never'
             else:
                 until = rows[0]['banned_until'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M')
-            self.add_field(name='Status', value='Banned')
+            self.add_field(name='▬' * 13 + ' User is banned! ' + '▬' * 13, value='_ _', inline=False)
             self.add_field(name='Ban expires (UTC)', value=until)
             self.add_field(name='Banned by', value=rows[0]['banned_by'])
             self.add_field(name='Reason', value=rows[0]['reason'])

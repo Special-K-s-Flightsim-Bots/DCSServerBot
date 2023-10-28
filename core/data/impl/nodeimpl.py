@@ -636,7 +636,10 @@ class NodeImpl(Node):
         config[platform.node()]['instances'][new_name]['home'] = new_home
         with self.pool.connection() as conn:
             with conn.transaction():
-                conn.execute("UPDATE instances SET instance = %s WHERE instance = %s", (new_name, instance.name, ))
+                conn.execute("""
+                    UPDATE instances SET instance = %s 
+                    WHERE node = %s AND instance = %s
+                """, (new_name, instance.node.name, instance.name, ))
         instance.name = new_name
         instance.locals['home'] = new_home
         del config[platform.node()]['instances'][instance.name]

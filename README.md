@@ -421,14 +421,15 @@ the work. If the Master fails, any other node in the cluster will automatically 
 All nodes collect statistics of the DCS servers they control, but only the master runs the statistics module to display 
 them in Discord. To be able to communicate, all nodes need to have access to a **central** database. 
 
-You can either host that database at one of the nodes and give all other nodes access to it (keep security 
+You can either host that database at one of the nodes and give all other nodes access to it (have security 
 like SSL encryption in mind) or you use a cloud database, available on services like Amazon, Heroku, etc.
 This would be the recommended approach, as you would still have a single point of failure in your cluster with a local
 database. All depending on your high availability requirements.
 
 Many files like configuration, missions, music and whatnot should be kept on a cloud drive in that case, even the whole
 DCSServerBot installation could be on a cloud drive (like Google Drive). You can start each bot in each
-location on this shared directory. Each bot will read its individual configuration based on the node name of that PC.
+location on this shared directory. Each bot will read its individual configuration based on the hostname (node name) of 
+that PC.
 
 ### Moving a Server from one Location to Another
 Each server is loosely coupled to an instance on a node. You can migrate a server to another instance though, by using
