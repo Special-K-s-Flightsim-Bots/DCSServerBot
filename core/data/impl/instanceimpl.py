@@ -55,8 +55,9 @@ class InstanceImpl(Instance):
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute("""
-                            UPDATE instances SET server_name = %s, last_seen = NOW() WHERE instance = %s
-                        """, (server.name if server else None, self.name))
+                    UPDATE instances SET server_name = %s, last_seen = NOW() 
+                    WHERE node = %s AND instance = %s
+                """, (server.name if server else None, self.node.name, self.name))
                 if server:
                     server.instance = self
 
