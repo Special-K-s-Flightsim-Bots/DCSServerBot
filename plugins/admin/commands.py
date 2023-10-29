@@ -4,15 +4,17 @@ import platform
 import shutil
 
 from contextlib import closing
-from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group, Instance
+from core import utils, Plugin, Server, command, NodeImpl, Node, UploadStatus, Group, Instance, Status
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import commands
-from discord.ui import Select, View, Button, TextInput, Modal
+from discord.ui import TextInput, Modal
 from io import BytesIO
 from services import DCSServerBot
 from typing import Optional, Union
 from zipfile import ZipFile, ZIP_DEFLATED
+
+from .views import CleanupView
 
 
 async def label_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
@@ -40,7 +42,10 @@ async def file_autocomplete(interaction: discord.Interaction, current: str) -> l
             return []
         label = utils.get_interaction_param(interaction, "what")
         config = interaction.client.cogs['Admin'].get_config(server)
-        config = next(x for x in config['downloads'] if x['label'] == label)
+        try:
+            config = next(x for x in config['downloads'] if x['label'] == label)
+        except StopIteration:
+            return []
         choices: list[app_commands.Choice[str]] = [
             app_commands.Choice(name=os.path.basename(x), value=os.path.basename(x))
             for x in await server.node.list_directory(config['directory'].format(server=server), config['pattern'])
@@ -256,44 +261,6 @@ class Admin(Plugin):
             await interaction.followup.send('File copied to the specified location.', ephemeral=True)
         await self.bot.audit(f"downloaded {filename}", user=interaction.user, server=server)
 
-    class CleanupView(View):
-        def __init__(self):
-            super().__init__()
-            self.what = 'non-members'
-            self.age = '180'
-            self.command = None
-
-        @discord.ui.select(placeholder="What to be pruned?", options=[
-            discord.SelectOption(label='Non-member users (unlinked)', value='non-members', default=True),
-            discord.SelectOption(label='Members and non-members', value='users'),
-            discord.SelectOption(label='Data only (for all users)', value='data')
-        ])
-        async def set_what(self, interaction: discord.Interaction, select: Select):
-            self.what = select.values[0]
-            await interaction.response.defer()
-
-        @discord.ui.select(placeholder="Which age to be pruned?", options=[
-            discord.SelectOption(label='Everything', value='0'),
-            discord.SelectOption(label='Older than 90 days', value='90'),
-            discord.SelectOption(label='Older than 180 days', value='180', default=True),
-            discord.SelectOption(label='Older than 1 year', value='360 days')
-        ])
-        async def set_age(self, interaction: discord.Interaction, select: Select):
-            self.age = select.values[0]
-            await interaction.response.defer()
-
-        @discord.ui.button(label='Prune', style=discord.ButtonStyle.danger, emoji='⚠')
-        async def prune(self, interaction: discord.Interaction, button: Button):
-            await interaction.response.defer()
-            self.command = "prune"
-            self.stop()
-
-        @discord.ui.button(label='Cancel', style=discord.ButtonStyle.red)
-        async def cancel(self, interaction: discord.Interaction, button: Button):
-            await interaction.response.defer()
-            self.command = "cancel"
-            self.stop()
-
     @command(name='prune', description='Prune unused data in the database')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
@@ -301,7 +268,7 @@ class Admin(Plugin):
         embed = discord.Embed(title=":warning: Database Prune :warning:")
         embed.description = "You are going to delete data from your database. Be advised.\n\n" \
                             "Please select the data to be pruned:"
-        view = self.CleanupView()
+        view = CleanupView()
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         try:
             await view.wait()
@@ -455,6 +422,10 @@ Please make sure you forward the following ports:
 ```
             """, ephemeral=True)
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
+            if await utils.yn_question(interaction, "Do you want to create a server in this instance?"):
+                pass
+            else:
+                await interaction.followup.send(f"Instance {instance.name} created blank with no server assigned.")
         else:
             await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}.",
                                                     ephemeral=True)
@@ -484,6 +455,10 @@ Please make sure you forward the following ports:
     async def rename_instance(self, interaction: discord.Interaction,
                               node: app_commands.Transform[Node, utils.NodeTransformer],
                               instance: app_commands.Transform[Instance, utils.InstanceTransformer], new_name: str):
+        if instance.server and instance.server.status != Status.SHUTDOWN:
+            await interaction.response.send_message(f"Server {instance.server.name} has to be shut down before "
+                                                    f"renaming the instance!", ephemeral=True)
+            return
         if not await utils.yn_question(interaction, f"Do you really want to rename instance {instance.name}?"):
             await interaction.followup.send('Aborted.', ephemeral=True)
             return
