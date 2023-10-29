@@ -309,9 +309,6 @@ class Plugin(commands.Cog):
                         self.log.info(f'  => {self.plugin_name.title()} installed.')
                     else:
                         installed = cursor.fetchone()[0]
-                        # all plugins have been migrated to 3.0 at this point
-                        if int(installed[0]) < 3:
-                            installed = '3.0'
                         # old variant, to be migrated
                         if installed.startswith('v'):
                             installed = installed[1:]
@@ -322,8 +319,11 @@ class Plugin(commands.Cog):
                                     for query in updates_sql.readlines():
                                         self.log.debug(query.rstrip())
                                         cursor.execute(query.rstrip())
-                            ver, rev = installed.split('.')
-                            installed = ver + '.' + str(int(rev) + 1)
+                            elif int(installed[0]) == 3:
+                                installed = '3.0'
+                            else:
+                                ver, rev = installed.split('.')
+                                installed = ver + '.' + str(int(rev) + 1)
                             self.migrate(installed)
                             self.log.info(f'  => {self.plugin_name.title()} migrated to version {installed}.')
                         cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
