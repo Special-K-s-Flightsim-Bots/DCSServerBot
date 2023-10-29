@@ -319,7 +319,7 @@ class Plugin(commands.Cog):
                                     for query in updates_sql.readlines():
                                         self.log.debug(query.rstrip())
                                         cursor.execute(query.rstrip())
-                            elif int(self.plugin_version) == 3 and int(installed[0]) < 3:
+                            elif int(self.plugin_version[0]) == 3 and int(installed[0]) < 3:
                                 installed = '3.0'
                             else:
                                 ver, rev = installed.split('.')
