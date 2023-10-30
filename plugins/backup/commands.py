@@ -40,19 +40,20 @@ class Backup(Plugin):
     @app_commands.autocomplete(what=backup_autocomplete)
     async def backup(self, interaction: discord.Interaction, node: app_commands.Transform[Node, utils.NodeTransformer],
                      what: str):
+        ephemeral = utils.get_ephemeral(interaction)
         if what == 'database' and not node.master:
             node = self.bot.node
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
         try:
             await self.bus.send_to_node_sync({
                 "command": "rpc",
                 "service": "Backup",
                 "method": f"backup_{what}"
             }, node=node.name)
-            await interaction.followup.send(f"Backup of {what} completed.")
+            await interaction.followup.send(f"Backup of {what} completed.", ephemeral=ephemeral)
         except Exception as ex:
             self.log.exception(ex)
-            await interaction.followup.send(f"Backup of {what} failed.")
+            await interaction.followup.send(f"Backup of {what} failed.", ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

@@ -82,14 +82,15 @@ class UserStatistics(Plugin):
                 f'Please stop server "{_server.display_name}" before deleting the statistics!', ephemeral=True)
             return
 
+        ephemeral = utils.get_ephemeral(interaction)
         message = "I'm going to **DELETE ALL STATISTICS**\n"
         if _server:
             message += f"of server \"{_server.display_name}\"!"
         else:
             message += f"of **ALL** servers!"
         message += "\n\nAre you sure?"
-        if not await utils.yn_question(interaction, message):
-            await interaction.followup.send('Aborted.', ephemeral=True)
+        if not await utils.yn_question(interaction, message, ephemeral=ephemeral):
+            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -106,7 +107,7 @@ class UserStatistics(Plugin):
                     """, (_server.name,))
                     conn.execute('DELETE FROM missions WHERE server_name = %s', (_server.name,))
                     await interaction.followup.send(f'Statistics for server "{_server.display_name}" have been wiped.',
-                                                    ephemeral=True)
+                                                    ephemeral=ephemeral)
                     await self.bot.audit('reset statistics', user=interaction.user, server=_server)
                 else:
                     conn.execute("TRUNCATE TABLE statistics")
@@ -114,7 +115,7 @@ class UserStatistics(Plugin):
                     conn.execute("TRUNCATE TABLE missions")
                     if 'greenieboard' in self.bot.node.plugins:
                         conn.execute("TRUNCATE TABLE greenieboard")
-                    await interaction.followup.send(f'Statistics for ALL servers have been wiped.', ephemeral=True)
+                    await interaction.followup.send(f'Statistics for ALL servers have been wiped.', ephemeral=ephemeral)
                     await self.bot.audit('reset statistics of ALL servers', user=interaction.user)
 
     @command(description='Shows player statistics')
@@ -180,7 +181,8 @@ class UserStatistics(Plugin):
                 # delete a token, if one existed
                 conn.execute('DELETE FROM players WHERE discord_id = %s AND LENGTH(ucid) = 4', (member.id, ))
         await interaction.response.send_message(
-            f'Member {utils.escape_string(member.display_name)} linked to ucid {ucid}', ephemeral=True)
+            f'Member {utils.escape_string(member.display_name)} linked to ucid {ucid}',
+            ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'linked member {utils.escape_string(member.display_name)} to ucid {ucid}.',
                              user=interaction.user)
         # check if they are an active player on any of our servers
@@ -204,13 +206,14 @@ class UserStatistics(Plugin):
             ucid = user
             member = self.bot.get_member_by_ucid(ucid)
         if not ucid or not member:
-            await interaction.response.send_message('Member not linked!')
+            await interaction.response.send_message('Member not linked!', ephemeral=True)
             return
         with self.pool.connection() as conn:
             with conn.transaction():
                 conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE ucid = %s', (ucid, ))
         await interaction.response.send_message(
-            f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.', ephemeral=True)
+            f'Member {utils.escape_string(member.display_name)} unlinked from ucid {ucid}.',
+            ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'unlinked member {utils.escape_string(member.display_name)} from ucid {ucid}',
                              user=interaction.user)
         # change the link status of that member if they are an active player
@@ -241,7 +244,7 @@ class UserStatistics(Plugin):
 
         view = InfoView(member=member or ucid, bot=self.bot, player=player, server=server)
         embed = await view.render()
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=utils.get_ephemeral(interaction))
         try:
             await view.wait()
         finally:
@@ -341,6 +344,7 @@ class UserStatistics(Plugin):
                     return
         n = await utils.selection_list(self.bot, interaction, suspicious, self.format_suspicious)
         if n != -1:
+            ephemeral = utils.get_ephemeral(interaction)
             with self.pool.connection() as conn:
                 with conn.transaction():
                     conn.execute('UPDATE players SET discord_id = %s, manual = %s WHERE ucid = %s',
@@ -355,10 +359,10 @@ class UserStatistics(Plugin):
                             user=interaction.user)
                         await interaction.followup.send(
                             f"Member {suspicious[n]['mismatch'].display_name} unlinked and re-linked to member "
-                            f"{suspicious[n]['match'].display_name}.", ephemeral=True)
+                            f"{suspicious[n]['match'].display_name}.", ephemeral=ephemeral)
                     else:
                         await interaction.followup.send(f"Member {suspicious[n]['mismatch'].display_name} unlinked.",
-                                                        ephemeral=True)
+                                                        ephemeral=ephemeral)
 
     @command(description='Link your DCS and Discord user')
     @app_commands.guild_only()
@@ -381,7 +385,8 @@ class UserStatistics(Plugin):
                             return
                         elif row[1] is False:
                             if not await utils.yn_question(interaction, 'Automatic user mapping found.\n'
-                                                                        'Do you want to re-link your user?'):
+                                                                        'Do you want to re-link your user?',
+                                                           ephemeral=True):
                                 return
                             else:
                                 for server in self.bot.servers.values():
@@ -394,7 +399,7 @@ class UserStatistics(Plugin):
                         elif not await utils.yn_question(interaction,
                                                          "You already have a linked DCS account!\n"
                                                          "Are you sure you want to link a second account? "
-                                                         "(Ex: Switched from Steam to Standalone)"):
+                                                         "(Ex: Switched from Steam to Standalone)", ephemeral=True):
                             return
                     # in the very unlikely event that we have generated the very same random number twice
                     while True:
@@ -414,7 +419,7 @@ class UserStatistics(Plugin):
                        number: Range[int, 1]):
         report = Report(self.bot, self.plugin_name, 'inactive.json')
         env = await report.render(period=f"{number} {period}")
-        await interaction.response.send_message(embed=env.embed, ephemeral=True)
+        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @command(description='Delete statistics for users')
     @app_commands.guild_only()
@@ -424,15 +429,16 @@ class UserStatistics(Plugin):
             user = interaction.user
         elif user != interaction.user and not utils.check_roles(['DCS Admin'], interaction.user):
             await interaction.response.send_message(
-                f'You are not allowed to delete statistics of user {user.display_name}!', ephemeral=True)
+                f'You are not allowed to delete statistics of user {user.display_name}!')
             return
         member = DataObjectFactory().new('Member', bot=self.bot, member=user)
         if not member.verified:
             await interaction.response.send_message(
-                f'User {user.display_name} has non-verified links. Statistics can not be deleted.', ephemeral=True)
+                f"User {user.display_name} has non-verified links. Statistics can't be deleted.", ephemeral=True)
             return
+        ephemeral = utils.get_ephemeral(interaction)
         if await utils.yn_question(interaction, f'I\'m going to **DELETE ALL STATISTICS** of user '
-                                                f'"{user.display_name}".\n\nAre you sure?'):
+                                                f'"{user.display_name}".\n\nAre you sure?', ephemeral=ephemeral):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     for ucid in member.ucids:
@@ -444,7 +450,7 @@ class UserStatistics(Plugin):
                             conn.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
                     conn.commit()
                 await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.', 
-                                                ephemeral=True)
+                                                ephemeral=ephemeral)
 
     @tasks.loop(hours=1)
     async def expire_token(self):

@@ -163,9 +163,10 @@ class Punishment(Plugin):
     @utils.app_has_role('DCS Admin')
     async def forgive(self, interaction: discord.Interaction,
                       user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
         if await utils.yn_question(interaction,
                                    'This will delete all the punishment points for this user and unban them '
-                                   'if they were banned.\nAre you sure (Y/N)?'):
+                                   'if they were banned.\nAre you sure (Y/N)?', ephemeral=ephemeral):
             with self.pool.connection() as conn:
                 with conn.transaction():
                     with closing(conn.cursor()) as cursor:
@@ -187,13 +188,14 @@ class Punishment(Plugin):
                                     "ucid": ucid
                                 })
                     await interaction.followup.send('All punishment points deleted and player unbanned '
-                                                    '(if they were banned by the bot before).')
+                                                    '(if they were banned by the bot before).', ephemeral=ephemeral)
 
     @command(description='Displays your current penalty points')
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def penalty(self, interaction: discord.Interaction,
                       user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
         if user:
             if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
                 await interaction.response.send_message('You need the DCS Admin role to use this command.',
@@ -220,7 +222,7 @@ class Punishment(Plugin):
                 cursor.execute("SELECT event, points, time FROM pu_events WHERE init_id = %s ORDER BY time DESC",
                                (ucid, ))
                 if cursor.rowcount == 0:
-                    await interaction.response.send_message('User has no penalty points.')
+                    await interaction.response.send_message('User has no penalty points.', ephemeral=ephemeral)
                     return
                 embed = discord.Embed(
                     title="Penalty Points for {}".format(user.display_name
@@ -253,7 +255,7 @@ class Punishment(Plugin):
                     embed.add_field(name='_ _', value='_ _')
                     embed.set_footer(text=f"You are currently banned.\n"
                                           f"Please contact an admin if you want to get unbanned.")
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

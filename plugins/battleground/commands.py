@@ -42,7 +42,7 @@ class Battleground(Plugin):
                         VALUES (nextval('bg_geometry_id_seq'), 'recon', %s, %s, %s, %s, %s, %s, %s)
                     """, (name, mgrs, screenshots, interaction.user.name, interaction.user.display_avatar.url,
                           side, server.name))
-            await interaction.response.send_message(f"Recon data added - {side} side - {server.name}", ephemeral=True)
+            await interaction.response.send_message(f"Recon data added - {side} side - {server.name}")
         if not done:
             await interaction.response.send_message('Coalitions have to be enabled and you need to use this command '
                                                     'in one of your coalition channels.', ephemeral=True)

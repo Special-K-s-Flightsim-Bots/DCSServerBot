@@ -298,7 +298,7 @@ class Scheduler(Plugin):
             embed.add_field(name='Server', value='\n'.join(names))
             embed.add_field(name='Status', value='\n'.join(status))
             embed.add_field(name='Players', value='\n'.join(players))
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     @group.command(description='Launches a DCS server')
     @utils.app_has_role('DCS Admin')
@@ -315,26 +315,27 @@ class Scheduler(Plugin):
                                                     f"Please wait or use /server shutdown force instead.",
                                                     ephemeral=True)
             return
+        ephemeral = utils.get_ephemeral(interaction)
         if server.status == Status.SHUTDOWN:
             if not interaction.response.is_done():
-                await interaction.response.defer(ephemeral=True)
+                await interaction.response.defer(ephemeral=ephemeral)
             msg = await interaction.followup.send(f"Starting DCS server \"{server.display_name}\", please wait ...",
-                                                  ephemeral=True)
+                                                  ephemeral=ephemeral)
             # set maintenance flag to prevent auto-stops of this server
             server.maintenance = True
             try:
                 await self.launch_dcs(server, config, interaction.user)
                 await interaction.followup.send(
                     f"DCS server \"{server.display_name}\" started.\nServer is in maintenance mode now! "
-                    f"Use `/scheduler clear` to reset maintenance mode.", ephemeral=True)
+                    f"Use `/scheduler clear` to reset maintenance mode.", ephemeral=ephemeral)
             except asyncio.TimeoutError:
                 if server.status == Status.SHUTDOWN:
                     await interaction.followup.send(
-                        f'Server {server.display_name} was closed / crashed while starting up!', ephemeral=True)
+                        f'Server {server.display_name} was closed / crashed while starting up!', ephemeral=ephemeral)
                 else:
                     await interaction.followup.send(f'Timeout while launching DCS server "{server.display_name}".\n'
                                                     f'The server might be running anyway, check with /server list.',
-                                                    ephemeral=True)
+                                                    ephemeral=ephemeral)
             finally:
                 await msg.delete()
 
@@ -345,9 +346,9 @@ class Scheduler(Plugin):
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                            status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.UNREGISTERED])],
                        force: Optional[bool]):
-        async def do_shutdown(server: Server, force: bool = False):
+        async def do_shutdown(server: Server, *, force: bool = False, ephemeral: bool):
             await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...",
-                                            ephemeral=True)
+                                            ephemeral=ephemeral)
             # set maintenance flag to prevent auto-starts of this server
             server.maintenance = True
             if force:
@@ -356,58 +357,61 @@ class Scheduler(Plugin):
                 await self.teardown_dcs(server, interaction.user)
             await interaction.followup.send(
                 f"DCS server \"{server.display_name}\" shut down.\n"f"Server in maintenance mode now! "
-                f"Use /scheduler clear to reset maintenance mode.", ephemeral=True)
+                f"Use /scheduler clear to reset maintenance mode.", ephemeral=ephemeral)
 
-        await interaction.response.defer(ephemeral=True)
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         if server.status in [Status.UNREGISTERED, Status.LOADING]:
             if force or await utils.yn_question(interaction, f"Server is in state {server.status.name}.\n"
-                                                             f"Do you want to force a shutdown?"):
-                await do_shutdown(server, True)
+                                                             f"Do you want to force a shutdown?", ephemeral=ephemeral):
+                await do_shutdown(server, force=True, ephemeral=ephemeral)
             else:
                 return
         elif server.status != Status.SHUTDOWN:
             if not force:
                 question = f"Do you want to shut down DCS server \"{server.display_name}\"?"
                 if server.is_populated():
-                    result = await utils.populated_question(interaction, question)
+                    result = await utils.populated_question(interaction, question, ephemeral=ephemeral)
                 else:
-                    result = await utils.yn_question(interaction, question)
+                    result = await utils.yn_question(interaction, question, ephemeral=ephemeral)
                 if not result:
-                    await interaction.followup.send('Aborted.', ephemeral=True)
+                    await interaction.followup.send('Aborted.', ephemeral=ephemeral)
                     return
                 elif result == 'later':
                     server.on_empty = {"command": "shutdown", "user": interaction.user}
                     server.restart_pending = True
-                    await interaction.followup.send('Shutdown postponed when server is empty.', ephemeral=True)
+                    await interaction.followup.send('Shutdown postponed when server is empty.', ephemeral=ephemeral)
                     return
-            await do_shutdown(server, force)
+            await do_shutdown(server, force=force, ephemeral=ephemeral)
         else:
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is already shut down.",
-                                                    ephemeral=True)
+                                                    ephemeral=ephemeral)
 
     @group.command(description='Starts a stopped DCS server')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
     async def start(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
         if server.status == Status.STOPPED:
-            await interaction.response.defer(ephemeral=True, thinking=True)
+            await interaction.response.defer(ephemeral=ephemeral, thinking=True)
             try:
                 await server.start()
             except asyncio.TimeoutError:
-                await interaction.followup.send(f"Timeout while trying to start server {server.name}.", ephemeral=True)
+                await interaction.followup.send(f"Timeout while trying to start server {server.name}.",
+                                                ephemeral=ephemeral)
                 return
-            await interaction.followup.send(f"Server {server.display_name} started.", ephemeral=True)
+            await interaction.followup.send(f"Server {server.display_name} started.", ephemeral=ephemeral)
             await self.bot.audit('started the server', server=server, user=interaction.user)
         elif server.status == Status.SHUTDOWN:
             await interaction.response.send_message(
-                f"Server {server.display_name} is shut down. Use /server startup to start it up.", ephemeral=True)
+                f"Server {server.display_name} is shut down. Use /server startup to start it up.", ephemeral=ephemeral)
         elif server.status in [Status.RUNNING, Status.PAUSED]:
             await interaction.response.send_message(f"Server {server.display_name} is already started.",
-                                                    ephemeral=True)
+                                                    ephemeral=ephemeral)
         else:
             await interaction.response.send_message(
-                f"Server {server.display_name} is still {server.status.name}, please wait ...", ephemeral=True)
+                f"Server {server.display_name} is still {server.status.name}, please wait ...", ephemeral=ephemeral)
 
     @group.command(description='Stops a running DCS server')
     @app_commands.guild_only()
@@ -415,23 +419,24 @@ class Scheduler(Plugin):
     async def stop(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.RUNNING, Status.PAUSED])]):
-        await interaction.response.defer(ephemeral=True)
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         if server.is_populated() and \
                 not await utils.yn_question(interaction, "People are flying on this server atm.\n"
-                                                         "Do you really want to stop it?"):
-            await interaction.followup.send("Aborted.", ephemeral=True)
+                                                         "Do you really want to stop it?", ephemeral=ephemeral):
+            await interaction.followup.send("Aborted.", ephemeral=ephemeral)
             return
         msg = None
         try:
-            msg = await interaction.followup.send(f"Stopping server {server.name} ...", ephemeral=True)
+            msg = await interaction.followup.send(f"Stopping server {server.name} ...", ephemeral=ephemeral)
             await server.stop()
         except asyncio.TimeoutError:
-            await interaction.followup.send(f"Timeout while trying to stop server {server.name}.", ephemeral=True)
+            await interaction.followup.send(f"Timeout while trying to stop server {server.name}.", ephemeral=ephemeral)
             return
         finally:
             if msg:
                 await msg.delete()
-        await interaction.followup.send(f"Server {server.display_name} stopped.", ephemeral=True)
+        await interaction.followup.send(f"Server {server.display_name} stopped.", ephemeral=ephemeral)
         await self.bot.audit('stopped the server', server=server, user=interaction.user)
 
     @group.command(description='Change the password of a DCS server')
@@ -445,7 +450,8 @@ class Scheduler(Plugin):
                                  style=discord.TextStyle.short, required=False)
 
             async def on_submit(derived, interaction: discord.Interaction):
-                await interaction.response.defer()
+                ephemeral = utils.get_ephemeral(interaction)
+                await interaction.response.defer(ephemeral=ephemeral)
                 if coalition:
                     server.send_to_dcs({
                         "command": "setCoalitionPassword",
@@ -461,7 +467,7 @@ class Scheduler(Plugin):
                 else:
                     server.settings['password'] = derived.password.value or ''
                     await self.bot.audit(f"changed password", user=interaction.user, server=server)
-                await interaction.followup.send("Password changed.", ephemeral=True)
+                await interaction.followup.send("Password changed.", ephemeral=ephemeral)
 
         if not coalition and server.status in [Status.PAUSED, Status.RUNNING]:
             await interaction.response.send_message(f'Server "{server.display_name}" has to be stopped or shut down '
@@ -478,20 +484,21 @@ class Scheduler(Plugin):
     @utils.app_has_role('DCS Admin')
     async def config(self, interaction: discord.Interaction,
                      server: app_commands.Transform[Server, utils.ServerTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
         if server.status in [Status.RUNNING, Status.PAUSED]:
             if await utils.yn_question(interaction, question='Server has to be stopped to change its configuration.\n'
-                                                             'Do you want to stop it?'):
+                                                             'Do you want to stop it?', ephemeral=ephemeral):
                 await server.stop()
             else:
-                await interaction.response.send_message('Aborted.', ephemeral=True)
+                await interaction.response.send_message('Aborted.', ephemeral=ephemeral)
                 return
 
         view = ConfigView(server)
         embed = discord.Embed(title=f'Do you want to change the configuration of server\n"{server.display_name}"?')
         if interaction.response.is_done():
-            msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         else:
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
             msg = await interaction.original_response()
         try:
             await view.wait()
@@ -508,11 +515,12 @@ class Scheduler(Plugin):
             await interaction.response.send_message(f"Server {server.name} has to be stopped before renaming.",
                                                     ephemeral=True)
             return
-        await interaction.response.defer(thinking=True, ephemeral=True)
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         old_name = server.name
         await server.rename(new_name, True)
         await self.bot.audit(f"renamed from {old_name}", server=server, user=interaction.user)
-        await interaction.followup.send(f"Server {old_name} renamed to {new_name}.", ephemeral=True)
+        await interaction.followup.send(f"Server {old_name} renamed to {new_name}.", ephemeral=ephemeral)
 
     @group.command(name="migrate", description="Migrate a server from one instance to another")
     @app_commands.guild_only()
@@ -523,25 +531,27 @@ class Scheduler(Plugin):
                       instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
         if server.instance == instance:
             await interaction.response.send_message(
-                f'Server "{server.name}" is already bound to instance "{instance.name}".')
+                f'Server "{server.name}" is already bound to instance "{instance.name}".', ephemeral=True)
             return
+        ephemeral = utils.get_ephemeral(interaction)
         if instance.server:
             if not await utils.yn_question(interaction, f"Instance {instance.name} is not empty.\n"
                                                         f"Do you want to unlink (and probably shutdown) server "
-                                                        f"{instance.server.name} first?"):
-                await interaction.followup.send("Aborted.", ephemeral=True)
+                                                        f"{instance.server.name} first?", ephemeral=ephemeral):
+                await interaction.followup.send("Aborted.", ephemeral=ephemeral)
         maintenance = server.maintenance
         running = False
         server.maintenance = True
         try:
             if server.status != Status.SHUTDOWN:
                 if not await utils.yn_question(interaction,
-                                               f"Do you want to shut down server {server.name} for migration?"):
-                    await interaction.followup.send("Aborted", ephemeral=True)
+                                               f"Do you want to shut down server {server.name} for migration?",
+                                               ephemeral=ephemeral):
+                    await interaction.followup.send("Aborted", ephemeral=ephemeral)
                 running = True
                 await server.shutdown()
             if not interaction.response.is_done():
-                await interaction.response.defer(ephemeral=True)
+                await interaction.response.defer(ephemeral=ephemeral)
             # prepare server for migration
             await server.persist_settings()
             if instance.server:
@@ -550,11 +560,11 @@ class Scheduler(Plugin):
                     await instance.server.shutdown()
             await node.migrate_server(server, instance)
             await interaction.followup.send(f"DCS server {server.name} migrated to instance {instance.name}.",
-                                                    ephemeral=True)
+                                            ephemeral=ephemeral)
             await self.bot.audit(f"migrated DCS server to node {node.name} instance {instance.name}",
                                  user=interaction.user, server=server)
             if running:
-                msg: discord.Message = await interaction.followup.send("Starting up ...", ephemeral=True)
+                msg: discord.Message = await interaction.followup.send("Starting up ...", ephemeral=ephemeral)
                 await server.startup()
                 await msg.edit(content=f'DCS server "{server.display_name}" started.' +
                                        ('\nServer is in maintenance mode now! Use `/scheduler clear` '
@@ -570,12 +580,13 @@ class Scheduler(Plugin):
     @utils.app_has_role('DCS Admin')
     async def maintenance(self, interaction: discord.Interaction,
                           server: app_commands.Transform[Server, utils.ServerTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
         if not server.maintenance:
             if (server.restart_pending or server.on_empty or server.on_mission_end) and \
                     not await utils.yn_question(interaction, "Server is configured for a pending restart.\n"
                                                              "Setting the maintenance flag will abort this restart.\n"
-                                                             "Are you sure?"):
-                await interaction.followup.send("Aborted.", ephemeral=True)
+                                                             "Are you sure?", ephemeral=ephemeral):
+                await interaction.followup.send("Aborted.", ephemeral=ephemeral)
                 return
             server.maintenance = True
             server.restart_pending = False
@@ -583,28 +594,29 @@ class Scheduler(Plugin):
             server.on_mission_end.clear()
             if interaction.response.is_done():
                 await interaction.followup.send(f"Maintenance mode set for server {server.display_name}.",
-                                                ephemeral=True)
+                                                ephemeral=ephemeral)
             else:
                 await interaction.response.send_message(f"Maintenance mode set for server {server.display_name}.",
-                                                        ephemeral=True)
+                                                        ephemeral=ephemeral)
             await self.bot.audit("set maintenance flag", user=interaction.user, server=server)
         else:
             await interaction.response.send_message(f"Server {server.display_name} is already in maintenance mode.",
-                                                    ephemeral=True)
+                                                    ephemeral=ephemeral)
 
     @scheduler.command(description='Clears the servers maintenance flag')
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
     async def clear(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
         if server.maintenance:
             server.maintenance = False
             await interaction.response.send_message(f"Maintenance mode cleared for server {server.display_name}.",
-                                                    ephemeral=True)
+                                                    ephemeral=ephemeral)
             await self.bot.audit("cleared maintenance flag", user=interaction.user, server=server)
         else:
             await interaction.response.send_message(f"Server {server.display_name} is not in maintenance mode.",
-                                                    ephemeral=True)
+                                                    ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

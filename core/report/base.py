@@ -20,7 +20,8 @@ from .errors import UnknownReportElement, ClassNotFound
 from .__utils import parse_input, parse_params
 
 if TYPE_CHECKING:
-    from core import DCSServerBot, Server
+    from core import Server
+    from services import DCSServerBot
 
 __all__ = [
     "Report",

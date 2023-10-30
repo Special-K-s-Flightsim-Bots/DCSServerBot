@@ -263,7 +263,7 @@ class OvGME(Plugin):
         embed = discord.Embed(title="Mod Manager", color=discord.Color.blue())
         embed.description = f"Install or uninstall mods to {server.name}"
         view = PackageView(embed)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=utils.get_ephemeral(interaction))
         try:
             await view.wait()
         finally:
@@ -276,25 +276,27 @@ class OvGME(Plugin):
     async def _install(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
                        mod: str):
+        ephemeral = utils.get_ephemeral(interaction)
         folder, package, version = mod.split('/')
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=ephemeral)
         current = self.service.check_package(server, folder, package)
         if current:
             await interaction.followup.send(f"Updating mod {package} from {current} to {version}, please wait ...",
-                                            ephemeral=True)
+                                            ephemeral=ephemeral)
             if not await self.service.uninstall_package(server, folder, package, current):
                 await interaction.followup.send(f"Mod {package}_v{version} could not be uninstalled!",
-                                                ephemeral=True)
+                                                ephemeral=ephemeral)
             elif not await self.service.install_package(server, folder, package, version):
-                await interaction.followup.send(f"Mod {package}_v{version} could not be installed!", ephemeral=True)
+                await interaction.followup.send(f"Mod {package}_v{version} could not be installed!",
+                                                ephemeral=ephemeral)
             else:
-                await interaction.followup.send(f"Mod {package} updated to version {version}.", ephemeral=True)
+                await interaction.followup.send(f"Mod {package} updated to version {version}.", ephemeral=ephemeral)
         else:
-            await interaction.followup.send(f"Installing mod {package}, please wait ...", ephemeral=True)
+            await interaction.followup.send(f"Installing mod {package}, please wait ...", ephemeral=ephemeral)
             if not await self.service.install_package(server, folder, package, version):
-                await interaction.followup.send(f"Installation of mod {package} failed.", ephemeral=True)
+                await interaction.followup.send(f"Installation of mod {package} failed.", ephemeral=ephemeral)
             else:
-                await interaction.followup.send(f"Mod {package} installed with version {version}.", ephemeral=True)
+                await interaction.followup.send(f"Mod {package} installed with version {version}.", ephemeral=ephemeral)
 
     @mods.command(description='Uninstall mods from your DCS server')
     @app_commands.guild_only()
@@ -303,13 +305,14 @@ class OvGME(Plugin):
     async def uninstall(self, interaction: discord.Interaction,
                         server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
                         mod: str):
+        ephemeral = utils.get_ephemeral(interaction)
         folder, package, version = mod.split('/')
-        await interaction.response.defer(ephemeral=True)
-        await interaction.followup.send(f"Uninstalling mod {package}, please wait ...", ephemeral=True)
+        await interaction.response.defer(ephemeral=ephemeral)
+        await interaction.followup.send(f"Uninstalling mod {package}, please wait ...", ephemeral=ephemeral)
         if not await self.service.uninstall_package(server, folder, package, version):
-            await interaction.followup.send(f"Mod {package}_v{version} could not be uninstalled!", ephemeral=True)
+            await interaction.followup.send(f"Mod {package}_v{version} could not be uninstalled!", ephemeral=ephemeral)
         else:
-            await interaction.followup.send(f"Mod {package} uninstalled.", ephemeral=True)
+            await interaction.followup.send(f"Mod {package} uninstalled.", ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

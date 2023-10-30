@@ -1,7 +1,7 @@
 import discord
 import os
 
-from core import Plugin, Report, ReportEnv, command, Command
+from core import Plugin, Report, ReportEnv, command, Command, utils
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Select, Button
@@ -193,6 +193,7 @@ class Help(Plugin):
     @app_commands.guild_only()
     @app_commands.autocomplete(command=commands_autocomplete)
     async def help(self, interaction: discord.Interaction, command: Optional[str]):
+        ephemeral = utils.get_ephemeral(interaction)
         options = [
             discord.SelectOption(label=x.title(), value=f'plugins.{x}.commands')
             for x in sorted(self.bot.plugins)
@@ -203,7 +204,7 @@ class Help(Plugin):
             try:
                 embed = await view.print_command(interaction, name=command)
                 if embed:
-                    await interaction.response.send_message(embed=embed, ephemeral=True)
+                    await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
                 else:
                     await interaction.response.send_message(f'Command {command} not found.', ephemeral=True)
             except PermissionError:
@@ -229,12 +230,12 @@ class Help(Plugin):
                             embed=embed, view=view,
                             file=discord.File(env.filename,
                                               filename=os.path.basename(env.filename)) if env.filename else None,
-                            ephemeral=True)
+                            ephemeral=ephemeral)
                     else:
                         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                 else:
                     embed = await view.print_commands(interaction, plugin='plugins.help.commands')
-                    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+                    await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
                 if await view.wait() or not view.result:
                     return
             except Exception as ex:

@@ -468,7 +468,7 @@ class DCSServerBot(commands.Bot):
                         best_fit = row[0]
                 return best_fit
 
-    async def get_server(self, ctx: Union[discord.Interaction, discord.Message, str]) \
+    def get_server(self, ctx: Union[discord.Interaction, discord.Message, str]) \
             -> Optional[Server]:
         if int(self.locals.get('admin_channel', 0)) == ctx.channel.id and len(self.servers) == 1:
             return list(self.servers.values())[0]

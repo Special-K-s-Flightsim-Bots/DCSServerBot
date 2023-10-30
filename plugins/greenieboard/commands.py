@@ -1,17 +1,13 @@
 import discord
-import os
 import shutil
-import time
 
 from contextlib import closing
-from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, TEventListener, Group, Server, \
-    DEFAULT_TAG
+from core import Plugin, PluginRequiredError, utils, PaginationReport, Report, Group, Server, DEFAULT_TAG
 from discord import SelectOption, app_commands
 from discord.app_commands import Range
-from discord.ext import tasks
 from psycopg.rows import dict_row
 from services import DCSServerBot
-from typing import Optional, Union, Type
+from typing import Optional, Union
 
 from .listener import GreenieBoardEventListener
 from .views import TrapView
@@ -63,6 +59,7 @@ class GreenieBoard(Plugin):
         def format_landing(landing: dict) -> str:
             return f"{landing['time']:%y-%m-%d %H:%M:%S} - {landing['unit_type']}@{landing['place']}: {landing['grade']}"
 
+        ephemeral = utils.get_ephemeral(interaction)
         if not user:
             user = interaction.user
         if isinstance(user, str):
@@ -92,7 +89,7 @@ class GreenieBoard(Plugin):
                                   options=[
                                       SelectOption(label=format_landing(x), value=str(idx))
                                       for idx, x in enumerate(landings)
-                                  ])
+                                  ], ephemeral=ephemeral)
         if n:
             report = PaginationReport(self.bot, interaction, self.plugin_name, 'lsoRating.json', keep_image=True)
             await report.render(landings=landings, start_index=int(n), formatter=format_landing)
@@ -110,6 +107,7 @@ class GreenieBoard(Plugin):
     @utils.app_has_role('DCS Admin')
     async def add(self, interaction: discord.Interaction,
                   user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
         config = self.get_config()
         if 'ratings' not in config:
             await interaction.response.send_message(
@@ -121,9 +119,9 @@ class GreenieBoard(Plugin):
         try:
             await view.wait()
             if view.success:
-                await interaction.followup.send('Trap added.', ephemeral=True)
+                await interaction.followup.send('Trap added.', ephemeral=ephemeral)
             else:
-                await interaction.followup.send('Aborted.', ephemeral=True)
+                await interaction.followup.send('Aborted.', ephemeral=ephemeral)
         finally:
             await interaction.delete_original_response()
 

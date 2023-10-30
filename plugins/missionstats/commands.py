@@ -34,7 +34,7 @@ class MissionStatistics(Plugin):
         report = Report(self.bot, self.plugin_name, 'missionstats.json')
         env = await report.render(stats=stats, mission_id=server.mission_id,
                                   sides=utils.get_sides(interaction.client, interaction, server))
-        await interaction.response.send_message(embed=env.embed, ephemeral=True)
+        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @command(description='Display statistics about sorties')
     @app_commands.guild_only()
@@ -60,7 +60,7 @@ class MissionStatistics(Plugin):
             name = user.display_name
         report = Report(self.bot, self.plugin_name, 'sorties.json')
         env = await report.render(ucid=ucid, member_name=name, period=period, flt=flt)
-        await interaction.response.send_message(embed=env.embed, ephemeral=True)
+        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @staticmethod
     def format_modules(data):
@@ -103,7 +103,7 @@ class MissionStatistics(Plugin):
             name = user.display_name
         report = Report(self.bot, self.plugin_name, 'modulestats.json')
         env = await report.render(member_name=name, ucid=ucid, period=period, module=module, flt=flt)
-        await interaction.response.send_message(embed=env.embed, ephemeral=True)
+        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
     @command(description='Refueling statistics')
     @app_commands.guild_only()
@@ -129,7 +129,7 @@ class MissionStatistics(Plugin):
             name = user.display_name
         report = Report(self.bot, self.plugin_name, 'refuelings.json')
         env = await report.render(ucid=ucid, member_name=name, period=period, flt=flt)
-        await interaction.response.send_message(embed=env.embed, ephemeral=True)
+        await interaction.response.send_message(embed=env.embed, ephemeral=utils.get_ephemeral(interaction))
 
 
 async def setup(bot: DCSServerBot):

@@ -48,7 +48,8 @@ class Music(Plugin):
                 f"You don't have any playlists to play. Please create one with /music add", ephemeral=True)
             return
         view = MusicPlayer(server=_server, radio_name=radio_name, playlists=playlists)
-        await interaction.response.send_message(embed=await view.render(), view=view, ephemeral=True)
+        await interaction.response.send_message(embed=await view.render(), view=view,
+                                                ephemeral=utils.get_ephemeral(interaction))
         msg = await interaction.original_response()
         try:
             while not view.is_finished():
@@ -69,18 +70,19 @@ class Music(Plugin):
         if server.status != Status.RUNNING:
             await interaction.response.send_message(f'Server {server.name} is not running.', ephemeral=True)
             return
+        ephemeral = utils.get_ephemeral(interaction)
         if song:
             song = os.path.join(await self.service.get_music_dir(), song)
             title = get_tag(song).title or os.path.basename(song)
-            await interaction.response.send_message(f"Now playing {title} ...", ephemeral=True)
+            await interaction.response.send_message(f"Now playing {title} ...", ephemeral=ephemeral)
             await self.service.play_song(server, radio_name, song)
         else:
             if playlist:
-                await interaction.response.send_message(f"Now playing {playlist} ...", ephemeral=True)
+                await interaction.response.send_message(f"Now playing {playlist} ...", ephemeral=ephemeral)
                 await self.service.stop_radios(server, radio_name)
                 await self.service.set_playlist(server, radio_name, playlist)
             else:
-                await interaction.response.send_message(f"Radio {radio_name} started.", ephemeral=True)
+                await interaction.response.send_message(f"Radio {radio_name} started.", ephemeral=ephemeral)
             await self.service.start_radios(server, radio_name)
 
     @music.command(description="Stop playing on a specific radio")
@@ -94,7 +96,8 @@ class Music(Plugin):
             await interaction.response.send_message(f'Server {server.name} is not running.', ephemeral=True)
             return
         await self.service.stop_radios(server, radio_name)
-        await interaction.response.send_message(f"Radio {radio_name} stopped.", ephemeral=True)
+        await interaction.response.send_message(f"Radio {radio_name} stopped.",
+                                                ephemeral=utils.get_ephemeral(interaction))
 
     # New command group "/playlist"
     plgroup = Group(name="playlist", description="Commands to manage music playlists")
@@ -109,35 +112,40 @@ class Music(Plugin):
         song = os.path.join(await self.service.get_music_dir(), song)
         title = get_tag(song).title or os.path.basename(song)
         await interaction.response.send_message(
-            '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist), ephemeral=True)
+            '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist),
+            ephemeral=utils.get_ephemeral(interaction))
 
     @plgroup.command(description="Add all available songs to a playlist")
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     async def add_all(self, interaction: discord.Interaction, playlist: str):
-        if not await utils.yn_question(interaction, 'Do you really want to add ALL songs to the playlist?'):
+        ephemeral = utils.get_ephemeral(interaction)
+        if not await utils.yn_question(interaction, 'Do you really want to add ALL songs to the playlist?',
+                                       ephemeral=ephemeral):
             return
         p = Playlist(playlist)
         for song in [file for file in Path(await self.service.get_music_dir()).glob('*.mp3')]:
             p.add(song.name)
             title = get_tag(song).title or song.name
             await interaction.followup.send(
-                '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist), ephemeral=True)
+                '{} has been added to playlist {}.'.format(utils.escape_string(title), playlist),
+                ephemeral=ephemeral)
 
     @plgroup.command(description="Remove a song from a playlist")
     @utils.app_has_role('DCS Admin')
     @app_commands.autocomplete(playlist=playlist_autocomplete)
     @app_commands.autocomplete(song=songs_autocomplete)
     async def delete(self, interaction: discord.Interaction, playlist: str, song: str):
+        ephemeral = utils.get_ephemeral(interaction)
         p = Playlist(playlist)
         try:
             p.remove(song)
             song = os.path.join(await self.service.get_music_dir(), song)
             title = get_tag(song).title or os.path.basename(song)
             await interaction.response.send_message(
-                '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist), ephemeral=True)
+                '{} has been removed from playlist {}.'.format(utils.escape_string(title), playlist), ephemeral=ephemeral)
         except OSError as ex:
-            await interaction.response.send_message(ex)
+            await interaction.response.send_message(ex, ephemeral=ephemeral)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
