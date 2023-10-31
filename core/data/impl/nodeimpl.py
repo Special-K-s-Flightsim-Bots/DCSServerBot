@@ -219,12 +219,12 @@ class NodeImpl(Node):
                     tables = [x[0] for x in cursor.fetchall()]
                     # initial setup
                     if len(tables) == 0:
-                        self.log.info('Initializing Database ...')
+                        self.log.info('Creating Database ...')
                         with open('sql/tables.sql') as tables_sql:
                             for query in tables_sql.readlines():
                                 self.log.debug(query.rstrip())
                                 cursor.execute(query.rstrip())
-                        self.log.info('Database initialized.')
+                        self.log.info('Database created.')
                     else:
                         # version table missing (DB version <= 1.4)
                         if 'version' not in tables:
@@ -232,15 +232,15 @@ class NodeImpl(Node):
                                            "INSERT INTO version (version) VALUES ('v1.4');")
                         cursor.execute('SELECT version FROM version')
                         self.db_version = cursor.fetchone()[0]
-                        while os.path.exists('sql/update_{}.sql'.format(self.db_version)):
-                            self.log.info('Updating Database {} ...'.format(self.db_version))
+                        while os.path.exists(f'sql/update_{self.db_version}.sql'):
+                            old_version = self.db_version
                             with open('sql/update_{}.sql'.format(self.db_version)) as tables_sql:
                                 for query in tables_sql.readlines():
                                     self.log.debug(query.rstrip())
                                     cursor.execute(query.rstrip())
                             cursor.execute('SELECT version FROM version')
                             self.db_version = cursor.fetchone()[0]
-                            self.log.info(f"Database updated to {self.db_version}.")
+                            self.log.info(f'Database upgraded from {old_version} to {self.db_version}.')
 
     def install_plugins(self):
         for file in Path('plugins').glob('*.zip'):

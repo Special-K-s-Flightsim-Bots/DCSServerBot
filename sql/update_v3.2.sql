@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS audit(id SERIAL PRIMARY KEY, node TEXT NOT NULL, event TEXT NOT NULL, server_name TEXT, discord_id BIGINT, ucid TEXT, time TIMESTAMP NOT NULL DEFAULT NOW());
+UPDATE version SET version='v3.3';

@@ -260,17 +260,25 @@ class DCSServerBot(commands.Bot):
             if member:
                 embed.set_author(name=member.name, icon_url=member.avatar)
                 embed.set_thumbnail(url=member.avatar)
-                message = f'<@{member.id}> ' + message
+                embed.description = f'<@{member.id}> ' + message
             elif not user:
                 embed.set_author(name=self.member.name, icon_url=self.member.avatar)
                 embed.set_thumbnail(url=self.member.avatar)
-            embed.description = message
+                embed.description = message
             if isinstance(user, str):
                 embed.add_field(name='UCID', value=user)
             if server:
                 embed.add_field(name='Server', value=server.display_name)
             embed.set_footer(text=datetime.now().strftime("%d/%m/%y %H:%M:%S"))
             await self.audit_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions(replied_user=False))
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    INSERT INTO audit (node, event, server_name, discord_id, ucid)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (self.node.name, message, server.name if server else None,
+                      user.id if isinstance(user, discord.Member) else None,
+                      user if isinstance(user, str) else None))
 
     @lru_cache
     def get_channel(self, channel_id: int):

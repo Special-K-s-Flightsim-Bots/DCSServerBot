@@ -309,14 +309,12 @@ class Scheduler(Plugin):
         if server.status == Status.STOPPED:
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is stopped.\n"
                                                     f"Please use /server start instead.", ephemeral=True)
-            return
-        if server.status == Status.LOADING:
+        elif server.status == Status.LOADING:
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is loading.\n"
                                                     f"Please wait or use /server shutdown force instead.",
                                                     ephemeral=True)
-            return
-        ephemeral = utils.get_ephemeral(interaction)
-        if server.status == Status.SHUTDOWN:
+        elif server.status == Status.SHUTDOWN:
+            ephemeral = utils.get_ephemeral(interaction)
             if not interaction.response.is_done():
                 await interaction.response.defer(ephemeral=ephemeral)
             msg = await interaction.followup.send(f"Starting DCS server \"{server.display_name}\", please wait ...",
@@ -338,6 +336,9 @@ class Scheduler(Plugin):
                                                     ephemeral=ephemeral)
             finally:
                 await msg.delete()
+        else:
+            await interaction.response.send_message(f"DCS server \"{server.display_name}\" is started already.",
+                                                    ephemeral=True)
 
     @group.command(description='Shuts a DCS server down')
     @utils.app_has_role('DCS Admin')

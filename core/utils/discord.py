@@ -514,7 +514,7 @@ class ServerTransformer(app_commands.Transformer):
 
     def __init__(self, *, status: list[Status] = None):
         super().__init__()
-        self.status = status
+        self.status: list[Status] = status
 
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Server:
         if value:
@@ -528,7 +528,7 @@ class ServerTransformer(app_commands.Transformer):
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
         try:
             server: Server = interaction.client.get_server(interaction)
-            if server and (not self.status or server.status in self.status):
+            if server and server.status != Status.UNREGISTERED and (not self.status or server.status in self.status):
                 return [Choice(name=server.name, value=server.name)]
             choices: list[Choice[str]] = [
                 Choice(name=name, value=name)
