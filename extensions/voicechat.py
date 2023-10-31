@@ -14,7 +14,7 @@ class VoiceChat(Extension):
         embed.add_field(name='DCS Voice Chat', value='enabled')
 
     def is_installed(self) -> bool:
-        return True
+        return self.config.get('enabled', True)
 
     async def shutdown(self) -> bool:
         return True
