@@ -138,7 +138,7 @@ class Command(app_commands.Command):
         if 'node' in inspect.signature(self._callback).parameters and 'node' not in params:
             params['node'] = interaction.client.node
         if 'server' in inspect.signature(self._callback).parameters and 'server' not in params:
-            server = await interaction.client.get_server(interaction)
+            server = interaction.client.get_server(interaction)
             if not server:
                 if len(interaction.client.servers) > 0:
                     await interaction.response.send_message(

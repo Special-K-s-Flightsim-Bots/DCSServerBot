@@ -522,7 +522,7 @@ class ServerTransformer(app_commands.Transformer):
             if not server:
                 raise TransformerError(value, self.type, self)
         else:
-            server = await interaction.client.get_server(interaction)
+            server = interaction.client.get_server(interaction)
         return server
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
@@ -749,13 +749,13 @@ class PlayerTransformer(app_commands.Transformer):
         self.active = active
 
     async def transform(self, interaction: discord.Interaction, value: str) -> Player:
-        server: Server = await interaction.client.get_server(interaction)
+        server: Server = interaction.client.get_server(interaction)
         return server.get_player(ucid=value, active=self.active)
 
     async def autocomplete(self, interaction: Interaction, current: str) -> list[Choice[str]]:
         try:
             if self.active:
-                server: Server = await interaction.client.get_server(interaction)
+                server: Server = interaction.client.get_server(interaction)
                 choices: list[app_commands.Choice[str]] = [
                     app_commands.Choice(name=x.name, value=x.ucid)
                     for x in server.get_active_players()
