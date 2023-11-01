@@ -11,7 +11,7 @@ class VoiceChat(Extension):
         return True
 
     def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        embed.add_field(name='DCS Voice Chat', value='enabled')
+        embed.add_field(name='DCS Voice Chat', value='enabled' if self.config.get('enabled', True) else 'disabled')
 
     def is_installed(self) -> bool:
         return True

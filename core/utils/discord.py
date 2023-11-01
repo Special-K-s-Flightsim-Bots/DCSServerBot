@@ -17,7 +17,8 @@ from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 from .helper import get_all_players, is_ucid
 
 if TYPE_CHECKING:
-    from core import Server, DCSServerBot, Player, ServiceBus, Node, Instance
+    from core import Server, Player, Node, Instance
+    from services import DCSServerBot, ServiceBus
 
 __all__ = [
     "PlayerType",
@@ -54,7 +55,8 @@ __all__ = [
     "available_modules_autocomplete",
     "installed_modules_autocomplete",
     "player_modules_autocomplete",
-    "server_selection"
+    "server_selection",
+    "get_ephemeral"
 ]
 
 
@@ -230,14 +232,14 @@ class YNQuestionView(View):
 
 
 async def yn_question(ctx: Union[commands.Context, discord.Interaction], question: str,
-                      message: Optional[str] = None) -> bool:
+                      message: Optional[str] = None, ephemeral: Optional[bool] = True) -> bool:
     embed = discord.Embed(description=question, color=discord.Color.red())
     if message is not None:
         embed.add_field(name=message, value='_ _')
     if isinstance(ctx, discord.Interaction):
         ctx = await ctx.client.get_context(ctx)
     view = YNQuestionView()
-    msg = await ctx.send(embed=embed, view=view, ephemeral=True)
+    msg = await ctx.send(embed=embed, view=view, ephemeral=ephemeral)
     try:
         if await view.wait():
             return False
@@ -269,15 +271,16 @@ class PopulatedQuestionView(View):
         self.stop()
 
 
-async def populated_question(interaction: discord.Interaction, question: str, message: Optional[str] = None) -> Optional[str]:
+async def populated_question(interaction: discord.Interaction, question: str, message: Optional[str] = None,
+                             ephemeral: Optional[bool] = True) -> Optional[str]:
     embed = discord.Embed(title='People are flying!', description=question, color=discord.Color.red())
     if message is not None:
         embed.add_field(name=message, value='_ _')
     view = PopulatedQuestionView()
     if interaction.response.is_done():
-        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
     else:
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
         msg = await interaction.original_response()
     try:
         if await view.wait():
@@ -511,7 +514,7 @@ class ServerTransformer(app_commands.Transformer):
 
     def __init__(self, *, status: list[Status] = None):
         super().__init__()
-        self.status = status
+        self.status: list[Status] = status
 
     async def transform(self, interaction: discord.Interaction, value: Optional[str]) -> Server:
         if value:
@@ -524,8 +527,8 @@ class ServerTransformer(app_commands.Transformer):
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
         try:
-            server: Server = await interaction.client.get_server(interaction)
-            if server and (not self.status or server.status in self.status):
+            server: Server = interaction.client.get_server(interaction)
+            if server and server.status != Status.UNREGISTERED and (not self.status or server.status in self.status):
                 return [Choice(name=server.name, value=server.name)]
             choices: list[Choice[str]] = [
                 Choice(name=name, value=name)
@@ -771,7 +774,8 @@ class PlayerTransformer(app_commands.Transformer):
 
 async def server_selection(bus: ServiceBus,
                            interaction: Union[discord.Interaction, commands.Context], *, title: str,
-                           multi_select: Optional[bool] = False) -> Optional[Union[Server, list[Server]]]:
+                           multi_select: Optional[bool] = False,
+                           ephemeral: Optional[bool] = True) -> Optional[Union[Server, list[Server]]]:
     all_servers = list(bus.servers.keys())
     if len(all_servers) == 0:
         return []
@@ -783,8 +787,15 @@ async def server_selection(bus: ServiceBus,
         max_values = 1
     s = await selection(interaction, title=title,
                         options=[SelectOption(label=x, value=x) for x in all_servers],
-                        max_values=max_values, ephemeral=True)
+                        max_values=max_values, ephemeral=ephemeral)
     if multi_select:
         return [bus.servers[x] for x in s]
     else:
         return bus.servers[s]
+
+
+def get_ephemeral(interaction: discord.Interaction) -> bool:
+    bot: DCSServerBot = interaction.client
+    server: Server = bot.get_server(interaction)
+    channel = bot.get_admin_channel(server)
+    return not channel == interaction.channel

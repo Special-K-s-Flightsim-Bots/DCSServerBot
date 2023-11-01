@@ -106,13 +106,14 @@ class CloudHandler(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def status(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f'Checking cloud connection ...', ephemeral=True)
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.send_message(f'Checking cloud connection ...', ephemeral=ephemeral)
         try:
             await self.get('verify')
-            await interaction.followup.send(f'Cloud connection established.', ephemeral=True)
+            await interaction.followup.send(f'Cloud connection established.', ephemeral=ephemeral)
             return
         except aiohttp.ClientError:
-            await interaction.followup.send(f'Cloud not connected.', ephemeral=True)
+            await interaction.followup.send(f'Cloud not connected.', ephemeral=ephemeral)
         finally:
             await interaction.delete_original_response()
 
@@ -122,8 +123,9 @@ class CloudHandler(Plugin):
     @app_commands.rename(member="user")
     async def resync(self, interaction: discord.Interaction,
                      member: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]] = None):
+        ephemeral = utils.get_ephemeral(interaction)
         if 'token' not in self.config:
-            await interaction.response.send_message('No cloud sync configured.', ephemeral=True)
+            await interaction.response.send_message('No cloud sync configured.', ephemeral=ephemeral)
             return
         with self.pool.connection() as conn:
             with conn.transaction():
@@ -135,7 +137,7 @@ class CloudHandler(Plugin):
                         sql += ' WHERE discord_id = %s'
                         member = member.id
                 conn.execute(sql, (member, ))
-                await interaction.response.send_message('Resync with cloud triggered.', ephemeral=True)
+                await interaction.response.send_message('Resync with cloud triggered.', ephemeral=ephemeral)
 
     @cloud.command(description='Generate Cloud Statistics')
     @app_commands.guild_only()

@@ -51,6 +51,7 @@ class CreditSystem(Plugin):
     @app_commands.rename(member="user")
     async def info(self, interaction: discord.Interaction,
                    member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
+        ephemeral = utils.get_ephemeral(interaction)
         if member:
             if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
                 await interaction.response.send_message('You need the DCS Admin role to use this command.',
@@ -63,18 +64,18 @@ class CreditSystem(Plugin):
                 ucid = self.bot.get_ucid_by_member(member)
                 if not ucid:
                     await interaction.response.send_message(f"Member {utils.escape_string(member.display_name)} is "
-                                                            f"not linked to any DCS user.", ephemeral=True)
+                                                            f"not linked to any DCS user.", ephemeral=ephemeral)
                     return
         else:
             member = interaction.user
             ucid = self.bot.get_ucid_by_member(member)
             if not ucid:
-                await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
+                await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=ephemeral)
                 return
         data = self.get_credits(ucid)
         if not data:
             await interaction.response.send_message(f'{utils.escape_string(member.display_name)} has no campaign '
-                                                    f'credits.', ephemeral=True)
+                                                    f'credits.', ephemeral=ephemeral)
             return
         embed = discord.Embed(
             title="Campaign Credits for {}".format(utils.escape_string(member.display_name)
@@ -102,18 +103,19 @@ class CreditSystem(Plugin):
             embed.add_field(name='Event', value=events)
             embed.add_field(name='Points', value=deltas)
             embed.set_footer(text='Log will show the last 10 events only.')
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
 
     async def _admin_donate(self, interaction: discord.Interaction, to: discord.Member, donation: int):
+        ephemeral = utils.get_ephemeral(interaction)
         receiver = self.bot.get_ucid_by_member(to)
         if not receiver:
             await interaction.response.send_message(f'{utils.escape_string(to.display_name)} needs to properly link '
-                                                    f'their DCS account to receive donations.', ephemeral=True)
+                                                    f'their DCS account to receive donations.', ephemeral=ephemeral)
             return
         data = self.get_credits(receiver)
         if not data:
             await interaction.response.send_message('It seems like there is no campaign running on your server(s).',
-                                                    ephemeral=True)
+                                                    ephemeral=ephemeral)
             return
         if len(data) > 1:
             n = await utils.selection(interaction, title="Campaign Credits",
@@ -165,11 +167,17 @@ class CreditSystem(Plugin):
                         """, (data[n]['id'], 'donation', receiver, old_points_receiver, new_points_receiver,
                               f'Credit points change by Admin {interaction.user.display_name}'))
             if donation > 0:
-                await interaction.response.send_message(
-                    to.mention + f' you just received {donation} credit points from an Admin.')
+                try:
+                    await to.dm_channel.send(f'You just received {donation} credit points from an Admin.')
+                except discord.Forbidden:
+                    await interaction.response.send_message(to.mention + f', you just received {donation} credit '
+                                                                         f'points from an Admin.')
             else:
-                await interaction.response.send_message(
-                    to.mention + f' your credits were decreased by {donation} credit points by an Admin.')
+                try:
+                    await to.dm_channel.send(f'Your credits were decreased by {donation} credit points by an Admin.')
+                except discord.Forbidden:
+                    await interaction.response.send_message(to.mention + f', your credits were decreased by {donation} '
+                                                                         f'credit points by an Admin.')
 
     @credits.command(description='Donate credits to another member')
     @utils.app_has_role('DCS')
@@ -268,9 +276,14 @@ class CreditSystem(Plugin):
                             VALUES (%s, %s, %s, %s, %s, %s)
                         """, (data[n]['id'], 'donation', receiver, old_points_receiver, new_points_receiver,
                               f'Donation from member {interaction.user.display_name}'))
-            await interaction.response.send_message(
-                to.mention + f' you just received {donation} credit points from '
-                             f'{utils.escape_string(interaction.user.display_name)}!', ephemeral=True)
+            try:
+                await to.dm_channel.send(f'You just received {donation} credit points from '
+                                         f'{utils.escape_string(interaction.user.display_name)}!')
+            except discord.Forbidden:
+                await interaction.response.send_message(
+                    to.mention + f', you just received {donation} credit points from '
+                                 f'{utils.escape_string(interaction.user.display_name)}!'
+                )
 
 
 async def setup(bot: DCSServerBot):

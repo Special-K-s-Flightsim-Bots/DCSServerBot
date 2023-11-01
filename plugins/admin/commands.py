@@ -104,7 +104,8 @@ class Admin(Plugin):
 
                 self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
                 await interaction.response.send_message(f"Player {name} banned on all servers" +
-                                                        (f" for {days} days." if days else ""))
+                                                        (f" for {days} days." if days else ""),
+                                                        ephemeral=utils.get_ephemeral(interaction))
                 await self.bot.audit(f'banned player {name} (ucid={ucid} with reason "{derived.reason.value}"' +
                                      f' for {days} days.' if days else ' permanently.',
                                      user=interaction.user)
@@ -126,7 +127,8 @@ class Admin(Plugin):
             name = name.display_name
         elif not name:
             name = ucid
-        await interaction.response.send_message(f"Player {name} unbanned on all servers.")
+        await interaction.response.send_message(f"Player {name} unbanned on all servers.",
+                                                ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'unbanned player {name} (ucid={ucid})', user=interaction.user)
 
     @dcs.command(description='Shows active bans')
@@ -145,7 +147,7 @@ class Admin(Plugin):
         until = ban['banned_until'].strftime('%Y-%m-%d %H:%M')
         embed.add_field(name=f"Banned by: {ban['banned_by']}", value=f"Exp.: {until}" if not until.startswith('9999') else '_ _')
         embed.add_field(name='Reason', value=ban['reason'])
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     @dcs.command(description='Update your DCS installations')
     @app_commands.guild_only()
@@ -153,22 +155,23 @@ class Admin(Plugin):
     @app_commands.describe(warn_time="Time in seconds to warn users before shutdown")
     async def update(self, interaction: discord.Interaction,
                      node: app_commands.Transform[Node, utils.NodeTransformer], warn_time: Range[int, 0] = 60):
-        await interaction.response.defer(thinking=True, ephemeral=True)
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         branch, old_version = await node.get_dcs_branch_and_version()
         new_version = await utils.getLatestVersion(branch,
                                                    userid=node.locals['DCS'].get('dcs_user'),
                                                    password=node.locals['DCS'].get('dcs_password'))
         if old_version == new_version:
             await interaction.followup.send(
-                f'Your installed version {old_version} is the latest on branch {branch}.', ephemeral=True)
+                f'Your installed version {old_version} is the latest on branch {branch}.', ephemeral=ephemeral)
         elif new_version:
             if await utils.yn_question(interaction,
                                        f'Would you like to update from version {old_version} to {new_version}?\n'
-                                       f'All running DCS servers will be shut down!') is True:
+                                       f'All running DCS servers will be shut down!', ephemeral=ephemeral) is True:
                 await self.bot.audit(f"started an update of all DCS servers on node {platform.node()}.",
                                      user=interaction.user)
                 msg = await interaction.followup.send(f"Updating DCS to version {new_version}, please wait ...",
-                                                      ephemeral=True)
+                                                      ephemeral=ephemeral)
                 rc = await node.update(warn_times=[warn_time] or [120, 60])
                 if rc == 0:
                     await msg.edit(content=f"DCS updated to version {new_version} on node {node.name}.")
@@ -179,7 +182,7 @@ class Admin(Plugin):
         else:
             await interaction.followup.send(
                 f"Can't update branch {branch}. You might need to provide proper DCS credentials to do so.",
-                ephemeral=True)
+                ephemeral=ephemeral)
 
     @dcs.command(name='install', description='Install modules in your dcs server')
     @app_commands.guild_only()
@@ -187,12 +190,14 @@ class Admin(Plugin):
     @app_commands.autocomplete(module=utils.available_modules_autocomplete)
     async def _install(self, interaction: discord.Interaction,
                        node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
+        ephemeral = utils.get_ephemeral(interaction)
         if not await utils.yn_question(interaction,
-                                       f"Shutdown all servers on node {node.name} for the installation?"):
-            await interaction.followup.send("Aborted.", ephemeral=True)
+                                       f"Shutdown all servers on node {node.name} for the installation?",
+                                       ephemeral=ephemeral):
+            await interaction.followup.send("Aborted.", ephemeral=ephemeral)
             return
         await node.handle_module('install', module)
-        await interaction.followup.send(f"Module {module} installed on node {node.name}", ephemeral=True)
+        await interaction.followup.send(f"Module {module} installed on node {node.name}", ephemeral=ephemeral)
 
     @dcs.command(name='uninstall', description='Uninstall modules from your server')
     @app_commands.guild_only()
@@ -200,12 +205,13 @@ class Admin(Plugin):
     @app_commands.autocomplete(module=utils.installed_modules_autocomplete)
     async def _uninstall(self, interaction: discord.Interaction,
                          node: app_commands.Transform[Node, utils.NodeTransformer], module: str):
+        ephemeral = utils.get_ephemeral(interaction)
         if not await utils.yn_question(interaction,
                                        f"Shutdown all servers on node {node.name} for the uninstallation?"):
-            await interaction.followup.send("Aborted.", ephemeral=True)
+            await interaction.followup.send("Aborted.", ephemeral=ephemeral)
             return
         await node.handle_module('uninstall', module)
-        await interaction.followup.send(f"Module {module} uninstalled on node {node.name}", ephemeral=True)
+        await interaction.followup.send(f"Module {module} uninstalled on node {node.name}", ephemeral=ephemeral)
 
     @command(description='Download files from your server')
     @app_commands.guild_only()
@@ -215,7 +221,8 @@ class Admin(Plugin):
     async def download(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer],
                        what: str, filename: str) -> None:
-        await interaction.response.defer(thinking=True, ephemeral=True)
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         config = next(x for x in self.get_config(server)['downloads'] if x['label'] == what)
         path = os.path.join(config['directory'].format(server=server), filename)
         file = await server.node.read_file(path)
@@ -234,15 +241,15 @@ class Admin(Plugin):
                 try:
                     await channel.send(file=discord.File(filename=filename, fp=BytesIO(file)))
                     if channel == dm_channel:
-                        await interaction.followup.send('File sent as a DM.', ephemeral=True)
+                        await interaction.followup.send('File sent as a DM.', ephemeral=ephemeral)
                     else:
-                        await interaction.followup.send('Here is your file:', ephemeral=True)
+                        await interaction.followup.send('Here is your file:', ephemeral=ephemeral)
                     break
                 except discord.HTTPException:
                     continue
             else:
                 await interaction.followup.send('File too large. You need a higher boost level for your server.',
-                                                ephemeral=True)
+                                                ephemeral=ephemeral)
                 return
         elif target.startswith('<'):
             channel = self.bot.get_channel(int(target[4:-1]))
@@ -250,32 +257,33 @@ class Admin(Plugin):
                 await channel.send(file=discord.File(filename=filename, fp=BytesIO(file)))
             except discord.HTTPException:
                 await interaction.followup.send('File too large. You need a higher boost level for your server.',
-                                                ephemeral=True)
+                                                ephemeral=ephemeral)
             if channel != interaction.channel:
-                await interaction.followup.send('File sent to the configured channel.', ephemeral=True)
+                await interaction.followup.send('File sent to the configured channel.', ephemeral=ephemeral)
             else:
-                await interaction.followup.send('Here is your file:', ephemeral=True)
+                await interaction.followup.send('Here is your file:', ephemeral=ephemeral)
         else:
             with open(os.path.expandvars(target), 'wb') as outfile:
                 outfile.write(file)
-            await interaction.followup.send('File copied to the specified location.', ephemeral=True)
+            await interaction.followup.send('File copied to the specified location.', ephemeral=ephemeral)
         await self.bot.audit(f"downloaded {filename}", user=interaction.user, server=server)
 
     @command(name='prune', description='Prune unused data in the database')
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def _prune(self, interaction: discord.Interaction):
+        ephemeral = utils.get_ephemeral(interaction)
         embed = discord.Embed(title=":warning: Database Prune :warning:")
         embed.description = "You are going to delete data from your database. Be advised.\n\n" \
                             "Please select the data to be pruned:"
         view = CleanupView()
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=ephemeral)
         try:
             await view.wait()
         finally:
             await interaction.delete_original_response()
         if view.command == "cancel":
-            await interaction.followup.send('Aborted.', ephemeral=True)
+            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
 
         with self.pool.connection() as conn:
@@ -288,25 +296,27 @@ class Admin(Plugin):
                                 sql += ' AND discord_id = -1'
                             ucids = [row[0] for row in cursor.execute(sql).fetchall()]
                             if not ucids:
-                                await interaction.followup.send('No players to prune.', ephemeral=True)
+                                await interaction.followup.send('No players to prune.', ephemeral=ephemeral)
                                 return
                             if not await utils.yn_question(interaction, f"This will delete {len(ucids)} players incl. "
                                                                         f"their stats from the database.\n"
-                                                                        f"Are you sure?"):
+                                                                        f"Are you sure?", ephemeral=ephemeral):
                                 return
                             for plugin in self.bot.cogs.values():  # type: Plugin
                                 await plugin.prune(conn, ucids=ucids)
                             for ucid in ucids:
                                 cursor.execute('DELETE FROM players WHERE ucid = %s', (ucid, ))
-                            await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=True)
+                            await interaction.followup.send(f"{len(ucids)} players pruned.", ephemeral=ephemeral)
                         elif view.what == 'data':
                             days = int(view.age)
                             if not await utils.yn_question(interaction, f"This will delete all data older than {days} "
-                                                                        f"days from the database.\nAre you sure?"):
+                                                                        f"days from the database.\nAre you sure?",
+                                                           ephemeral=ephemeral):
                                 return
                             for plugin in self.bot.cogs.values():  # type: Plugin
                                 await plugin.prune(conn, days=days)
-                            await interaction.followup.send(f"All data older than {days} days pruned.", ephemeral=True)
+                            await interaction.followup.send(f"All data older than {days} days pruned.",
+                                                            ephemeral=ephemeral)
         await self.bot.audit(f'pruned the database', user=interaction.user)
 
     node = Group(name="node", description="Commands to manage your nodes")
@@ -344,16 +354,18 @@ class Admin(Plugin):
             embed.add_field(name="Instance", value='\n'.join(instances))
             embed.add_field(name="Server", value='\n'.join(names))
             embed.add_field(name="Status", value='\n'.join(status))
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Optional[Node] = None):
+        ephemeral = utils.get_ephemeral(interaction)
         if not node:
             msg = f"Do you want to {method} all nodes?\n"
         else:
             msg = f"Do you want to {method} node {node.name}?\n"
         if not await utils.yn_question(interaction,
-                                       msg + "It should autostart again, if being launched with run.cmd."):
-            await interaction.followup.send('Aborted.', ephemeral=True)
+                                       msg + "It should autostart again, if being launched with run.cmd.",
+                                       ephemeral=ephemeral):
+            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         for n in self.bot.node.get_active_nodes():
             if not node or n == node.name:
@@ -362,9 +374,9 @@ class Admin(Plugin):
                     "object": "Node",
                     "method": method
                 }, node=n)
-            await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=True)
+            await interaction.followup.send(f'Node {n} - {method} sent.', ephemeral=ephemeral)
         if not node or node.name == platform.node():
-            await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=True)
+            await interaction.followup.send(f'Master node is going to {method} **NOW**.', ephemeral=ephemeral)
             if method == 'shutdown':
                 self.bot.node.shutdown()
             else:
@@ -389,19 +401,20 @@ class Admin(Plugin):
     @utils.app_has_role('Admin')
     @app_commands.autocomplete(plugin=utils.plugins_autocomplete)
     async def reload(self, interaction: discord.Interaction, plugin: Optional[str]):
-        await interaction.response.defer(ephemeral=True)
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral)
         if plugin:
             if await self.bot.reload(plugin):
-                await interaction.followup.send(f'Plugin {plugin.title()} reloaded.')
+                await interaction.followup.send(f'Plugin {plugin.title()} reloaded.', ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    f'Plugin {plugin.title()} could not be reloaded, check the log for details.')
+                    f'Plugin {plugin.title()} could not be reloaded, check the log for details.', ephemeral=ephemeral)
         else:
             if await self.bot.reload():
-                await interaction.followup.send(f'All plugins reloaded.')
+                await interaction.followup.send(f'All plugins reloaded.', ephemeral=ephemeral)
             else:
                 await interaction.followup.send(
-                    f'One or more plugins could not be reloaded, check the log for details.')
+                    f'One or more plugins could not be reloaded, check the log for details.', ephemeral=ephemeral)
 
     @node.command(description="Add/create an instance")
     @app_commands.guild_only()
@@ -410,6 +423,7 @@ class Admin(Plugin):
     async def add_instance(self, interaction: discord.Interaction,
                            node: app_commands.Transform[Node, utils.NodeTransformer], name: str,
                            template: app_commands.Transform[Instance, utils.InstanceTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
         instance = await node.add_instance(name, template=template)
         if instance:
             await interaction.response.send_message(
@@ -420,15 +434,17 @@ Please make sure you forward the following ports:
 - WebGUI Port: {instance.webgui_port}
 - VOIP Port:   {instance.dcs_port + 1}
 ```
-            """, ephemeral=True)
+            """, ephemeral=ephemeral)
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
-            if await utils.yn_question(interaction, "Do you want to create a server in this instance?"):
-                pass
+            if await utils.yn_question(interaction, "Do you want to create a server in this instance?",
+                                       ephemeral=ephemeral):
+                await interaction.followup.send('Not implemented yet!', ephemeral=ephemeral)
             else:
-                await interaction.followup.send(f"Instance {instance.name} created blank with no server assigned.")
+                await interaction.followup.send(f"Instance {instance.name} created blank with no server assigned.",
+                                                ephemeral=ephemeral)
         else:
             await interaction.response.send_message(f"Instance {name} could not be added to node {node.name}.",
-                                                    ephemeral=True)
+                                                    ephemeral=ephemeral)
 
     @node.command(description="Delete an instance")
     @app_commands.guild_only()
@@ -436,17 +452,21 @@ Please make sure you forward the following ports:
     async def delete_instance(self, interaction: discord.Interaction,
                               node: app_commands.Transform[Node, utils.NodeTransformer],
                               instance: app_commands.Transform[Instance, utils.InstanceTransformer]):
+        ephemeral = utils.get_ephemeral(interaction)
         if instance.server:
             await interaction.response.send_message(f"The instance is in use by server \"{instance.server.name}\". "
-                                                    f"Please migrate this server to another node first.", ephemeral=True)
+                                                    f"Please migrate this server to another node first.",
+                                                    ephemeral=ephemeral)
             return
-        elif not await utils.yn_question(interaction, f"Do you really want to delete instance {instance.name}?"):
-            await interaction.followup.send('Aborted.', ephemeral=True)
+        elif not await utils.yn_question(interaction, f"Do you really want to delete instance {instance.name}?",
+                                         ephemeral=ephemeral):
+            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         remove_files = await utils.yn_question(interaction,
-                                               f"Do you want to remove the directory {instance.home}?")
+                                               f"Do you want to remove the directory {instance.home}?",
+                                               ephemeral=ephemeral)
         await node.delete_instance(instance, remove_files)
-        await interaction.followup.send(f"Instance {instance.name} removed from node {node.name}.", ephemeral=True)
+        await interaction.followup.send(f"Instance {instance.name} removed from node {node.name}.", ephemeral=ephemeral)
         await self.bot.audit(f"removed instance {instance.name} from node {node.name}.", user=interaction.user)
 
     @node.command(description="Rename an instance\n")
@@ -455,16 +475,18 @@ Please make sure you forward the following ports:
     async def rename_instance(self, interaction: discord.Interaction,
                               node: app_commands.Transform[Node, utils.NodeTransformer],
                               instance: app_commands.Transform[Instance, utils.InstanceTransformer], new_name: str):
+        ephemeral = utils.get_ephemeral(interaction)
         if instance.server and instance.server.status != Status.SHUTDOWN:
             await interaction.response.send_message(f"Server {instance.server.name} has to be shut down before "
-                                                    f"renaming the instance!", ephemeral=True)
+                                                    f"renaming the instance!", ephemeral=ephemeral)
             return
-        if not await utils.yn_question(interaction, f"Do you really want to rename instance {instance.name}?"):
-            await interaction.followup.send('Aborted.', ephemeral=True)
+        if not await utils.yn_question(interaction, f"Do you really want to rename instance {instance.name}?",
+                                       ephemeral=ephemeral):
+            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         old_name = instance.name
         await node.rename_instance(instance, new_name)
-        await interaction.followup.send(f"Instance {old_name} renamed to {instance.name}.", ephemeral=True)
+        await interaction.followup.send(f"Instance {old_name} renamed to {instance.name}.", ephemeral=ephemeral)
         await self.bot.audit(f"renamed instance {old_name} to {instance.name}.", user=interaction.user)
 
     @commands.Cog.listener()
@@ -476,7 +498,7 @@ Please make sure you forward the following ports:
         if not utils.check_roles(self.bot.roles['Admin'], message.author):
             return
         # check if the upload happens in the servers admin channel (if provided)
-        server: Server = await self.bot.get_server(message)
+        server: Server = self.bot.get_server(message)
         ctx = await self.bot.get_context(message)
         if not server:
             # check if there is a central admin channel configured

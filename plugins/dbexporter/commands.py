@@ -42,10 +42,11 @@ class DBExporter(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def export(self, interaction: discord.Interaction):
-        await interaction.response.defer(thinking=True, ephemeral=True)
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         self.do_export([])
         await interaction.delete_original_response()
-        await interaction.followup.send('Database dumped to ./export', ephemeral=True)
+        await interaction.followup.send('Database dumped to ./export', ephemeral=ephemeral)
 
     @tasks.loop(hours=1.0)
     async def schedule(self):

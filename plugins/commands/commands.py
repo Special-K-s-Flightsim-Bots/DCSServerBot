@@ -106,7 +106,7 @@ class Commands(Plugin):
                 self.log.error("server must be string or list in commands.json!")
                 return
         else:
-            server = await self.bot.get_server(ctx.message)
+            server = self.bot.get_server(ctx.message)
         if 'server_only' in config and config['server_only'] and not server:
             return
         if 'params' in config:
