@@ -12,13 +12,13 @@ if %ERRORLEVEL% EQU 9009 (
     exit /B %ERRORLEVEL%
 )
 SET VENV=%USERPROFILE%\.dcssb
-if not exist %VENV% (
+if not exist "%VENV%" (
     echo Creating the Python Virtual Environment
-    python -m venv %VENV%
+    python -m venv "%VENV%"
 )
 echo Installing Python Libraries ...
-%VENV%\Scripts\python.exe -m pip install --upgrade pip >NUL 2>NUL
-%VENV%\Scripts\pip -q install -r requirements.txt
+"%VENV%\Scripts\python.exe" -m pip install --upgrade pip >NUL 2>NUL
+"%VENV%\Scripts\pip" -q install -r requirements.txt
 if %ERRORLEVEL% NEQ 0 (
     echo Error while updating DCSServerBot. Please check the messages above.
     exit /B %ERRORLEVEL%

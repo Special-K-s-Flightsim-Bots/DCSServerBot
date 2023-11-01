@@ -1,13 +1,13 @@
 @echo off
 SET VENV=%USERPROFILE%\.dcssb
-if not exist %VENV% (
+if not exist "%VENV%" (
     echo Creating the Python Virtual Environment
-    python -m venv %VENV%
-    %VENV%\Scripts\python.exe -m pip install --upgrade pip
-    %VENV%\Scripts\pip install -r requirements.txt
+    python -m venv "%VENV%"
+    "%VENV%\Scripts\python.exe" -m pip install --upgrade pip
+    "%VENV%\Scripts\pip" install -r requirements.txt
 )
 :loop
-%VENV%\Scripts\python run.py
+"%VENV%\Scripts\python" run.py
 if %ERRORLEVEL% EQU -1 (
     goto loop
 )
