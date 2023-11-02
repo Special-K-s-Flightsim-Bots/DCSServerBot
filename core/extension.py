@@ -30,6 +30,9 @@ class Extension(ABC):
         return filename, False
 
     async def startup(self) -> bool:
+        # avoid race conditions
+        if self.is_running():
+            return True
         schedule = getattr(self, 'schedule', None)
         if schedule and not schedule.is_running():
             schedule.start()
@@ -38,6 +41,9 @@ class Extension(ABC):
         return True
 
     async def shutdown(self) -> bool:
+        # avoid race conditions
+        if not self.is_running():
+            return True
         schedule = getattr(self, 'schedule', None)
         if schedule and schedule.is_running():
             schedule.cancel()

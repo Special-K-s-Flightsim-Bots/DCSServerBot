@@ -309,7 +309,6 @@ class NodeImpl(Node):
             await server.shutdown()
 
         self.update_pending = True
-        self.log.info('Shutting down local DCS servers (user warnings may apply) ...')
         servers = []
         tasks = []
         bus = ServiceRegistry.get('ServiceBus')  # type: ServiceBus
@@ -348,8 +347,7 @@ class NodeImpl(Node):
         # call after update hooks
         for callback in self.after_update.values():
             await callback()
-        self.log.info(f"{self.installation} updated to the latest version. "
-                      f"Starting up DCS servers again ...")
+        self.log.info(f"{self.installation} updated to the latest version.")
         for server in [x for x in bus.servers.values() if self.locals['DCS'].get('cloud', False) or not x.is_remote]:
             if server not in servers:
                 # let the scheduler do its job
@@ -361,7 +359,6 @@ class NodeImpl(Node):
                 except asyncio.TimeoutError:
                     self.log.warning(f'Timeout while starting {server.display_name}, please check it manually!')
         self.update_pending = False
-        self.log.info('DCS servers started (or Scheduler taking over in a bit).')
         return 0
 
     async def handle_module(self, what: str, module: str):

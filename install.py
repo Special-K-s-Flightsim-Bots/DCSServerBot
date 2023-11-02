@@ -1,3 +1,4 @@
+import logging
 import os
 import platform
 import psycopg
@@ -40,6 +41,18 @@ class MissingParameter(Exception):
 
 
 class Install:
+
+    def __init__(self):
+        self.log = logging.getLogger(name='dcsserverbot')
+        self.log.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(fmt=u'%(asctime)s.%(msecs)03d %(levelname)s\t%(message)s',
+                                      datefmt='%Y-%m-%d %H:%M:%S')
+        os.makedirs('logs', exist_ok=True)
+        fh = logging.FileHandler(os.path.join('logs', f'{platform.node()}-install.log'), encoding='utf-8')
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        self.log.addHandler(fh)
+        self.log.info("Installation started.")
 
     @staticmethod
     def get_dcs_installation_linux() -> Optional[str]:
@@ -124,10 +137,12 @@ class Install:
                     print("[green]- Database user and database created.[/]")
                     return f"postgres://{DCSSB_DB_USER}:{quote(passwd)}@{host}:{port}/{DCSSB_DB_NAME}"
 
-    @staticmethod
-    def install_master() -> Tuple[dict, dict, dict]:
+    def install_master(self) -> Tuple[dict, dict, dict]:
         print("\n1. Database Setup")
         database_url = Install.get_database_url()
+        if not database_url:
+            self.log.error("Aborted: No valid Database URL provided.")
+            exit(-1)
         print("\n2. Discord Setup")
         guild_id = IntPrompt.ask(
             'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
@@ -176,9 +191,9 @@ You can keep the defaults, if unsure and create the respective roles in your Dis
         nodes = {}
         return main, nodes, bot
 
-    @staticmethod
-    def install():
-        print("""
+    def install(self):
+        try:
+            print("""
 [bright_blue]Hello! Thank you for choosing DCSServerBot.[/]
 DCSServerBot supports everything from single server installations to huge server farms with multiple servers across 
 the planet.
@@ -191,107 +206,119 @@ For a successful installation, you need to fulfill the following prerequisites:
     1. Installation of PostgreSQL
     2. A Discord TOKEN for your bot from https://discord.com/developers/applications
     3. Git for Windows (optional but recommended)
-                """)
-        if int(platform.python_version_tuple()[1]) == 9:
-            print("[yellow]Your Python 3.9 installation is outdated, you should upgrade it to 3.10 or higher![/]\n")
-        print("""
+            """)
+            if int(platform.python_version_tuple()[1]) == 9:
+                print("[yellow]Your Python 3.9 installation is outdated, you should upgrade it to 3.10 or higher![/]\n")
+            print("""
 If you have installed Git for Windows, I'd recommend that you install the bot using
 
     [italic][bright_black]git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git[/][/]
 
-        """)
-        if Prompt.ask(prompt="Have you fulfilled all these requirements", choices=['y', 'n'], show_choices=True,
-                      default='n') == 'n':
-            print("Aborting.")
-            exit(-1)
+            """)
+            if Prompt.ask(prompt="Have you fulfilled all these requirements", choices=['y', 'n'], show_choices=True,
+                          default='n') == 'n':
+                print("Aborting.")
+                self.log.warning("Aborted: missing requirements")
+                exit(-1)
 
-        if not os.path.exists('config/main.yaml'):
-            main, nodes, bot = Install.install_master()
-            master = True
-        else:
-            main = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
-            nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
-            bot = yaml.load(Path('config/services/bot.yaml').read_text(encoding='utf-8'))
-            if platform.node() in nodes:
-                if Prompt.ask("[red]A configuration for this nodes exists already![/]\n"
-                              "Do you want to overwrite it?", choices=['y', 'n'], default='n') == 'n':
-                    print("Aborted.")
-                    exit(-1)
+            if not os.path.exists('config/main.yaml'):
+                main, nodes, bot = self.install_master()
+                master = True
             else:
-                print("[yellow]Configuration found, adding another node...[/]")
-            master = False
+                main = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
+                nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
+                bot = yaml.load(Path('config/services/bot.yaml').read_text(encoding='utf-8'))
+                if platform.node() in nodes:
+                    if Prompt.ask("[red]A configuration for this nodes exists already![/]\n"
+                                  "Do you want to overwrite it?", choices=['y', 'n'], default='n') == 'n':
+                        print("Aborted.")
+                        self.log.warning("Aborted: configuration exists")
+                        exit(-1)
+                else:
+                    print("[yellow]Configuration found, adding another node...[/]")
+                master = False
 
-        print(f"\n3. Node Setup")
-        if sys.platform == 'win32':
-            dcs_installation = Install.get_dcs_installation_win32() or '<see documentation>'
-        else:
-            dcs_installation = Install.get_dcs_installation_linux()
-        node = nodes[platform.node()] = {
-            "DCS": {
-                "installation": dcs_installation
-            }
-        }
-        if Prompt.ask("Do you want your DCS installation being auto-updated by the bot?", choices=['y', 'n'],
-                      default='y') == 'y':
-            node["DCS"]["autoupdate"] = True
-            print("[green]- autoupdate enabled for DCS[/]")
-        # Check for SRS
-        srs_path = os.path.expandvars('%ProgramFiles%\\DCS-SimpleRadio-Standalone')
-        if not os.path.exists(srs_path):
-            srs_path = Prompt.ask("Please enter the path to your DCS-SRS installation.\n"
-                                  "Press ENTER, if there is none.")
-        if srs_path:
-            node['extensions'] = {
-                'SRS': {
-                    'installation': srs_path
+            print(f"\n3. Node Setup")
+            if sys.platform == 'win32':
+                dcs_installation = self.get_dcs_installation_win32() or '<see documentation>'
+            else:
+                dcs_installation = self.get_dcs_installation_linux()
+            if not dcs_installation:
+                self.log.error("Aborted: No DCS installation found.")
+                exit(-1)
+            node = nodes[platform.node()] = {
+                "DCS": {
+                    "installation": dcs_installation
                 }
             }
-        # check if we can enable autoupdate
-        try:
-            import git
-            node['autoupdate'] = True
-            print("[green]- autoupdate enabled for DCSServerBot[/]")
-        except ImportError:
-            pass
-
-        print(f"\n4. DCS Server Setup")
-        servers = {}
-        scheduler = {}
-        node['instances'] = {}
-        bot_port = 6666
-        srs_port = 5002
-        for name, instance in utils.findDCSInstances():
-            if Prompt.ask(f'\nDCS server "{name}" found.\n'
-                          'Would you like to manage this server through DCSServerBot?)',
-                          choices=['y', 'n'], show_choices=True, default='y') == 'y':
-                node['instances'][instance] = {
-                    "bot_port": bot_port,
-                    "home": os.path.join(SAVED_GAMES, instance)
-                }
-                if srs_path:
-                    srs_config = f"%USERPROFILE%\\Saved Games\\{instance}\\Config\\SRS.cfg"
-                    node['instances'][instance]['extensions'] = {
-                        "SRS": {
-                            "config": srs_config,
-                            "port": srs_port
-                        }
+            if Prompt.ask("Do you want your DCS installation being auto-updated by the bot?", choices=['y', 'n'],
+                          default='y') == 'y':
+                node["DCS"]["autoupdate"] = True
+                print("[green]- autoupdate enabled for DCS[/]")
+            # Check for SRS
+            srs_path = os.path.expandvars('%ProgramFiles%\\DCS-SimpleRadio-Standalone')
+            if not os.path.exists(srs_path):
+                srs_path = Prompt.ask("Please enter the path to your DCS-SRS installation.\n"
+                                      "Press ENTER, if there is none.")
+            if srs_path:
+                self.log.info(f"DCS-SRS installation path: {srs_path}")
+                node['extensions'] = {
+                    'SRS': {
+                        'installation': srs_path
                     }
-                    if not os.path.exists(os.path.expandvars(srs_config)):
-                        if os.path.exists(os.path.join(srs_path, "server.cfg")):
-                            shutil.copy2(os.path.join(srs_path, "server.cfg"), srs_config)
-                        else:
-                            print("[red]SRS configuration could not be created.\n"
-                                  f"Please copy your server.cfg to {srs_config} manually.[/]")
-                bot_port += 1
-                srs_port += 2
-                print("DCSServerBot needs up to 3 channels per supported server:")
-                print({
-                    "Status Channel": "To display the mission and player status.",
-                    "Chat Channel": "[bright_black]Optional:[/]: An in-game chat replication.",
-                    "Admin Channel": "[bright_black]Optional:[/] For admin commands. Only needed, "
-                                     "if no central admin channel is set."
-                })
-                print("""
+                }
+            else:
+                self.log.info("DCS-SRS not configured.")
+            # check if we can enable autoupdate
+            try:
+                import git
+                node['autoupdate'] = True
+                print("[green]- autoupdate enabled for DCSServerBot[/]")
+                self.log.info("Git for Windows found, autoupdate enabled.")
+            except ImportError:
+                self.log.info("Git for Windows not found, autoupdate disabled.")
+                pass
+
+            print(f"\n4. DCS Server Setup")
+            servers = {}
+            scheduler = {}
+            node['instances'] = {}
+            bot_port = 6666
+            srs_port = 5002
+            for name, instance in utils.findDCSInstances():
+                if Prompt.ask(f'\nDCS server "{name}" found.\n'
+                              'Would you like to manage this server through DCSServerBot?)',
+                              choices=['y', 'n'], show_choices=True, default='y') == 'y':
+                    self.log.info(f"Adding instance {instance} with server {name} ...")
+                    node['instances'][instance] = {
+                        "bot_port": bot_port,
+                        "home": os.path.join(SAVED_GAMES, instance)
+                    }
+                    if srs_path:
+                        srs_config = f"%USERPROFILE%\\Saved Games\\{instance}\\Config\\SRS.cfg"
+                        node['instances'][instance]['extensions'] = {
+                            "SRS": {
+                                "config": srs_config,
+                                "port": srs_port
+                            }
+                        }
+                        if not os.path.exists(os.path.expandvars(srs_config)):
+                            if os.path.exists(os.path.join(srs_path, "server.cfg")):
+                                shutil.copy2(os.path.join(srs_path, "server.cfg"), os.path.expandvars(srs_config))
+                            else:
+                                print("[red]SRS configuration could not be created.\n"
+                                      f"Please copy your server.cfg to {srs_config} manually.[/]")
+                                self.log.warning("SRS configuration could not be created, manual setup necessary.")
+                    bot_port += 1
+                    srs_port += 2
+                    print("DCSServerBot needs up to 3 channels per supported server:")
+                    print({
+                        "Status Channel": "To display the mission and player status.",
+                        "Chat Channel": "[bright_black]Optional:[/]: An in-game chat replication.",
+                        "Admin Channel": "[bright_black]Optional:[/] For admin commands. Only needed, "
+                                         "if no central admin channel is set."
+                    })
+                    print("""
 The Status Channel should be readable by everyone and only writable by the bot.
 The Chat Channel should be readable and writable by everyone.
 The Admin channel - if provided - should only be readable and writable by Admin and DCS Admin users.
@@ -307,48 +334,54 @@ DCSServerBot needs the following permissions on them to work:
     - Attach Files
     - Embed Links
     - Manage Messages
-                """)
+                    """)
 
-                servers[name] = {
-                    "channels": {
-                        "status": IntPrompt.ask("Please enter the ID of your [bold]Status Channel[/]"),
-                        "chat": IntPrompt.ask("Please enter the ID of your [bold]Chat Channel[/] (optional)",
-                                              default=-1)
-                    }
-                }
-                if 'admin_channel' not in bot:
-                    servers[name]['channels']['admin'] = IntPrompt.ask("Please enter the ID of your admin channel")
-                if Prompt.ask("Do you want DCSServerBot to autostart this server?", choices=['y', 'n'],
-                              default='y') == 'y':
-                    scheduler[instance] = {
-                        "schedule": {
-                            "00-24": "YYYYYYY"
+                    servers[name] = {
+                        "channels": {
+                            "status": IntPrompt.ask("Please enter the ID of your [bold]Status Channel[/]"),
+                            "chat": IntPrompt.ask("Please enter the ID of your [bold]Chat Channel[/] (optional)",
+                                                  default=-1)
                         }
                     }
-                else:
-                    scheduler[instance] = {}
-        print("\n\nAll set. Writing / updating your config files now...")
-        if master:
-            with open('config/main.yaml', 'w', encoding='utf-8') as out:
-                yaml.dump(main, out)
-                print("- Created config/main.yaml")
-            os.makedirs('config/services', exist_ok=True)
-            with open('config/services/bot.yaml', 'w', encoding='utf-8') as out:
-                yaml.dump(bot, out)
-                print("- Created config/services/bot.yaml")
-        with open('config/nodes.yaml', 'w', encoding='utf-8') as out:
-            yaml.dump(nodes, out)
-            print("- Created config/nodes.yaml")
-        with open('config/servers.yaml', 'w', encoding='utf-8') as out:
-            yaml.dump(servers, out)
-            print("- Created config/servers.yaml")
-        # write plugin configuration
-        if scheduler:
-            os.makedirs('config/plugins', exist_ok=True)
-            with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
-                yaml.dump(scheduler, out)
-                print("- Created config/plugins/scheduler.yaml")
-        print("""
+                    if 'admin_channel' not in bot:
+                        servers[name]['channels']['admin'] = IntPrompt.ask("Please enter the ID of your admin channel")
+                    if Prompt.ask("Do you want DCSServerBot to autostart this server?", choices=['y', 'n'],
+                                  default='y') == 'y':
+                        scheduler[instance] = {
+                            "schedule": {
+                                "00-24": "YYYYYYY"
+                            }
+                        }
+                    else:
+                        scheduler[instance] = {}
+                    self.log.info(f"Instance {instance} added.")
+            print("\n\nAll set. Writing / updating your config files now...")
+            if master:
+                with open('config/main.yaml', 'w', encoding='utf-8') as out:
+                    yaml.dump(main, out)
+                    print("- Created config/main.yaml")
+                self.log.info("./config/main.yaml written.")
+                os.makedirs('config/services', exist_ok=True)
+                with open('config/services/bot.yaml', 'w', encoding='utf-8') as out:
+                    yaml.dump(bot, out)
+                    print("- Created config/services/bot.yaml")
+                self.log.info("./config/services/bot.yaml written.")
+            with open('config/nodes.yaml', 'w', encoding='utf-8') as out:
+                yaml.dump(nodes, out)
+                print("- Created config/nodes.yaml")
+            self.log.info("./config/nodes.yaml written.")
+            with open('config/servers.yaml', 'w', encoding='utf-8') as out:
+                yaml.dump(servers, out)
+                print("- Created config/servers.yaml")
+            self.log.info("./config/servers.yaml written.")
+            # write plugin configuration
+            if scheduler:
+                os.makedirs('config/plugins', exist_ok=True)
+                with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
+                    yaml.dump(scheduler, out)
+                    print("- Created config/plugins/scheduler.yaml")
+                self.log.info("./config/plugins/scheduler.yaml written.")
+            print("""
 [green]Your basic DCSServerBot configuration is finished.[/]
  
 You can now review the created configuration files below your config folder of your DCSServerBot-installation.
@@ -357,11 +390,17 @@ There is much more to explore and to configure, so please don't forget to have a
 You can start DCSServerBot with:
 
     [bright_black]run.cmd[/]
-        """)
+            """)
+            self.log.info("Installation finished.")
+        except KeyboardInterrupt:
+            raise
+        except Exception as ex:
+            self.log.exception(ex)
+            self.log.error("Aborted.")
 
 
 if __name__ == "__main__":
     try:
-        Install.install()
+        Install().install()
     except KeyboardInterrupt:
         print("\nAborted.")
