@@ -53,8 +53,6 @@ class RealWeather(Extension):
         MizFile(self, tmpname)
         # mission is good, take it
         new_filename = utils.create_writable_mission(filename)
-        if os.path.exists(new_filename):
-            os.remove(new_filename)
         shutil.copy2(tmpname, new_filename)
         os.remove(tmpname)
         return new_filename, True
