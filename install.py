@@ -278,7 +278,7 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
                     }
                     if not os.path.exists(os.path.expandvars(srs_config)):
                         if os.path.exists(os.path.join(srs_path, "server.cfg")):
-                            shutil.copy2(os.path.join(srs_path, "server.cfg"), srs_config)
+                            shutil.copy2(os.path.join(srs_path, "server.cfg"), os.path.expandvars(srs_config))
                         else:
                             print("[red]SRS configuration could not be created.\n"
                                   f"Please copy your server.cfg to {srs_config} manually.[/]")
