@@ -1,5 +1,7 @@
 from __future__ import annotations
 import io
+import shutil
+
 import luadata
 import math  # do not remove
 import os
@@ -61,10 +63,12 @@ class MizFile:
             if new_filename and new_filename != self.filename:
                 if os.path.exists(new_filename):
                     os.remove(new_filename)
-                os.rename(tmpname, new_filename)
+                shutil.copy2(tmpname, new_filename)
+                os.remove(tmpname)
             else:
                 os.remove(self.filename)
-                os.rename(tmpname, self.filename)
+                shutil.copy2(tmpname, self.filename)
+                os.remove(tmpname)
         except PermissionError as ex:
             self.log.error(f"Can't write new mission file: {ex}")
 
