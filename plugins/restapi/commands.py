@@ -25,6 +25,7 @@ class RestAPI(Plugin):
         self.router = APIRouter()
         self.router.add_api_route("/topkills", self.topkills, methods=["GET"])
         self.router.add_api_route("/topkdr", self.topkdr, methods=["GET"])
+        self.router.add_api_route("/trueskill", self.trueskill, methods=["GET"])
         self.router.add_api_route("/getuser", self.getuser, methods=["POST"])
         self.router.add_api_route("/missilepk", self.missilepk, methods=["POST"])
         self.router.add_api_route("/stats", self.stats, methods=["POST"])
@@ -62,6 +63,19 @@ class RestAPI(Plugin):
                 return cursor.execute("""
                     SELECT p.name AS "fullNickname", SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
                            CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
+                    FROM statistics s, players p 
+                    WHERE s.player_ucid = p.ucid 
+                    AND hop_on > NOW() - interval '1 month' 
+                    GROUP BY 1 ORDER BY 4 DESC LIMIT 10
+                """).fetchall()
+
+    def trueskill(self):
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                return cursor.execute("""
+                    SELECT 
+                        p.name AS "fullNickname", SUM(pvp) AS "AAkills", SUM(deaths) AS "deaths", 
+                        p.skill_mu AS "TrueSkill" 
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
                     AND hop_on > NOW() - interval '1 month' 
