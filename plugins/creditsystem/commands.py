@@ -1,17 +1,50 @@
 import discord
+
 from contextlib import closing
+from datetime import timezone
 from discord import app_commands, SelectOption
 from discord.app_commands import Range
-from core import utils, Plugin, PluginRequiredError, Group
+from core import utils, Plugin, PluginRequiredError, Group, command
 from psycopg.rows import dict_row
 from services import DCSServerBot
+from trueskill import Rating
 from typing import Optional, cast, Union
 
+from . import rating
 from .listener import CreditSystemListener
 from .player import CreditPlayer
 
 
 class CreditSystem(Plugin):
+
+    def migrate(self, version: str) -> None:
+        if version == '3.1':
+            # we need to calculate the TrueSkill values for players
+            ratings: dict[str, Rating] = dict()
+            with (self.pool.connection() as conn):
+                with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                    size = 1000
+                    cursor.execute("""
+                        SELECT init_id, target_id FROM missionstats 
+                        WHERE event = 'S_EVENT_KILL' AND init_id != '-1' AND target_id != '-1'
+                        AND init_id <> target_id
+                        AND init_cat = 'Airplanes' AND target_cat = 'Airplanes'
+                        ORDER BY id
+                    """)
+                    rows = cursor.fetchmany(size=size)
+                    while len(rows) > 0:
+                        for row in rows:
+                            if row['init_id'] not in ratings:
+                                ratings[row['init_id']] = rating.create_rating()
+                            if row['target_id'] not in ratings:
+                                ratings[row['target_id']] = rating.create_rating()
+                            ratings[row['init_id']], ratings[row['target_id']] = rating.rate_1vs1(
+                                ratings[row['init_id']], ratings[row['target_id']])
+                        rows = cursor.fetchmany(size=size)
+                with conn.transaction():
+                    for ucid, skill in ratings.items():
+                        conn.execute("UPDATE players SET skill_mu = %s, skill_sigma = %s WHERE ucid = %s",
+                                     (skill.mu, skill.sigma, ucid))
 
     async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Creditsystem ...')
@@ -51,7 +84,6 @@ class CreditSystem(Plugin):
     @app_commands.rename(member="user")
     async def info(self, interaction: discord.Interaction,
                    member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
-        ephemeral = utils.get_ephemeral(interaction)
         if member:
             if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
                 await interaction.response.send_message('You need the DCS Admin role to use this command.',
@@ -64,18 +96,18 @@ class CreditSystem(Plugin):
                 ucid = self.bot.get_ucid_by_member(member)
                 if not ucid:
                     await interaction.response.send_message(f"Member {utils.escape_string(member.display_name)} is "
-                                                            f"not linked to any DCS user.", ephemeral=ephemeral)
+                                                            f"not linked to any DCS user.", ephemeral=True)
                     return
         else:
             member = interaction.user
             ucid = self.bot.get_ucid_by_member(member)
             if not ucid:
-                await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=ephemeral)
+                await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
                 return
         data = self.get_credits(ucid)
         if not data:
             await interaction.response.send_message(f'{utils.escape_string(member.display_name)} has no campaign '
-                                                    f'credits.', ephemeral=ephemeral)
+                                                    f'credits.', ephemeral=True)
             return
         embed = discord.Embed(
             title="Campaign Credits for {}".format(utils.escape_string(member.display_name)
@@ -103,7 +135,7 @@ class CreditSystem(Plugin):
             embed.add_field(name='Event', value=events)
             embed.add_field(name='Points', value=deltas)
             embed.set_footer(text='Log will show the last 10 events only.')
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     async def _admin_donate(self, interaction: discord.Interaction, to: discord.Member, donation: int):
         ephemeral = utils.get_ephemeral(interaction)
@@ -284,6 +316,44 @@ class CreditSystem(Plugin):
                     to.mention + f', you just received {donation} credit points from '
                                  f'{utils.escape_string(interaction.user.display_name)}!'
                 )
+
+    @command(description='Show player profile')
+    @utils.app_has_role('DCS')
+    @app_commands.guild_only()
+    async def profile(self, interaction: discord.Interaction,
+                      user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]]):
+        if not user:
+            user = interaction.user
+        if isinstance(user, discord.Member):
+            member = user
+            ucid = self.bot.get_ucid_by_member(user)
+        else:
+            ucid = user
+            member = self.bot.get_member_by_ucid(ucid)
+        if not ucid:
+            await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
+            return
+        embed = discord.Embed(title="User Profile", colour=discord.Color.blue())
+        with self.pool.connection() as conn:
+            with closing(conn.cursor(row_factory=dict_row)) as cursor:
+                row = cursor.execute("""
+                    SELECT name, skill_mu, first_seen, last_seen FROM players WHERE ucid = %s
+                """, (ucid, )).fetchone()
+                if member:
+                    embed.set_thumbnail(url=member.avatar.url)
+                    embed.add_field(name="Member", value=member.display_name)
+                    embed.add_field(name="Discord Name", value=member.name)
+                    embed.add_field(name="Joined at",
+                                    value=member.joined_at.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M'))
+                embed.add_field(name="DCS-Name", value=row['name'])
+                embed.add_field(name="First seen",
+                                value=row['first_seen'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M'))
+                embed.add_field(name="Last seen",
+                                value=row['last_seen'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M'))
+                if row['skill_mu']:
+                    embed.add_field(name="TrueSkill:tm:", value=row['skill_mu'])
+        embed.set_footer(text='All times in UTC.')
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot: DCSServerBot):

@@ -1,7 +1,11 @@
 from contextlib import closing
+
 from core import Player, DataObjectFactory, utils, Plugin
 from dataclasses import field, dataclass
+from trueskill import Rating
 from typing import cast
+
+from . import rating
 
 
 @dataclass
@@ -9,6 +13,7 @@ from typing import cast
 class CreditPlayer(Player):
     _points: int = field(compare=False, default=-1)
     deposit: int = field(compare=False, default=0)
+    _skill: Rating = field(compare=False, init=False)
 
     def __post_init__(self):
         super().__post_init__()
@@ -16,6 +21,13 @@ class CreditPlayer(Player):
             return
         with self.pool.connection() as conn:
             with closing(conn.cursor()) as cursor:
+                # load trueskill rating
+                row = cursor.execute('SELECT skill_mu, skill_sigma FROM players WHERE ucid = %s',
+                                     (self.ucid, )).fetchone()
+                if not row[0]:
+                    self.skill = rating.create_rating()
+                else:
+                    self._skill = Rating(row[0], row[1])
                 # load credit points
                 campaign_id, _ = utils.get_running_campaign(self.bot, self.server)
                 if not campaign_id:
@@ -64,6 +76,18 @@ class CreditPlayer(Player):
                     'ucid': self.ucid,
                     'points': self._points
                 })
+
+    @property
+    def skill(self) -> Rating:
+        return self._skill
+
+    @skill.setter
+    def skill(self, r: Rating) -> None:
+        self._skill = r
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute('UPDATE players SET skill_mu = %s, skill_sigma = %s WHERE ucid = %s',
+                             (r.mu, r.sigma, self.ucid, ))
 
     def audit(self, event: str, old_points: int, remark: str):
         campaign_id, _ = utils.get_running_campaign(self.bot, self.server)

@@ -1,4 +1,6 @@
 import discord
+import trueskill
+
 from core import EventListener, Server, Status, utils, event, chat_command, Player
 from typing import cast
 from .player import CreditPlayer
@@ -151,12 +153,25 @@ class CreditSystemListener(EventListener):
             # players gain points only, if they don't kill themselves and no teamkills
             if data['arg1'] != -1 and data['arg1'] != data['arg4'] and data['arg3'] != data['arg6']:
                 # Multicrew - pilot and all crew members gain points
-                for player in server.get_crew_members(server.get_player(id=data['arg1'])):  # type: CreditPlayer
+                killers = server.get_crew_members(server.get_player(id=data['arg1']))
+                for player in killers:  # type: CreditPlayer
                     ppk = self.get_points_per_kill(config, data)
                     if ppk:
                         old_points = player.points
                         player.points += ppk
                         player.audit('kill', old_points, f"Killed an enemy {data['arg5']}")
+                if data['arg4'] != -1:
+                    # calculate TrueSkill for human players
+                    victims = server.get_crew_members(server.get_player(id=data['arg4']))
+                    r_killers, r_victims = trueskill.rate([
+                        [p.skill for p in killers],
+                        [p.skill for p in victims]
+                    ], [0, 1])
+                    for idx, p in enumerate(killers):
+                        p.skill = r_killers[idx]
+                    for idx, p in enumerate(victims):
+                        p.skill = r_victims[idx]
+
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]
             player = cast(CreditPlayer, server.get_player(id=data['arg1']))

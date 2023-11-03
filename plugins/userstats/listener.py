@@ -2,7 +2,7 @@ from contextlib import closing
 
 import psycopg
 
-from core import EventListener, Plugin, Status, Server, Side, Player, Channel, event, chat_command
+from core import EventListener, Plugin, Status, Server, Side, Player, event, chat_command
 from typing import Union
 
 
