@@ -296,6 +296,7 @@ token: AAaahhg2347286adhjdjasd2347263473        # Your TOKEN, as received from t
 owner: 1122334455667788                         # The ID of your bot user. Right click, select "Copy User ID".
 automatch: true                                 # Use the bots auto-matching functionality (see below), default is true.
 autoban: false                                  # Use the bots auto-ban functionality (see below), default is false.
+no_dcs_autoban: false                           # If true, people banned on your Discord will not be banned on your servers (default: false)
 message_ban: User has been banned on Discord.   # Default reason to show people that try to join your DCS servers when they are banned on Discord.
 message_autodelete: 300                         # Most of the Discord messages are private messages. If not, this is the timeout after that they vanish. Default is 300 (5 mins). 
 admin_channel: 1122334455667788                 # Optional: Central admin channel (see below).
@@ -331,7 +332,7 @@ The bot supports automatically bans / unbans of players from the configured DCS 
 your Discord guild. If you like that feature, set `autoban: true` in services/bot.yaml (default: false).
 
 However, players that are being banned from your Discord or that are being detected as hackers are auto-banned from 
-all your configured DCS servers independent of that setting.
+all your configured DCS servers independent of that setting. You can prevent this by setting `no_dcs_autoban: true`.
 
 #### Discord Roles
 The bot uses the following **internal** roles to apply specific permissions to commands.<br>

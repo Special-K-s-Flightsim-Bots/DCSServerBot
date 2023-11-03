@@ -699,10 +699,11 @@ class Mission(Plugin):
     @commands.Cog.listener()
     async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
         self.bot.log.debug(f"Member {member.display_name} has been banned.")
-        ucid = self.bot.get_ucid_by_member(member)
-        if ucid:
-            self.bus.ban(ucid, 'Discord',
-                         self.bot.locals.get('message_ban', 'User has been banned on Discord.'))
+        if not self.bot.locals.get('no_dcs_autoban', False):
+            ucid = self.bot.get_ucid_by_member(member)
+            if ucid:
+                self.bus.ban(ucid, 'Discord',
+                             self.bot.locals.get('message_ban', 'User has been banned on Discord.'))
 
 
 async def setup(bot: DCSServerBot):

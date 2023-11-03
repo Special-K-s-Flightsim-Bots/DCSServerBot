@@ -101,21 +101,22 @@ The following environment variables can be used in the "run" command:
 
 ## Discord Commands
 
-| Command             | Parameter | Channel       | Role      | Description                                                                                                                                |
-|---------------------|-----------|---------------|-----------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| /server list        |           | all           | DCS       | Lists all available servers.                                                                                                               |
-| /server startup     |           | admin-channel | DCS Admin | Starts a dedicated DCS server process.                                                                                                     |
-| /server shutdown    | [force]   | admin-channel | DCS Admin | Shuts the dedicated DCS server process down.<br/>If force is used, no player check will be executed and no onShutdown command will be run. |
-| /server start       |           | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                                               |
-| /server stop        |           | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                        |
-| /server maintenance |           | admin-channel | DCS Admin | Sets the servers maintenance mode.                                                                                                         |
-| /server clear       |           | admin-channel | DCS Admin | Clears the maintenance state of a server.                                                                                                  |
-| /server password    |           | admin-channel | DCS Admin | Sets a new server or [coalition](../../COALITIONS.md) password.                                                                            |
-| /server config      |           | admin-channel | DCS Admin | Changes the configuration of a server, like name, password, max players.                                                                   |
-| /server rename      |           | admin-channel | DCS Admin | Rename the respective DCS server. Handle with care!                                                                                        |
-| /server migrate     | instance  | admin-channel | DCS Admin | WIP: Migrate a server to another instance (maybe even node).                                                                               |
+| Command             | Parameter               | Channel       | Role      | Description                                                                                                                                                                      |
+|---------------------|-------------------------|---------------|-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| /server list        |                         | all           | DCS       | Lists all available servers.                                                                                                                                                     |
+| /server startup     | [maintenance] [mission] | admin-channel | DCS Admin | Starts a dedicated DCS server process and optionally launches a specified mission (default is last one). Optional: don't set maintenance flag.                                   |
+| /server shutdown    | [force] [maintenance]   | admin-channel | DCS Admin | Shuts the dedicated DCS server process down.<br/>If force is used, no player check will be executed and no onShutdown command will be run. Optional: don't set maintenance flag. |
+| /server start       |                         | admin-channel | DCS Admin | Starts a stopped DCS server.                                                                                                                                                     |
+| /server stop        |                         | admin-channel | DCS Admin | Stops a DCS server.                                                                                                                                                              |
+| /server maintenance |                         | admin-channel | DCS Admin | Sets the servers maintenance mode.                                                                                                                                               |
+| /server clear       |                         | admin-channel | DCS Admin | Clears the maintenance state of a server.                                                                                                                                        |
+| /server password    |                         | admin-channel | DCS Admin | Sets a new server or [coalition](../../COALITIONS.md) password.                                                                                                                  |
+| /server config      |                         | admin-channel | DCS Admin | Changes the configuration of a server, like name, password, max players.                                                                                                         |
+| /server rename      |                         | admin-channel | DCS Admin | Rename the respective DCS server. Handle with care!                                                                                                                              |
+| /server migrate     | instance                | admin-channel | DCS Admin | WIP: Migrate a server to another instance (maybe even node).                                                                                                                     |
 
 > ⚠️ **Attention!**<br>
 > If a server gets started or stopped manually (using `/server startup` or `/server shutdown`), it will be put into 
-> "maintenance" mode. To clear this and give the control back to the scheduler, use `/server clear`.<br>
+> "maintenance" mode unless specified otherwise with the optional maintenance parameter. To clear this and give the 
+> control back to the scheduler, use `/server clear`.<br>
 > You can put a server into maintenance mode manually, by using `/server maintenance`.
