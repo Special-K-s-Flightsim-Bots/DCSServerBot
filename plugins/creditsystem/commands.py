@@ -351,7 +351,7 @@ class CreditSystem(Plugin):
                 embed.add_field(name="Last seen",
                                 value=row['last_seen'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M'))
                 if row['skill_mu']:
-                    embed.add_field(name="TrueSkill:tm:", value=row['skill_mu'])
+                    embed.add_field(name="TrueSkill:tm:", value=f"{row['skill_mu']:.2f}")
         embed.set_footer(text='All times in UTC.')
         await interaction.response.send_message(embed=embed)
 
