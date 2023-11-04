@@ -97,10 +97,6 @@ it easy for you and the bot.
 Some files are more easily shared across cloud drives. This includes missions and music, but even the bot itself can be
 installed on a cloud drive already. This helps you to keep a single configuration for all your bot nodes.
 
-> ⚠️ **Attention!**
-> At the moment, the Python virtual environment (venv) is stored on that cloud drive also, causing some delays in sync.
-> You might need to wait for the drive content to be synced on all nodes before starting the 2nd bot node.
-
 ### Cloud Database
 You can either host a database on one of your nodes, which creates another single point of failure, or have a cloud
 database at some of the prominent cloud services. As the bot databases don't get that large, it should not be a big 

@@ -14,7 +14,7 @@ from discord.ui import Button, View, Select
 from enum import Enum, auto
 from typing import Optional, cast, Union, TYPE_CHECKING, Iterable, Any
 
-from .helper import get_all_players, is_ucid
+from .helper import get_all_players, is_ucid, format_string
 
 if TYPE_CHECKING:
     from core import Server, Player, Node, Instance
@@ -364,42 +364,43 @@ def app_has_not_roles(roles: list[str]):
     return app_commands.check(predicate)
 
 
-def format_embed(data: dict) -> discord.Embed:
+def format_embed(data: dict, **kwargs) -> discord.Embed:
     color = data['color'] if 'color' in data else discord.Color.blue()
     embed = discord.Embed(color=color)
     if 'title' in data:
-        embed.title = data['title'] or '_ _'
+        embed.title = format_string(data['title'], **kwargs) or '_ _'
     if 'description' in data:
-        embed.description = data['description'] or '_ _'
+        embed.description = format_string(data['description'], **kwargs) or '_ _'
     if 'img' in data and isinstance(data['img'], str):
-        embed.set_image(url=data['img'])
+        embed.set_image(url=format_string(data['img'], **kwargs))
     if 'image' in data and isinstance(data['image'], dict):
         if 'url' in data['image']:
-            embed.set_image(url=data['image']['url'])
+            embed.set_image(url=format_string(data['image']['url'], **kwargs))
     if 'footer' in data:
         if isinstance(data['footer'], str):
-            embed.set_footer(text=data['footer'])
+            embed.set_footer(text=format_string(data['footer'], **kwargs))
         else:
-            text = data['footer']['text'] if 'text' in data['footer'] else None
-            icon_url = data['footer']['icon_url'] if 'icon_url' in data['footer'] else None
+            text = format_string(data['footer']['text'], **kwargs) if 'text' in data['footer'] else None
+            icon_url = format_string(data['footer']['icon_url'], **kwargs) if 'icon_url' in data['footer'] else None
             embed.set_footer(text=text, icon_url=icon_url)
     if 'fields' in data:
         if isinstance(data['fields'], dict):
             for name, value in data['fields'].items():
-                embed.add_field(name=name or '_ _', value=value or '_ _')
+                embed.add_field(name=format_string(name, **kwargs) or '_ _',
+                                value=format_string(value, **kwargs) or '_ _')
         elif isinstance(data['fields'], list):
             for field in data['fields']:
-                name = field['name'] if 'name' in field else None
-                value = field['value'] if 'value' in field else None
+                name = format_string(field['name'], **kwargs) if 'name' in field else None
+                value = format_string(field['value'], **kwargs) if 'value' in field else None
                 inline = field['inline'] if 'inline' in field else False
                 embed.add_field(name=name or '_ _', value=value or '_ _', inline=inline)
     if 'author' in data:
-        name = data['author']['name'] if 'name' in data['author'] else None
-        url = data['author']['url'] if 'url' in data['author'] else None
-        icon_url = data['author']['icon_url'] if 'icon_url' in data['author'] else None
+        name = format_string(data['author']['name'], **kwargs) if 'name' in data['author'] else None
+        url = format_string(data['author']['url'], **kwargs) if 'url' in data['author'] else None
+        icon_url = format_string(data['author']['icon_url'], **kwargs) if 'icon_url' in data['author'] else None
         embed.set_author(name=name, url=url, icon_url=icon_url)
     if 'timestamp' in data:
-        embed.timestamp = datetime.strptime(data['timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        embed.timestamp = datetime.strptime(format_string(data['timestamp'], **kwargs), '%Y-%m-%dT%H:%M:%S.%fZ')
     return embed
 
 

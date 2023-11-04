@@ -407,6 +407,7 @@ class NodeImpl(Node):
         self._public_ip = self.locals.get('public_ip')
         if not self._public_ip:
             self._public_ip = await utils.get_public_ip()
+            self.log.info(f"- Public IP registered as: {self.public_ip}")
         if self.locals['DCS'].get('autoupdate', False):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 self.autoupdate.start()

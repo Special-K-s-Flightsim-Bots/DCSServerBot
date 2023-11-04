@@ -319,7 +319,8 @@ class GameMaster(Plugin):
                 async with session.get(message.attachments[0].url) as response:
                     if response.status == 200:
                         data = await response.json(encoding="utf-8")
-                        embed = utils.format_embed(data)
+                        embed = utils.format_embed(data, bot=self.bot, bus=self.bus, node=self.bus.node,
+                                                   user=message.author)
                         msg = None
                         if 'message_id' in data:
                             try:

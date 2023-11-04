@@ -90,6 +90,17 @@ Just upload a file with such a content and a .json extension to the channel wher
 displayed (can be done by the Admin-Role only!). If you provide a valid message_id (right click, Copy Message ID), 
 this specific message will be updated.
 
+The Embed-formatter gets the following objects to allow for dynamic strings:
+- node (the master node)
+- bot (the discord bot)
+- bus (the DCSServerBot bus)
+- user (that sent the message)
+
+This means, you can use something like this:
+```json
+  "footer": "Message was sent by {user.display_name}."
+```
+
 ## Tables
 ### CAMPAIGNS
 | Column      | Type                    | Description                                     |
