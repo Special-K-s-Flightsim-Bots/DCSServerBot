@@ -340,7 +340,8 @@ class CreditSystem(Plugin):
                     SELECT name, skill_mu, first_seen, last_seen FROM players WHERE ucid = %s
                 """, (ucid, )).fetchone()
                 if member:
-                    embed.set_thumbnail(url=member.avatar.url)
+                    if member.avatar:
+                        embed.set_thumbnail(url=member.avatar.url)
                     embed.add_field(name="Member", value=member.display_name)
                     embed.add_field(name="Discord Name", value=member.name)
                     embed.add_field(name="Joined at",
