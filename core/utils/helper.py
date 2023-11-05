@@ -142,7 +142,7 @@ def format_time(seconds: int):
     if seconds != 0:
         if len(retval):
             retval += " "
-        retval += f"{seconds} second"
+        retval += f"{int(seconds)} second"
         if seconds > 1:
             retval += "s"
     return retval

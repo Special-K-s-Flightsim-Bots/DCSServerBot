@@ -28,7 +28,7 @@ class HighscoreTrueSkill(report.GraphElement):
                 self.axes.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], label="TrueSkill", height=0.75)
                 if display_values:
                     for i in range(len(labels)):
-                        self.axes.text(2, i, f"{values[i]:.2f}", ha='center', va='center', color='black')
+                        self.axes.text(values[i], i, f"{values[i]:.2f}", ha='right', va='center', color='black')
                 self.axes.set_title("PvP Highscore", color='white', fontsize=25)
                 self.axes.set_xlabel("TrueSkill™️")
                 if len(values) == 0:
