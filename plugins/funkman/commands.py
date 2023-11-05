@@ -1,7 +1,7 @@
 import os
 
 from configparser import ConfigParser
-from core import Plugin, PluginInstallationError, PluginConfigurationError
+from core import Plugin, PluginInstallationError, PluginConfigurationError, DEFAULT_TAG
 from services import DCSServerBot
 from .listener import FunkManEventListener
 
@@ -42,7 +42,7 @@ class FunkMan(Plugin):
                 else:
                     config['IMAGEPATH'] = ini['FUNKPLOT']['IMAGEPATH']
             with open('config/plugins/funkman.yaml', 'w') as outfile:
-                yaml.dump(config, outfile)
+                yaml.dump({DEFAULT_TAG: config}, outfile)
         await super().install()
 
 

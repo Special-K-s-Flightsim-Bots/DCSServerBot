@@ -25,8 +25,12 @@ class CreditSystem(Plugin):
                 with closing(conn.cursor(row_factory=dict_row)) as cursor:
                     size = 1000
                     cursor.execute("""
-                        SELECT init_id, target_id FROM missionstats 
-                        WHERE event = 'S_EVENT_KILL' AND init_id != '-1' AND target_id != '-1'
+                        SELECT p1.discord_id AS init_discord_id, m.init_id, 
+                               p2.discord_id AS target_discord_id, m.target_id 
+                        FROM missionstats m, players p1, players p2
+                        WHERE p1.ucid = m.init_id
+                        AND p2.ucid = m.target_id 
+                        AND event = 'S_EVENT_KILL' AND init_id != '-1' AND target_id != '-1'
                         AND init_id <> target_id
                         AND init_cat = 'Airplanes' AND target_cat = 'Airplanes'
                         ORDER BY id
@@ -34,17 +38,23 @@ class CreditSystem(Plugin):
                     rows = cursor.fetchmany(size=size)
                     while len(rows) > 0:
                         for row in rows:
-                            if row['init_id'] not in ratings:
-                                ratings[row['init_id']] = rating.create_rating()
-                            if row['target_id'] not in ratings:
-                                ratings[row['target_id']] = rating.create_rating()
-                            ratings[row['init_id']], ratings[row['target_id']] = rating.rate_1vs1(
-                                ratings[row['init_id']], ratings[row['target_id']])
+                            init_id = row['init_discord_id'] if row['init_discord_id'] != -1 else row['init_id']
+                            target_id = row['target_discord_id'] if row['target_discord_id'] != -1 else row['target_id']
+                            if init_id not in ratings:
+                                ratings[init_id] = rating.create_rating()
+                            if target_id not in ratings:
+                                ratings[target_id] = rating.create_rating()
+                            ratings[init_id], ratings[target_id] = rating.rate_1vs1(
+                                ratings[init_id], ratings[target_id])
                         rows = cursor.fetchmany(size=size)
                 with conn.transaction():
-                    for ucid, skill in ratings.items():
-                        conn.execute("UPDATE players SET skill_mu = %s, skill_sigma = %s WHERE ucid = %s",
-                                     (skill.mu, skill.sigma, ucid))
+                    for player_id, skill in ratings.items():
+                        if isinstance(player_id, str):
+                            conn.execute("UPDATE players SET skill_mu = %s, skill_sigma = %s WHERE ucid = %s",
+                                         (skill.mu, skill.sigma, player_id))
+                        else:
+                            conn.execute("UPDATE players SET skill_mu = %s, skill_sigma = %s WHERE discord_id = %s",
+                                         (skill.mu, skill.sigma, player_id))
 
     async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Creditsystem ...')

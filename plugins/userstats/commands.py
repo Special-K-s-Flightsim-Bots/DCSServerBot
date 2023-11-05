@@ -149,7 +149,7 @@ class UserStatistics(Plugin):
     @app_commands.rename(_server="server")
     async def highscore(self, interaction: discord.Interaction,
                         _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None,
-                        period: Optional[str] = None):
+                        period: Optional[str] = None, limit: Optional[int] = None):
         flt = StatisticsFilter.detect(self.bot, period)
         if period and not flt:
             await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
@@ -157,11 +157,12 @@ class UserStatistics(Plugin):
         file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
         if not _server:
             report = PaginationReport(self.bot, interaction, self.plugin_name, file)
-            await report.render(interaction=interaction, period=period, server_name=None, flt=flt)
+            await report.render(interaction=interaction, period=period, server_name=None, flt=flt, limit=limit)
         else:
             await interaction.response.defer()
             report = Report(self.bot, self.plugin_name, file)
-            env = await report.render(interaction=interaction, period=period, server_name=_server.name, flt=flt)
+            env = await report.render(interaction=interaction, period=period, server_name=_server.name, flt=flt,
+                                      limit=limit)
             file = discord.File(env.filename)
             await interaction.followup.send(embed=env.embed, file=file)
             if env.filename and os.path.exists(env.filename):
