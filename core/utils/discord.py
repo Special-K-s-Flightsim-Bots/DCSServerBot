@@ -797,5 +797,8 @@ async def server_selection(bus: ServiceBus,
 def get_ephemeral(interaction: discord.Interaction) -> bool:
     bot: DCSServerBot = interaction.client
     server: Server = bot.get_server(interaction)
+    # we will be ephemeral when we are called in public
+    if not server:
+        return True    
     channel = bot.get_admin_channel(server)
     return not channel == interaction.channel
