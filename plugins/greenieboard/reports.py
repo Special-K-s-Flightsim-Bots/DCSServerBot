@@ -130,7 +130,7 @@ class TrapSheet(report.MultiGraphElement):
 class HighscoreTraps(report.GraphElement):
 
     def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int, flt: StatisticsFilter,
-               include_bolters: bool = False, include_waveoffs: bool = False, display_values: Optional[bool] = False):
+               include_bolters: bool = False, include_waveoffs: bool = False, bar_labels: Optional[bool] = True):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, COUNT(g.*) AS value " \
               "FROM greenieboard g, missions m, statistics s, players p " \
               "WHERE g.mission_id = m.id AND s.mission_id = m.id AND g.player_ucid = s.player_ucid " \
@@ -162,9 +162,10 @@ class HighscoreTraps(report.GraphElement):
                     labels.insert(0, name)
                     values.insert(0, row['value'])
                 self.axes.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], label="Traps", height=0.75)
-                if display_values:
-                    for i in range(len(labels)):
-                        self.axes.text(values[i], i, values[i], ha='right', va='center', color='black')
+                if bar_labels:
+                    for c in self.axes.containers:
+                        self.axes.bar_label(c, fmt='%d', label_type='edge', padding=2)
+                    self.axes.margins(x=0.1)
                 self.axes.set_title("Traps", color='white', fontsize=25)
                 self.axes.set_xlabel("traps")
                 if len(values) == 0:

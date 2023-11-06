@@ -60,13 +60,15 @@ class Competitive(Plugin):
             return True
         return False
 
-    @command(description='Show player profile')
+    @command(description='Display your TrueSkill:tm: rating')
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
-    async def profile(self, interaction: discord.Interaction,
-                      user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]]):
+    async def trueskill(self, interaction: discord.Interaction,
+                        user: Optional[app_commands.Transform[Union[discord.Member, str], utils.UserTransformer]]):
         if not user:
             user = interaction.user
+        elif not utils.check_roles(['DCS Admin'], interaction.user):
+            raise discord.app_commands.CheckFailure()
         if isinstance(user, discord.Member):
             member = user
             ucid = self.bot.get_ucid_by_member(user)
@@ -76,30 +78,18 @@ class Competitive(Plugin):
         if not ucid:
             await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
             return
-        embed = discord.Embed(title="User Profile", colour=discord.Color.blue())
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 row = cursor.execute("""
-                    SELECT p.name, t.skill_mu, p.first_seen, p.last_seen 
+                    SELECT p.name, t.skill_mu 
                     FROM players p LEFT OUTER JOIN trueskill t ON (p.ucid = t.player_ucid) 
                     WHERE p.ucid = %s
                 """, (ucid, )).fetchone()
-                if member:
-                    if member.avatar:
-                        embed.set_thumbnail(url=member.avatar.url)
-                    embed.add_field(name="Member", value=member.display_name)
-                    embed.add_field(name="Discord Name", value=member.name)
-                    embed.add_field(name="Joined at",
-                                    value=member.joined_at.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M'))
-                embed.add_field(name="DCS-Name", value=row['name'])
-                embed.add_field(name="First seen",
-                                value=row['first_seen'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M'))
-                embed.add_field(name="Last seen",
-                                value=row['last_seen'].astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M'))
-                if row['skill_mu']:
-                    embed.add_field(name="TrueSkill:tm:", value=f"{row['skill_mu']:.2f}")
-        embed.set_footer(text='All times in UTC.')
-        await interaction.response.send_message(embed=embed)
+                skill_mu = row['skill_mu']
+                if not skill_mu:
+                    skill_mu = rating.create_rating().mu
+                await interaction.response.send_message(f"TrueSkill:tm: rating of player {row['name']}: {skill_mu}.",
+                                                        ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
