@@ -19,8 +19,8 @@ from .views import CampaignModal
 
 class GameMaster(Plugin):
 
-    async def install(self):
-        await super().install()
+    async def install(self) -> bool:
+        init = await super().install()
         for server in self.bot.servers.values():
             if 'coalitions' in server.locals:
                 self.log.debug(f'  - Updating "{server.name}":serverSettings.lua for coalitions')
@@ -28,6 +28,7 @@ class GameMaster(Plugin):
                 if advanced['allow_players_pool'] != server.locals['coalitions'].get('allow_players_pool', False):
                     advanced['allow_players_pool'] = server.locals['coalitions'].get('allow_players_pool', False)
                     server.settings['advanced'] = advanced
+        return init
 
     async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Gamemaster ...')

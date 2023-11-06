@@ -270,28 +270,30 @@ class Plugin(commands.Cog):
                     if cmd.parent:
                         cmd.parent.add_command(cmd)
 
-    async def install(self) -> None:
-        self._init_db()
-        # create report directories for convenience
-        source_path = f'./plugins/{self.plugin_name}/reports'
-        if path.exists(source_path):
-            target_path = f'./reports/{self.plugin_name}'
-            if not path.exists(target_path):
-                os.makedirs(target_path)
+    async def install(self) -> bool:
+        if self._init_db():
+            # create report directories for convenience
+            source_path = f'./plugins/{self.plugin_name}/reports'
+            if path.exists(source_path):
+                target_path = f'./reports/{self.plugin_name}'
+                if not path.exists(target_path):
+                    os.makedirs(target_path)
+            return True
+        return False
 
     def migrate(self, version: str) -> None:
-        pass
+        ...
 
     async def before_dcs_update(self) -> None:
-        pass
+        ...
 
     async def after_dcs_update(self) -> None:
-        pass
+        ...
 
     async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None) -> None:
-        pass
+        ...
 
-    def _init_db(self) -> None:
+    def _init_db(self) -> bool:
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
@@ -307,6 +309,7 @@ class Plugin(commands.Cog):
                         cursor.execute('INSERT INTO plugins (plugin, version) VALUES (%s, %s) ON CONFLICT (plugin) DO '
                                        'NOTHING', (self.plugin_name, self.plugin_version))
                         self.log.info(f'  => {self.plugin_name.title()} installed.')
+                        return True
                     else:
                         installed = cursor.fetchone()[0]
                         # old variant, to be migrated
@@ -330,6 +333,7 @@ class Plugin(commands.Cog):
                             self.log.info(f'  => {self.plugin_name.title()} migrated to version {installed}.')
                         cursor.execute('UPDATE plugins SET version = %s WHERE plugin = %s',
                                        (self.plugin_version, self.plugin_name))
+                        return False
 
     @staticmethod
     def migrate_to_3(plugin_name: str):
@@ -434,10 +438,10 @@ class Plugin(commands.Cog):
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str) -> None:
         # this function has to be implemented in your own plugins, if a server rename takes place
-        pass
+        ...
 
     async def on_ready(self) -> None:
-        pass
+        ...
 
     @tasks.loop(count=1, reconnect=True)
     async def wait_for_on_ready(self):
@@ -449,7 +453,7 @@ class Plugin(commands.Cog):
 
 
 class PluginError(Exception):
-    pass
+    ...
 
 
 class PluginRequiredError(PluginError):

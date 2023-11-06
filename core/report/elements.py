@@ -53,7 +53,7 @@ class ReportElement(ABC):
 
     @abstractmethod
     def render(self, **kwargs):
-        pass
+        ...
 
 
 class EmbedElement(ReportElement):
@@ -71,7 +71,7 @@ class EmbedElement(ReportElement):
 
     @abstractmethod
     def render(self, **kwargs):
-        pass
+        ...
 
 
 class Image(EmbedElement):
@@ -143,7 +143,7 @@ class GraphElement(ReportElement):
 
     @abstractmethod
     def render(self, **kwargs):
-        pass
+        ...
 
 
 class MultiGraphElement(ReportElement):
@@ -160,7 +160,7 @@ class MultiGraphElement(ReportElement):
 
     @abstractmethod
     def render(self, **kwargs):
-        pass
+        ...
 
 
 class Graph(ReportElement):

@@ -10,9 +10,9 @@ class HighscoreTrueSkill(report.GraphElement):
 
     def render(self, interaction: discord.Interaction, limit: int, display_values: Optional[bool] = False):
         sql = f"""
-            SELECT DISTINCT discord_id, COALESCE(name, 'Unknown') AS name, skill_mu::DECIMAL AS value
-            FROM players 
-            WHERE skill_mu IS NOT NULL
+            SELECT DISTINCT p.discord_id, COALESCE(name, 'Unknown') AS name, t.skill_mu::DECIMAL AS value
+            FROM players p, trueskill t
+            WHERE p.ucid = t.player_ucid AND skill_mu IS NOT NULL
             ORDER BY 3 DESC LIMIT {limit}
         """
 

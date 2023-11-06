@@ -33,21 +33,21 @@ class Instance(DataObject):
     @property
     def dcs_port(self) -> int:
         if self.server:
-            return self.server.settings['port']
+            return int(self.server.settings['port'])
         else:
-            return self.locals.get('dcs_port', 10308)
+            return int(self.locals.get('dcs_port', 10308))
 
     @property
     def webgui_port(self) -> int:
-        return self.locals.get('webgui_port', 8088)
+        return int(self.locals.get('webgui_port', 8088))
 
     @property
     def webrtc_port(self) -> int:
-        return self.locals.get('webrtc_port', 10309)
+        return int(self.locals.get('webrtc_port', 10309))
 
     @property
     def bot_port(self) -> int:
-        return self.locals.get('bot_port', 6666)
+        return int(self.locals.get('bot_port', 6666))
 
     @property
     def extensions(self) -> dict:

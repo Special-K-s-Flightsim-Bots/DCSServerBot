@@ -9,17 +9,17 @@ class StatisticsFilter(ABC):
     @staticmethod
     @abstractmethod
     def supports(bot: DCSServerBot, period: str) -> bool:
-        pass
+        ...
 
     @staticmethod
     @abstractmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        pass
+        ...
 
     @staticmethod
     @abstractmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        pass
+        ...
 
     @staticmethod
     def detect(bot: DCSServerBot, period: str) -> Any:
