@@ -1,5 +1,4 @@
 from contextlib import closing
-from datetime import timezone
 from typing import Optional, Union
 
 import discord
@@ -28,7 +27,7 @@ class Competitive(Plugin):
                         WHERE p1.ucid = m.init_id
                         AND p2.ucid = m.target_id 
                         AND event = 'S_EVENT_KILL' AND init_id != '-1' AND target_id != '-1'
-                        AND init_id <> target_id
+                        AND init_side <> target_side
                         AND init_cat = 'Airplanes' AND target_cat = 'Airplanes'
                         ORDER BY id
                     """)
