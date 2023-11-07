@@ -30,10 +30,11 @@ class Match:
         self.alive[player.side].append(player)
 
     def player_dead(self, player: Player):
-        self.alive[player.side].remove(player)
-        if player.side.name not in self.dead:
-            self.dead[player.side] = []
-        self.dead[player.side].append(player)
+        if player in self.alive[player.side]:
+            self.alive[player.side].remove(player)
+            if player.side.name not in self.dead:
+                self.dead[player.side] = []
+            self.dead[player.side].append(player)
 
     def is_over(self) -> Optional[Side]:
         if not len(self.alive[Side.RED]):
@@ -136,33 +137,66 @@ class CompetitiveListener(EventListener):
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
+        def print_crew(players: list[Player]) -> str:
+            return ' and '.join([p.name for p in players])
+
         config = self.plugin.get_config(server)
         if not config or server.status != Status.RUNNING:
             return
         if data['eventName'] == 'kill':
-            # human players only, they gain points only, if they don't kill themselves and no teamkills
-            if data['arg1'] == -1 or data['arg4'] == -1 or data['arg1'] == data['arg4'] or data['arg3'] == data['arg6']:
+            # human players only
+            if data['arg1'] == -1 or data['arg4'] == -1:
                 return
-            # Multicrew - pilot and all crew members gain points
+            # self-kill
+            elif data['arg1'] == data['arg4']:
+                data['eventName'] = 'self_kill'
+                await self.onGameEvent(server, data)
+            # Multi-crew - pilot and all crew members gain points
             killers = server.get_crew_members(server.get_player(id=data['arg1']))
             victims = server.get_crew_members(server.get_player(id=data['arg4']))
             # check if we are in a registered match
             match: Match = self.in_match[server].get(killers[0].ucid)
             if match:
                 for player in victims:
-                    match.log.append((datetime.now(), "{} in {} killed {} in {} with {}".format(
-                        ' and '.join(killers), data['arg2'], ' and '.join(victims), data['arg5'],
+                    match.log.append((datetime.now(), "{} in {} {} {} in {} with {}".format(
+                        print_crew(killers), data['arg2'],
+                        'killed' if data['arg3'] != data['arg4'] else 'team-killed',
+                        print_crew(victims), data['arg5'],
                         data['arg7'] or 'Guns')))
                     match.player_dead(player)
                     del self.in_match[server][player.ucid]
-            else:
+            # no, then we don't count team-kills
+            elif data['arg3'] != data['arg6']:
                 self.rank_teams(killers, victims)
-        elif data['evenName'] in ['crash', 'disconnect', 'change_slot']:
+                for player in killers:
+                    player.sendChatMessage("You won against {}! Your new rating is {}".format(
+                        print_crew(victims), self.get_rating(player)))
+                for player in victims:
+                    player.sendChatMessage("You lost against {}! Your new rating is {}".format(
+                        print_crew(killers), self.get_rating(player)))
+        elif data['evenName'] in ['self_kill', 'crash']:
+            players = server.get_crew_members(server.get_player(id=data['arg1']))
+            match: Match = self.in_match[server].get(players[0].ucid)
+            if match:
+                match.log.append((datetime.now(), "{} in {} died ({})".format(
+                    print_crew(players), data['arg2'], data['eventName'])))
+                for player in players:
+                    match.player_dead(player)
+                    del self.in_match[server][player.ucid]
+        elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
             player = server.get_player(id=data['arg1'])
+            # if the pilot of a MC aircraft leaves, both pilots get booted
+            if player.slot == 0:
+                players = server.get_crew_members(server.get_player(id=data['arg1']))
+            else:
+                players = [player]
             match: Match = self.in_match[server].get(player.ucid)
             if match:
-                match.player_dead(player)
-                del self.in_match[server][player.ucid]
+                match.log.append((datetime.now(), "{} in {} died ({})".format(
+                    print_crew(players), data['arg2'], data['eventName'])))
+                for player in players:
+                    match.player_dead(player)
+                    del self.in_match[server][player.ucid]
 
     @chat_command(name="skill", help="Show your TrueSkill")
     async def skill(self, server: Server, player: Player, params: list[str]):
@@ -184,6 +218,9 @@ class CompetitiveListener(EventListener):
                     message += "\nThis is the log of your last match:\n"
                     for time, log in match.log:
                         message += f"{time.astimezone(timezone.utc):%H:%M:%Sz}: {log}\n"
+                    message += "\nYour new rating is as follows:\n"
+                    for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
+                        message += f"- {player.name}: {self.get_rating(player)}\n"
                     await self.inform_players(match, message, 30)
                     finished.append(match)
             for match in finished:
