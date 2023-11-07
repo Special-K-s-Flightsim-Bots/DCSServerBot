@@ -226,7 +226,6 @@ class ServiceBus(Service):
         # validate server ports
         dcs_ports: dict[int, str] = dict()
         webgui_ports: dict[int, str] = dict()
-        webrtc_ports: dict[int, str] = dict()
         for server in self.servers.values():
             # only check ports of local servers
             if server.is_remote or server.status == Status.SHUTDOWN:
@@ -246,17 +245,6 @@ class ServiceBus(Service):
                 return False
             else:
                 webgui_ports[webgui_port] = server.name
-            webrtc_port = autoexec.webrtc_port or 10309
-            if webrtc_port in webrtc_ports:
-                if server.settings['advanced'].get('voice_chat_server', False):
-                    self.log.error(f'Server "{server.name}" shares its webrtc_port port with server '
-                                   f'"{webrtc_ports[webrtc_port]}"! Registration aborted.')
-                    return False
-                else:
-                    self.log.warning(f'Server "{server.name}" shares its webrtc_port port with server '
-                                     f'"{webrtc_ports[webrtc_port]}", but voice chat is disabled.')
-            else:
-                webrtc_ports[webrtc_port] = server.name
 
         # update the database and check for server name changes
         with self.pool.connection() as conn:

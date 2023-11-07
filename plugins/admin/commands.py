@@ -432,7 +432,6 @@ Please make sure you forward the following ports:
 ```
 - DCS Port:    {instance.dcs_port}
 - WebGUI Port: {instance.webgui_port}
-- VOIP Port:   {instance.dcs_port + 1}
 ```
             """, ephemeral=ephemeral)
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)

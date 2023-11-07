@@ -594,7 +594,6 @@ class NodeImpl(Node):
                              os.path.join(instance.home, 'Config', 'SRS.cfg'))
         autoexec = Autoexec(instance=instance)
         autoexec.webgui_port = instance.webgui_port
-        autoexec.webrtc_port = instance.dcs_port + 1
         autoexec.crash_report_mode = "silent"
         with open('config/nodes.yaml') as infile:
             config = yaml.load(infile)
