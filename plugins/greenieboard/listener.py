@@ -105,8 +105,10 @@ class GreenieBoardEventListener(EventListener):
             grade = grade[:-4]
         if grade == 'CUT':
             grade = 'C'
-        if 'BOLTER' in grade:
+        elif 'BOLTER' in grade:
             grade = 'B'
+        elif grade == 'WOP':
+            grade = 'WO'
         return grade
 
     def get_trapsheet(self, config: dict, server: Server, player: Player, data: dict) -> Optional[str]:
@@ -142,7 +144,7 @@ class GreenieBoardEventListener(EventListener):
         if 'FunkMan' not in config:
             self.log.warning("Can't process FunkMan event as FunkMan is not configured in your greenieboard.json!")
             return
-        if data['grade'] != 'WO':
+        if not data['grade'].startswith('WO'):
             filepath = os.path.join(server.instance.home,
                                     config['FunkMan']['basedir'] if 'basedir' in config['FunkMan'] else 'trapsheets')
             if not os.path.exists(filepath):
