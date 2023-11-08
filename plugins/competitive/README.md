@@ -11,11 +11,11 @@ On the initial installation of the Competitive plugin, DCSServerBot will read al
 rating for each pilot. People that have not been involved in any PvP activities yet, will get a default rating 
 according to the algorithm.
 
-## Will it only support 1vs1?
-Not by any means! If you just enable the plugin and don't do anything else, you will get a 1vs1 rating. You already
-get some kind of team rating, when you fly with in a multi-crew aircraft. As usually all members of such an aircraft
-participate in a kill (or are hung with the pilot in the opposite case), they will be treated as a team already. This
-means, you get ranked up as a RIO as if you were the pilot of the killing aircraft.
+## How do 1vs1 engagements work?
+If you enable the plugin and don't do anything else, you will get a 1vs1 rating that will change after each engagement. 
+You already get some kind of team rating, when you fly in a multi-crew aircraft. As usually all members of such an 
+aircraft participate in a kill (or die with the pilot in the opposite case), they will be treated as a team already. 
+This means, you get ranked up as a RIO as if you were the pilot of the killing aircraft.
 
 ## How do Team Matches work?
 So this is the more complex stuff. To play N vs N or N vs M, you need to register as teams. As I don't know how your 
@@ -35,7 +35,12 @@ later).
 ### The Match is on!
 As soon as a player is part of a match, they are bound to it until the bitter end. If you re-slot, disconnect or crash,
 you will be counted dead and be a loss for your team. People that got killed can change to the next match though. But
-they are not allowed to join the same match again. If you try so, you get booted back to spectators!
+they are not allowed to join the same match again. If you try so, you get booted back to spectators.
+If a RIO/WSO leaves, the pilot can still finish the match. If the pilot of a multi-crew airplane leaves, both players
+are lost for that team.
+
+Team-kills are **not** punished against the killer, as this would double-punish the remaining team members. This plugin
+will automatically disable the bots [Punishment](../punishment/README.md) system during a match! 
 
 ### The Match is over
 ... when all players of one side are dead, simple as that. The winning team will get points, the losing team will lose
