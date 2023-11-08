@@ -86,6 +86,13 @@ class CompetitiveListener(EventListener):
         self.matches[server] = dict()
         self.in_match[server] = dict()
 
+    @event(name="onPlayerStart")
+    async def onPlayerStart(self, server: Server, data: dict) -> None:
+        if data['id'] == 1:
+            return
+        player: Player = server.get_player(id=data['id'])
+        player.sendChatMessage(f"Your current TrueSkill rating is: {self.get_rating(player)}.")
+
     @event(name="addPlayerToMatch")
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:
         players = server.get_crew_members(server.get_player(name=data['player_name']))
