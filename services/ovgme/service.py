@@ -17,6 +17,12 @@ __all__ = [
     "OvGMEService"
 ]
 
+import sys
+if sys.platform == 'win32':
+    ENCODING = 'cp1252'
+else:
+    ENCODING = 'utf-8'
+
 
 @ServiceRegistry.register("OvGME", plugin='ovgme')
 class OvGMEService(Service):
@@ -165,7 +171,7 @@ class OvGMEService(Service):
                 ovgme_path = os.path.join(path, '.' + server.instance.name, package_name + '_v' + version)
                 os.makedirs(ovgme_path, exist_ok=True)
                 if os.path.isfile(filename) and file == package_name + '_v' + version + '.zip':
-                    with open(os.path.join(ovgme_path, 'install.log'), 'w') as log:
+                    with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
                         with zipfile.ZipFile(filename, 'r') as zfile:
                             for name in zfile.namelist():
                                 orig = os.path.join(target, name)
@@ -178,7 +184,7 @@ class OvGMEService(Service):
                                     log.write(f"w {name}\n")
                                 zfile.extract(name, target)
                 else:
-                    with open(os.path.join(ovgme_path, 'install.log'), 'w') as log:
+                    with open(os.path.join(ovgme_path, 'install.log'), 'w', encoding=ENCODING) as log:
                         def backup(p, names) -> list[str]:
                             _dir = p[len(os.path.join(path, package_name + '_v' + version)):].lstrip(os.path.sep)
                             for name in names:
@@ -225,7 +231,7 @@ class OvGMEService(Service):
         target = self.node.installation if folder == 'RootFolder' else server.instance.home
         if not os.path.exists(os.path.join(ovgme_path, 'install.log')):
             return False
-        with open(os.path.join(ovgme_path, 'install.log')) as log:
+        with open(os.path.join(ovgme_path, 'install.log'), encoding=ENCODING) as log:
             lines = log.readlines()
             # delete has to run reverse to clean the directories
             for i in range(len(lines) - 1, 0, -1):

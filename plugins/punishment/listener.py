@@ -1,6 +1,9 @@
 import asyncio
 from contextlib import closing
+from typing import Optional
+
 from core import EventListener, Plugin, Server, Player, Status, event, chat_command
+from plugins.competitive.commands import Competitive
 
 
 class PunishmentEventListener(EventListener):
@@ -84,6 +87,12 @@ class PunishmentEventListener(EventListener):
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict):
+        # check if we have the Competitive plugin enabled and a match is on
+        competitive: Optional[Competitive] = self.bot.cogs.get('Competitive')
+        if competitive:
+            player: Player = server.get_player(id=data['arg1'])
+            if competitive.eventlistener.in_match[server].get(player.ucid):
+                return
         if self.plugin.get_config(server) and server.status == Status.RUNNING:
             if data['eventName'] == 'friendly_fire':
                 if data['arg1'] != -1 and data['arg1'] != data['arg3']:

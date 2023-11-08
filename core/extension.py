@@ -66,4 +66,4 @@ class Extension(ABC):
         raise NotImplementedError()
 
     def is_installed(self) -> bool:
-        pass
+        ...

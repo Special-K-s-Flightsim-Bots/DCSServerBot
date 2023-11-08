@@ -51,30 +51,31 @@ These commands can be received in DCS or be controlled by events in the game. DC
 default plugins, but it can be enhanced with optional plugins. I can write those myself, but you as a community member 
 can also create your own plugins (and maybe share them with others). 
 
-| Plugin       | Scope                                                                         | Optional | Depending on            | Documentation                              |
-|--------------|-------------------------------------------------------------------------------|----------|-------------------------|--------------------------------------------|
-| GameMaster   | Interaction with the running mission (inform users, set flags, etc)           | no       |                         | [README](./plugins/gamemaster/README.md)   |
-| Mission      | Handling of missions, comparable to the WebGUI.                               | no       | GameMaster              | [README](./plugins/mission/README.md)      |
-| Help         | Interactive help commands for Discord and in-game chat                        | yes*     |                         | [README](./plugins/help/README.md)         |
-| Scheduler    | Autostart / -stop of servers or missions, modify missions, etc.               | yes*     | Mission                 | [README](./plugins/scheduler/README.md)    |
-| Admin        | Admin commands to manage your DCS server.                                     | yes*     |                         | [README](./plugins/admin/README.md)        |
-| UserStats    | Users statistics system.                                                      | yes*     | Mission                 | [README](./plugins/userstats/README.md)    |
-| CreditSystem | User credits, based on achievements.                                          | yes*     | Mission                 | [README](./plugins/creditsystem/README.md) |
-| MissionStats | Detailed users statistics / mission statistics.                               | yes*     | Userstats               | [README](./plugins/missionstats/README.md) |
-| Punishment   | Punish users for teamhits or teamkills.                                       | yes      | Mission                 | [README](./plugins/punishment/README.md)   |
-| SlotBlocking | Slotblocking either based on discord roles or credits.                        | yes      | Mission, Creditsystem   | [README](./plugins/slotblocking/README.md) |
-| Cloud        | Cloud-based statistics and connection to the DGSA global ban system.          | yes      | Userstats               | [README](./plugins/cloud/README.md)        |
-| ServerStats  | Server statistics for your DCS servers.                                       | yes      | Userstats               | [README](./plugins/serverstats/README.md)  |
-| GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS / FunkMan)   | yes      | Missionstats            | [README](./plugins/greenieboard/README.md) |
-| MOTD         | Message for players on join or when they jump in a module.                    | yes      | Mission, Missionstats   | [README](./plugins/motd/README.md)         |
-| FunkMan      | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)                 | yes      |                         | [README](./plugins/funkman/README.md)      |
-| DBExporter   | Export the DCSServerBot database or singular tables as json.                  | yes      |                         | [README](./plugins/dbexporter/README.md)   |
-| Backup       | Create a backup of your database, server or bot configurations.               | yes      |                         | [README](./plugins/backup/README.md)       |
-| OvGME        | Install or update mods into your DCS server.                                  | yes      |                         | [README](./plugins/ovgme/README.md)        |
-| Music        | Upload and play music over SRS.                                               | yes      |                         | [README](./plugins/music/README.md)        |
-| Commands     | Create custom discord commands.                                               | yes      |                         | [README](./plugins/commands/README.md)     |
-| RestAPI      | Simple REST-API to query users and statistics (WIP).                          | yes      | Userstats, Missionstats | [README](./plugins/restapi/README.md)      |
-| Battleground | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground)  | yes      |                         | [README](./plugins/battleground/README.md) |
+| Plugin       | Scope                                                                        | Optional | Depending on            | Documentation                              |
+|--------------|------------------------------------------------------------------------------|----------|-------------------------|--------------------------------------------|
+| GameMaster   | Interaction with the running mission (inform users, set flags, etc)          | no       |                         | [README](./plugins/gamemaster/README.md)   |
+| Mission      | Handling of missions, comparable to the WebGUI.                              | no       | GameMaster              | [README](./plugins/mission/README.md)      |
+| Help         | Interactive help commands for Discord and in-game chat                       | yes*     |                         | [README](./plugins/help/README.md)         |
+| Scheduler    | Autostart / -stop of servers or missions, modify missions, etc.              | yes*     | Mission                 | [README](./plugins/scheduler/README.md)    |
+| Admin        | Admin commands to manage your DCS server.                                    | yes*     |                         | [README](./plugins/admin/README.md)        |
+| UserStats    | Users statistics system.                                                     | yes*     | Mission                 | [README](./plugins/userstats/README.md)    |
+| CreditSystem | User credits, based on achievements.                                         | yes*     | Mission                 | [README](./plugins/creditsystem/README.md) |
+| MissionStats | Detailed users statistics / mission statistics.                              | yes*     | Userstats               | [README](./plugins/missionstats/README.md) |
+| Punishment   | Punish users for teamhits or teamkills.                                      | yes      | Mission                 | [README](./plugins/punishment/README.md)   |
+| SlotBlocking | Slotblocking either based on discord roles or credits.                       | yes      | Mission, Creditsystem   | [README](./plugins/slotblocking/README.md) |
+| Cloud        | Cloud-based statistics and connection to the DGSA global ban system.         | yes      | Userstats               | [README](./plugins/cloud/README.md)        |
+| ServerStats  | Server statistics for your DCS servers.                                      | yes      | Userstats               | [README](./plugins/serverstats/README.md)  |
+| GreenieBoard | Greenieboard and LSO quality mark analysis (SC and Moose.AIRBOSS / FunkMan)  | yes      | Missionstats            | [README](./plugins/greenieboard/README.md) |
+| MOTD         | Message for players on join or when they jump in a module.                   | yes      | Mission, Missionstats   | [README](./plugins/motd/README.md)         |
+| Competitive  | Support for PvP communities, especially with TrueSkill™️ ranking system.     | yes      | Mission                 | [README](./plugins/competitive/README.md)  |
+| FunkMan      | Support for [FunkMan](https://github.com/funkyfranky/FunkMan)                | yes      |                         | [README](./plugins/funkman/README.md)      |
+| DBExporter   | Export the DCSServerBot database or singular tables as json.                 | yes      |                         | [README](./plugins/dbexporter/README.md)   |
+| Backup       | Create a backup of your database, server or bot configurations.              | yes      |                         | [README](./plugins/backup/README.md)       |
+| OvGME        | Install or update mods into your DCS server.                                 | yes      |                         | [README](./plugins/ovgme/README.md)        |
+| Music        | Upload and play music over SRS.                                              | yes      |                         | [README](./plugins/music/README.md)        |
+| Commands     | Create custom discord commands.                                              | yes      |                         | [README](./plugins/commands/README.md)     |
+| RestAPI      | Simple REST-API to query users and statistics (WIP).                         | yes      | Userstats, Missionstats | [README](./plugins/restapi/README.md)      |
+| Battleground | Support for [DCS Battleground](https://github.com/Frigondin/DCSBattleground) | yes      |                         | [README](./plugins/battleground/README.md) |
 
 *) These plugins are loaded by the bot by default, but they are not mandatory to operate the bot.<br> 
 &nbsp;&nbsp;&nbsp;&nbsp;If you want to change that, define a list of `plugins` in your main.yaml.
@@ -296,6 +297,7 @@ token: AAaahhg2347286adhjdjasd2347263473        # Your TOKEN, as received from t
 owner: 1122334455667788                         # The ID of your bot user. Right click, select "Copy User ID".
 automatch: true                                 # Use the bots auto-matching functionality (see below), default is true.
 autoban: false                                  # Use the bots auto-ban functionality (see below), default is false.
+no_dcs_autoban: false                           # If true, people banned on your Discord will not be banned on your servers (default: false)
 message_ban: User has been banned on Discord.   # Default reason to show people that try to join your DCS servers when they are banned on Discord.
 message_autodelete: 300                         # Most of the Discord messages are private messages. If not, this is the timeout after that they vanish. Default is 300 (5 mins). 
 admin_channel: 1122334455667788                 # Optional: Central admin channel (see below).
@@ -331,7 +333,7 @@ The bot supports automatically bans / unbans of players from the configured DCS 
 your Discord guild. If you like that feature, set `autoban: true` in services/bot.yaml (default: false).
 
 However, players that are being banned from your Discord or that are being detected as hackers are auto-banned from 
-all your configured DCS servers independent of that setting.
+all your configured DCS servers independent of that setting. You can prevent this by setting `no_dcs_autoban: true`.
 
 #### Discord Roles
 The bot uses the following **internal** roles to apply specific permissions to commands.<br>

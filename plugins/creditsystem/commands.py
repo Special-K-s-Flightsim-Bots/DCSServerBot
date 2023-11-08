@@ -1,4 +1,5 @@
 import discord
+
 from contextlib import closing
 from discord import app_commands, SelectOption
 from discord.app_commands import Range
@@ -51,7 +52,6 @@ class CreditSystem(Plugin):
     @app_commands.rename(member="user")
     async def info(self, interaction: discord.Interaction,
                    member: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer] = None):
-        ephemeral = utils.get_ephemeral(interaction)
         if member:
             if not utils.check_roles(self.bot.roles['DCS Admin'], interaction.user):
                 await interaction.response.send_message('You need the DCS Admin role to use this command.',
@@ -64,18 +64,18 @@ class CreditSystem(Plugin):
                 ucid = self.bot.get_ucid_by_member(member)
                 if not ucid:
                     await interaction.response.send_message(f"Member {utils.escape_string(member.display_name)} is "
-                                                            f"not linked to any DCS user.", ephemeral=ephemeral)
+                                                            f"not linked to any DCS user.", ephemeral=True)
                     return
         else:
             member = interaction.user
             ucid = self.bot.get_ucid_by_member(member)
             if not ucid:
-                await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=ephemeral)
+                await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
                 return
         data = self.get_credits(ucid)
         if not data:
             await interaction.response.send_message(f'{utils.escape_string(member.display_name)} has no campaign '
-                                                    f'credits.', ephemeral=ephemeral)
+                                                    f'credits.', ephemeral=True)
             return
         embed = discord.Embed(
             title="Campaign Credits for {}".format(utils.escape_string(member.display_name)
@@ -103,7 +103,7 @@ class CreditSystem(Plugin):
             embed.add_field(name='Event', value=events)
             embed.add_field(name='Points', value=deltas)
             embed.set_footer(text='Log will show the last 10 events only.')
-        await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+        await interaction.response.send_message(embed=embed, ephemeral=utils.get_ephemeral(interaction))
 
     async def _admin_donate(self, interaction: discord.Interaction, to: discord.Member, donation: int):
         ephemeral = utils.get_ephemeral(interaction)

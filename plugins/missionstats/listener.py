@@ -59,8 +59,8 @@ class MissionStatisticsEventListener(EventListener):
         if data['channel'].startswith('sync') and server.status in [Status.RUNNING, Status.PAUSED]:
             self._toggle_mission_stats(server)
 
-    @event(name="onMissionLoadEnd")
-    async def onMissionLoadEnd(self, server: Server, data: dict) -> None:
+    @event(name="onSimulationStart")
+    async def onSimulationStart(self, server: Server, data: dict) -> None:
         self._toggle_mission_stats(server)
 
     def _update_database(self, server: Server, config: dict, data: dict):

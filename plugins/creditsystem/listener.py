@@ -1,4 +1,5 @@
 import discord
+
 from core import EventListener, Server, Status, utils, event, chat_command, Player
 from typing import cast
 from .player import CreditPlayer
@@ -157,6 +158,7 @@ class CreditSystemListener(EventListener):
                         old_points = player.points
                         player.points += ppk
                         player.audit('kill', old_points, f"Killed an enemy {data['arg5']}")
+
         elif data['eventName'] == 'disconnect':
             server: Server = self.bot.servers[data['server_name']]
             player = cast(CreditPlayer, server.get_player(id=data['arg1']))

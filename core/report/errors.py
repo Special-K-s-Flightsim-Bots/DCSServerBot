@@ -13,7 +13,7 @@ __all__ = [
 
 
 class ReportException(BaseException):
-    pass
+    ...
 
 
 class UnknownReportElement(ReportException):
@@ -48,4 +48,4 @@ class UnknownValue(ReportException):
 
 
 class NothingToPlot(ReportException):
-    pass
+    ...

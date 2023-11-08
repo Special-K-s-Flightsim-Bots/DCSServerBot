@@ -302,8 +302,11 @@ class Scheduler(Plugin):
     @group.command(description='Launches a DCS server')
     @utils.app_has_role('DCS Admin')
     @app_commands.guild_only()
+    @app_commands.rename(mission_id="mission")
+    @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
     async def startup(self, interaction: discord.Interaction,
-                      server: app_commands.Transform[Server, utils.ServerTransformer]):
+                      server: app_commands.Transform[Server, utils.ServerTransformer],
+                      maintenance: Optional[bool] = True, mission_id: Optional[int] = None):
         config = self.get_config(server)
         if server.status == Status.STOPPED:
             await interaction.response.send_message(f"DCS server \"{server.display_name}\" is stopped.\n"
@@ -318,13 +321,15 @@ class Scheduler(Plugin):
                 await interaction.response.defer(ephemeral=ephemeral)
             msg = await interaction.followup.send(f"Starting DCS server \"{server.display_name}\", please wait ...",
                                                   ephemeral=ephemeral)
-            # set maintenance flag to prevent auto-stops of this server
-            server.maintenance = True
+            # set maintenance flag. default is true to prevent auto stops of this server if configured to be stopped.
+            server.maintenance = maintenance
             try:
+                if mission_id is not None:
+                    server.settings['listStartIndex'] = mission_id + 1
                 await self.launch_dcs(server, config, interaction.user)
-                await interaction.followup.send(
-                    f"DCS server \"{server.display_name}\" started.\nServer is in maintenance mode now! "
-                    f"Use `/scheduler clear` to reset maintenance mode.", ephemeral=ephemeral)
+                await interaction.followup.send(f"DCS server \"{server.display_name}\" started." +
+                                                ("\nServer is in maintenance mode now! Use `/scheduler clear` to "
+                                                 "reset maintenance mode." if maintenance else ""), ephemeral=ephemeral)
             except asyncio.TimeoutError:
                 if server.status == Status.SHUTDOWN:
                     await interaction.followup.send(
@@ -345,19 +350,19 @@ class Scheduler(Plugin):
     async def shutdown(self, interaction: discord.Interaction,
                        server: app_commands.Transform[Server, utils.ServerTransformer(
                            status=[Status.RUNNING, Status.PAUSED, Status.STOPPED, Status.LOADING, Status.UNREGISTERED])],
-                       force: Optional[bool]):
+                       force: Optional[bool] = False, maintenance: Optional[bool] = True):
         async def do_shutdown(server: Server, *, force: bool = False, ephemeral: bool):
             await interaction.followup.send(f"Shutting down DCS server \"{server.display_name}\", please wait ...",
                                             ephemeral=ephemeral)
             # set maintenance flag to prevent auto-starts of this server
-            server.maintenance = True
+            server.maintenance = maintenance
             if force:
                 await server.shutdown()
             else:
                 await self.teardown_dcs(server, interaction.user)
-            await interaction.followup.send(
-                f"DCS server \"{server.display_name}\" shut down.\n"f"Server in maintenance mode now! "
-                f"Use /scheduler clear to reset maintenance mode.", ephemeral=ephemeral)
+            await interaction.followup.send(f"DCS server \"{server.display_name}\" shut down.\n" +
+                                            (f"Server in maintenance mode now! Use /scheduler clear to reset "
+                                             f"maintenance mode." if maintenance else ""), ephemeral=ephemeral)
 
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
@@ -510,9 +515,9 @@ class Scheduler(Plugin):
     @utils.app_has_role('DCS Admin')
     async def _rename(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(
-                         status=[Status.STOPPED, Status.SHUTDOWN])], new_name: str):
-        if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-            await interaction.response.send_message(f"Server {server.name} has to be stopped before renaming.",
+                         status=[Status.SHUTDOWN])], new_name: str):
+        if server.status not in [Status.SHUTDOWN]:
+            await interaction.response.send_message(f"Server {server.name} has to be shut down for renaming.",
                                                     ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)

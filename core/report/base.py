@@ -120,13 +120,13 @@ class Pagination(ABC):
 
     @abstractmethod
     def values(self, **kwargs) -> list[Any]:
-        pass
+        ...
 
 
 class PaginationReport(Report):
 
     class NoPaginationInformation(Exception):
-        pass
+        ...
 
     def __init__(self, bot: DCSServerBot, interaction: discord.Interaction, plugin: str, filename: str,
                  pagination: Optional[list] = None, keep_image: bool = False):

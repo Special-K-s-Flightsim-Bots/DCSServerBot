@@ -29,7 +29,8 @@ class PlaytimesPerGuild(report.GraphElement):
             series = data[data['guild'] == guild]
         else:
             series = data
-        series = series.groupby('guild').agg(total_time=('playtime', 'sum')).sort_values(by=['total_time'], ascending=False).reset_index()
+        series = series.groupby('guild').agg(total_time=('playtime', 'sum')).sort_values(by=['total_time'],
+                                                                                         ascending=False).reset_index()
         for index, row in series.iterrows():
             labels.insert(0, row['guild'])
             values.insert(0, row['total_time'])

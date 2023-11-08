@@ -1,8 +1,11 @@
 import discord
 import math
+
 from contextlib import closing
 from core import report, utils, Side, Server, Coalition
 from psycopg.rows import dict_row
+from typing import Optional
+
 from .filter import StatisticsFilter
 
 
@@ -23,7 +26,8 @@ def get_sides(interaction: discord.Interaction, server: Server) -> list[Side]:
 
 class HighscorePlaytime(report.GraphElement):
 
-    def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int, flt: StatisticsFilter):
+    def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int, flt: StatisticsFilter,
+               bar_labels: Optional[bool] = True):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - " \
               "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
@@ -51,6 +55,10 @@ class HighscorePlaytime(report.GraphElement):
                     values.insert(0, row['playtime'] / 3600)
                 self.axes.barh(labels, values, color=['#CD7F32', 'silver', 'gold'], height=0.75)
                 self.axes.set_xlabel('hours')
+                if bar_labels:
+                    for c in self.axes.containers:
+                        self.axes.bar_label(c, fmt='%d', label_type='edge', padding=2)
+                    self.axes.margins(x=0.1)
                 self.axes.set_title('Longest Playtimes', color='white', fontsize=25)
                 if len(values) == 0:
                     self.axes.set_xticks([])
@@ -61,7 +69,7 @@ class HighscorePlaytime(report.GraphElement):
 class HighscoreElement(report.GraphElement):
 
     def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int, kill_type: str,
-               flt: StatisticsFilter):
+               flt: StatisticsFilter, bar_labels: Optional[bool] = True):
         sql_parts = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',
@@ -112,6 +120,11 @@ class HighscoreElement(report.GraphElement):
                     labels.insert(0, name)
                     values.insert(0, row['value'])
                 self.axes.barh(labels, values, color=colors, label=kill_type, height=0.75)
+                if values and bar_labels:
+                    for c in self.axes.containers:
+                        self.axes.bar_label(c, fmt='%.2f' if isinstance(values[0], float) else '%d', label_type='edge',
+                                            padding=2)
+                    self.axes.margins(x=0.125)
                 self.axes.set_title(kill_type, color='white', fontsize=25)
                 self.axes.set_xlabel(xlabels[kill_type])
                 if len(values) == 0:

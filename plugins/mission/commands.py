@@ -687,7 +687,14 @@ class Mission(Plugin):
                     server.current_mission.filename != filename and
                     await utils.yn_question(ctx, 'Do you want to load this mission?')):
                 tmp = await message.channel.send(f'Loading mission {utils.escape_string(name)} ...')
-                await server.loadMission(server.settings['missionList'].index(filename) + 1)
+                try:
+                    await server.loadMission(server.settings['missionList'].index(filename) + 1)
+                except asyncio.TimeoutError:
+                    await tmp.delete()
+                    await message.channel.send(f"Timeout while trying to load mission.")
+                    await self.bot.audit(f"Timeout while trying to load mission {name}",
+                                         server=server)
+                    return
                 await self.bot.audit("loaded mission", server=server, user=message.author)
                 await tmp.delete()
                 await message.channel.send(f'Mission {name} loaded.')
@@ -699,10 +706,11 @@ class Mission(Plugin):
     @commands.Cog.listener()
     async def on_member_ban(self, guild: discord.Guild, member: discord.Member):
         self.bot.log.debug(f"Member {member.display_name} has been banned.")
-        ucid = self.bot.get_ucid_by_member(member)
-        if ucid:
-            self.bus.ban(ucid, 'Discord',
-                         self.bot.locals.get('message_ban', 'User has been banned on Discord.'))
+        if not self.bot.locals.get('no_dcs_autoban', False):
+            ucid = self.bot.get_ucid_by_member(member)
+            if ucid:
+                self.bus.ban(ucid, 'Discord',
+                             self.bot.locals.get('message_ban', 'User has been banned on Discord.'))
 
 
 async def setup(bot: DCSServerBot):

@@ -133,15 +133,14 @@ class UserStatistics(Plugin):
         if not user:
             user = interaction.user
         if isinstance(user, discord.Member):
-            member = user
-            name = member.display_name
-            ucid = self.bot.get_ucid_by_member(member)
+            name = user.display_name
         else:
-            ucid = user
-            member, name = self.bot.get_member_or_name_by_ucid(ucid)
+            name = self.bot.get_member_or_name_by_ucid(user)
+            if isinstance(name, discord.Member):
+                name = name.display_name
         file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
         report = PaginationReport(self.bot, interaction, self.plugin_name, file)
-        await report.render(member=member or ucid, member_name=name, period=period, server_name=None, flt=flt)
+        await report.render(member=user, member_name=name, period=period, server_name=None, flt=flt)
 
     @command(description='Displays the top players of your server(s)')
     @utils.app_has_role('DCS')
@@ -149,7 +148,7 @@ class UserStatistics(Plugin):
     @app_commands.rename(_server="server")
     async def highscore(self, interaction: discord.Interaction,
                         _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]] = None,
-                        period: Optional[str] = None):
+                        period: Optional[str] = None, limit: Optional[int] = None):
         flt = StatisticsFilter.detect(self.bot, period)
         if period and not flt:
             await interaction.response.send_message('Please provide a valid period or campaign name.', ephemeral=True)
@@ -157,11 +156,12 @@ class UserStatistics(Plugin):
         file = 'highscore-campaign.json' if flt.__name__ == "CampaignFilter" else 'highscore.json'
         if not _server:
             report = PaginationReport(self.bot, interaction, self.plugin_name, file)
-            await report.render(interaction=interaction, period=period, server_name=None, flt=flt)
+            await report.render(interaction=interaction, period=period, server_name=None, flt=flt, limit=limit)
         else:
             await interaction.response.defer()
             report = Report(self.bot, self.plugin_name, file)
-            env = await report.render(interaction=interaction, period=period, server_name=_server.name, flt=flt)
+            env = await report.render(interaction=interaction, period=period, server_name=_server.name, flt=flt,
+                                      limit=limit)
             file = discord.File(env.filename)
             await interaction.followup.send(embed=env.embed, file=file)
             if env.filename and os.path.exists(env.filename):

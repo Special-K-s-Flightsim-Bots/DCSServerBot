@@ -142,7 +142,7 @@ class EventListener(metaclass=EventListenerMeta):
         await command(self, server, player, data.get('params'))
 
     async def shutdown(self) -> None:
-        pass
+        ...
 
 
 TEventListener = TypeVar("TEventListener", bound=EventListener)

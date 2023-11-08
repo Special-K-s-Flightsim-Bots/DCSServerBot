@@ -24,7 +24,6 @@ class InstanceImpl(Instance):
             self.missions_dir = os.path.expandvars(self.locals['missions_dir'])
         autoexec = Autoexec(instance=self)
         self.locals['webgui_port'] = autoexec.webgui_port or 8088
-        self.locals['webrtc_port'] = autoexec.webrtc_port or 10309
         settings = {}
         settings_path = os.path.join(self.home, 'Config', 'serverSettings.lua')
         if os.path.exists(settings_path):

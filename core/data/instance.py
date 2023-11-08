@@ -42,10 +42,6 @@ class Instance(DataObject):
         return int(self.locals.get('webgui_port', 8088))
 
     @property
-    def webrtc_port(self) -> int:
-        return int(self.locals.get('webrtc_port', 10309))
-
-    @property
     def bot_port(self) -> int:
         return int(self.locals.get('bot_port', 6666))
 

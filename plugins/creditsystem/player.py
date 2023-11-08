@@ -1,4 +1,5 @@
 from contextlib import closing
+
 from core import Player, DataObjectFactory, utils, Plugin
 from dataclasses import field, dataclass
 from typing import cast

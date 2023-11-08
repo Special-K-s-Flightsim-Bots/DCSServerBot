@@ -21,7 +21,7 @@ from .__utils import parse_params
 
 
 if TYPE_CHECKING:
-    from core import DCSServerBot
+    from services import DCSServerBot
 
 __all__ = [
     "ReportElement",
@@ -53,7 +53,7 @@ class ReportElement(ABC):
 
     @abstractmethod
     def render(self, **kwargs):
-        pass
+        ...
 
 
 class EmbedElement(ReportElement):
@@ -71,7 +71,7 @@ class EmbedElement(ReportElement):
 
     @abstractmethod
     def render(self, **kwargs):
-        pass
+        ...
 
 
 class Image(EmbedElement):
@@ -143,7 +143,7 @@ class GraphElement(ReportElement):
 
     @abstractmethod
     def render(self, **kwargs):
-        pass
+        ...
 
 
 class MultiGraphElement(ReportElement):
@@ -160,7 +160,7 @@ class MultiGraphElement(ReportElement):
 
     @abstractmethod
     def render(self, **kwargs):
-        pass
+        ...
 
 
 class Graph(ReportElement):
@@ -294,7 +294,9 @@ class BarChart(GraphElement):
                     label.set_ha('right')
             if self.bar_labels:
                 for c in self.axes.containers:
-                    self.axes.bar_label(c, fmt='%.1f h' if self.is_time else '%.1f', label_type='edge')
+                    self.axes.bar_label(c, fmt='%.1f h' if self.is_time else '%.1f', label_type='edge', padding=2)
+                # increase the padding by 10% to allow the texts
+                self.axes.margins(x=0.1)
             if len(values) == 0:
                 self.axes.set_xticks([])
                 self.axes.text(0, 0, 'No data available.', ha='center', va='center', rotation=45, size=15)
