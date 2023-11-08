@@ -152,12 +152,16 @@ class CloudHandler(Plugin):
         if not user:
             user = interaction.user
         if isinstance(user, discord.Member):
-            member = user
-            name = member.display_name
-            ucid = self.bot.get_ucid_by_member(member)
+            ucid = self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await interaction.response.send_message(f"Use `/linkme` to link your account.", ephemeral=True)
+                return
+            name = user.display_name
         else:
             ucid = user
-            member, name = self.bot.get_member_or_name_by_ucid(ucid)
+            name = self.bot.get_member_or_name_by_ucid(ucid)
+            if isinstance(name, discord.Member):
+                name = name.display_name
         await interaction.response.defer()
         try:
             response = await self.get(f'stats/{ucid}')

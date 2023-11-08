@@ -133,15 +133,14 @@ class UserStatistics(Plugin):
         if not user:
             user = interaction.user
         if isinstance(user, discord.Member):
-            member = user
-            name = member.display_name
-            ucid = self.bot.get_ucid_by_member(member)
+            name = user.display_name
         else:
-            ucid = user
-            member, name = self.bot.get_member_or_name_by_ucid(ucid)
+            name = self.bot.get_member_or_name_by_ucid(user)
+            if isinstance(name, discord.Member):
+                name = name.display_name
         file = 'userstats-campaign.json' if flt.__name__ == "CampaignFilter" else 'userstats.json'
         report = PaginationReport(self.bot, interaction, self.plugin_name, file)
-        await report.render(member=member or ucid, member_name=name, period=period, server_name=None, flt=flt)
+        await report.render(member=user, member_name=name, period=period, server_name=None, flt=flt)
 
     @command(description='Displays the top players of your server(s)')
     @utils.app_has_role('DCS')
