@@ -516,9 +516,9 @@ class Scheduler(Plugin):
     @utils.app_has_role('DCS Admin')
     async def _rename(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(
-                         status=[Status.STOPPED, Status.SHUTDOWN])], new_name: str):
-        if server.status not in [Status.STOPPED, Status.SHUTDOWN]:
-            await interaction.response.send_message(f"Server {server.name} has to be stopped before renaming.",
+                         status=[Status.SHUTDOWN])], new_name: str):
+        if server.status not in [Status.SHUTDOWN]:
+            await interaction.response.send_message(f"Server {server.name} has to be shut down for renaming.",
                                                     ephemeral=True)
             return
         ephemeral = utils.get_ephemeral(interaction)
