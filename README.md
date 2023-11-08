@@ -113,7 +113,7 @@ Check out [Extensions](./extensions/README.md) for more info on how to use them.
 ## Installation
 
 ### Prerequisites
-You need to have [python 3.9](https://www.python.org/downloads/) or higher (3.11 recommended) and [PostgreSQL](https://www.postgresql.org/download/) installed.
+You need to have [Python](https://www.python.org/downloads/) 3.9 - 3.11 (recommended) and [PostgreSQL](https://www.postgresql.org/download/) installed.
 If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled.
 For autoupdate to work, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
 
