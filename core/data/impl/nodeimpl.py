@@ -293,7 +293,7 @@ class NodeImpl(Node):
     async def get_dcs_branch_and_version(self) -> Tuple[str, str]:
         with open(os.path.join(self.installation, 'autoupdate.cfg'), encoding='utf8') as cfg:
             data = json.load(cfg)
-        return data['branch'], data['version']
+        return data.get('branch', 'release'), data['version']
 
     async def update(self, warn_times: list[int]):
         async def shutdown_with_warning(server: Server):
