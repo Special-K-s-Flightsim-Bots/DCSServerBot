@@ -371,7 +371,7 @@ class UserStatistics(Plugin):
         async def send_token(token: str):
             await interaction.followup.send(f"**Your secure TOKEN is: {token}**\nTo link your user, type in the "
                                             f"following into the DCS chat of one of our servers:"
-                                            f"```{self.bot.node.config['chat_command_prefix']}linkme {token}```\n"
+                                            f"```{self.eventlistener.prefix}linkme {token}```\n"
                                             f"**The TOKEN will expire in 2 days.**", ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
