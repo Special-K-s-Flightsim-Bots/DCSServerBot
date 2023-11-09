@@ -31,7 +31,7 @@ class Tacview(Extension):
         return True
 
     async def shutdown(self) -> bool:
-        if self.locals.get('target'):
+        if self.config.get('target'):
             self.check_log.cancel()
         return await super().shutdown()
 
