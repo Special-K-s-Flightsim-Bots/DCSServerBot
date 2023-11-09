@@ -50,17 +50,27 @@ class BotService(Service):
                             assume_unsync_clock=True)
 
     async def start(self, *, reconnect: bool = True) -> None:
-        self.bot = self.init_bot()
-        await self.install_fonts()
-        await super().start()
+        try:
+            self.bot = self.init_bot()
+            await self.install_fonts()
+            await super().start()
         # cleanup the intercom channels
 #        with self.pool.connection() as conn:
 #            with conn.transaction():
 #                conn.execute("DELETE FROM intercom WHERE node = %s", (self.node.name, ))
 #                if self.node.master:
 #                    conn.execute("DELETE FROM intercom WHERE node = 'Master'")
-        async with self.bot:
-            await self.bot.start(self.locals['token'], reconnect=reconnect)
+            async with self.bot:
+                await self.bot.start(self.locals['token'], reconnect=reconnect)
+        except PermissionError as ex:
+            self.log.error("Please check the permissions for " + str(ex))
+            raise
+        except discord.HTTPException:
+            self.log.error("Error while logging in your Discord bot. Check you token!")
+            raise
+        except Exception as ex:
+            self.log.exception(ex)
+            raise
 
     async def stop(self):
         if self.bot:

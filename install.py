@@ -152,7 +152,7 @@ class Install:
                 "url": database_url
             }
         }
-        token = Prompt.ask('Please enter your discord TOKEN (see documentation)', password=True) or '<see documentation>'
+        token = Prompt.ask('Please enter your discord TOKEN (see documentation)') or '<see documentation>'
         owner = Prompt.ask('Please enter your Owner ID (right click on your discord user, "Copy User ID")')
         print("""
 We now need to setup your Discord roles and channels.
