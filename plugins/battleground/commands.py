@@ -18,6 +18,7 @@ class Battleground(Plugin):
     @app_commands.guild_only()
     @utils.app_has_role('DCS')
     async def recon(self, interaction: discord.Interaction, name: str, mgrs: str, screenshot: discord.Attachment):
+        mgrs = mgrs.replace(' ', '')
         if len(mgrs) != 15 or not mgrs[:2].isnumeric() or not mgrs[5:].isnumeric():
             await interaction.response.send_message('The second parameter needs to be a MGRS coordinate '
                                                     '(ex: 38TLN0274366889)', ephemeral=True)
