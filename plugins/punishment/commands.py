@@ -158,6 +158,30 @@ class Punishment(Plugin):
                         """, (d['weight'], d['days'], d['days'], d['days']))
                         conn.execute("DELETE FROM pu_events WHERE points = 0.0")
 
+    @command(name='punish', description='Adds punishment points to a user')
+    @utils.has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def _punish(self, interaction: discord.Interaction,
+                      server: app_commands.Transform[Server, utils.ServerTransformer],
+                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer],
+                      points: int, reason: Optional[str] = 'admin'):
+
+        ephemeral = utils.get_ephemeral(interaction)
+        if isinstance(user, discord.Member):
+            ucid = self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await interaction.response.send_message(f"User {user.display_name} is not linked.", ephemeral=ephemeral)
+                return
+        else:
+            ucid = user
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    INSERT INTO pu_events (init_id, server_name, event, points)
+                    VALUES (%s, %s, %s, %s) 
+                """, (ucid, server.name, reason, points))
+            await interaction.response.send_message(f'User punished with {points} points.', ephemeral=ephemeral)
+
     @command(description='Delete all punishment points for a given user')
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
