@@ -26,8 +26,8 @@ def get_sides(interaction: discord.Interaction, server: Server) -> list[Side]:
 
 class HighscorePlaytime(report.GraphElement):
 
-    def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int, flt: StatisticsFilter,
-               bar_labels: Optional[bool] = True):
+    async def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int,
+                     flt: StatisticsFilter, bar_labels: Optional[bool] = True):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - " \
               "s.hop_on)))) AS playtime FROM statistics s, players p, missions m WHERE p.ucid = s.player_ucid AND " \
               "s.hop_off IS NOT NULL AND s.mission_id = m.id "
@@ -68,8 +68,8 @@ class HighscorePlaytime(report.GraphElement):
 
 class HighscoreElement(report.GraphElement):
 
-    def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int, kill_type: str,
-               flt: StatisticsFilter, bar_labels: Optional[bool] = True):
+    async def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int, kill_type: str,
+                     flt: StatisticsFilter, bar_labels: Optional[bool] = True):
         sql_parts = {
             'Air Targets': 'SUM(s.kills_planes+s.kills_helicopters)',
             'Ships': 'SUM(s.kills_ships)',

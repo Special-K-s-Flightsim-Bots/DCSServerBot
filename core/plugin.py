@@ -343,12 +343,13 @@ class Plugin(commands.Cog):
         with open(old_file, 'r') as infile:
             old = json.load(infile)
         if os.path.exists(new_file):
-            new = yaml.load(Path(new_file).read_text(encoding='utf-8'))
+            all_new = yaml.load(Path(new_file).read_text(encoding='utf-8'))
             exists = True
         else:
-            new = {}
+            all_new = {}
             exists = False
         if 'configs' in old:
+            new = all_new[platform.node()] = {}
             for config in old['configs']:
                 if 'installation' in config:
                     instance = config['installation']
@@ -360,9 +361,9 @@ class Plugin(commands.Cog):
             if 'commands' in old:
                 new['commands'] = old['commands']
         else:
-            new = old
+            all_new = old
         with open(new_file, 'w') as outfile:
-            yaml.dump(new, outfile)
+            yaml.dump(all_new, outfile)
         shutil.move(old_file, BACKUP_FOLDER)
 
     def read_locals(self) -> dict:
@@ -379,7 +380,11 @@ class Plugin(commands.Cog):
         else:
             return {}
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
-        return yaml.load(Path(filename).read_text(encoding='utf-8'))
+        config = yaml.load(Path(filename).read_text(encoding='utf-8'))
+        if platform.node() in config:
+            return config[platform.node()]
+        else:
+            return config
 
     # get default and specific configs to be merged in derived implementations
     def get_base_config(self, server: Server) -> Tuple[Optional[dict], Optional[dict]]:

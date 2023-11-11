@@ -104,7 +104,7 @@ class Report:
                             signature = inspect.signature(element_class.render).parameters.keys()
                             render_args = {name: value for name, value in element_args.items() if name in signature}
                             try:
-                                await asyncio.to_thread(element_class.render, **render_args)
+                                await element_class.render(**render_args)
                             except Exception as ex:
                                 self.log.exception(ex)
                         else:

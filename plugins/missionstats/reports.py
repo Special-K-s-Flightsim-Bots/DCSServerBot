@@ -25,7 +25,7 @@ class Sorties(report.EmbedElement):
             self.sorties.loc[len(self.sorties.index)] = [flight.plane, flight.end - flight.start]
         return Flight()
 
-    def render(self, ucid: str, period: str, flt: StatisticsFilter) -> None:
+    async def render(self, ucid: str, period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT mission_id, init_type, init_cat, event, place, time FROM missionstats WHERE event IN " \
               "('S_EVENT_BIRTH', 'S_EVENT_TAKEOFF', 'S_EVENT_LAND', 'S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT')"
         self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title
@@ -79,7 +79,7 @@ class Sorties(report.EmbedElement):
 
 
 class MissionStats(report.EmbedElement):
-    def render(self, stats: dict, sql: str, mission_id: int, sides: list[Coalition]) -> None:
+    async def render(self, stats: dict, sql: str, mission_id: int, sides: list[Coalition]) -> None:
         if len(sides) == 0:
             self.add_field(name='Data can only be displayed in a private coalition channel!', value='_ _')
             return
@@ -119,7 +119,7 @@ class MissionStats(report.EmbedElement):
 
 
 class ModuleStats1(report.EmbedElement):
-    def render(self, ucid: str, module: str, period: str, flt: StatisticsFilter) -> None:
+    async def render(self, ucid: str, module: str, period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT COUNT(*) as num, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) as total, " \
               "ROUND(AVG(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on)))) AS average FROM statistics s " \
               "WHERE s.player_ucid = %(ucid)s AND s.slot = %(module)s"
@@ -135,7 +135,7 @@ class ModuleStats1(report.EmbedElement):
 
 
 class ModuleStats2(report.EmbedElement):
-    def render(self, ucid: str, module: str, period: str, flt: StatisticsFilter) -> None:
+    async def render(self, ucid: str, module: str, period: str, flt: StatisticsFilter) -> None:
         weapons = hs_ratio = ks_ratio = ''
         category = None
         with self.pool.connection() as conn:
@@ -191,7 +191,7 @@ class ModuleStats2(report.EmbedElement):
 
 
 class Refuelings(report.EmbedElement):
-    def render(self, ucid: str, period: str, flt: StatisticsFilter) -> None:
+    async def render(self, ucid: str, period: str, flt: StatisticsFilter) -> None:
         sql = "SELECT init_type, COUNT(*) FROM missionstats WHERE EVENT = 'S_EVENT_REFUELING_STOP'"
         if period:
             self.env.embed.title = flt.format(self.env.bot, period) + ' ' + self.env.embed.title

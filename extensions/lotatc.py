@@ -60,7 +60,7 @@ class LotAtc(Extension):
             version = 'n/a'
         return version
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+    async def render(self, param: Optional[dict] = None) -> dict:
         if self.locals:
             host = self.config.get('host', self.node.public_ip)
             value = f"{host}:{self.locals.get('port', 10310)}"
@@ -69,7 +69,11 @@ class LotAtc(Extension):
             red = self.locals.get('red_password', '')
             if show_passwords and (blue or red):
                 value += f"\n🔹 Pass: {blue}\n🔸 Pass: {red}"
-            embed.add_field(name='LotAtc', value=value)
+            return {
+                "name": "LotAtc",
+                "version": self.version,
+                "value": value
+            }
 
     def is_installed(self) -> bool:
         global ports

@@ -125,7 +125,7 @@ class SRS(Extension):
             version = None
         return version
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+    async def render(self, param: Optional[dict] = None) -> dict:
         if self.locals:
             host = self.config.get('host', self.node.public_ip)
             value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
@@ -136,7 +136,11 @@ class SRS(Extension):
                 red = self.locals['External AWACS Mode Settings']['EXTERNAL_AWACS_MODE_RED_PASSWORD']
                 if blue or red:
                     value += f'\n🔹 Pass: {blue}\n🔸 Pass: {red}'
-            embed.add_field(name="SRS (online)" if self.is_running() else "SRS (offline)", value=value)
+            return {
+                "name": "SRS (online)" if self.is_running() else "SRS (offline)",
+                "version": self.version,
+                "value": value
+            }
 
     def is_installed(self) -> bool:
         global ports

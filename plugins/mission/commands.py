@@ -45,7 +45,7 @@ class Mission(Plugin):
     async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Mission ...')
         if days > -1:
-            conn.execute(f"DELETE FROM missions WHERE mission_end < (DATE(NOW()) - interval '{days} days')")
+            conn.execute(f"DELETE FROM missions WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')")
         self.log.debug('Mission pruned.')
 
     # New command group "/mission"

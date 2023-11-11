@@ -532,3 +532,10 @@ class ServerImpl(Server):
         }
         with open('config/servers.yaml', 'w') as outfile:
             yaml.dump(config, outfile)
+
+    async def render_extensions(self) -> list[dict]:
+        ret: list[dict] = []
+        for ext in self.extensions.values():
+            with suppress(Exception):
+                ret.append(await ext.render())
+        return ret

@@ -81,12 +81,16 @@ class Lardoon(Extension):
             return False
         return True
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+    async def render(self, param: Optional[dict] = None) -> dict:
         if 'url' in self.config:
             value = self.config['url']
         else:
             value = 'enabled'
-        embed.add_field(name='Lardoon', value=value)
+        return {
+            "name": "Lardoon",
+            "version": self.version,
+            "value": value
+        }
 
     @tasks.loop(minutes=1.0)
     async def schedule(self):

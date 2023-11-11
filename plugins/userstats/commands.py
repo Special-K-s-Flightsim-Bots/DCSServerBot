@@ -398,7 +398,7 @@ class UserStatistics(Plugin):
                                 break
                         elif not await utils.yn_question(interaction,
                                                          "You already have a linked DCS account!\n"
-                                                         "Are you sure you want to link a second account? "
+                                                         "Are you sure you want to re-link your account? "
                                                          "(Ex: Switched from Steam to Standalone)", ephemeral=True):
                             return
                     # in the very unlikely event that we have generated the very same random number twice

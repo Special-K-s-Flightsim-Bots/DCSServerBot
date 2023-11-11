@@ -53,7 +53,7 @@ class RestAPI(Plugin):
                            CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
-                    AND hop_on > NOW() - interval '1 month' 
+                    AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
                     GROUP BY 1 ORDER BY 2 DESC LIMIT 10
                 """).fetchall()
 
@@ -65,7 +65,7 @@ class RestAPI(Plugin):
                            CASE WHEN SUM(deaths) = 0 THEN SUM(pvp) ELSE SUM(pvp)/SUM(deaths::DECIMAL) END AS "AAKDR" 
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
-                    AND hop_on > NOW() - interval '1 month' 
+                    AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
                     GROUP BY 1 ORDER BY 4 DESC LIMIT 10
                 """).fetchall()
 
@@ -78,7 +78,7 @@ class RestAPI(Plugin):
                         p.skill_mu AS "TrueSkill" 
                     FROM statistics s, players p 
                     WHERE s.player_ucid = p.ucid 
-                    AND hop_on > NOW() - interval '1 month' 
+                    AND hop_on > (now() AT TIME ZONE 'utc') - interval '1 month' 
                     GROUP BY 1 ORDER BY 4 DESC LIMIT 10
                 """).fetchall()
 

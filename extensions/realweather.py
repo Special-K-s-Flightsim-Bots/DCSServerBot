@@ -57,8 +57,12 @@ class RealWeather(Extension):
         os.remove(tmpname)
         return new_filename, True
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        embed.add_field(name='RealWeather', value='enabled')
+    async def render(self, param: Optional[dict] = None) -> dict:
+        return {
+            "name": "RealWeather",
+            "version": self.version,
+            "value": "enabled"
+        }
 
     def is_installed(self) -> bool:
         if not self.config.get('enabled', True):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import platform
 
 from abc import ABC
 from pathlib import Path
@@ -48,7 +49,11 @@ class Service(ABC):
         if not os.path.exists(filename):
             return {}
         self.log.debug(f'  - Reading service configuration from {filename} ...')
-        return yaml.load(Path(filename).read_text(encoding='utf-8'))
+        config = yaml.load(Path(filename).read_text(encoding='utf-8'))
+        if platform.node() in config:
+            return config[platform.node()]
+        else:
+            return config
 
     def get_config(self, server: Optional[Server] = None) -> dict:
         if not server:

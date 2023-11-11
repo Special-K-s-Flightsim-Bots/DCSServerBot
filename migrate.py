@@ -1,6 +1,3 @@
-from contextlib import suppress
-from copy import deepcopy
-
 import core
 import json
 import os
@@ -9,6 +6,8 @@ import shutil
 import traceback
 
 from configparser import ConfigParser
+from contextlib import suppress
+from copy import deepcopy
 from core import utils, DEFAULT_TAG, BACKUP_FOLDER
 from pathlib import Path
 from typing import Union
@@ -28,10 +27,10 @@ def post_migrate_admin():
         data = yaml.load(infile)
     config = False
     remove = -1
-    for instance in data:
+    for instance in data[platform.node()]:
         if instance == 'commands':
             continue
-        for idx, download in enumerate(data[instance]['downloads']):
+        for idx, download in enumerate(data[platform.node()][instance]['downloads']):
             if download['label'] == 'DCSServerBot Logs':
                 download['directory'] = 'logs'
                 download['pattern'] = 'dcssb-*.log*'
@@ -62,7 +61,7 @@ def post_migrate_admin():
 def post_migrate_music():
     with open('config/plugins/music.yaml') as infile:
         data = yaml.load(infile)
-    for name, instance in data.items():
+    for name, instance in data[platform.node()].items():
         if name == 'commands':
             continue
         instance['radios'] = {
@@ -81,10 +80,11 @@ def post_migrate_greenieboard():
         data = yaml.load(infile)
     if os.path.exists('config/services/cleanup.yaml'):
         with open('config/services/cleanup.yaml') as infile:
-            cleanup = yaml.load(infile)
+            cleanups = yaml.load(infile)
     else:
-        cleanup = {}
-    for name, instance in data.items():
+        cleanups = {}
+    cleanup = cleanups[platform.node] = {}
+    for name, instance in data[platform.node()].items():
         if 'Moose.AIRBOSS' in instance and instance['Moose.AIRBOSS'].get('delete_after'):
             if name not in cleanup:
                 cleanup[name] = {}
@@ -110,7 +110,7 @@ def post_migrate_greenieboard():
     if cleanup:
 
         with open('config/services/cleanup.yaml', 'w') as outfile:
-            yaml.dump(cleanup, outfile)
+            yaml.dump(cleanups, outfile)
         with open('config/plugins/greenieboard.yaml', 'w') as outfile:
             yaml.dump(data, outfile)
 
@@ -176,17 +176,24 @@ def migrate():
                     print(f"- Migrated config/{plugin_name}.json to config/plugins/{plugin_name}.yaml")
 
         if os.path.exists('config/plugins/scheduler.yaml'):
-            scheduler = yaml.load(Path('config/plugins/scheduler.yaml').read_text(encoding='utf-8'))
+            all_schedulers = yaml.load(Path('config/plugins/scheduler.yaml').read_text(encoding='utf-8'))
         else:
-            scheduler = {}
+            all_schedulers = {}
+        scheduler = all_schedulers[platform.node()] = {}
         if os.path.exists('config/presets.yaml'):
             presets = yaml.load(Path('config/presets.yaml').read_text(encoding='utf-8'))
         else:
             presets = {}
         if os.path.exists('config/plugins/userstats.yaml'):
-            userstats = yaml.load(Path('config/plugins/userstats.yaml').read_text(encoding='utf-8'))
+            all_userstats = yaml.load(Path('config/plugins/userstats.yaml').read_text(encoding='utf-8'))
         else:
-            userstats = {}
+            all_userstats = {}
+        userstats = all_userstats[platform.node()] = {}
+        if os.path.exists('config/plugins/missionstats.yaml'):
+            all_missionstats = yaml.load(Path('config/plugins/missionstats.yaml').read_text(encoding='utf-8'))
+        else:
+            all_missionstats = {}
+        missionstats = all_missionstats[platform.node()] = {}
         # If we are not the first node to be migrated
         if os.path.exists('config/nodes.yaml'):
             nodes = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
@@ -294,7 +301,6 @@ def migrate():
         u['wipe_stats_on_leave'] = cfg['BOT'].getboolean('WIPE_STATS_ON_LEAVE')
 
         nodes[platform.node()]['instances'] = {}
-        missionstats = {}
         for server_name, instance in utils.findDCSInstances():
             if instance in cfg:
                 i = nodes[platform.node()]['instances'][instance] = {
@@ -431,15 +437,19 @@ def migrate():
         # write plugin configuration
         if scheduler:
             with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
-                yaml.dump(scheduler, out)
+                yaml.dump(all_schedulers, out)
                 print("- Created config/plugins/scheduler.yaml")
             if presets:
                 with open('config/presets.yaml', 'w', encoding='utf-8') as out:
                     yaml.dump(presets, out)
                 print("- Created config/presets.yaml")
+        if userstats:
+            with open('config/plugins/userstats.yaml', 'w', encoding='utf-8') as out:
+                yaml.dump(all_userstats, out)
+            print("- Created config/plugins/missionstats.yaml")
         if missionstats:
             with open('config/plugins/missionstats.yaml', 'w', encoding='utf-8') as out:
-                yaml.dump(missionstats, out)
+                yaml.dump(all_missionstats, out)
             print("- Created config/plugins/missionstats.yaml")
         # shutil.move('config/default.ini', BACKUP_FOLDER)
         shutil.move('config/dcsserverbot.ini', BACKUP_FOLDER)

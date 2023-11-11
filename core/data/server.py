@@ -380,3 +380,6 @@ class Server(DataObject):
 
     async def persist_settings(self):
         raise NotImplemented()
+
+    async def render_extensions(self) -> list:
+        raise NotImplemented()

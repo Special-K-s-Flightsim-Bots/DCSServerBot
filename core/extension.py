@@ -62,7 +62,7 @@ class Extension(ABC):
     def version(self) -> Optional[str]:
         return None
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+    async def render(self, param: Optional[dict] = None) -> dict:
         raise NotImplementedError()
 
     def is_installed(self) -> bool:

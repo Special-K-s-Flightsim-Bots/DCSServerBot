@@ -4,7 +4,7 @@ from core import report, utils, const
 
 
 class Main(report.EmbedElement):
-    def render(self, airbase: dict, data: dict):
+    async def render(self, airbase: dict, data: dict):
         d, m, s, f = utils.dd_to_dms(airbase['lat'])
         lat = ('N' if d > 0 else 'S') + '{:02d}°{:02d}\'{:02d}"'.format(int(abs(d)), int(abs(m)), int(abs(s)))
         d, m, s, f = utils.dd_to_dms(airbase['lng'])

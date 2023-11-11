@@ -2,7 +2,7 @@ from core import report, Server, Side, Coalition
 
 
 class Main(report.EmbedElement):
-    def render(self, server: Server, sides: list[Coalition]):
+    async def render(self, server: Server, sides: list[Coalition]):
         players = server.get_active_players()
         coalitions = {
             Side.SPECTATOR: {"names": [], "units": []},

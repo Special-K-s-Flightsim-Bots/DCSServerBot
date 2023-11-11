@@ -106,7 +106,7 @@ class Tacview(Extension):
             version = 'n/a'
         return version
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+    async def render(self, param: Optional[dict] = None) -> dict:
         if not self.locals:
             return
         name = 'Tacview'
@@ -128,7 +128,11 @@ class Tacview(Extension):
                 value += f"Delay: {utils.format_time(self.locals['tacviewPlaybackDelay'])}"
             if len(value) == 0:
                 value = 'enabled'
-        embed.add_field(name=name, value=value)
+        return {
+            "name": name,
+            "version": self.version,
+            "value": value
+        }
 
     def is_installed(self) -> bool:
         global rtt_ports, rcp_ports

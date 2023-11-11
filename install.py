@@ -281,7 +281,8 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
 
             print(f"\n4. DCS Server Setup")
             servers = {}
-            scheduler = {}
+            schedulers = {}
+            scheduler = schedulers[platform.node()] = {}
             node['instances'] = {}
             bot_port = 6666
             srs_port = 5002
@@ -378,7 +379,7 @@ DCSServerBot needs the following permissions on them to work:
             if scheduler:
                 os.makedirs('config/plugins', exist_ok=True)
                 with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
-                    yaml.dump(scheduler, out)
+                    yaml.dump(schedulers, out)
                     print("- Created config/plugins/scheduler.yaml")
                 self.log.info("./config/plugins/scheduler.yaml written.")
             print("""
