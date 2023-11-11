@@ -343,6 +343,15 @@ class UserStatisticsEventListener(EventListener):
                         player.member = self.bot.guilds[0].get_member(discord_id)
                         player.verified = True
                         cursor.execute('DELETE FROM players WHERE ucid = %s', (token,))
+                        # check if there are any further verified mappings and if yes, update the stats
+                        row = cursor.execute(
+                            'SELECT ucid FROM players WHERE discord_id = %s AND manual IS True AND ucid != %s',
+                            (discord_id, player.ucid)).fetchone()
+                        if row:
+                            cursor.execute('UPDATE bans SET ucid = %s WHERE ucid = %s', (player.ucid, row[0]))
+                            cursor.execute('UPDATE pu_events SET init_id = %s WHERE init_id = %s',
+                                           (player.ucid, row[0]))
+                            # TODO: either proper renaming of all tables or unique user ID handling
                         await self.bot.audit(
                             f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
                             user=player.member)

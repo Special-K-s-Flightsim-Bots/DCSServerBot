@@ -175,8 +175,22 @@ class UserStatistics(Plugin):
                    ucid: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
                        sel_type=PlayerType.PLAYER, linked=False)]
                    ):
+        ephemeral = utils.get_ephemeral(interaction)
+        _member = self.bot.get_member_by_ucid(ucid)
+        if _member and not await utils.yn_question(interaction, f"Member {_member.display_name} is linked to this UCID "
+                                                                f"already. Do you want to relink?",
+                                                   ephemeral=ephemeral):
+            return
+        _ucid = self.bot.get_ucid_by_member(member)
+        if _ucid and not await utils.yn_question(interaction, f"Member {member.display_name} is linked to another UCID "
+                                                              f"already. Do you want to relink?",
+                                                 ephemeral=ephemeral):
+            return
         with self.pool.connection() as conn:
             with conn.transaction():
+                # delete an old mapping, if one existed
+                conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s',
+                             (member.id, ))
                 conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
                 # delete a token, if one existed
                 conn.execute('DELETE FROM players WHERE discord_id = %s AND LENGTH(ucid) = 4', (member.id, ))
@@ -375,32 +389,21 @@ class UserStatistics(Plugin):
                                             f"**The TOKEN will expire in 2 days.**", ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
+        member = DataObjectFactory().new('Member', node=self.bot.node, member=interaction.user)
+        if (utils.is_ucid(member.ucid) and member.verified and
+                not await utils.yn_question(interaction,
+                                            "You already have a verified DCS account!\n"
+                                            "Are you sure you want to re-link your account? "
+                                            "(Ex: Switched from Steam to Standalone)", ephemeral=True)):
+            await interaction.followup.send('Aborted.')
+            return
+        elif member.ucid and not utils.is_ucid(member.ucid):
+            await send_token(member.ucid)
+            return
+
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
-                    for row in cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s ORDER BY manual',
-                                              (interaction.user.id, )).fetchall():
-                        if len(row[0]) == 4:
-                            await send_token(row[0])
-                            return
-                        elif row[1] is False:
-                            if not await utils.yn_question(interaction, 'Automatic user mapping found.\n'
-                                                                        'Do you want to re-link your user?',
-                                                           ephemeral=True):
-                                return
-                            else:
-                                for server in self.bot.servers.values():
-                                    player = server.get_player(ucid=row[0])
-                                    if player:
-                                        player.member = None
-                                        continue
-                                cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
-                                break
-                        elif not await utils.yn_question(interaction,
-                                                         "You already have a linked DCS account!\n"
-                                                         "Are you sure you want to re-link your account? "
-                                                         "(Ex: Switched from Steam to Standalone)", ephemeral=True):
-                            return
                     # in the very unlikely event that we have generated the very same random number twice
                     while True:
                         try:
@@ -431,7 +434,7 @@ class UserStatistics(Plugin):
             await interaction.response.send_message(
                 f'You are not allowed to delete statistics of user {user.display_name}!')
             return
-        member = DataObjectFactory().new('Member', bot=self.bot, member=user)
+        member = DataObjectFactory().new('Member', node=self.bot.node, member=user)
         if not member.verified:
             await interaction.response.send_message(
                 f"User {user.display_name} has non-verified links. Statistics can't be deleted.", ephemeral=True)
