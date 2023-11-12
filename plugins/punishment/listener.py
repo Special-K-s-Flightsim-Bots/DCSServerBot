@@ -87,6 +87,8 @@ class PunishmentEventListener(EventListener):
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict):
+        if data['eventName'] not in ['friendly_fire', 'kill']:
+            return
         # check if we have the Competitive plugin enabled and a match is on
         competitive: Optional[Competitive] = self.bot.cogs.get('Competitive')
         if competitive:

@@ -1,7 +1,7 @@
 import psycopg
 
 from contextlib import closing
-from core import EventListener, Plugin, Status, Server, Side, Player, event, chat_command
+from core import EventListener, Plugin, Status, Server, Side, Player, event, chat_command, DataObjectFactory
 from typing import Union
 
 
@@ -333,26 +333,30 @@ class UserStatisticsEventListener(EventListener):
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
-                    if cursor.rowcount == 0:
+                    row = cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,)).fetchone()
+                    if not row:
                         player.sendChatMessage('Invalid token.')
                         await self.bot.get_admin_channel(server).send(
                             f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
                     else:
-                        discord_id = cursor.fetchone()[0]
-                        player.member = self.bot.guilds[0].get_member(discord_id)
-                        player.verified = True
+                        discord_id = row[0]
+                        member = DataObjectFactory().new('Member', node=self.bot.node,
+                                                         member=self.bot.guilds[0].get_member(discord_id))
+
+                        old_ucid = member.ucid if member.verified else None
+                        member.ucid = player.ucid
+                        member.verified = True
                         cursor.execute('DELETE FROM players WHERE ucid = %s', (token,))
-                        # check if there are any further verified mappings and if yes, update the stats
-                        row = cursor.execute(
-                            'SELECT ucid FROM players WHERE discord_id = %s AND manual IS True AND ucid != %s',
-                            (discord_id, player.ucid)).fetchone()
-                        if row:
-                            cursor.execute('UPDATE bans SET ucid = %s WHERE ucid = %s', (player.ucid, row[0]))
-                            cursor.execute('UPDATE pu_events SET init_id = %s WHERE init_id = %s',
-                                           (player.ucid, row[0]))
-                            # TODO: either proper renaming of all tables or unique user ID handling
-                        await self.bot.audit(
-                            f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
-                            user=player.member)
-                        player.sendChatMessage('Your user has been linked!')
+                        # make sure we update all tables with the new UCID
+                        if old_ucid != player.ucid:
+                            for plugin in self.bot.cogs.values():  # type: Plugin
+                                await plugin.update_ucid(conn, old_ucid, player.ucid)
+                            await self.bot.audit(f'changed UCID from {old_ucid} to {player.ucid}.', user=player.member)
+                            player.sendChatMessage('Your account has been updated.')
+                        elif not old_ucid:
+                            await self.bot.audit(
+                                f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
+                                user=player.member)
+                            player.sendChatMessage('Your user has been linked.')
+                        else:
+                            player.sendChatMessage('Your user was linked already!')

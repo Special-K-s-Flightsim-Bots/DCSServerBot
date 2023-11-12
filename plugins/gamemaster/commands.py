@@ -30,7 +30,7 @@ class GameMaster(Plugin):
                     server.settings['advanced'] = advanced
         return init
 
-    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Gamemaster ...')
         if days > -1:
             conn.execute(f"DELETE FROM campaigns WHERE stop < (DATE(NOW()) - interval '{days} days')")
@@ -38,6 +38,9 @@ class GameMaster(Plugin):
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         conn.execute('UPDATE campaigns_servers SET server_name = %s WHERE server_name = %s', (new_name, old_name))
+
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute('UPDATE coalitions SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     @command(description='Send a chat message to a running DCS instance')
     @app_commands.guild_only()

@@ -56,7 +56,7 @@ class UserStatistics(Plugin):
         self.expire_token.cancel()
         await super().cog_unload()
 
-    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Userstats ...')
         if ucids:
             for ucid in ucids:
@@ -64,6 +64,9 @@ class UserStatistics(Plugin):
         elif days > -1:
             conn.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Userstats pruned.')
+
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute("UPDATE statistics SET player_ucid = %s WHERE player_ucid = %s", (new_ucid, old_ucid))
 
     @command(description='Deletes the statistics of a server')
     @app_commands.guild_only()
@@ -444,15 +447,9 @@ class UserStatistics(Plugin):
                                                 f'"{user.display_name}".\n\nAre you sure?', ephemeral=ephemeral):
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    for ucid in member.ucids:
-                        # TODO: change that to prune()-calls
-                        conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
-                        conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid, ))
-                        conn.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))
-                        if 'greenieboard' in self.bot.node.plugins:
-                            conn.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
-                    conn.commit()
-                await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.', 
+                    for plugin in self.bot.cogs.values():  # type: Plugin
+                        await plugin.prune(conn, ucids=[member.ucid])
+                await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.',
                                                 ephemeral=ephemeral)
 
     @tasks.loop(hours=1)

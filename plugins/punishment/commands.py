@@ -36,14 +36,9 @@ class Punishment(Plugin):
         conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
         conn.execute('UPDATE pu_events_sdw SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
-        self.log.debug('Pruning Punishment ...')
-        if ucids:
-            for ucid in ucids:
-                conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid,))
-        elif days > -1:
-            conn.execute(f"DELETE FROM pu_events WHERE time < (DATE(NOW()) - interval '{days} days')")
-        self.log.debug('Punishment pruned.')
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute("UPDATE pu_events SET init_id = %s WHERE init_id = %s", (new_ucid, old_ucid))
+        conn.execute("UPDATE pu_events SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
 
     async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: Optional[float] = None):
         player: Player = server.get_player(ucid=ucid, active=True)

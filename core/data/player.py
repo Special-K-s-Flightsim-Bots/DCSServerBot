@@ -99,7 +99,7 @@ class Player(DataObject):
                 'command': 'uploadUserRoles',
                 'id': self.id,
                 'ucid': self.ucid,
-                'roles': [x.name for x in self._member.roles]
+                'roles': [x.name for x in self._member.roles] if self._member else []
             })
 
 

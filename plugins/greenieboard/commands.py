@@ -1,4 +1,5 @@
 import discord
+import psycopg
 import shutil
 
 from contextlib import closing
@@ -39,7 +40,7 @@ class GreenieBoard(Plugin):
             self._config[server.instance.name] = default | specific
         return self._config[server.instance.name]
 
-    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Greenieboard ...')
         if ucids:
             for ucid in ucids:
@@ -47,6 +48,9 @@ class GreenieBoard(Plugin):
         elif days > -1:
             conn.execute(f"DELETE FROM greenieboard WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Greenieboard pruned.')
+
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute('UPDATE greenieboard SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     # New command group "/trape"
     traps = Group(name="traps", description="Commands to display and manage carrier traps")

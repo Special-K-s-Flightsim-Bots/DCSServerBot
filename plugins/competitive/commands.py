@@ -1,13 +1,13 @@
-from contextlib import closing
-from typing import Optional, Union
-
 import discord
+import psycopg
+
+from contextlib import closing
+from core import Plugin, command, utils
 from discord import app_commands
+from plugins.competitive import rating
 from psycopg.rows import dict_row
 from trueskill import Rating
-
-from core import Plugin, command, utils
-from plugins.competitive import rating
+from typing import Optional, Union
 from services import DCSServerBot
 
 
@@ -58,6 +58,9 @@ class Competitive(Plugin):
                                 """, (row[0], skill.mu, skill.sigma))
             return True
         return False
+
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute('UPDATE trueskill SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     @command(description='Display your TrueSkill:tm: rating')
     @utils.app_has_role('DCS')

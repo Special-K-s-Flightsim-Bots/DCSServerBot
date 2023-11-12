@@ -445,6 +445,10 @@ class Plugin(commands.Cog):
         # this function has to be implemented in your own plugins, if a server rename takes place
         ...
 
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        # this function has to be implemented in your own plugins, if the ucid of a user changed (steam <=> standalone)
+        ...
+
     async def on_ready(self) -> None:
         ...
 

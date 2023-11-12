@@ -125,11 +125,11 @@ class Footer(report.EmbedElement):
         footer = ''
         if isinstance(member, discord.Member):
             _member: Member = DataObjectFactory().new('Member', node=self.bot.node, member=member)
-            if len(_member.ucids):
-                footer += '🔀 Unlink all DCS players from this user\n'
+            if len(_member.ucid):
+                footer += '🔀 Unlink their DCS-account\n'
                 if not _member.verified:
-                    footer += '💯 Verify this DCS link\n'
-        footer += '✅ Unban this user\n' if banned else '⛔ Ban this user (DCS only)\n'
+                    footer += '💯 Verify their DCS-link\n'
+        footer += '✅ Unban them\n' if banned else '⛔ Ban them (DCS only)\n'
         if player:
-            footer += '⏏️ Kick this user from the active server'
+            footer += f'⏏️ Kick them from {player.server.name}'
         self.embed.set_footer(text=footer)

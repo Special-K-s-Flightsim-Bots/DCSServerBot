@@ -1,4 +1,5 @@
 import discord
+import psycopg
 
 from contextlib import closing
 from discord import app_commands, SelectOption
@@ -14,13 +15,17 @@ from .player import CreditPlayer
 
 class CreditSystem(Plugin):
 
-    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Creditsystem ...')
         if ucids:
             for ucid in ucids:
                 conn.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))
                 conn.execute('DELETE FROM credits_log WHERE player_ucid = %s', (ucid,))
         self.log.debug('Creditsystem pruned.')
+
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute('UPDATE credits SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
+        conn.execute('UPDATE credits_log SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
 
     def get_credits(self, ucid: str) -> list[dict]:
         with self.pool.connection() as conn:

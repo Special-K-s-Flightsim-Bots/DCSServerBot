@@ -26,7 +26,8 @@ class Member(DataObject):
             row = conn.execute("""
                 SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, manual 
                 FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
-                WHERE p.discord_id = %s AND COALESCE(b.banned_until, NOW()) >= NOW()
+                WHERE p.discord_id = %s AND p.name IS NOT NULL AND COALESCE(b.banned_until, NOW()) >= NOW()
+                ORDER BY manual DESC LIMIT 1
             """, (self.member.id, )).fetchone()
             self.ucid = row[0]
             self.banned = row[1] is True

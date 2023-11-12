@@ -48,6 +48,11 @@ class Mission(Plugin):
             conn.execute(f"DELETE FROM missions WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')")
         self.log.debug('Mission pruned.')
 
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute("""
+            UPDATE bans SET ucid = %s WHERE ucid = %s AND NOT EXISTS (SELECT 1 FROM bans WHERE ucid = %s)
+        """, (new_ucid, old_ucid, new_ucid))
+
     # New command group "/mission"
     mission = Group(name="mission", description="Commands to manage a DCS mission")
 
