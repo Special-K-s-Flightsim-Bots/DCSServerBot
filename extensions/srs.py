@@ -7,14 +7,14 @@ import ssl
 import sys
 
 from discord.ext import tasks
+from configparser import RawConfigParser
+from core import Extension, utils, Server
+from typing import Optional
 
 if sys.platform == 'win32':
     import win32api
     import win32con
 
-from configparser import RawConfigParser
-from core import Extension, utils, Server
-from typing import Optional
 
 ports: dict[int, str] = dict()
 
