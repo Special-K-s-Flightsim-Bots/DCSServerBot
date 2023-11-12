@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core import DCSServerBot
     from discord import Embed
     from discord.ui import View
     from matplotlib.figure import Figure
+    from services import DCSServerBot
 
 __all__ = ["ReportEnv"]
 

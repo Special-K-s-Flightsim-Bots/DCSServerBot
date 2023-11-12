@@ -1,6 +1,5 @@
+from core import Extension
 from typing import Optional
-
-from core import Extension, report
 
 
 class VoiceChat(Extension):

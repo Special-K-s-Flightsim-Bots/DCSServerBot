@@ -1,4 +1,3 @@
-from contextlib import suppress
 from core import const, report, Status, Server, utils, ServiceRegistry
 from datetime import datetime, timedelta
 from typing import Optional

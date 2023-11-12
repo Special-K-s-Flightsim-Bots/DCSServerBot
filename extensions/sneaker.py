@@ -7,7 +7,7 @@ if sys.platform == 'win32':
     import win32api
 
 from typing import Optional, cast
-from core import Extension, report, Status, ServiceRegistry, Server
+from core import Extension, Status, ServiceRegistry, Server
 from services import ServiceBus
 
 process: Optional[subprocess.Popen] = None

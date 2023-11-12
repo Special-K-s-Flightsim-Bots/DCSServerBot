@@ -5,7 +5,7 @@ import sys
 if sys.platform == 'win32':
     import win32api
 
-from core import Extension, report, Server
+from core import Extension, Server
 from discord.ext import tasks
 from extensions import TACVIEW_DEFAULT_DIR
 from typing import Optional

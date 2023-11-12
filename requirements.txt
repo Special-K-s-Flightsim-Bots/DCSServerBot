@@ -13,7 +13,7 @@ rich==13.6.0
 eyeD3==0.9.7
 certifi==2023.7.22
 fastapi==0.104.1
-uvicorn==0.23.2
+uvicorn==0.24.0.post1
 python-multipart==0.0.6
 pypiwin32==223; sys_platform == 'win32'
 pywin32==306; sys_platform == 'win32'

@@ -1,6 +1,4 @@
 import asyncio
-from contextlib import closing
-
 import discord
 import os
 import psycopg

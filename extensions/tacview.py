@@ -6,7 +6,7 @@ import sys
 if sys.platform == 'win32':
     import win32api
 
-from core import Extension, report, utils, ServiceRegistry, Server
+from core import Extension, utils, ServiceRegistry, Server
 from discord.ext import tasks
 from services import ServiceBus
 from typing import Optional, cast

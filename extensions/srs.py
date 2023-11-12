@@ -13,7 +13,7 @@ if sys.platform == 'win32':
     import win32con
 
 from configparser import RawConfigParser
-from core import Extension, utils, report, Server
+from core import Extension, utils, Server
 from typing import Optional
 
 ports: dict[int, str] = dict()

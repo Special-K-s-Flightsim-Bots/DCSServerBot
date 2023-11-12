@@ -1,7 +1,7 @@
 import os.path
 import shutil
 
-from core import Extension, report
+from core import Extension
 from typing import Optional, Union, Tuple
 
 

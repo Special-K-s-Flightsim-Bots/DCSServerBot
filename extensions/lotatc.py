@@ -4,7 +4,7 @@ import sys
 if sys.platform == 'win32':
     import win32api
 
-from core import Extension, report
+from core import Extension
 from typing import Any, Optional, TextIO
 
 ports: dict[int, str] = dict()

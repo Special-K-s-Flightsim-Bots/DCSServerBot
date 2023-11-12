@@ -30,7 +30,7 @@ class LSORating(report.EmbedElement):
         self.add_field(name="LSO Grade: {}".format(landing['grade'].replace('_', '\\_')), value=grade, inline=False)
         self.add_field(name="LSO Comment", value=comment.replace('_', '\\_'), inline=False)
 
-        report.Ruler(self.env).render(ruler_length=28)
+        await report.Ruler(self.env).render(ruler_length=28)
         # remove unnecessary blanks
         distance_marks = list(DISTANCE_MARKS.keys())
         elements = []

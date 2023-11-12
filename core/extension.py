@@ -1,6 +1,5 @@
 from __future__ import annotations
 from abc import ABC
-from core import report
 from typing import Optional, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:

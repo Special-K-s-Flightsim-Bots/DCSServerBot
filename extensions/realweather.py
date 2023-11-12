@@ -7,7 +7,7 @@ import sys
 if sys.platform == 'win32':
     import win32api
 
-from core import Extension, report, MizFile, utils
+from core import Extension, MizFile, utils
 from typing import Optional, Tuple
 
 
