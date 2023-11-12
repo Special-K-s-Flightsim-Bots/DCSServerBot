@@ -74,13 +74,15 @@ class LotAtc(Extension):
                 "version": self.version,
                 "value": value
             }
+        else:
+            return {}
 
     def is_installed(self) -> bool:
         global ports
 
-        if not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/bin/lotatc.dll')):
-            return False
-        if not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/config.lua')):
+        if (not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/bin/lotatc.dll')) or
+                not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/config.lua'))):
+            self.log.error(f"  => {self.server.name}: Can't load extension, LotAtc not correctly installed.")
             return False
         port = self.locals.get('port', 10310)
         if port in ports and ports[port] != self.server.name:
