@@ -380,11 +380,7 @@ class Plugin(commands.Cog):
         else:
             return {}
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
-        config = yaml.load(Path(filename).read_text(encoding='utf-8'))
-        if platform.node() in config:
-            return config[platform.node()]
-        else:
-            return config
+        return yaml.load(Path(filename).read_text(encoding='utf-8'))
 
     # get default and specific configs to be merged in derived implementations
     def get_base_config(self, server: Server) -> Tuple[Optional[dict], Optional[dict]]:
@@ -436,10 +432,12 @@ class Plugin(commands.Cog):
                     return plugin.get_config(server, use_cache=use_cache)
         if not server:
             return self.locals.get(DEFAULT_TAG, {})
-        if server.instance.name not in self._config or not use_cache:
+        if server.node.name not in self._config:
+            self._config[server.node.name] = {}
+        if server.instance.name not in self._config[server.node.name] or not use_cache:
             default, specific = self.get_base_config(server)
-            self._config[server.instance.name] = default | specific
-        return self._config[server.instance.name]
+            self._config[server.node.name][server.instance.name] = default | specific
+        return self._config[server.node.name][server.instance.name]
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str) -> None:
         # this function has to be implemented in your own plugins, if a server rename takes place

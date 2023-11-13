@@ -49,19 +49,17 @@ class Service(ABC):
         if not os.path.exists(filename):
             return {}
         self.log.debug(f'  - Reading service configuration from {filename} ...')
-        config = yaml.load(Path(filename).read_text(encoding='utf-8'))
-        if platform.node() in config:
-            return config[platform.node()]
-        else:
-            return config
+        return yaml.load(Path(filename).read_text(encoding='utf-8'))
 
     def get_config(self, server: Optional[Server] = None) -> dict:
         if not server:
             return self.locals.get(DEFAULT_TAG)
-        elif server.instance.name not in self._config:
-            self._config[server.instance.name] = (self.locals.get(DEFAULT_TAG, {}) |
-                                                  self.locals.get(server.instance.name, {}))
-        return self._config[server.instance.name]
+        if server.node.name not in self._config:
+            self._config[server.node.name] = {}
+        if server.instance.name not in self._config[server.node.name]:
+            self._config[server.node.name][server.instance.name] = (self.locals.get(DEFAULT_TAG, {}) |
+                                                                    self.locals.get(server.instance.name, {}))
+        return self._config[server.node.name][server.instance.name]
 
 
 class ServiceInstallationError(Exception):

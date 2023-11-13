@@ -31,14 +31,16 @@ class GreenieBoard(Plugin):
             return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
         if not server:
             return self.locals.get(DEFAULT_TAG, {})
-        if server.instance.name not in self._config:
+        if server.node.name not in self._config:
+            self._config[server.node.name] = {}
+        if server.instance.name not in self._config[server.node.name] or not use_cache:
             default, specific = self.get_base_config(server)
             if 'persistent_board' in default:
                 del default['persistent_board']
             if 'persistent_channel' in default:
                 del default['persistent_channel']
-            self._config[server.instance.name] = default | specific
-        return self._config[server.instance.name]
+            self._config[server.node.name][server.instance.name] = default | specific
+        return self._config[server.node.name][server.instance.name]
 
     async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Greenieboard ...')
