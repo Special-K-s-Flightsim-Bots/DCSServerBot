@@ -7,6 +7,7 @@ import os
 import re
 import string
 import unicodedata
+
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
 
@@ -240,6 +241,7 @@ class SettingsDict(dict):
         self.path = path
         self.root = root
         self.mtime = 0
+        self.obj = obj
         self.log = obj.log
         self.read_file()
 
@@ -260,6 +262,16 @@ class SettingsDict(dict):
         if data:
             self.clear()
             self.update(data)
+            if self.obj.__class__.__name__ == 'ServerImpl' and not self.obj.node.master:
+                msg = {
+                    "command": "rpc",
+                    "object": "Server",
+                    "server_name": self.obj.name,
+                    "params": {
+                        "settings": self
+                    }
+                }
+                self.obj.bus.send_to_node(msg, node=self.obj.node)
 
     def write_file(self):
         if self.path.lower().endswith('.lua'):

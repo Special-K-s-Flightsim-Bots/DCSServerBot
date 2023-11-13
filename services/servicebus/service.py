@@ -526,13 +526,6 @@ class ServiceBus(Service):
                     self.log.debug(
                         f"Command {data['command']} for unregistered server {server_name} received, ignoring.")
                     return
-                if 'channel' in data and data['channel'].startswith('sync-'):
-                    if data['channel'] in server.listeners:
-                        f = server.listeners[data['channel']]
-                        if not f.done():
-                            self.loop.call_soon_threadsafe(f.set_result, data)
-                        if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
-                            return
                 udp_server: MyThreadingUDPServer = cast(MyThreadingUDPServer, derived.server)
                 if server.name not in udp_server.message_queue:
                     udp_server.message_queue[server.name] = Queue()
@@ -556,6 +549,13 @@ class ServiceBus(Service):
                     server: Server = self.servers.get(server_name)
                     if not server:
                         continue
+                    if 'channel' in data and data['channel'].startswith('sync-'):
+                        if data['channel'] in server.listeners:
+                            f = server.listeners[data['channel']]
+                            if not f.done():
+                                self.loop.call_soon_threadsafe(f.set_result, data)
+                            if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
+                                continue
                     try:
                         command = data['command']
                         if command == 'registerDCSServer':
