@@ -259,10 +259,6 @@ class Mission(Plugin):
                   autostart: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
         path = (await server.listAvailableMissions())[idx]
-        if not os.path.exists(path):
-            await interaction.response.send_message(f"File {path} could not be found.", ephemeral=True)
-            return
-
         await server.addMission(path, autostart=autostart)
         name = os.path.basename(path)[:-4]
         await interaction.response.send_message(f'Mission "{utils.escape_string(name)}" added.', ephemeral=ephemeral)
