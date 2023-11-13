@@ -1,6 +1,6 @@
 {
   "color": "blue",
-  "title": "Mission Statistics",
+  "title": "{title}",
   "elements":
   [
     {

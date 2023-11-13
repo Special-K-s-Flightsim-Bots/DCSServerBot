@@ -1,0 +1,9 @@
+DCS.openbeta_server:
+  enabled: true
+  display: true
+  persistence: true
+  persist_ai_statistics: true
+  mission_end:
+    persistent: true
+    channel: 1122334455667788
+    title: This is the result of our mission
