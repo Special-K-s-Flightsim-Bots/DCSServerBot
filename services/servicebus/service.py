@@ -549,14 +549,14 @@ class ServiceBus(Service):
                     server: Server = self.servers.get(server_name)
                     if not server:
                         continue
-                    if 'channel' in data and data['channel'].startswith('sync-'):
-                        if data['channel'] in server.listeners:
-                            f = server.listeners[data['channel']]
-                            if not f.done():
-                                self.loop.call_soon_threadsafe(f.set_result, data)
-                            if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
-                                continue
                     try:
+                        if 'channel' in data and data['channel'].startswith('sync-'):
+                            if data['channel'] in server.listeners:
+                                f = server.listeners[data['channel']]
+                                if not f.done():
+                                    self.loop.call_soon_threadsafe(f.set_result, data)
+                                if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
+                                    continue
                         command = data['command']
                         if command == 'registerDCSServer':
                             if not server.is_remote:

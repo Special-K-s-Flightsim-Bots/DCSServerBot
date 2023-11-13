@@ -8,6 +8,7 @@ import re
 import string
 import unicodedata
 
+from core import Status
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
 
@@ -262,7 +263,7 @@ class SettingsDict(dict):
         if data:
             self.clear()
             self.update(data)
-            if self.obj.__class__.__name__ == 'ServerImpl' and not self.obj.node.master:
+            if self.obj.__class__.__name__ == 'ServerImpl' and not self.obj.node.master and self.obj.status != Status.UNREGISTERED:
                 msg = {
                     "command": "rpc",
                     "object": "Server",
