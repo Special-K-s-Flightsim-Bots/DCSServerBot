@@ -170,8 +170,9 @@ class GameMaster(Plugin):
     @utils.app_has_role('DCS Admin')
     async def reset_coalitions(self, interaction: discord.Interaction):
         ephemeral = utils.get_ephemeral(interaction)
-        if not await utils.yn_question(interaction, f'Do you want to mass-reset all coalition-bindings from your '
-                                                    f'players on node {platform.node()}?', ephemeral=ephemeral):
+        if not await utils.yn_question(interaction,
+                                       f'Do you want to mass-reset all coalition-bindings from your players?',
+                                       ephemeral=ephemeral):
             await interaction.response.send_message('Aborted.', ephemeral=ephemeral)
             return
         try:

@@ -420,7 +420,7 @@ class Plugin(commands.Cog):
                 return element
 
         default = deepcopy(filter_element(self.locals.get(DEFAULT_TAG, {})))
-        specific = deepcopy(filter_element(self.locals.get(platform.node(), self.locals).get(server.instance.name, {})))
+        specific = deepcopy(filter_element(self.locals.get(server.node.name, self.locals).get(server.instance.name, {})))
         return default, specific
 
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
