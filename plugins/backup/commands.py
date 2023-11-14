@@ -3,6 +3,7 @@ import os
 
 from core import Plugin, ServiceRegistry, command, utils, Node
 from discord import app_commands
+from pathlib import Path
 from services import DCSServerBot, BackupService
 from typing import cast
 
@@ -31,8 +32,7 @@ class Backup(Plugin):
     def read_locals(self) -> dict:
         if not os.path.exists('config/services/backup.yaml'):
             return {}
-        with open('config/services/backup.yaml') as infile:
-            return yaml.load(infile)
+        return yaml.load(Path('config/services/backup.yaml').read_text(encoding='utf-8'))
 
     @command(description='Backup your data')
     @app_commands.guild_only()

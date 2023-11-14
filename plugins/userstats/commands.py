@@ -1,10 +1,11 @@
 import asyncio
 import discord
 import os
+import platform
 import psycopg
 import random
-from contextlib import closing
 
+from contextlib import closing
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, PlayerType
 from discord import app_commands
@@ -461,13 +462,11 @@ class UserStatistics(Plugin):
 
     @tasks.loop(hours=1)
     async def persistent_highscore(self):
-        def get_server_by_instance(instance: str) -> Optional[Server]:
-            for server in self.bot.servers.values():
-                if server.instance.name == instance:
-                    return server
-            return None
-
-        async def render_highscore(highscore: dict, server: Optional[Server] = None):
+        async def render_highscore(highscore: Union[dict, list], server: Optional[Server] = None):
+            if isinstance(highscore, list):
+                for h in highscore:
+                    await render_highscore(h, server)
+                return
             kwargs = highscore.get('params', {})
             period = kwargs.get('period')
             flt = StatisticsFilter.detect(self.bot, period) if period else None
@@ -479,23 +478,14 @@ class UserStatistics(Plugin):
             await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
 
         try:
-            for instance_name, config in self.locals.items():
-                if 'highscore' not in config:
+            # global highscore
+            if self.locals.get(DEFAULT_TAG) and self.locals[DEFAULT_TAG].get('highscore'):
+                await render_highscore(self.locals[DEFAULT_TAG]['highscore'], None)
+            for server in self.bus.servers.values():
+                config = self.locals.get(platform.node(), self.locals).get(server.instance.name)
+                if not config or not config.get('highscore'):
                     continue
-                if instance_name != DEFAULT_TAG:
-                    server = get_server_by_instance(instance_name)
-                    if not server:
-                        self.log.debug(
-                            f"Instance {instance_name} is not (yet) registered, skipping highscore update.")
-                        return
-                else:
-                    server = None
-                if isinstance(config['highscore'], list):
-                    for highscore in config['highscore']:
-                        await render_highscore(highscore, server)
-                else:
-                    await render_highscore(config['highscore'], server)
-
+                await render_highscore(config['highscore'], server)
         except Exception as ex:
             self.log.exception(ex)
 
