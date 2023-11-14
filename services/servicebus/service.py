@@ -448,10 +448,11 @@ class ServiceBus(Service):
         # support sync responses though intercom
         if 'channel' in data and data['channel'].startswith('sync-'):
             server: Server = self.servers.get(server_name)
-            f = server.listeners[data['channel']]
-            if not f.done():
+            f = server.listeners.get(data['channel'])
+            if f and not f.done():
                 self.loop.call_soon_threadsafe(f.set_result, data)
-            return
+            if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
+                return
         self.udp_server.message_queue[server_name].put(data)
 
     async def handle_agent(self, data: dict):
@@ -535,8 +536,8 @@ class ServiceBus(Service):
                     return
                 if 'channel' in data and data['channel'].startswith('sync-'):
                     if data['channel'] in server.listeners:
-                        f = server.listeners[data['channel']]
-                        if not f.done():
+                        f = server.listeners.get(data['channel'])
+                        if f and not f.done():
                             self.loop.call_soon_threadsafe(f.set_result, data)
                         if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
                             return
