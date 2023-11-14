@@ -7,7 +7,7 @@ if sys.platform == 'win32':
     import win32api
 
 from typing import Optional, cast
-from core import Extension, report, Status, ServiceRegistry, Server
+from core import Extension, Status, ServiceRegistry, Server
 from services import ServiceBus
 
 process: Optional[subprocess.Popen] = None
@@ -133,9 +133,13 @@ class Sneaker(Extension):
             return False
         return True
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+    async def render(self, param: Optional[dict] = None) -> dict:
         if 'url' in self.config:
             value = self.config['url']
         else:
             value = 'enabled'
-        embed.add_field(name='Sneaker', value=value)
+        return {
+            "name": "Sneaker",
+            "version": self.version,
+            "value": value
+        }

@@ -36,14 +36,9 @@ class Punishment(Plugin):
         conn.execute('UPDATE pu_events SET server_name = %s WHERE server_name = %s', (new_name, old_name))
         conn.execute('UPDATE pu_events_sdw SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
-        self.log.debug('Pruning Punishment ...')
-        if ucids:
-            for ucid in ucids:
-                conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid,))
-        elif days > -1:
-            conn.execute(f"DELETE FROM pu_events WHERE time < (DATE(NOW()) - interval '{days} days')")
-        self.log.debug('Punishment pruned.')
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute("UPDATE pu_events SET init_id = %s WHERE init_id = %s", (new_ucid, old_ucid))
+        conn.execute("UPDATE pu_events SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
 
     async def punish(self, server: Server, ucid: str, punishment: dict, reason: str, points: Optional[float] = None):
         player: Player = server.get_player(ucid=ucid, active=True)
@@ -157,6 +152,30 @@ class Punishment(Plugin):
                             WHERE time < (NOW() - interval '%s days') AND decay_run < %s
                         """, (d['weight'], d['days'], d['days'], d['days']))
                         conn.execute("DELETE FROM pu_events WHERE points = 0.0")
+
+    @command(name='punish', description='Adds punishment points to a user')
+    @utils.has_role('DCS Admin')
+    @app_commands.guild_only()
+    async def _punish(self, interaction: discord.Interaction,
+                      server: app_commands.Transform[Server, utils.ServerTransformer],
+                      user: app_commands.Transform[Union[str, discord.Member], utils.UserTransformer],
+                      points: int, reason: Optional[str] = 'admin'):
+
+        ephemeral = utils.get_ephemeral(interaction)
+        if isinstance(user, discord.Member):
+            ucid = self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await interaction.response.send_message(f"User {user.display_name} is not linked.", ephemeral=ephemeral)
+                return
+        else:
+            ucid = user
+        with self.pool.connection() as conn:
+            with conn.transaction():
+                conn.execute("""
+                    INSERT INTO pu_events (init_id, server_name, event, points)
+                    VALUES (%s, %s, %s, %s) 
+                """, (ucid, server.name, reason, points))
+            await interaction.response.send_message(f'User punished with {points} points.', ephemeral=ephemeral)
 
     @command(description='Delete all punishment points for a given user')
     @app_commands.guild_only()

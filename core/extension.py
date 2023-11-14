@@ -1,6 +1,5 @@
 from __future__ import annotations
 from abc import ABC
-from core import report
 from typing import Optional, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
@@ -62,7 +61,7 @@ class Extension(ABC):
     def version(self) -> Optional[str]:
         return None
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+    async def render(self, param: Optional[dict] = None) -> dict:
         raise NotImplementedError()
 
     def is_installed(self) -> bool:

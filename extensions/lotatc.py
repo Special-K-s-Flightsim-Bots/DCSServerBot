@@ -4,7 +4,7 @@ import sys
 if sys.platform == 'win32':
     import win32api
 
-from core import Extension, report
+from core import Extension
 from typing import Any, Optional, TextIO
 
 ports: dict[int, str] = dict()
@@ -60,7 +60,7 @@ class LotAtc(Extension):
             version = 'n/a'
         return version
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+    async def render(self, param: Optional[dict] = None) -> dict:
         if self.locals:
             host = self.config.get('host', self.node.public_ip)
             value = f"{host}:{self.locals.get('port', 10310)}"
@@ -69,14 +69,20 @@ class LotAtc(Extension):
             red = self.locals.get('red_password', '')
             if show_passwords and (blue or red):
                 value += f"\n🔹 Pass: {blue}\n🔸 Pass: {red}"
-            embed.add_field(name='LotAtc', value=value)
+            return {
+                "name": "LotAtc",
+                "version": self.version,
+                "value": value
+            }
+        else:
+            return {}
 
     def is_installed(self) -> bool:
         global ports
 
-        if not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/bin/lotatc.dll')):
-            return False
-        if not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/config.lua')):
+        if (not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/bin/lotatc.dll')) or
+                not os.path.exists(os.path.join(self.server.instance.home, 'Mods/services/LotAtc/config.lua'))):
+            self.log.error(f"  => {self.server.name}: Can't load extension, LotAtc not correctly installed.")
             return False
         port = self.locals.get('port', 10310)
         if port in ports and ports[port] != self.server.name:

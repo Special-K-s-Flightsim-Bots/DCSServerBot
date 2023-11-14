@@ -4,7 +4,8 @@ from dataclasses import MISSING
 from typing import TypeVar, TYPE_CHECKING, Any, Type, Optional
 
 if TYPE_CHECKING:
-    from core import DCSServerBot, Plugin, Server, Player
+    from core import Plugin, Server, Player
+    from services import DCSServerBot
 
 __all__ = [
     "event",

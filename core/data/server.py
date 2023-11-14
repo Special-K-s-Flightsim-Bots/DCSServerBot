@@ -298,7 +298,8 @@ class Server(DataObject):
         missions = self.settings['missionList']
         if path not in missions:
             if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-                await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
+                data = await self.send_to_dcs_sync({"command": "addMission", "path": path, "autostart": autostart})
+                self.settings['missionList'] = data['missionList']
             else:
                 missions.append(path)
                 self.settings['missionList'] = missions
@@ -309,7 +310,8 @@ class Server(DataObject):
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
             raise AttributeError("Can't delete the running mission!")
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
-            await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
+            data = await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
+            self.settings['missionList'] = data['missionList']
         else:
             missions = self.settings['missionList']
             del missions[mission_id - 1]
@@ -379,4 +381,7 @@ class Server(DataObject):
         raise NotImplemented()
 
     async def persist_settings(self):
+        raise NotImplemented()
+
+    async def render_extensions(self) -> list:
         raise NotImplemented()

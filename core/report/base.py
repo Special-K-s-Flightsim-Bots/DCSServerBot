@@ -1,5 +1,4 @@
 from __future__ import annotations
-import asyncio
 import discord
 import inspect
 import json
@@ -72,7 +71,7 @@ class Report:
             elif name == 'img':
                 self.env.embed.set_thumbnail(url=item)
             elif name == 'footer':
-                footer = self.env.embed.footer.text
+                footer = self.env.embed.footer.text or ''
                 text = utils.format_string(item, **self.env.params)
                 if footer is None:
                     footer = text
@@ -104,7 +103,7 @@ class Report:
                             signature = inspect.signature(element_class.render).parameters.keys()
                             render_args = {name: value for name, value in element_args.items() if name in signature}
                             try:
-                                await asyncio.to_thread(element_class.render, **render_args)
+                                await element_class.render(**render_args)
                             except Exception as ex:
                                 self.log.exception(ex)
                         else:

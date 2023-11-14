@@ -8,12 +8,13 @@ from typing import Optional
 
 class HighscoreTrueSkill(report.GraphElement):
 
-    def render(self, interaction: discord.Interaction, limit: int, bar_labels: Optional[bool] = True):
+    async def render(self, interaction: discord.Interaction, limit: int, bar_labels: Optional[bool] = True):
         sql = f"""
-            SELECT DISTINCT p.discord_id, COALESCE(name, 'Unknown') AS name, t.skill_mu::DECIMAL AS value
+            SELECT DISTINCT p.discord_id, COALESCE(name, 'Unknown') AS name, t.skill_mu - 3 * t.skill_sigma AS value
             FROM players p, trueskill t
             WHERE p.ucid = t.player_ucid AND skill_mu IS NOT NULL
-            ORDER BY 3 DESC LIMIT {limit}
+            ORDER BY 3 DESC 
+            LIMIT {limit}
         """
 
         with self.pool.connection() as conn:

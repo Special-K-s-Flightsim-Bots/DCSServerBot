@@ -91,7 +91,7 @@ class CompetitiveListener(EventListener):
         if data['id'] == 1:
             return
         player: Player = server.get_player(id=data['id'])
-        player.sendChatMessage(f"Your current TrueSkill rating is: {self.get_rating(player)}.")
+        player.sendChatMessage(f"Your current TrueSkill rating is: {self.calculate_rating(self.get_rating(player))}.")
 
     @event(name="addPlayerToMatch")
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:
@@ -114,7 +114,9 @@ class CompetitiveListener(EventListener):
             is_on = match.is_on()
             match.player_join(player)
             self.in_match[server][player.ucid] = match
-            await self.inform_players(match, f"Player {player.name} joined the {player.side.name} team!")
+            await self.inform_players(match,
+                                      f"Player {player.name} ({self.calculate_rating(self.get_rating(player))}) "
+                                      f"joined the {player.side.name} team!")
             # inform the players if the match is on now
             if not is_on and match.is_on():
                 match.started = datetime.now()
@@ -141,6 +143,10 @@ class CompetitiveListener(EventListener):
                 ON CONFLICT (player_ucid) DO UPDATE
                 SET skill_mu = excluded.skill_mu, skill_sigma = excluded.skill_sigma
             """, (player.ucid, skill.mu, skill.sigma))
+
+    @staticmethod
+    def calculate_rating(r: Rating) -> float:
+        return round(r.mu - 3.0 * r.sigma, 2)
 
     @event(name="onGameEvent")
     async def onGameEvent(self, server: Server, data: dict) -> None:
@@ -177,10 +183,10 @@ class CompetitiveListener(EventListener):
                 self.rank_teams(killers, victims)
                 for player in killers:
                     player.sendChatMessage("You won against {}! Your new rating is {}".format(
-                        print_crew(victims), self.get_rating(player)))
+                        print_crew(victims), self.calculate_rating(self.get_rating(player))))
                 for player in victims:
                     player.sendChatMessage("You lost against {}! Your new rating is {}".format(
-                        print_crew(killers), self.get_rating(player)))
+                        print_crew(killers), self.calculate_rating(self.get_rating(player))))
         elif data['evenName'] in ['self_kill', 'crash']:
             players = server.get_crew_members(server.get_player(id=data['arg1']))
             match: Match = self.in_match[server].get(players[0].ucid)
@@ -207,7 +213,7 @@ class CompetitiveListener(EventListener):
 
     @chat_command(name="skill", help="Show your TrueSkill")
     async def skill(self, server: Server, player: Player, params: list[str]):
-        player.sendChatMessage(f"Your TrueSkill rating is {self.get_rating(player).mu}")
+        player.sendChatMessage(f"Your TrueSkill rating is {self.calculate_rating(self.get_rating(player))}")
 
     @tasks.loop(seconds=5)
     async def check_matches(self):
@@ -227,7 +233,7 @@ class CompetitiveListener(EventListener):
                         message += f"{time.astimezone(timezone.utc):%H:%M:%Sz}: {log}\n"
                     message += "\nYour new rating is as follows:\n"
                     for player in match.teams[Side.BLUE] + match.teams[Side.RED]:
-                        message += f"- {player.name}: {self.get_rating(player)}\n"
+                        message += f"- {player.name}: {self.calculate_rating(self.get_rating(player))}\n"
                     await self.inform_players(match, message, 30)
                     finished.append(match)
             for match in finished:

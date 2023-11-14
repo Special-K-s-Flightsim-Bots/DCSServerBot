@@ -201,3 +201,12 @@ class ServerProxy(Server):
             }
         }, node=self.node.name, timeout=60)
         self.name = new_name
+
+    async def render_extensions(self) -> list:
+        data = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "render_extensions",
+            "server_name": self.name
+        }, timeout=120, node=self.node.name)
+        return data['return']

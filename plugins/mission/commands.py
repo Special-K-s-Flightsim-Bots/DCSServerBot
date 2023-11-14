@@ -1,6 +1,4 @@
 import asyncio
-from contextlib import closing
-
 import discord
 import os
 import psycopg
@@ -45,8 +43,13 @@ class Mission(Plugin):
     async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Mission ...')
         if days > -1:
-            conn.execute(f"DELETE FROM missions WHERE mission_end < (DATE(NOW()) - interval '{days} days')")
+            conn.execute(f"DELETE FROM missions WHERE mission_end < (DATE((now() AT TIME ZONE 'utc')) - interval '{days} days')")
         self.log.debug('Mission pruned.')
+
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute("""
+            UPDATE bans SET ucid = %s WHERE ucid = %s AND NOT EXISTS (SELECT 1 FROM bans WHERE ucid = %s)
+        """, (new_ucid, old_ucid, new_ucid))
 
     # New command group "/mission"
     mission = Group(name="mission", description="Commands to manage a DCS mission")
@@ -256,10 +259,6 @@ class Mission(Plugin):
                   autostart: Optional[bool] = False):
         ephemeral = utils.get_ephemeral(interaction)
         path = (await server.listAvailableMissions())[idx]
-        if not os.path.exists(path):
-            await interaction.response.send_message(f"File {path} could not be found.", ephemeral=True)
-            return
-
         await server.addMission(path, autostart=autostart)
         name = os.path.basename(path)[:-4]
         await interaction.response.send_message(f'Mission "{utils.escape_string(name)}" added.', ephemeral=ephemeral)
@@ -593,7 +592,8 @@ class Mission(Plugin):
         for server_name, server in self.bot.servers.items():
             if server.status == Status.UNREGISTERED:
                 continue
-            channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
+            #channel = await self.bot.fetch_channel(int(server.locals['channels'][Channel.STATUS.value]))
+            channel = self.bot.get_channel(server.channels[Channel.STATUS])
             # name changes of the status channel will only happen with the correct permission
             if channel.permissions_for(self.bot.member).manage_channels:
                 name = channel.name

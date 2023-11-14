@@ -152,7 +152,7 @@ class Install:
                 "url": database_url
             }
         }
-        token = Prompt.ask('Please enter your discord TOKEN (see documentation)', password=True) or '<see documentation>'
+        token = Prompt.ask('Please enter your discord TOKEN (see documentation)') or '<see documentation>'
         owner = Prompt.ask('Please enter your Owner ID (right click on your discord user, "Copy User ID")')
         print("""
 We now need to setup your Discord roles and channels.
@@ -281,7 +281,8 @@ If you have installed Git for Windows, I'd recommend that you install the bot us
 
             print(f"\n4. DCS Server Setup")
             servers = {}
-            scheduler = {}
+            schedulers = {}
+            scheduler = schedulers[platform.node()] = {}
             node['instances'] = {}
             bot_port = 6666
             srs_port = 5002
@@ -378,7 +379,7 @@ DCSServerBot needs the following permissions on them to work:
             if scheduler:
                 os.makedirs('config/plugins', exist_ok=True)
                 with open('config/plugins/scheduler.yaml', 'w', encoding='utf-8') as out:
-                    yaml.dump(scheduler, out)
+                    yaml.dump(schedulers, out)
                     print("- Created config/plugins/scheduler.yaml")
                 self.log.info("./config/plugins/scheduler.yaml written.")
             print("""

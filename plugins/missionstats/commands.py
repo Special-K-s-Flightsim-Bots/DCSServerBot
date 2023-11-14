@@ -1,4 +1,5 @@
 import discord
+import psycopg
 
 from core import Plugin, PluginRequiredError, utils, Report, Status, Server, command
 from discord import app_commands
@@ -11,7 +12,7 @@ from .listener import MissionStatisticsEventListener
 
 class MissionStatistics(Plugin):
 
-    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Missionstats ...')
         if ucids:
             for ucid in ucids:
@@ -19,6 +20,10 @@ class MissionStatistics(Plugin):
         elif days > -1:
             conn.execute(f"DELETE FROM missionstats WHERE time < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Missionstats pruned.')
+
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute("UPDATE missionstats SET init_id = %s WHERE init_id = %s", (new_ucid, old_ucid))
+        conn.execute("UPDATE missionstats SET target_id = %s WHERE target_id = %s", (new_ucid, old_ucid))
 
     @command(description='Display Mission Statistics')
     @app_commands.guild_only()

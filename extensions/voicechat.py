@@ -1,6 +1,5 @@
+from core import Extension
 from typing import Optional
-
-from core import Extension, report
 
 
 class VoiceChat(Extension):
@@ -10,8 +9,11 @@ class VoiceChat(Extension):
         self.server.settings['advanced'] = settings
         return True
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        embed.add_field(name='DCS Voice Chat', value='enabled' if self.config.get('enabled', True) else 'disabled')
+    async def render(self, param: Optional[dict] = None) -> dict:
+        return {
+            "name": "DCS Voice Chat",
+            "value": "enabled" if self.config.get('enabled', True) else "disabled"
+        }
 
     def is_installed(self) -> bool:
         return True

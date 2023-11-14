@@ -7,7 +7,7 @@ from psycopg.rows import dict_row
 
 
 class Header(report.EmbedElement):
-    def render(self, member: Union[discord.Member, str]):
+    async def render(self, member: Union[discord.Member, str]):
         sql = """
             SELECT p.first_seen, p.last_seen, 
                    CASE WHEN p.ucid = b.ucid THEN 1 ELSE 0 END AS banned, b.reason, b.banned_by, b.banned_until
@@ -72,7 +72,7 @@ class Header(report.EmbedElement):
 
 
 class UCIDs(report.EmbedElement):
-    def render(self, member: Union[discord.Member, str]):
+    async def render(self, member: Union[discord.Member, str]):
         sql = 'SELECT p.ucid, p.manual, COALESCE(p.name, \'?\') AS name FROM players p WHERE p.discord_id = '
         if isinstance(member, str):
             sql += f"(SELECT discord_id FROM players WHERE ucid = '{member}' AND discord_id != -1) OR " \
@@ -93,7 +93,7 @@ class UCIDs(report.EmbedElement):
 
 
 class History(report.EmbedElement):
-    def render(self, member: Union[discord.Member, str]):
+    async def render(self, member: Union[discord.Member, str]):
         sql = 'SELECT name, max(time) AS time FROM players_hist p WHERE p.ucid '
         if isinstance(member, discord.Member):
             sql += f"IN (SELECT ucid FROM players WHERE discord_id = {member.id})"
@@ -112,7 +112,7 @@ class History(report.EmbedElement):
 
 
 class ServerInfo(report.EmbedElement):
-    def render(self, member: Union[discord.Member, str], player: Optional[Player]):
+    async def render(self, member: Union[discord.Member, str], player: Optional[Player]):
         if player:
             self.add_field(name='▬' * 13 + ' Current Activity ' + '▬' * 13, value='_ _', inline=False)
             self.add_field(name='Active on Server', value=player.server.display_name)
@@ -121,15 +121,15 @@ class ServerInfo(report.EmbedElement):
 
 
 class Footer(report.EmbedElement):
-    def render(self, member: Union[discord.Member, str], banned: bool, player: Optional[Player]):
+    async def render(self, member: Union[discord.Member, str], banned: bool, player: Optional[Player]):
         footer = ''
         if isinstance(member, discord.Member):
             _member: Member = DataObjectFactory().new('Member', node=self.bot.node, member=member)
-            if len(_member.ucids):
-                footer += '🔀 Unlink all DCS players from this user\n'
+            if len(_member.ucid):
+                footer += '🔀 Unlink their DCS-account\n'
                 if not _member.verified:
-                    footer += '💯 Verify this DCS link\n'
-        footer += '✅ Unban this user\n' if banned else '⛔ Ban this user (DCS only)\n'
+                    footer += '💯 Verify their DCS-link\n'
+        footer += '✅ Unban them\n' if banned else '⛔ Ban them (DCS only)\n'
         if player:
-            footer += '⏏️ Kick this user from the active server'
+            footer += f'⏏️ Kick them from {player.server.name}'
         self.embed.set_footer(text=footer)

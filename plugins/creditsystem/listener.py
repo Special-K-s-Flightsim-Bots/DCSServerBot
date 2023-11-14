@@ -1,6 +1,6 @@
 import discord
 
-from core import EventListener, Server, Status, utils, event, chat_command, Player
+from core import EventListener, Server, Status, utils, event, chat_command
 from typing import cast
 from .player import CreditPlayer
 
@@ -166,7 +166,7 @@ class CreditSystemListener(EventListener):
                 await self.process_achievements(server, player)
 
     @chat_command(name="credits", help="displays your credits")
-    async def credits(self, server: Server, player: Player, params: list[str]):
+    async def credits(self, server: Server, player: CreditPlayer, params: list[str]):
         message = f"You currently have {player.points} credit points"
         if player.deposit > 0:
             message += f", {player.deposit} on deposit"
@@ -174,7 +174,7 @@ class CreditSystemListener(EventListener):
         player.sendChatMessage(message)
 
     @chat_command(name="donate", help="donate points to another player")
-    async def donate(self, server: Server, player: Player, params: list[str]):
+    async def donate(self, server: Server, player: CreditPlayer, params: list[str]):
         if len(params) < 2:
             player.sendChatMessage(f"Usage: {self.prefix}donate player points")
             return
@@ -182,7 +182,7 @@ class CreditSystemListener(EventListener):
         try:
             donation = int(params[-1])
         except ValueError:
-            player.sendChatMessage(f"Usage: {self.bot.config['BOT']['CHAT_COMMAND_PREFIX']}donate player points")
+            player.sendChatMessage(f"Usage: {self.prefix}donate player points")
             return
         if donation > player.points:
             player.sendChatMessage(f"You can't donate {donation} credit points as you only have {player.points}!")
@@ -209,7 +209,7 @@ class CreditSystemListener(EventListener):
         receiver.sendChatMessage(f"Player {player.name} donated {donation} credit points to you!")
 
     @chat_command(name="tip", help="tip a GCI with points")
-    async def tip(self, server: Server, player: Player, params: list[str]):
+    async def tip(self, server: Server, player: CreditPlayer, params: list[str]):
         player: CreditPlayer = cast(CreditPlayer, player)
 
         if not params:

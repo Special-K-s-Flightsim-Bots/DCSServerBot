@@ -1,7 +1,7 @@
 import os.path
 import shutil
 
-from core import Extension, report
+from core import Extension
 from typing import Optional, Union, Tuple
 
 
@@ -69,8 +69,12 @@ class DSMC(Extension):
         else:
             return orig, False
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
-        embed.add_field(name='DSMC', value='enabled')
+    async def render(self, param: Optional[dict] = None) -> dict:
+        return {
+            "name": "DSMC",
+            "version": self.version,
+            "value": "enabled"
+        }
 
     def is_installed(self) -> bool:
         if 'enabled' not in self.config or not self.config['enabled']:

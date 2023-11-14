@@ -15,7 +15,7 @@ from ..userstats.highscore import get_sides
 
 
 class LSORating(report.EmbedElement):
-    def render(self, landing: dict):
+    async def render(self, landing: dict):
         grade = GRADES[landing['grade']]
         comment = landing['comment'].replace('/', '')
 
@@ -30,7 +30,7 @@ class LSORating(report.EmbedElement):
         self.add_field(name="LSO Grade: {}".format(landing['grade'].replace('_', '\\_')), value=grade, inline=False)
         self.add_field(name="LSO Comment", value=comment.replace('_', '\\_'), inline=False)
 
-        report.Ruler(self.env).render(ruler_length=28)
+        await report.Ruler(self.env).render(ruler_length=28)
         # remove unnecessary blanks
         distance_marks = list(DISTANCE_MARKS.keys())
         elements = []
@@ -110,7 +110,7 @@ class LSORating(report.EmbedElement):
 
 class TrapSheet(report.MultiGraphElement):
 
-    def render(self, landing: dict):
+    async def render(self, landing: dict):
         if 'trapsheet' not in landing or not landing['trapsheet']:
             raise NothingToPlot()
         trapsheet = landing['trapsheet']
@@ -129,8 +129,9 @@ class TrapSheet(report.MultiGraphElement):
 
 class HighscoreTraps(report.GraphElement):
 
-    def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int, flt: StatisticsFilter,
-               include_bolters: bool = False, include_waveoffs: bool = False, bar_labels: Optional[bool] = True):
+    async def render(self, interaction: discord.Interaction, server_name: str, period: str, limit: int,
+                     flt: StatisticsFilter, include_bolters: bool = False, include_waveoffs: bool = False,
+                     bar_labels: Optional[bool] = True):
         sql = "SELECT p.discord_id, COALESCE(p.name, 'Unknown') AS name, COUNT(g.*) AS value " \
               "FROM greenieboard g, missions m, statistics s, players p " \
               "WHERE g.mission_id = m.id AND s.mission_id = m.id AND g.player_ucid = s.player_ucid " \
@@ -175,7 +176,7 @@ class HighscoreTraps(report.GraphElement):
 
 
 class GreenieBoard(EmbedElement):
-    def render(self, server_name: str, num_rows: int):
+    async def render(self, server_name: str, num_rows: int):
         sql1 = 'SELECT g.player_ucid, p.name, g.points, MAX(g.time) AS time FROM (' \
                'SELECT player_ucid, ROW_NUMBER() OVER w AS rn, AVG(points) OVER w AS points, MAX(time) ' \
                'OVER w AS time FROM greenieboard'

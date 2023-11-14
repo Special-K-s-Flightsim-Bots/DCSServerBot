@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import asyncio
 import discord
 import inspect
 import numpy as np
@@ -6,7 +8,6 @@ import os
 import sys
 import uuid
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from core import utils
 from datetime import timedelta
@@ -52,7 +53,7 @@ class ReportElement(ABC):
         self.pool = env.bot.pool
 
     @abstractmethod
-    def render(self, **kwargs):
+    async def render(self, **kwargs):
         ...
 
 
@@ -70,17 +71,17 @@ class EmbedElement(ReportElement):
         return self.embed.set_image(url=url)
 
     @abstractmethod
-    def render(self, **kwargs):
+    async def render(self, **kwargs):
         ...
 
 
 class Image(EmbedElement):
-    def render(self, url: str):
+    async def render(self, url: str):
         self.set_image(url=url)
 
 
 class Ruler(EmbedElement):
-    def render(self, header: Optional[str] = '', ruler_length: Optional[int] = 34, *, text: Optional[str] = None):
+    async def render(self, header: Optional[str] = '', ruler_length: Optional[int] = 34, *, text: Optional[str] = None):
         if header:
             header = ' ' + header + ' '
         filler = int((ruler_length - len(header) / 2.5) / 2)
@@ -90,13 +91,13 @@ class Ruler(EmbedElement):
 
 
 class Field(EmbedElement):
-    def render(self, name: str, value: Any, inline: Optional[bool] = True):
+    async def render(self, name: str, value: Any, inline: Optional[bool] = True):
         self.add_field(name=utils.format_string(name, '_ _', **self.env.params),
                        value=utils.format_string(value, '_ _', **self.env.params), inline=inline)
 
 
 class Table(EmbedElement):
-    def render(self, values: Union[dict, list[dict]], obj: Optional[str] = None, inline: Optional[bool] = True):
+    async def render(self, values: Union[dict, list[dict]], obj: Optional[str] = None, inline: Optional[bool] = True):
         if obj:
             table = self.env.params[obj]
             _values: dict = values.copy()
@@ -125,11 +126,11 @@ class Table(EmbedElement):
 
 
 class Button(ReportElement):
-    def render(self, style: str, label: str, custom_id: Optional[str] = None, url: Optional[str] = None,
-               disabled: Optional[bool] = False, interaction: Optional[Interaction] = None):
+    async def render(self, style: str, label: str, custom_id: Optional[str] = None, url: Optional[str] = None,
+                     disabled: Optional[bool] = False, interaction: Optional[Interaction] = None):
         b = discord.ui.Button(style=ButtonStyle(style), label=label, url=url, disabled=disabled)
         if interaction:
-            b.callback(interaction=interaction)
+            await b.callback(interaction=interaction)
         if not self.env.view:
             self.env.view = discord.ui.View()
         self.env.view.add_item(b)
@@ -142,7 +143,7 @@ class GraphElement(ReportElement):
         self.axes = plt.subplot2grid((rows, cols), (row, col), colspan=colspan, rowspan=rowspan, fig=self.env.figure)
 
     @abstractmethod
-    def render(self, **kwargs):
+    async def render(self, **kwargs):
         ...
 
 
@@ -159,7 +160,7 @@ class MultiGraphElement(ReportElement):
                                               sharex=self.axes[-1] if sharex else None))
 
     @abstractmethod
-    def render(self, **kwargs):
+    async def render(self, **kwargs):
         ...
 
 
@@ -168,8 +169,8 @@ class Graph(ReportElement):
         super().__init__(env)
         plt.switch_backend('agg')
 
-    def render(self, width: int, height: int, cols: int, rows: int, elements: list[dict],
-               facecolor: Optional[str] = None):
+    async def render(self, width: int, height: int, cols: int, rows: int, elements: list[dict],
+                     facecolor: Optional[str] = None):
         plt.style.use('dark_background')
         plt.rcParams['axes.facecolor'] = '2C2F33'
         if 'cjk_font' in self.bot.locals.get('reports', {}):
@@ -177,38 +178,35 @@ class Graph(ReportElement):
         self.env.figure = plt.figure(figsize=(width, height))
         if facecolor:
             self.env.figure.set_facecolor(facecolor)
-        futures = []
-        with ThreadPoolExecutor(
-                max_workers=int(self.env.bot.locals.get('reports', {}).get('num_workers', 4))) as executor:
-            for element in elements:
-                if 'params' in element:
-                    element_args = parse_params(self.env.params, element['params'])
+        tasks = []
+        for element in elements:
+            if 'params' in element:
+                element_args = parse_params(self.env.params, element['params'])
+            else:
+                element_args = self.env.params.copy()
+            element_class = utils.str_to_class(element['class']) if 'class' in element else None
+            if not element_class and 'type' in element:
+                element_class = getattr(sys.modules[__name__], element['type'])
+            if element_class:
+                # remove parameters, that are not in the class __init__ signature
+                signature = inspect.signature(element_class.__init__).parameters.keys()
+                class_args = {name: value for name, value in element_args.items() if name in signature}
+                # instantiate the class
+                element_class = element_class(self.env, rows, cols, **class_args)
+                if isinstance(element_class, GraphElement) or isinstance(element_class, MultiGraphElement):
+                    # remove parameters, that are not in the render methods signature
+                    signature = inspect.signature(element_class.render).parameters.keys()
+                    render_args = {name: value for name, value in element_args.items() if name in signature}
+                    tasks.append(element_class.render(**render_args))
                 else:
-                    element_args = self.env.params.copy()
-                element_class = utils.str_to_class(element['class']) if 'class' in element else None
-                if not element_class and 'type' in element:
-                    element_class = getattr(sys.modules[__name__], element['type'])
-                if element_class:
-                    # remove parameters, that are not in the class __init__ signature
-                    signature = inspect.signature(element_class.__init__).parameters.keys()
-                    class_args = {name: value for name, value in element_args.items() if name in signature}
-                    # instantiate the class
-                    element_class = element_class(self.env, rows, cols, **class_args)
-                    if isinstance(element_class, GraphElement) or isinstance(element_class, MultiGraphElement):
-                        # remove parameters, that are not in the render methods signature
-                        signature = inspect.signature(element_class.render).parameters.keys()
-                        render_args = {name: value for name, value in element_args.items() if name in signature}
-                        futures.append(executor.submit(element_class.render, **render_args))
-                    else:
-                        raise UnknownGraphElement(element['class'])
-                else:
-                    raise ClassNotFound(element['class'])
+                    raise UnknownGraphElement(element['class'])
+            else:
+                raise ClassNotFound(element['class'])
         # check for any exceptions and raise them
-        for future in futures:
-            if future.exception():
-                if isinstance(future.exception(), NothingToPlot):
-                    return
-                raise future.exception()
+        try:
+            await asyncio.gather(*tasks)
+        except NothingToPlot:
+            return
         # only render the graph, if we don't have a rendered graph already attached as a file (image)
         if not self.env.filename:
             plt.subplots_adjust(hspace=0.5, wspace=0.5)
@@ -216,7 +214,7 @@ class Graph(ReportElement):
             self.env.figure.savefig(self.env.filename, bbox_inches='tight', facecolor='#2C2F33')
             plt.close(self.env.figure)
         self.env.embed.set_image(url='attachment://' + os.path.basename(self.env.filename))
-        footer = self.env.embed.footer.text
+        footer = self.env.embed.footer.text or ''
         if footer is None:
             footer = 'Click on the image to zoom in.'
         else:
@@ -225,7 +223,7 @@ class Graph(ReportElement):
 
 
 class SQLField(EmbedElement):
-    def render(self, sql: str, inline: Optional[bool] = True):
+    async def render(self, sql: str, inline: Optional[bool] = True):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
@@ -237,7 +235,7 @@ class SQLField(EmbedElement):
 
 
 class SQLTable(EmbedElement):
-    def render(self, sql: str, inline: Optional[bool] = True):
+    async def render(self, sql: str, inline: Optional[bool] = True):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
@@ -277,7 +275,7 @@ class BarChart(GraphElement):
         self.width = width
         self.show_no_data = show_no_data
 
-    def render(self, values: dict[str, float]):
+    async def render(self, values: dict[str, float]):
         if len(values) or self.show_no_data:
             labels = list(values.keys())
             values = list(values.values())
@@ -305,20 +303,20 @@ class BarChart(GraphElement):
 
 
 class SQLBarChart(BarChart):
-    def render(self, sql: str):
+    async def render(self, sql: str):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 1:
-                    super().render(cursor.fetchone())
+                    await super().render(cursor.fetchone())
                 elif cursor.rowcount > 1:
                     values = {}
                     for row in cursor.fetchall():
                         d = list(row.values())
                         values[d[0]] = d[1]
-                    super().render(values)
+                    await super().render(values)
                 else:
-                    super().render({})
+                    await super().render({})
 
 
 class PieChart(GraphElement):
@@ -338,7 +336,7 @@ class PieChart(GraphElement):
         else:
             return '{:.1f}%\n({:d})'.format(pct, absolute)
 
-    def render(self, values: dict[str, Any]):
+    async def render(self, values: dict[str, Any]):
         values = {k: v for k, v in values.copy().items() if v}
         if len(values) or self.show_no_data:
             labels = values.keys()
@@ -356,17 +354,17 @@ class PieChart(GraphElement):
 
 
 class SQLPieChart(PieChart):
-    def render(self, sql: str):
+    async def render(self, sql: str):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 cursor.execute(utils.format_string(sql, **self.env.params), self.env.params)
                 if cursor.rowcount == 1:
-                    super().render(cursor.fetchone())
+                    await super().render(cursor.fetchone())
                 elif cursor.rowcount > 1:
                     values = {}
                     for row in cursor.fetchall():
                         d = list(row.values())
                         values[d[0]] = d[1]
-                    super().render(values)
+                    await super().render(values)
                 else:
-                    super().render({})
+                    await super().render({})

@@ -14,11 +14,14 @@ class InfoView(View):
         self.bot = bot
         self.player = player
         self.server = server
+        if isinstance(self.member, discord.Member):
+            self._member: Member = DataObjectFactory().new('Member', node=self.bot.node, member=self.member)
+            self.ucid = self._member.ucid
+        else:
+            self.ucid = self.member
 
     async def render(self) -> discord.Embed:
         if isinstance(self.member, discord.Member):
-            self._member: Member = DataObjectFactory().new('Member', node=self.bot.node, member=self.member)
-            self.ucids = self._member.ucids
             if self._member.verified:
                 button = Button(emoji="🔀")
                 button.callback = self.on_unlink
@@ -27,8 +30,6 @@ class InfoView(View):
                 button = Button(emoji="💯")
                 button.callback = self.on_verify
                 self.add_item(button)
-        else:
-            self.ucids = [self.member]
         banned = self.is_banned()
         if banned:
             button = Button(emoji="✅")
@@ -50,10 +51,7 @@ class InfoView(View):
         return env.embed
 
     def is_banned(self) -> bool:
-        for ucid in self.ucids:
-            if self.bot.bus.is_banned(ucid):
-                return True
-        return False
+        return self.bot.bus.is_banned(self.ucid) is not None
 
     async def on_cancel(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -62,15 +60,13 @@ class InfoView(View):
     async def on_ban(self, interaction: discord.Interaction):
         await interaction.response.defer()
         # TODO: reason modal
-        for ucid in self.ucids:
-            self.bot.bus.ban(ucid=ucid, reason='n/a', banned_by=interaction.user.display_name)
+        self.bot.bus.ban(ucid=self.ucid, reason='n/a', banned_by=interaction.user.display_name)
         await interaction.followup.send("User has been banned.")
         self.stop()
 
     async def on_unban(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        for ucid in self.ucids:
-            self.bot.bus.unban(ucid)
+        self.bot.bus.unban(self.ucid)
         await interaction.followup.send("User has been unbanned.")
         self.stop()
 
@@ -83,14 +79,12 @@ class InfoView(View):
 
     async def on_unlink(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        for ucid in self.ucids:
-            self._member.unlink(ucid)
+        self._member.unlink(self.ucid)
         await interaction.followup.send("Member has been unlinked.")
         self.stop()
 
     async def on_verify(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        for ucid in self.ucids:
-            self._member.link(ucid)
+        self._member.link(self.ucid)
         await interaction.followup.send("Member has been verified.")
         self.stop()

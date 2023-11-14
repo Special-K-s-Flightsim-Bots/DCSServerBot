@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import platform
 
 from abc import ABC
 from pathlib import Path
@@ -53,10 +54,12 @@ class Service(ABC):
     def get_config(self, server: Optional[Server] = None) -> dict:
         if not server:
             return self.locals.get(DEFAULT_TAG)
-        elif server.instance.name not in self._config:
-            self._config[server.instance.name] = (self.locals.get(DEFAULT_TAG, {}) |
-                                                  self.locals.get(server.instance.name, {}))
-        return self._config[server.instance.name]
+        if server.node.name not in self._config:
+            self._config[server.node.name] = {}
+        if server.instance.name not in self._config[server.node.name]:
+            self._config[server.node.name][server.instance.name] = (self.locals.get(DEFAULT_TAG, {}) |
+                                                                    self.locals.get(server.instance.name, {}))
+        return self._config[server.node.name][server.instance.name]
 
 
 class ServiceInstallationError(Exception):

@@ -1,4 +1,3 @@
-from contextlib import suppress
 from core import const, report, Status, Server, utils, ServiceRegistry
 from datetime import datetime, timedelta
 from typing import Optional
@@ -15,7 +14,7 @@ STATUS_IMG = {
 
 
 class Init(report.EmbedElement):
-    def render(self, server: Server):
+    async def render(self, server: Server):
         num_players = len(server.get_active_players()) + 1
         self.embed.set_author(
             name=f"{server.name} [{num_players}/{server.settings['maxPlayers']}]",
@@ -29,7 +28,7 @@ class Init(report.EmbedElement):
 
 class ServerInfo(report.EmbedElement):
 
-    def render(self, server: Server, show_password: Optional[bool] = True):
+    async def render(self, server: Server, show_password: Optional[bool] = True):
         self.add_field(name='Map', value=server.current_mission.map if server.current_mission else 'n/a')
         if server.node.public_ip:
             self.add_field(name='Server-IP / Port',
@@ -69,9 +68,9 @@ class ServerInfo(report.EmbedElement):
 
 class WeatherInfo(report.EmbedElement):
 
-    def render(self, server: Server):
+    async def render(self, server: Server):
         if server.current_mission and server.current_mission.weather:
-            report.Ruler(self.env).render()
+            await report.Ruler(self.env).render()
             weather = server.current_mission.weather
             self.add_field(name='Temperature', value=str(int(weather['season']['temperature'])) + ' °C')
             self.add_field(name='QNH (QFF)', value='{:.2f} inHg\n'.format(weather['qnh'] * const.MMHG_IN_INHG) +
@@ -109,30 +108,30 @@ class WeatherInfo(report.EmbedElement):
 
 class ExtensionsInfo(report.EmbedElement):
 
-    def render(self, server: Server):
+    async def render(self, server: Server):
+        extensions = await server.render_extensions()
         # we don't have any extensions loaded (yet)
-        if len(server.extensions) == 0:
+        if not extensions:
             return
-        report.Ruler(self.env).render()
-        footer = self.embed.footer.text
-        for ext in server.extensions.values():
-            with suppress(Exception):
-                ext.render(self)
-                footer += ', ' + ext.name
-                if ext.version:
-                    footer += ' v' + ext.version
+        await report.Ruler(self.env).render()
+        footer = self.embed.footer.text or ''
+        for ext in extensions:
+            self.embed.add_field(name=ext['name'], value=ext['value'])
+            footer += ', ' + ext['name']
+            if ext.get('version'):
+                footer += ' v' + ext['version']
         self.embed.set_footer(text=footer)
 
 
 class ScheduleInfo(report.EmbedElement):
 
-    def render(self, server: Server):
+    async def render(self, server: Server):
         bot = ServiceRegistry.get("Bot").bot
         scheduler = bot.cogs.get('Scheduler')
         if scheduler:
             config = scheduler.get_config(server)
             if 'schedule' in config:
-                report.Ruler(self.env).render(text="This server runs on the following schedule:")
+                await report.Ruler(self.env).render(text="This server runs on the following schedule:")
                 self.embed.add_field(name='Time', value='\n'.join(config['schedule'].keys()))
                 value = ''
                 for schedule in config['schedule'].values():
@@ -151,8 +150,8 @@ class ScheduleInfo(report.EmbedElement):
 
 
 class Footer(report.EmbedElement):
-    def render(self, server: Server):
-        text = self.embed.footer.text
+    async def render(self, server: Server):
+        text = self.embed.footer.text or ''
         for listener in self.bot.eventListeners:
             if (type(listener).__name__ == 'UserStatisticsEventListener') and \
                     (server.name in listener.statistics):
@@ -163,7 +162,7 @@ class Footer(report.EmbedElement):
 
 
 class All(report.EmbedElement):
-    def render(self):
+    async def render(self):
         num = 0
         for server in self.bot.servers.values():
             if server.status not in [Status.PAUSED, Status.RUNNING]:

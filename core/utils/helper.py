@@ -7,6 +7,7 @@ import os
 import re
 import string
 import unicodedata
+
 from datetime import datetime, timedelta
 from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
 
@@ -240,6 +241,7 @@ class SettingsDict(dict):
         self.path = path
         self.root = root
         self.mtime = 0
+        self.obj = obj
         self.log = obj.log
         self.read_file()
 

@@ -5,7 +5,7 @@ import sys
 if sys.platform == 'win32':
     import win32api
 
-from core import Extension, report, Server
+from core import Extension, Server
 from discord.ext import tasks
 from extensions import TACVIEW_DEFAULT_DIR
 from typing import Optional
@@ -81,12 +81,16 @@ class Lardoon(Extension):
             return False
         return True
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+    async def render(self, param: Optional[dict] = None) -> dict:
         if 'url' in self.config:
             value = self.config['url']
         else:
             value = 'enabled'
-        embed.add_field(name='Lardoon', value=value)
+        return {
+            "name": "Lardoon",
+            "version": self.version,
+            "value": value
+        }
 
     @tasks.loop(minutes=1.0)
     async def schedule(self):

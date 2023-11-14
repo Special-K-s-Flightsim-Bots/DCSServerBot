@@ -343,12 +343,13 @@ class Plugin(commands.Cog):
         with open(old_file, 'r') as infile:
             old = json.load(infile)
         if os.path.exists(new_file):
-            new = yaml.load(Path(new_file).read_text(encoding='utf-8'))
+            all_new = yaml.load(Path(new_file).read_text(encoding='utf-8'))
             exists = True
         else:
-            new = {}
+            all_new = {}
             exists = False
         if 'configs' in old:
+            new = all_new[platform.node()] = {}
             for config in old['configs']:
                 if 'installation' in config:
                     instance = config['installation']
@@ -356,13 +357,13 @@ class Plugin(commands.Cog):
                     del new[instance]['installation']
                 elif not exists:
                     # we only overwrite the default on the master
-                    new[DEFAULT_TAG] = config
+                    all_new[DEFAULT_TAG] = config
             if 'commands' in old:
                 new['commands'] = old['commands']
         else:
-            new = old
+            all_new = old
         with open(new_file, 'w') as outfile:
-            yaml.dump(new, outfile)
+            yaml.dump(all_new, outfile)
         shutil.move(old_file, BACKUP_FOLDER)
 
     def read_locals(self) -> dict:
@@ -419,7 +420,7 @@ class Plugin(commands.Cog):
                 return element
 
         default = deepcopy(filter_element(self.locals.get(DEFAULT_TAG, {})))
-        specific = deepcopy(filter_element(self.locals.get(server.instance.name, {})))
+        specific = deepcopy(filter_element(self.locals.get(server.node.name, self.locals).get(server.instance.name, {})))
         return default, specific
 
     def get_config(self, server: Optional[Server] = None, *, plugin_name: Optional[str] = None,
@@ -431,13 +432,19 @@ class Plugin(commands.Cog):
                     return plugin.get_config(server, use_cache=use_cache)
         if not server:
             return self.locals.get(DEFAULT_TAG, {})
-        if server.instance.name not in self._config or not use_cache:
+        if server.node.name not in self._config:
+            self._config[server.node.name] = {}
+        if server.instance.name not in self._config[server.node.name] or not use_cache:
             default, specific = self.get_base_config(server)
-            self._config[server.instance.name] = default | specific
-        return self._config[server.instance.name]
+            self._config[server.node.name][server.instance.name] = default | specific
+        return self._config[server.node.name][server.instance.name]
 
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str) -> None:
         # this function has to be implemented in your own plugins, if a server rename takes place
+        ...
+
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        # this function has to be implemented in your own plugins, if the ucid of a user changed (steam <=> standalone)
         ...
 
     async def on_ready(self) -> None:

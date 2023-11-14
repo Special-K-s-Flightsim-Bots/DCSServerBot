@@ -27,11 +27,11 @@ class ServerStats(Plugin):
     def rename(self, conn: psycopg.Connection, old_name: str, new_name: str):
         conn.execute('UPDATE serverstats SET server_name = %s WHERE server_name = %s', (new_name, old_name))
 
-    async def display_report(self, interaction: discord.Interaction, schema: str, period: str, server_name: str,
+    async def display_report(self, interaction: discord.Interaction, schema: str, period: str, server: Server,
                              ephemeral: bool):
         await interaction.response.defer(ephemeral=ephemeral)
         report = Report(self.bot, self.plugin_name, schema)
-        env = await report.render(period=period, server_name=server_name, node=platform.node())
+        env = await report.render(period=period, server_name=server.name, node=server.node.name)
         file = discord.File(env.filename) if env.filename else None
         await interaction.followup.send(embed=env.embed, file=file, ephemeral=ephemeral)
         if env.filename and os.path.exists(env.filename):
@@ -45,7 +45,7 @@ class ServerStats(Plugin):
                          _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
                          period: Optional[str]):
         if _server:
-            await self.display_report(interaction, 'serverload.json', period, _server.name,
+            await self.display_report(interaction, 'serverload.json', period, _server,
                                       ephemeral=utils.get_ephemeral(interaction))
         else:
             report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverload.json')
@@ -59,7 +59,7 @@ class ServerStats(Plugin):
                           _server: Optional[app_commands.Transform[Server, utils.ServerTransformer]],
                           period: Optional[str]):
         if _server:
-            await self.display_report(interaction, 'serverstats.json', period, _server.name,
+            await self.display_report(interaction, 'serverstats.json', period, _server,
                                       ephemeral=utils.get_ephemeral(interaction))
         else:
             report = PaginationReport(self.bot, interaction, self.plugin_name, 'serverstats.json')

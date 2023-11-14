@@ -53,7 +53,7 @@ class PeriodFilter(StatisticsFilter):
         elif period == 'today':
             return "DATE_TRUNC('day', s.hop_on) = current_date"
         else:
-            return f'DATE(s.hop_on) > (DATE(NOW()) - interval \'1 {period}\')'
+            return f"DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
@@ -135,11 +135,11 @@ class MissionFilter(StatisticsFilter):
 
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        return f"m.mission_name ILIKE '%%{period[8:]}%%'"
+        return f"m.mission_name ILIKE '%%{period[8:].strip()}%%'"
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        return f'Missions containing "{period[8:].title()}"'
+        return f'Missions containing "{period[8:].strip().title()}"'
 
 
 class MonthFilter(StatisticsFilter):
@@ -159,12 +159,12 @@ class MonthFilter(StatisticsFilter):
 
     @staticmethod
     def filter(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        month = MonthFilter.get_month(period[6:])
+        month = MonthFilter.get_month(period[6:].strip())
         return f"DATE_PART('month', s.hop_on) = {month} AND DATE_PART('year', s.hop_on) = DATE_PART('year', CURRENT_DATE)"
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:
-        month = MonthFilter.get_month(period[6:])
+        month = MonthFilter.get_month(period[6:].strip())
         return f'Month "{const.MONTH[month]}"'
 
 
@@ -178,7 +178,7 @@ class MissionStatisticsFilter(StatisticsFilter):
         if period in [None, 'all', 'all']:
             return '1 = 1'
         else:
-            return f'DATE(time) > (DATE(NOW()) - interval \'1 {period}\')'
+            return f"DATE(time) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
 
     @staticmethod
     def format(bot: DCSServerBot, period: str, server_name: Optional[str] = None) -> str:

@@ -200,7 +200,7 @@ end
 function dcsbot.listMissions(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: listMissions()')
 	local msg = net.missionlist_get()
-	msg.command = 'listMissions'
+	msg.command = json.command
 	utils.sendBotTable(msg, json.channel)
 end
 

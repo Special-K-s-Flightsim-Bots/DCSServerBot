@@ -1,5 +1,5 @@
 import discord
-from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError
+from core import Plugin, PluginRequiredError, Server, Player, TEventListener, PluginInstallationError, DEFAULT_TAG
 from discord.ext import commands
 from services import DCSServerBot
 from typing import Optional, Type
@@ -17,13 +17,17 @@ class SlotBlocking(Plugin):
                    use_cache: Optional[bool] = True) -> dict:
         if plugin_name:
             return super().get_config(server, plugin_name=plugin_name, use_cache=use_cache)
-        if server.instance.name not in self._config or not use_cache:
+        if not server:
+            return self.locals.get(DEFAULT_TAG, {})
+        if server.node.name not in self._config:
+            self._config[server.node.name] = {}
+        if server.instance.name not in self._config[server.node.name] or not use_cache:
             default, specific = self.get_base_config(server)
             vips = default.get('VIP', {}) | specific.get('VIP', {})
-            self._config[server.instance.name] = default | specific
+            self._config[server.node.name][server.instance.name] = default | specific
             if vips:
-                self._config[server.instance.name]['VIP'] = vips
-        return self._config[server.instance.name]
+                self._config[server.node.name][server.instance.name]['VIP'] = vips
+        return self._config[server.node.name][server.instance.name]
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):

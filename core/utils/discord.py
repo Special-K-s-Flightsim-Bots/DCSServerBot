@@ -528,13 +528,14 @@ class ServerTransformer(app_commands.Transformer):
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> list[Choice[str]]:
         try:
-            server: Server = interaction.client.get_server(interaction)
-            if server and server.status != Status.UNREGISTERED and (not self.status or server.status in self.status):
-                return [Choice(name=server.name, value=server.name)]
+            # server: Server = interaction.client.get_server(interaction)
+            # if server and server.status != Status.UNREGISTERED and (not self.status or server.status in self.status):
+            #   return [Choice(name=server.name, value=server.name)]
             choices: list[Choice[str]] = [
                 Choice(name=name, value=name)
                 for name, value in interaction.client.servers.items()
-                if (not self.status or value.status in self.status) and current.casefold() in name.casefold()
+                if (value.status != Status.UNREGISTERED and (not self.status or value.status in self.status) and
+                    (not current or current.casefold() in name.casefold()))
             ]
             return choices[:25]
         except Exception as ex:

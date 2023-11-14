@@ -168,7 +168,7 @@ class Admin(Plugin):
             if await utils.yn_question(interaction,
                                        f'Would you like to update from version {old_version} to {new_version}?\n'
                                        f'All running DCS servers will be shut down!', ephemeral=ephemeral) is True:
-                await self.bot.audit(f"started an update of all DCS servers on node {platform.node()}.",
+                await self.bot.audit(f"started an update of all DCS servers on node {node.name}.",
                                      user=interaction.user)
                 msg = await interaction.followup.send(f"Updating DCS to version {new_version}, please wait ...",
                                                       ephemeral=ephemeral)

@@ -1,10 +1,11 @@
 import asyncio
 import discord
 import os
+import platform
 import psycopg
 import random
-from contextlib import closing
 
+from contextlib import closing
 from core import utils, Plugin, PluginRequiredError, Report, PaginationReport, Status, Server, Player, \
     DataObjectFactory, PersistentReport, Channel, command, DEFAULT_TAG, PlayerType
 from discord import app_commands
@@ -56,7 +57,7 @@ class UserStatistics(Plugin):
         self.expire_token.cancel()
         await super().cog_unload()
 
-    async def prune(self, conn, *, days: int = -1, ucids: list[str] = None):
+    async def prune(self, conn: psycopg.Connection, *, days: int = -1, ucids: list[str] = None):
         self.log.debug('Pruning Userstats ...')
         if ucids:
             for ucid in ucids:
@@ -64,6 +65,9 @@ class UserStatistics(Plugin):
         elif days > -1:
             conn.execute(f"DELETE FROM statistics WHERE hop_off < (DATE(NOW()) - interval '{days} days')")
         self.log.debug('Userstats pruned.')
+
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute("UPDATE statistics SET player_ucid = %s WHERE player_ucid = %s", (new_ucid, old_ucid))
 
     @command(description='Deletes the statistics of a server')
     @app_commands.guild_only()
@@ -175,8 +179,22 @@ class UserStatistics(Plugin):
                    ucid: app_commands.Transform[Union[discord.Member, str], utils.UserTransformer(
                        sel_type=PlayerType.PLAYER, linked=False)]
                    ):
+        ephemeral = utils.get_ephemeral(interaction)
+        _member = self.bot.get_member_by_ucid(ucid)
+        if _member and not await utils.yn_question(interaction, f"Member {_member.display_name} is linked to this UCID "
+                                                                f"already. Do you want to relink?",
+                                                   ephemeral=ephemeral):
+            return
+        _ucid = self.bot.get_ucid_by_member(member)
+        if _ucid and not await utils.yn_question(interaction, f"Member {member.display_name} is linked to another UCID "
+                                                              f"already. Do you want to relink?",
+                                                 ephemeral=ephemeral):
+            return
         with self.pool.connection() as conn:
             with conn.transaction():
+                # delete an old mapping, if one existed
+                conn.execute('UPDATE players SET discord_id = -1, manual = FALSE WHERE discord_id = %s',
+                             (member.id, ))
                 conn.execute('UPDATE players SET discord_id = %s, manual = TRUE WHERE ucid = %s', (member.id, ucid))
                 # delete a token, if one existed
                 conn.execute('DELETE FROM players WHERE discord_id = %s AND LENGTH(ucid) = 4', (member.id, ))
@@ -375,32 +393,21 @@ class UserStatistics(Plugin):
                                             f"**The TOKEN will expire in 2 days.**", ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
+        member = DataObjectFactory().new('Member', node=self.bot.node, member=interaction.user)
+        if (utils.is_ucid(member.ucid) and member.verified and
+                not await utils.yn_question(interaction,
+                                            "You already have a verified DCS account!\n"
+                                            "Are you sure you want to re-link your account? "
+                                            "(Ex: Switched from Steam to Standalone)", ephemeral=True)):
+            await interaction.followup.send('Aborted.')
+            return
+        elif member.ucid and not utils.is_ucid(member.ucid):
+            await send_token(member.ucid)
+            return
+
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
-                    for row in cursor.execute('SELECT ucid, manual FROM players WHERE discord_id = %s ORDER BY manual',
-                                              (interaction.user.id, )).fetchall():
-                        if len(row[0]) == 4:
-                            await send_token(row[0])
-                            return
-                        elif row[1] is False:
-                            if not await utils.yn_question(interaction, 'Automatic user mapping found.\n'
-                                                                        'Do you want to re-link your user?',
-                                                           ephemeral=True):
-                                return
-                            else:
-                                for server in self.bot.servers.values():
-                                    player = server.get_player(ucid=row[0])
-                                    if player:
-                                        player.member = None
-                                        continue
-                                cursor.execute('UPDATE players SET discord_id = -1 WHERE ucid = %s', (row[0],))
-                                break
-                        elif not await utils.yn_question(interaction,
-                                                         "You already have a linked DCS account!\n"
-                                                         "Are you sure you want to link a second account? "
-                                                         "(Ex: Switched from Steam to Standalone)", ephemeral=True):
-                            return
                     # in the very unlikely event that we have generated the very same random number twice
                     while True:
                         try:
@@ -431,7 +438,7 @@ class UserStatistics(Plugin):
             await interaction.response.send_message(
                 f'You are not allowed to delete statistics of user {user.display_name}!')
             return
-        member = DataObjectFactory().new('Member', bot=self.bot, member=user)
+        member = DataObjectFactory().new('Member', node=self.bot.node, member=user)
         if not member.verified:
             await interaction.response.send_message(
                 f"User {user.display_name} has non-verified links. Statistics can't be deleted.", ephemeral=True)
@@ -441,15 +448,9 @@ class UserStatistics(Plugin):
                                                 f'"{user.display_name}".\n\nAre you sure?', ephemeral=ephemeral):
             with self.pool.connection() as conn:
                 with conn.transaction():
-                    for ucid in member.ucids:
-                        # TODO: change that to prune()-calls
-                        conn.execute('DELETE FROM statistics WHERE player_ucid = %s', (ucid, ))
-                        conn.execute('DELETE FROM missionstats WHERE init_id = %s', (ucid, ))
-                        conn.execute('DELETE FROM credits WHERE player_ucid = %s', (ucid,))
-                        if 'greenieboard' in self.bot.node.plugins:
-                            conn.execute('DELETE FROM greenieboard WHERE player_ucid = %s', (ucid,))
-                    conn.commit()
-                await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.', 
+                    for plugin in self.bot.cogs.values():  # type: Plugin
+                        await plugin.prune(conn, ucids=[member.ucid])
+                await interaction.followup.send(f'Statistics for user "{user.display_name}" have been wiped.',
                                                 ephemeral=ephemeral)
 
     @tasks.loop(hours=1)
@@ -461,13 +462,11 @@ class UserStatistics(Plugin):
 
     @tasks.loop(hours=1)
     async def persistent_highscore(self):
-        def get_server_by_instance(instance: str) -> Optional[Server]:
-            for server in self.bot.servers.values():
-                if server.instance.name == instance:
-                    return server
-            return None
-
-        async def render_highscore(highscore: dict, server: Optional[Server] = None):
+        async def render_highscore(highscore: Union[dict, list], server: Optional[Server] = None):
+            if isinstance(highscore, list):
+                for h in highscore:
+                    await render_highscore(h, server)
+                return
             kwargs = highscore.get('params', {})
             period = kwargs.get('period')
             flt = StatisticsFilter.detect(self.bot, period) if period else None
@@ -479,23 +478,14 @@ class UserStatistics(Plugin):
             await report.render(interaction=None, server_name=server.name if server else None, flt=flt, **kwargs)
 
         try:
-            for instance_name, config in self.locals.items():
-                if 'highscore' not in config:
+            # global highscore
+            if self.locals.get(DEFAULT_TAG) and self.locals[DEFAULT_TAG].get('highscore'):
+                await render_highscore(self.locals[DEFAULT_TAG]['highscore'], None)
+            for server in self.bus.servers.values():
+                config = self.locals.get(server.node.name, self.locals).get(server.instance.name)
+                if not config or not config.get('highscore'):
                     continue
-                if instance_name != DEFAULT_TAG:
-                    server = get_server_by_instance(instance_name)
-                    if not server:
-                        self.log.debug(
-                            f"Instance {instance_name} is not (yet) registered, skipping highscore update.")
-                        return
-                else:
-                    server = None
-                if isinstance(config['highscore'], list):
-                    for highscore in config['highscore']:
-                        await render_highscore(highscore, server)
-                else:
-                    await render_highscore(config['highscore'], server)
-
+                await render_highscore(config['highscore'], server)
         except Exception as ex:
             self.log.exception(ex)
 

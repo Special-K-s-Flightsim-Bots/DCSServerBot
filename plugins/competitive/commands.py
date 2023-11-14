@@ -1,13 +1,13 @@
-from contextlib import closing
-from typing import Optional, Union
-
 import discord
+import psycopg
+
+from contextlib import closing
+from core import Plugin, command, utils
 from discord import app_commands
+from plugins.competitive import rating
 from psycopg.rows import dict_row
 from trueskill import Rating
-
-from core import Plugin, command, utils
-from plugins.competitive import rating
+from typing import Optional, Union
 from services import DCSServerBot
 
 
@@ -59,6 +59,9 @@ class Competitive(Plugin):
             return True
         return False
 
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        conn.execute('UPDATE trueskill SET player_ucid = %s WHERE player_ucid = %s', (new_ucid, old_ucid))
+
     @command(description='Display your TrueSkill:tm: rating')
     @utils.app_has_role('DCS')
     @app_commands.guild_only()
@@ -80,15 +83,16 @@ class Competitive(Plugin):
         with self.pool.connection() as conn:
             with closing(conn.cursor(row_factory=dict_row)) as cursor:
                 row = cursor.execute("""
-                    SELECT p.name, t.skill_mu 
+                    SELECT p.name, t.skill_mu, t.skill_sigma
                     FROM players p LEFT OUTER JOIN trueskill t ON (p.ucid = t.player_ucid) 
                     WHERE p.ucid = %s
                 """, (ucid, )).fetchone()
-                skill_mu = row['skill_mu']
-                if not skill_mu:
-                    skill_mu = rating.create_rating().mu
-                await interaction.response.send_message(f"TrueSkill:tm: rating of player {row['name']}: {skill_mu}.",
-                                                        ephemeral=True)
+                r = rating.create_rating()
+                skill_mu = float(row['skill_mu']) if row['skill_mu'] else r.mu
+                skill_sigma = float(row['skill_sigma']) if row['skill_sigma'] else r.sigma
+                await interaction.response.send_message(
+                    f"TrueSkill:tm: rating of player {row['name']}: {skill_mu - 3.0 * skill_sigma:.2f}.",
+                    ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):

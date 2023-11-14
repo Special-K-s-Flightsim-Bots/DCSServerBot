@@ -428,10 +428,42 @@ like SSL encryption in mind) or you use a cloud database, available on services 
 This would be the recommended approach, as you would still have a single point of failure in your cluster with a local
 database. All depending on your high availability requirements.
 
-Many files like configuration, missions, music and whatnot should be kept on a cloud drive in that case, even the whole
-DCSServerBot installation could be on a cloud drive (like Google Drive). You can start each bot in each
+Many files like configuration, music and maybe even missions should be kept on a cloud drive in that case, even the 
+whole DCSServerBot installation could be on a cloud drive (like Google Drive). You can start each bot in each
 location on this shared directory. Each bot will read its individual configuration based on the hostname (node name) of 
 that PC.
+
+> ⚠️ **Attention!**<br>
+> If you use multiple nodes, you might get to the moment where instances are named identical. This will start with the
+> first instance already, if you keep the default name "DCS.server" or "DCS.openbeta_server".<br>
+> As many configuration files only use the instance name per default, you might need to add the node name as well.
+> This can be done like as if you look at your nodes.yaml - the node can be the outer structure in each config file.
+> 
+> Single-Node-Config:
+> ```yaml
+> DEFAULT:
+>   some-param: A
+> DCS.openbeta_server:
+>   some-param: B
+> ```
+> 
+> Multi-Node-Config:
+> ```yaml
+> DEFAULT:
+>   some-param: A
+> MyNode1:
+>   DCS.openbeta_server:
+>     some-param: B
+> MyNode2:
+>   DCS.openbeta_server:
+>     some-param: C
+> ```
+DCSServerBot will understand both versions. The DEFAULT will be used for ALL instances, independent on which node they 
+are. If you don't provide a node in a multi-node-system (ex: "Single-Node-Config" above), the bot will read the same 
+parameters for all instances that are named DCS.openbeta_server on any of your nodes. This can be what you want but it 
+can lead to errors.<br>
+I would always recommend to create the node-specific version (ex: "Multi-Node-Config" above) to avoid confusion. That's 
+what the bot will create during a default installation also.
 
 ### Moving a Server from one Location to Another
 Each server is loosely coupled to an instance on a node. You can migrate a server to another instance though, by using

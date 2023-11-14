@@ -442,10 +442,18 @@ class ServiceBus(Service):
 
     async def handle_master(self, data: dict):
         self.log.debug(f"{data['node']}->MASTER: {json.dumps(data)}")
-        if data['server_name'] in self.udp_server.message_queue:
-            self.udp_server.message_queue[data['server_name']].put(data)
-        else:
-            self.log.debug(f"Intercom: message ignored, no server {data['server_name']} registered.")
+        server_name = data['server_name']
+        if server_name not in self.udp_server.message_queue:
+            self.log.debug(f"Intercom: message ignored, no server {server_name} registered.")
+        # support sync responses though intercom
+        if 'channel' in data and data['channel'].startswith('sync-'):
+            server: Server = self.servers.get(server_name)
+            f = server.listeners.get(data['channel'])
+            if f and not f.done():
+                self.loop.call_soon_threadsafe(f.set_result, data)
+            if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
+                return
+        self.udp_server.message_queue[server_name].put(data)
 
     async def handle_agent(self, data: dict):
         self.log.debug(f"MASTER->{self.node.name}: {json.dumps(data)}")
@@ -528,8 +536,8 @@ class ServiceBus(Service):
                     return
                 if 'channel' in data and data['channel'].startswith('sync-'):
                     if data['channel'] in server.listeners:
-                        f = server.listeners[data['channel']]
-                        if not f.done():
+                        f = server.listeners.get(data['channel'])
+                        if f and not f.done():
                             self.loop.call_soon_threadsafe(f.set_result, data)
                         if data['command'] not in ['registerDCSServer', 'getMissionUpdate']:
                             return

@@ -1,8 +1,7 @@
-from contextlib import closing
-
 import psycopg
 
-from core import EventListener, Plugin, Status, Server, Side, Player, event, chat_command
+from contextlib import closing
+from core import EventListener, Plugin, Status, Server, Side, Player, event, chat_command, DataObjectFactory
 from typing import Union
 
 
@@ -34,11 +33,11 @@ class UserStatisticsEventListener(EventListener):
     SQL_MISSION_HANDLING = {
         'start_mission': 'INSERT INTO missions (server_name, mission_name, mission_theatre) VALUES (%s, %s, %s)',
         'current_mission_id': 'SELECT id, mission_name FROM missions WHERE server_name = %s AND mission_end IS NULL',
-        'close_statistics': 'UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND hop_off IS NULL',
-        'close_mission': 'UPDATE missions SET mission_end = NOW() WHERE id = %s',
+        'close_statistics': "UPDATE statistics SET hop_off = (now() AT TIME ZONE 'utc') WHERE mission_id = %s AND hop_off IS NULL",
+        'close_mission': "UPDATE missions SET mission_end = (now() AT TIME ZONE 'utc') WHERE id = %s",
         'check_player': 'SELECT slot FROM statistics WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
         'start_player': 'INSERT INTO statistics (mission_id, player_ucid, slot, side) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING',
-        'stop_player': 'UPDATE statistics SET hop_off = NOW() WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL',
+        'stop_player': "UPDATE statistics SET hop_off = (now() AT TIME ZONE 'utc') WHERE mission_id = %s AND player_ucid = %s AND hop_off IS NULL",
         'all_players': 'SELECT player_ucid FROM statistics WHERE mission_id = %s AND hop_off IS NULL'
     }
 
@@ -72,7 +71,7 @@ class UserStatisticsEventListener(EventListener):
             WHERE m1.server_name = %s AND m1.mission_end IS NULL
         """, (server.name,))
         cursor.execute("""
-            UPDATE missions SET mission_end = NOW() WHERE server_name = %s AND mission_end IS NULL
+            UPDATE missions SET mission_end = (now() AT TIME ZONE 'utc') WHERE server_name = %s AND mission_end IS NULL
         """, (server.name,))
 
         for row in cursor.execute("""
@@ -87,7 +86,7 @@ class UserStatisticsEventListener(EventListener):
                 WHERE mission_id = %s AND player_ucid = %s AND slot = %s AND hop_off IS NULL
             """, (row[0], row[0], row[1], row[2]))
         cursor.execute("""
-            UPDATE statistics SET hop_off = NOW() WHERE mission_id IN (
+            UPDATE statistics SET hop_off = (now() AT TIME ZONE 'utc') WHERE mission_id IN (
                 SELECT id FROM missions WHERE server_name = %s
             ) AND hop_off IS NULL
         """, (server.name,))
@@ -334,17 +333,30 @@ class UserStatisticsEventListener(EventListener):
         with self.pool.connection() as conn:
             with conn.transaction():
                 with closing(conn.cursor()) as cursor:
-                    cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,))
-                    if cursor.rowcount == 0:
+                    row = cursor.execute('SELECT discord_id FROM players WHERE ucid = %s', (token,)).fetchone()
+                    if not row:
                         player.sendChatMessage('Invalid token.')
                         await self.bot.get_admin_channel(server).send(
                             f'Player {player.display_name} (ucid={player.ucid}) entered a non-existent linking token.')
                     else:
-                        discord_id = cursor.fetchone()[0]
-                        player.member = self.bot.guilds[0].get_member(discord_id)
-                        player.verified = True
+                        discord_id = row[0]
+                        member = DataObjectFactory().new('Member', node=self.bot.node,
+                                                         member=self.bot.guilds[0].get_member(discord_id))
+
+                        old_ucid = member.ucid if member.verified else None
+                        member.ucid = player.ucid
+                        member.verified = True
                         cursor.execute('DELETE FROM players WHERE ucid = %s', (token,))
-                        await self.bot.audit(
-                            f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
-                            user=player.member)
-                        player.sendChatMessage('Your user has been linked!')
+                        # make sure we update all tables with the new UCID
+                        if old_ucid != player.ucid:
+                            for plugin in self.bot.cogs.values():  # type: Plugin
+                                await plugin.update_ucid(conn, old_ucid, player.ucid)
+                            await self.bot.audit(f'changed UCID from {old_ucid} to {player.ucid}.', user=player.member)
+                            player.sendChatMessage('Your account has been updated.')
+                        elif not old_ucid:
+                            await self.bot.audit(
+                                f'self-linked to DCS user "{player.display_name}" (ucid={player.ucid}).',
+                                user=player.member)
+                            player.sendChatMessage('Your user has been linked.')
+                        else:
+                            player.sendChatMessage('Your user was linked already!')

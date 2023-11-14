@@ -99,6 +99,9 @@ class CloudHandler(Plugin):
         else:
             await send(data)
 
+    async def update_ucid(self, conn: psycopg.Connection, old_ucid: str, new_ucid: str) -> None:
+        await self.post('update_ucid', {"old_ucid": old_ucid, "new_ucid": new_ucid})
+
     # New command group "/cloud"
     cloud = Group(name="cloud", description="Commands to manage the DCSSB Cloud Service")
 

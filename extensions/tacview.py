@@ -6,7 +6,7 @@ import sys
 if sys.platform == 'win32':
     import win32api
 
-from core import Extension, report, utils, ServiceRegistry, Server
+from core import Extension, utils, ServiceRegistry, Server
 from discord.ext import tasks
 from services import ServiceBus
 from typing import Optional, cast
@@ -106,7 +106,7 @@ class Tacview(Extension):
             version = 'n/a'
         return version
 
-    def render(self, embed: report.EmbedElement, param: Optional[dict] = None):
+    async def render(self, param: Optional[dict] = None) -> dict:
         if not self.locals:
             return
         name = 'Tacview'
@@ -128,7 +128,11 @@ class Tacview(Extension):
                 value += f"Delay: {utils.format_time(self.locals['tacviewPlaybackDelay'])}"
             if len(value) == 0:
                 value = 'enabled'
-        embed.add_field(name=name, value=value)
+        return {
+            "name": name,
+            "version": self.version,
+            "value": value
+        }
 
     def is_installed(self) -> bool:
         global rtt_ports, rcp_ports

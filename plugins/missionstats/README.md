@@ -9,10 +9,14 @@ Missionstats needs the Userstats plugin to be loaded first (default).
 The configuration is held in config/plugins/missionstats.yaml:
 ```yaml
 DCS.openbeta_server:
-  enabled: true                 # false: disable mission statistics gathering (default: true)
-  display: true                 # false: don't show mission statistics in your status channel (default: true)
-  persistence: true             # false: don't persist the mission statistics to database (default: true)
-  persist_ai_statistics: false  # true: persist AI statistics to the database (default: false)
+  enabled: true                   # false: disable mission statistics gathering (default: true)
+  display: true                   # false: don't show mission statistics in your status channel (default: true)
+  persistence: true               # false: don't persist the mission statistics to database (default: true)
+  persist_ai_statistics: false    # true: persist AI statistics to the database (default: false)
+  mission_end:                    # optional: display a final mission statistics embed at mission end
+    persistent: true              # send a persistent mission end embed (default: non persistent) 
+    channel: 1122334455667788     # channel to display the embed in
+    title: Mission accomplished!  # alternative title (default: Mission Result)
 ```
 
 ## How to disable Missionstats inside of missions

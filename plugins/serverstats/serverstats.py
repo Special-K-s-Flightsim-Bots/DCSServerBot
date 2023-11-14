@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 class ServerUsage(report.EmbedElement):
 
-    def render(self, server_name: Optional[str], period: Optional[str]):
+    async def render(self, server_name: Optional[str], period: Optional[str]):
         sql = f"SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) " \
               f"AS server_name, ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, " \
               f"COUNT(DISTINCT s.player_ucid) AS players, COUNT(DISTINCT p.discord_id) AS members FROM missions m, " \
@@ -21,7 +21,7 @@ class ServerUsage(report.EmbedElement):
         if server_name:
             sql += f' AND m.server_name = %s'
         if period:
-            sql += f" AND DATE(s.hop_on) > (DATE(NOW()) - interval '1 {period}')"
+            sql += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
         sql += ' GROUP BY 1 ORDER BY 2 DESC'
 
         with self.pool.connection() as conn:
@@ -47,7 +47,7 @@ class ServerUsage(report.EmbedElement):
 
 class TopMissionPerServer(report.EmbedElement):
 
-    def render(self, server_name: Optional[str], period: Optional[str], limit: int):
+    async def render(self, server_name: Optional[str], period: Optional[str], limit: int):
         sql_left = 'SELECT server_name, mission_name, playtime FROM (SELECT server_name, ' \
                                       'mission_name, playtime, ROW_NUMBER() OVER(PARTITION BY server_name ORDER BY ' \
                                       'playtime DESC) AS rn FROM ('
@@ -60,7 +60,7 @@ class TopMissionPerServer(report.EmbedElement):
         if server_name:
             sql_inner += f' AND m.server_name = %s'
         if period:
-            sql_inner += f" AND DATE(s.hop_on) > (DATE(NOW()) - interval '1 {period}')"
+            sql_inner += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
         sql_inner += ' GROUP BY 1, 2'
 
         with self.pool.connection() as conn:
@@ -87,14 +87,14 @@ class TopMissionPerServer(report.EmbedElement):
 
 class TopModulesPerServer(report.EmbedElement):
 
-    def render(self, server_name: Optional[str], period: Optional[str], limit: int):
+    async def render(self, server_name: Optional[str], period: Optional[str], limit: int):
         sql = 'SELECT s.slot, COUNT(s.slot) AS num_usage, COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - ' \
               's.hop_on))) / 3600),0) AS playtime, COUNT(DISTINCT s.player_ucid) AS players FROM missions m, ' \
               'statistics s WHERE m.id = s.mission_id'
         if server_name:
             sql += ' AND m.server_name = %s'
         if period:
-            sql += f" AND DATE(s.hop_on) > (DATE(NOW()) - interval '1 {period}')"
+            sql += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
         sql += f" GROUP BY s.slot ORDER BY 3 DESC LIMIT {limit}"
 
         with self.pool.connection() as conn:
@@ -116,7 +116,7 @@ class TopModulesPerServer(report.EmbedElement):
 
 class UniquePast14(report.GraphElement):
 
-    def render(self, server_name: Optional[str]):
+    async def render(self, server_name: Optional[str]):
         sql = 'SELECT d.date AS date, COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, ' \
               'missions m, generate_series(DATE(NOW()) - INTERVAL \'2 weeks\', DATE(NOW()), INTERVAL \'1 ' \
               'day\') d WHERE d.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off) AND s.mission_id = m.id'
@@ -151,7 +151,7 @@ class UniquePast14(report.GraphElement):
 
 class UsersPerDayTime(report.GraphElement):
 
-    def render(self, server_name: Optional[str], period: Optional[str]):
+    async def render(self, server_name: Optional[str], period: Optional[str]):
         sql = 'SELECT to_char(s.hop_on, \'ID\') as weekday, to_char(h.time, \'HH24\') AS hour, ' \
               'COUNT(DISTINCT s.player_ucid) AS players FROM statistics s, missions m, generate_series(current_date, ' \
               'current_date + 1, INTERVAL \'1 hour\') h WHERE date_part(\'hour\', h.time) BETWEEN date_part(\'hour\', ' \
@@ -159,7 +159,7 @@ class UsersPerDayTime(report.GraphElement):
         if server_name:
             sql += f" AND m.server_name = %s"
         if period:
-            sql += f" AND DATE(s.hop_on) > (DATE(NOW()) - interval '1 {period}')"
+            sql += f" AND DATE(s.hop_on) > (DATE((now() AT TIME ZONE 'utc')) - interval '1 {period}')"
         sql += ' GROUP BY 1, 2'
 
         with self.pool.connection() as conn:
@@ -178,7 +178,7 @@ class UsersPerDayTime(report.GraphElement):
 
 class ServerLoad(report.MultiGraphElement):
 
-    def render(self, server_name: Optional[str], period: str, node: Optional[str]):
+    async def render(self, server_name: Optional[str], period: str, node: Optional[str]):
         sql = f"SELECT date_trunc('minute', time) AS time, AVG(users) AS \"Users\", AVG(cpu) AS \"CPU\", AVG(CASE " \
               f"WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS \"Memory (paged)\", " \
               f"AVG(mem_ram)/(1024*1024) AS \"Memory (RAM)\", SUM(read_bytes)/1024 AS \"Read\", SUM(write_bytes)/1024 " \
