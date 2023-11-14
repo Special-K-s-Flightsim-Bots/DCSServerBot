@@ -357,7 +357,7 @@ class Plugin(commands.Cog):
                     del new[instance]['installation']
                 elif not exists:
                     # we only overwrite the default on the master
-                    new[DEFAULT_TAG] = config
+                    all_new[DEFAULT_TAG] = config
             if 'commands' in old:
                 new['commands'] = old['commands']
         else:

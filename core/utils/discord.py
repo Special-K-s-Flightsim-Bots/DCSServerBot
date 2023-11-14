@@ -534,7 +534,8 @@ class ServerTransformer(app_commands.Transformer):
             choices: list[Choice[str]] = [
                 Choice(name=name, value=name)
                 for name, value in interaction.client.servers.items()
-                if (not self.status or value.status in self.status) and current.casefold() in name.casefold()
+                if (value.status != Status.UNREGISTERED and (not self.status or value.status in self.status) and
+                    (not current or current.casefold() in name.casefold()))
             ]
             return choices[:25]
         except Exception as ex:

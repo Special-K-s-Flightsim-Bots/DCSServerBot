@@ -27,7 +27,7 @@ def post_migrate_admin():
         data = yaml.load(infile)
     config = False
     remove = -1
-    for instance in data[platform.node()]:
+    for instance in data[platform.node()].values():
         if instance == 'commands':
             continue
         for idx, download in enumerate(data[platform.node()][instance]['downloads']):
@@ -83,7 +83,7 @@ def post_migrate_greenieboard():
             cleanups = yaml.load(infile)
     else:
         cleanups = {}
-    cleanup = cleanups[platform.node] = {}
+    cleanup = cleanups[platform.node()] = {}
     for name, instance in data[platform.node()].items():
         if 'Moose.AIRBOSS' in instance and instance['Moose.AIRBOSS'].get('delete_after'):
             if name not in cleanup:
@@ -108,7 +108,6 @@ def post_migrate_greenieboard():
             }
             del instance['FunkMan']['delete_after']
     if cleanup:
-
         with open('config/services/cleanup.yaml', 'w') as outfile:
             yaml.dump(cleanups, outfile)
         with open('config/plugins/greenieboard.yaml', 'w') as outfile:
