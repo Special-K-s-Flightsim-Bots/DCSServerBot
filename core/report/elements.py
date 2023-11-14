@@ -214,7 +214,7 @@ class Graph(ReportElement):
             self.env.figure.savefig(self.env.filename, bbox_inches='tight', facecolor='#2C2F33')
             plt.close(self.env.figure)
         self.env.embed.set_image(url='attachment://' + os.path.basename(self.env.filename))
-        footer = self.env.embed.footer.text
+        footer = self.env.embed.footer.text or ''
         if footer is None:
             footer = 'Click on the image to zoom in.'
         else:

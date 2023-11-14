@@ -114,7 +114,7 @@ class ExtensionsInfo(report.EmbedElement):
         if not extensions:
             return
         await report.Ruler(self.env).render()
-        footer = self.embed.footer.text
+        footer = self.embed.footer.text or ''
         for ext in extensions:
             self.embed.add_field(name=ext['name'], value=ext['value'])
             footer += ', ' + ext['name']
@@ -151,7 +151,7 @@ class ScheduleInfo(report.EmbedElement):
 
 class Footer(report.EmbedElement):
     async def render(self, server: Server):
-        text = self.embed.footer.text
+        text = self.embed.footer.text or ''
         for listener in self.bot.eventListeners:
             if (type(listener).__name__ == 'UserStatisticsEventListener') and \
                     (server.name in listener.statistics):

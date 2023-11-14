@@ -71,7 +71,7 @@ class Report:
             elif name == 'img':
                 self.env.embed.set_thumbnail(url=item)
             elif name == 'footer':
-                footer = self.env.embed.footer.text
+                footer = self.env.embed.footer.text or ''
                 text = utils.format_string(item, **self.env.params)
                 if footer is None:
                     footer = text
