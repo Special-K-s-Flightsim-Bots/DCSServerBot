@@ -1,7 +1,7 @@
 import discord
 import os
 
-from core import Plugin, ServiceRegistry, command, utils, Node
+from core import Plugin, ServiceRegistry, command, utils, Node, YAMLError
 from discord import app_commands
 from pathlib import Path
 from services import DCSServerBot, BackupService
@@ -9,6 +9,7 @@ from typing import cast
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+from ruamel.yaml.parser import ParserError
 yaml = YAML()
 
 
@@ -32,7 +33,10 @@ class Backup(Plugin):
     def read_locals(self) -> dict:
         if not os.path.exists('config/services/backup.yaml'):
             return {}
-        return yaml.load(Path('config/services/backup.yaml').read_text(encoding='utf-8'))
+        try:
+            return yaml.load(Path('config/services/backup.yaml').read_text(encoding='utf-8'))
+        except ParserError as ex:
+            raise YAMLError('config/services/backup.yaml', ex)
 
     @command(description='Backup your data')
     @app_commands.guild_only()

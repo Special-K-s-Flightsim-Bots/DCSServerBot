@@ -24,9 +24,11 @@ from typing import Type, Optional, TYPE_CHECKING, Union, Any, Dict, Callable, Li
 
 from .const import DEFAULT_TAG
 from .listener import TEventListener
+from .utils.helper import YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+from ruamel.yaml.parser import ParserError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -380,7 +382,10 @@ class Plugin(commands.Cog):
         else:
             return {}
         self.log.debug(f'  => Reading plugin configuration from {filename} ...')
-        return yaml.load(Path(filename).read_text(encoding='utf-8'))
+        try:
+            return yaml.load(Path(filename).read_text(encoding='utf-8'))
+        except ParserError as ex:
+            raise YAMLError(filename, ex)
 
     # get default and specific configs to be merged in derived implementations
     def get_base_config(self, server: Server) -> Tuple[Optional[dict], Optional[dict]]:

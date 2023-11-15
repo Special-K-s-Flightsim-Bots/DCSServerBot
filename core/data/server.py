@@ -4,20 +4,22 @@ import os
 import uuid
 
 from contextlib import suppress
-from pathlib import Path
 from core import utils
 from core.const import DEFAULT_TAG
 from core.services.registry import ServiceRegistry
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from psutil import Process
 from typing import Optional, Union, TYPE_CHECKING
 
 from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side
+from ..utils.helper import YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+from ruamel.yaml.parser import ParserError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -60,7 +62,10 @@ class Server(DataObject):
         self.bus = ServiceRegistry.get("ServiceBus")
         self.status_change = asyncio.Event()
         if os.path.exists('config/servers.yaml'):
-            data = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
+            try:
+                data = yaml.load(Path('config/servers.yaml').read_text(encoding='utf-8'))
+            except ParserError as ex:
+                raise YAMLError('config/servers.yaml', ex)
             if not data.get(self.name):
                 self.log.warning(f'No configuration found for server "{self.name}" in server.yaml!')
             self.locals = data.get(DEFAULT_TAG, {}) | data.get(self.name, {})
