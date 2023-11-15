@@ -94,6 +94,7 @@ if __name__ == "__main__":
         exit(-1)
     except YAMLError as ex:
         print(ex)
+        exit(-1)
     except:
         traceback.print_exc()
         exit(-1)
