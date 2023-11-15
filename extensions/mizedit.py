@@ -1,6 +1,6 @@
 import random
 
-from core import Extension, utils, Server, YAMLError
+from core import Extension, utils, Server, YAMLError, DEFAULT_TAG
 from datetime import datetime
 from pathlib import Path
 from typing import Tuple
@@ -20,10 +20,18 @@ class MizEdit(Extension):
         except ParserError as ex:
             raise YAMLError('config/presets.yaml', ex)
 
-    def get_presets(self):
+    async def get_presets(self, config: dict):
+        # check for terrain-specific config
+        if 'terrains' in config:
+            theatre = await self.server.get_current_mission_theatre() or DEFAULT_TAG
+            if theatre and theatre in config['terrains']:
+                return await self.get_presets(config['terrains'][theatre])
+            else:
+                return []
+
         presets = []
         now = datetime.now()
-        _presets = self.config['settings']
+        _presets = config['settings']
         if isinstance(_presets, dict):
             for key, value in _presets.items():
                 if utils.is_in_timeframe(now, key):
@@ -58,7 +66,7 @@ class MizEdit(Extension):
         return modifications
 
     async def beforeMissionLoad(self, filename: str) -> Tuple[str, bool]:
-        return await self.server.modifyMission(filename, self.get_presets()), True
+        return await self.server.modifyMission(filename, await self.get_presets(self.config)), True
 
     def is_installed(self) -> bool:
         return True

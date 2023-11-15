@@ -228,7 +228,7 @@ class ServerImpl(Server):
     async def get_current_mission_theatre(self) -> Optional[str]:
         filename = await self.get_current_mission_file()
         if filename:
-            miz = MizFile(self.bot, filename)
+            miz = MizFile(self.node, filename)
             return miz.theatre
 
     def serialize(self, message: dict):
