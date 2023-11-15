@@ -1,12 +1,13 @@
 import random
-from typing import Tuple
 
-from core import Extension, utils, Server
+from core import Extension, utils, Server, YAMLError
 from datetime import datetime
 from pathlib import Path
+from typing import Tuple
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+from ruamel.yaml.parser import ParserError
 yaml = YAML()
 
 
@@ -14,7 +15,10 @@ class MizEdit(Extension):
 
     def __init__(self, server: Server, config: dict):
         super().__init__(server, config)
-        self.presets = yaml.load(Path("config/presets.yaml").read_text(encoding='utf-8'))
+        try:
+            self.presets = yaml.load(Path("config/presets.yaml").read_text(encoding='utf-8'))
+        except ParserError as ex:
+            raise YAMLError('config/presets.yaml', ex)
 
     def get_presets(self):
         presets = []

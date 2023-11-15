@@ -13,6 +13,7 @@ from typing import Optional, Union, TYPE_CHECKING, Tuple, Generator
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+from ruamel.yaml.parser import ParserError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -34,7 +35,8 @@ __all__ = [
     "SettingsDict",
     "RemoteSettingsDict",
     "evaluate",
-    "for_each"
+    "for_each",
+    "YAMLError"
 ]
 
 
@@ -369,3 +371,8 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
             if debug:
                 print("  " * depth + f"|_ {_next} not found.")
             yield None
+
+
+class YAMLError(Exception):
+    def __init__(self, file: str, ex: ParserError):
+        super().__init__(f"Error in {file}, " + ex.__str__().replace('"<unicode string>"', file))

@@ -35,10 +35,11 @@ from core.data.server import Server
 from core.data.impl.serverimpl import ServerImpl
 from core.services.registry import ServiceRegistry
 from core.utils.dcs import LICENSES_URL
-from core.utils.helper import SettingsDict
+from core.utils.helper import SettingsDict, YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+from ruamel.yaml.parser import ParserError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -167,7 +168,10 @@ class NodeImpl(Node):
     def read_locals(self) -> dict:
         _locals = dict()
         if os.path.exists('config/nodes.yaml'):
-            self.all_nodes: dict = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
+            try:
+                self.all_nodes: dict = yaml.load(Path('config/nodes.yaml').read_text(encoding='utf-8'))
+            except ParserError as ex:
+                raise YAMLError('config/nodes.yaml', ex)
             node: dict = self.all_nodes.get(self.name)
             if not node:
                 self.log.error(f'No configuration found for node {self.name} in nodes.yaml! Hostname changed?')

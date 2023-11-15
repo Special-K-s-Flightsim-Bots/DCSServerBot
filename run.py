@@ -5,7 +5,7 @@ import os
 import platform
 import traceback
 
-from core import NodeImpl, ServiceRegistry, ServiceInstallationError
+from core import NodeImpl, ServiceRegistry, ServiceInstallationError, YAMLError
 from install import Install
 from migrate import migrate
 
@@ -92,6 +92,8 @@ if __name__ == "__main__":
         asyncio.run(Main(NodeImpl()).run())
     except (KeyboardInterrupt, asyncio.CancelledError):
         exit(-1)
+    except YAMLError as ex:
+        print(ex)
     except:
         traceback.print_exc()
         exit(-1)

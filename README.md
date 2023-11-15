@@ -113,9 +113,13 @@ Check out [Extensions](./extensions/README.md) for more info on how to use them.
 ## Installation
 
 ### Prerequisites
-You need to have [Python](https://www.python.org/downloads/) 3.9 - 3.11 (recommended) and [PostgreSQL](https://www.postgresql.org/download/) installed.
-If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled.
+You need to have [Python](https://www.python.org/downloads/) 3.9 - 3.11 (3.11 recommended) and [PostgreSQL](https://www.postgresql.org/download/) installed. Please make sure that you tick "Add python.exe to PATH" during your Python installation.<br>
 For autoupdate to work, you have to install [GIT](https://git-scm.com/download/win) and make sure the ```git```-command is in your PATH.
+
+> ⚠️ **Attention!**<br>
+> Python 3.12 is **NOT** compatible with DCSServerBot atm. This is caused by an external library (aiohttp),  
+> which is used in many Python projects. Not only I use it, but many of the 3rd party libraries I use do. So 
+> please be patient until this issue is resolved by the responsive developers.
 
 ### Discord Token
 The bot needs a unique Token per installation. This one can be obtained at http://discord.com/developers <br/>
@@ -152,7 +156,10 @@ your PC that is running the DCS server(s) and give it write permissions, if need
 ### Database
 DCSServerBot uses PostgreSQL to store all information that needs to be persistent. This consists of, but is not limited
 to: players, mission information, statistics and whatnot. DCSServerBot needs a fast database to do this. Install the 
-latest available PostgreSQL version from the above-mentioned website.
+latest available PostgreSQL version from the above-mentioned website.<br>
+
+> ⚠️ **Attention!**<br>
+> If using PostgreSQL remotely over unsecured networks, it is recommended to have SSL enabled.
 
 ### DCSServerBot Installation
 Run the provided `install.cmd` script or just `run.cmd`.<br>

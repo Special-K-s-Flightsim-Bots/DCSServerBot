@@ -1,15 +1,16 @@
 from __future__ import annotations
 import os
-import platform
 
 from abc import ABC
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from ..const import DEFAULT_TAG
+from ..utils.helper import YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+from ruamel.yaml.parser import ParserError
 yaml = YAML()
 
 if TYPE_CHECKING:
@@ -49,7 +50,10 @@ class Service(ABC):
         if not os.path.exists(filename):
             return {}
         self.log.debug(f'  - Reading service configuration from {filename} ...')
-        return yaml.load(Path(filename).read_text(encoding='utf-8'))
+        try:
+            return yaml.load(Path(filename).read_text(encoding='utf-8'))
+        except ParserError as ex:
+            raise YAMLError(filename, ex)
 
     def get_config(self, server: Optional[Server] = None) -> dict:
         if not server:

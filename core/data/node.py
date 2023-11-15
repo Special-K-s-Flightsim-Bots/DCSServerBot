@@ -4,9 +4,11 @@ from typing import Union, Optional, Tuple
 
 from .instance import Instance
 from .server import Server
+from ..utils.helper import YAMLError
 
 # ruamel YAML support
 from ruamel.yaml import YAML
+from ruamel.yaml.parser import ParserError
 yaml = YAML()
 
 __all__ = [
@@ -53,24 +55,27 @@ class Node:
 
     @staticmethod
     def read_config():
-        config = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
-        # set defaults
-        config['logging'] = config.get('logging', {})
-        config['logging']['loglevel'] = config['logging'].get('loglevel', 'DEBUG')
-        config['logging']['logrotate_size'] = config['logging'].get('logrotate_size', 10485760)
-        config['logging']['logrotate_count'] = config['logging'].get('logrotate_count', 5)
-        config['database']['pool_min'] = config['database'].get('pool_min', 5)
-        config['database']['pool_max'] = config['database'].get('pool_max', 10)
-        config['messages'] = config.get('messages', {})
-        config['messages']['player_username'] = config['messages'].get('player_username',
-                                                                       'Your player name contains invalid characters. '
-                                                                       'Please change your name to join our server.')
-        config['messages']['player_default_username'] = \
-            config['messages'].get('player_default_username', 'Please change your default player name at the top right '
-                                                              'of the multiplayer selection list to an individual one!')
-        config['messages']['player_banned'] = config['messages'].get('player_banned', 'You are banned from this '
-                                                                                      'server. Reason: {}')
-        return config
+        try:
+            config = yaml.load(Path('config/main.yaml').read_text(encoding='utf-8'))
+            # set defaults
+            config['logging'] = config.get('logging', {})
+            config['logging']['loglevel'] = config['logging'].get('loglevel', 'DEBUG')
+            config['logging']['logrotate_size'] = config['logging'].get('logrotate_size', 10485760)
+            config['logging']['logrotate_count'] = config['logging'].get('logrotate_count', 5)
+            config['database']['pool_min'] = config['database'].get('pool_min', 5)
+            config['database']['pool_max'] = config['database'].get('pool_max', 10)
+            config['messages'] = config.get('messages', {})
+            config['messages']['player_username'] = config['messages'].get('player_username',
+                                                                           'Your player name contains invalid characters. '
+                                                                           'Please change your name to join our server.')
+            config['messages']['player_default_username'] = \
+                config['messages'].get('player_default_username', 'Please change your default player name at the top right '
+                                                                  'of the multiplayer selection list to an individual one!')
+            config['messages']['player_banned'] = config['messages'].get('player_banned', 'You are banned from this '
+                                                                                          'server. Reason: {}')
+            return config
+        except ParserError as ex:
+            raise YAMLError('config/main.yaml', ex)
 
     def read_locals(self) -> dict:
         raise NotImplemented()
