@@ -51,8 +51,8 @@ class CompetitiveListener(EventListener):
 
     def __init__(self, plugin: Plugin):
         super().__init__(plugin)
-        self.matches: dict[Server, dict[str, Match]] = dict()
-        self.in_match: dict[Server, dict[str, Match]] = dict()
+        self.matches: dict[str, dict[str, Match]] = dict()
+        self.in_match: dict[str, dict[str, Match]] = dict()
 
     @staticmethod
     async def inform_players(match: Match, message: str, time: Optional[int] = 10):
@@ -72,19 +72,19 @@ class CompetitiveListener(EventListener):
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, data: dict) -> None:
-        if data['channel'].startwith('sync-'):
-            self.matches[server] = dict()
-            self.in_match[server] = dict()
+        if data['channel'].startswith('sync-'):
+            self.matches[server.name] = dict()
+            self.in_match[server.name] = dict()
 
     @event(name="onSimulationStart")
     async def onSimulationStart(self, server: Server, data: dict) -> None:
-        self.matches[server] = dict()
-        self.in_match[server] = dict()
+        self.matches[server.name] = dict()
+        self.in_match[server.name] = dict()
 
     @event(name="onSimulationStop")
     async def onSimulationStart(self, server: Server, data: dict) -> None:
-        self.matches[server] = dict()
-        self.in_match[server] = dict()
+        self.matches[server.name] = dict()
+        self.in_match[server.name] = dict()
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
@@ -97,23 +97,23 @@ class CompetitiveListener(EventListener):
     async def addPlayerToMatch(self, server: Server, data: dict) -> None:
         players = server.get_crew_members(server.get_player(name=data['player_name']))
         for player in players:
-            match = self.in_match[server].get(player.ucid)
+            match = self.in_match[server.name].get(player.ucid)
             # don't re-add the player to a match
             if match:
                 return
             match_id = data['match_id']
-            if match_id not in self.matches[server]:
+            if match_id not in self.matches[server.name]:
                 match = Match(match_id=match_id)
-                self.matches[server][match_id] = match
+                self.matches[server.name][match_id] = match
             else:
-                match = self.matches[server][match_id]
+                match = self.matches[server.name][match_id]
                 # check that we were not in the same match but died
                 if player in match.dead[Side.BLUE] or player in match.dead[Side.RED]:
                     server.move_to_spectators(player, reason="You're not allowed to re-join the same match!")
                     return
             is_on = match.is_on()
             match.player_join(player)
-            self.in_match[server][player.ucid] = match
+            self.in_match[server.name][player.ucid] = match
             await self.inform_players(match,
                                       f"Player {player.name} ({self.calculate_rating(self.get_rating(player))}) "
                                       f"joined the {player.side.name} team!")
@@ -133,7 +133,7 @@ class CompetitiveListener(EventListener):
                 self.set_rating(player, rating.create_rating())
                 return self.get_rating(player)
             else:
-                return Rating(row[0], row[1])
+                return Rating(float(row[0]), float(row[1]))
 
     def set_rating(self, player: Player, skill: Rating) -> None:
         with self.pool.connection() as conn:
@@ -153,22 +153,19 @@ class CompetitiveListener(EventListener):
         def print_crew(players: list[Player]) -> str:
             return ' and '.join([p.name for p in players])
 
-        config = self.plugin.get_config(server)
-        if not config or server.status != Status.RUNNING:
-            return
         if data['eventName'] == 'kill':
             # human players only
             if data['arg1'] == -1 or data['arg4'] == -1:
                 return
             # self-kill
-            elif data['arg1'] == data['arg4']:
+            if data['arg1'] == data['arg4']:
                 data['eventName'] = 'self_kill'
                 await self.onGameEvent(server, data)
             # Multi-crew - pilot and all crew members gain points
             killers = server.get_crew_members(server.get_player(id=data['arg1']))
             victims = server.get_crew_members(server.get_player(id=data['arg4']))
             # check if we are in a registered match
-            match: Match = self.in_match[server].get(killers[0].ucid)
+            match: Match = self.in_match[server.name].get(killers[0].ucid)
             if match:
                 for player in victims:
                     match.log.append((datetime.now(), "{} in {} {} {} in {} with {}".format(
@@ -177,7 +174,7 @@ class CompetitiveListener(EventListener):
                         print_crew(victims), data['arg5'],
                         data['arg7'] or 'Guns')))
                     match.player_dead(player)
-                    del self.in_match[server][player.ucid]
+                    del self.in_match[server.name][player.ucid]
             # no, then we don't count team-kills
             elif data['arg3'] != data['arg6']:
                 self.rank_teams(killers, victims)
@@ -187,15 +184,15 @@ class CompetitiveListener(EventListener):
                 for player in victims:
                     player.sendChatMessage("You lost against {}! Your new rating is {}".format(
                         print_crew(killers), self.calculate_rating(self.get_rating(player))))
-        elif data['evenName'] in ['self_kill', 'crash']:
+        elif data['eventName'] in ['self_kill', 'crash']:
             players = server.get_crew_members(server.get_player(id=data['arg1']))
-            match: Match = self.in_match[server].get(players[0].ucid)
+            match: Match = self.in_match[server.name].get(players[0].ucid)
             if match:
                 match.log.append((datetime.now(), "{} in {} died ({})".format(
                     print_crew(players), data['arg2'], data['eventName'])))
                 for player in players:
                     match.player_dead(player)
-                    del self.in_match[server][player.ucid]
+                    del self.in_match[server.name][player.ucid]
         elif data['eventName'] in ['eject', 'disconnect', 'change_slot']:
             player = server.get_player(id=data['arg1'])
             # if the pilot of a MC aircraft leaves, both pilots get booted
@@ -203,13 +200,13 @@ class CompetitiveListener(EventListener):
                 players = server.get_crew_members(server.get_player(id=data['arg1']))
             else:
                 players = [player]
-            match: Match = self.in_match[server].get(player.ucid)
+            match: Match = self.in_match[server.name].get(player.ucid)
             if match:
                 match.log.append((datetime.now(), "{} in {} died ({})".format(
                     print_crew(players), data['arg2'], data['eventName'])))
                 for player in players:
                     match.player_dead(player)
-                    del self.in_match[server][player.ucid]
+                    del self.in_match[server.name][player.ucid]
 
     @chat_command(name="skill", help="Show your TrueSkill")
     async def skill(self, server: Server, player: Player, params: list[str]):
@@ -221,7 +218,7 @@ class CompetitiveListener(EventListener):
             if server.status != Status.RUNNING:
                 continue
             finished: list[Match] = []
-            for match in self.matches[server].values():
+            for match in self.matches[server.name].values():
                 winner = match.is_over()
                 if winner:
                     self.rank_teams(match.teams[winner], match.teams[Side.BLUE if winner == Side.RED else Side.RED])
@@ -237,4 +234,4 @@ class CompetitiveListener(EventListener):
                     await self.inform_players(match, message, 30)
                     finished.append(match)
             for match in finished:
-                del self.matches[server][match.match_id]
+                del self.matches[server.name][match.match_id]

@@ -6,9 +6,11 @@ from core import Plugin, command, utils
 from discord import app_commands
 from plugins.competitive import rating
 from psycopg.rows import dict_row
+from services import DCSServerBot
 from trueskill import Rating
 from typing import Optional, Union
-from services import DCSServerBot
+
+from .listener import CompetitiveListener
 
 
 class Competitive(Plugin):
@@ -96,4 +98,4 @@ class Competitive(Plugin):
 
 
 async def setup(bot: DCSServerBot):
-    await bot.add_cog(Competitive(bot))
+    await bot.add_cog(Competitive(bot, CompetitiveListener))
