@@ -100,7 +100,7 @@ function onEvent(event)
 		msg.time = event.time
 		if event.initiator then
 			msg.initiator = {}
-			category = event.initiator:getCategory()
+			category = Object.getCategory(event.initiator)
 			if category == Object.Category.UNIT then
 				msg.initiator.type = 'UNIT'
 				msg.initiator.unit = event.initiator
@@ -154,7 +154,7 @@ function onEvent(event)
 		end
 		if event.target then
 			msg.target = {}
-			category = event.target:getCategory()
+			category = Object.getCategory(event.target)
 			if category == Object.Category.UNIT then
 				msg.target.type = 'UNIT'
 				msg.target.unit = event.target
