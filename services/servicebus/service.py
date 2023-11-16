@@ -384,7 +384,7 @@ class ServiceBus(Service):
         # handle synchronous responses
         if data.get('channel', '').startswith('sync-') and 'return' in data:
             if data['channel'] in self.listeners:
-                self.log.debug(f"{data['node']}->Master: {json.dumps(data)}")
+                self.log.debug(f"{data.get('node', 'Master')}->Master: {json.dumps(data)}")
                 f = self.listeners[data['channel']]
                 if not f.done():
                     if 'exception' in data:
