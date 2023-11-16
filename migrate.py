@@ -242,8 +242,6 @@ def migrate():
                 main['filter']['tag'] = cfg['FILTER']['TAG_FILTER']
             if 'OPT_PLUGINS' in cfg['BOT']:
                 main["opt_plugins"] = [x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')]
-                if 'backup' in main['opt_plugins']:
-                    main['opt_plugins'].remove('backup')
             bot = {
                 'token': cfg['BOT']['TOKEN'],
                 'owner': int(cfg['BOT']['OWNER']),
