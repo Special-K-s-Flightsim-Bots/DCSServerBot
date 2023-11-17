@@ -24,6 +24,7 @@ function dcsbotgui.onSimulationFrame()
 		dcsbotgui.UDPRecvSocket = socket.udp()
 		dcsbotgui.UDPRecvSocket:setsockname(ip, port)
 		dcsbotgui.UDPRecvSocket:settimeout(0.0001)
+		dcsbotgui.UDPRecvSocket:setoption('reuseaddr', true)
 	end
 
 	local msg, err
