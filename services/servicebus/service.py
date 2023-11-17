@@ -67,6 +67,9 @@ class ServiceBus(Service):
             self.intercom.start()
             if self.master:
                 self.bot = ServiceRegistry.get("Bot").bot
+                while not self.bot:
+                    await asyncio.sleep(1)
+                    self.bot = ServiceRegistry.get("Bot").bot
                 await self.bot.wait_until_ready()
                 await self.register_local_servers()
             else:

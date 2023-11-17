@@ -53,7 +53,7 @@ class Main:
                     # switch master
                     self.node.master = not self.node.master
                     if self.node.master:
-                        self.log.info("Master is not responding... taking over.")
+                        self.log.info("Taking over the Master node ...")
                         if self.node.config.get('use_dashboard', True):
                             await dashboard.stop()
                         for name in registry.services().keys():
