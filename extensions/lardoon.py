@@ -104,9 +104,9 @@ class Lardoon(Extension):
             cmd = os.path.expandvars(self.config['cmd'])
             proc = await asyncio.create_subprocess_exec(
                 cmd,  "import", "-p", path, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
-            await proc.communicate()
+            await proc.wait()
             proc = await asyncio.create_subprocess_exec(
                 cmd, "prune",  "--no-dry-run", stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
-            await proc.communicate()
+            await proc.wait()
         except Exception as ex:
             self.log.exception(ex)

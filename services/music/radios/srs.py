@@ -48,7 +48,7 @@ class SRSRadio(Radio):
                 kwargs = self.config.copy()
                 kwargs['song'] = get_tag(file).title or os.path.basename(file)
                 self.server.sendChatMessage(Coalition.ALL, utils.format_string(self.config['popup'], **kwargs))
-            await self.process.communicate()
+            await self.process.wait()
         except Exception as ex:
             self.log.exception(ex)
         finally:

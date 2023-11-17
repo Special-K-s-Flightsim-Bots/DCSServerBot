@@ -277,10 +277,11 @@ class NodeImpl(Node):
                             if modules:
                                 self.log.warning('  => requirements.txt has changed. Installing missing modules...')
                                 proc = await asyncio.create_subprocess_exec(
-                                    sys.executable, '-m', 'pip', '-q', 'install', '-r', 'requirements.txt')
-                                await proc.communicate()
+                                    sys.executable, '-m', 'pip', '-q', 'install', '-r', 'requirements.txt',
+                                    stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+                                await proc.wait()
                             self.log.warning('- Restart needed => exiting.')
-                            raise KeyboardInterrupt()
+                            self.shutdown()
                         except git.exc.GitCommandError:
                             self.log.error('  => Autoupdate failed!')
                             self.log.error('     Please revert back the changes in these files:')
@@ -337,9 +338,10 @@ class NodeImpl(Node):
         try:
             process = await asyncio.create_subprocess_exec(
                 os.path.join(self.installation, 'bin', 'dcs_updater.exe'),
-                '--quiet', 'update', startupinfo=startupinfo
+                '--quiet', 'update', startupinfo=startupinfo, stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
             )
-            await process.communicate()
+            await process.wait()
             if process.returncode != 0:
                 return process.returncode
         except Exception as ex:
@@ -372,7 +374,7 @@ class NodeImpl(Node):
         proc = await asyncio.create_subprocess_exec(
             os.path.join(self.installation, 'bin', 'dcs_updater.exe'),
             '--quiet', what, module, startupinfo=startupinfo)
-        await proc.communicate()
+        await proc.wait()
 
     async def get_installed_modules(self) -> list[str]:
         with open(os.path.join(self.installation, 'autoupdate.cfg'), encoding='utf8') as cfg:

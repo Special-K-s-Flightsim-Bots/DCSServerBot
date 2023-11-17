@@ -362,6 +362,8 @@ class Plugin(commands.Cog):
                     all_new[DEFAULT_TAG] = config
             if 'commands' in old:
                 new['commands'] = old['commands']
+            if not all_new[platform.node()]:
+                del all_new[platform.node()]
         else:
             all_new = old
         with open(new_file, 'w') as outfile:

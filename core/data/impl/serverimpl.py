@@ -62,11 +62,12 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         missions = self.server.settings['missionList']
         if path in missions:
             if self.server.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
-                if missions.index(path) + 1 == self.server.mission_id:
+                idx = missions.index(path) + 1
+                if idx == self.server.mission_id:
                     self.log.fatal(f'The running mission on server {self.server.name} got deleted!')
                     return
                 else:
-                    self.server.send_to_dcs({"command": "deleteMission", "id": missions.index(path) + 1})
+                    self.server.send_to_dcs({"command": "deleteMission", "id": idx})
             else:
                 missions.remove(path)
                 self.server.settings['missionList'] = missions
@@ -107,6 +108,7 @@ class ServerImpl(Server):
                 self._settings['missionList'] = []
             elif isinstance(self._settings['missionList'], dict):
                 self._settings['missionList'] = list(self._settings['missionList'].values())
+            self._settings['missionList'] = [os.path.normpath(x) for x in self._settings['missionList']]
         return self._settings
 
     @property
@@ -221,12 +223,12 @@ class ServerImpl(Server):
                     filename = None
         else:
             filename = self.current_mission.filename
-        return filename
+        return os.path.normpath(filename)
 
     async def get_current_mission_theatre(self) -> Optional[str]:
         filename = await self.get_current_mission_file()
         if filename:
-            miz = MizFile(self.bot, filename)
+            miz = MizFile(self.node, filename)
             return miz.theatre
 
     def serialize(self, message: dict):

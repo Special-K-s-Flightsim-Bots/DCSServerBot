@@ -62,8 +62,8 @@ class Player(DataObject):
                             self._member = self.bot.guilds[0].get_member(row[0])
                             self._verified = row[2]
                         self.banned = row[1]
-                        if row[2]:
-                            self.coalition = Coalition.RED if row[2] == 'red' else Coalition.BLUE
+                        if row[3]:
+                            self.coalition = Coalition.RED if row[3] == 'red' else Coalition.BLUE
                     cursor.execute("""
                         INSERT INTO players (ucid, discord_id, name, last_seen) VALUES (%s, -1, %s, NOW()) 
                         ON CONFLICT (ucid) DO UPDATE SET name=excluded.name, last_seen=excluded.last_seen

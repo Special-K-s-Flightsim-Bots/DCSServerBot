@@ -53,7 +53,7 @@ class Backup(Plugin):
                 "command": "rpc",
                 "service": "Backup",
                 "method": f"backup_{what}"
-            }, node=node.name)
+            }, node=node.name, timeout=120)
             await interaction.followup.send(f"Backup of {what} completed.", ephemeral=ephemeral)
         except Exception as ex:
             self.log.exception(ex)

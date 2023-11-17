@@ -214,7 +214,7 @@ class Mission(Plugin):
 
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=ephemeral)
-        if server.settings['missionList'][mission_id] == server.current_mission.filename:
+        if server.current_mission and server.settings['missionList'][mission_id] == server.current_mission.filename:
             if result == 'later':
                 server.on_empty = {"command": "restart", "user": interaction.user}
                 server.restart_pending = True

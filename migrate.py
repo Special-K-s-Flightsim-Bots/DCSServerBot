@@ -23,14 +23,10 @@ yaml = YAML()
 
 
 def post_migrate_admin():
-    with open('config/plugins/admin.yaml') as infile:
-        data = yaml.load(infile)
-    config = False
-    remove = -1
-    for instance in data[platform.node()].values():
-        if instance == 'commands':
-            continue
-        for idx, download in enumerate(data[platform.node()][instance]['downloads']):
+    def _migrate(_data: dict):
+        remove = -1
+        config = False
+        for idx, download in enumerate(_data['downloads']):
             if download['label'] == 'DCSServerBot Logs':
                 download['directory'] = 'logs'
                 download['pattern'] = 'dcssb-*.log*'
@@ -42,35 +38,54 @@ def post_migrate_admin():
                 remove = idx
             download['directory'] = download['directory'].replace('{server.installation}', '{server.instance.name}')
         if remove != -1:
-            del data[instance]['downloads'][remove]
+            del _data['downloads'][remove]
         if config:
-            data[instance]['downloads'].append({
+            _data['downloads'].append({
                 "label": "Plugin Config Files",
                 "directory": "./config/plugins",
                 "pattern": "*.yaml"
             })
-            data[instance]['downloads'].append({
+            _data['downloads'].append({
                 "label": "Service Config Files",
                 "directory": "./config/services",
                 "pattern": "*.yaml"
             })
+
+    with open('config/plugins/admin.yaml') as infile:
+        data = yaml.load(infile)
+    for node in data:
+        if node == 'commands':
+            continue
+        elif node == DEFAULT_TAG:
+            _migrate(data[DEFAULT_TAG])
+        elif node == platform.node():
+            for name, instance in data[node].items():
+                _migrate(instance)
+
     with open('config/plugins/admin.yaml', 'w') as outfile:
         yaml.dump(data, outfile)
 
 
 def post_migrate_music():
+    def _migrate(_data: dict):
+        _data['radios'] = {
+            'Radio 1': deepcopy(_data['sink'])
+        }
+        _data['radios']['Radio 1']['type'] = 'SRSRadio'
+        _data['radios']['Radio 1']['display_name'] = _data['radios']['Radio 1']['name']
+        del _data['radios']['Radio 1']['name']
+        del _data['sink']
+
     with open('config/plugins/music.yaml') as infile:
         data = yaml.load(infile)
-    for name, instance in data[platform.node()].items():
-        if name == 'commands':
+    for node in data:
+        if node == 'commands':
             continue
-        instance['radios'] = {
-            'Radio 1': deepcopy(instance['sink'])
-        }
-        instance['radios']['Radio 1']['type'] = 'SRSRadio'
-        instance['radios']['Radio 1']['display_name'] = instance['radios']['Radio 1']['name']
-        del instance['radios']['Radio 1']['name']
-        del instance['sink']
+        elif node == DEFAULT_TAG:
+            _migrate(data[DEFAULT_TAG])
+        elif node == platform.node():
+            for name, instance in data[node].items():
+                _migrate(instance)
     with open('config/plugins/music.yaml', 'w') as outfile:
         yaml.dump(data, outfile)
 
@@ -242,8 +257,6 @@ def migrate():
                 main['filter']['tag'] = cfg['FILTER']['TAG_FILTER']
             if 'OPT_PLUGINS' in cfg['BOT']:
                 main["opt_plugins"] = [x.strip() for x in cfg['BOT']['OPT_PLUGINS'].split(',')]
-                if 'backup' in main['opt_plugins']:
-                    main['opt_plugins'].remove('backup')
             bot = {
                 'token': cfg['BOT']['TOKEN'],
                 'owner': int(cfg['BOT']['OWNER']),

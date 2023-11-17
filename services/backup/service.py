@@ -95,7 +95,7 @@ class BackupService(Service):
         self.log.info("Backing up database...")
         process = await asyncio.create_subprocess_exec(cmd, *args, stdin=asyncio.subprocess.DEVNULL,
                                                        stdout=asyncio.subprocess.DEVNULL)
-        await process.communicate()
+        await process.wait()
         self.log.info("Backup of database complete.")
 
     @staticmethod

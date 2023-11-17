@@ -29,9 +29,10 @@ class Member(DataObject):
                 WHERE p.discord_id = %s AND p.name IS NOT NULL AND COALESCE(b.banned_until, NOW()) >= NOW()
                 ORDER BY manual DESC LIMIT 1
             """, (self.member.id, )).fetchone()
-            self.ucid = row[0]
-            self.banned = row[1] is True
-            self._verified = row[2]
+            if row:
+                self.ucid = row[0]
+                self.banned = row[1] is True
+                self._verified = row[2]
 
     @property
     def verified(self):

@@ -233,7 +233,9 @@ def get_all_players(self, linked: Optional[bool] = None) -> list[Tuple[str, str]
         return [(row[0], row[1]) for row in conn.execute(sql).fetchall()]
 
 
-def is_ucid(ucid: str) -> bool:
+def is_ucid(ucid: Optional[str]) -> bool:
+    if not ucid:
+        return False
     return len(ucid) == 32 and ucid.isalnum() and ucid == ucid.lower()
 
 
@@ -326,7 +328,7 @@ def evaluate(value: Union[str, int, bool], **kwargs) -> Union[str, int, bool]:
 # * is a wildcard to describe any item in a specific list
 # (...) is python code that will be evaluated to find a specific item inside a list
 def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
-             debug: Optional[bool] = False) -> Generator[dict]:
+             debug: Optional[bool] = False, **kwargs) -> Generator[dict]:
     if not data or len(search) == depth:
         if debug:
             print("  " * depth + ("|_ RESULT found => Processing ..." if data else "|_ NO result found, skipping."))
@@ -352,14 +354,14 @@ def for_each(data: dict, search: list[str], depth: Optional[int] = 0, *,
                 if debug:
                     print("  " * depth + f"|_ Searching pattern {_next} on {len(data)} {search[depth-1]} elements")
                 for idx, value in enumerate(data):
-                    if evaluate(_next, **value):
+                    if evaluate(_next, **(kwargs | value)):
                         if debug:
                             print("  " * depth + f"  - Element {idx+1} matches.")
                         yield from for_each(value, search, depth+1, debug=debug)
             else:
                 if debug:
                     print("  " * depth + f"|_ Evaluating {_next} ...")
-                if evaluate(_next, **data):
+                if evaluate(_next, **(kwargs | data)):
                     if debug:
                         print("  " * depth + "  - Element matches.")
                     yield from for_each(data, search, depth+1, debug=debug)
