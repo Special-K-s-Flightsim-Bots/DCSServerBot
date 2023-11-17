@@ -233,7 +233,9 @@ def get_all_players(self, linked: Optional[bool] = None) -> list[Tuple[str, str]
         return [(row[0], row[1]) for row in conn.execute(sql).fetchall()]
 
 
-def is_ucid(ucid: str) -> bool:
+def is_ucid(ucid: Optional[str]) -> bool:
+    if not ucid:
+        return False
     return len(ucid) == 32 and ucid.isalnum() and ucid == ucid.lower()
 
 

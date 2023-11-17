@@ -281,7 +281,7 @@ class NodeImpl(Node):
                                     stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
                                 await proc.wait()
                             self.log.warning('- Restart needed => exiting.')
-                            raise KeyboardInterrupt()
+                            self.shutdown()
                         except git.exc.GitCommandError:
                             self.log.error('  => Autoupdate failed!')
                             self.log.error('     Please revert back the changes in these files:')
