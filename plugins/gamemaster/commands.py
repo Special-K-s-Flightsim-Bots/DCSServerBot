@@ -173,18 +173,16 @@ class GameMaster(Plugin):
         if not await utils.yn_question(interaction,
                                        f'Do you want to mass-reset all coalition-bindings from your players?',
                                        ephemeral=ephemeral):
-            await interaction.response.send_message('Aborted.', ephemeral=ephemeral)
+            await interaction.followup.send('Aborted.', ephemeral=ephemeral)
             return
         try:
             for server in self.bot.servers.values():
                 if not server.locals.get('coalitions'):
                     continue
                 await self.eventlistener.reset_coalitions(server, True)
-                await interaction.response.send_message(f'Coalition bindings reset for all players.',
-                                                        ephemeral=ephemeral)
+                await interaction.followup.send(f'Coalition bindings reset for all players.', ephemeral=ephemeral)
         except discord.Forbidden:
-            await interaction.response.send_message('The bot is missing the "Manage Roles" permission.',
-                                                    ephemeral=ephemeral)
+            await interaction.followup.send('The bot is missing the "Manage Roles" permission.', ephemeral=ephemeral)
             await self.bot.audit(f'permission "Manage Roles" missing.', user=self.bot.member)
 
     # New command group "/mission"
