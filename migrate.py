@@ -93,6 +93,9 @@ def post_migrate_music():
 def post_migrate_greenieboard():
     with open('config/plugins/greenieboard.yaml') as infile:
         data = yaml.load(infile)
+    # we only need to do a post migration is there were server specific settings
+    if platform.node() not in data:
+        return
     if os.path.exists('config/services/cleanup.yaml'):
         with open('config/services/cleanup.yaml') as infile:
             cleanups = yaml.load(infile)
@@ -143,12 +146,12 @@ def migrate():
     else:
         guild_id = IntPrompt.ask(
             'Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")')
-    yn = Prompt.ask(f"[red]ATTENTION:[/] Your database will be migrated to version 3.0. Do you want to continue?",
-                    choices=['y', 'n'], default='n')
-    if yn.lower() != 'y':
-        exit(-2)
-    single_admin = Prompt.ask(f"Do you want a central admin channel for your servers (Y) or keep separate ones (N)?",
-                              choices=['y', 'n'], default='n') == 'y'
+        yn = Prompt.ask(f"[red]ATTENTION:[/] Your database will be migrated to version 3.0. Do you want to continue?",
+                        choices=['y', 'n'], default='n')
+        if yn.lower() != 'y':
+            exit(-2)
+        single_admin = Prompt.ask(f"Do you want a central admin channel for your servers (Y) or keep separate ones (N)?",
+                                  choices=['y', 'n'], default='n') == 'y'
     print("Now, lean back and enjoy the migration...\n")
 
     try:
